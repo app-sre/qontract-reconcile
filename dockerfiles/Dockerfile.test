@@ -1,0 +1,14 @@
+FROM centos:7
+
+ENV LC_ALL=en_US.utf8
+ENV LANG=en_US.utf8
+
+RUN yum install -y epel-release && \
+    yum install -y python34 python36 python2-pip && \
+    pip install --upgrade pip && \
+    pip install tox
+
+COPY . /package
+WORKDIR /package
+
+CMD [ "tox" ]

@@ -1,0 +1,9 @@
+*.pyc
+*.egg-info
+*.toml
+
+.tox
+.pytest_cache
+.eggs
+
+build

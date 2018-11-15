@@ -1,0 +1,3 @@
+# [graphql]
+# server = "https://app-interface.staging.devshift.net/"
+# token = "Basic ..."
