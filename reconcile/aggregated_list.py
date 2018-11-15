@@ -30,7 +30,7 @@ class AggregatedList(object):
 
         diff = {
             'insert': [
-                right_params.right_params(p)
+                right_state.get_by_params_hash(p)
                 for p in right_params
                 if p not in left_params
             ],
