@@ -148,9 +148,7 @@ def del_users_org_team(params, items):
 
 
 def service_is(service):
-    def m(params):
-        return params.get("service") == service
-    return m
+    return lambda p: p.get("service") == service
 
 
 def run(dry_run=False):
