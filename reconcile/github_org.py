@@ -4,7 +4,7 @@ import logging
 from github import Github
 
 import reconcile.gql as gql
-from reconcile.aggregated_list import AggregatedList
+from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
 from reconcile.config import get_config
 
 QUERY = """
@@ -91,85 +91,123 @@ def fetch_desired_state():
     return state
 
 
+def add_org(params, items):
+    raise Exception("Cannot create a Github Org")
+
+
+def del_org(params, items):
+    raise Exception("Cannot delete a Github Org")
+
+
+def add_org_team(params, items):
+    logging.info(["add_org_team", params["org"], params["team"]])
+
+
+def del_org_team(params, items):
+    logging.info(["del_org_team", params["org"], params["team"]])
+
+
+def add_users_org(params, items):
+    for member in items:
+        logging.info([
+            "add_to_org",
+            member,
+            params["org"]
+        ])
+
+
+def del_users_org(params, items):
+    # delete users
+    for member in items:
+        logging.info([
+            "del_from_org",
+            member,
+            params["org"]
+        ])
+
+
+def add_users_org_team(params, items):
+    for member in items:
+        logging.info([
+            "add_to_org_team",
+            member,
+            params["org"],
+            params["team"]
+        ])
+
+
+def del_users_org_team(params, items):
+    # delete users
+    for member in items:
+        logging.info([
+            "del_from_org_team",
+            member,
+            params["org"],
+            params["team"]
+        ])
+
+
+def service_is(service):
+    def m(params):
+        return params.get("service") == service
+    return m
+
+
 def run(dry_run=False):
     config = get_config()
 
     current_state = fetch_current_state(config)
     desired_state = fetch_desired_state()
 
-    actions = current_state.diff(desired_state)
+    diff = current_state.diff(desired_state)
 
     if dry_run:
         print(json.dumps(actions, indent=4))
         sys.exit(0)
 
-    for item in actions["insert"]:
-        params = item["params"]
-        service = params["service"]
+    runner = AggregatedDiffRunner(diff)
 
-        if service == "github-org":
-            raise Exception("Cannot create a Github Org")
-        elif service == "github-org-team":
-            # create team
-            logging.info(["create_org_team", params["org"], params["team"]])
+    # insert github-org
+    runner.register("insert", service_is("github-org"), add_org)
 
-            # add users
-            for member in item["items"]:
-                logging.info([
-                    "add_to_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
-        else:
-            raise Exception("Unknown service: {}".format(service))
+    # insert github-org-team
+    runner.register("insert", service_is("github-org-team"), add_org_team)
+    runner.register(
+        "insert",
+        service_is("github-org-team"),
+        add_users_org_team
+    )
 
-    for item in actions["delete"]:
-        params = item["params"]
-        service = params["service"]
+    # delete github-org
+    runner.register("delete", service_is("github-org"), del_org)
 
-        if service == "github-org":
-            raise Exception("Cannot delete a Github Org")
-        elif service == "github-org-team":
-            # remove users
-            for member in item["items"]:
-                logging.info([
-                    "delete_from_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
-            # TODO: Do we want to delete the team?
-            # logging.info(["delete_org_team", params["org"], params["team"]])
-        else:
-            raise Exception("Unknown service: {}".format(service))
+    # delete github-org-team
+    runner.register(
+        "delete",
+        service_is("github-org-team"),
+        del_users_org_team
+    )
+    # TODO: Do we want to enable this?
+    # runner.register("delete", service_is("github-org-team"), del_org_team)
 
-    for item in actions["update"]:
-        params = item["params"]
-        service = params["service"]
+    # update-insert github-org
+    runner.register("update-insert", service_is("github-org"), add_users_org)
 
-        if service == "github-org":
-            for member in item["insert"]:
-                logging.info(["add_to_org", member, params["org"]])
+    # update-insert github-org-team
+    runner.register(
+        "update-insert",
+        service_is("github-org-team"),
+        add_users_org_team
+    )
 
-            for member in item["delete"]:
-                logging.info(["remove_from_org", member, params["org"]])
+    # update-delete github-org
+    runner.register("update-delete", service_is("github-org"), del_users_org)
 
-        elif service == "github-org-team":
-            for member in item["insert"]:
-                logging.info([
-                    "add_to_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
+    # update-delete github-org-team
+    runner.register(
+        "update-delete",
+        service_is("github-org-team"),
+        del_users_org_team
+    )
 
-            for member in item["delete"]:
-                logging.info([
-                    "remove_from_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
-        else:
-            raise Exception("Unknown service: {}".format(service))
+    runner.run()
