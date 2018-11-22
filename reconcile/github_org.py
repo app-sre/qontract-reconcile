@@ -8,20 +8,26 @@ from reconcile.config import get_config
 
 QUERY = """
 {
-  access {
-    teams {
-      members {
+  role {
+    name
+    members {
+      ...on Bot {
+        schema
+        github_username_optional: github_username
+      }
+      ... on User {
+        schema
         github_username
       }
-      permissions {
-        service
-        ...on AccessPermissionGithubOrg {
-          org
-        }
-        ...on AccessPermissionGithubOrgTeam {
-          org
-          team
-        }
+    }
+    permissions {
+      service
+      ...on PermissionGithubOrg {
+        org
+      }
+      ...on PermissionGithubOrgTeam {
+        org
+        team
       }
     }
   }
@@ -64,11 +70,20 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
-    for datafile in result['data']['access']:
-        for team in datafile['teams']:
-            members = [i['github_username'] for i in team['members']]
-            for params in team['permissions']:
-                state.add(params, members)
+    for role in result['data']['role']:
+        members = []
+        for member in role['members']:
+            if member['schema'] == 'access/bot.yml':
+                if member.get('github_username_optional'):
+                    members.append(member.get('github_username_optional'))
+            elif member['schema'] == 'access/user.yml':
+                members.append(member['github_username'])
+
+        for permission in role['permissions']:
+            service = permission['service']
+
+            if service == 'github-org' or service == 'github-org-team':
+                state.add(permission, members)
 
     return state
 
