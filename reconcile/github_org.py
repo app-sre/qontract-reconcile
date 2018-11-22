@@ -162,7 +162,7 @@ def run(dry_run=False):
     diff = current_state.diff(desired_state)
 
     if dry_run:
-        print(json.dumps(actions, indent=4))
+        print(json.dumps(diff, indent=4))
         sys.exit(0)
 
     runner = AggregatedDiffRunner(diff)
