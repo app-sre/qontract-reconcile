@@ -1,5 +1,6 @@
 import json
 import sys
+import logging
 from github import Github
 
 import reconcile.gql as gql
@@ -70,19 +71,21 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
+    def username(m):
+        if m['schema'] == 'access/bot.yml':
+            return m.get('github_username_optional')
+        else:
+            return m['github_username']
+
     for role in result['data']['role']:
-        members = []
-        for member in role['members']:
-            if member['schema'] == 'access/bot.yml':
-                if member.get('github_username_optional'):
-                    members.append(member.get('github_username_optional'))
-            elif member['schema'] == 'access/user.yml':
-                members.append(member['github_username'])
+        members = [
+            member for member in
+            (username(m) for m in role['members'])
+            if member is not None
+        ]
 
         for permission in role['permissions']:
-            service = permission['service']
-
-            if service == 'github-org' or service == 'github-org-team':
+            if permission['service'] in ['github-org', 'github-org-team']:
                 state.add(permission, members)
 
     return state
@@ -94,6 +97,79 @@ def run(dry_run=False):
     current_state = fetch_current_state(config)
     desired_state = fetch_desired_state()
 
+    actions = current_state.diff(desired_state)
+
     if dry_run:
-        print(json.dumps(current_state.diff(desired_state)))
+        print(json.dumps(actions, indent=4))
         sys.exit(0)
+
+    for item in actions["insert"]:
+        params = item["params"]
+        service = params["service"]
+
+        if service == "github-org":
+            raise Exception("Cannot create a Github Org")
+        elif service == "github-org-team":
+            # create team
+            logging.info(["create_org_team", params["org"], params["team"]])
+
+            # add users
+            for member in item["items"]:
+                logging.info([
+                    "add_to_org_team",
+                    member,
+                    params["org"],
+                    params["team"]
+                ])
+        else:
+            raise Exception("Unknown service: {}".format(service))
+
+    for item in actions["delete"]:
+        params = item["params"]
+        service = params["service"]
+
+        if service == "github-org":
+            raise Exception("Cannot delete a Github Org")
+        elif service == "github-org-team":
+            # remove users
+            for member in item["items"]:
+                logging.info([
+                    "delete_from_org_team",
+                    member,
+                    params["org"],
+                    params["team"]
+                ])
+            # TODO: Do we want to delete the team?
+            # logging.info(["delete_org_team", params["org"], params["team"]])
+        else:
+            raise Exception("Unknown service: {}".format(service))
+
+    for item in actions["update"]:
+        params = item["params"]
+        service = params["service"]
+
+        if service == "github-org":
+            for member in item["insert"]:
+                logging.info(["add_to_org", member, params["org"]])
+
+            for member in item["delete"]:
+                logging.info(["remove_from_org", member, params["org"]])
+
+        elif service == "github-org-team":
+            for member in item["insert"]:
+                logging.info([
+                    "add_to_org_team",
+                    member,
+                    params["org"],
+                    params["team"]
+                ])
+
+            for member in item["delete"]:
+                logging.info([
+                    "remove_from_org_team",
+                    member,
+                    params["org"],
+                    params["team"]
+                ])
+        else:
+            raise Exception("Unknown service: {}".format(service))
