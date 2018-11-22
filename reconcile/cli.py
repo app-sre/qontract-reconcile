@@ -3,6 +3,8 @@ import click
 import reconcile.config as config
 import reconcile.gql as gql
 import reconcile.github_org
+import logging
+
 
 services = {
     'github': reconcile.github_org
@@ -17,8 +19,19 @@ services = {
               default=False,
               help='If true, only print the planned actions that would be'
                    'performed, without executing them it.')
+@click.option('--log-level',
+              help='log-level of the command. Defaults to INFO.',
+              type=click.Choice([
+                  'DEBUG',
+                  'INFO',
+                  'WARNING',
+                  'ERROR',
+                  'CRITICAL']))
 @click.argument('service', type=click.Choice(services.keys()))
-def main(configfile, dry_run, service):
+def main(configfile, dry_run, log_level, service):
+    level = getattr(logging, log_level) if log_level else logging.INFO
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=level)
+
     config.init_from_toml(configfile)
     gql.init_from_config()
 
