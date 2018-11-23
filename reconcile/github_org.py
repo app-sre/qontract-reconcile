@@ -91,12 +91,10 @@ def fetch_desired_state():
     return state
 
 
-def add_org(params, items):
-    raise Exception("Cannot create a Github Org")
-
-
-def del_org(params, items):
-    raise Exception("Cannot delete a Github Org")
+def _raise(msg):
+    def raiseException(params, items):
+        raise Exception(msg)
+    return raiseException
 
 
 def add_org_team(params, items):
@@ -166,7 +164,11 @@ def run(dry_run=False):
     runner = AggregatedDiffRunner(diff)
 
     # insert github-org
-    runner.register("insert", service_is("github-org"), add_org)
+    runner.register(
+        "insert",
+        service_is("github-org"),
+        _raise("Cannot create a Github Org")
+    )
 
     # insert github-org-team
     runner.register("insert", service_is("github-org-team"), add_org_team)
@@ -177,7 +179,11 @@ def run(dry_run=False):
     )
 
     # delete github-org
-    runner.register("delete", service_is("github-org"), del_org)
+    runner.register(
+        "delete",
+        service_is("github-org"),
+        _raise("Cannot delete a Github Org")
+    )
 
     # delete github-org-team
     runner.register(
