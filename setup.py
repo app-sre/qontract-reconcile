@@ -20,7 +20,8 @@ setup(
         "graphqlclient==0.2.4",
         "toml==0.10.0",
         "jsonpath-rw==1.4.0",
-        "PyGithub==1.40"
+        "PyGithub==1.40",
+        "requests==2.19.1"
     ],
 
     test_suite="tests",

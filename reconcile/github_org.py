@@ -6,6 +6,7 @@ from github import Github
 import reconcile.gql as gql
 from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
 from reconcile.config import get_config
+from reconcile.raw_github_api import RawGithubApi
 
 QUERY = """
 {
@@ -40,25 +41,34 @@ def fetch_current_state(config):
     state = AggregatedList()
 
     for org_name, org_config in config['github'].items():
-        g = Github(org_config["token"])
+        token = org_config["token"]
+        raw_gh_api = RawGithubApi(token)
+
+        g = Github(token)
         org = g.get_organization(org_name)
+
+        members = [member.login for member in org.get_members()]
+        members.extend(raw_gh_api.org_invitations(org_name))
 
         state.add(
             {
                 'service': 'github-org',
                 'org': org_name,
             },
-            [member.login for member in org.get_members()]
+            members
         )
 
         for team in org.get_teams():
+            members = [member.login for member in team.get_members()]
+            members.extend(raw_gh_api.team_invitations(team.id))
+
             state.add(
                 {
                     'service': 'github-org-team',
                     'org': org_name,
                     'team': team.name
                 },
-                [member.login for member in team.get_members()]
+                members
             )
 
     return state
@@ -85,8 +95,14 @@ def fetch_desired_state():
         ]
 
         for permission in role['permissions']:
-            if permission['service'] in ['github-org', 'github-org-team']:
+            if permission['service'] == 'github-org':
                 state.add(permission, members)
+            elif permission['service'] == 'github-org-team':
+                state.add(permission, members)
+                state.add({
+                    'service': 'github-org',
+                    'org': permission['org'],
+                }, members)
 
     return state
 
@@ -155,12 +171,28 @@ def run(dry_run=False):
     current_state = fetch_current_state(config)
     desired_state = fetch_desired_state()
 
+    # Ensure current_state and desired_state match orgs
+    current_orgs = set([
+        item["params"]["org"]
+        for item in current_state.dump()
+    ])
+
+    desired_orgs = set([
+        item["params"]["org"]
+        for item in desired_state.dump()
+    ])
+
+    assert current_orgs == desired_orgs, \
+        "Current orgs don't match desired orgs"
+
+    # Calculate diff
     diff = current_state.diff(desired_state)
 
     if dry_run:
         print(json.dumps(diff, indent=4))
         sys.exit(0)
 
+    # Run actions
     runner = AggregatedDiffRunner(diff)
 
     # insert github-org
