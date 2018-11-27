@@ -5,15 +5,17 @@ class AggregatedList(object):
     def __init__(self):
         self._dict = {}
 
-    def add(self, params, items):
+    def add(self, params, new_items):
         params_hash = self.hash_params(params)
 
-        if self._dict.get(params_hash):
-            for item in items:
-                if item not in self._dict[params_hash]["items"]:
-                    self._dict[params_hash]["items"].append(item)
-        else:
-            self._dict[params_hash] = self.element(params, items)
+        if self._dict.get(params_hash) is None:
+            self._dict[params_hash] = {
+                'params': params,
+                'items': []
+            }
+
+        items = self._dict[params_hash]["items"]
+        self._dict[params_hash]["items"] = list(set(items + new_items))
 
     def get(self, params):
         return self._dict[self.hash_params(params)]
@@ -78,13 +80,6 @@ class AggregatedList(object):
     @staticmethod
     def hash_params(params):
         return hash(json.dumps(params, sort_keys=True))
-
-    @staticmethod
-    def element(params, items):
-        return {
-            'params': params,
-            'items': items
-        }
 
 
 class AggregatedDiffRunner(object):
