@@ -13,21 +13,21 @@ QUERY = """
   role {
     name
     members {
-      ...on Bot {
+      ...on Bot_v1 {
         schema
         github_username_optional: github_username
       }
-      ... on User {
+      ... on User_v1 {
         schema
         github_username
       }
     }
     permissions {
       service
-      ...on PermissionGithubOrg {
+      ...on PermissionGithubOrg_v1 {
         org
       }
-      ...on PermissionGithubOrgTeam {
+      ...on PermissionGithubOrgTeam_v1 {
         org
         team
       }
@@ -82,7 +82,7 @@ def fetch_desired_state():
     state = AggregatedList()
 
     def username(m):
-        if m['schema'] == 'access/bot.yml':
+        if m['schema'] == 'access/bot-1.yml':
             return m.get('github_username_optional')
         else:
             return m['github_username']
