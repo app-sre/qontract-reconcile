@@ -5,15 +5,17 @@ class AggregatedList(object):
     def __init__(self):
         self._dict = {}
 
-    def add(self, params, items):
+    def add(self, params, new_items):
         params_hash = self.hash_params(params)
 
-        if self._dict.get(params_hash):
-            for item in items:
-                if item not in self._dict[params_hash]["items"]:
-                    self._dict[params_hash]["items"].append(item)
-        else:
-            self._dict[params_hash] = self.element(params, items)
+        if self._dict.get(params_hash) is None:
+            self._dict[params_hash] = {
+                'params': params,
+                'items': []
+            }
+
+        items = self._dict[params_hash]["items"]
+        self._dict[params_hash]["items"] = list(set(items + new_items))
 
     def get(self, params):
         return self._dict[self.hash_params(params)]
@@ -38,10 +40,11 @@ class AggregatedList(object):
                 self.get_by_params_hash(p)
                 for p in left_params
                 if p not in right_params
-            ]
+            ],
+            'update-insert': [],
+            'update-delete': []
         }
 
-        diff['update'] = []
         union = [p for p in left_params if p in right_params]
 
         for p in union:
@@ -51,14 +54,20 @@ class AggregatedList(object):
             l_items = left['items']
             r_items = right['items']
 
-            if set(l_items) != set(r_items):
-                diff['update'].append(
-                    {
-                        'params': left['params'],
-                        'insert': [i for i in r_items if i not in l_items],
-                        'delete': [i for i in l_items if i not in r_items],
-                    }
-                )
+            update_insert = [i for i in r_items if i not in l_items]
+            update_delete = [i for i in l_items if i not in r_items]
+
+            if update_insert:
+                diff['update-insert'].append({
+                    'params': left['params'],
+                    'items': update_insert
+                })
+
+            if update_delete:
+                diff['update-delete'].append({
+                    'params': left['params'],
+                    'items': update_delete
+                })
 
         return diff
 
@@ -72,9 +81,22 @@ class AggregatedList(object):
     def hash_params(params):
         return hash(json.dumps(params, sort_keys=True))
 
-    @staticmethod
-    def element(params, items):
-        return {
-            'params': params,
-            'items': items
-        }
+
+class AggregatedDiffRunner(object):
+    def __init__(self, state):
+        self.state = state
+        self.actions = []
+
+    def register(self, on, cond, action):
+        self.actions.append((on, cond, action))
+
+    def run(self):
+        for (on, cond, action) in self.actions:
+            diff_list = self.state.get(on, [])
+
+            for diff_element in diff_list:
+                params = diff_element['params']
+                items = diff_element['items']
+
+                if cond(params):
+                    action(params, items)
