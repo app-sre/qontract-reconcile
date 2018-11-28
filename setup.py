@@ -21,7 +21,7 @@ setup(
         "toml==0.10.0",
         "jsonpath-rw==1.4.0",
         "PyGithub==1.40",
-        "requests==2.19.1"
+        "requests==2.20.0"
     ],
 
     test_suite="tests",
