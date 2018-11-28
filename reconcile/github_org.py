@@ -13,21 +13,21 @@ QUERY = """
   role {
     name
     members {
-      ...on Bot {
+      ...on Bot_v1 {
         schema
         github_username_optional: github_username
       }
-      ... on User {
+      ... on User_v1 {
         schema
         github_username
       }
     }
     permissions {
       service
-      ...on PermissionGithubOrg {
+      ...on PermissionGithubOrg_v1 {
         org
       }
-      ...on PermissionGithubOrgTeam {
+      ...on PermissionGithubOrgTeam_v1 {
         org
         team
       }
