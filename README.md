@@ -1,4 +1,4 @@
-# reconcile
+# qontract-reconcile
 
 Tool to reconcile services with their desired state as defined in the app-interface DB.
 
