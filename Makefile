@@ -1,4 +1,4 @@
-.PHONY: build build-test test clean
+.PHONY: build push build-test test clean
 
 IMAGE_TEST := reconcile-test
 
@@ -8,6 +8,10 @@ IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
+
+push:
+	@docker push $(IMAGE_NAME):latest
+	@docker push $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
