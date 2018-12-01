@@ -108,20 +108,20 @@ def fetch_desired_state():
 
 
 def _raise(msg):
-    def raiseException(params, items):
+    def raiseException(dry_run, params, items):
         raise Exception(msg)
     return raiseException
 
 
-def add_org_team(params, items):
+def add_org_team(dry_run, params, items):
     logging.info(["add_org_team", params["org"], params["team"]])
 
 
-def del_org_team(params, items):
+def del_org_team(dry_run, params, items):
     logging.info(["del_org_team", params["org"], params["team"]])
 
 
-def add_users_org(params, items):
+def add_users_org(dry_run, params, items):
     for member in items:
         logging.info([
             "add_to_org",
@@ -130,7 +130,7 @@ def add_users_org(params, items):
         ])
 
 
-def del_users_org(params, items):
+def del_users_org(dry_run, params, items):
     # delete users
     for member in items:
         logging.info([
@@ -140,7 +140,7 @@ def del_users_org(params, items):
         ])
 
 
-def add_users_org_team(params, items):
+def add_users_org_team(dry_run, params, items):
     for member in items:
         logging.info([
             "add_to_org_team",
@@ -150,7 +150,7 @@ def add_users_org_team(params, items):
         ])
 
 
-def del_users_org_team(params, items):
+def del_users_org_team(dry_run, params, items):
     # delete users
     for member in items:
         logging.info([
@@ -162,7 +162,7 @@ def del_users_org_team(params, items):
 
 
 def service_is(service):
-    return lambda p: p.get("service") == service
+    return lambda params: params.get("service") == service
 
 
 def run(dry_run=False):
@@ -187,10 +187,6 @@ def run(dry_run=False):
 
     # Calculate diff
     diff = current_state.diff(desired_state)
-
-    if dry_run:
-        print(json.dumps(diff, indent=4))
-        sys.exit(0)
 
     # Run actions
     runner = AggregatedDiffRunner(diff)
@@ -223,8 +219,6 @@ def run(dry_run=False):
         service_is("github-org-team"),
         del_users_org_team
     )
-    # TODO: Do we want to enable this?
-    # runner.register("delete", service_is("github-org-team"), del_org_team)
 
     # update-insert github-org
     runner.register("update-insert", service_is("github-org"), add_users_org)
@@ -246,4 +240,4 @@ def run(dry_run=False):
         del_users_org_team
     )
 
-    runner.run()
+    runner.run(dry_run)
