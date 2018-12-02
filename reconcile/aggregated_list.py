@@ -99,4 +99,4 @@ class AggregatedDiffRunner(object):
                 items = diff_element['items']
 
                 if cond(params):
-                    action(dry_run, params, items)
+                    action(params, items)
