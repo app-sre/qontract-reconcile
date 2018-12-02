@@ -128,67 +128,76 @@ class RunnerAction(object):
         self.dry_run = dry_run
         self.gh_api_store = gh_api_store
 
-    def add_users_org_team(self):
+    def add_to_org_team(self):
+        label = "add_to_org_team"
+
         def action(params, items):
             for member in items:
-                logging.info([
-                    "add_to_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
+                org = params["org"]
+                team = params["team"]
+
+                logging.info([label, member, org, team])
+
+                if not self.dry_run:
+                    g = self.gh_api_store.get_github(org)
 
         return action
 
-    def del_users_org_team(self):
+    def del_from_org_team(self):
+        label = "del_from_org_team"
+
         def action(params, items):
-            # delete users
             for member in items:
-                logging.info([
-                    "del_from_org_team",
-                    member,
-                    params["org"],
-                    params["team"]
-                ])
+                org = params["org"]
+                team = params["team"]
+
+                logging.info([label, member, org, team])
+
+                if not self.dry_run:
+                    g = self.gh_api_store.get_github(org)
+
         return action
 
     def add_org_team(self):
+        label = "add_org_team"
+
         def action(params, items):
-            logging.info([
-                "add_org_team",
-                params["org"],
-                params["team"]
-            ])
+            org = params["org"]
+            team = params["team"]
+
+            logging.info([label, org, team])
+
+            if not self.dry_run:
+                g = self.gh_api_store.get_github(org)
+
         return action
 
-    def del_org_team(self):
-        def action(params, items):
-            logging.info([
-                "del_org_team",
-                params["org"],
-                params["team"]
-            ])
-        return action
+    def add_to_org(self):
+        label = "add_to_org"
 
-    def add_users_org(self):
         def action(params, items):
             for member in items:
-                logging.info([
-                    "add_to_org",
-                    member,
-                    params["org"]
-                ])
+                org = params["org"]
+
+                logging.info([label, member, org])
+
+                if not self.dry_run:
+                    g = self.gh_api_store.get_github(org)
+
         return action
 
-    def del_users_org(self):
+    def del_from_org(self):
+        label = "del_from_org"
+
         def action(params, items):
-            # delete users
             for member in items:
-                logging.info([
-                    "del_from_org",
-                    member,
-                    params["org"]
-                ])
+                org = params["org"]
+
+                logging.info([label, member, org])
+
+                if not self.dry_run:
+                    g = self.gh_api_store.get_github(org)
+
         return action
 
     @staticmethod
@@ -246,7 +255,7 @@ def run(dry_run=False):
     runner.register(
         "insert",
         service_is("github-org-team"),
-        runner_action.add_users_org_team()
+        runner_action.add_to_org_team()
     )
 
     # delete github-org
@@ -260,35 +269,35 @@ def run(dry_run=False):
     runner.register(
         "delete",
         service_is("github-org-team"),
-        runner_action.del_users_org_team()
+        runner_action.del_from_org_team()
     )
 
     # update-insert github-org
     runner.register(
         "update-insert",
         service_is("github-org"),
-        runner_action.add_users_org()
+        runner_action.add_to_org()
     )
 
     # update-insert github-org-team
     runner.register(
         "update-insert",
         service_is("github-org-team"),
-        runner_action.add_users_org_team()
+        runner_action.add_to_org_team()
     )
 
     # update-delete github-org
     runner.register(
         "update-delete",
         service_is("github-org"),
-        runner_action.del_users_org()
+        runner_action.del_from_org()
     )
 
     # update-delete github-org-team
     runner.register(
         "update-delete",
         service_is("github-org-team"),
-        runner_action.del_users_org_team()
+        runner_action.del_from_org_team()
     )
 
     runner.run(dry_run)
