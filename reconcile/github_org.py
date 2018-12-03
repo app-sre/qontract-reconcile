@@ -1,6 +1,7 @@
 import json
 import logging
 from github import Github
+from github.GithubObject import NotSet
 
 import reconcile.gql as gql
 from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
@@ -128,38 +129,54 @@ class RunnerAction(object):
         self.dry_run = dry_run
         self.gh_api_store = gh_api_store
 
-    def add_to_org_team(self):
-        label = "add_to_org_team"
+    def add_to_team(self):
+        label = "add_to_team"
 
         def action(params, items):
-            for member in items:
-                org = params["org"]
-                team = params["team"]
+            org = params["org"]
+            team = params["team"]
 
-                logging.info([label, member, org, team])
+            if self.dry_run:
+                for member in items:
+                    logging.info([label, member, org, team])
+            else:
+                g = self.gh_api_store.github(org)
+                gh_org = g.get_organization(org)
+                teams = {team.name: team.id for team in gh_org.get_teams()}
+                gh_team = gh_org.get_team(teams[team])
 
-                if not self.dry_run:
-                    g = self.gh_api_store.get_github(org)
+                for member in items:
+                    logging.info([label, member, org, team])
+                    gh_user = g.get_user(member)
+                    gh_team.add_membership(gh_user, "member")
 
         return action
 
-    def del_from_org_team(self):
-        label = "del_from_org_team"
+    def del_from_team(self):
+        label = "del_from_team"
 
         def action(params, items):
-            for member in items:
-                org = params["org"]
-                team = params["team"]
+            org = params["org"]
+            team = params["team"]
 
-                logging.info([label, member, org, team])
+            if self.dry_run:
+                for member in items:
+                    logging.info([label, member, org, team])
+            else:
+                g = self.gh_api_store.github(org)
+                gh_org = g.get_organization(org)
+                teams = {team.name: team.id for team in gh_org.get_teams()}
+                gh_team = gh_org.get_team(teams[team])
 
-                if not self.dry_run:
-                    g = self.gh_api_store.get_github(org)
+                for member in items:
+                    logging.info([label, member, org, team])
+                    gh_user = g.get_user(member)
+                    gh_team.remove_membership(gh_user)
 
         return action
 
-    def add_org_team(self):
-        label = "add_org_team"
+    def create_team(self):
+        label = "create_team"
 
         def action(params, items):
             org = params["org"]
@@ -168,7 +185,14 @@ class RunnerAction(object):
             logging.info([label, org, team])
 
             if not self.dry_run:
-                g = self.gh_api_store.get_github(org)
+                g = self.gh_api_store.github(org)
+                gh_org = g.get_organization(org)
+
+                repo_names = NotSet
+                permission = NotSet
+                privacy = "secret"
+
+                gh_org.create_team(team, repo_names, permission, privacy)
 
         return action
 
@@ -176,13 +200,19 @@ class RunnerAction(object):
         label = "add_to_org"
 
         def action(params, items):
-            for member in items:
-                org = params["org"]
+            org = params["org"]
 
-                logging.info([label, member, org])
+            if self.dry_run:
+                for member in items:
+                    logging.info([label, member, org])
+            else:
+                g = self.gh_api_store.github(org)
+                gh_org = g.get_organization(org)
 
-                if not self.dry_run:
-                    g = self.gh_api_store.get_github(org)
+                for member in items:
+                    logging.info([label, member, org])
+                    gh_user = g.get_user(member)
+                    gh_org.add_to_members(gh_user, 'member')
 
         return action
 
@@ -190,13 +220,21 @@ class RunnerAction(object):
         label = "del_from_org"
 
         def action(params, items):
-            for member in items:
-                org = params["org"]
+            org = params["org"]
 
-                logging.info([label, member, org])
+            if self.dry_run:
+                for member in items:
+                    logging.info([label, member, org])
+            else:
+                g = self.gh_api_store.github(org)
+                gh_org = g.get_organization(org)
 
-                if not self.dry_run:
-                    g = self.gh_api_store.get_github(org)
+                for member in items:
+                    logging.info([label, member, org])
+
+                    if not self.dry_run:
+                        gh_user = g.get_user(member)
+                        gh_org.remove_from_membership(gh_user)
 
         return action
 
@@ -250,12 +288,12 @@ def run(dry_run=False):
     runner.register(
         "insert",
         service_is("github-org-team"),
-        runner_action.add_org_team()
+        runner_action.create_team()
     )
     runner.register(
         "insert",
         service_is("github-org-team"),
-        runner_action.add_to_org_team()
+        runner_action.add_to_team()
     )
 
     # delete github-org
@@ -269,7 +307,7 @@ def run(dry_run=False):
     runner.register(
         "delete",
         service_is("github-org-team"),
-        runner_action.del_from_org_team()
+        runner_action.del_from_team()
     )
 
     # update-insert github-org
@@ -283,7 +321,7 @@ def run(dry_run=False):
     runner.register(
         "update-insert",
         service_is("github-org-team"),
-        runner_action.add_to_org_team()
+        runner_action.add_to_team()
     )
 
     # update-delete github-org
@@ -297,7 +335,7 @@ def run(dry_run=False):
     runner.register(
         "update-delete",
         service_is("github-org-team"),
-        runner_action.del_from_org_team()
+        runner_action.del_from_team()
     )
 
     runner.run(dry_run)
