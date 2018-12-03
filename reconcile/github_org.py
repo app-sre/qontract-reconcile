@@ -338,4 +338,4 @@ def run(dry_run=False):
         runner_action.del_from_team()
     )
 
-    runner.run(dry_run)
+    runner.run()
