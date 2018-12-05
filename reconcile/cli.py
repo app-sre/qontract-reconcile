@@ -4,13 +4,16 @@ import logging
 import click
 
 import reconcile.config as config
+import reconcile.vault_client as vault_client
 import reconcile.gql as gql
 import reconcile.github_org
+import reconcile.openshift_rolebinding
 
 from reconcile.aggregated_list import RunnerException
 
 services = {
-    'github': reconcile.github_org
+    'github': reconcile.github_org,
+    'openshift-rolebinding': reconcile.openshift_rolebinding,
 }
 
 
@@ -36,9 +39,10 @@ def main(configfile, dry_run, log_level, service):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=level)
 
     config.init_from_toml(configfile)
-    gql.init_from_config()
 
-    services[service].run(dry_run)
+    gql.init_from_config()
+    vault_client.init_from_config()
+
     try:
         services[service].run(dry_run)
     except RunnerException as e:
