@@ -5,7 +5,8 @@ ENV LANG=en_US.utf8
 
 RUN yum install -y epel-release && \
     yum install -y python2-pip && \
-    pip install --upgrade pip
+    pip install --upgrade pip && \
+    yum clean all
 
 COPY reconcile /reconcile/reconcile
 COPY setup.py /reconcile
