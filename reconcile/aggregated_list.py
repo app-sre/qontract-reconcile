@@ -1,6 +1,10 @@
 import json
 
 
+class RunnerException(Exception):
+    pass
+
+
 class AggregatedList(object):
     def __init__(self):
         self._dict = {}

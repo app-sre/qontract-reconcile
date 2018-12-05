@@ -1,10 +1,13 @@
+import sys
+import logging
+
 import click
 
 import reconcile.config as config
 import reconcile.gql as gql
 import reconcile.github_org
-import logging
 
+from reconcile.aggregated_list import RunnerException
 
 services = {
     'github': reconcile.github_org
@@ -36,6 +39,11 @@ def main(configfile, dry_run, log_level, service):
     gql.init_from_config()
 
     services[service].run(dry_run)
+    try:
+        services[service].run(dry_run)
+    except RunnerException as e:
+        sys.stderr.write(e.message + "\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
