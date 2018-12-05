@@ -91,16 +91,16 @@ class AggregatedDiffRunner(object):
         self.state = state
         self.actions = []
 
-    def register(self, on, cond, action):
-        self.actions.append((on, cond, action))
+    def register(self, on, action, cond=None):
+        self.actions.append((on, action, cond))
 
     def run(self):
-        for (on, cond, action) in self.actions:
+        for (on, action, cond) in self.actions:
             diff_list = self.state.get(on, [])
 
             for diff_element in diff_list:
                 params = diff_element['params']
                 items = diff_element['items']
 
-                if cond(params):
+                if cond is None or cond(params):
                     action(params, items)
