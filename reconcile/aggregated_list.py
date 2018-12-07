@@ -76,7 +76,7 @@ class AggregatedList(object):
         return diff
 
     def dump(self):
-        return self._dict.values()
+        return list(self._dict.values())
 
     def toJSON(self):
         return json.dumps(self.dump(), indent=4)
@@ -87,16 +87,18 @@ class AggregatedList(object):
 
 
 class AggregatedDiffRunner(object):
-    def __init__(self, state):
-        self.state = state
+    def __init__(self, diff):
+        self.diff = diff
         self.actions = []
 
     def register(self, on, action, cond=None):
+        if on not in self.diff.keys():
+            raise Exception("Unknown diff key for 'on': {}".format(on))
         self.actions.append((on, action, cond))
 
     def run(self):
         for (on, action, cond) in self.actions:
-            diff_list = self.state.get(on, [])
+            diff_list = self.diff.get(on, [])
 
             for diff_element in diff_list:
                 params = diff_element['params']
