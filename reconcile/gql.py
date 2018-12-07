@@ -1,3 +1,5 @@
+import json
+
 from graphqlclient import GraphQLClient
 from reconcile.config import get_config
 
@@ -15,7 +17,7 @@ class GqlApi(object):
             self.client.inject_token(token)
 
     def query(self, query):
-        return self.client.execute(query)
+        return json.loads(self.client.execute(query))['data']
 
 
 def init(url, token=None):

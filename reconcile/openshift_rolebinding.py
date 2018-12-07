@@ -1,4 +1,3 @@
-import json
 import logging
 
 import reconcile.gql as gql
@@ -59,10 +58,9 @@ class ClusterStore(object):
 
     def __init__(self):
         gqlapi = gql.get_api()
-        result_json = gqlapi.query(CLUSTER_CATALOG_QUERY)
-        result = json.loads(result_json)
+        result = gqlapi.query(CLUSTER_CATALOG_QUERY)
 
-        for cluster_info in result['data']['cluster']:
+        for cluster_info in result['cluster']:
             name = cluster_info['name']
             automationToken = cluster_info.get('automationToken')
 
@@ -130,8 +128,7 @@ def fetch_current_state(cluster_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    result_json = gqlapi.query(ROLEBINDINGS_QUERY)
-    result = json.loads(result_json)
+    result = gqlapi.query(ROLEBINDINGS_QUERY)
 
     state = AggregatedList()
 
@@ -141,7 +138,7 @@ def fetch_desired_state():
         else:
             return m['github_username']
 
-    for role in result['data']['role']:
+    for role in result['role']:
         permissions = filter(
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']

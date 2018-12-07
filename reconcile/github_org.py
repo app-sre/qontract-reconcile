@@ -1,4 +1,3 @@
-import json
 import logging
 from github import Github
 from github.GithubObject import NotSet
@@ -75,8 +74,7 @@ def fetch_current_state(gh_api_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    result_json = gqlapi.query(QUERY)
-    result = json.loads(result_json)
+    result = gqlapi.query(QUERY)
 
     state = AggregatedList()
 
@@ -86,7 +84,7 @@ def fetch_desired_state():
         else:
             return m['github_username']
 
-    for role in result['data']['role']:
+    for role in result['role']:
         members = [
             member for member in
             (username(m) for m in role['members'])
