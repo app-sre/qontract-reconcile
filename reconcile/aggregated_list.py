@@ -79,7 +79,7 @@ class AggregatedList(object):
         return self._dict.values()
 
     def toJSON(self):
-        return json.dumps(self.dump())
+        return json.dumps(self.dump(), indent=4)
 
     @staticmethod
     def hash_params(params):
