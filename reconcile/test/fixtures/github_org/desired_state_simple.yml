@@ -1,0 +1,25 @@
+gql_response:
+  role:
+  - members:
+    - github_username: user1
+      schema: access/user-1.yml
+    name: role1
+    permissions:
+    - org: org_a
+      service: github-org
+    - org: org_a
+      team: team1
+      service: github-org-team
+
+state:
+- items:
+  - user1
+  params:
+    org: org_a
+    service: github-org
+- items:
+  - user1
+  params:
+    org: org_a
+    service: github-org-team
+    team: team1

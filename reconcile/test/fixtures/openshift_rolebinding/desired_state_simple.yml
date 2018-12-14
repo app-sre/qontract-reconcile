@@ -1,0 +1,23 @@
+gql_response:
+  role:
+  - members:
+    - github_username: user1
+      schema: access/user-1.yml
+    - github_username: user2
+      schema: access/user-1.yml
+    name: role1
+    permissions:
+    - service: openshift-rolebinding
+      cluster: clusterA
+      namespace: ns1
+      role: view
+
+state:
+- items:
+  - user1
+  - user2
+  params:
+    service: openshift-rolebinding
+    cluster: clusterA
+    namespace: ns1
+    role: view

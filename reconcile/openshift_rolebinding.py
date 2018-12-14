@@ -3,9 +3,9 @@ import logging
 import reconcile.gql as gql
 import reconcile.vault_client as vault_client
 
-from reconcile.aggregated_list import AggregatedList, \
-    AggregatedDiffRunner, \
-    RunnerException
+from reconcile.aggregated_list import (AggregatedList,
+                                       AggregatedDiffRunner,
+                                       RunnerException)
 from reconcile.openshift_api import Openshift
 
 CLUSTER_CATALOG_QUERY = """
@@ -139,10 +139,10 @@ def fetch_desired_state():
             return m['github_username']
 
     for role in result['role']:
-        permissions = filter(
+        permissions = list(filter(
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']
-        )
+        ))
 
         if permissions:
             members = [
@@ -151,7 +151,7 @@ def fetch_desired_state():
                 if member is not None
             ]
 
-            map(lambda p: state.add(p, members), permissions)
+            list(map(lambda p: state.add(p, members), permissions))
 
     return state
 

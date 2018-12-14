@@ -1,5 +1,7 @@
 import os
 
+import anymarkup
+
 
 class Fixtures(object):
     def __init__(self, base_path):
@@ -16,3 +18,6 @@ class Fixtures(object):
     def get(self, fixture):
         with open(self.path(fixture), 'r') as f:
             return f.read().strip()
+
+    def get_anymarkup(self, fixture):
+        return anymarkup.parse(self.get(fixture), force_types=None)
