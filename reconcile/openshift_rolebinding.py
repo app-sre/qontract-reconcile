@@ -211,7 +211,7 @@ def run(dry_run=False):
         ])
 
         raise RunnerException((
-            "Unkown cluster/namespace/combinations found:\n"
+            "Unknown cluster/namespace/combinations found:\n"
             "{}"
         ).format(unknown_combinations))
 
