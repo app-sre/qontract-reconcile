@@ -1,12 +1,12 @@
 import logging
 
 import reconcile.gql as gql
-import reconcile.vault_client as vault_client
+import utils.vault_client as vault_client
 
 from reconcile.aggregated_list import (AggregatedList,
                                        AggregatedDiffRunner,
                                        RunnerException)
-from reconcile.openshift_api import Openshift
+from utils.openshift_api import Openshift
 
 CLUSTER_CATALOG_QUERY = """
 {

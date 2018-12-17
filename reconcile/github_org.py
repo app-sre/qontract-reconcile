@@ -5,7 +5,7 @@ from github.GithubObject import NotSet
 import reconcile.gql as gql
 from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
 from reconcile.config import get_config
-from reconcile.raw_github_api import RawGithubApi
+from utils.raw_github_api import RawGithubApi
 
 QUERY = """
 {
