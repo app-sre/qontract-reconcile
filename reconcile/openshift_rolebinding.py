@@ -35,7 +35,7 @@ ROLEBINDINGS_QUERY = """
         schema
         github_username_optional: github_username
       }
-      ... on User_v1 {
+      ...on User_v1 {
         schema
         github_username
       }
