@@ -201,19 +201,24 @@ def run(dry_run=False):
     # calculate diff
     diff = current_state.diff(desired_state)
 
-    # ensure all namespace/roles are well known
-    if diff['insert'] != []:
-        keys = ['cluster', 'namespace', 'role']
-
-        unknown_combinations = ", ".join([
-            "/".join([item['params'][k] for k in keys])
+    # Ensure all namespace/roles are well known.
+    # Any item that appears in `diff['insert']` means that it's not listed
+    # as a managedCluster in the cluster datafile.
+    if len(diff['insert']) > 0:
+        unknown_combinations = [
+            "- {}/{}/{}".format(
+                item["params"]["cluster"],
+                item["params"]["namespace"],
+                item["params"]["role"],
+            )
             for item in diff['insert']
-        ])
+        ]
 
         raise RunnerException((
-            "Unknown cluster/namespace/combinations found:\n"
-            "{}"
-        ).format(unknown_combinations))
+                "Unknown cluster/namespace/combinations found:\n"
+                "{}"
+            ).format("\n".join(unknown_combinations))
+        )
 
     # Run actions
     runner_action = RunnerAction(dry_run, cluster_store)
