@@ -87,8 +87,8 @@ class ClusterStore(object):
 
     def namespaces(self, cluster):
         return [
-            r['namespace']
-            for r in self._clusters[cluster]['managed_roles']
+            role['namespace']
+            for role in self._clusters[cluster]['managed_roles']
         ]
 
     def namespace_roles(self, cluster, namespace):
