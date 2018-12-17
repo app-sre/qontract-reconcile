@@ -133,7 +133,7 @@ def fetch_desired_state():
     state = AggregatedList()
 
     def username(m):
-        if m['schema'] == 'access/bot-1.yml':
+        if m['schema'] == '/access/bot-1.yml':
             return m.get('github_username_optional')
         else:
             return m['github_username']
