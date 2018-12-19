@@ -9,6 +9,7 @@ RUN yum install -y epel-release && \
     yum clean all
 
 COPY reconcile /reconcile/reconcile
+COPY utils /reconcile/utils
 COPY setup.py /reconcile
 
 WORKDIR /reconcile
