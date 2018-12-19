@@ -1,4 +1,3 @@
-import json
 import logging
 from github import Github
 from github.GithubObject import NotSet
@@ -6,7 +5,7 @@ from github.GithubObject import NotSet
 import reconcile.gql as gql
 from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
 from reconcile.config import get_config
-from reconcile.raw_github_api import RawGithubApi
+from utils.raw_github_api import RawGithubApi
 
 QUERY = """
 {
@@ -75,18 +74,17 @@ def fetch_current_state(gh_api_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    result_json = gqlapi.query(QUERY)
-    result = json.loads(result_json)
+    result = gqlapi.query(QUERY)
 
     state = AggregatedList()
 
     def username(m):
-        if m['schema'] == 'access/bot-1.yml':
+        if m['schema'] == '/access/bot-1.yml':
             return m.get('github_username_optional')
         else:
             return m['github_username']
 
-    for role in result['data']['role']:
+    for role in result['role']:
         members = [
             member for member in
             (username(m) for m in role['members'])
@@ -280,62 +278,62 @@ def run(dry_run=False):
     # insert github-org
     runner.register(
         "insert",
+        runner_action.raise_exception("Cannot create a Github Org"),
         service_is("github-org"),
-        runner_action.raise_exception("Cannot create a Github Org")
     )
 
     # insert github-org-team
     runner.register(
         "insert",
+        runner_action.create_team(),
         service_is("github-org-team"),
-        runner_action.create_team()
     )
     runner.register(
         "insert",
+        runner_action.add_to_team(),
         service_is("github-org-team"),
-        runner_action.add_to_team()
     )
 
     # delete github-org
     runner.register(
         "delete",
+        runner_action.raise_exception("Cannot delete a Github Org"),
         service_is("github-org"),
-        runner_action.raise_exception("Cannot delete a Github Org")
     )
 
     # delete github-org-team
     runner.register(
         "delete",
+        runner_action.del_from_team(),
         service_is("github-org-team"),
-        runner_action.del_from_team()
     )
 
     # update-insert github-org
     runner.register(
         "update-insert",
+        runner_action.add_to_org(),
         service_is("github-org"),
-        runner_action.add_to_org()
     )
 
     # update-insert github-org-team
     runner.register(
         "update-insert",
+        runner_action.add_to_team(),
         service_is("github-org-team"),
-        runner_action.add_to_team()
     )
 
     # update-delete github-org
     runner.register(
         "update-delete",
+        runner_action.del_from_org(),
         service_is("github-org"),
-        runner_action.del_from_org()
     )
 
     # update-delete github-org-team
     runner.register(
         "update-delete",
+        runner_action.del_from_team(),
         service_is("github-org-team"),
-        runner_action.del_from_team()
     )
 
     runner.run()

@@ -1,0 +1,23 @@
+gh_api:
+  org_a:
+    members:
+    - login: user1
+    - login: user2
+    teams:
+    - name: team1
+      members:
+      - login: user1
+
+state:
+- items:
+  - user1
+  - user2
+  params:
+    org: org_a
+    service: github-org
+- items:
+  - user1
+  params:
+    org: org_a
+    service: github-org-team
+    team: team1

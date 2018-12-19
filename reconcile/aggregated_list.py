@@ -1,6 +1,10 @@
 import json
 
 
+class RunnerException(Exception):
+    pass
+
+
 class AggregatedList(object):
     def __init__(self):
         self._dict = {}
@@ -72,10 +76,10 @@ class AggregatedList(object):
         return diff
 
     def dump(self):
-        return self._dict.values()
+        return list(self._dict.values())
 
     def toJSON(self):
-        return json.dumps(self.dump())
+        return json.dumps(self.dump(), indent=4)
 
     @staticmethod
     def hash_params(params):
@@ -83,20 +87,22 @@ class AggregatedList(object):
 
 
 class AggregatedDiffRunner(object):
-    def __init__(self, state):
-        self.state = state
+    def __init__(self, diff):
+        self.diff = diff
         self.actions = []
 
-    def register(self, on, cond, action):
-        self.actions.append((on, cond, action))
+    def register(self, on, action, cond=None):
+        if on not in self.diff.keys():
+            raise Exception("Unknown diff key for 'on': {}".format(on))
+        self.actions.append((on, action, cond))
 
     def run(self):
-        for (on, cond, action) in self.actions:
-            diff_list = self.state.get(on, [])
+        for (on, action, cond) in self.actions:
+            diff_list = self.diff.get(on, [])
 
             for diff_element in diff_list:
                 params = diff_element['params']
                 items = diff_element['items']
 
-                if cond(params):
+                if cond is None or cond(params):
                     action(params, items)

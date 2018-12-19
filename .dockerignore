@@ -8,6 +8,3 @@ venv
 
 **/__pycache__
 **/*.pyc
-
-# temporary ignore of fixtures
-reconcile/test/fixtures/

@@ -1,0 +1,25 @@
+clusters:
+  - name: clusterA
+    managedRoles:
+      - namespace: ns1
+        role: view
+
+rolebindings:
+  clusterA:
+    ns1:
+      view:
+        - subjects:
+          - kind: User
+            name: user1
+          - kind: User
+            name: user2
+
+state:
+- items:
+  - user1
+  - user2
+  params:
+    service: openshift-rolebinding
+    cluster: clusterA
+    namespace: ns1
+    role: view

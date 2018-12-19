@@ -1,7 +1,13 @@
+import json
+
 from graphqlclient import GraphQLClient
 from reconcile.config import get_config
 
 _gqlapi = None
+
+
+class GqlApiError(Exception):
+    pass
 
 
 class GqlApi(object):
@@ -15,7 +21,18 @@ class GqlApi(object):
             self.client.inject_token(token)
 
     def query(self, query):
-        return self.client.execute(query)
+        result_json = self.client.execute(query)
+        result = json.loads(result_json)
+
+        if 'errors' in result:
+            raise GqlApiError(result['errors'])
+
+        if 'data' not in result:
+            raise GqlApiError((
+                "`data` field missing from GraphQL"
+                "server response."))
+
+        return result['data']
 
 
 def init(url, token=None):
@@ -37,6 +54,6 @@ def get_api():
     global _gqlapi
 
     if not _gqlapi:
-        raise Exception("gql module has not been initialized.")
+        raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
