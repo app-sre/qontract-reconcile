@@ -4,6 +4,14 @@ from reconcile.config import get_config
 _client = None
 
 
+class SecretNotFound(Exception):
+    pass
+
+
+class SecretFieldNotFound(Exception):
+    pass
+
+
 def init(server, role_id, secret_id):
     global _client
 
@@ -28,4 +36,15 @@ def init_from_config():
 def read(path, field):
     global _client
     init_from_config()
-    return _client.read(path)['data'][field]
+
+    secret = _client.read(path)
+
+    if secret is None or 'data' not in secret:
+        raise SecretNotFound(path)
+
+    try:
+        secret_field = secret['data'][field]
+    except KeyError:
+        raise SecretFieldNotFound("{}/{}".format(path, field))
+
+    return secret_field
