@@ -137,8 +137,9 @@ def get_quay_api_store():
         name = org_data['name']
         managed_teams = org_data.get('managedTeams')
 
+        store[name] = {}
         for team in managed_teams:
-            store[name] = {team: QuayApi(token, name, team)}
+            store[name][team] = QuayApi(token, name, team)
 
     return store
 
