@@ -1,0 +1,22 @@
+gql_response:
+  role:
+  - members:
+    - quay_username: user1
+      schema: access/user-1.yml
+    - quay_username: user2
+      schema: access/user-1.yml
+    name: role1
+    permissions:
+    - service: quay-org-team
+      org: my_org
+      team: my_team
+
+state:
+- items:
+  - user1
+  - user2
+  params:
+    service: quay-org-team
+    org: my_org
+    team: my_team
+
