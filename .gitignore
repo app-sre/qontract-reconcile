@@ -1,6 +1,6 @@
 *.pyc
 *.egg-info
-*.toml
+/*.toml
 
 .tox
 .pytest_cache
