@@ -7,7 +7,7 @@ gql_response:
       schema: access/user-1.yml
     name: role1
     permissions:
-    - service: quay-org-team
+    - service: quay-membership
       org: my_org
       team: my_team
 
@@ -16,7 +16,7 @@ state:
   - user1
   - user2
   params:
-    service: quay-org-team
+    service: quay-membership
     org: my_org
     team: my_team
 

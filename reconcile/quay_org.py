@@ -55,7 +55,7 @@ def fetch_current_state(quay_api_store):
         for team, quay_api in org_data.items():
             members = quay_api.list_team_members()
             state.add({
-                'service': 'quay-org-team',
+                'service': 'quay-membership',
                 'org': name,
                 'team': team
             }, members)
@@ -76,7 +76,7 @@ def fetch_desired_state():
         ]
 
         for permission in role['permissions']:
-            if permission['service'] == 'quay-org-team':
+            if permission['service'] == 'quay-membership':
                 state.add(permission, members)
 
     return state
