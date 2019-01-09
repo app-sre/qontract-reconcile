@@ -3,10 +3,10 @@ from .fixtures import Fixtures
 
 import reconcile.config as config
 import reconcile.gql as gql
-import reconcile.quay_org as quay_org
+import reconcile.quay_membership as quay_membership
 from reconcile.aggregated_list import AggregatedList
 
-fxt = Fixtures('quay_org')
+fxt = Fixtures('quay_membership')
 
 
 def get_items_by_params(state, params):
@@ -27,7 +27,7 @@ class QuayApiMock(object):
         return self.list_team_members_response
 
 
-class TestQuayOrg(object):
+class TestQuayMembership(object):
     def setup_method(self, method):
         config.init_from_toml(fxt.path('config.toml'))
         gql.init_from_config()
@@ -45,7 +45,7 @@ class TestQuayOrg(object):
             for team in org_data['managedTeams']:
                 store[name][team] = QuayApiMock(quay_org_teams[name][team])
 
-        current_state = quay_org.fetch_current_state(store)
+        current_state = quay_membership.fetch_current_state(store)
         current_state = current_state.dump()
 
         expected_current_state = fixture['state']
@@ -65,7 +65,7 @@ class TestQuayOrg(object):
         with patch('reconcile.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
-            desired_state = quay_org.fetch_desired_state().dump()
+            desired_state = quay_membership.fetch_desired_state().dump()
 
             expected_desired_state = fixture['state']
 
