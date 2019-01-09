@@ -1,0 +1,8 @@
+[graphql]
+server = "http://localhost:4000/graphql"
+
+[github]
+[github.org_a]
+token = "token_org_a"
+# [github.org_b]
+# token = "token_org_b"

@@ -1,0 +1,28 @@
+quay_org_catalog:
+  - name: org1
+    managedTeams:
+      - org1team1
+      - org1team2
+
+quay_org_teams:
+  org1:
+    org1team1:
+    - user1
+    - user2
+    org1team2:
+    - user2
+
+state:
+- items:
+  - user1
+  - user2
+  params:
+    service: quay-membership
+    org: org1
+    team: org1team1
+- items:
+  - user2
+  params:
+    service: quay-membership
+    org: org1
+    team: org1team2
