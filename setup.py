@@ -21,7 +21,7 @@ setup(
         "toml==0.10.0",
         "jsonpath-rw==1.4.0",
         "PyGithub==1.40",
-        "requests==2.20.0",
+        "requests==2.21.0",
         "hvac>=0.7.0,<0.8.0",
     ],
 
