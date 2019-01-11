@@ -145,8 +145,6 @@ def get_quay_api_store():
 
 
 def run(dry_run=False):
-    dry_run = True
-
     quay_api_store = get_quay_api_store()
 
     current_state = fetch_current_state(quay_api_store)
