@@ -1,4 +1,5 @@
 import json
+import logging
 
 
 class RunnerException(Exception):
@@ -97,6 +98,8 @@ class AggregatedDiffRunner(object):
         self.actions.append((on, action, cond))
 
     def run(self):
+        status = True
+
         for (on, action, cond) in self.actions:
             diff_list = self.diff.get(on, [])
 
@@ -105,4 +108,12 @@ class AggregatedDiffRunner(object):
                 items = diff_element['items']
 
                 if cond is None or cond(params):
-                    action(params, items)
+                    try:
+                        last_status = action(params, items)
+                        status = status and last_status
+                    except Exception as e:
+                        status = False
+                        logging.error([params, items])
+                        logging.error(e.message)
+
+        return status

@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import reconcile.gql as gql
 import utils.vault_client as vault_client
@@ -163,6 +164,8 @@ class RunnerAction(object):
 
     def manage_role(self, label, method_name):
         def action(params, items):
+            status = True
+
             cluster = params['cluster']
             namespace = params['namespace']
             role = params['role']
@@ -181,7 +184,13 @@ class RunnerAction(object):
 
                 if not self.dry_run:
                     f = getattr(api, method_name)
-                    f(namespace, role, member)
+                    try:
+                        f(namespace, role, member)
+                    except Exception as e:
+                        logging.error(e.message)
+                        status = False
+
+            return status
 
         return action
 
@@ -228,4 +237,7 @@ def run(dry_run=False):
     runner.register("update-delete", runner_action.del_role())
     runner.register("delete", runner_action.del_role())
 
-    runner.run()
+    status = runner.run()
+
+    if status is False:
+        sys.exit(1)
