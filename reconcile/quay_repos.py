@@ -71,7 +71,12 @@ def fetch_desired_state():
     state = AggregatedList()
 
     for app in result['app']:
-        for quay_repo in app['quayRepos']:
+        quay_repos = app.get('quayRepos')
+
+        if quay_repos is None:
+            continue
+
+        for quay_repo in quay_repos:
             name = quay_repo['org']['name']
             for repo in quay_repo['items']:
                 params = {
