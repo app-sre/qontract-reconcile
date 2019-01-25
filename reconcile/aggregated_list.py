@@ -19,8 +19,12 @@ class AggregatedList(object):
                 'items': []
             }
 
-        items = self._dict[params_hash]["items"]
-        self._dict[params_hash]["items"] = list(set(items + new_items))
+        if not isinstance(new_items, list):
+            new_items = [new_items]
+
+        for item in new_items:
+            if item not in self._dict[params_hash]["items"]:
+                self._dict[params_hash]["items"].append(item)
 
     def get(self, params):
         return self._dict[self.hash_params(params)]
