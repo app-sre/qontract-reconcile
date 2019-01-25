@@ -1,0 +1,23 @@
+quay_org_catalog:
+  - name: org1
+    repos:
+    - name: repo1
+      is_public: true
+      description: mydesc1
+    - name: repo2
+      is_public: false
+      description: mydesc2
+
+state:
+- params:
+    org: org1
+    repo: repo1
+  items:
+  - public: true
+    description: mydesc1
+- params:
+    org: org1
+    repo: repo2
+  items:
+  - public: false
+    description: mydesc2
