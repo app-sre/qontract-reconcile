@@ -79,14 +79,10 @@ def fetch_desired_state():
                     'repo': repo['name']
                 }
 
-                try:
-                    item = {
-                        'public': repo['public'],
-                        'description': repo['description'].strip()
-                    }
-                except Exception as e:
-                    print repo
-                    raise(e)
+                item = {
+                    'public': repo['public'],
+                    'description': repo['description'].strip()
+                }
 
                 state.add(params, item)
 
