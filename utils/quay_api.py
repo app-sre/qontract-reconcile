@@ -117,3 +117,67 @@ class QuayApi(object):
             return self.list_images(images, next_page, count+1)
         else:
             return images
+
+    def repo_create(self, repo_name, description, public):
+        visibility = "public" if public else "private"
+
+        url = "{}/repository".format(self.API_URL)
+
+        params = {
+            "repo_kind": "image",
+            "namespace": self.organization,
+            "visibility": visibility,
+            "repository": repo_name,
+            "description": description
+        }
+
+        # perform request
+        r = requests.post(url, json=params, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
+
+    def repo_delete(self, repo_name):
+        url = "{}/repository/{}/{}".format(
+            self.API_URL, self.organization, repo_name
+        )
+
+        # perform request
+        r = requests.delete(url, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
+
+    def repo_update_description(self, repo_name, description):
+        url = "{}/repository/{}/{}".format(
+            self.API_URL,
+            self.organization,
+            repo_name
+        )
+
+        params = {
+            "description": description
+        }
+
+        # perform request
+        r = requests.put(url, json=params, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
+
+    def repo_make_public(self, repo_name):
+        self._repo_change_visibility(repo_name, "public")
+
+    def repo_make_private(self, repo_name):
+        self._repo_change_visibility(repo_name, "private")
+
+    def _repo_change_visibility(self, repo_name, visibility):
+        url = "{}/repository/{}/{}/changevisibility".format(
+            self.API_URL, self.organization, repo_name
+        )
+
+        params = {
+            "visibility": visibility
+        }
+
+        # perform request
+        r = requests.post(url, json=params, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
