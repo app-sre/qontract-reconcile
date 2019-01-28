@@ -1,0 +1,27 @@
+gql_response:
+  app:
+  - quayRepos:
+    - org:
+        name: org1
+      items:
+      - name: repo1
+        description: desc1
+        public: true
+      - name: repo2
+        description: desc2
+        public: false
+state:
+- params:
+    org: org1
+    repo: repo1
+  items:
+  - description: desc1
+    public: true
+- params:
+    org: org1
+    repo: repo2
+  items:
+  - description: desc2
+    public: false
+
+

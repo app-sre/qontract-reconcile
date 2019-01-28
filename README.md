@@ -5,6 +5,9 @@ Tool to reconcile services with their desired state as defined in the app-interf
 ## Subcommands
 
 - `reconcile github`: Configures the teams and members in a GitHub org.
+- `reconcile quay-membership`: Configures the teams and members in Quay.
+- `reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `reconcile quay-repos`:  Creates and Manages Quay Repos.
 
 ## Usage
 
