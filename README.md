@@ -15,6 +15,8 @@ Tool to reconcile services with their desired state as defined in the app-interf
 
 Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
 
+Run a reconcile integration like this:
+
 ```sh
 qontract-reconcile <subcommand> --config config.toml --dry-run
 
