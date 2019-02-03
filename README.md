@@ -1,23 +1,52 @@
+![](https://img.shields.io/github/license/app-sre/qontract-reconcile.svg?style=flat)
+
 # qontract-reconcile
 
 Tool to reconcile services with their desired state as defined in the app-interface DB.
 
 ## Subcommands
 
-- `reconcile github`: Configures the teams and members in a GitHub org.
-- `reconcile quay-membership`: Configures the teams and members in Quay.
-- `reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
-- `reconcile quay-repos`:  Creates and Manages Quay Repos.
+- `qontract-reconcile github`: Configures the teams and members in a GitHub org.
+- `qontract-reconcile quay-membership`: Configures the teams and members in Quay.
+- `qontract-reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `qontract-reconcile quay-repos`:  Creates and Manages Quay Repos.
 
 ## Usage
 
+Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
+
+```sh
+qontract-reconcile <subcommand> --config config.toml --dry-run
+
+# review output and run without `--dry-run` to perform actual changes
+qontract-reconcile <subcommand> --config config.toml
+```
+
 ## Installation
+
+Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
+
+```sh
+virtualenv venv
+source venv/bin/activate
+```
+
+Install the package:
+
+```sh
+python setup.py install
+
+# or alternatively use this for a devel environment
+python setup.py develop
+```
 
 ### Requirements
 
-## Compatibility
+Please see [setup.py](setup.py).
 
 ## Licence
+
+[Apache License Version 2.0](LICENSE).
 
 ## Authors
 
