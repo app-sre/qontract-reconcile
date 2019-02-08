@@ -26,15 +26,13 @@ QUAY_ORG_QUERY = """
 {
   role {
     name
-    members {
-      ...on Bot_v1 {
-        schema
-        quay_username
-      }
-      ...on User_v1 {
-        schema
-        quay_username
-      }
+    users {
+      name
+      quay_username
+    }
+    bots {
+      name
+      quay_username
     }
     permissions {
       service
@@ -69,15 +67,26 @@ def fetch_desired_state():
     state = AggregatedList()
 
     for role in result['role']:
-        members = [
-            member for member in
-            (m.get('quay_username') for m in role['members'])
-            if member is not None
-        ]
+        permissions = list(filter(
+            lambda p: p.get('service') == 'quay-membership',
+            role['permissions']
+        ))
 
-        for permission in role['permissions']:
-            if permission['service'] == 'quay-membership':
-                state.add(permission, members)
+        if permissions:
+            members = []
+
+            def append_quay_username_members(member):
+                quay_username = member.get('quay_username')
+                if quay_username:
+                    members.append(quay_username)
+
+            for user in role['users']:
+                append_quay_username_members(user)
+
+            for bot in role['bots']:
+                append_quay_username_members(bot)
+
+            list(map(lambda p: state.add(p, members), permissions))
 
     return state
 
