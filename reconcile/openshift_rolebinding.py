@@ -31,15 +31,11 @@ ROLEBINDINGS_QUERY = """
 {
   role {
     name
-    members {
-      ...on Bot_v1 {
-        schema
-        github_username_optional: github_username
-      }
-      ...on User_v1 {
-        schema
-        github_username
-      }
+    users {
+      github_username
+    }
+    bots {
+      github_username
     }
     permissions {
       ...on PermissionOpenshiftRolebinding_v1 {
@@ -146,11 +142,14 @@ def fetch_desired_state():
         ))
 
         if permissions:
-            members = [
-                member for member in
-                (username(m) for m in role['members'])
-                if member is not None
-            ]
+            members = []
+
+            for user in role['users']:
+                members.append(user['github_username'])
+
+            for bot in role['bots']:
+                if 'github_username' in bot:
+                    members.append(bot['github_username'])
 
             list(map(lambda p: state.add(p, members), permissions))
 

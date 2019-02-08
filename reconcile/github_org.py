@@ -11,15 +11,11 @@ QUERY = """
 {
   role {
     name
-    members {
-      ...on Bot_v1 {
-        schema
-        github_username_optional: github_username
-      }
-      ... on User_v1 {
-        schema
-        github_username
-      }
+    users {
+      github_username
+    }
+    bots {
+      github_username
     }
     permissions {
       service
@@ -78,28 +74,31 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
-    def username(m):
-        if m['schema'] == '/access/bot-1.yml':
-            return m.get('github_username_optional')
-        else:
-            return m['github_username']
-
     for role in result['role']:
-        members = [
-            member for member in
-            (username(m) for m in role['members'])
-            if member is not None
-        ]
+        permissions = list(filter(
+            lambda p: p.get('service') in ['github-org', 'github-org-team'],
+            role['permissions']
+        ))
 
-        for permission in role['permissions']:
-            if permission['service'] == 'github-org':
-                state.add(permission, members)
-            elif permission['service'] == 'github-org-team':
-                state.add(permission, members)
-                state.add({
-                    'service': 'github-org',
-                    'org': permission['org'],
-                }, members)
+        if permissions:
+            members = []
+
+            for user in role['users']:
+                members.append(user['github_username'])
+
+            for bot in role['bots']:
+                if 'github_username' in bot:
+                    members.append(bot['github_username'])
+
+            for permission in permissions:
+                if permission['service'] == 'github-org':
+                    state.add(permission, members)
+                elif permission['service'] == 'github-org-team':
+                    state.add(permission, members)
+                    state.add({
+                        'service': 'github-org',
+                        'org': permission['org'],
+                    }, members)
 
     return state
 
@@ -266,7 +265,10 @@ def run(dry_run=False):
     ])
 
     assert current_orgs == desired_orgs, \
-        "Current orgs don't match desired orgs"
+        "Current orgs ({}) don't match desired orgs ({})".format(
+            current_orgs,
+            desired_orgs
+        )
 
     # Calculate diff
     diff = current_state.diff(desired_state)

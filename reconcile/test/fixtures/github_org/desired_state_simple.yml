@@ -1,8 +1,8 @@
 gql_response:
   role:
-  - members:
+  - users:
     - github_username: user1
-      schema: access/user-1.yml
+    bots: []
     name: role1
     permissions:
     - org: org_a
