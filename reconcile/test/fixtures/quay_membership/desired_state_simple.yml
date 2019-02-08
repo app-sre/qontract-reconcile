@@ -1,10 +1,9 @@
 gql_response:
   role:
-  - members:
+  - users:
     - quay_username: user1
-      schema: access/user-1.yml
     - quay_username: user2
-      schema: access/user-1.yml
+    bots: []
     name: role1
     permissions:
     - service: quay-membership
