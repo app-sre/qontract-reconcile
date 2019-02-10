@@ -25,3 +25,10 @@ token = "<token>"
 [github.<another_orgname>]
 token = "<another_token>"
 
+[ldap]
+# This section is required by `qcontract-reconcile ldap-users`
+
+# (mandatory) ldap endpoint
+server = "ldap://ldap.example.com"
+# (optional) user search point
+base_dn = "ou=users,dc=example,dc=com"
