@@ -1,0 +1,17 @@
+users:
+  - redhat_username: user1
+    path:
+      - /teams/test-team1/users/user1.yml
+  - redhat_username: user2
+    path:
+      - /teams/test-team1/users/user2.yml
+      - /teams/test-team2/users/user2.yml
+
+state:
+  - username: user1
+    path:
+      - /teams/test-team1/users/user1.yml
+  - username: user2
+    path:
+      - /teams/test-team1/users/user2.yml
+      - /teams/test-team2/users/user2.yml
