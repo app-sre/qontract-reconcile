@@ -15,76 +15,33 @@ USERS_QUERY = """
 }
 """
 
+def remove_user_mr(path):
+    # send merge request to remove user from app-interface repo
+    # 
+    # we should add the the path to the repo as a conf option in config.toml.
+    # the MR should follow a naming convention. The first would be to check 
+    # if the MR already exists before opening a new one... this has to be 
+    # idempotent
 
-def fetch_current_state():
-    gqlapi = gql.get_api()
-    result = gqlapi.query(USERS_QUERY)
-
-    state = AggregatedList()
-
-    for user in result['user']:
-        params = {
-            'username': user['redhat_username']
-        }
-
-        item = {
-            'path': user['path']
-        }
-
-        state.add(params, item)
-
-    return state
-
-
-def fetch_desired_state(current_state):
-    # we use current_state to avoid searching the entire org
-
-    state = AggregatedList()
-
-    for param_hash in current_state.get_all_params_hash():
-        list_item = current_state.get_by_params_hash(param_hash)
-        params = list_item['params']
-        username = params['username']
-        if not (ldap_client.user_exists(username)):
-            continue
-        
-        item = list_item['items'] 
-
-        state.add(params, item)
-    
-    return state
-
-
-class RunnerAction(object):
-    def __init__(self, dry_run):
-        self.dry_run = dry_run
-
-    def delete_user(self):
-        label = "delete_user"
-
-        def action(params, items):
-            username = params['username']
-
-            for item in items:
-                logging.info([label, username, item['path']])
-
-            if not self.dry_run:
-                pass
-
-        return action
+    pass
 
 
 def run(dry_run=False):
-    current_state = fetch_current_state()
-    desired_state = fetch_desired_state(current_state)
+    gqlapi = gql.get_api()
+    result = gqlapi.query(USERS_QUERY)
 
-    # calculate diff
-    diff = current_state.diff(desired_state)
+    for user in result['user']:
+        username = user['redhat_username']
+        path = user['path']
 
-    # Run actions
-    runner_action = RunnerAction(dry_run)
-    runner = AggregatedDiffRunner(diff)
+        if (ldap_client.user_exists(username)):
+            continue
+        
+        logging.info(['delete_user', username, path])
+        
+        if dry_run:
+            continue
 
-    runner.register("delete", runner_action.delete_user())
-
-    runner.run()
+        remove_user_mr(path)
+    
+    return
