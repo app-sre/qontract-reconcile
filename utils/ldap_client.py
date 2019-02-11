@@ -1,4 +1,3 @@
-# ldap requires `yum install openldap-clients openldap-devel python-devel`
 from ldap3 import Server, Connection, ALL
 from reconcile.config import get_config
 
