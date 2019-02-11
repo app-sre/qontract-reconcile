@@ -1,15 +1,16 @@
 # ldap requires `yum install openldap-clients openldap-devel python-devel`
-import ldap
+from ldap3 import Server, Connection, ALL
 from reconcile.config import get_config
 
 _client = None
 _base_dn = None
 
-def init(server):
+def init(serverUrl):
     global _client
 
     if _client is None:
-        _client = ldap.initialize(server)
+        server = Server(serverUrl, get_info=ALL)
+        _client = Connection(server, None, None, auto_bind=True)
 
     return _client
 
@@ -19,10 +20,10 @@ def init_from_config():
 
     config = get_config()
 
-    server = config['ldap']['server']
+    serverUrl = config['ldap']['server']
     _base_dn = config['ldap']['base_dn']
 
-    return init(server)
+    return init(serverUrl)
 
 
 def user_exists(username):
@@ -32,16 +33,6 @@ def user_exists(username):
 
     init_from_config()
 
-    search_filter = "uid={}".format(username)
-    
-    try:
-        ldap_result_id = _client.search(_base_dn, ldap.SCOPE_SUBTREE, search_filter, None)
-        _, result_data = _client.result(ldap_result_id, 0)
-        
-        if (result_data == []):
-            return False
-        
-        return True
+    search_filter = "uid={},{}".format(username, _base_dn)
 
-    except ldap.LDAPError, e:
-        print e   
+    return _client.search(search_filter, '(objectclass=person)')
