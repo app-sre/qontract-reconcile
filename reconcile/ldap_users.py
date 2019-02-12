@@ -15,6 +15,7 @@ USERS_QUERY = """
 }
 """
 
+
 def get_app_interface_gitlab_api():
     config = get_config()
 
@@ -24,12 +25,13 @@ def get_app_interface_gitlab_api():
 
     return GitLabApi(server, token, project_id, False)
 
+
 def run(dry_run=False):
     gqlapi = gql.get_api()
     result = gqlapi.query(USERS_QUERY)
 
     if not dry_run:
-      gl = get_app_interface_gitlab_api()
+        gl = get_app_interface_gitlab_api()
 
     for user in result['user']:
         username = user['redhat_username']

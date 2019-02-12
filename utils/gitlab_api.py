@@ -1,3 +1,5 @@
+import logging
+
 import gitlab
 import urllib3
 import uuid
@@ -20,6 +22,9 @@ class GitLabApi(object):
             'ref': source_branch
         }
         self.project.branches.create(data)
+
+    def delete_branch(self, branch):
+        self.project.branches.delete(branch)
 
     def delete_file(self, branch_name, file_path, commit_message):
         data = {
@@ -70,5 +75,16 @@ class GitLabApi(object):
             return
 
         self.create_branch(branch_name, target_branch)
-        self.delete_file(branch_name, path, title)
+
+        try:
+            self.delete_file(branch_name, path, title)
+        except gitlab.exceptions.GitlabCreateError as e:
+            self.delete_branch(branch_name)
+            if str(e) != "400: A file with this name doesn't exist":
+                raise e
+            logging.info(
+                "File {} does not exist, not opening MR".format(path)
+            )
+            return
+
         self.create_mr(branch_name, target_branch, title)
