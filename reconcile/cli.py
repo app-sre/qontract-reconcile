@@ -7,6 +7,7 @@ import reconcile.config as config
 import reconcile.gql as gql
 import reconcile.github_org
 import reconcile.openshift_rolebinding
+import reconcile.openshift_resources
 import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
@@ -16,6 +17,7 @@ from reconcile.aggregated_list import RunnerException
 services = {
     'github': reconcile.github_org,
     'openshift-rolebinding': reconcile.openshift_rolebinding,
+    'openshift-resources': reconcile.openshift_resources,
     'quay-membership': reconcile.quay_membership,
     'quay-repos': reconcile.quay_repos,
     'ldap-users': reconcile.ldap_users,

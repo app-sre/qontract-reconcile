@@ -1,5 +1,5 @@
 gql_response:
-  role:
+  roles:
   - users:
     - github_username: user1
     bots: []

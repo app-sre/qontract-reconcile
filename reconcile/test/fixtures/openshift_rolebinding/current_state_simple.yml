@@ -1,18 +1,21 @@
-clusters:
-  - name: clusterA
-    managedRoles:
-      - namespace: ns1
-        role: view
+namespaces:
+- name: ns1
+  managedRoles:
+  - view
+  cluster:
+    name: clusterA
+    serverUrl: n/a
+    automationToken:
+      path: p
+      field: f
+      format: f
 
 rolebindings:
-  clusterA:
-    ns1:
-      view:
-        - subjects:
-          - kind: User
-            name: user1
-          - kind: User
-            name: user2
+- subjects:
+  - kind: User
+    name: user1
+  - kind: User
+    name: user2
 
 state:
 - items:

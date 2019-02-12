@@ -10,7 +10,7 @@ from reconcile.aggregated_list import (AggregatedList,
 
 QUAY_ORG_CATALOG_QUERY = """
 {
-  quay_org {
+  quay_orgs {
     name
     managedTeams
     automationToken {
@@ -24,7 +24,7 @@ QUAY_ORG_CATALOG_QUERY = """
 
 QUAY_ORG_QUERY = """
 {
-  role {
+  roles {
     name
     users {
       name
@@ -66,7 +66,7 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
-    for role in result['role']:
+    for role in result['roles']:
         permissions = list(filter(
             lambda p: p.get('service') == 'quay-membership',
             role['permissions']
@@ -138,7 +138,7 @@ def get_quay_api_store():
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
 
-    for org_data in result['quay_org']:
+    for org_data in result['quay_orgs']:
         token_path = org_data['automationToken']['path']
         token_field = org_data['automationToken']['field']
         token = vault_client.read(token_path, token_field)

@@ -20,8 +20,8 @@ class GqlApi(object):
         if token:
             self.client.inject_token(token)
 
-    def query(self, query):
-        result_json = self.client.execute(query)
+    def query(self, query, variables=None):
+        result_json = self.client.execute(query, variables)
         result = json.loads(result_json)
 
         if 'errors' in result:
@@ -33,6 +33,24 @@ class GqlApi(object):
                 "server response."))
 
         return result['data']
+
+    def get_resource(self, path):
+        query = """
+        query Resource($path: String) {
+            resources(path: $path) {
+                path
+                content
+                sha256sum
+            }
+        }
+        """
+
+        resources = self.query(query, {'path': path})['resources']
+
+        if len(resources) != 1:
+            raise GqlApiError('Expecting one and only one resource.')
+
+        return resources[0]
 
 
 def init(url, token=None):

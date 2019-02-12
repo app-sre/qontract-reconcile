@@ -25,24 +25,23 @@ def get_items_by_params(state, params):
     return False
 
 
-class OpenShiftMock(openshift_rolebinding.Openshift):
+# class OpenShiftMock(openshift_rolebinding.Openshift):
 
-    _rbs = {}
+#     _rbs = {}
 
-    def get_rolebindings(self, ns, role):
-        return self._rbs[ns][role]
+#     def get_rolebindings(self, ns, role):
+#         return self._rbs[ns][role]
 
 
-class ClusterStoreMock(openshift_rolebinding.ClusterStore):
-
-    def __init__(self, clusters, rbs):
-        for c in clusters:
-            api = OpenShiftMock("", "")
-            api._rbs = rbs[c['name']]
-            self._clusters[c['name']] = {
-                'api': api,
-                'managed_roles': c['managedRoles']
-            }
+# class ClusterStoreMock(openshift_rolebinding.ClusterStore):
+#     def __init__(self, clusters, rbs):
+#         for c in clusters:
+#             api = OpenShiftMock("", "")
+#             api._rbs = rbs[c['name']]
+#             self._clusters[c['name']] = {
+#                 'api': api,
+#                 'managed_roles': c['managedRoles']
+#             }
 
 
 class TestOpenshiftRolebinding(object):
@@ -52,14 +51,19 @@ class TestOpenshiftRolebinding(object):
 
     def do_current_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
+        namespaces = fixture['namespaces']
 
-        rbs = fixture['rolebindings']
-        clusters = fixture['clusters']
+        vault_read_func = 'reconcile.openshift_rolebinding.vault_client.read'
+        with patch(vault_read_func) as vcr:
+            vcr.return_value = 'token'
+            cluster_store = openshift_rolebinding.ClusterStore(namespaces)
 
-        cluster_store = ClusterStoreMock(clusters, rbs)
+        grb_func = 'reconcile.openshift_rolebinding.Openshift.get_rolebindings'
+        with patch(grb_func) as grb:
+            grb.return_value = fixture['rolebindings']
 
-        current_state = openshift_rolebinding.fetch_current_state(
-            cluster_store)
+            current_state = openshift_rolebinding.fetch_current_state(
+                cluster_store)
 
         current_state = current_state.dump()
 
@@ -77,21 +81,20 @@ class TestOpenshiftRolebinding(object):
     def do_desired_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch('reconcile.gql.GqlApi.query') as m_gql:
-            m_gql.return_value = fixture['gql_response']
+        roles = fixture['gql_response']['roles']
+        desired_state = openshift_rolebinding.fetch_desired_state(roles)
+        desired_state = desired_state.dump()
 
-            desired_state = openshift_rolebinding.fetch_desired_state().dump()
+        expected_desired_state = fixture['state']
 
-            expected_desired_state = fixture['state']
-
-            assert len(desired_state) == len(expected_desired_state)
-            for group in desired_state:
-                params = group['params']
-                items = sorted(group['items'])
-                assert items == get_items_by_params(
-                    expected_desired_state,
-                    params
-                )
+        assert len(desired_state) == len(expected_desired_state)
+        for group in desired_state:
+            params = group['params']
+            items = sorted(group['items'])
+            assert items == get_items_by_params(
+                expected_desired_state,
+                params
+            )
 
     def test_current_state_simple(self):
         self.do_current_state_test('current_state_simple.yml')

@@ -9,7 +9,7 @@ from utils.raw_github_api import RawGithubApi
 
 QUERY = """
 {
-  role {
+  roles {
     name
     users {
       github_username
@@ -74,7 +74,7 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
-    for role in result['role']:
+    for role in result['roles']:
         permissions = list(filter(
             lambda p: p.get('service') in ['github-org', 'github-org-team'],
             role['permissions']

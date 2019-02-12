@@ -9,27 +9,27 @@ from reconcile.aggregated_list import (AggregatedList,
                                        RunnerException)
 from utils.openshift_api import Openshift
 
-CLUSTER_CATALOG_QUERY = """
+NAMESPACES_QUERY = """
 {
-  cluster {
+  namespaces {
     name
-    serverUrl
-    automationToken {
-      path
-      field
-      format
-    }
-    managedRoles {
-      namespace
-      role
+    managedRoles
+    cluster {
+      name
+      serverUrl
+      automationToken {
+        path
+        field
+        format
+      }
     }
   }
 }
 """
 
-ROLEBINDINGS_QUERY = """
+ROLES_QUERY = """
 {
-  role {
+  roles {
     name
     users {
       github_username
@@ -53,28 +53,36 @@ ROLEBINDINGS_QUERY = """
 class ClusterStore(object):
     _clusters = {}
 
-    def __init__(self):
-        gqlapi = gql.get_api()
-        result = gqlapi.query(CLUSTER_CATALOG_QUERY)
+    def __init__(self, namespaces):
+        _clusters = {}
 
-        for cluster_info in result['cluster']:
-            name = cluster_info['name']
-            automationToken = cluster_info.get('automationToken')
+        for namespace_info in namespaces:
+            namespace_name = namespace_info['name']
+            managed_roles = namespace_info.get('managedRoles')
+            cluster_info = namespace_info['cluster']
+            cluster_name = cluster_info['name']
+            automation_token = cluster_info.get('automationToken')
 
-            if not automationToken:
+            if not managed_roles or not automation_token:
                 continue
 
-            token = vault_client.read(
-                automationToken['path'],
-                automationToken['field'],
-            )
+            if _clusters.get(cluster_name) is None:
+                token = vault_client.read(
+                    automation_token['path'],
+                    automation_token['field'],
+                )
 
-            api = Openshift(cluster_info['serverUrl'], token)
+                api = Openshift(cluster_info['serverUrl'], token)
 
-            self._clusters[name] = {
-                'api': api,
-                'managed_roles': cluster_info['managedRoles']
-            }
+                _clusters[cluster_name] = {
+                    'api': api,
+                    'namespaces': {}
+                }
+
+            _clusters[cluster_name]['namespaces'][namespace_name] = \
+                managed_roles
+
+        self._clusters = _clusters
 
     def clusters(self):
         return self._clusters.keys()
@@ -83,17 +91,10 @@ class ClusterStore(object):
         return self._clusters[cluster]['api']
 
     def namespaces(self, cluster):
-        return [
-            role['namespace']
-            for role in self._clusters[cluster]['managed_roles']
-        ]
+        return self._clusters[cluster]['namespaces'].keys()
 
-    def namespace_roles(self, cluster, namespace):
-        return [
-            managed_role['role']
-            for managed_role in self._clusters[cluster]['managed_roles']
-            if managed_role['namespace'] == namespace
-        ]
+    def namespace_managed_roles(self, cluster, namespace):
+        return self._clusters[cluster]['namespaces'][namespace]
 
 
 def fetch_current_state(cluster_store):
@@ -103,7 +104,9 @@ def fetch_current_state(cluster_store):
         api = cluster_store.api(cluster)
 
         for namespace in cluster_store.namespaces(cluster):
-            for role in cluster_store.namespace_roles(cluster, namespace):
+            roles = cluster_store.namespace_managed_roles(cluster, namespace)
+
+            for role in roles:
                 rolebindings = api.get_rolebindings(namespace, role)
 
                 members = [
@@ -123,19 +126,10 @@ def fetch_current_state(cluster_store):
     return state
 
 
-def fetch_desired_state():
-    gqlapi = gql.get_api()
-    result = gqlapi.query(ROLEBINDINGS_QUERY)
-
+def fetch_desired_state(roles):
     state = AggregatedList()
 
-    def username(m):
-        if m['schema'] == '/access/bot-1.yml':
-            return m.get('github_username_optional')
-        else:
-            return m['github_username']
-
-    for role in result['role']:
+    for role in roles:
         permissions = list(filter(
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']
@@ -163,6 +157,9 @@ class RunnerAction(object):
 
     def manage_role(self, label, method_name):
         def action(params, items):
+            if len(items) == 0:
+                return True
+
             status = True
 
             cluster = params['cluster']
@@ -201,10 +198,15 @@ class RunnerAction(object):
 
 
 def run(dry_run=False):
-    cluster_store = ClusterStore()
+    gqlapi = gql.get_api()
+
+    namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
+    roles = gqlapi.query(ROLES_QUERY)['roles']
+
+    cluster_store = ClusterStore(namespaces)
 
     current_state = fetch_current_state(cluster_store)
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(roles)
 
     # calculate diff
     diff = current_state.diff(desired_state)
