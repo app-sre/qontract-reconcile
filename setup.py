@@ -23,6 +23,8 @@ setup(
         "PyGithub==1.40",
         "requests==2.21.0",
         "hvac>=0.7.0,<0.8.0",
+        "ldap3==2.5.2",
+        "python-gitlab==1.7.0",
     ],
 
     test_suite="tests",

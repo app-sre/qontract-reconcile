@@ -25,3 +25,20 @@ token = "<token>"
 [github.<another_orgname>]
 token = "<another_token>"
 
+[ldap]
+# This section is required by `qcontract-reconcile ldap-users`
+
+# (mandatory) ldap endpoint
+server = "ldap://ldap.example.com"
+# (optional) user search point
+base_dn = "ou=users,dc=example,dc=com"
+
+[app-interface]
+# This section is required by `qcontract-reconcile ldap-users`
+
+# (mandatory) gitlab server url
+server = "https://gitlab.example.com"
+# (mandatory) gitlab private auth token
+token = "..."
+# (mandatory) app-interface gitlab project id
+project_id = "12345"
