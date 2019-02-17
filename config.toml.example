@@ -26,7 +26,7 @@ token = "<token>"
 token = "<another_token>"
 
 [ldap]
-# This section is required by `qcontract-reconcile ldap-users`
+# This section is required by `qontract-reconcile ldap-users`
 
 # (mandatory) ldap endpoint
 server = "ldap://ldap.example.com"
@@ -34,7 +34,7 @@ server = "ldap://ldap.example.com"
 base_dn = "ou=users,dc=example,dc=com"
 
 [app-interface]
-# This section is required by `qcontract-reconcile ldap-users`
+# This section is required by `qontract-reconcile ldap-users`
 
 # (mandatory) gitlab server url
 server = "https://gitlab.example.com"
