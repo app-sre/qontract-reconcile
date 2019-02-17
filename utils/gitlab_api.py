@@ -62,7 +62,7 @@ class GitLabApi(object):
         return False
 
     def create_delete_user_mr(self, username, path):
-        prefix = 'qcontract-reconcile'
+        prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-{}-{}'.format(
             prefix,
