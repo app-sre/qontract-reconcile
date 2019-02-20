@@ -46,7 +46,7 @@ NAMESPACES_QUERY = """
 }
 """
 
-QONTRACT_INTEGRATION = 'openshift_resource'
+QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = '1'
 
 

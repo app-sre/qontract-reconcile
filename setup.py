@@ -41,7 +41,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'qontract-reconcile = reconcile.cli:main',
+            'qontract-reconcile = reconcile.cli:integration',
         ],
     },
 )

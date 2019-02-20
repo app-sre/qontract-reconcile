@@ -66,9 +66,17 @@ class OpenshiftResource(object):
         body = copy.deepcopy(body)
 
         body.setdefault('metadata', {}).setdefault('annotations', {})
-
         annotations = body['metadata']['annotations']
 
+        # openshift specific
+        body['metadata'].pop('creationTimestamp', None)
+        body['metadata'].pop('resourceVersion', None)
+        body['metadata'].pop('selfLink', None)
+        body['metadata'].pop('uid', None)
+        annotations.pop('kubectl.kubernetes.io/last-applied-configuration',
+                        None)
+
+        # qontract specific
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
         annotations.pop('qontract.sha256sum', None)

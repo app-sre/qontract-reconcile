@@ -2,6 +2,18 @@ from subprocess import Popen, PIPE
 import json
 
 
+class StatusCodeError(Exception):
+    pass
+
+
+class NoOutputError(Exception):
+    pass
+
+
+class JSONParsingError(Exception):
+    pass
+
+
 class OC(object):
     def __init__(self, server, token):
         self.oc_base_cmd = ['oc', '--server', server, '--token', token]
@@ -33,6 +45,11 @@ class OC(object):
 
         return items
 
+    def get(self, namespace, kind, name):
+        cmd = ['get', '--export=true', '-o', 'json', '-n', namespace, kind,
+               name]
+        return self._run_json(cmd)
+
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
@@ -61,10 +78,10 @@ class OC(object):
         code = p.returncode
 
         if code != 0:
-            raise Exception("Status code error", err)
+            raise StatusCodeError(err)
 
         if not out:
-            raise Exception("No output received", err)
+            raise NoOutputError(err)
 
         return out.strip()
 
@@ -74,6 +91,6 @@ class OC(object):
         try:
             out_json = json.loads(out)
         except ValueError as e:
-            raise Exception("Error parsing json", out, e.message)
+            raise JSONParsingError(out + "\n" + e.message)
 
         return out_json
