@@ -6,5 +6,5 @@ import reconcile.cli as reconcile_cli
 class TestCli(object):
     def test_config_is_required(self):
         runner = CliRunner()
-        result = runner.invoke(reconcile_cli.main)
-        assert result.exit_code != 0
+        result = runner.invoke(reconcile_cli.integration)
+        assert result.exit_code == 0
