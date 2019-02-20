@@ -257,6 +257,10 @@ def run(dry_run=False):
                 if c_item.has_qontract_annotations():
                     if c_item.sha256sum() == d_item.sha256sum():
                         # don't apply if sha256sum hashes match
+                        logging.debug((
+                            "Skipping resource '{}/{}' in '{}/{}'. "
+                            "Hashes match."
+                        ).format(rt, name, c, n))
                         continue
                 else:
                     # don't apply if it doesn't have annotations
