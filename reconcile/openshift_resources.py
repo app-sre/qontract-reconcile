@@ -129,26 +129,13 @@ def fetch_data(namespaces_query):
 
     for namespace_info in namespaces_query:
         namespace = namespace_info['name']
+        cluster_info = namespace_info['cluster']
+        cluster = cluster_info['name']
 
         # Skip if namespace has no managedResourceTypes
         managed_types = namespace_info.get('managedResourceTypes')
         if not managed_types:
             continue
-
-        # Obtain `oc` client
-        cluster_info = namespace_info['cluster']
-        cluster = cluster_info['name']
-        if oc_map.get(cluster) is None:
-            at = cluster_info.get('automationToken')
-
-            # Skip if cluster has no automationToken
-            if at is None:
-                continue
-
-            token = vault_client.read(at['path'], at['field'])
-            oc_map[cluster] = OC(cluster_info['serverUrl'], token)
-
-        oc = oc_map[cluster]
 
         # useful errors
         def error(msg):
@@ -158,6 +145,23 @@ def fetch_data(namespaces_query):
 
             logging.error(err_msg)
             errors.append(err_msg)
+
+        # Obtain `oc` client
+        if oc_map.get(cluster) is None:
+            at = cluster_info.get('automationToken')
+
+            # Skip if cluster has no automationToken
+            if at is None:
+                error("Cluster {} has no automationToken.")
+                oc_map[cluster] = False
+            else:
+                token = vault_client.read(at['path'], at['field'])
+                oc_map[cluster] = OC(cluster_info['serverUrl'], token)
+
+        oc = oc_map[cluster]
+
+        if oc is False:
+            continue
 
         # Current State
         for resource_type in managed_types:
