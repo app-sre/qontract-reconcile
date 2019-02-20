@@ -15,7 +15,7 @@ from utils.oc import OC
 | Present               | Apply if sha256sum | Delete      |
 | (with annotations)    | is different       |             |
 +-----------------------+--------------------+-------------+
-| Present               | Skip               | Skip        |
+| Present               | Skip (exit 1)      | Skip        |
 | (without annotations) |                    |             |
 +-----------------------+--------------------+-------------+
 | Not Present           | Apply              | Skip        |
@@ -255,11 +255,13 @@ def run(dry_run=False):
                         # don't apply if sha256sum hashes match
                         continue
                 else:
-                    logging.info((
+                    # don't apply if it doesn't have annotations
+                    e_msg = (
                         "Skipping resource '{}/{}' in '{}/{}'. "
                         "Present w/o annotations."
-                    ).format(rt, name, c, n))
-                    # don't apply if it doesn't have annotations
+                    ).format(rt, name, c, n)
+                    logging.info(e_msg)
+                    errors.append(e_msg)
                     continue
 
             apply(dry_run, oc_map, c, n, rt, d_item)
