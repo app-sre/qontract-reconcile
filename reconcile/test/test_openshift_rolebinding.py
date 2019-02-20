@@ -25,25 +25,6 @@ def get_items_by_params(state, params):
     return False
 
 
-# class OpenShiftMock(openshift_rolebinding.Openshift):
-
-#     _rbs = {}
-
-#     def get_rolebindings(self, ns, role):
-#         return self._rbs[ns][role]
-
-
-# class ClusterStoreMock(openshift_rolebinding.ClusterStore):
-#     def __init__(self, clusters, rbs):
-#         for c in clusters:
-#             api = OpenShiftMock("", "")
-#             api._rbs = rbs[c['name']]
-#             self._clusters[c['name']] = {
-#                 'api': api,
-#                 'managed_roles': c['managedRoles']
-#             }
-
-
 class TestOpenshiftRolebinding(object):
     def setup_method(self, method):
         config.init_from_toml(fxt.path('config.toml'))

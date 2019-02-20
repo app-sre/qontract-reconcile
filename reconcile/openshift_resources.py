@@ -109,15 +109,12 @@ def fetch_provider_resource(path):
 
     openshift_resource = OpenshiftResource(resource['body'])
 
-    # verify valid k8s object
     try:
-        openshift_resource.run_assert()
-    except TypeError:
-        e_msg = "Invalid data (TypeError). Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(path))
-    except KeyError:
-        e_msg = "Invalid data (KeyError). Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(path))
+        openshift_resource.verify_valid_k8s_object()
+    except (KeyError, TypeError):
+        k = e.__class__.__name__
+        e_msg = "Invalid data ({}). Skipping resource: {}"
+        raise FetchResourceError(e_msg.format(k, path))
 
     return openshift_resource
 
@@ -225,13 +222,16 @@ def fetch_data(namespaces_query):
     return oc_map, ri, errors
 
 
-def apply(dry_run, oc_map, c, n, rt, item):
-    logging.info(['apply', c, n, rt, item.name])
+def apply(dry_run, oc_map, c, n, rt, resource):
+    logging.info(['apply', c, n, rt, resource.name])
 
     if not dry_run:
-        item.annotate()
-        body = OpenshiftResource.serialize(item.body)
-        oc_map[c].apply(n, body)
+        annotated = resource.annotate()
+
+        try:
+            oc_map[c].apply(n, annotated.toJSON())
+        except utils.oc.StatusCodeError as e:
+            logging.error(e.message)
 
 
 def delete(dry_run, oc_map, c, n, rt, name):

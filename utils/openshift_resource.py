@@ -17,7 +17,7 @@ class OpenshiftResource(object):
     def kind(self):
         return self.body['kind']
 
-    def run_assert(self):
+    def verify_valid_k8s_object(self):
         self.name
         self.kind
 
@@ -28,6 +28,7 @@ class OpenshiftResource(object):
             assert annotations['qontract.integration'] == self.integration
             assert annotations['qontract.integration_version'] == \
                 self.integration_version
+            assert annotations['qontract.sha256sum'] is not None
         except KeyError:
             return False
         except AssertionError:
@@ -36,47 +37,65 @@ class OpenshiftResource(object):
         return True
 
     def annotate(self):
-        body = self.canonicalize(self.body)
-        sha256sum = self.calculate_sha256sum(self.serialize(body))
+        """
+        Creates a OpenshiftResource with the qontract annotations, and removes
+        unneeded Openshift fields.
 
+        Returns:
+            openshift_resource: new OpenshiftResource object with
+                annotations.
+        """
+
+        # calculate sha256sum of canonical body
+        canonical_body = self.canonicalize(self.body)
+        sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
+
+        # create new body object
+        body = copy.deepcopy(self.body)
+
+        # create annotations if not present
+        body['metadata'].setdefault('annotations', {})
         annotations = body['metadata']['annotations']
 
+        # add qontract annotations
         annotations['qontract.integration'] = self.integration
         annotations['qontract.integration_version'] = \
             self.integration_version
-
         annotations['qontract.sha256sum'] = sha256sum
 
-        self.body = body
+        return OpenshiftResource(body, self.integration,
+                                 self.integration_version)
 
     def sha256sum(self):
         if self.has_qontract_annotations():
-            try:
-                annotations = self.body['metadata']['annotations']
-                return annotations['qontract.sha256sum']
-            except KeyError:
-                pass
+            body = self.body
+        else:
+            body = self.annotate().body
 
-        # calculate sha256sum if it doesn't have annotations
-        body = self.canonicalize(self.body)
-        return self.calculate_sha256sum(self.serialize(body))
+        annotations = body['metadata']['annotations']
+        return annotations['qontract.sha256sum']
+
+    def toJSON(self):
+        return self.serialize(self.body)
 
     @staticmethod
     def canonicalize(body):
         body = copy.deepcopy(body)
 
-        body.setdefault('metadata', {}).setdefault('annotations', {})
+        # create annotations if not present
+        body['metadata'].setdefault('annotations', {})
         annotations = body['metadata']['annotations']
 
-        # openshift specific
+        # remove openshift specific params
         body['metadata'].pop('creationTimestamp', None)
         body['metadata'].pop('resourceVersion', None)
         body['metadata'].pop('selfLink', None)
         body['metadata'].pop('uid', None)
+        body['metadata'].pop('namespace', None)
         annotations.pop('kubectl.kubernetes.io/last-applied-configuration',
                         None)
 
-        # qontract specific
+        # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
         annotations.pop('qontract.sha256sum', None)
@@ -90,5 +109,5 @@ class OpenshiftResource(object):
     @staticmethod
     def calculate_sha256sum(body):
         m = hashlib.sha256()
-        m.update(body)
+        m.update(body.encode('utf-8'))
         return m.hexdigest()

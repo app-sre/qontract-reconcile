@@ -58,12 +58,7 @@ def run(dry_run, cluster, namespace, kind, name):
         logging.error('already annotated')
         sys.exit(1)
 
-    openshift_resource.annotate()
+    openshift_resource = openshift_resource.annotate()
 
-    # Remove fields added by
-    openshift_resource.body['metadata'].pop('creationTimestamp', None)
-    openshift_resource.body['metadata'].pop('selfLink', None)
-
-    body = OpenshiftResource.serialize(openshift_resource.body)
-    oc.apply(namespace, body)
+    oc.apply(namespace, openshift_resource.toJSON())
     logging.info('annotated')

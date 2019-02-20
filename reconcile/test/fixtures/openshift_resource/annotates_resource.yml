@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: ConfigMap
+data:
+  key1: val1
+  key2: val2
+metadata:
+  creationTimestamp: "2019-02-20T20:55:37Z"
+  name: app-interface
+  namespace: jmelis
+  resourceVersion: "1881781"
+  selfLink: /api/v1/namespaces/jmelis/configmaps/app-interface
+  uid: dff4d2f8-3551-11e9-9e8e-02442ca55172
