@@ -5,8 +5,8 @@ import anymarkup
 
 import reconcile.gql as gql
 import utils.vault_client as vault_client
-import utils.openshift_resource
-from utils.oc import OC
+from utils.openshift_resource import OpenshiftResource
+from utils.oc import OC, StatusCodeError
 
 """
 +-----------------------+--------------------+-------------+
@@ -54,38 +54,38 @@ class FetchResourceError(Exception):
     pass
 
 
-class OpenshiftResource(utils.openshift_resource.OpenshiftResource):
+class OR(OpenshiftResource):
     def __init__(self, body):
-        super(OpenshiftResource, self).__init__(
+        super(OR, self).__init__(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
 
 
 class ResourceInventory(object):
     def __init__(self):
-        self._dict = {}
+        self._clusters = {}
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
-        self._dict.setdefault(cluster, {})
-        self._dict[cluster].setdefault(namespace, {})
-        self._dict[cluster][namespace].setdefault(resource_type, {
+        self._clusters.setdefault(cluster, {})
+        self._clusters[cluster].setdefault(namespace, {})
+        self._clusters[cluster][namespace].setdefault(resource_type, {
             'current': {},
             'desired': {}
         })
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
-        desired = self._dict[cluster][namespace][resource_type]['desired']
+        desired = self._clusters[cluster][namespace][resource_type]['desired']
         desired[name] = value
 
     def add_current(self, cluster, namespace, resource_type, name, value):
-        current = self._dict[cluster][namespace][resource_type]['current']
+        current = self._clusters[cluster][namespace][resource_type]['current']
         current[name] = value
 
-    def iterate(self):
-        for cluster in self._dict.keys():
-            for namespace in self._dict[cluster].keys():
-                for resource_type in self._dict[cluster][namespace].keys():
-                    data = self._dict[cluster][namespace][resource_type]
+    def __iter__(self):
+        for cluster in self._clusters.keys():
+            for namespace in self._clusters[cluster].keys():
+                for resource_type in self._clusters[cluster][namespace].keys():
+                    data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
 
 
@@ -107,7 +107,7 @@ def fetch_provider_resource(path):
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
 
-    openshift_resource = OpenshiftResource(resource['body'])
+    openshift_resource = OR(resource['body'])
 
     try:
         openshift_resource.verify_valid_k8s_object()
@@ -167,7 +167,7 @@ def fetch_data(namespaces_query):
 
             # Fetch current resources
             for item in oc.get_items(resource_type, namespace=namespace):
-                openshift_resource = OpenshiftResource(item)
+                openshift_resource = OR(item)
                 ri.add_current(
                     cluster,
                     namespace,
@@ -222,23 +222,23 @@ def fetch_data(namespaces_query):
     return oc_map, ri, errors
 
 
-def apply(dry_run, oc_map, c, n, rt, resource):
-    logging.info(['apply', c, n, rt, resource.name])
+def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
+    logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     if not dry_run:
         annotated = resource.annotate()
 
         try:
-            oc_map[c].apply(n, annotated.toJSON())
-        except utils.oc.StatusCodeError as e:
+            oc_map[cluster].apply(namespace, annotated.toJSON())
+        except StatusCodeError as e:
             logging.error(e.message)
 
 
-def delete(dry_run, oc_map, c, n, rt, name):
-    logging.info(['delete', c, n, rt, name])
+def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
+    logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
-        oc_map[c].delete(n, rt, name)
+        oc_map[cluster].delete(namespace, resource_type, name)
 
 
 def run(dry_run=False):
@@ -248,7 +248,7 @@ def run(dry_run=False):
 
     oc_map, ri, errors = fetch_data(namespaces_query)
 
-    for c, n, rt, data in ri.iterate():
+    for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)
@@ -260,26 +260,28 @@ def run(dry_run=False):
                         logging.debug((
                             "Skipping resource '{}/{}' in '{}/{}'. "
                             "Hashes match."
-                        ).format(rt, name, c, n))
+                        ).format(
+                            resource_type, name, cluster, namespace))
                         continue
                 else:
                     # don't apply if it doesn't have annotations
                     e_msg = (
                         "Skipping resource '{}/{}' in '{}/{}'. "
                         "Present w/o annotations."
-                    ).format(rt, name, c, n)
+                    ).format(resource_type, name, cluster, namespace)
                     logging.info(e_msg)
                     errors.append(e_msg)
                     continue
 
-            apply(dry_run, oc_map, c, n, rt, d_item)
+            apply(dry_run, oc_map, cluster, namespace, resource_type, d_item)
 
         # current items
         for name, c_item in data['current'].items():
             d_item = data['desired'].get(name)
 
             if c_item.has_qontract_annotations() and d_item is None:
-                delete(dry_run, oc_map, c, n, rt, name)
+                delete(dry_run, oc_map, cluster, namespace, resource_type,
+                       name)
 
     if len(errors) > 0:
         sys.exit(1)
