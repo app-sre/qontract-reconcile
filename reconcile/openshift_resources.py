@@ -255,6 +255,10 @@ def run(dry_run=False):
                         # don't apply if sha256sum hashes match
                         continue
                 else:
+                    logging.info((
+                        "Skipping resource '{}/{}' in '{}/{}'. "
+                        "Present w/o annotations."
+                    ).format(rt, name, c, n))
                     # don't apply if it doesn't have annotations
                     continue
 
