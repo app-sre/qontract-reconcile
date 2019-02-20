@@ -30,8 +30,8 @@ def run_integration(func, *args):
               help='Path to configuration file in toml format.')
 @click.option('--dry-run/--no-dry-run',
               default=False,
-              help='If true, only print the planned actions that would be'
-                   'performed, without executing them it.')
+              help='If `true`, it will only print the planned actions '
+                   'that would be performed, without executing them.')
 @click.option('--log-level',
               help='log-level of the command. Defaults to INFO.',
               type=click.Choice([
