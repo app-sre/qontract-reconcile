@@ -9,7 +9,7 @@ from reconcile.aggregated_list import (AggregatedList,
 
 QUAY_ORG_CATALOG_QUERY = """
 {
-  quay_org {
+  quay_orgs {
     name
     automationToken {
       path
@@ -22,7 +22,7 @@ QUAY_ORG_CATALOG_QUERY = """
 
 QUAY_REPOS_QUERY = """
 {
-  app {
+  apps {
     quayRepos {
       org {
         name
@@ -70,7 +70,7 @@ def fetch_desired_state():
 
     state = AggregatedList()
 
-    for app in result['app']:
+    for app in result['apps']:
         quay_repos = app.get('quayRepos')
 
         if quay_repos is None:
@@ -181,7 +181,7 @@ def get_quay_api_store():
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
 
-    for org_data in result['quay_org']:
+    for org_data in result['quay_orgs']:
         token_path = org_data['automationToken']['path']
         token_field = org_data['automationToken']['field']
         token = vault_client.read(token_path, token_field)
