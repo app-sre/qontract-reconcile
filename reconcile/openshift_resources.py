@@ -267,7 +267,7 @@ def run(dry_run=False):
                         "Skipping resource '{}/{}' in '{}/{}'. "
                         "Present w/o annotations."
                     ).format(resource_type, name, cluster, namespace)
-                    logging.info(e_msg)
+                    logging.error(e_msg)
                     errors.append(e_msg)
                     continue
 
