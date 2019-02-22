@@ -2,7 +2,7 @@ import sys
 import logging
 
 import reconcile.gql as gql
-from reconcile.openshift_resources import OpenshiftResource
+from reconcile.openshift_resources import OR
 
 import utils.vault_client as vault_client
 import utils.oc
@@ -52,7 +52,7 @@ def run(dry_run, cluster, namespace, kind, name):
             logging.error('Resource not found.')
             sys.exit(1)
 
-    openshift_resource = OpenshiftResource(resource)
+    openshift_resource = OR(resource)
 
     if openshift_resource.has_qontract_annotations():
         logging.error('already annotated')
@@ -60,5 +60,7 @@ def run(dry_run, cluster, namespace, kind, name):
 
     openshift_resource = openshift_resource.annotate()
 
-    oc.apply(namespace, openshift_resource.toJSON())
+    if not dry_run:
+        oc.apply(namespace, openshift_resource.toJSON())
+
     logging.info('annotated')
