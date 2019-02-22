@@ -95,6 +95,11 @@ class OpenshiftResource(object):
         annotations.pop('kubectl.kubernetes.io/last-applied-configuration',
                         None)
 
+        # Default fields for specific resource types
+        # ConfigMaps are by default Opaque
+        if body['kind'] == 'ConfigMap' and body.get('type') == 'Opaque':
+            body.pop('type')
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)

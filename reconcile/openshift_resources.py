@@ -223,8 +223,6 @@ def fetch_data(namespaces_query):
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
-    logging.info(['apply', cluster, namespace, resource_type, resource.name])
-
     if not dry_run:
         annotated = resource.annotate()
 
@@ -272,6 +270,15 @@ def run(dry_run=False):
                     logging.info(e_msg)
                     errors.append(e_msg)
                     continue
+
+            logging.info(['apply', cluster, namespace,
+                          resource_type, d_item.name])
+
+            logging.debug("CURRENT: " +
+                          OR.serialize(OR.canonicalize(c_item.body)))
+
+            logging.debug("DESIRED: " +
+                          OR.serialize(OR.canonicalize(d_item.body)))
 
             apply(dry_run, oc_map, cluster, namespace, resource_type, d_item)
 
