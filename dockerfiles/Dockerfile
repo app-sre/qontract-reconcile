@@ -3,8 +3,9 @@ FROM centos:7
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 
-RUN yum install -y epel-release && \
-    yum install -y python2-pip && \
+RUN yum install -y centos-release-openshift-origin && \
+    yum install -y epel-release && \
+    yum install -y python2-pip origin-clients && \
     pip install --upgrade pip && \
     yum clean all
 
