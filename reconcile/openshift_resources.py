@@ -2,6 +2,7 @@ import logging
 import sys
 
 import anymarkup
+import base64
 
 import reconcile.gql as gql
 import utils.vault_client as vault_client
@@ -32,6 +33,10 @@ NAMESPACES_QUERY = """
       ... on NamespaceOpenshiftResourceResource_v1 {
         path
       }
+      ... on NamespaceOpenshiftResourceVaultSecret_v1 {
+        name
+        path
+      }
     }
     cluster {
       name
@@ -51,6 +56,14 @@ QONTRACT_INTEGRATION_VERSION = '1'
 
 
 class FetchResourceError(Exception):
+    pass
+
+
+class FetchVaultSecretError(Exception):
+    pass
+
+
+class ResourceKeyExistsError(Exception):
     pass
 
 
@@ -75,6 +88,8 @@ class ResourceInventory(object):
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
         desired = self._clusters[cluster][namespace][resource_type]['desired']
+        if name in desired:
+            raise ResourceKeyExistsError(name)
         desired[name] = value
 
     def add_current(self, cluster, namespace, resource_type, name, value):
@@ -87,6 +102,47 @@ class ResourceInventory(object):
                 for resource_type in self._clusters[cluster][namespace].keys():
                     data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
+
+
+_error_occured = False
+_error_prefix = ''
+
+
+def error(msg):
+    global _error_occured
+    global _error_prefix
+
+    _error_occured = True
+    logging.error(_error_prefix + msg)
+
+
+def update_error_prefix(namespace, cluster):
+    global _error_prefix
+
+    err_tpl = "Error fetching data. cluster: {}, namespace: {}. Details: "
+    _error_prefix = err_tpl.format(cluster, namespace)
+
+
+def has_error_occured():
+    global _error_occured
+
+    return _error_occured
+
+
+def obtain_oc_client(oc_map, cluster_info):
+    cluster = cluster_info['name']
+    if oc_map.get(cluster) is None:
+        at = cluster_info.get('automationToken')
+
+        # Skip if cluster has no automationToken
+        if at is None:
+            error("Cluster has no automationToken.")
+            oc_map[cluster] = False
+        else:
+            token = vault_client.read(at['path'], at['field'])
+            oc_map[cluster] = OC(cluster_info['serverUrl'], token)
+
+    return oc_map[cluster]
 
 
 def fetch_provider_resource(path):
@@ -119,107 +175,134 @@ def fetch_provider_resource(path):
     return openshift_resource
 
 
+def fetch_provider_vault_secret(name, path):
+    body = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "type": "Opaque",
+        "metadata": {
+            "name": name
+        },
+        "data": {}
+    }
+
+    # get the fields from vault
+    raw_data = vault_client.read_all(path)
+    for k, v in raw_data.items():
+        body['data'][k] = base64.b64encode(v)
+
+    openshift_resource = OR(body)
+
+    try:
+        openshift_resource.verify_valid_k8s_object()
+    except (KeyError, TypeError) as e:
+        k = e.__class__.__name__
+        e_msg = "Invalid data ({}). Skipping resource: {}"
+        raise FetchVaultSecretError(e_msg.format(k, path))
+
+    return openshift_resource
+
+
+def fetch_openshift_resource(resource):
+    provider = resource['provider']
+    path = resource['path']
+
+    if provider == 'resource':
+        try:
+            openshift_resource = fetch_provider_resource(path)
+        except FetchResourceError as e:
+            error(str(e.message))
+            return None
+    elif provider == 'vault-secret':
+        name = resource['name']
+        try:
+            openshift_resource = fetch_provider_vault_secret(
+                name, path)
+        except FetchVaultSecretError as e:
+            error(str(e.message))
+            return None
+    else:
+        error('Unknown provider: {}'.format(provider))
+        return None
+
+    return openshift_resource
+
+
+def fetch_current_state(oc, ri, cluster, namespace, managed_types):
+    for resource_type in managed_types:
+        # Initialize cluster/namespace/resource_type in Inventories
+        ri.initialize_resource_type(cluster, namespace, resource_type)
+
+        # Fetch current resources
+        for item in oc.get_items(resource_type, namespace=namespace):
+            openshift_resource = OR(item)
+            ri.add_current(
+                cluster,
+                namespace,
+                resource_type,
+                openshift_resource.name,
+                openshift_resource
+            )
+    return ri
+
+
+def fetch_desired_state(ri, cluster, namespace, openshift_resources):
+    for resource in openshift_resources:
+        openshift_resource = fetch_openshift_resource(resource)
+        if openshift_resource is None:
+            error('Invalid None type for openshift_resource.')
+            continue
+
+        # add to inventory
+        try:
+            ri.add_desired(
+                cluster,
+                namespace,
+                openshift_resource.kind,
+                openshift_resource.name,
+                openshift_resource
+            )
+        except KeyError:
+            # This is failing because in the managed_type loop (where the
+            # `initialize_resource_type` method was called), this specific
+            # combination was not initialized, meaning that it shouldn't be
+            # managed. But someone is trying to add it via app-interface
+            error("Unknown kind: {}.".format(openshift_resource.kind))
+            continue
+        except ResourceKeyExistsError:
+            # This is failing because an attempt to add
+            # a desired resource with the same name and
+            # the same type was already added previously
+            error("Desired item already exists: {}/{}.".format(
+                openshift_resource.kind, openshift_resource.name))
+            continue
+    return ri
+
+
 def fetch_data(namespaces_query):
     ri = ResourceInventory()
     oc_map = {}
-    errors = []
 
     for namespace_info in namespaces_query:
-        namespace = namespace_info['name']
-        cluster_info = namespace_info['cluster']
-        cluster = cluster_info['name']
-
         # Skip if namespace has no managedResourceTypes
         managed_types = namespace_info.get('managedResourceTypes')
         if not managed_types:
             continue
 
-        # useful errors
-        def error(msg):
-            err_msg = (
-                "Error fetching data. cluster: {}, namespace: {}. "
-            ).format(cluster, namespace) + msg
-
-            logging.error(err_msg)
-            errors.append(err_msg)
-
-        # Obtain `oc` client
-        if oc_map.get(cluster) is None:
-            at = cluster_info.get('automationToken')
-
-            # Skip if cluster has no automationToken
-            if at is None:
-                error("Cluster {} has no automationToken.")
-                oc_map[cluster] = False
-            else:
-                token = vault_client.read(at['path'], at['field'])
-                oc_map[cluster] = OC(cluster_info['serverUrl'], token)
-
-        oc = oc_map[cluster]
-
+        cluster_info = namespace_info['cluster']
+        oc = obtain_oc_client(oc_map, cluster_info)
         if oc is False:
             continue
 
-        # Current State
-        for resource_type in managed_types:
-            # Initialize cluster/namespace/resource_type in Inventories
-            ri.initialize_resource_type(cluster, namespace, resource_type)
+        namespace = namespace_info['name']
+        cluster = cluster_info['name']
+        update_error_prefix(cluster, namespace)
 
-            # Fetch current resources
-            for item in oc.get_items(resource_type, namespace=namespace):
-                openshift_resource = OR(item)
-                ri.add_current(
-                    cluster,
-                    namespace,
-                    resource_type,
-                    openshift_resource.name,
-                    openshift_resource
-                )
-
-        # Desired State
+        fetch_current_state(oc, ri, cluster, namespace, managed_types)
         openshift_resources = namespace_info.get('openshiftResources') or []
-        for resource in openshift_resources:
-            openshift_resource = None
+        fetch_desired_state(ri, cluster, namespace, openshift_resources)
 
-            provider = resource['provider']
-            if provider == 'resource':
-                path = resource['path']
-                try:
-                    openshift_resource = fetch_provider_resource(path)
-                except FetchResourceError as e:
-                    error("provider resource. path: {}. ".format(path)
-                          + str(e.message))
-                    continue
-            else:
-                error('Unknown provider: {}'.format(provider))
-                continue
-
-            if openshift_resource is None:
-                error('Invalid None type for openshift_resource.')
-                continue
-
-            # add to inventory
-            try:
-                ri.add_desired(
-                    cluster,
-                    namespace,
-                    openshift_resource.kind,
-                    openshift_resource.name,
-                    openshift_resource
-                )
-            except KeyError:
-                # This is failing because in the managed_type loop (where the
-                # `initialize_resource_type` method was called), this specific
-                # combination was not initialized, meaning that it shouldn't be
-                # managed. But someone is trying to add it via app-interface
-                error("Unknown cluster/namespace/kind: {}/{}/{}.".format(
-                    cluster,
-                    namespace,
-                    openshift_resource.kind,
-                ))
-                continue
-
-    return oc_map, ri, errors
+    return oc_map, ri
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
@@ -244,7 +327,7 @@ def run(dry_run=False):
 
     namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
-    oc_map, ri, errors = fetch_data(namespaces_query)
+    oc_map, ri = fetch_data(namespaces_query)
 
     for cluster, namespace, resource_type, data in ri:
         # desired items
@@ -267,8 +350,7 @@ def run(dry_run=False):
                         "Skipping resource '{}/{}' in '{}/{}'. "
                         "Present w/o annotations."
                     ).format(resource_type, name, cluster, namespace)
-                    logging.error(e_msg)
-                    errors.append(e_msg)
+                    error(e_msg)
                     continue
 
             logging.info(['apply', cluster, namespace,
@@ -293,5 +375,5 @@ def run(dry_run=False):
                 delete(dry_run, oc_map, cluster, namespace, resource_type,
                        name)
 
-    if len(errors) > 0:
+    if has_error_occured():
         sys.exit(1)
