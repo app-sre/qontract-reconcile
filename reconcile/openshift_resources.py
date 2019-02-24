@@ -111,7 +111,7 @@ def fetch_provider_resource(path):
 
     try:
         openshift_resource.verify_valid_k8s_object()
-    except (KeyError, TypeError):
+    except (KeyError, TypeError)as e:
         k = e.__class__.__name__
         e_msg = "Invalid data ({}). Skipping resource: {}"
         raise FetchResourceError(e_msg.format(k, path))
@@ -274,8 +274,11 @@ def run(dry_run=False):
             logging.info(['apply', cluster, namespace,
                           resource_type, d_item.name])
 
-            logging.debug("CURRENT: " +
-                          OR.serialize(OR.canonicalize(c_item.body)))
+            if c_item is None:
+                logging.debug("CURRENT: None")
+            else:
+                logging.debug("CURRENT: " +
+                              OR.serialize(OR.canonicalize(c_item.body)))
 
             logging.debug("DESIRED: " +
                           OR.serialize(OR.canonicalize(d_item.body)))
