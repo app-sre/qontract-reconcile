@@ -111,7 +111,7 @@ def fetch_provider_resource(path):
 
     try:
         openshift_resource.verify_valid_k8s_object()
-    except (KeyError, TypeError)as e:
+    except (KeyError, TypeError) as e:
         k = e.__class__.__name__
         e_msg = "Invalid data ({}). Skipping resource: {}"
         raise FetchResourceError(e_msg.format(k, path))
