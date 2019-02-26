@@ -1,11 +1,11 @@
 import sys
 import logging
 
-import reconcile.gql as gql
-from reconcile.openshift_resources import OR
-
-import utils.vault_client as vault_client
 import utils.oc
+import utils.gql as gql
+import utils.vault_client as vault_client
+
+from reconcile.openshift_resources import OR
 
 QUERY = """
 {

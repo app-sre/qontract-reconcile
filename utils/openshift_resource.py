@@ -3,6 +3,10 @@ import hashlib
 import json
 
 
+class ResourceKeyExistsError(Exception):
+    pass
+
+
 class OpenshiftResource(object):
     def __init__(self, body, integration, integration_version):
         self.body = body
@@ -26,8 +30,7 @@ class OpenshiftResource(object):
             annotations = self.body['metadata']['annotations']
 
             assert annotations['qontract.integration'] == self.integration
-            assert annotations['qontract.integration_version'] == \
-                self.integration_version
+            assert annotations['qontract.integration_version'] is not None
             assert annotations['qontract.sha256sum'] is not None
         except KeyError:
             return False
@@ -116,3 +119,40 @@ class OpenshiftResource(object):
         m = hashlib.sha256()
         m.update(body.encode('utf-8'))
         return m.hexdigest()
+
+
+class ResourceInventory(object):
+    def __init__(self):
+        self._clusters = {}
+        self._error_registered = False
+
+    def initialize_resource_type(self, cluster, namespace, resource_type):
+        self._clusters.setdefault(cluster, {})
+        self._clusters[cluster].setdefault(namespace, {})
+        self._clusters[cluster][namespace].setdefault(resource_type, {
+            'current': {},
+            'desired': {}
+        })
+
+    def add_desired(self, cluster, namespace, resource_type, name, value):
+        desired = self._clusters[cluster][namespace][resource_type]['desired']
+        if name in desired:
+            raise ResourceKeyExistsError(name)
+        desired[name] = value
+
+    def add_current(self, cluster, namespace, resource_type, name, value):
+        current = self._clusters[cluster][namespace][resource_type]['current']
+        current[name] = value
+
+    def __iter__(self):
+        for cluster in self._clusters.keys():
+            for namespace in self._clusters[cluster].keys():
+                for resource_type in self._clusters[cluster][namespace].keys():
+                    data = self._clusters[cluster][namespace][resource_type]
+                    yield (cluster, namespace, resource_type, data)
+
+    def register_error(self):
+        self._error_registered = True
+
+    def has_error_registered(self):
+        return self._error_registered

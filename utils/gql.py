@@ -1,7 +1,7 @@
 import json
 
 from graphqlclient import GraphQLClient
-from reconcile.config import get_config
+from utils.config import get_config
 
 _gqlapi = None
 

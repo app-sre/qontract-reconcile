@@ -1,10 +1,9 @@
 import sys
 import logging
-
 import click
 
-import reconcile.config as config
-import reconcile.gql as gql
+import utils.config as config
+import utils.gql as gql
 import reconcile.github_org
 import reconcile.openshift_rolebinding
 import reconcile.openshift_resources
@@ -13,7 +12,7 @@ import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
 
-from reconcile.aggregated_list import RunnerException
+from utils.aggregated_list import RunnerException
 
 
 def run_integration(func, *args):
@@ -45,7 +44,7 @@ def integration(ctx, configfile, dry_run, log_level):
     ctx.ensure_object(dict)
 
     level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s:%(message)s', level=level)
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
 
     config.init_from_toml(configfile)
 

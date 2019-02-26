@@ -1,5 +1,5 @@
 import hvac
-from reconcile.config import get_config
+from utils.config import get_config
 
 _client = None
 
@@ -48,3 +48,15 @@ def read(path, field):
         raise SecretFieldNotFound("{}/{}".format(path, field))
 
     return secret_field
+
+
+def read_all(path):
+    global _client
+    init_from_config()
+
+    secret = _client.read(path)
+
+    if secret is None or 'data' not in secret:
+        raise SecretNotFound(path)
+
+    return secret['data']

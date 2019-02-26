@@ -1,11 +1,11 @@
 import logging
 
-import reconcile.gql as gql
+import utils.gql as gql
 import utils.vault_client as vault_client
-from utils.quay_api import QuayApi
 
-from reconcile.aggregated_list import (AggregatedList,
-                                       AggregatedDiffRunner)
+from utils.quay_api import QuayApi
+from utils.aggregated_list import (AggregatedList,
+                                   AggregatedDiffRunner)
 
 QUAY_ORG_CATALOG_QUERY = """
 {
