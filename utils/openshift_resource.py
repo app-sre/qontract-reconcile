@@ -155,7 +155,7 @@ class ResourceInventory(object):
                     yield (cluster, namespace, resource_type, data)
 
     def add_error(self, msg):
-        self._errors.add(self._error_prefix + msg)
+        self._errors.append(self._error_prefix + msg)
         logging.error(self._error_prefix + msg)
 
     def set_error_prefix(self, cluster, namespace):
