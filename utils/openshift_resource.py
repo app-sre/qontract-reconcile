@@ -99,8 +99,9 @@ class OpenshiftResource(object):
                         None)
 
         # Default fields for specific resource types
-        # ConfigMaps are by default Opaque
-        if body['kind'] == 'ConfigMap' and body.get('type') == 'Opaque':
+        # ConfigMaps and Secrets are by default Opaque
+        if (body['kind'] in ('ConfigMap', 'Secret')
+                and body.get('type') == 'Opaque'):
             body.pop('type')
 
         # remove qontract specific params
