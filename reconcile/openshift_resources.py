@@ -286,8 +286,9 @@ def realize_data(dry_run, oc_map, ri):
                 # don't apply if sha256sum hashes match
                 if c_item.sha256sum() == d_item.sha256sum():
                     msg = (
-                        "resource '{}/{}' present and hashes match, skipping."
-                    ).format(resource_type, name)
+                        "[{}/{}] resource '{}/{}' present "
+                        "and hashes match, skipping."
+                    ).format(cluster, namespace, resource_type, name)
                     logging.debug(msg)
                     continue
 
