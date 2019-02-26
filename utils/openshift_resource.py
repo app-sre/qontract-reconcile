@@ -1,7 +1,6 @@
 import copy
 import hashlib
 import json
-import logging
 
 
 class ResourceKeyExistsError(Exception):
@@ -125,8 +124,7 @@ class OpenshiftResource(object):
 class ResourceInventory(object):
     def __init__(self):
         self._clusters = {}
-        self._errors = []
-        self._error_prefix = ""
+        self._error_registered = False
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
         self._clusters.setdefault(cluster, {})
@@ -153,12 +151,8 @@ class ResourceInventory(object):
                     data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
 
-    def add_error(self, msg):
-        self._errors.append(self._error_prefix + msg)
-        logging.error(self._error_prefix + msg)
+    def register_error(self):
+        self._error_registered = True
 
-    def set_error_prefix(self, cluster, namespace):
-        self._error_prefix = "[{}/{}] ".format(cluster, namespace)
-
-    def has_error_occured(self):
-        return len(self._errors) > 0
+    def has_error_registered(self):
+        return self._error_registered

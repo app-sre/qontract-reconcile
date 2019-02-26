@@ -195,7 +195,9 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
         except (FetchResourceError,
                 FetchVaultSecretError,
                 UnknownProviderError) as e:
-            ri.add_error(e.message)
+            ri.register_error()
+            msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+            logging.error(msg)
             continue
 
         # add to inventory
@@ -212,14 +214,21 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
             # `initialize_resource_type` method was called), this specific
             # combination was not initialized, meaning that it shouldn't be
             # managed. But someone is trying to add it via app-interface
-            ri.add_error("unknown kind: {}.".format(openshift_resource.kind))
+            ri.register_error()
+            msg = "[{}/{}] unknown kind: {}.".format(
+                cluster, namespace, openshift_resource.kind)
+            logging.error(msg)
             continue
         except ResourceKeyExistsError:
             # This is failing because an attempt to add
             # a desired resource with the same name and
             # the same type was already added previously
-            ri.add_error("desired item already exists: {}/{}.".format(
-                openshift_resource.kind, openshift_resource.name))
+            ri.register_error()
+            msg = (
+                "[{}/{}] desired item already exists: {}/{}."
+            ).format(cluster, namespace, openshift_resource.kind,
+                     openshift_resource.name)
+            logging.error(msg)
             continue
 
 
@@ -237,11 +246,13 @@ def fetch_data(namespaces_query):
         cluster = cluster_info['name']
         namespace = namespace_info['name']
 
-        ri.set_error_prefix(cluster, namespace)
-
         oc = obtain_oc_client(oc_map, cluster_info)
         if oc is False:
-            ri.add_error("cluster has no automationToken.")
+            ri.register_error()
+            msg = (
+                "[{}/{}] cluster has no automationToken."
+            ).format(cluster, namespace)
+            logging.error(msg)
             continue
 
         fetch_current_state(oc, ri, cluster, namespace, managed_types)
@@ -268,8 +279,6 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
 
 def realize_data(dry_run, oc_map, ri):
     for cluster, namespace, resource_type, data in ri:
-        ri.set_error_prefix(cluster, namespace)
-
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)
@@ -277,10 +286,12 @@ def realize_data(dry_run, oc_map, ri):
             if c_item is not None:
                 # don't apply if it doesn't have annotations
                 if not c_item.has_qontract_annotations():
+                    ri.register_error()
                     msg = (
-                        "resource '{}/{}' present w/o annotations, skipping."
-                    ).format(resource_type, name)
-                    ri.add_error(msg)
+                        "[{}/{}] resource '{}/{}' present "
+                        "w/o annotations, skipping."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.error(msg)
                     continue
 
                 # don't apply if sha256sum hashes match
@@ -301,7 +312,9 @@ def realize_data(dry_run, oc_map, ri):
                 apply(dry_run, oc_map, cluster, namespace,
                       resource_type, d_item)
             except StatusCodeError as e:
-                ri.add_error(e.message)
+                ri.register_error()
+                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+                logging.error(msg)
 
         # current items
         for name, c_item in data['current'].items():
@@ -316,7 +329,9 @@ def realize_data(dry_run, oc_map, ri):
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name)
             except StatusCodeError as e:
-                ri.add_error(e.message)
+                ri.register_error()
+                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+                logging.error(msg)
 
 
 def run(dry_run=False):
@@ -327,5 +342,5 @@ def run(dry_run=False):
     oc_map, ri = fetch_data(namespaces_query)
     realize_data(dry_run, oc_map, ri)
 
-    if ri.has_error_occured():
+    if ri.has_error_registered():
         sys.exit(1)
