@@ -2,9 +2,10 @@ import logging
 from github import Github
 from github.GithubObject import NotSet
 
-import reconcile.gql as gql
-from reconcile.aggregated_list import AggregatedList, AggregatedDiffRunner
-from reconcile.config import get_config
+import utils.gql as gql
+
+from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
+from utils.config import get_config
 from utils.raw_github_api import RawGithubApi
 
 QUERY = """

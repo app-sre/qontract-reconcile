@@ -1,13 +1,13 @@
 import logging
 import sys
 
-import reconcile.gql as gql
+import utils.gql as gql
 import utils.vault_client as vault_client
 
-from reconcile.aggregated_list import (AggregatedList,
+from utils.openshift_api import Openshift
+from utils.aggregated_list import (AggregatedList,
                                        AggregatedDiffRunner,
                                        RunnerException)
-from utils.openshift_api import Openshift
 
 NAMESPACES_QUERY = """
 {

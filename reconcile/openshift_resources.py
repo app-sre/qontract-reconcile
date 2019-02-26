@@ -1,13 +1,15 @@
 import logging
 import sys
-
 import anymarkup
 import base64
 
-import reconcile.gql as gql
+import utils.gql as gql
 import utils.vault_client as vault_client
-from utils.openshift_resource import OpenshiftResource
+
 from utils.oc import OC, StatusCodeError
+from utils.openshift_resource import (OpenshiftResource,
+                                            ResourceInventory,
+                                            ResourceKeyExistsError)
 
 """
 +-----------------------+--------------------+-------------+
@@ -63,7 +65,7 @@ class FetchVaultSecretError(Exception):
     pass
 
 
-class ResourceKeyExistsError(Exception):
+class FetchUnknownProviderError(Exception):
     pass
 
 
@@ -72,36 +74,6 @@ class OR(OpenshiftResource):
         super(OR, self).__init__(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
-
-
-class ResourceInventory(object):
-    def __init__(self):
-        self._clusters = {}
-
-    def initialize_resource_type(self, cluster, namespace, resource_type):
-        self._clusters.setdefault(cluster, {})
-        self._clusters[cluster].setdefault(namespace, {})
-        self._clusters[cluster][namespace].setdefault(resource_type, {
-            'current': {},
-            'desired': {}
-        })
-
-    def add_desired(self, cluster, namespace, resource_type, name, value):
-        desired = self._clusters[cluster][namespace][resource_type]['desired']
-        if name in desired:
-            raise ResourceKeyExistsError(name)
-        desired[name] = value
-
-    def add_current(self, cluster, namespace, resource_type, name, value):
-        current = self._clusters[cluster][namespace][resource_type]['current']
-        current[name] = value
-
-    def __iter__(self):
-        for cluster in self._clusters.keys():
-            for namespace in self._clusters[cluster].keys():
-                for resource_type in self._clusters[cluster][namespace].keys():
-                    data = self._clusters[cluster][namespace][resource_type]
-                    yield (cluster, namespace, resource_type, data)
 
 
 _error_occured = False
@@ -121,6 +93,12 @@ def update_error_prefix(namespace, cluster):
 
     err_tpl = "Error fetching data. cluster: {}, namespace: {}. Details: "
     _error_prefix = err_tpl.format(cluster, namespace)
+
+
+def reset_error_prefix():
+    global _error_prefix
+
+    _error_prefix = ""
 
 
 def has_error_occured():
@@ -208,22 +186,12 @@ def fetch_openshift_resource(resource):
     path = resource['path']
 
     if provider == 'resource':
-        try:
-            openshift_resource = fetch_provider_resource(path)
-        except FetchResourceError as e:
-            error(str(e.message))
-            return None
+        openshift_resource = fetch_provider_resource(path)
     elif provider == 'vault-secret':
         name = resource['name']
-        try:
-            openshift_resource = fetch_provider_vault_secret(
-                name, path)
-        except FetchVaultSecretError as e:
-            error(str(e.message))
-            return None
+        openshift_resource = fetch_provider_vault_secret(name, path)
     else:
-        error('Unknown provider: {}'.format(provider))
-        return None
+        raise FetchUnknownProviderError(provider)
 
     return openshift_resource
 
@@ -243,14 +211,14 @@ def fetch_current_state(oc, ri, cluster, namespace, managed_types):
                 openshift_resource.name,
                 openshift_resource
             )
-    return ri
 
 
 def fetch_desired_state(ri, cluster, namespace, openshift_resources):
     for resource in openshift_resources:
-        openshift_resource = fetch_openshift_resource(resource)
-        if openshift_resource is None:
-            error('Invalid None type for openshift_resource.')
+        try:
+            openshift_resource = fetch_openshift_resource(resource)
+        except (FetchResourceError, FetchVaultSecretError, FetchUnknownProviderError) as e:
+            error(str(e.message))
             continue
 
         # add to inventory
@@ -276,7 +244,6 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
             error("Desired item already exists: {}/{}.".format(
                 openshift_resource.kind, openshift_resource.name))
             continue
-    return ri
 
 
 def fetch_data(namespaces_query):
@@ -296,30 +263,36 @@ def fetch_data(namespaces_query):
 
         namespace = namespace_info['name']
         cluster = cluster_info['name']
-        update_error_prefix(cluster, namespace)
 
+        update_error_prefix(cluster, namespace)
         fetch_current_state(oc, ri, cluster, namespace, managed_types)
         openshift_resources = namespace_info.get('openshiftResources') or []
         fetch_desired_state(ri, cluster, namespace, openshift_resources)
+        reset_error_prefix()
 
     return oc_map, ri
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
+    logging.info(['apply', cluster, namespace, resource_type, d_item.name])
+
     if not dry_run:
         annotated = resource.annotate()
 
         try:
             oc_map[cluster].apply(namespace, annotated.toJSON())
         except StatusCodeError as e:
-            logging.error(e.message)
+            error(e.message)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
-        oc_map[cluster].delete(namespace, resource_type, name)
+        try:
+            oc_map[cluster].delete(namespace, resource_type, name)
+        except StatusCodeError as e:
+            error(e.message)
 
 
 def run(dry_run=False):
@@ -335,45 +308,42 @@ def run(dry_run=False):
             c_item = data['current'].get(name)
 
             if c_item is not None:
-                if c_item.has_qontract_annotations():
-                    if c_item.sha256sum() == d_item.sha256sum():
-                        # don't apply if sha256sum hashes match
-                        logging.debug((
-                            "Skipping resource '{}/{}' in '{}/{}'. "
-                            "Hashes match."
-                        ).format(
-                            resource_type, name, cluster, namespace))
-                        continue
-                else:
-                    # don't apply if it doesn't have annotations
-                    e_msg = (
+                # don't apply if it doesn't have annotations
+                if not c_item.has_qontract_annotations():
+                    msg = (
                         "Skipping resource '{}/{}' in '{}/{}'. "
                         "Present w/o annotations."
                     ).format(resource_type, name, cluster, namespace)
-                    error(e_msg)
+                    error(msg)
                     continue
 
-            logging.info(['apply', cluster, namespace,
-                          resource_type, d_item.name])
+                # don't apply if sha256sum hashes match
+                if c_item.sha256sum() == d_item.sha256sum():
+                    msg = (
+                        "Skipping resource '{}/{}' in '{}/{}'. "
+                        "Hashes match."
+                    ).format(resource_type, name, cluster, namespace)
+                    logging.debug(msg)
+                    continue
 
-            if c_item is None:
-                logging.debug("CURRENT: None")
-            else:
                 logging.debug("CURRENT: " +
-                              OR.serialize(OR.canonicalize(c_item.body)))
-
-            logging.debug("DESIRED: " +
-                          OR.serialize(OR.canonicalize(d_item.body)))
+                    OR.serialize(OR.canonicalize(c_item.body)))
+            else:
+                logging.debug("CURRENT: None")
 
             apply(dry_run, oc_map, cluster, namespace, resource_type, d_item)
 
         # current items
         for name, c_item in data['current'].items():
             d_item = data['desired'].get(name)
+            if d_item is not None:
+                continue
 
-            if c_item.has_qontract_annotations() and d_item is None:
-                delete(dry_run, oc_map, cluster, namespace, resource_type,
-                       name)
+            if not c_item.has_qontract_annotations():
+                continue
+
+            delete(dry_run, oc_map, cluster, namespace, resource_type,
+                name)
 
     if has_error_occured():
         sys.exit(1)

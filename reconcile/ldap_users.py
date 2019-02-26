@@ -1,10 +1,10 @@
 import logging
 
-import reconcile.gql as gql
-from reconcile.config import get_config
+import utils.gql as gql
 import utils.ldap_client as ldap_client
-from utils.gitlab_api import GitLabApi
 
+from utils.config import get_config
+from utils.gitlab_api import GitLabApi
 
 USERS_QUERY = """
 {
