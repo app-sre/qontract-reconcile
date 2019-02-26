@@ -5,8 +5,8 @@ import utils.vault_client as vault_client
 
 from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
-                                       AggregatedDiffRunner,
-                                       RunnerException)
+                                   AggregatedDiffRunner,
+                                   RunnerException)
 
 QUAY_ORG_CATALOG_QUERY = """
 {

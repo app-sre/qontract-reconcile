@@ -6,8 +6,8 @@ import utils.vault_client as vault_client
 
 from utils.openshift_api import Openshift
 from utils.aggregated_list import (AggregatedList,
-                                       AggregatedDiffRunner,
-                                       RunnerException)
+                                   AggregatedDiffRunner,
+                                   RunnerException)
 
 NAMESPACES_QUERY = """
 {

@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import reconcile.config as config
-import reconcile.gql as gql
+import utils.config as config
+import utils.gql as gql
 import reconcile.openshift_rolebinding as openshift_rolebinding
-from reconcile.aggregated_list import AggregatedList
+from utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('openshift_rolebinding')
 

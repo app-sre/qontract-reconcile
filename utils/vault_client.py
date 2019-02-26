@@ -1,5 +1,5 @@
 import hvac
-from reconcile.config import get_config
+from utils.config import get_config
 
 _client = None
 

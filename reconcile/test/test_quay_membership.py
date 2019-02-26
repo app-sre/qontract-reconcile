@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import reconcile.config as config
-import reconcile.gql as gql
+import utils.config as config
+import utils.gql as gql
 import reconcile.quay_membership as quay_membership
-from reconcile.aggregated_list import AggregatedList
+from utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('quay_membership')
 
@@ -62,7 +62,7 @@ class TestQuayMembership(object):
     def do_desired_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch('reconcile.gql.GqlApi.query') as m_gql:
+        with patch('utils.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
             desired_state = quay_membership.fetch_desired_state().dump()
