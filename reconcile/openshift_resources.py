@@ -8,8 +8,8 @@ import utils.vault_client as vault_client
 
 from utils.oc import OC, StatusCodeError
 from utils.openshift_resource import (OpenshiftResource,
-                                            ResourceInventory,
-                                            ResourceKeyExistsError)
+                                      ResourceInventory,
+                                      ResourceKeyExistsError)
 
 """
 +-----------------------+--------------------+-------------+
@@ -110,13 +110,10 @@ def has_error_occured():
 def obtain_oc_client(oc_map, cluster_info):
     cluster = cluster_info['name']
     if oc_map.get(cluster) is None:
-        at = cluster_info.get('automationToken')
+        oc_map[cluster] = False
 
-        # Skip if cluster has no automationToken
-        if at is None:
-            error("Cluster has no automationToken.")
-            oc_map[cluster] = False
-        else:
+        at = cluster_info.get('automationToken')
+        if at is not None:
             token = vault_client.read(at['path'], at['field'])
             oc_map[cluster] = OC(cluster_info['serverUrl'], token)
 
@@ -217,7 +214,9 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
     for resource in openshift_resources:
         try:
             openshift_resource = fetch_openshift_resource(resource)
-        except (FetchResourceError, FetchVaultSecretError, FetchUnknownProviderError) as e:
+        except (FetchResourceError,
+                FetchVaultSecretError,
+                FetchUnknownProviderError) as e:
             error(str(e.message))
             continue
 
@@ -257,12 +256,13 @@ def fetch_data(namespaces_query):
             continue
 
         cluster_info = namespace_info['cluster']
-        oc = obtain_oc_client(oc_map, cluster_info)
-        if oc is False:
-            continue
-
         namespace = namespace_info['name']
         cluster = cluster_info['name']
+
+        oc = obtain_oc_client(oc_map, cluster_info)
+        if oc is False:
+            error("Cluster {} has no automationToken.".format(cluster))
+            continue
 
         update_error_prefix(cluster, namespace)
         fetch_current_state(oc, ri, cluster, namespace, managed_types)
@@ -274,7 +274,7 @@ def fetch_data(namespaces_query):
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
-    logging.info(['apply', cluster, namespace, resource_type, d_item.name])
+    logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     if not dry_run:
         annotated = resource.annotate()
@@ -327,7 +327,7 @@ def run(dry_run=False):
                     continue
 
                 logging.debug("CURRENT: " +
-                    OR.serialize(OR.canonicalize(c_item.body)))
+                              OR.serialize(OR.canonicalize(c_item.body)))
             else:
                 logging.debug("CURRENT: None")
 
@@ -343,7 +343,7 @@ def run(dry_run=False):
                 continue
 
             delete(dry_run, oc_map, cluster, namespace, resource_type,
-                name)
+                   name)
 
     if has_error_occured():
         sys.exit(1)
