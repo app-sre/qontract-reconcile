@@ -54,19 +54,28 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = '1'
+QONTRACT_INTEGRATION_VERSION = '1.1'
 
 
 class FetchResourceError(Exception):
-    pass
+    def __init__(self, msg):
+        super(FetchResourceError, self).__init__(
+            "error fetching resource: " + msg
+        )
 
 
 class FetchVaultSecretError(Exception):
-    pass
+    def __init__(self, msg):
+        super(FetchVaultSecretError, self).__init__(
+            "error fetching vault secret: " + msg
+        )
 
 
-class FetchUnknownProviderError(Exception):
-    pass
+class UnknownProviderError(Exception):
+    def __init__(self, msg):
+        super(UnknownProviderError, self).__init__(
+            "unknown provider error: " + msg
+        )
 
 
 class OR(OpenshiftResource):
@@ -74,37 +83,6 @@ class OR(OpenshiftResource):
         super(OR, self).__init__(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
-
-
-_error_occured = False
-_error_prefix = ''
-
-
-def error(msg):
-    global _error_occured
-    global _error_prefix
-
-    _error_occured = True
-    logging.error(_error_prefix + msg)
-
-
-def update_error_prefix(namespace, cluster):
-    global _error_prefix
-
-    err_tpl = "Error fetching data. cluster: {}, namespace: {}. Details: "
-    _error_prefix = err_tpl.format(cluster, namespace)
-
-
-def reset_error_prefix():
-    global _error_prefix
-
-    _error_prefix = ""
-
-
-def has_error_occured():
-    global _error_occured
-
-    return _error_occured
 
 
 def obtain_oc_client(oc_map, cluster_info):
@@ -188,7 +166,7 @@ def fetch_openshift_resource(resource):
         name = resource['name']
         openshift_resource = fetch_provider_vault_secret(name, path)
     else:
-        raise FetchUnknownProviderError(provider)
+        raise UnknownProviderError(provider)
 
     return openshift_resource
 
@@ -216,8 +194,8 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
             openshift_resource = fetch_openshift_resource(resource)
         except (FetchResourceError,
                 FetchVaultSecretError,
-                FetchUnknownProviderError) as e:
-            error(str(e.message))
+                UnknownProviderError) as e:
+            ri.add_error(e.message)
             continue
 
         # add to inventory
@@ -234,13 +212,13 @@ def fetch_desired_state(ri, cluster, namespace, openshift_resources):
             # `initialize_resource_type` method was called), this specific
             # combination was not initialized, meaning that it shouldn't be
             # managed. But someone is trying to add it via app-interface
-            error("Unknown kind: {}.".format(openshift_resource.kind))
+            ri.add_error("unknown kind: {}.".format(openshift_resource.kind))
             continue
         except ResourceKeyExistsError:
             # This is failing because an attempt to add
             # a desired resource with the same name and
             # the same type was already added previously
-            error("Desired item already exists: {}/{}.".format(
+            ri.add_error("desired item already exists: {}/{}.".format(
                 openshift_resource.kind, openshift_resource.name))
             continue
 
@@ -256,19 +234,19 @@ def fetch_data(namespaces_query):
             continue
 
         cluster_info = namespace_info['cluster']
-        namespace = namespace_info['name']
         cluster = cluster_info['name']
+        namespace = namespace_info['name']
+
+        ri.set_error_prefix(cluster, namespace)
 
         oc = obtain_oc_client(oc_map, cluster_info)
         if oc is False:
-            error("Cluster {} has no automationToken.".format(cluster))
+            ri.add_error("cluster has no automationToken.")
             continue
 
-        update_error_prefix(cluster, namespace)
         fetch_current_state(oc, ri, cluster, namespace, managed_types)
         openshift_resources = namespace_info.get('openshiftResources') or []
         fetch_desired_state(ri, cluster, namespace, openshift_resources)
-        reset_error_prefix()
 
     return oc_map, ri
 
@@ -278,31 +256,20 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
     if not dry_run:
         annotated = resource.annotate()
-
-        try:
-            oc_map[cluster].apply(namespace, annotated.toJSON())
-        except StatusCodeError as e:
-            error(e.message)
+        oc_map[cluster].apply(namespace, annotated.toJSON())
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
-        try:
-            oc_map[cluster].delete(namespace, resource_type, name)
-        except StatusCodeError as e:
-            error(e.message)
+        oc_map[cluster].delete(namespace, resource_type, name)
 
 
-def run(dry_run=False):
-    gqlapi = gql.get_api()
-
-    namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
-
-    oc_map, ri = fetch_data(namespaces_query)
-
+def realize_data(dry_run, oc_map, ri):
     for cluster, namespace, resource_type, data in ri:
+        ri.set_error_prefix(cluster, namespace)
+
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)
@@ -311,18 +278,16 @@ def run(dry_run=False):
                 # don't apply if it doesn't have annotations
                 if not c_item.has_qontract_annotations():
                     msg = (
-                        "Skipping resource '{}/{}' in '{}/{}'. "
-                        "Present w/o annotations."
-                    ).format(resource_type, name, cluster, namespace)
-                    error(msg)
+                        "resource '{}/{}' present w/o annotations, skipping."
+                    ).format(resource_type, name)
+                    ri.add_error(msg)
                     continue
 
                 # don't apply if sha256sum hashes match
                 if c_item.sha256sum() == d_item.sha256sum():
                     msg = (
-                        "Skipping resource '{}/{}' in '{}/{}'. "
-                        "Hashes match."
-                    ).format(resource_type, name, cluster, namespace)
+                        "resource '{}/{}' present and hashes match, skipping."
+                    ).format(resource_type, name)
                     logging.debug(msg)
                     continue
 
@@ -331,7 +296,11 @@ def run(dry_run=False):
             else:
                 logging.debug("CURRENT: None")
 
-            apply(dry_run, oc_map, cluster, namespace, resource_type, d_item)
+            try:
+                apply(dry_run, oc_map, cluster, namespace,
+                      resource_type, d_item)
+            except StatusCodeError as e:
+                ri.add_error(e.message)
 
         # current items
         for name, c_item in data['current'].items():
@@ -342,8 +311,20 @@ def run(dry_run=False):
             if not c_item.has_qontract_annotations():
                 continue
 
-            delete(dry_run, oc_map, cluster, namespace, resource_type,
-                   name)
+            try:
+                delete(dry_run, oc_map, cluster, namespace,
+                       resource_type, name)
+            except StatusCodeError as e:
+                ri.add_error(e.message)
 
-    if has_error_occured():
+
+def run(dry_run=False):
+    gqlapi = gql.get_api()
+
+    namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
+
+    oc_map, ri = fetch_data(namespaces_query)
+    realize_data(dry_run, oc_map, ri)
+
+    if ri.has_error_occured():
         sys.exit(1)
