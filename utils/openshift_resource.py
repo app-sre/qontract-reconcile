@@ -31,8 +31,7 @@ class OpenshiftResource(object):
             annotations = self.body['metadata']['annotations']
 
             assert annotations['qontract.integration'] == self.integration
-            assert annotations['qontract.integration_version'] == \
-                self.integration_version
+            assert annotations['qontract.integration_version'] is not None
             assert annotations['qontract.sha256sum'] is not None
         except KeyError:
             return False
