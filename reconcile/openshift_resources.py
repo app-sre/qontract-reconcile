@@ -2,6 +2,7 @@ import logging
 import sys
 import anymarkup
 import base64
+import json
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -36,8 +37,10 @@ NAMESPACES_QUERY = """
         path
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
-        name
         path
+        name
+        labels
+        annotations
       }
     }
     cluster {
@@ -129,13 +132,15 @@ def fetch_provider_resource(path):
     return openshift_resource
 
 
-def fetch_provider_vault_secret(name, path):
+def fetch_provider_vault_secret(path, name, labels, annotations):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
         "type": "Opaque",
         "metadata": {
-            "name": name
+            "name": name,
+            "labels": labels,
+            "annotations": annotations
         },
         "data": {}
     }
@@ -168,8 +173,14 @@ def fetch_openshift_resource(resource):
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
     elif provider == 'vault-secret':
-        name = resource['name']
-        openshift_resource = fetch_provider_vault_secret(name, path)
+        rn = resource['name']
+        name = path.split('/')[-1] if rn is None else rn
+        rl = resource['labels']
+        labels = {} if rl is None else json.loads(rl)
+        ra = resource['annotations']
+        annotations = {} if ra is None else json.loads(ra)
+        openshift_resource = fetch_provider_vault_secret(path, name,
+                                                         labels, annotations)
     else:
         raise UnknownProviderError(provider)
 
