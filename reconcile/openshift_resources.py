@@ -55,6 +55,7 @@ NAMESPACES_QUERY = """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = '1.1'
+QONTRACT_BASE64_SUFFIX = '_qb64'
 
 
 class FetchResourceError(Exception):
@@ -142,7 +143,11 @@ def fetch_provider_vault_secret(name, path):
     # get the fields from vault
     raw_data = vault_client.read_all(path)
     for k, v in raw_data.items():
-        body['data'][k] = base64.b64encode(v)
+        if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
+            k = k[:-len(QONTRACT_BASE64_SUFFIX)]
+        else:
+            v = base64.b64encode(v)
+        body['data'][k] = v
 
     openshift_resource = OR(body)
 
