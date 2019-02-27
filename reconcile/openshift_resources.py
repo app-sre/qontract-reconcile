@@ -2,6 +2,7 @@ import logging
 import sys
 import anymarkup
 import base64
+import json
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -36,8 +37,10 @@ NAMESPACES_QUERY = """
         path
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
-        name
         path
+        name
+        labels
+        annotations
       }
     }
     cluster {
@@ -55,6 +58,7 @@ NAMESPACES_QUERY = """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = '1.1'
+QONTRACT_BASE64_SUFFIX = '_qb64'
 
 
 class FetchResourceError(Exception):
@@ -128,13 +132,15 @@ def fetch_provider_resource(path):
     return openshift_resource
 
 
-def fetch_provider_vault_secret(name, path):
+def fetch_provider_vault_secret(path, name, labels, annotations):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
         "type": "Opaque",
         "metadata": {
-            "name": name
+            "name": name,
+            "labels": labels,
+            "annotations": annotations
         },
         "data": {}
     }
@@ -142,7 +148,11 @@ def fetch_provider_vault_secret(name, path):
     # get the fields from vault
     raw_data = vault_client.read_all(path)
     for k, v in raw_data.items():
-        body['data'][k] = base64.b64encode(v)
+        if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
+            k = k[:-len(QONTRACT_BASE64_SUFFIX)]
+        else:
+            v = base64.b64encode(v)
+        body['data'][k] = v
 
     openshift_resource = OR(body)
 
@@ -163,8 +173,14 @@ def fetch_openshift_resource(resource):
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
     elif provider == 'vault-secret':
-        name = resource['name']
-        openshift_resource = fetch_provider_vault_secret(name, path)
+        rn = resource['name']
+        name = path.split('/')[-1] if rn is None else rn
+        rl = resource['labels']
+        labels = {} if rl is None else json.loads(rl)
+        ra = resource['annotations']
+        annotations = {} if ra is None else json.loads(ra)
+        openshift_resource = fetch_provider_vault_secret(path, name,
+                                                         labels, annotations)
     else:
         raise UnknownProviderError(provider)
 
