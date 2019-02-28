@@ -138,12 +138,14 @@ def fetch_provider_vault_secret(path, name, labels, annotations):
         "kind": "Secret",
         "type": "Opaque",
         "metadata": {
-            "name": name,
-            "labels": labels,
-            "annotations": annotations
+            "name": name
         },
         "data": {}
     }
+    if labels:
+        body['metadata']['labels'] = labels
+    if annotations:
+        body['metadata']['annotations'] = annotations
 
     # get the fields from vault
     raw_data = vault_client.read_all(path)
@@ -320,6 +322,8 @@ def realize_data(dry_run, oc_map, ri):
                     continue
 
                 logging.debug("CURRENT: " +
+                              OR.serialize(OR.canonicalize(c_item.body)))
+                logging.debug("DESIRED: " +
                               OR.serialize(OR.canonicalize(c_item.body)))
             else:
                 logging.debug("CURRENT: None")
