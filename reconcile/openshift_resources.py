@@ -138,14 +138,12 @@ def fetch_provider_vault_secret(path, name, labels, annotations):
         "kind": "Secret",
         "type": "Opaque",
         "metadata": {
-            "name": name
+            "name": name,
+            "labels": labels,
+            "annotations": annotations
         },
         "data": {}
     }
-    if labels:
-        body['metadata']['labels'] = labels
-    if annotations:
-        body['metadata']['annotations'] = annotations
 
     # get the fields from vault
     raw_data = vault_client.read_all(path)

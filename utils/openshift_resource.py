@@ -85,7 +85,8 @@ class OpenshiftResource(object):
     def canonicalize(body):
         body = copy.deepcopy(body)
 
-        # create annotations if not present
+        # create labels and annotations if not present
+        body['metadata'].setdefault('labels', {})
         body['metadata'].setdefault('annotations', {})
         annotations = body['metadata']['annotations']
 
