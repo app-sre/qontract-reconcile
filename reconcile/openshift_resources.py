@@ -139,18 +139,21 @@ def fetch_provider_vault_secret(path, name, labels, annotations):
         "type": "Opaque",
         "metadata": {
             "name": name,
-            "labels": labels,
             "annotations": annotations
         },
         "data": {}
     }
+    if labels:
+        body['metadata']['labels'] = labels
 
     # get the fields from vault
     raw_data = vault_client.read_all(path)
     for k, v in raw_data.items():
+        if v == "":
+            v = None
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
             k = k[:-len(QONTRACT_BASE64_SUFFIX)]
-        else:
+        elif v is not None:
             v = base64.b64encode(v)
         body['data'][k] = v
 
@@ -321,6 +324,8 @@ def realize_data(dry_run, oc_map, ri):
 
                 logging.debug("CURRENT: " +
                               OR.serialize(OR.canonicalize(c_item.body)))
+                logging.debug("DESIRED: " +
+                              OR.serialize(OR.canonicalize(d_item.body)))
             else:
                 logging.debug("CURRENT: None")
 
