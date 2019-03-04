@@ -26,7 +26,7 @@ setup(
         "ldap3==2.5.2",
         "anymarkup==0.7.0",
         "python-gitlab==1.7.0",
-        "semver-2.8.1",
+        "semver==2.8.1",
     ],
 
     test_suite="tests",
