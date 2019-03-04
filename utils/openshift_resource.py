@@ -34,17 +34,8 @@ class OpenshiftResource(object):
             assert annotations['qontract.integration'] == self.integration
 
             integration_version = annotations['qontract.integration_version']
-
-            # handle old version that were not using semver
-            if integration_version == '1':
-                integration_version = '1.0.0'
-            elif integration_version == '1.1':
-                integration_version = '1.1.0'
-
-            semver_integration_version = semver.parse(integration_version)
-
-            assert semver_integration_version['major'] == semver.parse(
-                self.integration_version)['major']
+            assert semver.parse(integration_version)['major'] == \
+                semver.parse(self.integration_version)['major']
 
             assert annotations['qontract.sha256sum'] is not None
         except KeyError:
@@ -52,7 +43,7 @@ class OpenshiftResource(object):
         except AssertionError:
             return False
         except ValueError:
-            # raise by semver.parse
+            # raised by semver.parse
             return False
 
         return True
