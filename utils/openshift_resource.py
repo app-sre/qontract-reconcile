@@ -2,6 +2,8 @@ import copy
 import hashlib
 import json
 
+import semver
+
 
 class ResourceKeyExistsError(Exception):
     pass
@@ -30,11 +32,18 @@ class OpenshiftResource(object):
             annotations = self.body['metadata']['annotations']
 
             assert annotations['qontract.integration'] == self.integration
-            assert annotations['qontract.integration_version'] is not None
+
+            integration_version = annotations['qontract.integration_version']
+            assert semver.parse(integration_version)['major'] == \
+                semver.parse(self.integration_version)['major']
+
             assert annotations['qontract.sha256sum'] is not None
         except KeyError:
             return False
         except AssertionError:
+            return False
+        except ValueError:
+            # raised by semver.parse
             return False
 
         return True

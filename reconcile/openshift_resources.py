@@ -1,8 +1,10 @@
 import logging
 import sys
-import anymarkup
 import base64
 import json
+
+import anymarkup
+import semver
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -57,7 +59,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = '1.1'
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 

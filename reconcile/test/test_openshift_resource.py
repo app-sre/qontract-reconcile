@@ -1,12 +1,14 @@
 import pytest
 from .fixtures import Fixtures
 
+import semver
+
 from utils.openshift_resource import OpenshiftResource
 
 fxt = Fixtures('openshift_resource')
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = '1'
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
 
 
 class OR(OpenshiftResource):
