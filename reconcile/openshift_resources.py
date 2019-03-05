@@ -40,6 +40,7 @@ NAMESPACES_QUERY = """
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
         path
+        version
         name
         labels
         annotations
@@ -134,7 +135,7 @@ def fetch_provider_resource(path):
     return openshift_resource
 
 
-def fetch_provider_vault_secret(path, name, labels, annotations):
+def fetch_provider_vault_secret(path, version, name, labels, annotations):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
@@ -149,7 +150,7 @@ def fetch_provider_vault_secret(path, name, labels, annotations):
         body['metadata']['labels'] = labels
 
     # get the fields from vault
-    raw_data = vault_client.read_all(path)
+    raw_data = vault_client.read_all_v2(path, version)
     for k, v in raw_data.items():
         if v == "":
             v = None
@@ -178,13 +179,14 @@ def fetch_openshift_resource(resource):
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
     elif provider == 'vault-secret':
+        version = resource['version']
         rn = resource['name']
         name = path.split('/')[-1] if rn is None else rn
         rl = resource['labels']
         labels = {} if rl is None else json.loads(rl)
         ra = resource['annotations']
         annotations = {} if ra is None else json.loads(ra)
-        openshift_resource = fetch_provider_vault_secret(path, name,
+        openshift_resource = fetch_provider_vault_secret(path, version, name,
                                                          labels, annotations)
     else:
         raise UnknownProviderError(provider)
