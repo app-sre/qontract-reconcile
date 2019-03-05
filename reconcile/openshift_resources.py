@@ -60,7 +60,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 1)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 
