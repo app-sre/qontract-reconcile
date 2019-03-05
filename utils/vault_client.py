@@ -60,3 +60,23 @@ def read_all(path):
         raise SecretNotFound(path)
 
     return secret['data']
+
+
+def read_all_v2(path, version):
+    global _client
+    init_from_config()
+
+    path_split = path.split('/')
+    mount_point = path_split[0]
+    read_path = '/'.join(path_split[1:])
+
+    secret = _client.secrets.kv.v2.read_secret_version(
+        mount_point=mount_point,
+        path=read_path,
+        version=version,
+    )
+
+    if secret is None or 'data' not in secret or 'data' not in secret['data']:
+        raise SecretNotFound(path)
+
+    return secret['data']['data']
