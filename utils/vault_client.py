@@ -1,4 +1,5 @@
 import time
+import requests
 import hvac
 from utils.config import get_config
 
