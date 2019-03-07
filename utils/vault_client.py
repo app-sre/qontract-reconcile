@@ -1,3 +1,4 @@
+import time
 import hvac
 from utils.config import get_config
 
@@ -12,13 +13,27 @@ class SecretFieldNotFound(Exception):
     pass
 
 
+class VaultConnectionError(Exception):
+    pass
+
+
 def init(server, role_id, secret_id):
     global _client
 
     if _client is None:
         _client = hvac.Client(url=server)
 
-    _client.auth_approle(role_id, secret_id)
+    authenticated = False
+    for i in range(0, 3):
+        try:
+            _client.auth_approle(role_id, secret_id)
+            authenticated = True
+            break
+        except requests.exceptions.ConnectionError:
+            time.sleep(1)
+
+    if not authenticated:
+        raise VaultConnectionError()
 
     return _client
 
