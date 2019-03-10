@@ -45,6 +45,11 @@ NAMESPACES_QUERY = """
         labels
         annotations
       }
+      ... on NamespaceOpenshiftResourceRoute_v1 {
+        path
+        vault_tls_secret_path
+        vault_tls_secret_version
+      }
     }
     cluster {
       name
@@ -60,7 +65,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 2, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 
@@ -172,6 +177,22 @@ def fetch_provider_vault_secret(path, version, name, labels, annotations):
     return openshift_resource
 
 
+def fetch_provider_route(path, tls_path, tls_version):
+    openshift_resource = fetch_provider_resource(path)
+
+    if tls_path is None or tls_version is None:
+        return openshift_resource
+
+    tls = {}
+    # get tls fields from vault
+    raw_data = vault_client.read_all_v2(tls_path, tls_version)
+    for k, v in raw_data.items():
+        tls[k] = v
+    openshift_resource.body['spec']['tls'] = tls
+
+    return openshift_resource
+
+
 def fetch_openshift_resource(resource):
     provider = resource['provider']
     path = resource['path']
@@ -188,6 +209,10 @@ def fetch_openshift_resource(resource):
         annotations = {} if ra is None else json.loads(ra)
         openshift_resource = fetch_provider_vault_secret(path, version, name,
                                                          labels, annotations)
+    elif provider == 'route':
+        tls_path = resource['vault_tls_secret_path']
+        tls_version = resource['vault_tls_secret_version']
+        openshift_resource = fetch_provider_route(path, tls_path, tls_version)
     else:
         raise UnknownProviderError(provider)
 
