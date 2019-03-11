@@ -72,21 +72,21 @@ QONTRACT_BASE64_SUFFIX = '_qb64'
 class FetchResourceError(Exception):
     def __init__(self, msg):
         super(FetchResourceError, self).__init__(
-            "error fetching resource: " + msg
+            "error fetching resource: " + str(msg)
         )
 
 
 class FetchVaultSecretError(Exception):
     def __init__(self, msg):
         super(FetchVaultSecretError, self).__init__(
-            "error fetching vault secret: " + msg
+            "error fetching vault secret: " + str(msg)
         )
 
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super(UnknownProviderError, self).__init__(
-            "unknown provider error: " + msg
+            "unknown provider error: " + str(msg)
         )
 
 
@@ -183,12 +183,13 @@ def fetch_provider_route(path, tls_path, tls_version):
     if tls_path is None or tls_version is None:
         return openshift_resource
 
-    tls = {}
+    # override existing tls fields from vault secret
+    openshift_resource.body['spec'].setdefault('tls', {})
+    tls = openshift_resource.body['spec']['tls']
     # get tls fields from vault
     raw_data = vault_client.read_all_v2(tls_path, tls_version)
     for k, v in raw_data.items():
         tls[k] = v
-    openshift_resource.body['spec']['tls'] = tls
 
     return openshift_resource
 
@@ -196,6 +197,8 @@ def fetch_provider_route(path, tls_path, tls_version):
 def fetch_openshift_resource(resource):
     provider = resource['provider']
     path = resource['path']
+    msg = "Fetching {}: {}".format(provider, path)
+    logging.debug(msg)
 
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
