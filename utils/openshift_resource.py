@@ -123,6 +123,9 @@ class OpenshiftResource(object):
                 annotations.pop(
                     'kubernetes.io/tls-acme-awaiting-authorization-owner',
                     None)
+                annotations.pop(
+                    'kubernetes.io/tls-acme-awaiting-authorization-at-url',
+                    None)
                 if 'tls' in body['spec']:
                     tls = body['spec']['tls']
                     tls.pop('key', None)
