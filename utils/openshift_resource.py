@@ -123,9 +123,10 @@ class OpenshiftResource(object):
                 annotations.pop(
                     'kubernetes.io/tls-acme-awaiting-authorization-owner',
                     None)
-                tls = body['spec']['tls']
-                tls.pop('key', None)
-                tls.pop('certificate', None)
+                if 'tls' in body['spec']:
+                    tls = body['spec']['tls']
+                    tls.pop('key', None)
+                    tls.pop('certificate', None)
 
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
