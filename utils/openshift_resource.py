@@ -113,6 +113,21 @@ class OpenshiftResource(object):
                 body.get('type') == 'Opaque':
             body.pop('type')
 
+        if body['kind'] == 'Route':
+            if 'status' in body:
+                body.pop('status')
+            if body['spec'].get('wildcardPolicy') == 'None':
+                body['spec'].pop('wildcardPolicy')
+            # remove tls-acme specific params from Route
+            if 'kubernetes.io/tls-acme' in annotations:
+                annotations.pop(
+                    'kubernetes.io/tls-acme-awaiting-authorization-owner',
+                    None)
+                if 'tls' in body['spec']:
+                    tls = body['spec']['tls']
+                    tls.pop('key', None)
+                    tls.pop('certificate', None)
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
