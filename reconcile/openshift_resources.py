@@ -188,8 +188,18 @@ def fetch_provider_route(path, tls_path, tls_version):
     tls = openshift_resource.body['spec']['tls']
     # get tls fields from vault
     raw_data = vault_client.read_all_v2(tls_path, tls_version)
+    valid_keys = ['termination', 'insecureEdgeTerminationPolicy',
+                  'certificate', 'key',
+                  'caCertificate', 'destinationCACertificate']
     for k, v in raw_data.items():
-        tls[k] = v
+        if k in valid_keys:
+            tls[k] = v
+            continue
+
+        msg = "Route secret '{}' key '{}' not in valid keys {}".format(
+            tls_path, k, valid_keys
+        )
+        logging.info(msg)
 
     return openshift_resource
 
