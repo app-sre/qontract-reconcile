@@ -13,6 +13,7 @@ from utils.oc import OC, StatusCodeError
 from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
+from multiprocessing.dummy import Pool as ThreadPool
 
 """
 +-----------------------+--------------------+-------------+
@@ -249,18 +250,18 @@ def fetch_current_state(oc, ri, cluster, namespace, managed_types):
             )
 
 
-def fetch_desired_state(ri, cluster, namespace, openshift_resources):
-    for resource in openshift_resources:
-        try:
-            openshift_resource = fetch_openshift_resource(resource)
-        except (FetchResourceError,
-                FetchVaultSecretError,
-                UnknownProviderError) as e:
-            ri.register_error()
-            msg = "[{}/{}] {}".format(cluster, namespace, e.message)
-            logging.error(msg)
-            continue
+def fetch_desired_state(ri, cluster, namespace, resources):
+    try:
+        pool = ThreadPool(10)
+        openshift_resources = pool.map(fetch_openshift_resource, resources)
+    except (FetchResourceError,
+            FetchVaultSecretError,
+            UnknownProviderError) as e:
+        ri.register_error()
+        msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+        logging.error(msg)
 
+    for openshift_resource in openshift_resources:
         # add to inventory
         try:
             ri.add_desired(
