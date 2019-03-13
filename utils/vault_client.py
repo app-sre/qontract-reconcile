@@ -24,17 +24,17 @@ def init(server, role_id, secret_id):
     if _client is None:
         _client = hvac.Client(url=server)
 
-    authenticated = False
-    for i in range(0, 3):
-        try:
-            _client.auth_approle(role_id, secret_id)
-            authenticated = True
-            break
-        except requests.exceptions.ConnectionError:
-            time.sleep(1)
+        authenticated = False
+        for i in range(0, 3):
+            try:
+                _client.auth_approle(role_id, secret_id)
+                authenticated = _client.is_authenticated()
+                break
+            except requests.exceptions.ConnectionError:
+                time.sleep(1)
 
-    if not authenticated:
-        raise VaultConnectionError()
+        if not authenticated:
+            raise VaultConnectionError()
 
     return _client
 
