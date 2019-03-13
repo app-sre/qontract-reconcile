@@ -255,11 +255,11 @@ def fetch_desired_state(ri, cluster, namespace, resources):
         pool = ThreadPool(10)
         openshift_resources = pool.map(fetch_openshift_resource, resources)
     except (FetchResourceError,
-                FetchVaultSecretError,
-                UnknownProviderError) as e:
-            ri.register_error()
-            msg = "[{}/{}] {}".format(cluster, namespace, e.message)
-            logging.error(msg)
+            FetchVaultSecretError,
+            UnknownProviderError) as e:
+        ri.register_error()
+        msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+        logging.error(msg)
 
     for openshift_resource in openshift_resources:
         # add to inventory
