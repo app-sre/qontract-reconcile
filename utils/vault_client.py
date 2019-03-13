@@ -36,7 +36,7 @@ def init(server, role_id, secret_id):
         if not authenticated:
             raise VaultConnectionError()
 
-    _client = client
+        _client = client
 
 
 def init_from_config():
