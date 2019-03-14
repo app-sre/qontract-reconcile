@@ -198,6 +198,8 @@ def fetch_provider_vault_secret(path, version, name, labels, annotations):
 
 
 def fetch_provider_route(path, tls_path, tls_version):
+    global _log_lock
+
     openshift_resource = fetch_provider_resource(path)
 
     if tls_path is None or tls_version is None:
@@ -219,7 +221,9 @@ def fetch_provider_route(path, tls_path, tls_version):
         msg = "Route secret '{}' key '{}' not in valid keys {}".format(
             tls_path, k, valid_keys
         )
+        _log_lock.acquire()
         logging.info(msg)
+        _log_lock.release()
 
     return openshift_resource
 
