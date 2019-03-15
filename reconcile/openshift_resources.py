@@ -253,29 +253,28 @@ def fetch_openshift_resource(resource):
     return openshift_resource
 
 
-def fetch_current_state(spec, ri):
-    items = spec.oc.get_items(spec.resource, namespace=spec.namespace)
-    for item in items:
+def fetch_current_state(ri, oc, cluster, namespace, resource_type):
+    for item in oc.get_items(resource_type, namespace=namespace):
         openshift_resource = OR(item)
         ri.add_current(
-            spec.cluster,
-            spec.namespace,
-            spec.resource,
+            cluster,
+            namespace,
+            resource_type,
             openshift_resource.name,
             openshift_resource
         )
 
 
-def fetch_desired_state(spec, ri):
+def fetch_desired_state(ri, cluster, namespace, resource):
     global _log_lock
 
     try:
-        openshift_resource = fetch_openshift_resource(spec.resource)
+        openshift_resource = fetch_openshift_resource(resource)
     except (FetchResourceError,
             FetchVaultSecretError,
             UnknownProviderError) as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(spec.cluster, spec.namespace, e.message)
+        msg = "[{}/{}] {}".format(cluster, namespace, e.message)
         _log_lock.acquire()
         logging.error(msg)
         _log_lock.release()
@@ -284,8 +283,8 @@ def fetch_desired_state(spec, ri):
     # add to inventory
     try:
         ri.add_desired(
-            spec.cluster,
-            spec.namespace,
+            cluster,
+            namespace,
             openshift_resource.kind,
             openshift_resource.name,
             openshift_resource
@@ -297,7 +296,7 @@ def fetch_desired_state(spec, ri):
         # managed. But someone is trying to add it via app-interface
         ri.register_error()
         msg = "[{}/{}] unknown kind: {}.".format(
-            spec.cluster, spec.namespace, openshift_resource.kind)
+            cluster, namespace, openshift_resource.kind)
         _log_lock.acquire()
         logging.error(msg)
         _log_lock.release()
@@ -309,7 +308,7 @@ def fetch_desired_state(spec, ri):
         ri.register_error()
         msg = (
             "[{}/{}] desired item already exists: {}/{}."
-        ).format(spec.cluster, spec.namespace, openshift_resource.kind,
+        ).format(cluster, namespace, openshift_resource.kind,
                  openshift_resource.name)
         _log_lock.acquire()
         logging.error(msg)
@@ -319,9 +318,10 @@ def fetch_desired_state(spec, ri):
 
 def fetch_states(spec, ri):
     if spec.oc is not None:
-        fetch_current_state(spec, ri)
+        fetch_current_state(ri, spec.oc, spec.cluster,
+                            spec.namespace, spec.resource)
     else:
-        fetch_desired_state(spec, ri)
+        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
 
 
 def init_specs_to_fetch(ri, oc_map, namespaces_query):
