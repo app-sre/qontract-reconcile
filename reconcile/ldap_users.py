@@ -45,6 +45,7 @@ def init_user_spec(user):
 
     return UserSpec(delete, username, path)
 
+
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
     result = gqlapi.query(USERS_QUERY)
@@ -54,7 +55,7 @@ def run(dry_run=False, thread_pool_size=10):
 
     pool = ThreadPool(thread_pool_size)
     user_specs = pool.map(init_user_spec, result['users'])
-    users_to_delete = [u for u in user_specs if u.delete == True]
+    users_to_delete = [u for u in user_specs if u.delete]
 
     for u in users_to_delete:
         logging.info(['delete_user', u.username, u.path])
