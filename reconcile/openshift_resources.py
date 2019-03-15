@@ -103,7 +103,8 @@ class OR(OpenshiftResource):
 
 
 class StateSpec(object):
-    def __init__(self, oc, cluster, namespace, resource):
+    def __init__(self, type, oc, cluster, namespace, resource):
+        self.type = type
         self.oc = oc
         self.cluster = cluster
         self.namespace = namespace
@@ -317,10 +318,10 @@ def fetch_desired_state(ri, cluster, namespace, resource):
 
 
 def fetch_states(spec, ri):
-    if spec.oc is not None:
+    if spec.type == "current":
         fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
-    else:
+    if spec.type == "desired":
         fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
 
 
@@ -346,14 +347,18 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query):
             logging.error(msg)
             continue
 
+        # Initialize current state specs
         for resource_type in managed_types:
             ri.initialize_resource_type(cluster, namespace, resource_type)
-            c_spec = StateSpec(oc, cluster, namespace, resource_type)
+            c_spec = StateSpec("current", oc, cluster, namespace,
+                               resource_type)
             state_specs.append(c_spec)
 
+        # Initialize desired state specs
         openshift_resources = namespace_info.get('openshiftResources') or []
         for openshift_resource in openshift_resources:
-            d_spec = StateSpec(None, cluster, namespace, openshift_resource)
+            d_spec = StateSpec("desired", None, cluster, namespace,
+                               openshift_resource)
             state_specs.append(d_spec)
 
     return state_specs
