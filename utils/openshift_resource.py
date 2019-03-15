@@ -157,19 +157,18 @@ class ResourceInventory(object):
         self._lock = Lock()
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
-        self._lock.acquire()
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(resource_type, {
             'current': {},
             'desired': {}
         })
-        self._lock.release()
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
         self._lock.acquire()
         desired = self._clusters[cluster][namespace][resource_type]['desired']
         if name in desired:
+            self._lock.release()
             raise ResourceKeyExistsError(name)
         desired[name] = value
         self._lock.release()

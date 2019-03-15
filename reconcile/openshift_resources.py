@@ -102,16 +102,9 @@ class OR(OpenshiftResource):
         )
 
 
-class CurrentStateSpec(object):
-    def __init__(self, oc, cluster, namespace, resource_type):
+class StateSpec(object):
+    def __init__(self, oc, cluster, namespace, resource):
         self.oc = oc
-        self.cluster = cluster
-        self.namespace = namespace
-        self.resource_type = resource_type
-
-
-class DesiredStateSpec(object):
-    def __init__(self, cluster, namespace, resource):
         self.cluster = cluster
         self.namespace = namespace
         self.resource = resource
@@ -261,18 +254,13 @@ def fetch_openshift_resource(resource):
 
 
 def fetch_current_state(spec, ri):
-    # Initialize cluster/namespace/resource_type in Inventories
-    ri.initialize_resource_type(spec.cluster,
-                                spec.namespace, spec.resource_type)
-
-    # Fetch current resources
-    items = spec.oc.get_items(spec.resource_type, namespace=spec.namespace)
+    items = spec.oc.get_items(spec.resource, namespace=spec.namespace)
     for item in items:
         openshift_resource = OR(item)
         ri.add_current(
             spec.cluster,
             spec.namespace,
-            spec.resource_type,
+            spec.resource,
             openshift_resource.name,
             openshift_resource
         )
@@ -329,9 +317,15 @@ def fetch_desired_state(spec, ri):
         return
 
 
+def fetch_states(spec, ri):
+    if spec.oc is not None:
+        fetch_current_state(spec, ri)
+    else:
+        fetch_desired_state(spec, ri)
+
+
 def init_specs_to_fetch(ri, oc_map, namespaces_query):
-    current_state_specs = []
-    desired_state_specs = []
+    state_specs = []
 
     for namespace_info in namespaces_query:
         # Skip if namespace has no managedResourceTypes
@@ -353,31 +347,28 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query):
             continue
 
         for resource_type in managed_types:
-            c_spec = CurrentStateSpec(oc, cluster, namespace, resource_type)
-            current_state_specs.append(c_spec)
+            ri.initialize_resource_type(cluster, namespace, resource_type)
+            c_spec = StateSpec(oc, cluster, namespace, resource_type)
+            state_specs.append(c_spec)
 
         openshift_resources = namespace_info.get('openshiftResources') or []
         for openshift_resource in openshift_resources:
-            d_spec = DesiredStateSpec(cluster, namespace, openshift_resource)
-            desired_state_specs.append(d_spec)
+            d_spec = StateSpec(None, cluster, namespace, openshift_resource)
+            state_specs.append(d_spec)
 
-    return current_state_specs, desired_state_specs
+    return state_specs
 
 
 def fetch_data(namespaces_query, thread_pool_size):
     ri = ResourceInventory()
     oc_map = {}
 
-    current_state_specs, desired_state_specs = \
-        init_specs_to_fetch(ri, oc_map, namespaces_query)
+    state_specs = init_specs_to_fetch(ri, oc_map, namespaces_query)
 
     pool = ThreadPool(thread_pool_size)
 
-    fetch_current_state_partial = partial(fetch_current_state, ri=ri)
-    pool.map(fetch_current_state_partial, current_state_specs)
-
-    fetch_desired_state_partial = partial(fetch_desired_state, ri=ri)
-    pool.map(fetch_desired_state_partial, desired_state_specs)
+    fetch_states_partial = partial(fetch_states, ri=ri)
+    pool.map(fetch_states_partial, state_specs)
 
     return oc_map, ri
 
