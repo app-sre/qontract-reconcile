@@ -87,9 +87,13 @@ def quay_repos(ctx):
 
 
 @integration.command()
+@click.option('--thread-pool-size',
+              help='number of threads to run in parallel',
+              default=10)
 @click.pass_context
-def ldap_users(ctx):
-    run_integration(reconcile.ldap_users.run, ctx.obj['dry_run'])
+def ldap_users(ctx, thread_pool_size):
+    run_integration(reconcile.ldap_users.run,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
