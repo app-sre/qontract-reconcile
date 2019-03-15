@@ -253,7 +253,7 @@ def fetch_openshift_resource(resource):
     return openshift_resource
 
 
-def fetch_current_state(ri, oc, cluster, namespace, resource_type):
+def fetch_current_state(oc, ri, cluster, namespace, resource_type):
     for item in oc.get_items(resource_type, namespace=namespace):
         openshift_resource = OR(item)
         ri.add_current(
@@ -318,7 +318,7 @@ def fetch_desired_state(ri, cluster, namespace, resource):
 
 def fetch_states(spec, ri):
     if spec.oc is not None:
-        fetch_current_state(ri, spec.oc, spec.cluster,
+        fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
     else:
         fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
