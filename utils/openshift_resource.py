@@ -1,8 +1,9 @@
 import copy
 import hashlib
 import json
-
 import semver
+
+from threading import Lock
 
 
 class ResourceKeyExistsError(Exception):
@@ -153,6 +154,7 @@ class ResourceInventory(object):
     def __init__(self):
         self._clusters = {}
         self._error_registered = False
+        self._lock = Lock()
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
         self._clusters.setdefault(cluster, {})
@@ -163,14 +165,19 @@ class ResourceInventory(object):
         })
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
+        self._lock.acquire()
         desired = self._clusters[cluster][namespace][resource_type]['desired']
         if name in desired:
+            self._lock.release()
             raise ResourceKeyExistsError(name)
         desired[name] = value
+        self._lock.release()
 
     def add_current(self, cluster, namespace, resource_type, name, value):
+        self._lock.acquire()
         current = self._clusters[cluster][namespace][resource_type]['current']
         current[name] = value
+        self._lock.release()
 
     def __iter__(self):
         for cluster in self._clusters.keys():

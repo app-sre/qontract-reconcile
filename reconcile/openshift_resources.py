@@ -14,6 +14,8 @@ from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
 from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
+from threading import Lock
 
 """
 +-----------------------+--------------------+-------------+
@@ -69,6 +71,8 @@ QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 2, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
+_log_lock = Lock()
+
 
 class FetchResourceError(Exception):
     def __init__(self, msg):
@@ -96,6 +100,15 @@ class OR(OpenshiftResource):
         super(OR, self).__init__(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
+
+
+class StateSpec(object):
+    def __init__(self, type, oc, cluster, namespace, resource):
+        self.type = type
+        self.oc = oc
+        self.cluster = cluster
+        self.namespace = namespace
+        self.resource = resource
 
 
 def obtain_oc_client(oc_map, cluster_info):
@@ -179,6 +192,8 @@ def fetch_provider_vault_secret(path, version, name, labels, annotations):
 
 
 def fetch_provider_route(path, tls_path, tls_version):
+    global _log_lock
+
     openshift_resource = fetch_provider_resource(path)
 
     if tls_path is None or tls_version is None:
@@ -200,16 +215,22 @@ def fetch_provider_route(path, tls_path, tls_version):
         msg = "Route secret '{}' key '{}' not in valid keys {}".format(
             tls_path, k, valid_keys
         )
+        _log_lock.acquire()
         logging.info(msg)
+        _log_lock.release()
 
     return openshift_resource
 
 
 def fetch_openshift_resource(resource):
+    global _log_lock
+
     provider = resource['provider']
     path = resource['path']
     msg = "Fetching {}: {}".format(provider, path)
+    _log_lock.acquire()
     logging.debug(msg)
+    _log_lock.release()
 
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
@@ -233,70 +254,79 @@ def fetch_openshift_resource(resource):
     return openshift_resource
 
 
-def fetch_current_state(oc, ri, cluster, namespace, managed_types):
-    for resource_type in managed_types:
-        # Initialize cluster/namespace/resource_type in Inventories
-        ri.initialize_resource_type(cluster, namespace, resource_type)
-
-        # Fetch current resources
-        for item in oc.get_items(resource_type, namespace=namespace):
-            openshift_resource = OR(item)
-            ri.add_current(
-                cluster,
-                namespace,
-                resource_type,
-                openshift_resource.name,
-                openshift_resource
-            )
+def fetch_current_state(oc, ri, cluster, namespace, resource_type):
+    for item in oc.get_items(resource_type, namespace=namespace):
+        openshift_resource = OR(item)
+        ri.add_current(
+            cluster,
+            namespace,
+            resource_type,
+            openshift_resource.name,
+            openshift_resource
+        )
 
 
-def fetch_desired_state(ri, cluster, namespace, resources):
+def fetch_desired_state(ri, cluster, namespace, resource):
+    global _log_lock
+
     try:
-        pool = ThreadPool(10)
-        openshift_resources = pool.map(fetch_openshift_resource, resources)
+        openshift_resource = fetch_openshift_resource(resource)
     except (FetchResourceError,
             FetchVaultSecretError,
             UnknownProviderError) as e:
         ri.register_error()
         msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+        _log_lock.acquire()
         logging.error(msg)
+        _log_lock.release()
+        return
 
-    for openshift_resource in openshift_resources:
-        # add to inventory
-        try:
-            ri.add_desired(
-                cluster,
-                namespace,
-                openshift_resource.kind,
-                openshift_resource.name,
-                openshift_resource
-            )
-        except KeyError:
-            # This is failing because in the managed_type loop (where the
-            # `initialize_resource_type` method was called), this specific
-            # combination was not initialized, meaning that it shouldn't be
-            # managed. But someone is trying to add it via app-interface
-            ri.register_error()
-            msg = "[{}/{}] unknown kind: {}.".format(
-                cluster, namespace, openshift_resource.kind)
-            logging.error(msg)
-            continue
-        except ResourceKeyExistsError:
-            # This is failing because an attempt to add
-            # a desired resource with the same name and
-            # the same type was already added previously
-            ri.register_error()
-            msg = (
-                "[{}/{}] desired item already exists: {}/{}."
-            ).format(cluster, namespace, openshift_resource.kind,
-                     openshift_resource.name)
-            logging.error(msg)
-            continue
+    # add to inventory
+    try:
+        ri.add_desired(
+            cluster,
+            namespace,
+            openshift_resource.kind,
+            openshift_resource.name,
+            openshift_resource
+        )
+    except KeyError:
+        # This is failing because in the managed_type loop (where the
+        # `initialize_resource_type` method was called), this specific
+        # combination was not initialized, meaning that it shouldn't be
+        # managed. But someone is trying to add it via app-interface
+        ri.register_error()
+        msg = "[{}/{}] unknown kind: {}.".format(
+            cluster, namespace, openshift_resource.kind)
+        _log_lock.acquire()
+        logging.error(msg)
+        _log_lock.release()
+        return
+    except ResourceKeyExistsError:
+        # This is failing because an attempt to add
+        # a desired resource with the same name and
+        # the same type was already added previously
+        ri.register_error()
+        msg = (
+            "[{}/{}] desired item already exists: {}/{}."
+        ).format(cluster, namespace, openshift_resource.kind,
+                 openshift_resource.name)
+        _log_lock.acquire()
+        logging.error(msg)
+        _log_lock.release()
+        return
 
 
-def fetch_data(namespaces_query):
-    ri = ResourceInventory()
-    oc_map = {}
+def fetch_states(spec, ri):
+    if spec.type == "current":
+        fetch_current_state(spec.oc, ri, spec.cluster,
+                            spec.namespace, spec.resource)
+    if spec.type == "desired":
+        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
+
+
+def init_specs_to_fetch(ri, oc_map, namespaces_query):
+    state_specs = []
 
     for namespace_info in namespaces_query:
         # Skip if namespace has no managedResourceTypes
@@ -317,9 +347,33 @@ def fetch_data(namespaces_query):
             logging.error(msg)
             continue
 
-        fetch_current_state(oc, ri, cluster, namespace, managed_types)
+        # Initialize current state specs
+        for resource_type in managed_types:
+            ri.initialize_resource_type(cluster, namespace, resource_type)
+            c_spec = StateSpec("current", oc, cluster, namespace,
+                               resource_type)
+            state_specs.append(c_spec)
+
+        # Initialize desired state specs
         openshift_resources = namespace_info.get('openshiftResources') or []
-        fetch_desired_state(ri, cluster, namespace, openshift_resources)
+        for openshift_resource in openshift_resources:
+            d_spec = StateSpec("desired", None, cluster, namespace,
+                               openshift_resource)
+            state_specs.append(d_spec)
+
+    return state_specs
+
+
+def fetch_data(namespaces_query, thread_pool_size):
+    ri = ResourceInventory()
+    oc_map = {}
+
+    state_specs = init_specs_to_fetch(ri, oc_map, namespaces_query)
+
+    pool = ThreadPool(thread_pool_size)
+
+    fetch_states_partial = partial(fetch_states, ri=ri)
+    pool.map(fetch_states_partial, state_specs)
 
     return oc_map, ri
 
@@ -398,12 +452,12 @@ def realize_data(dry_run, oc_map, ri):
                 logging.error(msg)
 
 
-def run(dry_run=False):
+def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
 
     namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
-    oc_map, ri = fetch_data(namespaces_query)
+    oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
     realize_data(dry_run, oc_map, ri)
 
     if ri.has_error_registered():

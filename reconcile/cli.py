@@ -65,9 +65,13 @@ def openshift_rolebinding(ctx):
 
 
 @integration.command()
+@click.option('--thread-pool-size',
+              help='number of threads to run in parallel',
+              default=10)
 @click.pass_context
-def openshift_resources(ctx):
-    run_integration(reconcile.openshift_resources.run, ctx.obj['dry_run'])
+def openshift_resources(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_resources.run,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
