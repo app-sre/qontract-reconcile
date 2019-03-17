@@ -47,6 +47,7 @@ NAMESPACES_QUERY = """
         name
         labels
         annotations
+        type
       }
       ... on NamespaceOpenshiftResourceRoute_v1 {
         path
@@ -68,7 +69,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 2, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 3, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -154,11 +155,12 @@ def fetch_provider_resource(path):
     return openshift_resource
 
 
-def fetch_provider_vault_secret(path, version, name, labels, annotations):
+def fetch_provider_vault_secret(path, version, name,
+                                labels, annotations, type):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
-        "type": "Opaque",
+        "type": type,
         "metadata": {
             "name": name,
             "annotations": annotations
@@ -242,8 +244,10 @@ def fetch_openshift_resource(resource):
         labels = {} if rl is None else json.loads(rl)
         ra = resource['annotations']
         annotations = {} if ra is None else json.loads(ra)
+        rt = resource['type']
+        type = 'Opaque' if rt is None else rt
         openshift_resource = fetch_provider_vault_secret(path, version, name,
-                                                         labels, annotations)
+                                                         labels, annotations, type)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']
         tls_version = resource['vault_tls_secret_version']
