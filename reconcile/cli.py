@@ -17,10 +17,11 @@ from utils.aggregated_list import RunnerException
 
 def threaded(function):
     function = click.option('--thread-pool-size',
-              help='number of threads to run in parallel',
-              default=10)(function)
+                            help='number of threads to run in parallel',
+                            default=10)(function)
 
     return function
+
 
 def run_integration(func, *args):
     try:
