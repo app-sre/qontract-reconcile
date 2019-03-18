@@ -15,6 +15,13 @@ import reconcile.ldap_users
 from utils.aggregated_list import RunnerException
 
 
+def threaded(function):
+    function = click.option('--thread-pool-size',
+              help='number of threads to run in parallel',
+              default=10)(function)
+
+    return function
+
 def run_integration(func, *args):
     try:
         func(*args)
@@ -39,9 +46,6 @@ def run_integration(func, *args):
                   'WARNING',
                   'ERROR',
                   'CRITICAL']))
-@click.option('--thread-pool-size',
-              help='number of threads to run in parallel',
-              default=10)
 @click.pass_context
 def integration(ctx, configfile, dry_run, log_level):
     ctx.ensure_object(dict)
@@ -68,10 +72,11 @@ def openshift_rolebinding(ctx):
 
 
 @integration.command()
+@threaded
 @click.pass_context
-def openshift_resources(ctx):
+def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
-                    ctx.obj['dry_run'], ctx['thread_pool_size'])
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
@@ -87,10 +92,11 @@ def quay_repos(ctx):
 
 
 @integration.command()
+@threaded
 @click.pass_context
 def ldap_users(ctx, thread_pool_size):
     run_integration(reconcile.ldap_users.run,
-                    ctx.obj['dry_run'], ctx['thread_pool_size'])
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
