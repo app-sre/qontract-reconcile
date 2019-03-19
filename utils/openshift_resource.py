@@ -80,10 +80,7 @@ class OpenshiftResource(object):
                                  self.integration_version)
 
     def sha256sum(self):
-        if self.has_qontract_annotations():
-            body = self.body
-        else:
-            body = self.annotate().body
+        body = self.annotate().body
 
         annotations = body['metadata']['annotations']
         return annotations['qontract.sha256sum']
