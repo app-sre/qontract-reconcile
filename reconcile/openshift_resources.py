@@ -416,7 +416,8 @@ def realize_data(dry_run, oc_map, ri):
                     continue
 
                 # don't apply if sha256sum hashes match
-                if c_item.sha256sum() == d_item.sha256sum():
+                if c_item.sha256sum() == d_item.sha256sum() and \
+                        c_item.has_valid_sha256sum():
                     msg = (
                         "[{}/{}] resource '{}/{}' present "
                         "and hashes match, skipping."

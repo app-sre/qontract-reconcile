@@ -60,8 +60,12 @@ class TestOpenshiftResource(object):
         assert annotated.sha256sum() == \
             '1366d8ef31f0d83419d25b446e61008b16348b9efee2216873856c49cede6965'
 
+        assert annotated.has_valid_sha256sum()
+
         annotated.body['metadata']['annotations']['qontract.sha256sum'] = \
             'test'
 
         assert annotated.sha256sum() == \
             '1366d8ef31f0d83419d25b446e61008b16348b9efee2216873856c49cede6965'
+
+        assert not annotated.has_valid_sha256sum()
