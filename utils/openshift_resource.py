@@ -67,12 +67,21 @@ class OpenshiftResource(object):
                 annotations.
         """
 
+        # keep resourceVersion to restore
+        resource_version = None
+        if 'resourceVersion' in self.body['metadata']:
+            resource_version = self.body['metadata']['resourceVersion']
+
         # calculate sha256sum of canonical body
         canonical_body = self.canonicalize(self.body)
         sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
 
         # create new body object
         body = copy.deepcopy(self.body)
+
+        # restore resourceVersion
+        if resource_version is not None:
+            body['metadata'].setdefault('resourceVersion', resource_version)
 
         # create annotations if not present
         body['metadata'].setdefault('annotations', {})
