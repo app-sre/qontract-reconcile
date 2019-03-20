@@ -18,17 +18,19 @@ from functools import partial
 from threading import Lock
 
 """
-+-----------------------+--------------------+-------------+
-|   Current \ Desired   |      Present       | Not Present |
-+=======================+====================+=============+
-| Present               | Apply if sha256sum | Delete      |
-| (with annotations)    | is different       |             |
-+-----------------------+--------------------+-------------+
-| Present               | Skip (exit 1)      | Skip        |
-| (without annotations) |                    |             |
-+-----------------------+--------------------+-------------+
-| Not Present           | Apply              | Skip        |
-+-----------------------+--------------------+-------------+
++-----------------------+-------------------------+-------------+
+|   Current \ Desired   |         Present         | Not Present |
++=======================+=========================+=============+
+| Present               | Apply if sha256sum      | Delete      |
+| (with annotations)    | is different or if      |             |
+|                       | sha256sum is stale      |             |
+|                       | (due to manual changes) |             |
++-----------------------+-------------------------+-------------+
+| Present               | Skip (exit 1)           | Skip        |
+| (without annotations) |                         |             |
++-----------------------+-------------------------+-------------+
+| Not Present           | Apply                   | Skip        |
++-----------------------+-------------------------+-------------+
 """
 
 NAMESPACES_QUERY = """
@@ -69,7 +71,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 3, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 3, 1)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -417,12 +419,19 @@ def realize_data(dry_run, oc_map, ri):
 
                 # don't apply if sha256sum hashes match
                 if c_item.sha256sum() == d_item.sha256sum():
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "and hashes match, skipping."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.debug(msg)
-                    continue
+                    if c_item.has_valid_sha256sum():
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present "
+                            "and hashes match, skipping."
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.debug(msg)
+                        continue
+                    else:
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present "
+                            "and has stale sha256sum due to manual changes."
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.info(msg)
 
                 logging.debug("CURRENT: " +
                               OR.serialize(OR.canonicalize(c_item.body)))
