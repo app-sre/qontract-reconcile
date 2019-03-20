@@ -10,7 +10,7 @@ from utils.raw_github_api import RawGithubApi
 
 QUERY = """
 {
-  roles {
+  roles: roles_v1 {
     name
     users {
       github_username

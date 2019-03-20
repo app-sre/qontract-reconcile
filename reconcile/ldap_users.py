@@ -10,7 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 USERS_QUERY = """
 {
-  users {
+  users: users_v1 {
     path
     redhat_username
   }

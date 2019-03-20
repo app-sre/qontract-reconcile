@@ -10,7 +10,7 @@ from utils.aggregated_list import (AggregatedList,
 
 QUAY_ORG_CATALOG_QUERY = """
 {
-  quay_orgs {
+  quay_orgs: quay_orgs_v1 {
     name
     managedTeams
     automationToken {
@@ -24,7 +24,7 @@ QUAY_ORG_CATALOG_QUERY = """
 
 QUAY_ORG_QUERY = """
 {
-  roles {
+  roles: roles_v1 {
     name
     users {
       name

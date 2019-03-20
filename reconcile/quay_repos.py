@@ -22,7 +22,7 @@ QUAY_ORG_CATALOG_QUERY = """
 
 QUAY_REPOS_QUERY = """
 {
-  apps {
+  apps: apps_v1 {
     quayRepos {
       org {
         name

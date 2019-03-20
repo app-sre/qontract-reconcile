@@ -9,7 +9,7 @@ from reconcile.openshift_resources import OR
 
 QUERY = """
 {
-    clusters {
+    clusters: clusters_v1 {
       name
       serverUrl
       automationToken {

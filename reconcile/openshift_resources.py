@@ -35,7 +35,7 @@ from threading import Lock
 
 NAMESPACES_QUERY = """
 {
-  namespaces {
+  namespaces: namespaces_v1 {
     name
     managedResourceTypes
     openshiftResources {
