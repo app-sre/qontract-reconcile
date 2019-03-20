@@ -18,17 +18,19 @@ from functools import partial
 from threading import Lock
 
 """
-+-----------------------+--------------------+-------------+
-|   Current \ Desired   |      Present       | Not Present |
-+=======================+====================+=============+
-| Present               | Apply if sha256sum | Delete      |
-| (with annotations)    | is different       |             |
-+-----------------------+--------------------+-------------+
-| Present               | Skip (exit 1)      | Skip        |
-| (without annotations) |                    |             |
-+-----------------------+--------------------+-------------+
-| Not Present           | Apply              | Skip        |
-+-----------------------+--------------------+-------------+
++-----------------------+-------------------------+-------------+
+|   Current \ Desired   |         Present         | Not Present |
++=======================+=========================+=============+
+| Present               | Apply if sha256sum      | Delete      |
+| (with annotations)    | is different or if      |             |
+|                       | sha256sum is stale      |             |
+|                       | (due to manual changes) |             |
++-----------------------+-------------------------+-------------+
+| Present               | Skip (exit 1)           | Skip        |
+| (without annotations) |                         |             |
++-----------------------+-------------------------+-------------+
+| Not Present           | Apply                   | Skip        |
++-----------------------+-------------------------+-------------+
 """
 
 NAMESPACES_QUERY = """
@@ -424,6 +426,13 @@ def realize_data(dry_run, oc_map, ri):
                     ).format(cluster, namespace, resource_type, name)
                     logging.debug(msg)
                     continue
+
+                if not c_item.has_valid_sha256sum():
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present "
+                        "and has stale sha256sum due to manual changes."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.info(msg)
 
                 logging.debug("CURRENT: " +
                               OR.serialize(OR.canonicalize(c_item.body)))
