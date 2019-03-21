@@ -107,6 +107,7 @@ class OpenshiftResource(object):
         # remove openshift specific params
         body['metadata'].pop('creationTimestamp', None)
         body['metadata'].pop('resourceVersion', None)
+        body['metadata'].pop('generation', None)
         body['metadata'].pop('selfLink', None)
         body['metadata'].pop('uid', None)
         body['metadata'].pop('namespace', None)

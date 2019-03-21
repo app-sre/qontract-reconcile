@@ -8,7 +8,7 @@ from utils.openshift_resource import OpenshiftResource
 fxt = Fixtures('openshift_resource')
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 3, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 4, 0)
 
 
 class OR(OpenshiftResource):
