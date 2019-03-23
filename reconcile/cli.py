@@ -11,6 +11,7 @@ import reconcile.openshift_resources_annotate
 import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
+import reconcile.terraform_resources
 
 from utils.aggregated_list import RunnerException
 
@@ -109,3 +110,10 @@ def ldap_users(ctx, thread_pool_size):
 def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
     run_integration(reconcile.openshift_resources_annotate.run,
                     ctx.obj['dry_run'], cluster, namespace, kind, name)
+
+
+@integration.command()
+@click.pass_context
+def terraform_resources(ctx):
+    run_integration(reconcile.terraform_resources.run,
+                    ctx.obj['dry_run'])
