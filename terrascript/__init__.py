@@ -4,6 +4,11 @@ terrascript/__init__.py
 Base classes and functions that are used elsewhere in
 this project.
 
+This module is taken from https://github.com/mjuenema/python-terrascript
+We are not using python-terrascript as it is not suitable for python 2
+due to a single import statement (documented below)
+After we migrate to python 3, this entire module can be removed
+and a 'terrascript' requirement should be added to 'setup.py'
 """
 
 __author__ = 'Markus Juenemann <markus@juenemann.net>'
@@ -21,6 +26,9 @@ DEBUG = False
 
 import logging 
 import os
+# from collections import defaultdict, UserDict
+# The previous line is replaced by the 2 following lines
+# in order to work with python 2
 from collections import defaultdict
 from six.moves import UserDict
 

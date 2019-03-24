@@ -27,6 +27,7 @@ setup(
         "anymarkup==0.7.0",
         "python-gitlab==1.7.0",
         "semver==2.8.1",
+        "python-terraform==0.10.0",
     ],
 
     test_suite="tests",
