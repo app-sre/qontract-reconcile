@@ -42,3 +42,9 @@ server = "https://gitlab.example.com"
 token = "..."
 # (mandatory) app-interface gitlab project id
 project_id = "12345"
+
+[terraform]
+# This section is required by `qontract-reconcile terraform-resources`
+
+# (mandatory) path to terraform profile secrets in vault
+secrets_path = 'secrets/path/to/terraform/profile'
