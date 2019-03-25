@@ -52,72 +52,86 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 _working_dir = None
 
 
-def bootstrap_config():
+class UnknownProviderError(Exception):
+    def __init__(self, msg):
+        super(UnknownProviderError, self).__init__(
+            "unknown provider error: " + str(msg)
+        )
+
+
+def get_vault_tf_secret(type):
     config = get_config()
     secrets_path = config['terraform']['secrets_path']
-    secret = vault_client.read_all(secrets_path + '/config')
+    return vault_client.read_all(secrets_path + '/' + type)
+
+
+def bootstrap_config():
+    config = get_vault_tf_secret('config')
     ts = Terrascript()
     ts += provider('aws',
-                   access_key=secret['aws_access_key_id'],
-                   secret_key=secret['aws_secret_access_key'],
-                   version=secret['aws_provider_version'],
-                   region=secret['region'])
+                   access_key=config['aws_access_key_id'],
+                   secret_key=config['aws_secret_access_key'],
+                   version=config['aws_provider_version'],
+                   region=config['region'])
     b = backend("s3",
-                access_key=secret['aws_access_key_id'],
-                secret_key=secret['aws_secret_access_key'],
-                bucket=secret['bucket'],
-                key=secret['key'],
-                region=secret['region'])
+                access_key=config['aws_access_key_id'],
+                secret_key=config['aws_secret_access_key'],
+                bucket=config['bucket'],
+                key=config['key'],
+                region=config['region'])
     ts += terraform(backend=b)
 
     return ts
 
 
-def generateRandomPassword(stringLength=20):
-    """Generate a random string of letters and digits """
-    lettersAndDigits = string.ascii_letters + string.digits
-    return ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
+def adjust_tf_query(tf_query):
+    out_tf_query = []
+    for namespace_info in tf_query:
+        tf_resources = namespace_info.get('terraformResources')
+        # Skip if namespace has no terraformResources
+        if not tf_resources:
+            continue
+        # adjust to match openshift_resources functions
+        namespace_info['managedResourceTypes'] = ['Secret']
+        out_tf_query.append(namespace_info)
+
+    return out_tf_query
 
 
-def fetch_tf_resource_rds(resource, spec, ri):
-    config = get_config()
-    secrets_path = config['terraform']['secrets_path']
-    variables = vault_client.read_all(secrets_path + '/variables')
-    
-    identifier = resource['identifier']
-    re = resource['engine']
-    # deafult engine is postgres
-    # the engine is also the default name and username
-    engine = 'postgres' if re is None else re
-    rn = resource['name']
-    name = rn if rn is not None else engine
-    engine_version = resource['engine_version']
-    ru = resource['username']
-    username = ru if ru is not None else engine
+def get_spec_by_namespace(state_specs, namespace_info):
+    cluster = namespace_info['cluster']['name']
+    namespace = namespace_info['name']
+    specs = [s for s in state_specs \
+        if s.cluster == cluster and s.namespace == namespace]
+    # since we exactly one combination of cluster/namespace
+    # we can return the first (and only) item in the list
+    return specs[0]
 
-    output_secret_name = identifier + '-rds'
-    password = None
+
+def fetch_existing_oc_resource(spec, resource_name):
     try:
-        output_secret = \
-            spec.oc.get(spec.namespace, spec.resource, output_secret_name)
-        enc_password = output_secret['data']['db.password']
-        password = base64.b64decode(enc_password)
-        openshift_resource = openshift_resources.OR(output_secret)
-        ri.add_current(
-            spec.cluster,
-            spec.namespace,
-            spec.resource,
-            openshift_resource.name,
-            openshift_resource
-        )
+        return spec.oc.get(spec.namespace, spec.resource, resource_name)
     except StatusCodeError as e:
         if e.message.startswith('Error from server (NotFound):'):
-            msg = 'Secret {} does not exist.'.format(output_secret_name)
+            msg = 'Secret {} does not exist.'.format(resource_name)
             logging.debug(msg)
-            password = generateRandomPassword()
-        else:
-            # TODO: determine what to do here
-            raise e
+    return None
+
+
+def generate_random_password(string_length=20):
+    """Generate a random string of letters and digits """
+    letters_and_digits = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters_and_digits) \
+        for i in range(string_length))
+
+
+def determine_rds_db_password(spec, existing_resource):
+    password = generate_random_password()
+    if existing_resource is not None:
+        enc_password = existing_resource['data']['db.password']
+        password = base64.b64decode(enc_password)
+    return password
+
     # TODO: except KeyError?
     # a KeyError will indicate that this secret
     # exists, but the db.password field is missing.
@@ -129,65 +143,91 @@ def fetch_tf_resource_rds(resource, spec, ri):
     # no competition over secret names, but we should
     # circle back here at a later point.
 
+
+def fetch_tf_resource_rds(resource, spec):
+    # get values from gql query
+    # deafult engine is postgres
+    # the engine is also the default name and username
+    identifier = resource['identifier']
+    re = resource['engine']
+    engine = 'postgres' if re is None else re
+    rn = resource['name']
+    name = engine if rn is None else rn
+    ru = resource['username']
+    username = engine if ru is None else ru
+    engine_version = resource['engine_version']
+    final_snapshot_identifier = identifier + '-final-snapshot'
+    output_resource_name = identifier + '-rds'
+    # get values from vault tf secret
+    variables = get_vault_tf_secret('variables')
+    db_subnet_group_name = variables['rds-subnet-group']
+    vpc_security_group_ids = variables['rds-security-groups'].split(',')
+
+    existing_oc_resource = \
+        fetch_existing_oc_resource(spec, output_resource_name)
+    password = determine_rds_db_password(spec, existing_oc_resource)
+
     kwargs = {
-        'engine': engine,
-        'name': name,
-        'username': username,
         # default values
+        # these can be later exposed to users
         'instance_class': 'db.t2.small',
         'allocated_storage': 20,
         'storage_encrypted': True,
-        'final_snapshot_identifier': \
-            identifier + '-final-snapshot',
         'auto_minor_version_upgrade': False,
         'backup_retention_period': 7,
         'storage_type': 'gp2',
         'multi_az': False,
-        # generate password unless secret with password exists
+        # calculated values
+        'engine': engine,
+        'name': name,
+        'username': username,
+        'final_snapshot_identifier': final_snapshot_identifier,
         'password': password,
-        # grab secret variables from vault
-        'db_subnet_group_name': variables['rds-subnet-group'],
-        'vpc_security_group_ids': \
-            variables['rds-security-groups'].split(','),
+        'db_subnet_group_name': db_subnet_group_name,
+        'vpc_security_group_ids': vpc_security_group_ids,
     }
     if engine_version is not None:
         kwargs['engine_version'] = engine_version
 
-    return aws_db_instance(identifier, **kwargs)
+    return aws_db_instance(identifier, **kwargs), existing_oc_resource
 
 
-def fetch_tf_resource(resource, spec, ri):
+def fetch_tf_resource(resource, spec):
     provider = resource['provider']
     if provider == 'rds':
-        return fetch_tf_resource_rds(resource, spec, ri)
+        tf_resouce, oc_resource = \
+            fetch_tf_resource_rds(resource, spec)
+    else:
+        raise UnknownProviderError(provider)
+
+    return tf_resouce, oc_resource
 
 
-def add_resources(ts):
+def add_resources(ts, ri):
     gqlapi = gql.get_api()
     tf_query = gqlapi.query(TF_QUERY)['namespaces']
+    tf_query = adjust_tf_query(tf_query)
 
-    ri = ResourceInventory()
-    for namespace_info in tf_query:
-        tf_resources = namespace_info.get('terraformResources')
-        # Skip if namespace has no terraformResources
-        if not tf_resources:
-            continue
-        namespace_info['managedResourceTypes'] = ['Secret']
     state_specs = \
         openshift_resources.init_specs_to_fetch(ri, {}, tf_query)
 
     for namespace_info in tf_query:
+        spec = get_spec_by_namespace(state_specs, namespace_info)
         tf_resources = namespace_info.get('terraformResources')
-        # Skip if namespace has no terraformResources
-        if not tf_resources:
-            continue
-        cluster = namespace_info['cluster']['name']
-        namespace = namespace_info['name']
         for resource in tf_resources:
-            spec = [s for s in state_specs \
-                if s.cluster == cluster and s.namespace == namespace][0]
-            tf_resource = fetch_tf_resource(resource, spec, ri)
+            tf_resource, oc_resource = \
+                fetch_tf_resource(resource, spec)
             ts.add(tf_resource)
+            if oc_resource is None:
+                continue
+            openshift_resource = openshift_resources.OR(oc_resource)
+            ri.add_current(
+                spec.cluster,
+                spec.namespace,
+                spec.resource,
+                openshift_resource.name,
+                openshift_resource
+            )
 
 
 def write_to_tmp_file(ts):
@@ -200,9 +240,11 @@ def write_to_tmp_file(ts):
 
 def setup():
     ts = bootstrap_config()
-    add_resources(ts)
+    ri = ResourceInventory()
+    add_resources(ts, ri)
     ts.validate()
     write_to_tmp_file(ts)
+    print(ts.dump())
 
 
 def check_tf_output(return_code, stdout, stderr):
