@@ -16,7 +16,7 @@ from utils.config import get_config
 from utils.openshift_resource import ResourceInventory
 
 from python_terraform import *
-from terrascript import Terrascript, provider, terraform, backend
+from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import aws_db_instance
 
 TF_QUERY = """
@@ -156,7 +156,6 @@ def fetch_tf_resource_rds(resource, spec):
     ru = resource['username']
     username = engine if ru is None else ru
     engine_version = resource['engine_version']
-    final_snapshot_identifier = identifier + '-final-snapshot'
     output_resource_name = identifier + '-rds'
     # get values from vault tf secret
     variables = get_vault_tf_secret('variables')
@@ -174,14 +173,15 @@ def fetch_tf_resource_rds(resource, spec):
         'allocated_storage': 20,
         'storage_encrypted': True,
         'auto_minor_version_upgrade': False,
+        'skip_final_snapshot': True,
         'backup_retention_period': 7,
         'storage_type': 'gp2',
         'multi_az': False,
         # calculated values
+        'identifier': identifier,
         'engine': engine,
         'name': name,
         'username': username,
-        'final_snapshot_identifier': final_snapshot_identifier,
         'password': password,
         'db_subnet_group_name': db_subnet_group_name,
         'vpc_security_group_ids': vpc_security_group_ids,
@@ -189,18 +189,31 @@ def fetch_tf_resource_rds(resource, spec):
     if engine_version is not None:
         kwargs['engine_version'] = engine_version
 
-    return aws_db_instance(identifier, **kwargs), existing_oc_resource
+    tf_resource = aws_db_instance(identifier, **kwargs)
+
+    tf_outputs = []
+    tf_outputs.append(output(output_resource_name + \
+        '[db.host]', value='${' + tf_resource.fullname + '.address}'))
+    tf_outputs.append(output(output_resource_name + \
+        '[db.port]', value='${' + tf_resource.fullname + '.port}'))
+    tf_outputs.append(output(output_resource_name \
+        + '[db.name]', value=name))
+    tf_outputs.append(output(output_resource_name + \
+        '[db.user]', value=username))
+    tf_outputs.append(output(output_resource_name + \
+        '[db.password]', value=password))
+    return tf_resource, tf_outputs, existing_oc_resource
 
 
 def fetch_tf_resource(resource, spec):
     provider = resource['provider']
     if provider == 'rds':
-        tf_resouce, oc_resource = \
+        tf_resource, tf_outputs, oc_resource = \
             fetch_tf_resource_rds(resource, spec)
     else:
         raise UnknownProviderError(provider)
 
-    return tf_resouce, oc_resource
+    return tf_resource, tf_outputs, oc_resource
 
 
 def add_resources(ts, ri):
@@ -215,9 +228,11 @@ def add_resources(ts, ri):
         spec = get_spec_by_namespace(state_specs, namespace_info)
         tf_resources = namespace_info.get('terraformResources')
         for resource in tf_resources:
-            tf_resource, oc_resource = \
+            tf_resource, tf_outputs, oc_resource = \
                 fetch_tf_resource(resource, spec)
             ts.add(tf_resource)
+            for tf_output in tf_outputs:
+                ts.add(tf_output)
             if oc_resource is None:
                 continue
             openshift_resource = openshift_resources.OR(oc_resource)
