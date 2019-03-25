@@ -11,11 +11,11 @@ import utils.gql as gql
 import utils.vault_client as vault_client
 import reconcile.openshift_resources as openshift_resources
 
-from utils.oc import OC, StatusCodeError
+from utils.oc import StatusCodeError
 from utils.config import get_config
-from utils.openshift_resource import ResourceInventory
+from utils.openshift_resource import OpenshiftResource, ResourceInventory
 
-from python_terraform import *
+from python_terraform import Terraform
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import aws_db_instance
 
@@ -48,6 +48,7 @@ TF_QUERY = """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_TF_PREFIX = 'qrtf'
 
 _working_dir = None
 
@@ -56,6 +57,20 @@ class UnknownProviderError(Exception):
     def __init__(self, msg):
         super(UnknownProviderError, self).__init__(
             "unknown provider error: " + str(msg)
+        )
+
+
+class ConstructResourceError(Exception):
+    def __init__(self, msg):
+        super(ConstructResourceError, self).__init__(
+            "error construction openshift resource: " + str(msg)
+        )
+
+
+class OR(OpenshiftResource):
+    def __init__(self, body):
+        super(OR, self).__init__(
+            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
 
 
@@ -101,8 +116,8 @@ def adjust_tf_query(tf_query):
 def get_spec_by_namespace(state_specs, namespace_info):
     cluster = namespace_info['cluster']['name']
     namespace = namespace_info['name']
-    specs = [s for s in state_specs \
-        if s.cluster == cluster and s.namespace == namespace]
+    specs = [s for s in state_specs
+             if s.cluster == cluster and s.namespace == namespace]
     # since we exactly one combination of cluster/namespace
     # we can return the first (and only) item in the list
     return specs[0]
@@ -121,8 +136,8 @@ def fetch_existing_oc_resource(spec, resource_name):
 def generate_random_password(string_length=20):
     """Generate a random string of letters and digits """
     letters_and_digits = string.ascii_letters + string.digits
-    return ''.join(random.choice(letters_and_digits) \
-        for i in range(string_length))
+    return ''.join(random.choice(letters_and_digits)
+                   for i in range(string_length))
 
 
 def determine_rds_db_password(spec, existing_resource):
@@ -192,16 +207,33 @@ def fetch_tf_resource_rds(resource, spec):
     tf_resource = aws_db_instance(identifier, **kwargs)
 
     tf_outputs = []
-    tf_outputs.append(output(output_resource_name + \
-        '[db.host]', value='${' + tf_resource.fullname + '.address}'))
-    tf_outputs.append(output(output_resource_name + \
-        '[db.port]', value='${' + tf_resource.fullname + '.port}'))
-    tf_outputs.append(output(output_resource_name \
-        + '[db.name]', value=name))
-    tf_outputs.append(output(output_resource_name + \
-        '[db.user]', value=username))
-    tf_outputs.append(output(output_resource_name + \
-        '[db.password]', value=password))
+    output_name = output_resource_name + '[db.host]'
+    output_value = '${' + tf_resource.fullname + '.address}'
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + '[db.port]'
+    output_value = '${' + tf_resource.fullname + '.port}'
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + '[db.name]'
+    output_value = name
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + '[db.user]'
+    output_value = username
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + '[db.password]'
+    output_value = password
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + \
+        '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.cluster
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.namespace]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.namespace
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.resource]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.resource
+    tf_outputs.append(output(output_name, value=output_value))
     return tf_resource, tf_outputs, existing_oc_resource
 
 
@@ -237,7 +269,7 @@ def add_resources(ts):
                 ts.add(tf_output)
             if oc_resource is None:
                 continue
-            openshift_resource = openshift_resources.OR(oc_resource)
+            openshift_resource = OR(oc_resource)
             ri.add_current(
                 spec.cluster,
                 spec.namespace,
@@ -262,7 +294,6 @@ def setup():
     ts.validate()
     write_to_tmp_file(ts)
 
-    print(ts.dump())
     return ri, oc_map
 
 
@@ -314,16 +345,63 @@ def tf_apply(tf):
     check_tf_output(return_code, stdout, stderr)
 
 
+def format_data(output):
+    # data is a dictionary of dictionaries
+    data = {}
+    for k, v in output:
+        if '[' not in k or ']' not in k:
+            continue
+        k_split = k.split('[')
+        resource_name = k_split[0]
+        field_key = k_split[1][:-1]
+        field_value = v['value']
+        if resource_name not in data:
+            data[resource_name] = {}
+        data[resource_name][field_key] = field_value
+    return data
+
+
+def contruct_oc_resource(name, data):
+    body = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "type": "Opaque",
+        "metadata": {
+            "name": name,
+        },
+        "data": {}
+    }
+
+    for k, v in data.items():
+        if QONTRACT_TF_PREFIX in k:
+            continue
+        body['data'][k] = base64.b64encode(v)
+
+    openshift_resource = OR(body)
+
+    try:
+        openshift_resource.verify_valid_k8s_object()
+    except (KeyError, TypeError) as e:
+        k = e.__class__.__name__
+        e_msg = "Invalid data ({}). Skipping resource: {}"
+        raise ConstructResourceError(e_msg.format(k, name))
+
+    return openshift_resource
+
+
 def tf_output(tf, ri):
-    return_code, stdout, stderr = tf.output()
-    # don't pass stdout as it contains sensitive
-    # information that should not be logged
-    check_tf_output(return_code, "", stderr)
-    print(stdout)
-    # parse json
-    # iterate over items of the form name[field]
-    # create Secrets
-    # add Secrets to ri
+    output = tf.output()
+    formatted_data = format_data(output.items())
+
+    for name, data in formatted_data.items():
+        oc_resource = contruct_oc_resource(name, data)
+        ri.add_desired(
+            data['{}.cluster'.format(QONTRACT_TF_PREFIX)],
+            data['{}.namespace'.format(QONTRACT_TF_PREFIX)],
+            data['{}.resource'.format(QONTRACT_TF_PREFIX)],
+            name,
+            oc_resource
+        )
 
 
 def cleanup():
@@ -335,13 +413,12 @@ def cleanup():
 def run(dry_run=False):
     ri, oc_map = setup()
     tf = tf_init()
-    # tf_plan(tf)
+    tf_plan(tf)
 
     if not dry_run:
         tf_apply(tf)
 
-    # these should be under 'if not dry_run'
     tf_output(tf, ri)
-    # openshift_resources.realize_data(dry_run, oc_map, ri)
+    openshift_resources.realize_data(dry_run, oc_map, ri)
 
     cleanup()
