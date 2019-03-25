@@ -216,13 +216,15 @@ def fetch_tf_resource(resource, spec):
     return tf_resource, tf_outputs, oc_resource
 
 
-def add_resources(ts, ri):
+def add_resources(ts):
     gqlapi = gql.get_api()
     tf_query = gqlapi.query(TF_QUERY)['namespaces']
     tf_query = adjust_tf_query(tf_query)
 
+    ri = ResourceInventory()
+    oc_map = {}
     state_specs = \
-        openshift_resources.init_specs_to_fetch(ri, {}, tf_query)
+        openshift_resources.init_specs_to_fetch(ri, oc_map, tf_query)
 
     for namespace_info in tf_query:
         spec = get_spec_by_namespace(state_specs, namespace_info)
@@ -243,6 +245,7 @@ def add_resources(ts, ri):
                 openshift_resource.name,
                 openshift_resource
             )
+    return ri, oc_map
 
 
 def write_to_tmp_file(ts):
@@ -255,11 +258,12 @@ def write_to_tmp_file(ts):
 
 def setup():
     ts = bootstrap_config()
-    ri = ResourceInventory()
-    add_resources(ts, ri)
+    ri, oc_map = add_resources(ts)
     ts.validate()
     write_to_tmp_file(ts)
+
     print(ts.dump())
+    return ri, oc_map
 
 
 def check_tf_output(return_code, stdout, stderr):
@@ -310,6 +314,18 @@ def tf_apply(tf):
     check_tf_output(return_code, stdout, stderr)
 
 
+def tf_output(tf, ri):
+    return_code, stdout, stderr = tf.output()
+    # don't pass stdout as it contains sensitive
+    # information that should not be logged
+    check_tf_output(return_code, "", stderr)
+    print(stdout)
+    # parse json
+    # iterate over items of the form name[field]
+    # create Secrets
+    # add Secrets to ri
+
+
 def cleanup():
     global _working_dir
 
@@ -317,12 +333,15 @@ def cleanup():
 
 
 def run(dry_run=False):
-    setup()
+    ri, oc_map = setup()
     tf = tf_init()
-    tf_plan(tf)
-    return
+    # tf_plan(tf)
 
     if not dry_run:
         tf_apply(tf)
+
+    # these should be under 'if not dry_run'
+    tf_output(tf, ri)
+    # openshift_resources.realize_data(dry_run, oc_map, ri)
 
     cleanup()
