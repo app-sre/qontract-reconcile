@@ -60,6 +60,7 @@ class FetchResourceError(Exception):
             "error fetching resource: " + str(msg)
         )
 
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super(UnknownProviderError, self).__init__(
@@ -100,10 +101,10 @@ def bootstrap_configs():
     for name, config in configs.items():
         ts = Terrascript()
         ts += provider('aws',
-                    access_key=config['aws_access_key_id'],
-                    secret_key=config['aws_secret_access_key'],
-                    version=config['aws_provider_version'],
-                    region=config['region'])
+                       access_key=config['aws_access_key_id'],
+                       secret_key=config['aws_secret_access_key'],
+                       version=config['aws_provider_version'],
+                       region=config['region'])
         b = backend("s3",
                     access_key=config['aws_access_key_id'],
                     secret_key=config['aws_secret_access_key'],
