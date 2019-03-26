@@ -31,6 +31,7 @@ TF_QUERY = """
         engine
         engine_version
         username
+        account
       }
     }
     cluster {
@@ -50,7 +51,7 @@ QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
-_working_dir = None
+_working_dirs = {}
 
 
 class UnknownProviderError(Exception):
@@ -74,29 +75,39 @@ class OR(OpenshiftResource):
         )
 
 
-def get_vault_tf_secret(type):
+def get_vault_tf_secrets(type, account_name=""):
     config = get_config()
-    secrets_path = config['terraform']['secrets_path']
-    return vault_client.read_all(secrets_path + '/' + type)
+    accounts = config['terraform']
+    secrets = {}
+    for name, data in accounts.items():
+        if account_name != "" and account_name != name:
+            continue
+        secrets_path = data['secrets_path']
+        secret = vault_client.read_all(secrets_path + '/' + type)
+        secrets[name] = secret
+    return secrets
 
 
-def bootstrap_config():
-    config = get_vault_tf_secret('config')
-    ts = Terrascript()
-    ts += provider('aws',
-                   access_key=config['aws_access_key_id'],
-                   secret_key=config['aws_secret_access_key'],
-                   version=config['aws_provider_version'],
-                   region=config['region'])
-    b = backend("s3",
-                access_key=config['aws_access_key_id'],
-                secret_key=config['aws_secret_access_key'],
-                bucket=config['bucket'],
-                key=config['key'],
-                region=config['region'])
-    ts += terraform(backend=b)
+def bootstrap_configs():
+    configs = get_vault_tf_secrets('config')
+    tss = {}
+    for name, config in configs.items():
+        ts = Terrascript()
+        ts += provider('aws',
+                    access_key=config['aws_access_key_id'],
+                    secret_key=config['aws_secret_access_key'],
+                    version=config['aws_provider_version'],
+                    region=config['region'])
+        b = backend("s3",
+                    access_key=config['aws_access_key_id'],
+                    secret_key=config['aws_secret_access_key'],
+                    bucket=config['bucket'],
+                    key=config['key'],
+                    region=config['region'])
+        ts += terraform(backend=b)
+        tss[name] = ts
 
-    return ts
+    return tss
 
 
 def adjust_tf_query(tf_query):
@@ -159,13 +170,20 @@ def determine_rds_db_password(spec, existing_resource):
     # circle back here at a later point.
 
 
-def fetch_tf_resource_rds(resource, spec):
+def get_resource_tags(spec):
+    return {
+        'managed_by_integration': QONTRACT_INTEGRATION,
+        'cluster': spec.cluster,
+        'namespace': spec.namespace
+    }
+
+
+def fetch_tf_resources_rds(resource, spec):
+    tf_resources = []
     # get values from gql query
-    # deafult engine is postgres
-    # the engine is also the default name and username
+    # the engine is the default name and username
     identifier = resource['identifier']
-    re = resource['engine']
-    engine = 'postgres' if re is None else re
+    engine = resource['engine']
     rn = resource['name']
     name = engine if rn is None else rn
     ru = resource['username']
@@ -173,7 +191,9 @@ def fetch_tf_resource_rds(resource, spec):
     engine_version = resource['engine_version']
     output_resource_name = identifier + '-rds'
     # get values from vault tf secret
-    variables = get_vault_tf_secret('variables')
+    ra = resource['account']
+    account = 'app-sre' if ra is None else ra
+    variables = get_vault_tf_secrets('variables', account)[account]
     db_subnet_group_name = variables['rds-subnet-group']
     vpc_security_group_ids = variables['rds-security-groups'].split(',')
 
@@ -200,11 +220,13 @@ def fetch_tf_resource_rds(resource, spec):
         'password': password,
         'db_subnet_group_name': db_subnet_group_name,
         'vpc_security_group_ids': vpc_security_group_ids,
+        'tags': get_resource_tags(spec)
     }
     if engine_version is not None:
         kwargs['engine_version'] = engine_version
 
     tf_resource = aws_db_instance(identifier, **kwargs)
+    tf_resources.append(tf_resource)
 
     tf_outputs = []
     output_name = output_resource_name + '[db.host]'
@@ -234,21 +256,21 @@ def fetch_tf_resource_rds(resource, spec):
         '[{}.resource]'.format(QONTRACT_TF_PREFIX)
     output_value = spec.resource
     tf_outputs.append(output(output_name, value=output_value))
-    return tf_resource, tf_outputs, existing_oc_resource
+    return account, tf_resources, tf_outputs, existing_oc_resource
 
 
-def fetch_tf_resource(resource, spec):
+def fetch_tf_resources(resource, spec):
     provider = resource['provider']
     if provider == 'rds':
-        tf_resource, tf_outputs, oc_resource = \
-            fetch_tf_resource_rds(resource, spec)
+        account, tf_resources, tf_outputs, oc_resource = \
+            fetch_tf_resources_rds(resource, spec)
     else:
         raise UnknownProviderError(provider)
 
-    return tf_resource, tf_outputs, oc_resource
+    return account, tf_resources, tf_outputs, oc_resource
 
 
-def add_resources(ts):
+def add_resources(tss):
     gqlapi = gql.get_api()
     tf_query = gqlapi.query(TF_QUERY)['namespaces']
     tf_query = adjust_tf_query(tf_query)
@@ -262,11 +284,12 @@ def add_resources(ts):
         spec = get_spec_by_namespace(state_specs, namespace_info)
         tf_resources = namespace_info.get('terraformResources')
         for resource in tf_resources:
-            tf_resource, tf_outputs, oc_resource = \
-                fetch_tf_resource(resource, spec)
-            ts.add(tf_resource)
+            account, tf_resources, tf_outputs, oc_resource = \
+                fetch_tf_resources(resource, spec)
+            for tf_resource in tf_resources:
+                tss[account].add(tf_resource)
             for tf_output in tf_outputs:
-                ts.add(tf_output)
+                tss[account].add(tf_output)
             if oc_resource is None:
                 continue
             openshift_resource = OR(oc_resource)
@@ -280,19 +303,26 @@ def add_resources(ts):
     return ri, oc_map
 
 
-def write_to_tmp_file(ts):
-    global _working_dir
+def validate_tss(tss):
+    for name, ts in tss.items():
+        ts.validate()
 
-    _working_dir = tempfile.mkdtemp()
-    with open(_working_dir + '/config.tf', 'w') as f:
-        f.write(ts.dump())
+
+def write_to_tmp_files(tss):
+    global _working_dirs
+
+    for name, ts in tss.items():
+        wd = tempfile.mkdtemp()
+        with open(wd + '/config.tf', 'w') as f:
+            f.write(ts.dump())
+        _working_dirs[name] = wd
 
 
 def setup():
-    ts = bootstrap_config()
-    ri, oc_map = add_resources(ts)
-    ts.validate()
-    write_to_tmp_file(ts)
+    tss = bootstrap_configs()
+    ri, oc_map = add_resources(tss)
+    validate_tss(tss)
+    write_to_tmp_files(tss)
 
     return ri, oc_map
 
@@ -311,38 +341,49 @@ def check_tf_output(return_code, stdout, stderr):
         sys.exit(return_code)
 
 
-def log_diff(stdout):
+def log_plan_diff(name, stdout):
     for line in stdout.split('\n'):
         if line.startswith('+ aws'):
             line_split = line.replace('+ ', '').split('.')
-            logging.info(['create', line_split[0], line_split[1]])
+            logging.info(['create', name, line_split[0], line_split[1]])
         if line.startswith('- aws'):
             line_split = line.replace('- ', '').split('.')
-            logging.info(['destroy', line_split[0], line_split[1]])
+            logging.info(['destroy', name, line_split[0], line_split[1]])
         if line.startswith('~ aws'):
             line_split = line.replace('~ ', '').split('.')
-            logging.info(['update', line_split[0], line_split[1]])
+            logging.info(['update', name, line_split[0], line_split[1]])
 
 
 def tf_init():
-    global _working_dir
+    global _working_dirs
 
-    tf = Terraform(working_dir=_working_dir)
-    return_code, stdout, stderr = tf.init()
-    check_tf_output(return_code, stdout, stderr)
+    tfs = {}
+    for name, wd in _working_dirs.items():
+        tf = Terraform(working_dir=wd)
+        return_code, stdout, stderr = tf.init()
+        check_tf_output(return_code, stdout, stderr)
+        tfs[name] = tf
 
-    return tf
-
-
-def tf_plan(tf):
-    return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
-    check_tf_output(return_code, stdout, stderr)
-    log_diff(stdout)
+    return tfs
 
 
-def tf_apply(tf):
-    return_code, stdout, stderr = tf.apply(auto_approve=True)
-    check_tf_output(return_code, stdout, stderr)
+def tf_plan(tfs):
+    for name, tf in tfs.items():
+        return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
+        check_tf_output(return_code, stdout, stderr)
+        log_plan_diff(name, stdout)
+
+
+def tf_apply(tfs):
+    for name, tf in tfs.items():
+        return_code, stdout, stderr = tf.apply(auto_approve=True)
+        check_tf_output(return_code, stdout, stderr)
+
+
+def tf_refresh(tfs):
+    for name, tf in tfs.items():
+        return_code, stdout, stderr = tf.refresh()
+        check_tf_output(return_code, stdout, stderr)
 
 
 def format_data(output):
@@ -389,36 +430,40 @@ def contruct_oc_resource(name, data):
     return openshift_resource
 
 
-def tf_output(tf, ri):
-    output = tf.output()
-    formatted_data = format_data(output.items())
+def tf_output(tfs, ri):
+    for name, tf in tfs.items():
+        output = tf.output()
+        formatted_data = format_data(output.items())
 
-    for name, data in formatted_data.items():
-        oc_resource = contruct_oc_resource(name, data)
-        ri.add_desired(
-            data['{}.cluster'.format(QONTRACT_TF_PREFIX)],
-            data['{}.namespace'.format(QONTRACT_TF_PREFIX)],
-            data['{}.resource'.format(QONTRACT_TF_PREFIX)],
-            name,
-            oc_resource
-        )
+        for name, data in formatted_data.items():
+            oc_resource = contruct_oc_resource(name, data)
+            ri.add_desired(
+                data['{}.cluster'.format(QONTRACT_TF_PREFIX)],
+                data['{}.namespace'.format(QONTRACT_TF_PREFIX)],
+                data['{}.resource'.format(QONTRACT_TF_PREFIX)],
+                name,
+                oc_resource
+            )
 
 
 def cleanup():
-    global _working_dir
+    global _working_dirs
 
-    shutil.rmtree(_working_dir)
+    for _, wd in _working_dirs.items():
+        shutil.rmtree(wd)
 
 
 def run(dry_run=False):
     ri, oc_map = setup()
-    tf = tf_init()
-    tf_plan(tf)
+    tfs = tf_init()
+    tf_plan(tfs)
 
     if not dry_run:
-        tf_apply(tf)
+        tf_apply(tfs)
+    else:
+        tf_refresh(tfs)
 
-    tf_output(tf, ri)
+    tf_output(tfs, ri)
     openshift_resources.realize_data(dry_run, oc_map, ri)
 
     cleanup()
