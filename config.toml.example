@@ -46,5 +46,7 @@ project_id = "12345"
 [terraform]
 # This section is required by `qontract-reconcile terraform-resources`
 
+# one sub-section per managed AWS account
+[terraform.<accountname>]
 # (mandatory) path to terraform profile secrets in vault
 secrets_path = 'secrets/path/to/terraform/profile'
