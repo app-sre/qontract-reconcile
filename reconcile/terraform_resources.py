@@ -19,7 +19,8 @@ from utils.openshift_resource import OpenshiftResource, ResourceInventory
 
 from python_terraform import Terraform
 from terrascript import Terrascript, provider, terraform, backend, output
-from terrascript.aws.r import aws_db_instance
+from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
+                               aws_iam_access_key, aws_iam_user_policy)
 
 TF_QUERY = """
 {
@@ -28,6 +29,12 @@ TF_QUERY = """
     terraformResources {
       provider
       ... on NamespaceTerraformResourceRDS_v1 {
+        account
+        identifier
+        defaults
+        overrides
+      }
+      ... on NamespaceTerraformResourceS3_v1 {
         account
         identifier
         defaults
@@ -206,9 +213,91 @@ def get_values(path):
 
 
 def override_values(base, overrides):
+    if overrides is None:
+        return
     data = json.loads(overrides)
     for k, v in data.items():
         base[k] = v
+
+
+def fetch_tf_resources_s3(resource, spec):
+    account = resource['account']
+    identifier = resource['identifier']
+    defaults_path = resource['defaults']
+    overrides = resource['overrides']
+
+    values = get_values(defaults_path)
+    values['bucket'] = identifier
+    override_values(values, overrides)
+    values['tags'] = get_resource_tags(spec)
+
+    output_resource_name = identifier + '-s3'
+    existing_oc_resource = \
+        fetch_existing_oc_resource(spec, output_resource_name)
+
+    tf_resources = []
+    tf_outputs = []
+
+    bucket_tf_resource = aws_s3_bucket(identifier, **values)
+    tf_resources.append(bucket_tf_resource)
+    output_name = output_resource_name + '[bucket]'
+    output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
+    tf_outputs.append(output(output_name, value=output_value))
+
+    user_tf_resource = aws_iam_user(identifier, name=identifier,
+                                    tags=values['tags'],
+                                    depends_on=[bucket_tf_resource])
+    tf_resources.append(user_tf_resource)
+    tf_resource = aws_iam_access_key(identifier, user=identifier,
+                                     depends_on=[user_tf_resource])
+    tf_resources.append(tf_resource)
+    output_name = output_resource_name + '[aws_access_key_id]'
+    output_value = '${' + tf_resource.fullname + '.id}'
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name + '[aws_secret_access_key]'
+    output_value = '${' + tf_resource.fullname + '.secret}'
+    tf_outputs.append(output(output_name, value=output_value))
+
+    values = {}
+    values['user'] = identifier
+    values['name'] = identifier
+    policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "ListObjectsInBucket",
+                "Effect": "Allow",
+                "Action": ["s3:ListBucket"],
+                "Resource": ["arn:aws:s3:::{0}".format(identifier)]
+            },
+            {
+                "Sid": "AllObjectActions",
+                "Effect": "Allow",
+                "Action": "s3:*Object",
+                "Resource": ["arn:aws:s3:::{0}/*".format(identifier)]
+            }
+        ]
+    }
+
+    values['policy'] = json.dumps(policy, sort_keys=True)
+    values['depends_on'] = [user_tf_resource]
+    tf_resource = aws_iam_user_policy(identifier, **values)
+    tf_resources.append(tf_resource)
+
+    output_name = output_resource_name + \
+        '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.cluster
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.namespace]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.namespace
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.resource]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.resource
+    tf_outputs.append(output(output_name, value=output_value))
+
+    return account, tf_resources, tf_outputs, existing_oc_resource
 
 
 def fetch_tf_resources_rds(resource, spec):
@@ -218,6 +307,7 @@ def fetch_tf_resources_rds(resource, spec):
     overrides = resource['overrides']
 
     values = get_values(defaults_path)
+    values['identifier'] = identifier
     override_values(values, overrides)
 
     variables = get_vault_tf_secrets('variables', account)[account]
@@ -232,10 +322,9 @@ def fetch_tf_resources_rds(resource, spec):
     values['tags'] = get_resource_tags(spec)
 
     tf_resources = []
+    tf_outputs = []
     tf_resource = aws_db_instance(identifier, **values)
     tf_resources.append(tf_resource)
-
-    tf_outputs = []
     output_name = output_resource_name + '[db.host]'
     output_value = '${' + tf_resource.fullname + '.address}'
     tf_outputs.append(output(output_name, value=output_value))
@@ -251,6 +340,7 @@ def fetch_tf_resources_rds(resource, spec):
     output_name = output_resource_name + '[db.password]'
     output_value = values['password']
     tf_outputs.append(output(output_name, value=output_value))
+
     output_name = output_resource_name + \
         '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
     output_value = spec.cluster
@@ -271,6 +361,9 @@ def fetch_tf_resources(resource, spec):
     if provider == 'rds':
         account, tf_resources, tf_outputs, oc_resource = \
             fetch_tf_resources_rds(resource, spec)
+    elif provider == 's3':
+        account, tf_resources, tf_outputs, oc_resource = \
+            fetch_tf_resources_s3(resource, spec)
     else:
         raise UnknownProviderError(provider)
 
@@ -350,6 +443,7 @@ def check_tf_output(return_code, stdout, stderr):
 
 def log_plan_diff(name, stdout):
     for line in stdout.split('\n'):
+        line = line.strip()
         if line.startswith('+ aws'):
             line_split = line.replace('+ ', '').split('.')
             logging.info(['create', name, line_split[0], line_split[1]])
@@ -359,6 +453,10 @@ def log_plan_diff(name, stdout):
         if line.startswith('~ aws'):
             line_split = line.replace('~ ', '').split('.')
             logging.info(['update', name, line_split[0], line_split[1]])
+        if line.startswith('-/+ aws'):
+            line_split = line.replace('-/+ ', '').split('.')
+            logging.info(['replace', name, line_split[0],
+                         line_split[1].split(' ', 1)[0]])
 
 
 def tf_init():
