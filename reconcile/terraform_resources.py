@@ -6,6 +6,8 @@ import random
 import string
 import base64
 import semver
+import json
+import anymarkup
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -26,12 +28,10 @@ TF_QUERY = """
     terraformResources {
       provider
       ... on NamespaceTerraformResourceRDS_v1 {
-        identifier
-        name
-        engine
-        engine_version
-        username
         account
+        identifier
+        defaults
+        overrides
       }
     }
     cluster {
@@ -53,6 +53,12 @@ QONTRACT_TF_PREFIX = 'qrtf'
 
 _working_dirs = {}
 
+
+class FetchResourceError(Exception):
+    def __init__(self, msg):
+        super(FetchResourceError, self).__init__(
+            "error fetching resource: " + str(msg)
+        )
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
@@ -178,54 +184,54 @@ def get_resource_tags(spec):
     }
 
 
-def fetch_tf_resources_rds(resource, spec):
-    tf_resources = []
-    # get values from gql query
-    # the engine is the default name and username
-    identifier = resource['identifier']
-    engine = resource['engine']
-    rn = resource['name']
-    name = engine if rn is None else rn
-    ru = resource['username']
-    username = engine if ru is None else ru
-    engine_version = resource['engine_version']
-    output_resource_name = identifier + '-rds'
-    # get values from vault tf secret
-    ra = resource['account']
-    account = 'app-sre' if ra is None else ra
-    variables = get_vault_tf_secrets('variables', account)[account]
-    db_subnet_group_name = variables['rds-subnet-group']
-    vpc_security_group_ids = variables['rds-security-groups'].split(',')
+def get_values(path):
+    gqlapi = gql.get_api()
 
+    try:
+        raw_values = gqlapi.get_resource(path)
+    except gql.GqlApiError as e:
+        raise FetchResourceError(e.message)
+
+    try:
+        values = anymarkup.parse(
+            raw_values['content'],
+            force_types=None
+        )
+    except anymarkup.AnyMarkupError:
+        e_msg = "Could not parse data. Skipping resource: {}"
+        raise FetchResourceError(e_msg.format(path))
+
+    return values
+
+
+def override_values(base, overrides):
+    data = json.loads(overrides)
+    for k, v in data.items():
+        base[k] = v
+
+
+def fetch_tf_resources_rds(resource, spec):
+    account = resource['account']
+    identifier = resource['identifier']
+    defaults_path = resource['defaults']
+    overrides = resource['overrides']
+
+    values = get_values(defaults_path)
+    override_values(values, overrides)
+
+    variables = get_vault_tf_secrets('variables', account)[account]
+    values['db_subnet_group_name'] = variables['rds-subnet-group']
+    values['vpc_security_group_ids'] = \
+        variables['rds-security-groups'].split(',')
+
+    output_resource_name = identifier + '-rds'
     existing_oc_resource = \
         fetch_existing_oc_resource(spec, output_resource_name)
-    password = determine_rds_db_password(spec, existing_oc_resource)
+    values['password'] = determine_rds_db_password(spec, existing_oc_resource)
+    values['tags'] = get_resource_tags(spec)
 
-    kwargs = {
-        # default values
-        # these can be later exposed to users
-        'instance_class': 'db.t2.small',
-        'allocated_storage': 20,
-        'storage_encrypted': True,
-        'auto_minor_version_upgrade': False,
-        'skip_final_snapshot': True,
-        'backup_retention_period': 7,
-        'storage_type': 'gp2',
-        'multi_az': False,
-        # calculated values
-        'identifier': identifier,
-        'engine': engine,
-        'name': name,
-        'username': username,
-        'password': password,
-        'db_subnet_group_name': db_subnet_group_name,
-        'vpc_security_group_ids': vpc_security_group_ids,
-        'tags': get_resource_tags(spec)
-    }
-    if engine_version is not None:
-        kwargs['engine_version'] = engine_version
-
-    tf_resource = aws_db_instance(identifier, **kwargs)
+    tf_resources = []
+    tf_resource = aws_db_instance(identifier, **values)
     tf_resources.append(tf_resource)
 
     tf_outputs = []
@@ -236,13 +242,13 @@ def fetch_tf_resources_rds(resource, spec):
     output_value = '${' + tf_resource.fullname + '.port}'
     tf_outputs.append(output(output_name, value=output_value))
     output_name = output_resource_name + '[db.name]'
-    output_value = name
+    output_value = values['name']
     tf_outputs.append(output(output_name, value=output_value))
     output_name = output_resource_name + '[db.user]'
-    output_value = username
+    output_value = values['username']
     tf_outputs.append(output(output_name, value=output_value))
     output_name = output_resource_name + '[db.password]'
-    output_value = password
+    output_value = values['password']
     tf_outputs.append(output(output_name, value=output_value))
     output_name = output_resource_name + \
         '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
