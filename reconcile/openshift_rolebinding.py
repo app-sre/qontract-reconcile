@@ -11,7 +11,7 @@ from utils.aggregated_list import (AggregatedList,
 
 NAMESPACES_QUERY = """
 {
-  namespaces {
+  namespaces: namespaces_v1 {
     name
     managedRoles
     cluster {
@@ -29,7 +29,7 @@ NAMESPACES_QUERY = """
 
 ROLES_QUERY = """
 {
-  roles {
+  roles: roles_v1 {
     name
     users {
       github_username

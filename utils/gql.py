@@ -37,7 +37,7 @@ class GqlApi(object):
     def get_resource(self, path):
         query = """
         query Resource($path: String) {
-            resources(path: $path) {
+            resources: resources_v1 (path: $path) {
                 path
                 content
                 sha256sum
