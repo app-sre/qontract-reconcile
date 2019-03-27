@@ -9,7 +9,7 @@ from utils.aggregated_list import (AggregatedList,
 
 QUAY_ORG_CATALOG_QUERY = """
 {
-  quay_orgs {
+  quay_orgs: quay_orgs_v1 {
     name
     automationToken {
       path
