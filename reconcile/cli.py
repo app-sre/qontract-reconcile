@@ -113,7 +113,10 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 
 
 @integration.command()
+@click.option('--print-only/--no-print-only',
+              default=False,
+              help='If `true`, it will only print the terraform config file.')
 @click.pass_context
-def terraform_resources(ctx):
+def terraform_resources(ctx, print_only):
     run_integration(reconcile.terraform_resources.run,
-                    ctx.obj['dry_run'])
+                    ctx.obj['dry_run'], print_only)

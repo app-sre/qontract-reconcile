@@ -90,13 +90,11 @@ class OR(OpenshiftResource):
         )
 
 
-def get_vault_tf_secrets(type, account_name=""):
+def get_vault_tf_secrets(type):
     config = get_config()
     accounts = config['terraform']
     secrets = {}
     for name, data in accounts.items():
-        if account_name != "" and account_name != name:
-            continue
         secrets_path = data['secrets_path']
         secret = vault_client.read_all(secrets_path + '/' + type)
         secrets[name] = secret
@@ -166,10 +164,12 @@ def generate_random_password(string_length=20):
                    for i in range(string_length))
 
 
-def determine_rds_db_password(spec, existing_resource):
+def determine_rds_db_password(spec, output_resource_name):
     password = generate_random_password()
-    if existing_resource is not None:
-        enc_password = existing_resource['data']['db.password']
+    existing_oc_resource = \
+        fetch_existing_oc_resource(spec, output_resource_name)
+    if existing_oc_resource is not None:
+        enc_password = existing_oc_resource['data']['db.password']
         password = base64.b64decode(enc_password)
     return password
 
@@ -221,34 +221,69 @@ def override_values(base, overrides):
         base[k] = v
 
 
-def fetch_tf_resources_s3(resource, spec):
+def init_values(resource, spec):
     account = resource['account']
+    provider = resource['provider']
     identifier = resource['identifier']
     defaults_path = resource['defaults']
     overrides = resource['overrides']
 
     values = get_values(defaults_path)
-    values['bucket'] = identifier
     override_values(values, overrides)
+    values['identifier'] = identifier
     values['tags'] = get_resource_tags(spec)
 
-    output_resource_name = identifier + '-s3'
+    output_resource_name = '{}-{}'.format(identifier, provider)
+
+    return account, identifier, values, output_resource_name
+
+
+def init_common_outputs(tf_outputs, spec, output_resource_name):
+    output_name = output_resource_name + \
+        '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.cluster
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.namespace]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.namespace
+    tf_outputs.append(output(output_name, value=output_value))
+    output_name = output_resource_name +\
+        '[{}.resource]'.format(QONTRACT_TF_PREFIX)
+    output_value = spec.resource
+    tf_outputs.append(output(output_name, value=output_value))
+
+
+def fetch_tf_resources_s3(resource, spec):
+    account, identifier, common_values, output_resource_name = \
+        init_values(resource, spec)
 
     tf_resources = []
     tf_outputs = []
+    init_common_outputs(tf_outputs, spec, output_resource_name)
 
+    # s3 bucket
+    values = {}
+    values['bucket'] = identifier
+    values['tags'] = common_values['tags']
     bucket_tf_resource = aws_s3_bucket(identifier, **values)
     tf_resources.append(bucket_tf_resource)
     output_name = output_resource_name + '[bucket]'
     output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
     tf_outputs.append(output(output_name, value=output_value))
 
-    user_tf_resource = aws_iam_user(identifier, name=identifier,
-                                    tags=values['tags'],
-                                    depends_on=[bucket_tf_resource])
+    # iam user for bucket
+    values = {}
+    values['name'] = identifier
+    values['tags'] = common_values['tags']
+    values['depends_on'] = [bucket_tf_resource]
+    user_tf_resource = aws_iam_user(identifier, **values)
     tf_resources.append(user_tf_resource)
-    tf_resource = aws_iam_access_key(identifier, user=identifier,
-                                     depends_on=[user_tf_resource])
+
+    # iam access key for user
+    values = {}
+    values['user'] = identifier
+    values['depends_on'] = [user_tf_resource]
+    tf_resource = aws_iam_access_key(identifier, **values)
     tf_resources.append(tf_resource)
     output_name = output_resource_name + '[aws_access_key_id]'
     output_value = '${' + tf_resource.fullname + '.id}'
@@ -257,6 +292,7 @@ def fetch_tf_resources_s3(resource, spec):
     output_value = '${' + tf_resource.fullname + '.secret}'
     tf_outputs.append(output(output_name, value=output_value))
 
+    # iam user policy for bucket
     values = {}
     values['user'] = identifier
     values['name'] = identifier
@@ -277,51 +313,30 @@ def fetch_tf_resources_s3(resource, spec):
             }
         ]
     }
-
     values['policy'] = json.dumps(policy, sort_keys=True)
     values['depends_on'] = [user_tf_resource]
     tf_resource = aws_iam_user_policy(identifier, **values)
     tf_resources.append(tf_resource)
 
-    output_name = output_resource_name + \
-        '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.cluster
-    tf_outputs.append(output(output_name, value=output_value))
-    output_name = output_resource_name +\
-        '[{}.namespace]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.namespace
-    tf_outputs.append(output(output_name, value=output_value))
-    output_name = output_resource_name +\
-        '[{}.resource]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.resource
-    tf_outputs.append(output(output_name, value=output_value))
-
     return account, tf_resources, tf_outputs
 
 
 def fetch_tf_resources_rds(resource, spec):
-    account = resource['account']
-    identifier = resource['identifier']
-    defaults_path = resource['defaults']
-    overrides = resource['overrides']
-
-    values = get_values(defaults_path)
-    values['identifier'] = identifier
-    override_values(values, overrides)
-
-    variables = get_vault_tf_secrets('variables', account)[account]
-    values['db_subnet_group_name'] = variables['rds-subnet-group']
-    values['vpc_security_group_ids'] = \
-        variables['rds-security-groups'].split(',')
-
-    output_resource_name = identifier + '-rds'
-    existing_oc_resource = \
-        fetch_existing_oc_resource(spec, output_resource_name)
-    values['password'] = determine_rds_db_password(spec, existing_oc_resource)
-    values['tags'] = get_resource_tags(spec)
+    account, identifier, values, output_resource_name = \
+        init_values(resource, spec)
 
     tf_resources = []
     tf_outputs = []
+    init_common_outputs(tf_outputs, spec, output_resource_name)
+
+    # rds instance
+    variables = get_vault_tf_secrets('variables')[account]
+    values['db_subnet_group_name'] = variables['rds-subnet-group']
+    values['vpc_security_group_ids'] = \
+        variables['rds-security-groups'].split(',')
+    values['password'] = determine_rds_db_password(spec, output_resource_name)
+
+    # rds outputs
     tf_resource = aws_db_instance(identifier, **values)
     tf_resources.append(tf_resource)
     output_name = output_resource_name + '[db.host]'
@@ -340,18 +355,6 @@ def fetch_tf_resources_rds(resource, spec):
     output_value = values['password']
     tf_outputs.append(output(output_name, value=output_value))
 
-    output_name = output_resource_name + \
-        '[{}.cluster]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.cluster
-    tf_outputs.append(output(output_name, value=output_value))
-    output_name = output_resource_name +\
-        '[{}.namespace]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.namespace
-    tf_outputs.append(output(output_name, value=output_value))
-    output_name = output_resource_name +\
-        '[{}.resource]'.format(QONTRACT_TF_PREFIX)
-    output_value = spec.resource
-    tf_outputs.append(output(output_name, value=output_value))
     return account, tf_resources, tf_outputs
 
 
@@ -395,10 +398,11 @@ def add_resources(tss):
         spec = get_spec_by_namespace(state_specs, namespace_info)
         if spec is None:
             continue
+        # get existing Secrets
         fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
-        tf_resources = namespace_info.get('terraformResources')
         # Skip if namespace has no terraformResources
+        tf_resources = namespace_info.get('terraformResources')
         if not tf_resources:
             continue
         for resource in tf_resources:
@@ -416,21 +420,25 @@ def validate_tss(tss):
         ts.validate()
 
 
-def write_to_tmp_files(tss):
+def write_to_tmp_files(tss, print_only):
     global _working_dirs
 
     for name, ts in tss.items():
+        if print_only:
+            print('##### {} #####'.format(name))
+            print(ts.dump())
+            continue
         wd = tempfile.mkdtemp()
         with open(wd + '/config.tf', 'w') as f:
             f.write(ts.dump())
         _working_dirs[name] = wd
 
 
-def setup():
+def setup(print_only):
     tss = bootstrap_configs()
     ri, oc_map = add_resources(tss)
     validate_tss(tss)
-    write_to_tmp_files(tss)
+    write_to_tmp_files(tss, print_only)
 
     return ri, oc_map
 
@@ -566,17 +574,16 @@ def cleanup():
         shutil.rmtree(wd)
 
 
-def run(dry_run=False):
-    ri, oc_map = setup()
+def run(dry_run=False, print_only=False):
+    ri, oc_map = setup(print_only)
+    if print_only:
+        sys.exit()
     tfs = tf_init()
     tf_plan(tfs)
 
     if not dry_run:
         tf_apply(tfs)
-    else:
-        tf_refresh(tfs)
-
-    tf_output(tfs, ri)
-    openshift_resources.realize_data(dry_run, oc_map, ri)
+        tf_output(tfs, ri)
+        openshift_resources.realize_data(dry_run, oc_map, ri)
 
     cleanup()
