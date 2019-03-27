@@ -165,13 +165,12 @@ def generate_random_password(string_length=20):
 
 
 def determine_rds_db_password(spec, output_resource_name):
-    password = generate_random_password()
     existing_oc_resource = \
         fetch_existing_oc_resource(spec, output_resource_name)
     if existing_oc_resource is not None:
         enc_password = existing_oc_resource['data']['db.password']
-        password = base64.b64decode(enc_password)
-    return password
+        return base64.b64decode(enc_password)
+    return generate_random_password()
 
     # TODO: except KeyError?
     # a KeyError will indicate that this secret
