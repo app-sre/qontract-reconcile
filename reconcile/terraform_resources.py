@@ -24,7 +24,7 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
 
 TF_QUERY = """
 {
-  namespaces {
+  namespaces: namespaces_v1 {
     name
     managedResourceTypes
     terraformResources {
