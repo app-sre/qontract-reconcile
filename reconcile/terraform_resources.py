@@ -396,7 +396,7 @@ def add_resources(tss):
         if spec is None:
             continue
         fetch_current_state(spec.oc, ri, spec.cluster,
-                                                spec.namespace, spec.resource)
+                            spec.namespace, spec.resource)
         tf_resources = namespace_info.get('terraformResources')
         # Skip if namespace has no terraformResources
         if not tf_resources:
