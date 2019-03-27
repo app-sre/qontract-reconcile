@@ -128,13 +128,9 @@ def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
         tf_resources = namespace_info.get('terraformResources')
-        # Skip if namespace has no terraformResources
-        if not tf_resources:
-            continue
         # adjust to match openshift_resources functions
         namespace_info['managedResourceTypes'] = ['Secret']
         out_tf_query.append(namespace_info)
-
     return out_tf_query
 
 
@@ -143,8 +139,10 @@ def get_spec_by_namespace(state_specs, namespace_info):
     namespace = namespace_info['name']
     specs = [s for s in state_specs
              if s.cluster == cluster and s.namespace == namespace]
-    # since we exactly one combination of cluster/namespace
-    # we can return the first (and only) item in the list
+    # since we have no more then one combination of cluster/namespace
+    # we can return the first (and only) item in the list if it exists
+    if len(specs) == 0:
+        return None
     return specs[0]
 
 
@@ -232,8 +230,6 @@ def fetch_tf_resources_s3(resource, spec):
     values['tags'] = get_resource_tags(spec)
 
     output_resource_name = identifier + '-s3'
-    existing_oc_resource = \
-        fetch_existing_oc_resource(spec, output_resource_name)
 
     tf_resources = []
     tf_outputs = []
@@ -297,7 +293,7 @@ def fetch_tf_resources_s3(resource, spec):
     output_value = spec.resource
     tf_outputs.append(output(output_name, value=output_value))
 
-    return account, tf_resources, tf_outputs, existing_oc_resource
+    return account, tf_resources, tf_outputs
 
 
 def fetch_tf_resources_rds(resource, spec):
@@ -353,21 +349,33 @@ def fetch_tf_resources_rds(resource, spec):
         '[{}.resource]'.format(QONTRACT_TF_PREFIX)
     output_value = spec.resource
     tf_outputs.append(output(output_name, value=output_value))
-    return account, tf_resources, tf_outputs, existing_oc_resource
+    return account, tf_resources, tf_outputs
 
 
 def fetch_tf_resources(resource, spec):
     provider = resource['provider']
     if provider == 'rds':
-        account, tf_resources, tf_outputs, oc_resource = \
+        account, tf_resources, tf_outputs = \
             fetch_tf_resources_rds(resource, spec)
     elif provider == 's3':
-        account, tf_resources, tf_outputs, oc_resource = \
+        account, tf_resources, tf_outputs = \
             fetch_tf_resources_s3(resource, spec)
     else:
         raise UnknownProviderError(provider)
 
-    return account, tf_resources, tf_outputs, oc_resource
+    return account, tf_resources, tf_outputs
+
+
+def fetch_current_state(oc, ri, cluster, namespace, resource_type):
+    for item in oc.get_items(resource_type, namespace=namespace):
+        openshift_resource = OR(item)
+        ri.add_current(
+            cluster,
+            namespace,
+            resource_type,
+            openshift_resource.name,
+            openshift_resource
+        )
 
 
 def add_resources(tss):
@@ -382,24 +390,21 @@ def add_resources(tss):
 
     for namespace_info in tf_query:
         spec = get_spec_by_namespace(state_specs, namespace_info)
+        if spec is None:
+            continue
+        fetch_current_state(spec.oc, ri, spec.cluster,
+                                                spec.namespace, spec.resource)
         tf_resources = namespace_info.get('terraformResources')
+        # Skip if namespace has no terraformResources
+        if not tf_resources:
+            continue
         for resource in tf_resources:
-            account, tf_resources, tf_outputs, oc_resource = \
+            account, tf_resources, tf_outputs = \
                 fetch_tf_resources(resource, spec)
             for tf_resource in tf_resources:
                 tss[account].add(tf_resource)
             for tf_output in tf_outputs:
                 tss[account].add(tf_output)
-            if oc_resource is None:
-                continue
-            openshift_resource = OR(oc_resource)
-            ri.add_current(
-                spec.cluster,
-                spec.namespace,
-                spec.resource,
-                openshift_resource.name,
-                openshift_resource
-            )
     return ri, oc_map
 
 
