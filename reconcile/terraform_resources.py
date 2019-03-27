@@ -26,6 +26,7 @@ TF_QUERY = """
 {
   namespaces {
     name
+    managedResourceTypes
     terraformResources {
       provider
       ... on NamespaceTerraformResourceRDS_v1 {
@@ -127,7 +128,9 @@ def bootstrap_configs():
 def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
-        tf_resources = namespace_info.get('terraformResources')
+        managed_resources = namespace_info.get('managedResourceTypes')
+        if not managed_resources or 'Secret' not in managed_resources:
+            continue
         # adjust to match openshift_resources functions
         namespace_info['managedResourceTypes'] = ['Secret']
         out_tf_query.append(namespace_info)
