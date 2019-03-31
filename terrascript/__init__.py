@@ -26,6 +26,7 @@ DEBUG = False
 
 import logging 
 import os
+import shutil
 # from collections import defaultdict, UserDict
 # The previous line is replaced by the 2 following lines
 # in order to work with python 2
@@ -149,6 +150,7 @@ class Terrascript(object):
         proc.communicate()
 
         tmpfile.close()
+        shutil.rmtree(tmpdir)
 
         return proc.returncode == 0
 

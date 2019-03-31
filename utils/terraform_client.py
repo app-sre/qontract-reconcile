@@ -1,4 +1,3 @@
-import sys
 import shutil
 import base64
 import logging
@@ -32,48 +31,80 @@ class TerraformClient(object):
         tfs = {}
         for name, wd in working_dirs.items():
             tf = Terraform(working_dir=wd)
-            self.return_code, self.stdout, self.stderr = tf.init()
-            self.check_output()
+            return_code, stdout, stderr = tf.init()
+            error = self.check_output(name, return_code, stdout, stderr)
+            if error:
+                return None
             tfs[name] = tf
         self.tfs = tfs
 
-    def plan(self):
+    def plan(self, enable_deletion):
+        errors = False
+        deletions_detected = False
         for name, tf in self.tfs.items():
-            self.return_code, self.stdout, self.stderr = \
-                tf.plan(detailed_exitcode=False)
-            self.check_output()
-            self.log_plan_diff(name)
+            return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
+            error = self.check_output(name, return_code, stdout, stderr)
+            if error:
+                errors = True
+            deletion_detected = \
+                self.log_plan_diff(name, stdout, enable_deletion)
+            if deletion_detected:
+                deletions_detected = True
+        return deletions_detected, errors
 
-    def log_plan_diff(self, name):
-        for line in self.stdout.split('\n'):
+    def log_plan_diff(self, name, stdout, enable_deletion):
+        deletions_detected = False
+        stdout = self.split_to_lines(stdout)
+        for line in stdout:
             line = line.strip()
             if line.startswith('+ aws'):
                 line_split = line.replace('+ ', '').split('.')
                 logging.info(['create', name, line_split[0], line_split[1]])
             if line.startswith('- aws'):
                 line_split = line.replace('- ', '').split('.')
-                logging.info(['destroy', name, line_split[0], line_split[1]])
+                if enable_deletion:
+                    logging.info(['destroy', name,
+                                  line_split[0], line_split[1]])
+                else:
+                    logging.error(['destroy', name,
+                                   line_split[0], line_split[1]])
+                    logging.error('\'destroy\' action is not enabled. ' +
+                                  'Please run the integration manually ' +
+                                  'with the \'--enable-deletion\' flag.')
+                deletions_detected = True
             if line.startswith('~ aws'):
                 line_split = line.replace('~ ', '').split('.')
                 logging.info(['update', name, line_split[0], line_split[1]])
             if line.startswith('-/+ aws'):
                 line_split = line.replace('-/+ ', '').split('.')
-                logging.info(['REPLACE', name, line_split[0],
-                              line_split[1].split(' ', 1)[0]])
+                if enable_deletion:
+                    logging.info(['replace', name, line_split[0],
+                                  line_split[1].split(' ', 1)[0]])
+                else:
+                    logging.error(['replace', name, line_split[0],
+                                   line_split[1].split(' ', 1)[0]])
+                    logging.error('\'replace\' action is not enabled. ' +
+                                  'Please run the integration manually ' +
+                                  'with the \'--enable-deletion\' flag.')
+                deletions_detected = True
+        return deletions_detected
 
     def apply(self):
+        errors = False
         for name, tf in self.tfs.items():
-            self.return_code, self.stdout, self.stderr = \
-                tf.apply(auto_approve=True)
-            self.check_output()
+            return_code, stdout, stderr = tf.apply(auto_approve=True)
+            error = self.check_output(name, return_code, stdout, stderr)
+            if error:
+                errors = True
+        return errors
 
     def populate_desired_state(self, ri):
         for name, tf in self.tfs.items():
-            self.output = tf.output()
-            self.format_output()
+            output = tf.output()
+            formatted_output = self.format_output(output)
 
-            for name, data in self.output.items():
-                oc_resource = self.contruct_oc_resource(name, data)
+            for name, data in formatted_output.items():
+                oc_resource = self.construct_oc_resource(name, data)
                 ri.add_desired(
                     data['{}.cluster'.format(self.integration_prefix)],
                     data['{}.namespace'.format(self.integration_prefix)],
@@ -82,10 +113,10 @@ class TerraformClient(object):
                     oc_resource
                 )
 
-    def format_output(self):
+    def format_output(self, output):
         # data is a dictionary of dictionaries
         data = {}
-        for k, v in self.output.items():
+        for k, v in output.items():
             if '[' not in k or ']' not in k:
                 continue
             k_split = k.split('[')
@@ -95,9 +126,9 @@ class TerraformClient(object):
             if resource_name not in data:
                 data[resource_name] = {}
             data[resource_name][field_key] = field_value
-        self.output = data
+        return data
 
-    def contruct_oc_resource(self, name, data):
+    def construct_oc_resource(self, name, data):
         body = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -125,18 +156,37 @@ class TerraformClient(object):
 
         return openshift_resource
 
-    def check_output(self):
-        for line in self.stdout.split('\n'):
-            if len(line) == 0:
-                continue
-            logging.debug(line)
-        if self.return_code != 0 and len(self.stderr) != 0:
-            for line in self.stderr.split('\n'):
-                if len(line) == 0:
-                    continue
-                logging.error(self.stderr)
-            self.cleanup()
-            sys.exit(self.return_code)
+    def check_output(self, name, return_code, stdout, stderr):
+        error_occured = False
+        stdout, stderr = self.split_to_lines(stdout, stderr)
+        line_format = '[{}] {}'
+        for line in stdout:
+            # this line will be present when performing 'terraform apply'
+            # as it will contain sensitive information, skip printing
+            if line.startswith('Outputs:'):
+                break
+            logging.info(line_format.format(name, line))
+        if return_code == 0:
+            for line in stderr:
+                logging.warning(line_format.format(name, line))
+        else:
+            for line in stderr:
+                logging.error(line_format.format(name, line))
+            error_occured = True
+        return error_occured
+
+    def split_to_lines(self, *outputs):
+        split_outputs = []
+        try:
+            for output in outputs:
+                output_lines = [l for l in output.split('\n') if len(l) != 0]
+                split_outputs.append(output_lines)
+        except Exception:
+            logging.warning("failed to split outputs to lines.")
+            return outputs
+        if len(split_outputs) == 1:
+            return split_outputs[0]
+        return split_outputs
 
     def cleanup(self):
         for _, wd in self.working_dirs.items():

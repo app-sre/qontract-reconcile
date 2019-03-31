@@ -12,7 +12,7 @@ TF_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
-    managedResourceTypes
+    managedTerrraformResources
     terraformResources {
       provider
       ... on NamespaceTerraformResourceRDS_v1 {
@@ -49,8 +49,9 @@ QONTRACT_TF_PREFIX = 'qrtf'
 def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
-        managed_resources = namespace_info.get('managedResourceTypes')
-        if not managed_resources or 'Secret' not in managed_resources:
+        managed_terraform_resources = \
+          namespace_info.get('managedTerrraformResources')
+        if not managed_terraform_resources:
             continue
         # adjust to match openshift_resources functions
         namespace_info['managedResourceTypes'] = ['Secret']
@@ -101,19 +102,39 @@ def setup(print_only):
     return ri, oc_map, working_dirs
 
 
-def run(dry_run=False, print_only=False):
+def cleanup_and_exit(tf=None, status=False):
+    if tf is not None:
+        tf.cleanup()
+    sys.exit(status)
+
+
+def run(dry_run=False, print_only=False, enable_deletion=False):
     ri, oc_map, working_dirs = setup(print_only)
     if print_only:
-        sys.exit()
+        cleanup_and_exit()
+
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
                    working_dirs)
-    tf.plan()
+    if tf is None:
+        err = True
+        cleanup_and_exit(tf, err)
 
-    if not dry_run:
-        tf.apply()
-        tf.populate_desired_state(ri)
-        openshift_resources.realize_data(dry_run, oc_map, ri)
+    deletions_detected, err = tf.plan(enable_deletion)
+    if err:
+        cleanup_and_exit(tf, err)
+    if deletions_detected and not enable_deletion:
+        cleanup_and_exit(tf, deletions_detected)
 
-    tf.cleanup()
+    if dry_run:
+        cleanup_and_exit(tf)
+
+    err = tf.apply()
+    if err:
+        cleanup_and_exit(tf, err)
+
+    tf.populate_desired_state(ri)
+    openshift_resources.realize_data(dry_run, oc_map, ri)
+
+    cleanup_and_exit(tf)

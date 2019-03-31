@@ -41,6 +41,7 @@ class TerrascriptClient(object):
         self.populate_configs_and_vars_from_vault()
         tss = {}
         for name, config in self.configs.items():
+            # Ref: https://github.com/mjuenema/python-terrascript#example
             ts = Terrascript()
             ts += provider('aws',
                            access_key=config['aws_access_key_id'],
@@ -103,29 +104,41 @@ class TerrascriptClient(object):
                                  output_resource_name)
 
         # rds instance
-        variables = self.variables[account]
-        values['db_subnet_group_name'] = variables['rds-subnet-group']
-        values['vpc_security_group_ids'] = \
-            variables['rds-security-groups'].split(',')
+        # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
+        try:
+            variables = self.variables[account]
+            values['db_subnet_group_name'] = variables['rds-subnet-group']
+            values['vpc_security_group_ids'] = \
+                variables['rds-security-groups'].split(',')
+        except KeyError as e:
+            logging.error("could not get an account variable: " + e.msg)
+            return
         values['password'] = \
             self.determine_rds_db_password(namespace_info,
                                            output_resource_name)
 
-        # rds outputs
         tf_resource = aws_db_instance(identifier, **values)
         tf_resources.append(tf_resource)
+        # rds outputs
+        # we want the outputs to be formed into an OpenShift Secret
+        # with the following fields
+        # db.host
         output_name = output_resource_name + '[db.host]'
         output_value = '${' + tf_resource.fullname + '.address}'
         tf_resources.append(output(output_name, value=output_value))
+        # db.port
         output_name = output_resource_name + '[db.port]'
         output_value = '${' + tf_resource.fullname + '.port}'
         tf_resources.append(output(output_name, value=output_value))
+        # db.name
         output_name = output_resource_name + '[db.name]'
         output_value = values['name']
         tf_resources.append(output(output_name, value=output_value))
+        # db.user
         output_name = output_resource_name + '[db.user]'
         output_value = values['username']
         tf_resources.append(output(output_name, value=output_value))
+        # db.password
         output_name = output_resource_name + '[db.password]'
         output_value = values['password']
         tf_resources.append(output(output_name, value=output_value))
@@ -179,6 +192,8 @@ class TerrascriptClient(object):
                                  output_resource_name)
 
         # s3 bucket
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
         values = {}
         values['bucket'] = identifier
         values['tags'] = common_values['tags']
@@ -187,6 +202,10 @@ class TerrascriptClient(object):
         output_name = output_resource_name + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for bucket
         values = {}
