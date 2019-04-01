@@ -46,7 +46,7 @@ class OC(object):
         return items
 
     def get(self, namespace, kind, name):
-        cmd = ['get', '--export=true', '-o', 'json', '-n', namespace, kind,
+        cmd = ['get', '-o', 'json', '-n', namespace, kind,
                name]
         return self._run_json(cmd)
 
