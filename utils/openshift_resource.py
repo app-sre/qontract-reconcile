@@ -80,7 +80,6 @@ class OpenshiftResource(object):
         annotations = body['metadata']['annotations']
 
         # add qontract annotations
-        annotations.pop('last-applied-configuration', None)
         annotations['qontract.integration'] = self.integration
         annotations['qontract.integration_version'] = \
             self.integration_version
