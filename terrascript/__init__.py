@@ -31,7 +31,10 @@ import shutil
 # The previous line is replaced by the 2 following lines
 # in order to work with python 2
 from collections import defaultdict
-from six.moves import UserDict
+try:
+    from collections import UserDict
+except ImportError:
+    from six.moves import UserDict
 
 logger = logging.getLogger(__name__)
 
