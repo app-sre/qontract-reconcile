@@ -117,6 +117,13 @@ class TerraformClient(object):
         # data is a dictionary of dictionaries
         data = {}
         for k, v in output.items():
+            # the integration creates outputs of the form
+            # output_secret_name[secret_key] = secret_value
+            # in case of manual debugging, additional outputs
+            # may be added, and may (should) not conform to this
+            # naming convention. as outputs are persisted to remote
+            # state, we would not want them to affect any runs
+            # of the integration.
             if '[' not in k or ']' not in k:
                 continue
             k_split = k.split('[')
