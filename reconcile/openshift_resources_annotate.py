@@ -59,6 +59,8 @@ def run(dry_run, cluster, namespace, kind, name):
         sys.exit(1)
 
     openshift_resource = openshift_resource.annotate()
+    # remove resourceVersion
+    openshift_resource.body['metadata'].pop('resourceVersion', None)
 
     if not dry_run:
         oc.apply(namespace, openshift_resource.toJSON())
