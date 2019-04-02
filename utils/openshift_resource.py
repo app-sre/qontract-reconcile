@@ -86,7 +86,6 @@ class OpenshiftResource(object):
         annotations['qontract.sha256sum'] = sha256sum
         now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
         annotations['qontract.update'] = now
-            
 
         return OpenshiftResource(body, self.integration,
                                  self.integration_version)
