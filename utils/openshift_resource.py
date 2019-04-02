@@ -2,6 +2,7 @@ import copy
 import hashlib
 import json
 import semver
+import datetime
 
 from threading import Lock
 
@@ -83,6 +84,8 @@ class OpenshiftResource(object):
         annotations['qontract.integration_version'] = \
             self.integration_version
         annotations['qontract.sha256sum'] = sha256sum
+        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
+        annotations['qontract.update'] = now
 
         return OpenshiftResource(body, self.integration,
                                  self.integration_version)
@@ -142,6 +145,7 @@ class OpenshiftResource(object):
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
         annotations.pop('qontract.sha256sum', None)
+        annotations.pop('qontract.update', None)
 
         return body
 
