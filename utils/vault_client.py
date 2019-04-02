@@ -13,6 +13,7 @@ class SecretNotFound(Exception):
 class SecretVersionNotFound(Exception):
     pass
 
+
 class SecretFieldNotFound(Exception):
     pass
 
