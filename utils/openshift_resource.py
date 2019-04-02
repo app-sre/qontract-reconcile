@@ -146,6 +146,7 @@ class OpenshiftResource(object):
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
         annotations.pop('qontract.sha256sum', None)
+        annotations.pop('qontract.update', None)
 
         return body
 
