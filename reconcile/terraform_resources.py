@@ -44,12 +44,11 @@ TF_RESOURCES_QUERY = """
 }
 """
 
-TF_USERS_QUERY = """
+TF_IAM_QUERY = """
 {
   roles: roles_v1 {
     users {
       redhat_username
-      github_username
       public_gpg_key
     }
     aws_groups {
@@ -90,21 +89,14 @@ def get_tf_resources_query():
     return adjust_tf_resources_query(tf_query)
 
 
-def adjust_tf_users_query(tf_query):
+def adjust_tf_iam_query(tf_query):
     return [r for r in tf_query if r['aws_groups'] is not None]
 
 
-def get_tf_users_query():
+def get_tf_iam_query():
     gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_USERS_QUERY)['roles']
-    adjusted = adjust_tf_users_query(tf_query)
-    # create groups - remove duplicates and add resources (group, attachment)
-    # create users - remove duplicates and add resources (users, group_attachment)
-    for role in adjusted:
-        groups = role['aws_groups']
-        print(groups)
-        users = role['users']
-        print(users)
+    tf_query = gqlapi.query(TF_IAM_QUERY)['roles']
+    return adjust_tf_iam_query(tf_query)
 
 
 def populate_oc_resources(spec, ri):
@@ -137,14 +129,14 @@ def fetch_current_state(tf_query, thread_pool_size):
 
 
 def setup(print_only, thread_pool_size):
-    tf_users_query = get_tf_users_query()
+    tf_iam_query = get_tf_iam_query()
     tf_resources_query = get_tf_resources_query()
     ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      oc_map,
                      thread_pool_size)
-    ts.populate_users(tf_users_query)
+    ts.populate_iam(tf_iam_query)
     ts.populate_resources(tf_resources_query)
     working_dirs = ts.dump(print_only)
 
@@ -187,5 +179,6 @@ def run(dry_run=False, print_only=False,
 
     tf.populate_desired_state(ri)
     openshift_resources.realize_data(dry_run, oc_map, ri)
+    # send aws invites
 
     cleanup_and_exit(tf)
