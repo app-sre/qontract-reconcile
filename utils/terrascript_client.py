@@ -14,7 +14,10 @@ from utils.oc import StatusCodeError
 
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
-                               aws_iam_access_key, aws_iam_user_policy)
+                               aws_iam_access_key, aws_iam_user_policy,
+                               aws_iam_group, aws_iam_group_policy_attachment,
+                               aws_iam_user_group_membership,
+                               aws_iam_user_login_profile)
 from threading import Lock
 
 
@@ -76,8 +79,74 @@ class TerrascriptClient(object):
             secrets[name] = secret
         return secrets
 
-    def populate_users(self, tf_query):
-        print(tf_query)
+    def populate_iam_groups(self, tf_query):
+        groups = {}
+        for role in tf_query:
+            aws_groups = role['aws_groups']
+            for aws_group in aws_groups:
+                group_name = aws_group['name']
+                group_policies = aws_group['policies']
+                account = aws_group['account']
+                account_name = account['name']
+                if account_name not in groups:
+                    groups[account_name] = {}
+                if group_name not in groups[account_name]:
+                    resource = aws_iam_group(group_name, name=group_name)
+                    self.add_resource(account_name, resource)
+                    for policy in group_policies:
+                        resource = aws_iam_group_policy_attachment(
+                            group_name + '-' + policy,
+                            group=group_name,
+                            policy_arn='arn:aws:iam::aws:policy/' + policy
+                        )
+                        self.add_resource(account_name, resource)
+                    groups[account_name][group_name] = 'Done'
+        return groups
+
+    def populate_iam_users(self, tf_query):
+        for role in tf_query:
+            aws_groups = role['aws_groups']
+            users = role['users']
+            for ig in range(len(aws_groups)):
+                for iu in range(len(users)):
+                    account_name = aws_groups[ig]['account']['name']
+                    group_name = aws_groups[ig]['name']
+                    user_name = users[iu]['redhat_username']
+                    user_public_gpg_key = users[iu]['public_gpg_key']
+                    if user_public_gpg_key is None:
+                        msg = \
+                            'user {} does not have a public gpg key.'.format(
+                                user_name)
+                        logging.info(msg)
+                        continue
+                    tf_iam_user = aws_iam_user(
+                        user_name,
+                        name=user_name,
+                        force_destroy=True
+                    )
+                    self.add_resource(account_name, tf_iam_user)
+                    tf_iam_user_group_membership = \
+                        aws_iam_user_group_membership(
+                            user_name + '-' + group_name,
+                            user=user_name,
+                            groups=[group_name]
+                        )
+                    self.add_resource(account_name, tf_iam_user_group_membership)
+                    tf_iam_user_login_profile = aws_iam_user_login_profile(
+                        user_name,
+                        user=user_name,
+                        pgp_key=base64.b64encode(user_public_gpg_key)
+                    )
+                    self.add_resource(account_name, tf_iam_user_login_profile)
+                    output_name = user_name + '-encrypted-password'
+                    output_value = '${' + tf_iam_user_login_profile.fullname \
+                        + '.encrypted_password}'
+                    tf_output = output(output_name, value=output_value)
+                    self.add_resource(account_name, tf_output)
+
+    def populate_iam(self, tf_query):
+        self.populate_iam_groups(tf_query)
+        self.populate_iam_users(tf_query)
 
     def populate_resources(self, tf_query):
         for namespace_info in tf_query:
