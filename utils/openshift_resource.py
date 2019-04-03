@@ -1,6 +1,6 @@
 import copy
 import hashlib
-import json
+import simplejson as json
 import semver
 import datetime
 

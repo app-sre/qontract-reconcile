@@ -228,7 +228,7 @@ class OC(object):
     def _run(self, cmd, **kwargs):
         if kwargs.get('stdin'):
             stdin = PIPE
-            stdin_text = kwargs.get('stdin')
+            stdin_text = kwargs.get('stdin').encode()
         else:
             stdin = None
             stdin_text = None
