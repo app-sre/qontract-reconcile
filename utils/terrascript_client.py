@@ -76,7 +76,10 @@ class TerrascriptClient(object):
             secrets[name] = secret
         return secrets
 
-    def populate(self, tf_query):
+    def populate_users(self, tf_query):
+        print(tf_query)
+
+    def populate_resources(self, tf_query):
         for namespace_info in tf_query:
             # Skip if namespace has no terraformResources
             tf_resources = namespace_info.get('terraformResources')
