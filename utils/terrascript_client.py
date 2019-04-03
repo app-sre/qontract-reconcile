@@ -101,6 +101,7 @@ class TerrascriptClient(object):
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
 
+
     def populate(self, tf_query):
         populate_specs = self.init_populate_specs(tf_query)
 
@@ -108,6 +109,9 @@ class TerrascriptClient(object):
         pool.map(self.populate_tf_resources, populate_specs)
 
         self.validate()
+
+    def populate_users(self, tf_query):
+        print(tf_query)
 
     def init_populate_specs(self, tf_query):
         populate_specs = []

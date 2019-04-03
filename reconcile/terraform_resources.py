@@ -11,7 +11,7 @@ from utils.openshift_resource import ResourceInventory
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
-TF_QUERY = """
+TF_RESOURCES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
@@ -44,12 +44,34 @@ TF_QUERY = """
 }
 """
 
+TF_USERS_QUERY = """
+{
+  roles: roles_v1 {
+    users {
+      redhat_username
+      github_username
+      public_gpg_key
+    }
+    aws_groups {
+      ...on AWSGroup_v1 {
+        name
+        policies
+        account {
+          name
+          consoleUrl
+        }
+      }
+    }
+  }
+}
+"""
+
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def adjust_tf_query(tf_query):
+def adjust_tf_resources_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
         managed_terraform_resources = \
@@ -62,10 +84,27 @@ def adjust_tf_query(tf_query):
     return out_tf_query
 
 
-def get_tf_query():
+def get_tf_resources_query():
     gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_QUERY)['namespaces']
-    return adjust_tf_query(tf_query)
+    tf_query = gqlapi.query(TF_RESOURCES_QUERY)['namespaces']
+    return adjust_tf_resources_query(tf_query)
+
+
+def adjust_tf_users_query(tf_query):
+    return [r for r in tf_query if r['aws_groups'] is not None]
+
+
+def get_tf_users_query():
+    gqlapi = gql.get_api()
+    tf_query = gqlapi.query(TF_USERS_QUERY)['roles']
+    adjusted = adjust_tf_users_query(tf_query)
+    # create groups - remove duplicates and add resources (group, attachment)
+    # create users - remove duplicates and add resources (users, group_attachment)
+    for role in adjusted:
+        groups = role['aws_groups']
+        print(groups)
+        users = role['users']
+        print(users)
 
 
 def populate_oc_resources(spec, ri):
@@ -98,13 +137,15 @@ def fetch_current_state(tf_query, thread_pool_size):
 
 
 def setup(print_only, thread_pool_size):
-    tf_query = get_tf_query()
+    tf_users_query = get_tf_users_query()
+    tf_resources_query = get_tf_resources_query()
     ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      oc_map,
                      thread_pool_size)
-    ts.populate(tf_query)
+    ts.populate_users(tf_users_query)
+    ts.populate_resources(tf_resources_query)
     working_dirs = ts.dump(print_only)
 
     return ri, oc_map, working_dirs
