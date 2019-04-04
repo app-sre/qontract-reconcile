@@ -11,6 +11,7 @@ import reconcile.openshift_resources_annotate
 import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
+import reconcile.terraform_resources
 
 from utils.aggregated_list import RunnerException
 
@@ -109,3 +110,16 @@ def ldap_users(ctx, thread_pool_size):
 def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
     run_integration(reconcile.openshift_resources_annotate.run,
                     ctx.obj['dry_run'], cluster, namespace, kind, name)
+
+
+@integration.command()
+@click.option('--print-only/--no-print-only',
+              default=False,
+              help='If `true`, it will only print the terraform config file.')
+@click.option('--enable-deletion/--no-enable-deletion',
+              default=False,
+              help='If `true`, destroy/replace action is enabled.')
+@click.pass_context
+def terraform_resources(ctx, print_only, enable_deletion):
+    run_integration(reconcile.terraform_resources.run,
+                    ctx.obj['dry_run'], print_only, enable_deletion)

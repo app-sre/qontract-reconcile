@@ -13,6 +13,7 @@ Tool to reconcile services with their desired state as defined in the app-interf
 - `qontract-reconcile openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
 - `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
+- `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
 
 ## Usage
 
