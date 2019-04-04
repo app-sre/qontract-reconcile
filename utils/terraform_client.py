@@ -28,6 +28,8 @@ class TerraformClient(object):
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.OUTPUT_TYPE_SECRETS = 'Secrets'
+        self.OUTPUT_TYPE_PASSWORDS = 'Passwords'
         tfs = {}
         for name, wd in working_dirs.items():
             tf = Terraform(working_dir=wd)
@@ -101,7 +103,8 @@ class TerraformClient(object):
     def populate_desired_state(self, ri):
         for name, tf in self.tfs.items():
             output = tf.output()
-            formatted_output = self.format_output(output)
+            formatted_output = self.format_output(
+                output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
                 oc_resource = self.construct_oc_resource(name, data)
@@ -113,7 +116,7 @@ class TerraformClient(object):
                     oc_resource
                 )
 
-    def format_output(self, output):
+    def format_output(self, output, type):
         # data is a dictionary of dictionaries
         data = {}
         for k, v in output.items():
@@ -125,6 +128,17 @@ class TerraformClient(object):
             # state, we would not want them to affect any runs
             # of the integration.
             if '[' not in k or ']' not in k:
+                continue
+            # if the output is of the form 'qrtf.enc-password[user_name]'
+            # this is a user output and should not be formed to a Secret
+            # but rather to an invitaion e-mail.
+            # this is determined by the 'type' argument
+            enc_pass_pfx = '{}.enc-password'.format(self.integration_prefix)
+            if type == self.OUTPUT_TYPE_SECRETS and \
+                    k.startswith(enc_pass_pfx):
+                continue
+            if type == self.OUTPUT_TYPE_PASSWORDS and \
+                    not k.startswith(enc_pass_pfx):
                 continue
             k_split = k.split('[')
             resource_name = k_split[0]

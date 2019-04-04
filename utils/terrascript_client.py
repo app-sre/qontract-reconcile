@@ -91,9 +91,16 @@ class TerrascriptClient(object):
                 if account_name not in groups:
                     groups[account_name] = {}
                 if group_name not in groups[account_name]:
-                    resource = aws_iam_group(group_name, name=group_name)
+                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group.html
+                    resource = aws_iam_group(
+                        group_name,
+                        name=group_name
+                    )
                     self.add_resource(account_name, resource)
                     for policy in group_policies:
+                        # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group_policy_attachment.html
+                        # this may change in the near future to include inline policies
+                        # and not only managed policies, as it is currently
                         resource = aws_iam_group_policy_attachment(
                             group_name + '-' + policy,
                             group=group_name,
@@ -119,18 +126,24 @@ class TerrascriptClient(object):
                                 user_name)
                         logging.info(msg)
                         continue
+                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_user.html
                     tf_iam_user = aws_iam_user(
                         user_name,
                         name=user_name,
-                        force_destroy=True
+                        force_destroy=True,
+                        tags = {
+                            'managed_by_integration': self.integration
+                        }
                     )
                     self.add_resource(account_name, tf_iam_user)
+                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group_membership.html
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
                             user=user_name,
                             groups=[group_name]
                         )
+                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_user_login_profile.html
                     self.add_resource(account_name, tf_iam_user_group_membership)
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -138,7 +151,11 @@ class TerrascriptClient(object):
                         pgp_key=base64.b64encode(user_public_gpg_key)
                     )
                     self.add_resource(account_name, tf_iam_user_login_profile)
-                    output_name = user_name + '-encrypted-password'
+                    # we want the outputs to be formed into a mail invitation
+                    # for each new user. we form an output of the form
+                    # 'qrtf.enc-password[user_name] = <encrypted password>
+                    output_name = '{}.enc-password[{}]'.format(
+                        self.integration_prefix, user_name)
                     output_value = '${' + tf_iam_user_login_profile.fullname \
                         + '.encrypted_password}'
                     tf_output = output(output_name, value=output_value)
