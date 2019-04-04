@@ -58,7 +58,7 @@ class TerraformClient(object):
         self.users = all_users
 
     def get_new_users(self):
-        new_users = []        
+        new_users = []
         for account, tf in self.tfs.items():
             existing_users = self.users[account]
             output = tf.output()
@@ -69,7 +69,8 @@ class TerraformClient(object):
             for user_name, enc_password in user_passwords.items():
                 if user_name in existing_users:
                     continue
-                new_users.append((account, console_urls[account], user_name, enc_password))
+                new_users.append((account, console_urls[account],
+                                  user_name, enc_password))
         return new_users
 
     def plan(self, enable_deletion):
@@ -151,6 +152,9 @@ class TerraformClient(object):
     def format_output(self, output, type):
         # data is a dictionary of dictionaries
         data = {}
+        if output is None:
+            return data
+
         enc_pass_pfx = '{}.{}'.format(
             self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS)
         console_urls_pfx = '{}.{}'.format(

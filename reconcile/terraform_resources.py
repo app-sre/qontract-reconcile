@@ -64,7 +64,7 @@ TF_IAM_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -139,7 +139,9 @@ def setup(print_only):
 def send_email_invites(new_users):
     msg_template = '''
 You have been invited to join the {} AWS account!
-Below you will find credentials for the first sign in (You will be requested to change your password).
+Below you will find credentials for the first sign in.
+You will be requested to change your password.
+
 The password is encrypted with your public gpg key. To decrypt the password:
 
 echo <password> | base64 -d | gpg -d - && echo
@@ -156,7 +158,8 @@ Encrypted password: {}
     for account, console_url, user_name, enc_password in new_users:
         to = user_name
         subject = 'Invitation to join the {} AWS account'.format(account)
-        body = msg_template.format(account, console_url, user_name, enc_password)
+        body = msg_template.format(account, console_url,
+                                   user_name, enc_password)
         mails.append((to, subject, body))
 
     smtp_client.send_mails(mails)
