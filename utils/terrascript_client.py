@@ -117,6 +117,10 @@ class TerrascriptClient(object):
     def populate_iam_groups(self, tf_query):
         groups = {}
         for role in tf_query:
+            users = role['users']
+            if len(users) == 0:
+                continue
+
             aws_groups = role['aws_groups']
             for aws_group in aws_groups:
                 group_name = aws_group['name']
@@ -126,16 +130,17 @@ class TerrascriptClient(object):
                 if account_name not in groups:
                     groups[account_name] = {}
                 if group_name not in groups[account_name]:
-                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group.html
+                    # Ref: terraform aws iam_group
                     tf_iam_group = aws_iam_group(
                         group_name,
                         name=group_name
                     )
                     self.add_resource(account_name, tf_iam_group)
                     for policy in group_policies:
-                        # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group_policy_attachment.html
-                        # this may change in the near future to include inline policies
-                        # and not only managed policies, as it is currently
+                        # Ref: terraform aws iam_group_policy_attachment
+                        # this may change in the near future
+                        # to include inline policies and not
+                        # only managed policies, as it is currently
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy,
@@ -150,8 +155,11 @@ class TerrascriptClient(object):
 
     def populate_iam_users(self, tf_query):
         for role in tf_query:
-            aws_groups = role['aws_groups']
             users = role['users']
+            if len(users) == 0:
+                continue
+
+            aws_groups = role['aws_groups']
             for ig in range(len(aws_groups)):
                 group_name = aws_groups[ig]['name']
                 account_name = aws_groups[ig]['account']['name']
@@ -168,26 +176,19 @@ class TerrascriptClient(object):
 
                 for iu in range(len(users)):
                     user_name = users[iu]['redhat_username']
-                    user_public_gpg_key = users[iu]['public_gpg_key']
-                    if user_public_gpg_key is None:
-                        msg = \
-                            'user {} does not have a public gpg key.'.format(
-                                user_name)
-                        logging.info(msg)
-                        continue
 
-                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_user.html
+                    # Ref: terraform aws iam_user
                     tf_iam_user = aws_iam_user(
                         user_name,
                         name=user_name,
                         force_destroy=True,
-                        tags = {
+                        tags={
                             'managed_by_integration': self.integration
                         }
                     )
                     self.add_resource(account_name, tf_iam_user)
 
-                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_group_membership.html
+                    # Ref: terraform aws iam_group_membership
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
@@ -195,9 +196,22 @@ class TerrascriptClient(object):
                             groups=[group_name],
                             depends_on=[tf_iam_user]
                         )
-                    self.add_resource(account_name, tf_iam_user_group_membership)
+                    self.add_resource(account_name,
+                                      tf_iam_user_group_membership)
 
-                    # Ref: https://www.terraform.io/docs/providers/aws/r/iam_user_login_profile.html
+                    # if user does not have a gpg key,
+                    # a password will not be created.
+                    # a gpg key may be added at a later time,
+                    # and a password will be generated
+                    user_public_gpg_key = users[iu]['public_gpg_key']
+                    if user_public_gpg_key is None:
+                        msg = \
+                            'user {} does not have a public gpg key ' + \
+                            'and will be created without a password.'.format(
+                                user_name)
+                        logging.warning(msg)
+                        continue
+                    # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
                         user=user_name,

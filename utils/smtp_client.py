@@ -11,6 +11,8 @@ from email.utils import formataddr
 
 _client = None
 _username = None
+_mail_address = None
+
 
 def init(host, port, username, password):
     global _client
@@ -36,6 +38,7 @@ def teardown():
 
 def init_from_config():
     global _username
+    global _mail_address
 
     config = get_config()
 
@@ -46,6 +49,7 @@ def init_from_config():
     port = smtp_config['port']
     _username = smtp_config['username']
     password = smtp_config['password']
+    _mail_address = config['smtp']['mail_address']
 
     return init(host, port, _username, password)
 
@@ -53,17 +57,18 @@ def init_from_config():
 def send_mail(name, subject, body):
     global _client
     global _username
+    global _mail_address
 
     msg = MIMEMultipart()
     from_name = str(Header('App SRE team automation', 'utf-8'))
-    to = '{}@redhat.com'.format(name)
+    to = '{}@{}'.format(name, _mail_address)
     msg['From'] = formataddr((from_name, _username))
     msg['To'] = to
     msg['Subject'] = subject
-    
+
     # add in the message body
     msg.attach(MIMEText(body, 'plain'))
-    
+
     # send the message via the server set up earlier.
     _client.sendmail(_username, to, msg.as_string())
 

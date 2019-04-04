@@ -33,6 +33,14 @@ server = "ldap://ldap.example.com"
 # (optional) user search point
 base_dn = "ou=users,dc=example,dc=com"
 
+[smtp]
+# This section is required by `qontract-reconcile terraform-resources`
+
+# (mandatory) path to smtp credentials in vault
+secret_path = 'secrets/path/to/smtp/creds'
+# (mandatory) mail address to send mails to
+mail_address = 'example.com'
+
 [app-interface]
 # This section is required by `qontract-reconcile ldap-users`
 
