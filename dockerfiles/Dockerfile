@@ -18,6 +18,7 @@ RUN yum install -y unzip && \
 
 COPY reconcile /reconcile/reconcile
 COPY utils /reconcile/utils
+COPY terrascript /reconcile/terrascript
 COPY setup.py /reconcile
 
 WORKDIR /reconcile
