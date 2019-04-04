@@ -169,6 +169,7 @@ def run(dry_run=False, print_only=False, enable_deletion=False):
 
     tf.populate_desired_state(ri)
     openshift_resources.realize_data(dry_run, oc_map, ri)
-    # send aws invites
+
+    new_users = tf.get_new_users()
 
     cleanup_and_exit(tf)

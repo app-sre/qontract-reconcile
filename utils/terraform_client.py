@@ -29,16 +29,48 @@ class TerraformClient(object):
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
         self.OUTPUT_TYPE_SECRETS = 'Secrets'
-        self.OUTPUT_TYPE_PASSWORDS = 'Passwords'
+        self.OUTPUT_TYPE_PASSWORDS = 'enc-passwords'
+        self.OUTPUT_TYPE_CONSOLEURLS = 'console-urls'
         tfs = {}
+        console_urls = {}
         for name, wd in working_dirs.items():
             tf = Terraform(working_dir=wd)
+            console_url = ''
             return_code, stdout, stderr = tf.init()
             error = self.check_output(name, return_code, stdout, stderr)
             if error:
                 return None
             tfs[name] = tf
+            console_urls[name] = console_url
         self.tfs = tfs
+        self.get_existing_users()
+
+    def get_existing_users(self):
+        all_users = {}
+        for account, tf in self.tfs.items():
+            users = []
+            output = tf.output()
+            user_passwords = self.format_output(
+                output, self.OUTPUT_TYPE_PASSWORDS)
+            for user_name in user_passwords:
+                users.append(user_name)
+            all_users[account] = users
+        self.users = all_users
+
+    def get_new_users(self):
+        new_users = []        
+        for account, tf in self.tfs.items():
+            existing_users = self.users[account]
+            output = tf.output()
+            user_passwords = self.format_output(
+                output, self.OUTPUT_TYPE_PASSWORDS)
+            console_urls = self.format_output(
+                output, self.OUTPUT_TYPE_CONSOLEURLS)
+            for user_name, enc_password in user_passwords.items():
+                if user_name in existing_users:
+                    continue
+                new_users.append((account, console_urls[account], user_name, enc_password))
+        return new_users
 
     def plan(self, enable_deletion):
         errors = False
@@ -119,6 +151,10 @@ class TerraformClient(object):
     def format_output(self, output, type):
         # data is a dictionary of dictionaries
         data = {}
+        enc_pass_pfx = '{}.{}'.format(
+            self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS)
+        console_urls_pfx = '{}.{}'.format(
+            self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS)
         for k, v in output.items():
             # the integration creates outputs of the form
             # output_secret_name[secret_key] = secret_value
@@ -129,17 +165,28 @@ class TerraformClient(object):
             # of the integration.
             if '[' not in k or ']' not in k:
                 continue
-            # if the output is of the form 'qrtf.enc-password[user_name]'
+
+            # if the output is of the form 'qrtf.enc-passwords[user_name]'
             # this is a user output and should not be formed to a Secret
             # but rather to an invitaion e-mail.
             # this is determined by the 'type' argument
-            enc_pass_pfx = '{}.enc-password'.format(self.integration_prefix)
-            if type == self.OUTPUT_TYPE_SECRETS and \
-                    k.startswith(enc_pass_pfx):
-                continue
             if type == self.OUTPUT_TYPE_PASSWORDS and \
                     not k.startswith(enc_pass_pfx):
                 continue
+
+            if type == self.OUTPUT_TYPE_CONSOLEURLS and \
+                    not k.startswith(console_urls_pfx):
+                continue
+
+            # Secrets is in essence the default value
+            # because we don't (currently) have a way
+            # to clasify it (secret names are free text)
+            if type == self.OUTPUT_TYPE_SECRETS and (
+                k.startswith(enc_pass_pfx) or
+                k.startswith(console_urls_pfx)
+            ):
+                continue
+
             k_split = k.split('[')
             resource_name = k_split[0]
             field_key = k_split[1][:-1]
@@ -147,6 +194,12 @@ class TerraformClient(object):
             if resource_name not in data:
                 data[resource_name] = {}
             data[resource_name][field_key] = field_value
+
+        if len(data) == 1 and type in (
+            self.OUTPUT_TYPE_PASSWORDS,
+            self.OUTPUT_TYPE_CONSOLEURLS
+        ):
+            return data[data.keys()[0]]
         return data
 
     def construct_oc_resource(self, name, data):
