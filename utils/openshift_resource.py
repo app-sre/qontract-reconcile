@@ -12,10 +12,12 @@ class ResourceKeyExistsError(Exception):
 
 
 class OpenshiftResource(object):
-    def __init__(self, body, integration, integration_version):
+    def __init__(self, body, integration, integration_version,
+                 install_only=None):
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
+        self.install_only = install_only
 
     @property
     def name(self):
@@ -50,6 +52,16 @@ class OpenshiftResource(object):
 
         return True
 
+    def has_install_only_annotation(self):
+        body = self.annotate().body
+        annotations = body['metadata']['annotations']
+
+        try:
+            has_install_only_annotation = annotations['qontract.install_only']
+            return has_install_only_annotation == 'true'  # yaml true
+        except KeyError:
+            return False
+
     def has_valid_sha256sum(self):
         try:
             current_sha256sum = \
@@ -68,16 +80,20 @@ class OpenshiftResource(object):
                 annotations.
         """
 
-        # calculate sha256sum of canonical body
-        canonical_body = self.canonicalize(self.body)
-        sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
-
         # create new body object
         body = copy.deepcopy(self.body)
 
         # create annotations if not present
         body['metadata'].setdefault('annotations', {})
         annotations = body['metadata']['annotations']
+
+        # add install_only to sha256sum calculation
+        if self.install_only:
+            annotations['qontract.install_only'] = 'true'
+
+        # calculate sha256sum of canonical body
+        canonical_body = self.canonicalize(body)
+        sha256sum = self.calculate_sha256sum(self.serialize(canonical_body))
 
         # add qontract annotations
         annotations['qontract.integration'] = self.integration
@@ -88,7 +104,8 @@ class OpenshiftResource(object):
         annotations['qontract.update'] = now
 
         return OpenshiftResource(body, self.integration,
-                                 self.integration_version)
+                                 self.integration_version,
+                                 self.install_only)
 
     def sha256sum(self):
         body = self.annotate().body

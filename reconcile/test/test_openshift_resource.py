@@ -8,13 +8,14 @@ from utils.openshift_resource import OpenshiftResource
 fxt = Fixtures('openshift_resource')
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 5, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 6, 0)
 
 
 class OR(OpenshiftResource):
-    def __init__(self, body):
+    def __init__(self, body, install_only=None):
         super(OR, self).__init__(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
+            install_only
         )
 
 
@@ -46,6 +47,18 @@ class TestOpenshiftResource(object):
 
         assert OR(resources[0]).annotate().sha256sum() == \
             OR(resources[1]).annotate().sha256sum()
+
+    def test_install_only_annotation(self):
+        resource = fxt.get_anymarkup('annotates_resource.yml')
+
+        openshift_resource = OR(resource)
+        assert openshift_resource.has_install_only_annotation() is False
+
+        openshift_resource = OR(resource, False)
+        assert openshift_resource.has_install_only_annotation() is False
+
+        openshift_resource = OR(resource, True)
+        assert openshift_resource.has_install_only_annotation() is True
 
     def test_sha256sum(self):
         resource = fxt.get_anymarkup('sha256sum.yml')

@@ -17,7 +17,8 @@ class ConstructResourceError(Exception):
 class OR(OpenshiftResource):
     def __init__(self, body, integration, integration_version):
         super(OR, self).__init__(
-            body, integration, integration_version
+            body, integration, integration_version,
+            install_only=None
         )
 
 

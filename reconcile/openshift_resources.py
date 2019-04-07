@@ -42,6 +42,7 @@ NAMESPACES_QUERY = """
       provider
       ... on NamespaceOpenshiftResourceResource_v1 {
         path
+        install_only
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
         path
@@ -50,11 +51,13 @@ NAMESPACES_QUERY = """
         labels
         annotations
         type
+        install_only
       }
       ... on NamespaceOpenshiftResourceRoute_v1 {
         path
         vault_tls_secret_path
         vault_tls_secret_version
+        install_only
       }
     }
     cluster {
@@ -71,7 +74,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 5, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 6, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -99,9 +102,10 @@ class UnknownProviderError(Exception):
 
 
 class OR(OpenshiftResource):
-    def __init__(self, body):
+    def __init__(self, body, install_only=None):
         super(OR, self).__init__(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
+            install_only
         )
 
 
@@ -127,7 +131,7 @@ def obtain_oc_client(oc_map, cluster_info):
     return oc_map[cluster]
 
 
-def fetch_provider_resource(path):
+def fetch_provider_resource(path, install_only):
     gqlapi = gql.get_api()
 
     # get resource data
@@ -145,7 +149,7 @@ def fetch_provider_resource(path):
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
 
-    openshift_resource = OR(resource['body'])
+    openshift_resource = OR(resource['body'], install_only)
 
     try:
         openshift_resource.verify_valid_k8s_object()
@@ -158,7 +162,8 @@ def fetch_provider_resource(path):
 
 
 def fetch_provider_vault_secret(path, version, name,
-                                labels, annotations, type):
+                                labels, annotations, type,
+                                install_only):
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
@@ -183,7 +188,7 @@ def fetch_provider_vault_secret(path, version, name,
             v = base64.b64encode(v)
         body['data'][k] = v
 
-    openshift_resource = OR(body)
+    openshift_resource = OR(body, install_only)
 
     try:
         openshift_resource.verify_valid_k8s_object()
@@ -195,10 +200,10 @@ def fetch_provider_vault_secret(path, version, name,
     return openshift_resource
 
 
-def fetch_provider_route(path, tls_path, tls_version):
+def fetch_provider_route(path, tls_path, tls_version, install_only):
     global _log_lock
 
-    openshift_resource = fetch_provider_resource(path)
+    openshift_resource = fetch_provider_resource(path, install_only)
 
     if tls_path is None or tls_version is None:
         return openshift_resource
@@ -231,13 +236,14 @@ def fetch_openshift_resource(resource):
 
     provider = resource['provider']
     path = resource['path']
+    install_only = resource['install_only']
     msg = "Fetching {}: {}".format(provider, path)
     _log_lock.acquire()
     logging.debug(msg)
     _log_lock.release()
 
     if provider == 'resource':
-        openshift_resource = fetch_provider_resource(path)
+        openshift_resource = fetch_provider_resource(path, install_only)
     elif provider == 'vault-secret':
         version = resource['version']
         rn = resource['name']
@@ -250,11 +256,13 @@ def fetch_openshift_resource(resource):
         type = 'Opaque' if rt is None else rt
         openshift_resource = \
             fetch_provider_vault_secret(path, version, name,
-                                        labels, annotations, type)
+                                        labels, annotations, type,
+                                        install_only)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']
         tls_version = resource['vault_tls_secret_version']
-        openshift_resource = fetch_provider_route(path, tls_path, tls_version)
+        openshift_resource = fetch_provider_route(path, tls_path, tls_version,
+                                                  install_only)
     else:
         raise UnknownProviderError(provider)
 
@@ -415,6 +423,17 @@ def realize_data(dry_run, oc_map, ri):
                         "w/o annotations, skipping."
                     ).format(cluster, namespace, resource_type, name)
                     logging.error(msg)
+                    continue
+
+                # don't apply if this resource is annotated as install only
+                # and wishes to remain that way
+                if c_item.has_install_only_annotation() and \
+                        d_item.has_install_only_annotation():
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present "
+                        "and has install only annotation, skipping."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.info(msg)
                     continue
 
                 # don't apply if sha256sum hashes match
