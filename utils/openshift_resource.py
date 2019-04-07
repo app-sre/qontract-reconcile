@@ -141,6 +141,40 @@ class OpenshiftResource(object):
                     tls.pop('key', None)
                     tls.pop('certificate', None)
 
+        if body['kind'] == 'ServiceAccount':
+            if 'imagePullSecrets' in body:
+                body.pop('imagePullSecrets')
+            if 'secrets' in body:
+                body.pop('secrets')
+
+        if body['kind'] == 'Role':
+            for rule in body['rules']:
+                if 'attributeRestrictions' in rule and \
+                        not rule['attributeRestrictions']:
+                    rule.pop('attributeRestrictions')
+
+        if body['kind'] == 'RoleBinding':
+            if 'groupNames' in body:
+                body.pop('groupNames')
+            if 'userNames' in body:
+                body.pop('userNames')
+            if 'roleRef' in body:
+                roleRef = body['roleRef']
+                if 'namespace' in roleRef:
+                    roleRef.pop('namespace')
+                if 'apiGroup' in roleRef and \
+                        roleRef['apiGroup'] == body['apiVersion']:
+                    roleRef.pop('apiGroup')
+                if 'kind' in roleRef and \
+                        roleRef['kind'] == 'Role':
+                    roleRef.pop('kind')
+            for subject in body['subjects']:
+                if 'namespace' in subject:
+                    subject.pop('namespace')
+                if 'apiGroup' in subject and \
+                        subject['apiGroup'] == '':
+                    subject.pop('apiGroup')
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
