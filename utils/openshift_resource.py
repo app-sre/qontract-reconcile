@@ -89,7 +89,7 @@ class OpenshiftResource(object):
 
         # add install_only to sha256sum calculation
         if self.install_only:
-            annotations['qontract.install_only'] = 'true'
+            annotations['qontract.install_only'] = 'true'  # yaml true
 
         # calculate sha256sum of canonical body
         canonical_body = self.canonicalize(body)
