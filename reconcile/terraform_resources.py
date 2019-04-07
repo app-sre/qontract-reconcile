@@ -12,7 +12,7 @@ TF_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
-    managedTerrraformResources
+    managedTerraformResources
     terraformResources {
       provider
       ... on NamespaceTerraformResourceRDS_v1 {
@@ -42,7 +42,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 1)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -50,7 +50,7 @@ def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
         managed_terraform_resources = \
-          namespace_info.get('managedTerrraformResources')
+          namespace_info.get('managedTerraformResources')
         if not managed_terraform_resources:
             continue
         # adjust to match openshift_resources functions
