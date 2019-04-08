@@ -196,6 +196,7 @@ class TerrascriptClient(object):
         # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
         values = {}
         values['bucket'] = identifier
+        values['versioning'] = { 'enabled': True }
         values['tags'] = common_values['tags']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
