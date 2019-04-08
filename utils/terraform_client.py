@@ -149,7 +149,11 @@ class TerraformClient(object):
         for k, v in data.items():
             if self.integration_prefix in k:
                 continue
-            body['data'][k] = base64.b64encode(v)
+            if v == "":
+                v = None
+            else:
+                v = base64.b64encode(v)
+            body['data'][k] = v
 
         openshift_resource = \
             OR(body, self.integration, self.integration_version)
