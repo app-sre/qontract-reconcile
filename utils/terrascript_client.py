@@ -89,7 +89,7 @@ class TerrascriptClient(object):
             for type in ('config', 'variables'):
                 init_spec = {'account_name': account_name,
                              'data': data,
-                             'type': type)
+                             'type': type}
                 vault_specs.append(init_spec)
         return vault_specs
 
