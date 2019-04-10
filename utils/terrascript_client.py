@@ -72,11 +72,11 @@ class TerrascriptClient(object):
 
         self.configs = {}
         self.variables = {}
-        for account_name, type, secret in results:
+        for account, type, secret in results:
             if type == 'config':
-                self.configs[account_name] = secret
+                self.configs[account] = secret
             if type == 'variables':
-                self.variables[account_name] = secret
+                self.variables[account] = secret
 
     def init_accounts(self):
         config = get_config()
@@ -85,9 +85,9 @@ class TerrascriptClient(object):
 
     def init_vault_tf_secret_specs(self):
         vault_specs = []
-        for account_name, data in self.accounts:
+        for account, data in self.accounts:
             for type in ('config', 'variables'):
-                init_spec = {'account_name': account_name,
+                init_spec = {'account': account,
                              'data': data,
                              'type': type}
                 vault_specs.append(init_spec)
