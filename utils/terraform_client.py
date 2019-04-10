@@ -33,7 +33,7 @@ class TerraformClient(object):
         self.working_dirs = working_dirs
         self.pool = ThreadPool(thread_pool_size)
         self._log_lock = Lock()
-        
+
         init_specs = self.init_init_specs(working_dirs)
         results = self.pool.map(self.terraform_init, init_specs)
 
