@@ -31,29 +31,24 @@ class TerraformClient(object):
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
-        self.thread_pool_size = thread_pool_size
+        self.pool = ThreadPool(thread_pool_size)
         self._log_lock = Lock()
+        
         init_specs = self.init_init_specs(working_dirs)
-
-        pool = ThreadPool(self.thread_pool_size)
-        results = pool.map(self.terraform_init, init_specs)
+        results = self.pool.map(self.terraform_init, init_specs)
 
         tfs = {}
         for name, tf in results:
             tfs[name] = tf
         self.tfs = tfs
 
-    class initSpec(object):
+    class InitSpec(object):
         def __init__(self, name, wd):
             self.name = name
             self.wd = wd
 
     def init_init_specs(self, working_dirs):
-        init_specs = []
-        for name, wd in working_dirs.items():
-            init_spec = self.initSpec(name, wd)
-            init_specs.append(init_spec)
-        return init_specs
+        return [self.InitSpec(name, wd) for name, wd in working_dirs.items()]
 
     def terraform_init(self, init_spec):
         name = init_spec.name
@@ -70,11 +65,10 @@ class TerraformClient(object):
         errors = False
         deletions_detected = False
 
-        pool = ThreadPool(self.thread_pool_size)
+        plan_specs = self.init_plan_apply_specs()
         terraform_plan_partial = partial(self.terraform_plan,
                                          enable_deletion=enable_deletion)
-        plan_specs = self.init_plan_apply_specs()
-        results = pool.map(terraform_plan_partial, plan_specs)
+        results = self.pool.map(terraform_plan_partial, plan_specs)
 
         for deletion_detected, error in results:
             if error:
@@ -83,17 +77,13 @@ class TerraformClient(object):
                 deletions_detected = True
         return deletions_detected, errors
 
-    class planApplySpec(object):
+    class PlanApplySpec(object):
         def __init__(self, name, tf):
             self.name = name
             self.tf = tf
 
     def init_plan_apply_specs(self):
-        specs = []
-        for name, tf in self.tfs.items():
-            spec = self.planApplySpec(name, tf)
-            specs.append(spec)
-        return specs
+        return [self.PlanApplySpec(name, tf) for name, tf in self.tfs.items()]
 
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec.name
@@ -148,9 +138,9 @@ class TerraformClient(object):
     def apply(self):
         errors = False
 
-        pool = ThreadPool(1)  # TODO: replace 1 with self.thread_pool_size
+        self.pool = ThreadPool(1)  # TODO: remove this
         apply_specs = self.init_plan_apply_specs()
-        results = pool.map(self.terraform_apply, apply_specs)
+        results = self.pool.map(self.terraform_apply, apply_specs)
 
         for error in results:
             if error:
