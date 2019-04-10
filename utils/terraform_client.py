@@ -5,6 +5,9 @@ import logging
 from utils.openshift_resource import OpenshiftResource
 
 from python_terraform import Terraform
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
+from threading import Lock
 
 
 class ConstructResourceError(Exception):
@@ -23,80 +26,123 @@ class OR(OpenshiftResource):
 
 class TerraformClient(object):
     def __init__(self, integration, integration_version,
-                 integration_prefix, working_dirs):
+                 integration_prefix, working_dirs, thread_pool_size):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.pool = ThreadPool(thread_pool_size)
+        self._log_lock = Lock()
+
+        init_specs = self.init_init_specs(working_dirs)
+        results = self.pool.map(self.terraform_init, init_specs)
+
         tfs = {}
-        for name, wd in working_dirs.items():
-            tf = Terraform(working_dir=wd)
-            return_code, stdout, stderr = tf.init()
-            error = self.check_output(name, return_code, stdout, stderr)
-            if error:
-                return None
+        for name, tf in results:
             tfs[name] = tf
         self.tfs = tfs
 
+    def init_init_specs(self, working_dirs):
+        return [{'name': name, 'wd': wd} for name, wd in working_dirs.items()]
+
+    def terraform_init(self, init_spec):
+        name = init_spec['name']
+        wd = init_spec['wd']
+        tf = Terraform(working_dir=wd)
+        return_code, stdout, stderr = tf.init()
+        error = self.check_output(name, return_code, stdout, stderr)
+        if error:
+            return name, None
+        return name, tf
+
+    # terraform plan
     def plan(self, enable_deletion):
         errors = False
         deletions_detected = False
-        for name, tf in self.tfs.items():
-            return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
-            error = self.check_output(name, return_code, stdout, stderr)
+
+        plan_specs = self.init_plan_apply_specs()
+        terraform_plan_partial = partial(self.terraform_plan,
+                                         enable_deletion=enable_deletion)
+        results = self.pool.map(terraform_plan_partial, plan_specs)
+
+        for deletion_detected, error in results:
             if error:
                 errors = True
-            deletion_detected = \
-                self.log_plan_diff(name, stdout, enable_deletion)
             if deletion_detected:
                 deletions_detected = True
         return deletions_detected, errors
 
+    def init_plan_apply_specs(self):
+        return [{'name': name, 'tf': tf} for name, tf in self.tfs.items()]
+
+    def terraform_plan(self, plan_spec, enable_deletion):
+        name = plan_spec['name']
+        tf = plan_spec['tf']
+        return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
+        error = self.check_output(name, return_code, stdout, stderr)
+        deletion_detected = \
+            self.log_plan_diff(name, stdout, enable_deletion)
+        return deletion_detected, error
+
     def log_plan_diff(self, name, stdout, enable_deletion):
         deletions_detected = False
         stdout = self.split_to_lines(stdout)
-        for line in stdout:
-            line = line.strip()
-            if line.startswith('+ aws'):
-                line_split = line.replace('+ ', '').split('.')
-                logging.info(['create', name, line_split[0], line_split[1]])
-            if line.startswith('- aws'):
-                line_split = line.replace('- ', '').split('.')
-                if enable_deletion:
-                    logging.info(['destroy', name,
-                                  line_split[0], line_split[1]])
-                else:
-                    logging.error(['destroy', name,
-                                   line_split[0], line_split[1]])
-                    logging.error('\'destroy\' action is not enabled. ' +
-                                  'Please run the integration manually ' +
-                                  'with the \'--enable-deletion\' flag.')
-                deletions_detected = True
-            if line.startswith('~ aws'):
-                line_split = line.replace('~ ', '').split('.')
-                logging.info(['update', name, line_split[0], line_split[1]])
-            if line.startswith('-/+ aws'):
-                line_split = line.replace('-/+ ', '').split('.')
-                if enable_deletion:
-                    logging.info(['replace', name, line_split[0],
-                                  line_split[1].split(' ', 1)[0]])
-                else:
-                    logging.error(['replace', name, line_split[0],
-                                   line_split[1].split(' ', 1)[0]])
-                    logging.error('\'replace\' action is not enabled. ' +
-                                  'Please run the integration manually ' +
-                                  'with the \'--enable-deletion\' flag.')
-                deletions_detected = True
+        with self._log_lock:
+            for line in stdout:
+                line = line.strip()
+                if line.startswith('+ aws'):
+                    line_split = line.replace('+ ', '').split('.')
+                    logging.info(['create', name, line_split[0],
+                                  line_split[1]])
+                if line.startswith('- aws'):
+                    line_split = line.replace('- ', '').split('.')
+                    if enable_deletion:
+                        logging.info(['destroy', name,
+                                      line_split[0], line_split[1]])
+                    else:
+                        logging.error(['destroy', name,
+                                       line_split[0], line_split[1]])
+                        logging.error('\'destroy\' action is not enabled. ' +
+                                      'Please run the integration manually ' +
+                                      'with the \'--enable-deletion\' flag.')
+                    deletions_detected = True
+                if line.startswith('~ aws'):
+                    line_split = line.replace('~ ', '').split('.')
+                    logging.info(['update', name, line_split[0],
+                                  line_split[1]])
+                if line.startswith('-/+ aws'):
+                    line_split = line.replace('-/+ ', '').split('.')
+                    if enable_deletion:
+                        logging.info(['replace', name, line_split[0],
+                                      line_split[1].split(' ', 1)[0]])
+                    else:
+                        logging.error(['replace', name, line_split[0],
+                                       line_split[1].split(' ', 1)[0]])
+                        logging.error('\'replace\' action is not enabled. ' +
+                                      'Please run the integration manually ' +
+                                      'with the \'--enable-deletion\' flag.')
+                    deletions_detected = True
         return deletions_detected
 
+    # terraform apply
     def apply(self):
         errors = False
-        for name, tf in self.tfs.items():
-            return_code, stdout, stderr = tf.apply(auto_approve=True)
-            error = self.check_output(name, return_code, stdout, stderr)
+
+        self.pool = ThreadPool(1)  # TODO: remove this
+        apply_specs = self.init_plan_apply_specs()
+        results = self.pool.map(self.terraform_apply, apply_specs)
+
+        for error in results:
             if error:
                 errors = True
         return errors
+
+    def terraform_apply(self, apply_spec):
+        name = apply_spec.name
+        tf = apply_spec.tf
+        return_code, stdout, stderr = tf.apply(auto_approve=True)
+        error = self.check_output(name, return_code, stdout, stderr)
+        return error
 
     def populate_desired_state(self, ri):
         for name, tf in self.tfs.items():
@@ -169,21 +215,22 @@ class TerraformClient(object):
 
     def check_output(self, name, return_code, stdout, stderr):
         error_occured = False
-        stdout, stderr = self.split_to_lines(stdout, stderr)
         line_format = '[{}] {}'
-        for line in stdout:
-            # this line will be present when performing 'terraform apply'
-            # as it will contain sensitive information, skip printing
-            if line.startswith('Outputs:'):
-                break
-            logging.info(line_format.format(name, line))
-        if return_code == 0:
-            for line in stderr:
-                logging.warning(line_format.format(name, line))
-        else:
-            for line in stderr:
-                logging.error(line_format.format(name, line))
-            error_occured = True
+        stdout, stderr = self.split_to_lines(stdout, stderr)
+        with self._log_lock:
+            for line in stdout:
+                # this line will be present when performing 'terraform apply'
+                # as it will contain sensitive information, skip printing
+                if line.startswith('Outputs:'):
+                    break
+                logging.info(line_format.format(name, line))
+            if return_code == 0:
+                for line in stderr:
+                    logging.warning(line_format.format(name, line))
+            else:
+                for line in stderr:
+                    logging.error(line_format.format(name, line))
+                error_occured = True
         return error_occured
 
     def split_to_lines(self, *outputs):

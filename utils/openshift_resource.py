@@ -209,19 +209,18 @@ class ResourceInventory(object):
         })
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
-        self._lock.acquire()
-        desired = self._clusters[cluster][namespace][resource_type]['desired']
-        if name in desired:
-            self._lock.release()
-            raise ResourceKeyExistsError(name)
-        desired[name] = value
-        self._lock.release()
+        with self._lock:
+            desired = \
+                self._clusters[cluster][namespace][resource_type]['desired']
+            if name in desired:
+                raise ResourceKeyExistsError(name)
+            desired[name] = value
 
     def add_current(self, cluster, namespace, resource_type, name, value):
-        self._lock.acquire()
-        current = self._clusters[cluster][namespace][resource_type]['current']
-        current[name] = value
-        self._lock.release()
+        with self._lock:
+            current = \
+                self._clusters[cluster][namespace][resource_type]['current']
+            current[name] = value
 
     def __iter__(self):
         for cluster in self._clusters.keys():
