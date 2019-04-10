@@ -83,7 +83,7 @@ class TerrascriptClient(object):
         accounts = config['terraform']
         self.accounts = accounts.items()
 
-    class initSpec(object):
+    class InitSpec(object):
         def __init__(self, account, data, type):
             self.account = account
             self.data = data
@@ -93,7 +93,7 @@ class TerrascriptClient(object):
         vault_specs = []
         for account_name, data in self.accounts:
             for type in ('config', 'variables'):
-                init_spec = self.initSpec(account_name, data, type)
+                init_spec = self.InitSpec(account_name, data, type)
                 vault_specs.append(init_spec)
         return vault_specs
 
@@ -113,7 +113,7 @@ class TerrascriptClient(object):
 
         self.validate()
 
-    class populateSpec(object):
+    class PopulateSpec(object):
         def __init__(self, resource, namespace_info):
             self.resource = resource
             self.namespace_info = namespace_info
@@ -126,7 +126,7 @@ class TerrascriptClient(object):
             if not tf_resources:
                 continue
             for resource in tf_resources:
-                populate_spec = self.populateSpec(resource, namespace_info)
+                populate_spec = self.PopulateSpec(resource, namespace_info)
                 populate_specs.append(populate_spec)
         return populate_specs
 
