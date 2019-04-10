@@ -42,17 +42,12 @@ class TerraformClient(object):
             tfs[name] = tf
         self.tfs = tfs
 
-    class InitSpec(object):
-        def __init__(self, name, wd):
-            self.name = name
-            self.wd = wd
-
     def init_init_specs(self, working_dirs):
-        return [self.InitSpec(name, wd) for name, wd in working_dirs.items()]
+        return [{'name': name, 'wd': wd} for name, wd in working_dirs.items()]
 
     def terraform_init(self, init_spec):
-        name = init_spec.name
-        wd = init_spec.wd
+        name = init_spec['name']
+        wd = init_spec['wd']
         tf = Terraform(working_dir=wd)
         return_code, stdout, stderr = tf.init()
         error = self.check_output(name, return_code, stdout, stderr)
@@ -77,17 +72,12 @@ class TerraformClient(object):
                 deletions_detected = True
         return deletions_detected, errors
 
-    class PlanApplySpec(object):
-        def __init__(self, name, tf):
-            self.name = name
-            self.tf = tf
-
     def init_plan_apply_specs(self):
-        return [self.PlanApplySpec(name, tf) for name, tf in self.tfs.items()]
+        return [{'name': name, 'tf': tf} for name, tf in self.tfs.items()]
 
     def terraform_plan(self, plan_spec, enable_deletion):
-        name = plan_spec.name
-        tf = plan_spec.tf
+        name = plan_spec['name']
+        tf = plan_spec['tf']
         return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected = \

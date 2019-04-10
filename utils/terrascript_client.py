@@ -83,24 +83,20 @@ class TerrascriptClient(object):
         accounts = config['terraform']
         self.accounts = accounts.items()
 
-    class InitSpec(object):
-        def __init__(self, account, data, type):
-            self.account = account
-            self.data = data
-            self.type = type
-
     def init_vault_tf_secret_specs(self):
         vault_specs = []
         for account_name, data in self.accounts:
             for type in ('config', 'variables'):
-                init_spec = self.InitSpec(account_name, data, type)
+                init_spec = {'account_name': account_name,
+                             'data': data
+                             'type': type)
                 vault_specs.append(init_spec)
         return vault_specs
 
     def get_vault_tf_secrets(self, init_spec):
-        account = init_spec.account
-        data = init_spec.data
-        type = init_spec.type
+        account = init_spec['account']
+        data = init_spec['data']
+        type = init_spec['type']
         secrets_path = data['secrets_path']
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
@@ -113,11 +109,6 @@ class TerrascriptClient(object):
 
         self.validate()
 
-    class PopulateSpec(object):
-        def __init__(self, resource, namespace_info):
-            self.resource = resource
-            self.namespace_info = namespace_info
-
     def init_populate_specs(self, tf_query):
         populate_specs = []
         for namespace_info in tf_query:
@@ -126,13 +117,14 @@ class TerrascriptClient(object):
             if not tf_resources:
                 continue
             for resource in tf_resources:
-                populate_spec = self.PopulateSpec(resource, namespace_info)
+                populate_spec = {'resource': resource,
+                                 'namespace_info': namespace_info}
                 populate_specs.append(populate_spec)
         return populate_specs
 
     def populate_tf_resources(self, populate_spec):
-        resource = populate_spec.resource
-        namespace_info = populate_spec.namespace_info
+        resource = populate_spec['resource']
+        namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info)
