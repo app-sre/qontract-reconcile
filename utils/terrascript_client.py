@@ -15,6 +15,7 @@ from utils.oc import StatusCodeError
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_access_key, aws_iam_user_policy)
+from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
 
@@ -33,13 +34,15 @@ class UnknownProviderError(Exception):
 
 
 class TerrascriptClient(object):
-    def __init__(self, integration, integration_prefix, oc_map):
+    def __init__(self, integration, integration_prefix,
+                 oc_map, thread_pool_size):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
-        self.lock = Lock()
+        self.thread_pool_size = thread_pool_size
         self.populate_configs_and_vars_from_vault()
         tss = {}
+        locks = {}
         for name, config in self.configs.items():
             # Ref: https://github.com/mjuenema/python-terrascript#example
             ts = Terrascript()
@@ -56,37 +59,80 @@ class TerrascriptClient(object):
                         region=config['region'])
             ts += terraform(backend=b)
             tss[name] = ts
+            locks[name] = Lock()
         self.tss = tss
+        self.locks = locks
 
     def populate_configs_and_vars_from_vault(self):
         self.init_accounts()
-        self.configs = self.get_vault_tf_secrets('config')
-        self.variables = self.get_vault_tf_secrets('variables')
+
+        vault_specs = self.init_vault_tf_secret_specs()
+        pool = ThreadPool(self.thread_pool_size)
+        results = pool.map(self.get_vault_tf_secrets, vault_specs)
+
+        self.configs = {}
+        self.variables = {}
+        for account_name, type, secret in results:
+            if type == 'config':
+                self.configs[account_name] = secret
+            if type == 'variables':
+                self.variables[account_name] = secret
 
     def init_accounts(self):
         config = get_config()
         accounts = config['terraform']
         self.accounts = accounts.items()
 
-    def get_vault_tf_secrets(self, type):
-        secrets = {}
-        for name, data in self.accounts:
-            secrets_path = data['secrets_path']
-            secret = vault_client.read_all(secrets_path + '/' + type)
-            secrets[name] = secret
-        return secrets
+    class initSpec(object):
+        def __init__(self, account, data, type):
+            self.account = account
+            self.data = data
+            self.type = type
+
+    def init_vault_tf_secret_specs(self):
+        vault_specs = []
+        for account_name, data in self.accounts:
+            for type in ('config', 'variables'):
+                init_spec = self.initSpec(account_name, data, type)
+                vault_specs.append(init_spec)
+        return vault_specs
+
+    def get_vault_tf_secrets(self, init_spec):
+        account = init_spec.account
+        data = init_spec.data
+        type = init_spec.type
+        secrets_path = data['secrets_path']
+        secret = vault_client.read_all(secrets_path + '/' + type)
+        return (account, type, secret)
 
     def populate(self, tf_query):
+        populate_specs = self.init_populate_specs(tf_query)
+
+        pool = ThreadPool(self.thread_pool_size)
+        pool.map(self.populate_tf_resources, populate_specs)
+
+        self.validate()
+
+    class populateSpec(object):
+        def __init__(self, resource, namespace_info):
+            self.resource = resource
+            self.namespace_info = namespace_info
+
+    def init_populate_specs(self, tf_query):
+        populate_specs = []
         for namespace_info in tf_query:
             # Skip if namespace has no terraformResources
             tf_resources = namespace_info.get('terraformResources')
             if not tf_resources:
                 continue
             for resource in tf_resources:
-                self.populate_tf_resources(resource, namespace_info)
-        self.validate()
+                populate_spec = self.populateSpec(resource, namespace_info)
+                populate_specs.append(populate_spec)
+        return populate_specs
 
-    def populate_tf_resources(self, resource, namespace_info):
+    def populate_tf_resources(self, populate_spec):
+        resource = populate_spec.resource
+        namespace_info = populate_spec.namespace_info
         provider = resource['provider']
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info)
@@ -259,9 +305,8 @@ class TerrascriptClient(object):
             self.add_resource(account, tf_resource)
 
     def add_resource(self, account, tf_resource):
-        self.lock.acquire()
-        self.tss[account].add(tf_resource)
-        self.lock.release()
+        with self.locks[account]:
+            self.tss[account].add(tf_resource)
 
     def validate(self):
         for _, ts in self.tss.items():

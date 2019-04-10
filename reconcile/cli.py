@@ -113,6 +113,7 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 
 
 @integration.command()
+@threaded
 @click.option('--print-only/--no-print-only',
               default=False,
               help='If `true`, it will only print the terraform config file.')
@@ -120,6 +121,7 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
               default=False,
               help='If `true`, destroy/replace action is enabled.')
 @click.pass_context
-def terraform_resources(ctx, print_only, enable_deletion):
+def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
     run_integration(reconcile.terraform_resources.run,
-                    ctx.obj['dry_run'], print_only, enable_deletion)
+                    ctx.obj['dry_run'], print_only,
+                    enable_deletion, thread_pool_size)

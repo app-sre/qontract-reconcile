@@ -8,6 +8,9 @@ from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
 
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
+
 TF_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -42,7 +45,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 2)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -80,22 +83,27 @@ def populate_oc_resources(spec, ri):
         )
 
 
-def fetch_current_state(tf_query):
+def fetch_current_state(tf_query, thread_pool_size):
     ri = ResourceInventory()
     oc_map = {}
     state_specs = \
         openshift_resources.init_specs_to_fetch(ri, oc_map, tf_query)
-    for spec in state_specs:
-        populate_oc_resources(spec, ri)
+
+    pool = ThreadPool(thread_pool_size)
+    populate_oc_resources_partial = \
+        partial(populate_oc_resources, ri=ri)
+    pool.map(populate_oc_resources_partial, state_specs)
+
     return ri, oc_map
 
 
-def setup(print_only):
+def setup(print_only, thread_pool_size):
     tf_query = get_tf_query()
-    ri, oc_map = fetch_current_state(tf_query)
+    ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
-                     oc_map)
+                     oc_map,
+                     thread_pool_size)
     ts.populate(tf_query)
     working_dirs = ts.dump(print_only)
 
@@ -108,15 +116,17 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(dry_run=False, print_only=False, enable_deletion=False):
-    ri, oc_map, working_dirs = setup(print_only)
+def run(dry_run=False, print_only=False,
+        enable_deletion=False, thread_pool_size=10):
+    ri, oc_map, working_dirs = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
 
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
-                   working_dirs)
+                   working_dirs,
+                   thread_pool_size)
     if tf is None:
         err = True
         cleanup_and_exit(tf, err)
