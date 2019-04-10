@@ -213,7 +213,6 @@ class ResourceInventory(object):
             desired = \
                 self._clusters[cluster][namespace][resource_type]['desired']
             if name in desired:
-                self._lock.release()
                 raise ResourceKeyExistsError(name)
             desired[name] = value
 
