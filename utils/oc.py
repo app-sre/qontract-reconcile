@@ -36,7 +36,7 @@ class OC(object):
         identity_file = tempfile.mkdtemp() + '/id'
         with open(identity_file, 'w') as f:
             f.write(identity)
-        os.chmod(identity_file, 0600)
+        s.chmod(identity_file, 0o600)
         user_host = '{}@{}'.format(user, hostname)
         return ['ssh', '-i', identity_file, user_host]
 
