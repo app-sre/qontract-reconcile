@@ -42,7 +42,6 @@ class TerraformClient(object):
         self.OUTPUT_TYPE_PASSWORDS = 'enc-passwords'
         self.OUTPUT_TYPE_CONSOLEURLS = 'console-urls'
         tfs = {}
-        console_urls = {}
         for name, tf in results:
             tfs[name] = tf
         self.tfs = tfs
