@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 import json
+import os
 
 
 class StatusCodeError(Exception):
@@ -35,6 +36,7 @@ class OC(object):
         identity_file = tempfile.mkdtemp() + '/id'
         with open(identity_file, 'w') as f:
             f.write(identity)
+        os.chmod(identity_file, 0600)
         user_host = '{}@{}'.format(user, hostname)
         return ['ssh', '-i', identity_file, user_host]
 
