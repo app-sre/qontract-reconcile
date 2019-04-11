@@ -11,7 +11,7 @@ from utils.openshift_resource import ResourceInventory
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
-TF_RESOURCES_QUERY = """
+TF_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
@@ -50,7 +50,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def adjust_tf_resources_query(tf_query):
+def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
         managed_terraform_resources = \
@@ -63,10 +63,10 @@ def adjust_tf_resources_query(tf_query):
     return out_tf_query
 
 
-def get_tf_resources_query():
+def get_tf_query():
     gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_RESOURCES_QUERY)['namespaces']
-    return adjust_tf_resources_query(tf_query)
+    tf_query = gqlapi.query(TF_QUERY)['namespaces']
+    return adjust_tf_query(tf_query)
 
 
 def populate_oc_resources(spec, ri):
@@ -99,13 +99,13 @@ def fetch_current_state(tf_query, thread_pool_size):
 
 
 def setup(print_only, thread_pool_size):
-    tf_resources_query = get_tf_resources_query()
-    ri, oc_map = fetch_current_state(tf_resources_query, thread_pool_size)
+    tf_query = get_tf_query()
+    ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      oc_map)
-    ts.populate_resources(tf_resources_query)
+    ts.populate_resources(tf_query)
     working_dirs = ts.dump(print_only)
 
     return ri, oc_map, working_dirs

@@ -45,7 +45,6 @@ class TerraformClient(object):
         console_urls = {}
         for name, tf in results:
             tfs[name] = tf
-            console_urls[name] = ''
         self.tfs = tfs
         if init_users:
             self.init_existing_users()

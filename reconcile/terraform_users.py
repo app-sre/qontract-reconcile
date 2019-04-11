@@ -7,7 +7,7 @@ import utils.smtp_client as smtp_client
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
 
-TF_IAM_QUERY = """
+TF_QUERY = """
 {
   roles: roles_v1 {
     users {
@@ -33,22 +33,22 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def adjust_tf_iam_query(tf_query):
+def adjust_tf_query(tf_query):
     return [r for r in tf_query if r['aws_groups'] is not None]
 
 
-def get_tf_iam_query():
+def get_tf_query():
     gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_IAM_QUERY)['roles']
-    return adjust_tf_iam_query(tf_query)
+    tf_query = gqlapi.query(TF_QUERY)['roles']
+    return adjust_tf_query(tf_query)
 
 
 def setup(print_only, thread_pool_size):
-    tf_iam_query = get_tf_iam_query()
+    tf_query = get_tf_query()
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size)
-    ts.populate_users(tf_iam_query)
+    ts.populate_users(tf_query)
     working_dirs = ts.dump(print_only)
 
     return working_dirs
