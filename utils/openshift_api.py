@@ -88,7 +88,7 @@ class OpenshiftRestApi(object):
 
         with open(identity_file, 'w') as f:
             f.write(identity)
-        s.chmod(identity_file, 0o600)
+        os.chmod(identity_file, 0o600)
 
         self.server = SSHTunnelForwarder(
             (hostname, port),
