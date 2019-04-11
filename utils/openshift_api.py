@@ -5,8 +5,10 @@ from sshtunnel import SSHTunnelForwarder
 class NullContextManager(object):
     def __init__(self, dummy_resource=None):
         self.dummy_resource = dummy_resource
+
     def __enter__(self):
         return self.dummy_resource
+
     def __exit__(self, *args):
         pass
 
@@ -82,15 +84,16 @@ class OpenshiftRestApi(object):
         local_host = '127.0.0.1'
         local_port = 5000
         identity_file = tempfile.mkdtemp() + '/id'
+
         with open(identity_file, 'w') as f:
             f.write(identity)
 
         self.server = SSHTunnelForwarder(
-        (hostname, port),
-        ssh_username=user,
-        ssh_private_key=identity_file,
-        remote_bind_address=(local_host, local_port),
-        local_bind_address=(local_host, local_port),
+            (hostname, port),
+            ssh_username=user,
+            ssh_private_key=identity_file,
+            remote_bind_address=(local_host, local_port),
+            local_bind_address=(local_host, local_port),
         )
 
 
