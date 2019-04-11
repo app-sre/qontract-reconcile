@@ -3,7 +3,6 @@ import semver
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
-import utils.smtp_client as smtp_client
 
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
@@ -45,26 +44,6 @@ TF_RESOURCES_QUERY = """
 }
 """
 
-TF_IAM_QUERY = """
-{
-  roles: roles_v1 {
-    users {
-      redhat_username
-      public_gpg_key
-    }
-    aws_groups {
-      ...on AWSGroup_v1 {
-        name
-        policies
-        account {
-          name
-          consoleUrl
-        }
-      }
-    }
-  }
-}
-"""
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
@@ -88,16 +67,6 @@ def get_tf_resources_query():
     gqlapi = gql.get_api()
     tf_query = gqlapi.query(TF_RESOURCES_QUERY)['namespaces']
     return adjust_tf_resources_query(tf_query)
-
-
-def adjust_tf_iam_query(tf_query):
-    return [r for r in tf_query if r['aws_groups'] is not None]
-
-
-def get_tf_iam_query():
-    gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_IAM_QUERY)['roles']
-    return adjust_tf_iam_query(tf_query)
 
 
 def populate_oc_resources(spec, ri):
@@ -130,47 +99,16 @@ def fetch_current_state(tf_query, thread_pool_size):
 
 
 def setup(print_only, thread_pool_size):
-    tf_iam_query = get_tf_iam_query()
     tf_resources_query = get_tf_resources_query()
     ri, oc_map = fetch_current_state(tf_resources_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
-                     oc_map,
-                     thread_pool_size)
-    ts.populate_iam(tf_iam_query)
+                     thread_pool_size,
+                     oc_map)
     ts.populate_resources(tf_resources_query)
     working_dirs = ts.dump(print_only)
 
     return ri, oc_map, working_dirs
-
-
-def send_email_invites(new_users):
-    msg_template = '''
-You have been invited to join the {} AWS account!
-Below you will find credentials for the first sign in.
-You will be requested to change your password.
-
-The password is encrypted with your public gpg key. To decrypt the password:
-
-echo <password> | base64 -d | gpg -d - && echo
-(you will be asked to provide your passphrase to unlock the secret)
-
-Details:
-
-Console URL: {}
-Username: {}
-Encrypted password: {}
-
-'''
-    mails = []
-    for account, console_url, user_name, enc_password in new_users:
-        to = user_name
-        subject = 'Invitation to join the {} AWS account'.format(account)
-        body = msg_template.format(account, console_url,
-                                   user_name, enc_password)
-        mails.append((to, subject, body))
-
-    smtp_client.send_mails(mails)
 
 
 def cleanup_and_exit(tf=None, status=False):
@@ -209,8 +147,5 @@ def run(dry_run=False, print_only=False,
 
     tf.populate_desired_state(ri)
     openshift_resources.realize_data(dry_run, oc_map, ri)
-
-    new_users = tf.get_new_users()
-    send_email_invites(new_users)
 
     cleanup_and_exit(tf)

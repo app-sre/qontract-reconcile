@@ -12,6 +12,7 @@ import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
 import reconcile.terraform_resources
+import reconcile.terraform_users
 
 from utils.aggregated_list import RunnerException
 
@@ -20,6 +21,17 @@ def threaded(function):
     function = click.option('--thread-pool-size',
                             help='number of threads to run in parallel',
                             default=10)(function)
+
+    return function
+
+
+def terraform(function):
+    function = click.option('--print-only/--no-print-only',
+                            help='only print the terraform config file.',
+                            default=False)(function)
+    function = click.option('--enable-deletion/--no-enable-deletion',
+                            help='enable destroy/replace action.',
+                            default=False)(function)
 
     return function
 
@@ -113,15 +125,25 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 
 
 @integration.command()
+@terraform
 @threaded
-@click.option('--print-only/--no-print-only',
-              default=False,
-              help='If `true`, it will only print the terraform config file.')
-@click.option('--enable-deletion/--no-enable-deletion',
-              default=False,
-              help='If `true`, destroy/replace action is enabled.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, thread_pool_size)
+
+
+@integration.command()
+@terraform
+@threaded
+@click.option('--send-mails/--no-send-mails',
+              default=True,
+              help='send email invitation to new users.')
+@click.pass_context
+def terraform_users(ctx, print_only, enable_deletion,
+                    thread_pool_size, send_mails):
+    run_integration(reconcile.terraform_users.run,
+                    ctx.obj['dry_run'], print_only,
+                    enable_deletion, thread_pool_size,
+                    send_mails)

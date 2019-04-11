@@ -26,7 +26,8 @@ class OR(OpenshiftResource):
 
 class TerraformClient(object):
     def __init__(self, integration, integration_version,
-                 integration_prefix, working_dirs, thread_pool_size):
+                 integration_prefix, working_dirs, thread_pool_size,
+                 init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
@@ -46,9 +47,10 @@ class TerraformClient(object):
             tfs[name] = tf
             console_urls[name] = ''
         self.tfs = tfs
-        self.get_existing_users()
+        if init_users:
+            self.init_existing_users()
 
-    def get_existing_users(self):
+    def init_existing_users(self):
         all_users = {}
         for account, tf in self.tfs.items():
             users = []

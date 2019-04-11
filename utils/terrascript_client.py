@@ -38,7 +38,7 @@ class UnknownProviderError(Exception):
 
 class TerrascriptClient(object):
     def __init__(self, integration, integration_prefix,
-                 oc_map, thread_pool_size):
+                 thread_pool_size, oc_map={}):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
@@ -58,7 +58,7 @@ class TerrascriptClient(object):
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
                         bucket=config['bucket'],
-                        key=config['key'],
+                        key=config['{}_key'.format(integration)],
                         region=config['region'])
             ts += terraform(backend=b)
             tss[name] = ts
@@ -103,14 +103,6 @@ class TerrascriptClient(object):
         secrets_path = data['secrets_path']
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
-
-    def populate(self, tf_query):
-        populate_specs = self.init_populate_specs(tf_query)
-
-        pool = ThreadPool(self.thread_pool_size)
-        pool.map(self.populate_tf_resources, populate_specs)
-
-        self.validate()
 
     def populate_iam_groups(self, tf_query):
         groups = {}
@@ -228,9 +220,18 @@ class TerrascriptClient(object):
                     tf_output = output(output_name, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-    def populate_iam(self, tf_query):
+    def populate_users(self, tf_query):
         self.populate_iam_groups(tf_query)
         self.populate_iam_users(tf_query)
+        self.validate()
+
+    def populate_resources(self, tf_query):
+        populate_specs = self.init_populate_specs(tf_query)
+
+        pool = ThreadPool(self.thread_pool_size)
+        pool.map(self.populate_tf_resources, populate_specs)
+
+        self.validate()
 
     def init_populate_specs(self, tf_query):
         populate_specs = []
