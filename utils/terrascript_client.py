@@ -14,7 +14,6 @@ from utils.oc import StatusCodeError
 
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
-                               aws_iam_access_key, aws_iam_user_policy)
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
@@ -104,7 +103,6 @@ class TerrascriptClient(object):
         secrets_path = data['secrets_path']
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
-
 
     def populate(self, tf_query):
         populate_specs = self.init_populate_specs(tf_query)

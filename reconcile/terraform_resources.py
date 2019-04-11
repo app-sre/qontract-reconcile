@@ -132,7 +132,7 @@ def fetch_current_state(tf_query, thread_pool_size):
 def setup(print_only, thread_pool_size):
     tf_iam_query = get_tf_iam_query()
     tf_resources_query = get_tf_resources_query()
-    ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
+    ri, oc_map = fetch_current_state(tf_resources_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      oc_map,
