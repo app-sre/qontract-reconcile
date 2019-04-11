@@ -28,6 +28,7 @@ setup(
         "python-gitlab==1.7.0",
         "semver==2.8.1",
         "python-terraform==0.10.0",
+        "sshtunnel==0.1.4",
     ],
 
     test_suite="tests",

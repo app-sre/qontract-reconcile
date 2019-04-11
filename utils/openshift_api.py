@@ -1,4 +1,14 @@
 import requests
+from sshtunnel import SSHTunnelForwarder
+
+
+class NullContextManager(object):
+    def __init__(self, dummy_resource=None):
+        self.dummy_resource = dummy_resource
+    def __enter__(self):
+        return self.dummy_resource
+    def __exit__(self, *args):
+        pass
 
 
 class OpenshiftRestApi(object):
@@ -10,11 +20,13 @@ class OpenshiftRestApi(object):
     def __init__(self,
                  host='https://127.0.0.1',
                  headers=None,
-                 verify_ssl=True):
+                 verify_ssl=True,
+                 jh_data=None):
 
         self.api_host = host
         self.headers = headers
         self.verify_ssl = verify_ssl
+        self.jh_data = jh_data
 
     def get(self, api_path, **kwargs):
         return self.req(requests.get, api_path, **kwargs)
@@ -49,10 +61,37 @@ class OpenshiftRestApi(object):
             headers.update(kwargs['headers'])
             kwargs['headers'] = headers
 
-        response = method(self.api_host + api_path, **kwargs)
-        response.raise_for_status()
+        self.init_ssh_server()
+        with self.server:
+            response = method(self.api_host + api_path, **kwargs)
+            response.raise_for_status()
 
         return response.json()
+
+    def init_ssh_server(self):
+        if self.jh_data is None:
+            self.server = NullContextManager()
+            return
+
+        import tempfile
+
+        hostname = self.jh_data['hostname']
+        port = int(self.jh_data['port'])
+        identity = self.jh_data['identity']
+        user = self.jh_data['user']
+        local_host = '127.0.0.1'
+        local_port = 5000
+        identity_file = tempfile.mkdtemp() + '/id'
+        with open(identity_file, 'w') as f:
+            f.write(identity)
+
+        self.server = SSHTunnelForwarder(
+        (hostname, port),
+        ssh_username=user,
+        ssh_private_key=identity_file,
+        remote_bind_address=(local_host, local_port),
+        local_bind_address=(local_host, local_port),
+        )
 
 
 class Openshift(object):
@@ -62,11 +101,12 @@ class Openshift(object):
     namespace = None
 
     def __init__(self, openshift_api_url='', openshift_api_token='',
-                 verify_ssl=True):
+                 verify_ssl=True, jh_data=None):
 
         headers = {'Authorization': 'Bearer ' + openshift_api_token}
         self.ora = OpenshiftRestApi(
-            host=openshift_api_url, headers=headers, verify_ssl=verify_ssl)
+            host=openshift_api_url, headers=headers,
+            verify_ssl=verify_ssl, jh_data=jh_data)
 
     def __oapi_get(self, api_path, **kwargs):
         res = self.ora.get(api_path, **kwargs)

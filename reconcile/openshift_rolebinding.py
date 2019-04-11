@@ -17,6 +17,7 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      jumpHost
       automationToken {
         path
         field
@@ -61,6 +62,7 @@ class ClusterStore(object):
             managed_roles = namespace_info.get('managedRoles')
             cluster_info = namespace_info['cluster']
             cluster_name = cluster_info['name']
+            jump_host = cluster_info.get('jumpHost')
             automation_token = cluster_info.get('automationToken')
 
             if not managed_roles or not automation_token:
@@ -72,7 +74,12 @@ class ClusterStore(object):
                     automation_token['field'],
                 )
 
-                api = Openshift(cluster_info['serverUrl'], token)
+                jh_data = None
+                if jump_host is not None:
+                    jh_data = vault_client.read_all(jump_host)
+
+                api = Openshift(cluster_info['serverUrl'], token,
+                                jh_data=jh_data)
 
                 _clusters[cluster_name] = {
                     'api': api,
