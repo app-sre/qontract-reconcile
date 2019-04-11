@@ -15,11 +15,28 @@ class JSONParsingError(Exception):
 
 
 class OC(object):
-    def __init__(self, server, token):
-        self.oc_base_cmd = ['oc', '--server', server, '--token', token]
+    def __init__(self, server, token, jh_data=None):
+        ssh_base_cmd = self.init_ssh_base_cmd(jh_data)
+        self.oc_base_cmd = ssh_base_cmd + \
+            ['oc', '--server', server, '--token', token]
 
     def whoami(self):
         return self._run(['whoami'])
+
+    def init_ssh_base_cmd(self, jh_data):
+        if jh_data is None:
+            return []
+
+        import tempfile
+
+        hostname = jh_data['hostname']
+        identity = jh_data['identity']
+        user = jh_data['user']
+        identity_file = tempfile.mkdtemp() + '/id'
+        with open(identity_file, 'w') as f:
+            f.write(identity)
+        user_host = '{}@{}'.format(user, hostname)
+        return ['ssh', '-i', identity_file, user_host]
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']

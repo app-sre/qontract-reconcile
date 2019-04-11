@@ -60,6 +60,7 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      jumpHost
       automationToken {
         path
         field
@@ -71,7 +72,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 6, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 7, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -119,10 +120,14 @@ def obtain_oc_client(oc_map, cluster_info):
     if oc_map.get(cluster) is None:
         oc_map[cluster] = False
 
+        jh = cluster_info.get('jumpHost')
         at = cluster_info.get('automationToken')
         if at is not None:
+            jh_data = None
+            if jh is not None:
+                jh_data = vault_client.read_all(jh)
             token = vault_client.read(at['path'], at['field'])
-            oc_map[cluster] = OC(cluster_info['serverUrl'], token)
+            oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh_data)
 
     return oc_map[cluster]
 
