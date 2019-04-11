@@ -1,4 +1,5 @@
 import requests
+import os
 from sshtunnel import SSHTunnelForwarder
 
 
@@ -87,6 +88,7 @@ class OpenshiftRestApi(object):
 
         with open(identity_file, 'w') as f:
             f.write(identity)
+        os.chmod(identity_file, 0600)
 
         self.server = SSHTunnelForwarder(
             (hostname, port),
