@@ -31,6 +31,7 @@ class OC(object):
         import tempfile
 
         hostname = jh_data['hostname']
+        port = jh_data['port']
         identity = jh_data['identity']
         user = jh_data['user']
         identity_file = tempfile.mkdtemp() + '/id'
@@ -38,7 +39,7 @@ class OC(object):
             f.write(identity)
         os.chmod(identity_file, 0o600)
         user_host = '{}@{}'.format(user, hostname)
-        return ['ssh', '-i', identity_file, user_host]
+        return ['ssh', '-i', identity_file, '-p', port, user_host]
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']

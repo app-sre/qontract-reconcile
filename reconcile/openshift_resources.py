@@ -60,7 +60,11 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
-      jumpHost
+      jumpHost {
+          hostname
+          port
+          identity
+      }
       automationToken {
         path
         field
@@ -115,19 +119,34 @@ class StateSpec(object):
         self.resource = resource
 
 
+def init_jump_host_data(jh):
+    if jh is None:
+        return None
+
+    jh_data = {}
+    jh_data['hostname'] = jh['hostname']
+    jh_data['port'] = '22' if 'port' not in jh else jh['port']
+    identity_secret = vault_client.read_all(jh['identity'])
+    jh_data['user'] = identity_secret['user']
+    jh_data['identity'] = identity_secret['identity']
+
+    return jh_data
+
+
 def obtain_oc_client(oc_map, cluster_info):
     cluster = cluster_info['name']
-    if oc_map.get(cluster) is None:
-        oc_map[cluster] = False
+    if oc_map.get(cluster) is not None:
+        return oc_map[cluster]
 
-        jh = cluster_info.get('jumpHost')
-        at = cluster_info.get('automationToken')
-        if at is not None:
-            jh_data = None
-            if jh is not None:
-                jh_data = vault_client.read_all(jh)
-            token = vault_client.read(at['path'], at['field'])
-            oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh_data)
+    oc_map[cluster] = False
+    at = cluster_info.get('automationToken')
+    if at is None:
+        return oc_map[cluster]
+
+    token = vault_client.read(at['path'], at['field'])
+    jh = cluster_info.get('jumpHost')
+    jh_data = init_jump_host_data(jh)
+    oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh_data)
 
     return oc_map[cluster]
 
