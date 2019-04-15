@@ -62,8 +62,12 @@ NAMESPACES_QUERY = """
       serverUrl
       jumpHost {
           hostname
+          user
           port
-          identity
+          identity {
+              path
+              field
+          }
       }
       automationToken {
         path
@@ -125,10 +129,11 @@ def init_jump_host_data(jh):
 
     jh_data = {}
     jh_data['hostname'] = jh['hostname']
+    jh_data['user'] = jh['user']
     jh_data['port'] = '22' if jh['port'] is None else jh['port']
-    identity_secret = vault_client.read_all(jh['identity'])
-    jh_data['user'] = identity_secret['user']
-    jh_data['identity'] = identity_secret['identity']
+    identity = jh['identity']
+    jh_data['identity'] = \
+        vault_client.read(identity['path'], identity['field'])
 
     return jh_data
 
