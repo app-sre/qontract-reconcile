@@ -60,6 +60,16 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      jumpHost {
+          hostname
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
       automationToken {
         path
         field
@@ -71,7 +81,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 6, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 7, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -116,13 +126,17 @@ class StateSpec(object):
 
 def obtain_oc_client(oc_map, cluster_info):
     cluster = cluster_info['name']
-    if oc_map.get(cluster) is None:
-        oc_map[cluster] = False
+    if oc_map.get(cluster) is not None:
+        return oc_map[cluster]
 
-        at = cluster_info.get('automationToken')
-        if at is not None:
-            token = vault_client.read(at['path'], at['field'])
-            oc_map[cluster] = OC(cluster_info['serverUrl'], token)
+    oc_map[cluster] = False
+    at = cluster_info.get('automationToken')
+    if at is None:
+        return oc_map[cluster]
+
+    token = vault_client.read(at['path'], at['field'])
+    jh = cluster_info.get('jumpHost')
+    oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh)
 
     return oc_map[cluster]
 
@@ -466,13 +480,21 @@ def realize_data(dry_run, oc_map, ri):
                 logging.error(msg)
 
 
+def cleanup(oc_map):
+    for oc in oc_map.values():
+        oc.cleanup()
+
+
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
 
     namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
     oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
-    realize_data(dry_run, oc_map, ri)
+    try:
+        realize_data(dry_run, oc_map, ri)
+    finally:
+        cleanup(oc_map)
 
     if ri.has_error_registered():
         sys.exit(1)

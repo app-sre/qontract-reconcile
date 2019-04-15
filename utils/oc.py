@@ -1,6 +1,8 @@
 from subprocess import Popen, PIPE
 import json
 
+from utils.jump_host import JumpHost
+
 
 class StatusCodeError(Exception):
     pass
@@ -15,11 +17,25 @@ class JSONParsingError(Exception):
 
 
 class OC(object):
-    def __init__(self, server, token):
-        self.oc_base_cmd = ['oc', '--server', server, '--token', token]
+    def __init__(self, server, token, jh=None):
+        oc_base_cmd = ['oc', '--server', server, '--token', token]
+
+        if jh is not None:
+            jump_host = JumpHost(jh)
+            oc_base_cmd = jump_host.get_ssh_base_cmd() + oc_base_cmd
+            self.jump_host = jump_host
+
+        self.oc_base_cmd = oc_base_cmd
 
     def whoami(self):
         return self._run(['whoami'])
+
+    def cleanup(self):
+        if not hasattr(self, 'jump_host') or \
+                not isinstance(self.jump_host, JumpHost):
+            return
+
+        self.jump_host.cleanup()
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']
