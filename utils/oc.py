@@ -1,7 +1,6 @@
 from subprocess import Popen, PIPE
 import json
 import os
-import base64
 
 
 class StatusCodeError(Exception):
@@ -30,17 +29,25 @@ class OC(object):
             return []
 
         import tempfile
+        import base64
 
         hostname = jh_data['hostname']
         port = jh_data['port']
         identity = base64.b64decode(jh_data['identity'])
         user = jh_data['user']
-        identity_file = tempfile.mkdtemp() + '/id'
+        self.identity_dir = tempfile.mkdtemp()
+        identity_file = self.identity_dir + '/id'
         with open(identity_file, 'w') as f:
             f.write(identity)
         os.chmod(identity_file, 0o600)
         user_host = '{}@{}'.format(user, hostname)
         return ['ssh', '-i', identity_file, '-p', port, user_host]
+
+    def cleanup(self):
+        if hasattr(self, 'identity_dir'):
+            import shutil
+
+            shutil.rmtree(self.identity_dir)
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']

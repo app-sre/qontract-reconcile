@@ -495,6 +495,11 @@ def realize_data(dry_run, oc_map, ri):
                 logging.error(msg)
 
 
+def cleanup(oc_map):
+    for oc in oc_map.values():
+        oc.cleanup()
+
+
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
 
@@ -502,6 +507,7 @@ def run(dry_run=False, thread_pool_size=10):
 
     oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
     realize_data(dry_run, oc_map, ri)
+    cleanup(oc_map)
 
     if ri.has_error_registered():
         sys.exit(1)
