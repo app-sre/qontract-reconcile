@@ -44,10 +44,12 @@ class OC(object):
         return ['ssh', '-i', identity_file, '-p', port, user_host]
 
     def cleanup(self):
-        if hasattr(self, 'identity_dir'):
-            import shutil
+        if not hasattr(self, 'identity_dir'):
+            return
 
-            shutil.rmtree(self.identity_dir)
+        import shutil
+
+        shutil.rmtree(self.identity_dir)
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']
