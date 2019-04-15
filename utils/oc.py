@@ -1,6 +1,7 @@
 from subprocess import Popen, PIPE
 import json
 import os
+import base64
 
 
 class StatusCodeError(Exception):
@@ -32,7 +33,7 @@ class OC(object):
 
         hostname = jh_data['hostname']
         port = jh_data['port']
-        identity = jh_data['identity']
+        identity = base64.b64decode(jh_data['identity'])
         user = jh_data['user']
         identity_file = tempfile.mkdtemp() + '/id'
         with open(identity_file, 'w') as f:

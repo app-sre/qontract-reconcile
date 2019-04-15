@@ -125,7 +125,7 @@ def init_jump_host_data(jh):
 
     jh_data = {}
     jh_data['hostname'] = jh['hostname']
-    jh_data['port'] = '22' if 'port' not in jh else jh['port']
+    jh_data['port'] = '22' if jh['port'] is None else jh['port']
     identity_secret = vault_client.read_all(jh['identity'])
     jh_data['user'] = identity_secret['user']
     jh_data['identity'] = identity_secret['identity']
