@@ -1,6 +1,5 @@
 from subprocess import Popen, PIPE
 import json
-import os
 
 
 class StatusCodeError(Exception):
@@ -30,6 +29,7 @@ class OC(object):
 
         import tempfile
         import base64
+        import os
 
         hostname = jh_data['hostname']
         port = jh_data['port']
