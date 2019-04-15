@@ -22,7 +22,7 @@ class OC(object):
 
         if jh is not None:
             jump_host = JumpHost(jh)
-            oc_base_cmd = jump_host.ssh_base_cmd + oc_base_cmd
+            oc_base_cmd = jump_host.get_ssh_base_cmd() + oc_base_cmd
             self.jump_host = jump_host
 
         self.oc_base_cmd = oc_base_cmd
@@ -31,7 +31,8 @@ class OC(object):
         return self._run(['whoami'])
 
     def cleanup(self):
-        if not hasattr(self, 'jump_host'):
+        if not hasattr(self, 'jump_host') or \
+                not isinstance(self.jump_host, JumpHost):
             return
 
         self.jump_host.cleanup()
