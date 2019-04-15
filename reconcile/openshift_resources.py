@@ -490,8 +490,8 @@ def run(dry_run=False, thread_pool_size=10):
 
     namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
+    oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
     try:
-        oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
         realize_data(dry_run, oc_map, ri)
     finally:
         cleanup(oc_map)
