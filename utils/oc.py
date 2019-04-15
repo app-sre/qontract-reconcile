@@ -1,6 +1,8 @@
 from subprocess import Popen, PIPE
 import json
 
+from utils.jump_host import JumpHost
+
 
 class StatusCodeError(Exception):
     pass
@@ -15,41 +17,24 @@ class JSONParsingError(Exception):
 
 
 class OC(object):
-    def __init__(self, server, token, jh_data=None):
-        ssh_base_cmd = self.init_ssh_base_cmd(jh_data)
-        self.oc_base_cmd = ssh_base_cmd + \
-            ['oc', '--server', server, '--token', token]
+    def __init__(self, server, token, jh=None):
+        oc_base_cmd = ['oc', '--server', server, '--token', token]
+
+        if jh is not None:
+            jump_host = JumpHost(jh)
+            oc_base_cmd = jump_host.ssh_base_cmd + oc_base_cmd
+            self.jump_host = jump_host
+
+        self.oc_base_cmd = oc_base_cmd
 
     def whoami(self):
         return self._run(['whoami'])
 
-    def init_ssh_base_cmd(self, jh_data):
-        if jh_data is None:
-            return []
-
-        import tempfile
-        import base64
-        import os
-
-        hostname = jh_data['hostname']
-        port = jh_data['port']
-        identity = base64.b64decode(jh_data['identity'])
-        user = jh_data['user']
-        self.identity_dir = tempfile.mkdtemp()
-        identity_file = self.identity_dir + '/id'
-        with open(identity_file, 'w') as f:
-            f.write(identity)
-        os.chmod(identity_file, 0o600)
-        user_host = '{}@{}'.format(user, hostname)
-        return ['ssh', '-i', identity_file, '-p', port, user_host]
-
     def cleanup(self):
-        if not hasattr(self, 'identity_dir'):
+        if not hasattr(self, 'jump_host'):
             return
 
-        import shutil
-
-        shutil.rmtree(self.identity_dir)
+        self.jump_host.cleanup()
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']

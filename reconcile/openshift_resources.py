@@ -67,6 +67,7 @@ NAMESPACES_QUERY = """
           identity {
               path
               field
+              format
           }
       }
       automationToken {
@@ -123,21 +124,6 @@ class StateSpec(object):
         self.resource = resource
 
 
-def init_jump_host_data(jh):
-    if jh is None:
-        return None
-
-    jh_data = {}
-    jh_data['hostname'] = jh['hostname']
-    jh_data['user'] = jh['user']
-    jh_data['port'] = '22' if jh['port'] is None else jh['port']
-    identity = jh['identity']
-    jh_data['identity'] = \
-        vault_client.read(identity['path'], identity['field'])
-
-    return jh_data
-
-
 def obtain_oc_client(oc_map, cluster_info):
     cluster = cluster_info['name']
     if oc_map.get(cluster) is not None:
@@ -150,8 +136,7 @@ def obtain_oc_client(oc_map, cluster_info):
 
     token = vault_client.read(at['path'], at['field'])
     jh = cluster_info.get('jumpHost')
-    jh_data = init_jump_host_data(jh)
-    oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh_data)
+    oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh)
 
     return oc_map[cluster]
 
