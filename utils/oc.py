@@ -21,9 +21,8 @@ class OC(object):
         oc_base_cmd = ['oc', '--server', server, '--token', token]
 
         if jh is not None:
-            jump_host = JumpHost(jh)
-            oc_base_cmd = jump_host.get_ssh_base_cmd() + oc_base_cmd
-            self.jump_host = jump_host
+            self.jump_host = JumpHost(jh)
+            oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
 
