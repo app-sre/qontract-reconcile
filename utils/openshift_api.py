@@ -1,7 +1,6 @@
-import requests
+from utils.jump_host import JumpHost, DummySSHServer, HTTPStatusCodeError
 
-from utils.jump_host import JumpHost, DummySSHServer
-
+import logging
 
 class OpenshiftRestApi(object):
     """A class to simply Openshift API"""
@@ -21,24 +20,26 @@ class OpenshiftRestApi(object):
 
         ssh_server = DummySSHServer()
         if jump_host is not None:
-            self.jump_host = JumpHost(jump_host)
-            ssh_server = self.jump_host.get_ssh_server()
+            ssh_server = JumpHost(jump_host)
 
-        self.ssh_server = ssh_server
+        self.set_ssh_server(ssh_server)
+
+    def cleanup(self):
+        self.get_ssh_server().cleanup()
 
     def get(self, api_path, **kwargs):
-        return self.req(requests.get, api_path, **kwargs)
+        return self.req('get', api_path, **kwargs)
 
     def post(self, api_path, **kwargs):
-        return self.req(requests.post, api_path, **kwargs)
+        return self.req('post', api_path, **kwargs)
 
     def put(self, api_path, **kwargs):
-        return self.req(requests.put, api_path, **kwargs)
+        return self.req('put', api_path, **kwargs)
 
     def delete(self, api_path, **kwargs):
-        return self.req(requests.delete, api_path, **kwargs)
+        return self.req('delete', api_path, **kwargs)
 
-    def req(self, method, api_path, **kwargs):
+    def req(self, method_name, api_path, **kwargs):
         """Do API query, return requested type"""
 
         if self.api_host.endswith('/') and api_path.startswith('/'):
@@ -59,11 +60,22 @@ class OpenshiftRestApi(object):
             headers.update(kwargs['headers'])
             kwargs['headers'] = headers
 
-        with self.ssh_server:
+        with self.get_ssh_server() as server:
+            method = getattr(server, method_name)
             response = method(self.api_host + api_path, **kwargs)
-            response.raise_for_status()
+            self.raise_for_status(response)
 
         return response.json()
+
+    def get_ssh_server(self):
+        return self.ssh_server
+
+    def set_ssh_server(self, server):
+        self.ssh_server = server
+
+    def raise_for_status(self, response):
+        if response.status_code not in [200, 201, 204]:
+            raise HTTPStatusCodeError(response.status_code)
 
 
 class Openshift(object):
@@ -95,6 +107,9 @@ class Openshift(object):
     def __oapi_delete(self, api_path, **kwargs):
         res = self.ora.delete(api_path, **kwargs)
         return res
+
+    def cleanup(self):
+        self.ora.cleanup()
 
     def get_version(self):
         """Get cluster version"""

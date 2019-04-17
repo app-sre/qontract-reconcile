@@ -17,7 +17,17 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
-      jumpHost
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
       automationToken {
         path
         field
@@ -98,6 +108,11 @@ class ClusterStore(object):
 
     def namespace_managed_roles(self, cluster, namespace):
         return self._clusters[cluster]['namespaces'][namespace]
+
+    def cleanup(self):
+        for cluster in self.clusters():
+            api = self.api(cluster)
+            api.cleanup()
 
 
 def fetch_current_state(cluster_store):

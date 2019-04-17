@@ -30,11 +30,9 @@ class OC(object):
         return self._run(['whoami'])
 
     def cleanup(self):
-        if not hasattr(self, 'jump_host') or \
-                not isinstance(self.jump_host, JumpHost):
-            return
-
-        self.jump_host.cleanup()
+        if hasattr(self, 'jump_host') and \
+                isinstance(self.jump_host, JumpHost):
+            self.jump_host.cleanup()
 
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']
