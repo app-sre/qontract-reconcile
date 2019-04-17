@@ -39,7 +39,6 @@ class JumpHost(object):
         self.identity = self.get_identity_from_vault(jh)
 
         self.init_identity_files()
-        self.init_ssh_base_cmd()
         self.init_ssh_session()
         self.default_logging = logging.getLogger().level
 
@@ -70,15 +69,6 @@ class JumpHost(object):
             identity = base64.b64decode(identity)
         return identity
 
-    def init_ssh_base_cmd(self):
-        user_host = '{}@{}'.format(self.user, self.hostname)
-
-        self.set_ssh_base_cmd([
-            'ssh',
-            '-o', 'StrictHostKeyChecking=yes',
-            '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
-            '-i', self.identity_file, '-p', str(self.port), user_host])
-
     def init_ssh_session(self):
         session = jumpssh.SSHSession(
             self.hostname,
@@ -86,7 +76,7 @@ class JumpHost(object):
             private_key_file=self.identity_file,
             port=self.port,
         )
-        self.set_ssh_session(session)
+        self.ssh_session = session
 
     def init_identity_files(self):
         self._identity_dir = tempfile.mkdtemp()
@@ -104,16 +94,19 @@ class JumpHost(object):
         self.known_hosts_file = known_hosts_file
 
     def get_ssh_base_cmd(self):
-        return self.ssh_base_cmd
+        user_host = '{}@{}'.format(self.user, self.hostname)
+
+        return [
+            'ssh',
+            '-o', 'StrictHostKeyChecking=yes',
+            '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
+            '-i', self.identity_file, '-p', str(self.port), user_host]
 
     def set_ssh_base_cmd(self, cmd):
         self.ssh_base_cmd = cmd
 
     def get_ssh_session(self):
         return self.ssh_session
-
-    def set_ssh_session(self, ssh_session):
-        self.ssh_session = ssh_session
 
     def cleanup(self):
         shutil.rmtree(self._identity_dir)

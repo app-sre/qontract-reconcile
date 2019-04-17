@@ -17,8 +17,9 @@ class OpenshiftRestApi(object):
         self.headers = headers
         self.verify_ssl = verify_ssl
 
-        ssh_server = DummySSHServer()
-        if jump_host is not None:
+        if jump_host is None:
+            ssh_server = DummySSHServer()
+        else:
             ssh_server = JumpHost(jump_host)
 
         self.set_ssh_server(ssh_server)
