@@ -1,4 +1,4 @@
-from utils.jump_host import JumpHost, DummySSHServer, HTTPStatusCodeError
+from utils.jump_host import JumpHostRestApi, DummySSHServer, HTTPStatusCodeError
 
 
 class OpenshiftRestApi(object):
@@ -20,7 +20,7 @@ class OpenshiftRestApi(object):
         if jump_host is None:
             ssh_server = DummySSHServer()
         else:
-            ssh_server = JumpHost(jump_host)
+            ssh_server = JumpHostRestApi(jump_host)
 
         self.set_ssh_server(ssh_server)
 

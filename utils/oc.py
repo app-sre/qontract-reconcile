@@ -1,7 +1,7 @@
 from subprocess import Popen, PIPE
 import json
 
-from utils.jump_host import JumpHost
+from utils.jump_host import JumpHostSSH
 
 
 class StatusCodeError(Exception):
@@ -21,7 +21,7 @@ class OC(object):
         oc_base_cmd = ['oc', '--server', server, '--token', token]
 
         if jh is not None:
-            self.jump_host = JumpHost(jh)
+            self.jump_host = JumpHostSSH(jh)
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
@@ -31,7 +31,7 @@ class OC(object):
 
     def cleanup(self):
         if hasattr(self, 'jump_host') and \
-                isinstance(self.jump_host, JumpHost):
+                isinstance(self.jump_host, JumpHostSSH):
             self.jump_host.cleanup()
 
     def get_items(self, kind, **kwargs):
