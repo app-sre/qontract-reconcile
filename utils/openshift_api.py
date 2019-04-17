@@ -1,6 +1,5 @@
 from utils.jump_host import JumpHost, DummySSHServer, HTTPStatusCodeError
 
-import logging
 
 class OpenshiftRestApi(object):
     """A class to simply Openshift API"""

@@ -28,7 +28,7 @@ class HTTPStatusCodeError(Exception):
 
 # The following line will supress CryptographyDeprecationWarning
 # and INFO logging from this module
-warnings.filterwarnings(action='ignore',module='.*paramiko.*')
+warnings.filterwarnings(action='ignore', module='.*paramiko.*')
 
 
 class JumpHost(object):
