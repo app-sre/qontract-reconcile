@@ -17,6 +17,17 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
       automationToken {
         path
         field
@@ -61,6 +72,7 @@ class ClusterStore(object):
             managed_roles = namespace_info.get('managedRoles')
             cluster_info = namespace_info['cluster']
             cluster_name = cluster_info['name']
+            jump_host = cluster_info.get('jumpHost')
             automation_token = cluster_info.get('automationToken')
 
             if not managed_roles or not automation_token:
@@ -72,7 +84,8 @@ class ClusterStore(object):
                     automation_token['field'],
                 )
 
-                api = Openshift(cluster_info['serverUrl'], token)
+                api = Openshift(cluster_info['serverUrl'], token,
+                                jump_host=jump_host)
 
                 _clusters[cluster_name] = {
                     'api': api,
@@ -95,6 +108,11 @@ class ClusterStore(object):
 
     def namespace_managed_roles(self, cluster, namespace):
         return self._clusters[cluster]['namespaces'][namespace]
+
+    def cleanup(self):
+        for cluster in self.clusters():
+            api = self.api(cluster)
+            api.cleanup()
 
 
 def fetch_current_state(cluster_store):
