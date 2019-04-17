@@ -1,6 +1,6 @@
 from utils.jump_host import (JumpHostSSHRestApi,
-                            DummySSHServer,
-                            HTTPStatusCodeError)
+                             DummySSHServer,
+                             HTTPStatusCodeError)
 
 
 class OpenshiftRestApi(object):

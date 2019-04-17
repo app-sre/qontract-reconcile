@@ -56,7 +56,6 @@ class JumpHostBase(object):
         shutil.rmtree(self._identity_dir)
 
 
-
 class JumpHostSSH(JumpHostBase):
     def __init__(self, jh):
         JumpHostBase.__init__(self, jh)
