@@ -95,7 +95,7 @@ class JumpHostSSH(JumpHostBase):
 warnings.filterwarnings(action='ignore', module='.*paramiko.*')
 
 
-class JumpHostRestApi(JumpHostBase):
+class JumpHostSSHRestApi(JumpHostBase):
     def __init__(self, jh):
         JumpHostBase.__init__(self, jh)
 
