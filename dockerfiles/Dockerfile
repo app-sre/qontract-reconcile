@@ -7,7 +7,7 @@ ENV TF_VERSION=0.11.13
 RUN yum install -y centos-release-openshift-origin && \
     yum install -y epel-release && \
     yum install -y python2-pip origin-clients openssh-clients && \
-    pip install --upgrade pip && \
+    pip install --upgrade pip setuptools && \
     yum clean all
 
 RUN yum install -y unzip && \
