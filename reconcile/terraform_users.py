@@ -15,13 +15,11 @@ TF_QUERY = """
       public_gpg_key
     }
     aws_groups {
-      ...on AWSGroup_v1 {
+      name
+      policies
+      account {
         name
-        policies
-        account {
-          name
-          consoleUrl
-        }
+        consoleUrl
       }
     }
   }

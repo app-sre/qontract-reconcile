@@ -77,6 +77,8 @@ def send_mails(mails):
     global _client
 
     init_from_config()
-    for name, subject, body in mails:
-        send_mail(name, subject, body)
-    teardown()
+    try:
+        for name, subject, body in mails:
+            send_mail(name, subject, body)
+    finally:
+        teardown()
