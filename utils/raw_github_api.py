@@ -31,8 +31,7 @@ class RawGithubApi(object):
         try:
             res.raise_for_status()
         except Exception as e:
-            raise Exception("query: %s %s\n%s" %
-                            (self.BASE_URL + url, h, e.message))
+            raise Exception(e.message)
 
         result = res.json()
 
@@ -50,8 +49,7 @@ class RawGithubApi(object):
                     try:
                         res.raise_for_status()
                     except Exception as e:
-                        raise Exception("query: %s %s\n%s" %
-                                        (req_url, h, e.message))
+                        raise Exception(e.message)
 
                     for element in res.json():
                         elements.append(element)
@@ -64,8 +62,7 @@ class RawGithubApi(object):
                     try:
                         res.raise_for_status()
                     except Exception as e:
-                        raise Exception("query: %s %s\n%s" %
-                                        (req_url, h, e.message))
+                        raise Exception(e.message)
 
                     for element in res.json():
                         elements.append(element)
