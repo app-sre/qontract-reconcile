@@ -14,7 +14,10 @@ from utils.oc import StatusCodeError
 
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
-                               aws_iam_access_key, aws_iam_user_policy)
+                               aws_iam_access_key, aws_iam_user_policy,
+                               aws_iam_group, aws_iam_group_policy_attachment,
+                               aws_iam_user_group_membership,
+                               aws_iam_user_login_profile)
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
@@ -35,7 +38,7 @@ class UnknownProviderError(Exception):
 
 class TerrascriptClient(object):
     def __init__(self, integration, integration_prefix,
-                 oc_map, thread_pool_size):
+                 thread_pool_size, oc_map={}):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
@@ -55,7 +58,7 @@ class TerrascriptClient(object):
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
                         bucket=config['bucket'],
-                        key=config['key'],
+                        key=config['{}_key'.format(integration)],
                         region=config['region'])
             ts += terraform(backend=b)
             tss[name] = ts
@@ -101,7 +104,128 @@ class TerrascriptClient(object):
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
 
-    def populate(self, tf_query):
+    def populate_iam_groups(self, tf_query):
+        groups = {}
+        for role in tf_query:
+            users = role['users']
+            if len(users) == 0:
+                continue
+
+            aws_groups = role['aws_groups']
+            for aws_group in aws_groups:
+                group_name = aws_group['name']
+                group_policies = aws_group['policies']
+                account = aws_group['account']
+                account_name = account['name']
+                if account_name not in groups:
+                    groups[account_name] = {}
+                if group_name not in groups[account_name]:
+                    # Ref: terraform aws iam_group
+                    tf_iam_group = aws_iam_group(
+                        group_name,
+                        name=group_name
+                    )
+                    self.add_resource(account_name, tf_iam_group)
+                    for policy in group_policies:
+                        # Ref: terraform aws iam_group_policy_attachment
+                        # this may change in the near future
+                        # to include inline policies and not
+                        # only managed policies, as it is currently
+                        tf_iam_group_policy_attachment = \
+                            aws_iam_group_policy_attachment(
+                                group_name + '-' + policy,
+                                group=group_name,
+                                policy_arn='arn:aws:iam::aws:policy/' + policy,
+                                depends_on=[tf_iam_group]
+                            )
+                        self.add_resource(account_name,
+                                          tf_iam_group_policy_attachment)
+                    groups[account_name][group_name] = 'Done'
+        return groups
+
+    def populate_iam_users(self, tf_query):
+        for role in tf_query:
+            users = role['users']
+            if len(users) == 0:
+                continue
+
+            aws_groups = role['aws_groups']
+            for ig in range(len(aws_groups)):
+                group_name = aws_groups[ig]['name']
+                account_name = aws_groups[ig]['account']['name']
+                account_console_url = aws_groups[ig]['account']['consoleUrl']
+
+                # we want to include the console url in the outputs
+                # to be used later to generate the email invitations
+                output_name = '{}.console-urls[{}]'.format(
+                    self.integration_prefix, account_name
+                )
+                output_value = account_console_url
+                tf_output = output(output_name, value=output_value)
+                self.add_resource(account_name, tf_output)
+
+                for iu in range(len(users)):
+                    user_name = users[iu]['redhat_username']
+
+                    # Ref: terraform aws iam_user
+                    tf_iam_user = aws_iam_user(
+                        user_name,
+                        name=user_name,
+                        force_destroy=True,
+                        tags={
+                            'managed_by_integration': self.integration
+                        }
+                    )
+                    self.add_resource(account_name, tf_iam_user)
+
+                    # Ref: terraform aws iam_group_membership
+                    tf_iam_user_group_membership = \
+                        aws_iam_user_group_membership(
+                            user_name + '-' + group_name,
+                            user=user_name,
+                            groups=[group_name],
+                            depends_on=[tf_iam_user]
+                        )
+                    self.add_resource(account_name,
+                                      tf_iam_user_group_membership)
+
+                    # if user does not have a gpg key,
+                    # a password will not be created.
+                    # a gpg key may be added at a later time,
+                    # and a password will be generated
+                    user_public_gpg_key = users[iu]['public_gpg_key']
+                    if user_public_gpg_key is None:
+                        msg = \
+                            'user {} does not have a public gpg key ' + \
+                            'and will be created without a password.'.format(
+                                user_name)
+                        logging.warning(msg)
+                        continue
+                    # Ref: terraform aws iam_user_login_profile
+                    tf_iam_user_login_profile = aws_iam_user_login_profile(
+                        user_name,
+                        user=user_name,
+                        pgp_key=user_public_gpg_key,
+                        depends_on=[tf_iam_user]
+                    )
+                    self.add_resource(account_name, tf_iam_user_login_profile)
+
+                    # we want the outputs to be formed into a mail invitation
+                    # for each new user. we form an output of the form
+                    # 'qrtf.enc-passwords[user_name] = <encrypted password>
+                    output_name = '{}.enc-passwords[{}]'.format(
+                        self.integration_prefix, user_name)
+                    output_value = '${' + tf_iam_user_login_profile.fullname \
+                        + '.encrypted_password}'
+                    tf_output = output(output_name, value=output_value)
+                    self.add_resource(account_name, tf_output)
+
+    def populate_users(self, tf_query):
+        self.populate_iam_groups(tf_query)
+        self.populate_iam_users(tf_query)
+        self.validate()
+
+    def populate_resources(self, tf_query):
         populate_specs = self.init_populate_specs(tf_query)
 
         pool = ThreadPool(self.thread_pool_size)

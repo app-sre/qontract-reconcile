@@ -26,7 +26,8 @@ class OR(OpenshiftResource):
 
 class TerraformClient(object):
     def __init__(self, integration, integration_version,
-                 integration_prefix, working_dirs, thread_pool_size):
+                 integration_prefix, working_dirs, thread_pool_size,
+                 init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
@@ -37,10 +38,43 @@ class TerraformClient(object):
         init_specs = self.init_init_specs(working_dirs)
         results = self.pool.map(self.terraform_init, init_specs)
 
+        self.OUTPUT_TYPE_SECRETS = 'Secrets'
+        self.OUTPUT_TYPE_PASSWORDS = 'enc-passwords'
+        self.OUTPUT_TYPE_CONSOLEURLS = 'console-urls'
         tfs = {}
         for name, tf in results:
             tfs[name] = tf
         self.tfs = tfs
+        if init_users:
+            self.init_existing_users()
+
+    def init_existing_users(self):
+        all_users = {}
+        for account, tf in self.tfs.items():
+            users = []
+            output = tf.output()
+            user_passwords = self.format_output(
+                output, self.OUTPUT_TYPE_PASSWORDS)
+            for user_name in user_passwords:
+                users.append(user_name)
+            all_users[account] = users
+        self.users = all_users
+
+    def get_new_users(self):
+        new_users = []
+        for account, tf in self.tfs.items():
+            existing_users = self.users[account]
+            output = tf.output()
+            user_passwords = self.format_output(
+                output, self.OUTPUT_TYPE_PASSWORDS)
+            console_urls = self.format_output(
+                output, self.OUTPUT_TYPE_CONSOLEURLS)
+            for user_name, enc_password in user_passwords.items():
+                if user_name in existing_users:
+                    continue
+                new_users.append((account, console_urls[account],
+                                  user_name, enc_password))
+        return new_users
 
     def init_init_specs(self, working_dirs):
         return [{'name': name, 'wd': wd} for name, wd in working_dirs.items()]
@@ -138,8 +172,8 @@ class TerraformClient(object):
         return errors
 
     def terraform_apply(self, apply_spec):
-        name = apply_spec.name
-        tf = apply_spec.tf
+        name = apply_spec['name']
+        tf = apply_spec['tf']
         return_code, stdout, stderr = tf.apply(auto_approve=True)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
@@ -147,7 +181,8 @@ class TerraformClient(object):
     def populate_desired_state(self, ri):
         for name, tf in self.tfs.items():
             output = tf.output()
-            formatted_output = self.format_output(output)
+            formatted_output = self.format_output(
+                output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
                 oc_resource = self.construct_oc_resource(name, data)
@@ -159,9 +194,16 @@ class TerraformClient(object):
                     oc_resource
                 )
 
-    def format_output(self, output):
+    def format_output(self, output, type):
         # data is a dictionary of dictionaries
         data = {}
+        if output is None:
+            return data
+
+        enc_pass_pfx = '{}.{}'.format(
+            self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS)
+        console_urls_pfx = '{}.{}'.format(
+            self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS)
         for k, v in output.items():
             # the integration creates outputs of the form
             # output_secret_name[secret_key] = secret_value
@@ -172,6 +214,28 @@ class TerraformClient(object):
             # of the integration.
             if '[' not in k or ']' not in k:
                 continue
+
+            # if the output is of the form 'qrtf.enc-passwords[user_name]'
+            # this is a user output and should not be formed to a Secret
+            # but rather to an invitaion e-mail.
+            # this is determined by the 'type' argument
+            if type == self.OUTPUT_TYPE_PASSWORDS and \
+                    not k.startswith(enc_pass_pfx):
+                continue
+
+            if type == self.OUTPUT_TYPE_CONSOLEURLS and \
+                    not k.startswith(console_urls_pfx):
+                continue
+
+            # Secrets is in essence the default value
+            # because we don't (currently) have a way
+            # to clasify it (secret names are free text)
+            if type == self.OUTPUT_TYPE_SECRETS and (
+                k.startswith(enc_pass_pfx) or
+                k.startswith(console_urls_pfx)
+            ):
+                continue
+
             k_split = k.split('[')
             resource_name = k_split[0]
             field_key = k_split[1][:-1]
@@ -179,6 +243,12 @@ class TerraformClient(object):
             if resource_name not in data:
                 data[resource_name] = {}
             data[resource_name][field_key] = field_value
+
+        if len(data) == 1 and type in (
+            self.OUTPUT_TYPE_PASSWORDS,
+            self.OUTPUT_TYPE_CONSOLEURLS
+        ):
+            return data[data.keys()[0]]
         return data
 
     def construct_oc_resource(self, name, data):

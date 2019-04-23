@@ -45,7 +45,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 1)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -102,9 +102,9 @@ def setup(print_only, thread_pool_size):
     ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
-                     oc_map,
-                     thread_pool_size)
-    ts.populate(tf_query)
+                     thread_pool_size,
+                     oc_map)
+    ts.populate_resources(tf_query)
     working_dirs = ts.dump(print_only)
 
     return ri, oc_map, working_dirs
