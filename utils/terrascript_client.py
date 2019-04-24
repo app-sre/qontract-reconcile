@@ -196,7 +196,7 @@ class TerrascriptClient(object):
                     user_public_gpg_key = users[iu]['public_gpg_key']
                     if user_public_gpg_key is None:
                         msg = \
-                            'user {} does not have a public gpg key ' + \
+                            'user {} does not have a public gpg key ' \
                             'and will be created without a password.'.format(
                                 user_name)
                         logging.warning(msg)
@@ -206,7 +206,13 @@ class TerrascriptClient(object):
                         user_name,
                         user=user_name,
                         pgp_key=user_public_gpg_key,
-                        depends_on=[tf_iam_user]
+                        depends_on=[tf_iam_user],
+                        lifecycle={
+                            'ignore_changes': ["id",
+                                               "password_length",
+                                               "password_reset_required",
+                                               "pgp_key"]
+                        }
                     )
                     self.add_resource(account_name, tf_iam_user_login_profile)
 
