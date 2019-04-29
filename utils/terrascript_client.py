@@ -179,12 +179,16 @@ class TerrascriptClient(object):
                     self.add_resource(account_name, tf_iam_user)
 
                     # Ref: terraform aws iam_group_membership
+                    tf_iam_group = aws_iam_group(
+                        group_name,
+                        name=group_name
+                    )
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
                             user=user_name,
                             groups=[group_name],
-                            depends_on=[tf_iam_user]
+                            depends_on=[tf_iam_user, tf_iam_group]
                         )
                     self.add_resource(account_name,
                                       tf_iam_user_group_membership)
