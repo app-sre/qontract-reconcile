@@ -293,7 +293,7 @@ class TerraformClient(object):
                 # as it will contain sensitive information, skip printing
                 if line.startswith('Outputs:'):
                     break
-                logging.info(line_format.format(name, line))
+                logging.debug(line_format.format(name, line))
             if return_code == 0:
                 for line in stderr:
                     logging.warning(line_format.format(name, line))
