@@ -35,6 +35,9 @@ Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environ
 ```sh
 virtualenv venv
 source venv/bin/activate
+
+# make sure you are running the latest setuptools
+pip install --upgrade pip setuptools
 ```
 
 Install the package:
