@@ -13,6 +13,7 @@ import reconcile.quay_repos
 import reconcile.ldap_users
 import reconcile.terraform_resources
 import reconcile.terraform_users
+import reconcile.github_repo_invites
 
 from utils.aggregated_list import RunnerException
 
@@ -147,3 +148,9 @@ def terraform_users(ctx, print_only, enable_deletion,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, thread_pool_size,
                     send_mails)
+
+
+@integration.command()
+@click.pass_context
+def github_repo_invites(ctx):
+    run_integration(reconcile.github_repo_invites.run, ctx.obj['dry_run'])
