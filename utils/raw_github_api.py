@@ -24,6 +24,11 @@ class RawGithubApi(object):
         new_headers['Authorization'] = "token %s" % (self.password,)
         return new_headers
 
+    def patch(self, url):
+        res = requests.patch(url, headers=self.headers())
+        res.raise_for_status()
+        return res
+
     def query(self, url, headers={}):
         h = self.headers(headers)
 
@@ -88,3 +93,12 @@ class RawGithubApi(object):
                 invitation.get('login') for invitation in invitations
             ) if login is not None
         ]
+
+    def repo_invitations(self):
+        return self.query('/user/repository_invitations')
+
+    def accept_repo_invitation(self, invitation_id):
+        url = self.BASE_URL + \
+            '/user/repository_invitations/{}'.format(invitation_id)
+        res = self.patch(url)
+        res.raise_for_status()
