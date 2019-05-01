@@ -175,6 +175,10 @@ class OpenshiftResource(object):
                         subject['apiGroup'] == '':
                     subject.pop('apiGroup')
 
+        if body['kind'] == 'HiveConfig':
+            if 'status' in body:
+                body.pop('status')
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
