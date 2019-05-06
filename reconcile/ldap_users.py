@@ -29,7 +29,8 @@ def init_users():
         p = 'data' + user['path']
         users[u].append(p)
 
-    return [{ 'username': u, 'paths': p } for u, p in users.items()]
+    return [{'username': username, 'paths': paths}
+            for username, paths in users.items()]
 
 
 def get_app_interface_gitlab_api():
