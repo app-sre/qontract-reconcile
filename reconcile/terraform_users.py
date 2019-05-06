@@ -24,7 +24,10 @@ TF_QUERY = """
     }
     user_policies {
       name
-      path
+      policy
+      account {
+        name
+      }
     }
   }
 }
