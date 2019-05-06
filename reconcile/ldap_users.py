@@ -7,8 +7,9 @@ from utils.config import get_config
 from utils.gitlab_api import GitLabApi
 
 from multiprocessing.dummy import Pool as ThreadPool
+from collections import defaultdict
 
-USERS_QUERY = """
+QUERY = """
 {
   users: users_v1 {
     path
@@ -18,11 +19,17 @@ USERS_QUERY = """
 """
 
 
-class UserSpec(object):
-    def __init__(self, delete, username, path):
-        self.delete = delete
-        self.username = username
-        self.path = path
+def init_users():
+    gqlapi = gql.get_api()
+    result = gqlapi.query(QUERY)['users']
+
+    users = defaultdict(list)
+    for user in result:
+        u = user['redhat_username']
+        p = 'data' + user['path']
+        users[u].append(p)
+
+    return users.items()
 
 
 def get_app_interface_gitlab_api():
@@ -35,30 +42,26 @@ def get_app_interface_gitlab_api():
     return GitLabApi(server, token, project_id, False)
 
 
-def init_user_spec(user):
-    username = user['redhat_username']
-    path = 'data' + user['path']
-
+def init_user_spec((username, paths)):
     delete = False
     if not ldap_client.user_exists(username):
         delete = True
 
-    return UserSpec(delete, username, path)
+    return (username, delete, paths)
 
 
 def run(dry_run=False, thread_pool_size=10):
-    gqlapi = gql.get_api()
-    result = gqlapi.query(USERS_QUERY)
+    users = init_users()
+    pool = ThreadPool(thread_pool_size)
+    user_specs = pool.map(init_user_spec, users)
+    users_to_delete = [(username, paths) for username, delete, paths
+                       in user_specs if delete]
 
     if not dry_run:
         gl = get_app_interface_gitlab_api()
 
-    pool = ThreadPool(thread_pool_size)
-    user_specs = pool.map(init_user_spec, result['users'])
-    users_to_delete = [u for u in user_specs if u.delete]
-
-    for u in users_to_delete:
-        logging.info(['delete_user', u.username, u.path])
+    for username, paths in users_to_delete:
+        logging.info(['delete_user', username])
 
         if not dry_run:
-            gl.create_delete_user_mr(u.username, u.path)
+            gl.create_delete_user_mr(username, paths)
