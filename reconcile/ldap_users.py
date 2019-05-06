@@ -29,7 +29,7 @@ def init_users():
         p = 'data' + user['path']
         users[u].append(p)
 
-    return users.items()
+    return [{ 'username': u, 'paths': p } for u, p in users.items()]
 
 
 def get_app_interface_gitlab_api():
@@ -42,7 +42,10 @@ def get_app_interface_gitlab_api():
     return GitLabApi(server, token, project_id, False)
 
 
-def init_user_spec((username, paths)):
+def init_user_spec(user):
+    username = user['username']
+    paths = user['paths']
+
     delete = False
     if not ldap_client.user_exists(username):
         delete = True
@@ -56,6 +59,9 @@ def run(dry_run=False, thread_pool_size=10):
     user_specs = pool.map(init_user_spec, users)
     users_to_delete = [(username, paths) for username, delete, paths
                        in user_specs if delete]
+    import sys
+    print(users_to_delete)
+    sys.exit()
 
     if not dry_run:
         gl = get_app_interface_gitlab_api()
