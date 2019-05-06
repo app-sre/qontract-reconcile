@@ -238,11 +238,15 @@ class TerrascriptClient(object):
                 for ip in range(len(user_policies)):
                     policy_name = user_policies[ip]['name']
                     policy = user_policies[ip]['policy']
-                    account_name = aws_groups[ig]['account']['name'] 
+                    account_name = aws_groups[ig]['account']['name']
                     for iu in range(len(users)):
                         # replace known keys with values
                         user_name = users[iu]['redhat_username']
                         policy = policy.replace('${aws:username}', user_name)
+                        policy = policy.replace(
+                            '${aws:accountid}',
+                            self.variables[account_name]['uid']
+                        )
 
                         # Ref: terraform aws iam_user_policy
                         tf_iam_user = self.get_tf_iam_user(user_name)
