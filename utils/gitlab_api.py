@@ -61,7 +61,7 @@ class GitLabApi(object):
 
         return False
 
-    def create_delete_user_mr(self, username, path):
+    def create_delete_user_mr(self, username, paths):
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-{}-{}'.format(
@@ -69,22 +69,23 @@ class GitLabApi(object):
             username,
             str(uuid.uuid4())[0:6]
         )
-        title = '[{}] delete user {} ({})'.format(prefix, username, path)
+        title = '[{}] delete user {}'.format(prefix, username)
 
         if self.mr_exists(title):
             return
 
         self.create_branch(branch_name, target_branch)
 
-        try:
-            self.delete_file(branch_name, path, title)
-        except gitlab.exceptions.GitlabCreateError as e:
-            self.delete_branch(branch_name)
-            if str(e) != "400: A file with this name doesn't exist":
-                raise e
-            logging.info(
-                "File {} does not exist, not opening MR".format(path)
-            )
-            return
+        for path in paths:
+            try:
+                self.delete_file(branch_name, path, title)
+            except gitlab.exceptions.GitlabCreateError as e:
+                self.delete_branch(branch_name)
+                if str(e) != "400: A file with this name doesn't exist":
+                    raise e
+                logging.info(
+                    "File {} does not exist, not opening MR".format(path)
+                )
+                return
 
         self.create_mr(branch_name, target_branch, title)
