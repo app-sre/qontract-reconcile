@@ -22,12 +22,16 @@ TF_QUERY = """
         consoleUrl
       }
     }
+    user_policies {
+      name
+      path
+    }
   }
 }
 """
 
 QONTRACT_INTEGRATION = 'terraform_users'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 2)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 

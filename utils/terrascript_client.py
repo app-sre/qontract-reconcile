@@ -104,6 +104,22 @@ class TerrascriptClient(object):
         secret = vault_client.read_all(secrets_path + '/' + type)
         return (account, type, secret)
 
+    def get_tf_iam_group(self, group_name):
+        return aws_iam_group(
+            group_name,
+            name=group_name
+        )
+
+    def get_tf_iam_user(self, user_name):
+        return aws_iam_user(
+            user_name,
+            name=user_name,
+            force_destroy=True,
+            tags={
+                'managed_by_integration': self.integration
+            }
+        )
+
     def populate_iam_groups(self, tf_query):
         groups = {}
         for role in tf_query:
@@ -121,10 +137,7 @@ class TerrascriptClient(object):
                     groups[account_name] = {}
                 if group_name not in groups[account_name]:
                     # Ref: terraform aws iam_group
-                    tf_iam_group = aws_iam_group(
-                        group_name,
-                        name=group_name
-                    )
+                    tf_iam_group = self.get_tf_iam_group(group_name)
                     self.add_resource(account_name, tf_iam_group)
                     for policy in group_policies:
                         # Ref: terraform aws iam_group_policy_attachment
@@ -168,21 +181,11 @@ class TerrascriptClient(object):
                     user_name = users[iu]['redhat_username']
 
                     # Ref: terraform aws iam_user
-                    tf_iam_user = aws_iam_user(
-                        user_name,
-                        name=user_name,
-                        force_destroy=True,
-                        tags={
-                            'managed_by_integration': self.integration
-                        }
-                    )
+                    tf_iam_user = self.get_tf_iam_user(user_name)
                     self.add_resource(account_name, tf_iam_user)
 
                     # Ref: terraform aws iam_group_membership
-                    tf_iam_group = aws_iam_group(
-                        group_name,
-                        name=group_name
-                    )
+                    tf_iam_group = self.get_tf_iam_group(group_name)
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
@@ -229,6 +232,25 @@ class TerrascriptClient(object):
                         + '.encrypted_password}'
                     tf_output = output(output_name, value=output_value)
                     self.add_resource(account_name, tf_output)
+
+            user_policies = role['user_policies']
+            if user_policies is not None:
+                for ip in range(len(user_policies)):
+                    policy_name = user_policies[ip]['name']
+                    for iu in range(len(users)):
+                        user_name = users[iu]['redhat_username']
+                        replace_args = {'${aws:username}': user_name}
+                        policy = self.get_values(user_policies[ip]['path'],
+                                                 **replace_args)
+                        tf_iam_user = self.get_tf_iam_user(user_name)
+                        tf_aws_iam_user_policy = aws_iam_user_policy(
+                            user_name + '-' + policy_name,
+                            user=user_name,
+                            policy=json.dumps(policy, sort_keys=True),
+                            depends_on=[tf_iam_user]
+                        )
+                        self.add_resource(account_name,
+                                          tf_aws_iam_user_policy)
 
     def populate_users(self, tf_query):
         self.populate_iam_groups(tf_query)
@@ -486,15 +508,18 @@ class TerrascriptClient(object):
         output_value = 'Secret'
         tf_resources.append(output(output_name, value=output_value))
 
-    def get_values(self, path):
+    def get_values(self, path, **repalce_args):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
+            content = raw_values['content']
         except gql.GqlApiError as e:
             raise FetchResourceError(e.message)
+        for old, new in repalce_args.items():
+            content = content.replace(old, new)
         try:
             values = anymarkup.parse(
-                raw_values['content'],
+                content,
                 force_types=None
             )
         except anymarkup.AnyMarkupError:
