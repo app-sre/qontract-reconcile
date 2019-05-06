@@ -515,18 +515,15 @@ class TerrascriptClient(object):
         output_value = 'Secret'
         tf_resources.append(output(output_name, value=output_value))
 
-    def get_values(self, path, **replace_args):
+    def get_values(self, path):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
-            content = raw_values['content']
         except gql.GqlApiError as e:
             raise FetchResourceError(e.message)
-        for old, new in replace_args.items():
-            content = content.replace(old, new)
         try:
             values = anymarkup.parse(
-                content,
+                raw_values['content'],
                 force_types=None
             )
         except anymarkup.AnyMarkupError:
