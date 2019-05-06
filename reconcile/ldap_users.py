@@ -59,9 +59,6 @@ def run(dry_run=False, thread_pool_size=10):
     user_specs = pool.map(init_user_spec, users)
     users_to_delete = [(username, paths) for username, delete, paths
                        in user_specs if delete]
-    import sys
-    print(users_to_delete)
-    sys.exit()
 
     if not dry_run:
         gl = get_app_interface_gitlab_api()
