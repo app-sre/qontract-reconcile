@@ -237,11 +237,11 @@ class TerrascriptClient(object):
             if user_policies is not None:
                 for ip in range(len(user_policies)):
                     policy_name = user_policies[ip]['name']
-                    policy = user_policies[ip]['policy']
                     account_name = aws_groups[ig]['account']['name']
                     for iu in range(len(users)):
                         # replace known keys with values
                         user_name = users[iu]['redhat_username']
+                        policy = user_policies[ip]['policy']
                         policy = policy.replace('${aws:username}', user_name)
                         policy = policy.replace(
                             '${aws:accountid}',
@@ -252,6 +252,7 @@ class TerrascriptClient(object):
                         tf_iam_user = self.get_tf_iam_user(user_name)
                         tf_aws_iam_user_policy = aws_iam_user_policy(
                             user_name + '-' + policy_name,
+                            name=user_name + '-' + policy_name,
                             user=user_name,
                             policy=policy,
                             depends_on=[tf_iam_user]
