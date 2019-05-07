@@ -4,7 +4,6 @@ import reconcile.openshift_resources as openshift_resources
 
 import utils.gql as gql
 
-from utils.config import get_config
 from utils.openshift_resource import ResourceInventory
 from utils.oc import StatusCodeError
 
@@ -49,7 +48,8 @@ def get_desired_state():
     ri = ResourceInventory()
     oc_map = {}
     openshift_resources.init_specs_to_fetch(ri, oc_map, query)
-    desired_state = [{"cluster": cluster, "namespace": namespace} for cluster, namespace, _, _ in ri]
+    desired_state = [{"cluster": cluster, "namespace": namespace}
+                     for cluster, namespace, _, _ in ri]
 
     return oc_map, desired_state
 
