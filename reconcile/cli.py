@@ -7,6 +7,7 @@ import utils.gql as gql
 import reconcile.github_org
 import reconcile.openshift_rolebinding
 import reconcile.openshift_resources
+import reconcile.openshift_namespaces
 import reconcile.openshift_resources_annotate
 import reconcile.quay_membership
 import reconcile.quay_repos
@@ -91,6 +92,14 @@ def openshift_rolebinding(ctx):
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
+                    ctx.obj['dry_run'], thread_pool_size)
+
+
+@integration.command()
+@threaded
+@click.pass_context
+def openshift_namespaces(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_namespaces.run,
                     ctx.obj['dry_run'], thread_pool_size)
 
 

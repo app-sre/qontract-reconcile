@@ -71,6 +71,10 @@ class OC(object):
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
 
+    def new_project(self, namespace):
+        cmd = ['new-project', namespace]
+        self._run(cmd)
+
     def _run(self, cmd, **kwargs):
         if kwargs.get('stdin'):
             stdin = PIPE
