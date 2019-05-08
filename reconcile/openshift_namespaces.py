@@ -40,12 +40,10 @@ QUERY = """
 def get_desired_state():
     gqlapi = gql.get_api()
     query = gqlapi.query(QUERY)['namespaces']
-    for namespace_info in query:
-        # adjust to match openshift_resources functions
-        namespace_info['managedResourceTypes'] = ['Namespace']
     ri = ResourceInventory()
     oc_map = {}
-    openshift_resources.init_specs_to_fetch(ri, oc_map, query)
+    openshift_resources.init_specs_to_fetch(ri, oc_map, query,
+        override_managed_types=['Namespace'])
     desired_state = [{"cluster": cluster, "namespace": namespace}
                      for cluster, namespace, _, _ in ri]
 

@@ -82,7 +82,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 1)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -347,12 +347,17 @@ def fetch_states(spec, ri):
         fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
 
 
-def init_specs_to_fetch(ri, oc_map, namespaces_query):
+def init_specs_to_fetch(ri, oc_map, namespaces_query,
+                        override_managed_types=None,
+                        managed_types_key='managedResourceTypes'):
     state_specs = []
 
     for namespace_info in namespaces_query:
-        # Skip if namespace has no managedResourceTypes
-        managed_types = namespace_info.get('managedResourceTypes')
+        if override_managed_types is None:
+            managed_types = namespace_info.get(managed_types_key)
+        else:
+            managed_types = override_managed_types
+
         if not managed_types:
             continue
 
