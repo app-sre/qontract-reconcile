@@ -45,19 +45,15 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 2)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 3)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
 def adjust_tf_query(tf_query):
     out_tf_query = []
     for namespace_info in tf_query:
-        managed_terraform_resources = \
-          namespace_info.get('managedTerraformResources')
-        if not managed_terraform_resources:
+        if not namespace_info.get('managedTerraformResources'):
             continue
-        # adjust to match openshift_resources functions
-        namespace_info['managedResourceTypes'] = ['Secret']
         out_tf_query.append(namespace_info)
     return out_tf_query
 
@@ -87,7 +83,12 @@ def fetch_current_state(tf_query, thread_pool_size):
     ri = ResourceInventory()
     oc_map = {}
     state_specs = \
-        openshift_resources.init_specs_to_fetch(ri, oc_map, tf_query)
+        openshift_resources.init_specs_to_fetch(
+            ri,
+            oc_map,
+            tf_query,
+            override_managed_types=['Secret']
+        )
 
     pool = ThreadPool(thread_pool_size)
     populate_oc_resources_partial = \

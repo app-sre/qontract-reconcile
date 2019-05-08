@@ -10,6 +10,7 @@ Tool to reconcile services with their desired state as defined in the app-interf
 - `qontract-reconcile quay-membership`: Configures the teams and members in Quay.
 - `qontract-reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
 - `qontract-reconcile openshift-resources`: Manages OpenShift Resources.
+- `qontract-reconcile openshift-namespaces`: Manages OpenShift Namespaces.
 - `qontract-reconcile openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
 - `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
