@@ -83,8 +83,12 @@ def fetch_current_state(tf_query, thread_pool_size):
     ri = ResourceInventory()
     oc_map = {}
     state_specs = \
-        openshift_resources.init_specs_to_fetch(ri, oc_map, tf_query,
-            override_managed_types=['Secret'])
+        openshift_resources.init_specs_to_fetch(
+            ri,
+            oc_map,
+            tf_query,
+            override_managed_types=['Secret']
+        )
 
     pool = ThreadPool(thread_pool_size)
     populate_oc_resources_partial = \
