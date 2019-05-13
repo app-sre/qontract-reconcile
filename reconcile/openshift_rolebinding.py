@@ -1,5 +1,6 @@
 import logging
 import sys
+import copy
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -195,7 +196,7 @@ def fetch_desired_state(roles):
 
 
 def permissions_kind(permissions, kind):
-    permissions_copy = permissions.copy()
+    permissions_copy = copy.deepcopy(permissions)
     for permission in permissions_copy:
         permission['kind'] = kind
     return permissions_copy
