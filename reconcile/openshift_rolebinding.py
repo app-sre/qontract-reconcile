@@ -173,32 +173,30 @@ def fetch_desired_state(roles):
         if not permissions:
             continue
 
-        for permission in permissions:
-            permission['kind'] = u'User'
-
-        members = []
+        users = []
+        service_accounts = []
 
         for user in role['users']:
-            members.append(user['github_username'])
+            users.append(user['github_username'])
 
         for bot in role['bots']:
             if bot['github_username'] is not None:
-                members.append(bot['github_username'])
-
-        list(map(lambda p: state.add(p, members), permissions))
-
-        for permission in permissions:
-            permission['kind'] = u'ServiceAccount'
-
-        members = []
-
-        for bot in role['bots']:
+                users.append(bot['github_username'])
             if bot['openshift_serviceaccount'] is not None:
-                members.append(bot['openshift_serviceaccount'])
+                service_accounts.append(bot['openshift_serviceaccount'])
 
-        list(map(lambda p: state.add(p, members), permissions))
+        init_kind(permissions, u'User')
+        list(map(lambda p: state.add(p, users), permissions))
+
+        init_kind(permissions, u'ServiceAccount')
+        list(map(lambda p: state.add(p, service_accounts), permissions))
 
     return state
+
+
+def init_kind(permissions, kind):
+    for permission in permissions:
+        permission['kind'] = kind
 
 
 class RunnerAction(object):
