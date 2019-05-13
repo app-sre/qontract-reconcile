@@ -185,18 +185,20 @@ def fetch_desired_state(roles):
             if bot['openshift_serviceaccount'] is not None:
                 service_accounts.append(bot['openshift_serviceaccount'])
 
-        init_kind(permissions, u'User')
-        list(map(lambda p: state.add(p, users), permissions))
+        permissions_users = permissions_kind(permissions, u'User')
+        list(map(lambda p: state.add(p, users), permissions_users))
 
-        init_kind(permissions, u'ServiceAccount')
-        list(map(lambda p: state.add(p, service_accounts), permissions))
+        permissions_sas = permissions_kind(permissions, u'ServiceAccount')
+        list(map(lambda p: state.add(p, service_accounts), permissions_sas))
 
     return state
 
 
-def init_kind(permissions, kind):
-    for permission in permissions:
+def permissions_kind(permissions, kind):
+    permissions_copy = permissions.copy()
+    for permission in permissions_copy:
         permission['kind'] = kind
+    return permissions_copy
 
 
 class RunnerAction(object):
