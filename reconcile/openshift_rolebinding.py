@@ -47,6 +47,7 @@ ROLES_QUERY = """
     }
     bots {
       github_username
+      openshift_serviceaccount
     }
     permissions {
       ...on PermissionOpenshiftRolebinding_v1 {
@@ -127,7 +128,7 @@ def fetch_current_state(cluster_store):
             for role in roles:
                 rolebindings = api.get_rolebindings(namespace, role)
 
-                members = [
+                users = [
                     subject[u'name']
                     for rolebinding in rolebindings
                     for subject in rolebinding['subjects']
@@ -139,7 +140,24 @@ def fetch_current_state(cluster_store):
                     "cluster": cluster,
                     "namespace": namespace,
                     "role": role,
-                }, members)
+                    "kind": u'User',
+                }, users)
+
+                bots = [
+                    subject[u'namespace'] + '/' + subject[u'name']
+                    for rolebinding in rolebindings
+                    for subject in rolebinding['subjects']
+                    if subject[u'kind'] == u'ServiceAccount' and \
+                        u'namespace' in subject
+                ]
+
+                state.add({
+                    "service": "openshift-rolebinding",
+                    "cluster": cluster,
+                    "namespace": namespace,
+                    "role": role,
+                    "kind": u'ServiceAccount'
+                }, bots)
 
     return state
 
@@ -152,6 +170,8 @@ def fetch_desired_state(roles):
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']
         ))
+        for permission in permissions:
+            permission['kind'] = u'User'
 
         if permissions:
             members = []
@@ -160,8 +180,20 @@ def fetch_desired_state(roles):
                 members.append(user['github_username'])
 
             for bot in role['bots']:
-                if 'github_username' in bot:
+                if bot['github_username'] is not None:
                     members.append(bot['github_username'])
+
+            list(map(lambda p: state.add(p, members), permissions))
+
+        for permission in permissions:
+            permission['kind'] = u'ServiceAccount'
+
+        if permissions:
+            members = []
+
+            for bot in role['bots']:
+                if bot['openshift_serviceaccount'] is not None:
+                    members.append(bot['openshift_serviceaccount'])
 
             list(map(lambda p: state.add(p, members), permissions))
 
@@ -183,6 +215,7 @@ class RunnerAction(object):
             cluster = params['cluster']
             namespace = params['namespace']
             role = params['role']
+            kind = params['kind']
 
             if not self.dry_run:
                 api = self.cluster_store.api(cluster)
@@ -190,16 +223,17 @@ class RunnerAction(object):
             for member in items:
                 logging.info([
                     label,
-                    member,
                     cluster,
                     namespace,
-                    role
+                    role,
+                    kind,
+                    member
                 ])
 
                 if not self.dry_run:
                     f = getattr(api, method_name)
                     try:
-                        f(namespace, role, member)
+                        f(namespace, role, member, kind)
                     except Exception as e:
                         logging.error(e.message)
                         status = False

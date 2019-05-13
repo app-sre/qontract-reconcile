@@ -277,7 +277,7 @@ class Openshift(object):
 
         return items
 
-    def remove_role_from_user(self, namespace, role, user):
+    def remove_role_from_user(self, namespace, role, user, kind):
         """
         Remove a user from a role
 
@@ -296,6 +296,11 @@ class Openshift(object):
         for r in rbs:
             for s in r[u'subjects']:
                 if s[u'kind'] == 'User' and s[u'name'] == user:
+                    rb = r
+                    subject = s
+                    break
+                if s[u'kind'] == 'ServiceAccount' and s[u'name'] == user.split['/'][1] \
+                        and s[u'namespace'] == user.split['/'][0]:
                     rb = r
                     subject = s
                     break
@@ -320,7 +325,7 @@ class Openshift(object):
 
             return self.__oapi_put(uri, json=rb)
 
-    def add_role_to_user(self, namespace, role, user):
+    def add_role_to_user(self, namespace, role, user, kind):
         """
         Add role to user
 
@@ -348,11 +353,22 @@ class Openshift(object):
         uri = "/apis/authorization.openshift.io/v1/namespaces/" + \
             namespace + "/rolebindings"
 
+        if kind == 'User':
+            subject_namespace = u''
+            name = user
+            userName = user
+        if kind == 'ServiceAccount':
+            subject_namespace = user.split('/')[0]
+            name = user.split('/')[1]
+            userName = "system:serviceaccount:" + \
+                subject_namespace + ":" + name
+
         rb = {u'groupNames': None,
               u'metadata': {u'name': rb_name, u'namespace': namespace},
               u'roleRef': {u'name': role},
-              u'subjects': [{u'kind': u'User', u'name': user}],
-              u'userNames': [user]}
+              u'subjects': [{u'kind': kind, u'namespace': subject_namespace,
+                             u'name': name}],
+              u'userNames': [userName]}
 
         return self.__oapi_post(uri, json=rb)
 
