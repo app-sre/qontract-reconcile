@@ -170,32 +170,33 @@ def fetch_desired_state(roles):
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']
         ))
+        if not permissions:
+            continue
+
         for permission in permissions:
             permission['kind'] = u'User'
 
-        if permissions:
-            members = []
+        members = []
 
-            for user in role['users']:
-                members.append(user['github_username'])
+        for user in role['users']:
+            members.append(user['github_username'])
 
-            for bot in role['bots']:
-                if bot['github_username'] is not None:
-                    members.append(bot['github_username'])
+        for bot in role['bots']:
+            if bot['github_username'] is not None:
+                members.append(bot['github_username'])
 
-            list(map(lambda p: state.add(p, members), permissions))
+        list(map(lambda p: state.add(p, members), permissions))
 
         for permission in permissions:
             permission['kind'] = u'ServiceAccount'
 
-        if permissions:
-            members = []
+        members = []
 
-            for bot in role['bots']:
-                if bot['openshift_serviceaccount'] is not None:
-                    members.append(bot['openshift_serviceaccount'])
+        for bot in role['bots']:
+            if bot['openshift_serviceaccount'] is not None:
+                members.append(bot['openshift_serviceaccount'])
 
-            list(map(lambda p: state.add(p, members), permissions))
+        list(map(lambda p: state.add(p, members), permissions))
 
     return state
 
