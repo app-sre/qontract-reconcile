@@ -147,8 +147,8 @@ def fetch_current_state(cluster_store):
                     subject[u'namespace'] + '/' + subject[u'name']
                     for rolebinding in rolebindings
                     for subject in rolebinding['subjects']
-                    if subject[u'kind'] == u'ServiceAccount' and \
-                        u'namespace' in subject
+                    if subject[u'kind'] == u'ServiceAccount' and
+                    u'namespace' in subject
                 ]
 
                 state.add({

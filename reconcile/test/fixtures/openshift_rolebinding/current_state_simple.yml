@@ -26,3 +26,11 @@ state:
     cluster: clusterA
     namespace: ns1
     role: view
+    kind: User
+- items: []
+  params:
+    service: openshift-rolebinding
+    cluster: clusterA
+    namespace: ns1
+    role: view
+    kind: ServiceAccount

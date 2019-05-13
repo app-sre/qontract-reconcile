@@ -12,6 +12,13 @@ gql_response:
       role: view
 
 state:
+- items: []
+  params:
+    service: openshift-rolebinding
+    cluster: clusterA
+    namespace: ns1
+    role: view
+    kind: ServiceAccount
 - items:
   - user1
   - user2
@@ -20,3 +27,4 @@ state:
     cluster: clusterA
     namespace: ns1
     role: view
+    kind: User
