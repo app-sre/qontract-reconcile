@@ -302,12 +302,16 @@ class Openshift(object):
                     rb = r
                     subject = s
                     break
-                if s[u'kind'] == 'ServiceAccount' and \
+                elif s[u'kind'] == 'ServiceAccount' and \
                         s[u'name'] == user.split('/')[1] and \
                         s[u'namespace'] == user.split('/')[0]:
                     rb = r
                     subject = s
                     break
+                else:
+                    raise Exception(
+                        "invalid kind[/namespace]/user combination "
+                        "for subject {}".format(s))
 
         if rb is None:
             raise Exception(
