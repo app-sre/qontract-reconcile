@@ -1,5 +1,6 @@
 import logging
 import sys
+import copy
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -47,6 +48,7 @@ ROLES_QUERY = """
     }
     bots {
       github_username
+      openshift_serviceaccount
     }
     permissions {
       ...on PermissionOpenshiftRolebinding_v1 {
@@ -127,7 +129,7 @@ def fetch_current_state(cluster_store):
             for role in roles:
                 rolebindings = api.get_rolebindings(namespace, role)
 
-                members = [
+                users = [
                     subject[u'name']
                     for rolebinding in rolebindings
                     for subject in rolebinding['subjects']
@@ -139,7 +141,24 @@ def fetch_current_state(cluster_store):
                     "cluster": cluster,
                     "namespace": namespace,
                     "role": role,
-                }, members)
+                    "kind": u'User',
+                }, users)
+
+                bots = [
+                    subject[u'namespace'] + '/' + subject[u'name']
+                    for rolebinding in rolebindings
+                    for subject in rolebinding['subjects']
+                    if subject[u'kind'] == u'ServiceAccount' and
+                    u'namespace' in subject
+                ]
+
+                state.add({
+                    "service": "openshift-rolebinding",
+                    "cluster": cluster,
+                    "namespace": namespace,
+                    "role": role,
+                    "kind": u'ServiceAccount'
+                }, bots)
 
     return state
 
@@ -152,20 +171,35 @@ def fetch_desired_state(roles):
             lambda p: p.get('service') == 'openshift-rolebinding',
             role['permissions']
         ))
+        if not permissions:
+            continue
 
-        if permissions:
-            members = []
+        users = []
+        service_accounts = []
 
-            for user in role['users']:
-                members.append(user['github_username'])
+        for user in role['users']:
+            users.append(user['github_username'])
 
-            for bot in role['bots']:
-                if 'github_username' in bot:
-                    members.append(bot['github_username'])
+        for bot in role['bots']:
+            if bot['github_username'] is not None:
+                users.append(bot['github_username'])
+            if bot['openshift_serviceaccount'] is not None:
+                service_accounts.append(bot['openshift_serviceaccount'])
 
-            list(map(lambda p: state.add(p, members), permissions))
+        permissions_users = permissions_kind(permissions, u'User')
+        list(map(lambda p: state.add(p, users), permissions_users))
+
+        permissions_sas = permissions_kind(permissions, u'ServiceAccount')
+        list(map(lambda p: state.add(p, service_accounts), permissions_sas))
 
     return state
+
+
+def permissions_kind(permissions, kind):
+    permissions_copy = copy.deepcopy(permissions)
+    for permission in permissions_copy:
+        permission['kind'] = kind
+    return permissions_copy
 
 
 class RunnerAction(object):
@@ -183,6 +217,7 @@ class RunnerAction(object):
             cluster = params['cluster']
             namespace = params['namespace']
             role = params['role']
+            kind = params['kind']
 
             if not self.dry_run:
                 api = self.cluster_store.api(cluster)
@@ -190,16 +225,17 @@ class RunnerAction(object):
             for member in items:
                 logging.info([
                     label,
-                    member,
                     cluster,
                     namespace,
-                    role
+                    role,
+                    kind,
+                    member
                 ])
 
                 if not self.dry_run:
                     f = getattr(api, method_name)
                     try:
-                        f(namespace, role, member)
+                        f(namespace, role, member, kind)
                     except Exception as e:
                         logging.error(e.message)
                         status = False

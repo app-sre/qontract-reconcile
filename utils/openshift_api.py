@@ -277,7 +277,7 @@ class Openshift(object):
 
         return items
 
-    def remove_role_from_user(self, namespace, role, user):
+    def remove_role_from_user(self, namespace, role, user, kind):
         """
         Remove a user from a role
 
@@ -295,10 +295,23 @@ class Openshift(object):
         subject = None
         for r in rbs:
             for s in r[u'subjects']:
+                if s[u'kind'] != kind:
+                    continue
+
                 if s[u'kind'] == 'User' and s[u'name'] == user:
                     rb = r
                     subject = s
                     break
+                elif s[u'kind'] == 'ServiceAccount' and \
+                        s[u'name'] == user.split('/')[1] and \
+                        s[u'namespace'] == user.split('/')[0]:
+                    rb = r
+                    subject = s
+                    break
+                else:
+                    raise Exception(
+                        "invalid kind[/namespace]/user combination "
+                        "for subject {}".format(s))
 
         if rb is None:
             raise Exception(
@@ -313,14 +326,14 @@ class Openshift(object):
             # remove the rb
             return self.__oapi_delete(uri)
         else:
-            # remove the user from 'subects' and 'userNames' and then update
+            # remove the user from 'subjects' and 'userNames' and then update
             # (PUT) the roleBinding.
             rb[u'subjects'].remove(subject)
             rb[u'userNames'].remove(user)
 
             return self.__oapi_put(uri, json=rb)
 
-    def add_role_to_user(self, namespace, role, user):
+    def add_role_to_user(self, namespace, role, user, kind):
         """
         Add role to user
 
@@ -348,11 +361,22 @@ class Openshift(object):
         uri = "/apis/authorization.openshift.io/v1/namespaces/" + \
             namespace + "/rolebindings"
 
+        if kind == 'User':
+            subject_namespace = u''
+            name = user
+            userName = user
+        if kind == 'ServiceAccount':
+            subject_namespace = user.split('/')[0]
+            name = user.split('/')[1]
+            userName = "system:serviceaccount:" + \
+                subject_namespace + ":" + name
+
         rb = {u'groupNames': None,
               u'metadata': {u'name': rb_name, u'namespace': namespace},
               u'roleRef': {u'name': role},
-              u'subjects': [{u'kind': u'User', u'name': user}],
-              u'userNames': [user]}
+              u'subjects': [{u'kind': kind, u'namespace': subject_namespace,
+                             u'name': name}],
+              u'userNames': [userName]}
 
         return self.__oapi_post(uri, json=rb)
 
