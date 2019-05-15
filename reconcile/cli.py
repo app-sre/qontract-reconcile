@@ -31,9 +31,6 @@ def terraform(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the terraform config file.',
                             default=False)(function)
-    function = click.option('--enable-deletion/--no-enable-deletion',
-                            help='enable destroy/replace action.',
-                            default=False)(function)
 
     return function
 
@@ -137,6 +134,9 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 @integration.command()
 @terraform
 @threaded
+@click.option('--enable-deletion/--no-enable-deletion',
+              default=False,
+              help='enable destroy/replace action.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
     run_integration(reconcile.terraform_resources.run,
@@ -147,6 +147,9 @@ def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
 @integration.command()
 @terraform
 @threaded
+@click.option('--enable-deletion/--no-enable-deletion',
+              default=True,
+              help='enable destroy/replace action.')
 @click.option('--send-mails/--no-send-mails',
               default=True,
               help='send email invitation to new users.')
