@@ -308,10 +308,6 @@ class Openshift(object):
                     rb = r
                     subject = s
                     break
-                else:
-                    raise Exception(
-                        "invalid kind[/namespace]/user combination "
-                        "for subject {}".format(s))
 
         if rb is None:
             raise Exception(
