@@ -293,6 +293,7 @@ class Openshift(object):
         # find the roleBinding for the user
         rb = None
         subject = None
+        userName = None
         for r in rbs:
             for s in r[u'subjects']:
                 if s[u'kind'] != kind:
@@ -301,12 +302,15 @@ class Openshift(object):
                 if s[u'kind'] == 'User' and s[u'name'] == user:
                     rb = r
                     subject = s
+                    userName = user
                     break
                 elif s[u'kind'] == 'ServiceAccount' and \
                         s[u'name'] == user.split('/')[1] and \
                         s[u'namespace'] == user.split('/')[0]:
                     rb = r
                     subject = s
+                    userName = "system:serviceaccount:" + \
+                        user.split('/')[0] + ":" + user.split('/')[1]
                     break
 
         if rb is None:
@@ -325,7 +329,7 @@ class Openshift(object):
             # remove the user from 'subjects' and 'userNames' and then update
             # (PUT) the roleBinding.
             rb[u'subjects'].remove(subject)
-            rb[u'userNames'].remove(user)
+            rb[u'userNames'].remove(userName)
 
             return self.__oapi_put(uri, json=rb)
 
