@@ -117,6 +117,9 @@ class OpenshiftResource(object):
         annotations.pop('kubectl.kubernetes.io/last-applied-configuration',
                         None)
 
+        # remove status
+        body.pop('status', None)
+
         # Default fields for specific resource types
         # ConfigMaps and Secrets are by default Opaque
         if body['kind'] in ('ConfigMap', 'Secret') and \
@@ -124,8 +127,6 @@ class OpenshiftResource(object):
             body.pop('type')
 
         if body['kind'] == 'Route':
-            if 'status' in body:
-                body.pop('status')
             if body['spec'].get('wildcardPolicy') == 'None':
                 body['spec'].pop('wildcardPolicy')
             # remove tls-acme specific params from Route
@@ -174,10 +175,6 @@ class OpenshiftResource(object):
                 if 'apiGroup' in subject and \
                         subject['apiGroup'] == '':
                     subject.pop('apiGroup')
-
-        if body['kind'] == 'HiveConfig':
-            if 'status' in body:
-                body.pop('status')
 
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
