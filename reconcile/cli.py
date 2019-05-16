@@ -6,6 +6,7 @@ import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
 import reconcile.openshift_rolebinding
+import reconcile.openshift_groups
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_resources_annotate
@@ -82,6 +83,12 @@ def github(ctx):
 @click.pass_context
 def openshift_rolebinding(ctx):
     run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def openshift_groups(ctx):
+    run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'])
 
 
 @integration.command()

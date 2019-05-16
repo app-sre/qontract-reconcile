@@ -411,3 +411,10 @@ class Openshift(object):
         uri = '/api/v1/nodes'
         res = self.__oapi_get(uri)
         return res.get('items', [])
+
+    def get_group(self, name):
+        """Get openshift cluster groups"""
+
+        uri = '/apis/user.openshift.io/v1/groups/' + name
+        res = self.__oapi_get(uri)
+        return res
