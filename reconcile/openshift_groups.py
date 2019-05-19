@@ -1,14 +1,7 @@
 import logging
-import sys
-import copy
 
 import utils.gql as gql
-import utils.vault_client as vault_client
-
-from utils.openshift_api import Openshift
-from utils.aggregated_list import (AggregatedList,
-                                   AggregatedDiffRunner,
-                                   RunnerException)
+import reconcile.openshift_resources as openshift_resources
 
 CLUSTERS_QUERY = """
 {
@@ -55,65 +48,23 @@ ROLES_QUERY = """
 """
 
 
-class ClusterStore(object):
-    _clusters = {}
-
-    def __init__(self, clusters):
-        _clusters = {}
-
-        for cluster_info in clusters:
-            cluster_name = cluster_info['name']
-            groups = cluster_info['managedGroups']
-            jump_host = cluster_info.get('jumpHost')
-            automation_token = cluster_info.get('automationToken')
-
-            if not automation_token:
-                continue
-
-            if _clusters.get(cluster_name) is not None:
-                continue
-
-            if groups is None:
-                continue
-
-            token = vault_client.read(
-                automation_token['path'],
-                automation_token['field'],
-            )
-
-            api = Openshift(cluster_info['serverUrl'], token,
-                            jump_host=jump_host)
-
-            _clusters[cluster_name] = {
-                'api': api,
-                'groups': groups
-            }
-
-        self._clusters = _clusters
-
-    def clusters(self):
-        return self._clusters.keys()
-
-    def api(self, cluster):
-        return self._clusters[cluster]['api']
-
-    def groups(self, cluster):
-        return self._clusters[cluster]['groups']
-
-    def cleanup(self):
-        for cluster in self.clusters():
-            api = self.api(cluster)
-            api.cleanup()
-
-
-def fetch_current_state(cluster_store):
+def fetch_current_state():
+    gqlapi = gql.get_api()
+    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
+    oc_map = {}
 
-    for cluster in cluster_store.clusters():
-        api = cluster_store.api(cluster)
+    for cluster_info in clusters:
+        groups = cluster_info['managedGroups']
+        if groups is None:
+            continue
 
-        for group_name in cluster_store.groups(cluster):
-            group = api.get_group(group_name)
+        cluster = cluster_info['name']
+        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
+        oc_map[cluster] = oc
+
+        for group_name in groups:
+            group = oc.get(None, 'Group', group_name)
             for user in group['users']:
                 current_state.append({
                     "cluster": cluster,
@@ -121,10 +72,12 @@ def fetch_current_state(cluster_store):
                     "user": user
                 })
 
-    return current_state
+    return oc_map, current_state
 
 
-def fetch_desired_state(roles):
+def fetch_desired_state():
+    gqlapi = gql.get_api()
+    roles = gqlapi.query(ROLES_QUERY)['roles']
     desired_state = []
 
     for r in roles:
@@ -135,7 +88,7 @@ def fetch_desired_state(roles):
                 continue
 
             for u in r['users']:
-                if 'github_username' is None:
+                if u['github_username'] is None:
                     continue
 
                 desired_state.append({
@@ -149,133 +102,59 @@ def fetch_desired_state(roles):
 
 def calculate_diff(current_state, desired_state):
     diff = []
-
-    for d_user in desired_state:
-        found = False
-        for c_user in current_state:
-            if d_user != c_user:
-                continue
-            found = True
-            break
-        if not found:
-            diff.append([
-                "add_user_to_group",
-                d_user['cluster'],
-                d_user['group'],
-                d_user['user']
-            ])
-
-    for c_user in current_state:
-        found = False
-        for d_user in desired_state:
-            if c_user != d_user:
-                continue
-            found = True
-            break
-        if not found:
-            diff.append([
-                "del_user_from_group",
-                c_user['cluster'],
-                c_user['group'],
-                c_user['user']
-            ])
+    users_to_add = \
+        subtract_states(desired_state, current_state, "add_user_to_group")
+    diff.extend(users_to_add)
+    users_to_del = \
+        subtract_states(current_state, desired_state, "del_user_from_group")
+    diff.extend(users_to_del)
 
     return diff
 
 
-class RunnerAction(object):
-    def __init__(self, dry_run, cluster_store):
-        self.dry_run = dry_run
-        self.cluster_store = cluster_store
+def subtract_states(from_state, subtract_state, action):
+    result = []
 
-    def manage_role(self, label, method_name):
-        def action(params, items):
-            if len(items) == 0:
-                return True
+    for f_user in from_state:
+        found = False
+        for s_user in subtract_state:
+            if f_user != s_user:
+                continue
+            found = True
+            break
+        if not found:
+            result.append({
+                "action": action,
+                "cluster": f_user['cluster'],
+                "group": f_user['group'],
+                "user": f_user['user']
+            })
 
-            status = True
+    return result
 
-            cluster = params['cluster']
-            namespace = params['namespace']
-            role = params['role']
-            kind = params['kind']
 
-            if not self.dry_run:
-                api = self.cluster_store.api(cluster)
+def act(diff, oc_map):
+    cluster = diff['cluster']
+    group = diff['group']
+    user = diff['user']
+    action = diff['action']
 
-            for member in items:
-                logging.info([
-                    label,
-                    cluster,
-                    namespace,
-                    role,
-                    kind,
-                    member
-                ])
-
-                if not self.dry_run:
-                    f = getattr(api, method_name)
-                    try:
-                        f(namespace, role, member, kind)
-                    except Exception as e:
-                        logging.error(e.message)
-                        status = False
-
-            return status
-
-        return action
-
-    def add_role(self):
-        return self.manage_role('add_role', 'add_role_to_user')
-
-    def del_role(self):
-        return self.manage_role('del_role', 'remove_role_from_user')
+    if action == "add_user_to_group":
+        oc_map[cluster].add_user_to_group(group, user)
+    elif action == "del_user_from_group":
+        oc_map[cluster].del_user_from_group(group, user)
+    else:
+        raise Exception("invalid action: {}".format(action))
 
 
 def run(dry_run=False):
-    gqlapi = gql.get_api()
+    oc_map, current_state = fetch_current_state()
+    desired_state = fetch_desired_state()
 
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    cluster_store = ClusterStore(clusters)
-    roles = gqlapi.query(ROLES_QUERY)['roles']
-
-    current_state = fetch_current_state(cluster_store)
-    desired_state = fetch_desired_state(roles)
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:
-        print(diff)
-    import sys
-    sys.exit()
+        logging.info(diff.values())
 
-    # Ensure all namespace/roles are well known.
-    # Any item that appears in `diff['insert']` means that it's not listed
-    # as a managedCluster in the cluster datafile.
-    if len(diff['insert']) > 0:
-        unknown_combinations = [
-            "- {}/{}/{}".format(
-                item["params"]["cluster"],
-                item["params"]["namespace"],
-                item["params"]["role"],
-            )
-            for item in diff['insert']
-        ]
-
-        raise RunnerException((
-                "Unknown cluster/namespace/combinations found:\n"
-                "{}"
-            ).format("\n".join(unknown_combinations))
-        )
-
-    # Run actions
-    runner_action = RunnerAction(dry_run, cluster_store)
-    runner = AggregatedDiffRunner(diff)
-
-    runner.register("update-insert", runner_action.add_role())
-    runner.register("update-delete", runner_action.del_role())
-    runner.register("delete", runner_action.del_role())
-
-    status = runner.run()
-
-    if status is False:
-        sys.exit(1)
+        if not dry_run:
+            act(diff, oc_map)
