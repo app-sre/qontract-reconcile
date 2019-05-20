@@ -61,7 +61,7 @@ def get_jenkins_map():
             continue
 
         token = jp['token']
-        jenkins = JenkinsApi(token)
+        jenkins = JenkinsApi(token, False)
         jenkins_map[instance] = jenkins
 
     return jenkins_map
@@ -97,6 +97,15 @@ def get_desired_state():
                 continue
 
             for u in r['users']:
+                desired_state.append({
+                    "instance": p['instance'],
+                    "role": p['role'],
+                    "user": u['redhat_username']
+                })
+            for u in r['bots']:
+                if u['redhat_username'] is None:
+                    continue
+
                 desired_state.append({
                     "instance": p['instance'],
                     "role": p['role'],
@@ -139,6 +148,20 @@ def subtract_states(from_state, subtract_state, action):
     return result
 
 
+def act(diff, jenkins_map):
+    instance = diff['instance']
+    role = diff['role']
+    user = diff['user']
+    action = diff['action']
+
+    if action == "assign_role_to_user":
+        jenkins_map[instance].assign_role_to_user(role, user)
+    elif action == "unassign_role_from_user":
+        jenkins_map[instance].unassign_role_from_user(role, user)
+    else:
+        raise Exception("invalid action: {}".format(action))
+
+
 def run(dry_run=False):
     jenkins_map = get_jenkins_map()
     current_state = get_current_state(jenkins_map)
@@ -147,3 +170,6 @@ def run(dry_run=False):
 
     for diff in diffs:
         logging.info(diff.values())
+
+        if not dry_run:
+            act(diff, jenkins_map)
