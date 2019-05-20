@@ -59,8 +59,9 @@ class OC(object):
         return items
 
     def get(self, namespace, kind, name):
-        cmd = ['get', '-o', 'json', '-n', namespace, kind,
-               name]
+        cmd = ['get', '-o', 'json', kind, name]
+        if namespace is not None:
+            cmd.extend(['-n', namespace])
         return self._run_json(cmd)
 
     def apply(self, namespace, resource):
@@ -73,6 +74,14 @@ class OC(object):
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
+        self._run(cmd)
+
+    def add_user_to_group(self, group, user):
+        cmd = ['adm', 'groups', 'add-users', group, user]
+        self._run(cmd)
+
+    def del_user_from_group(self, group, user):
+        cmd = ['adm', 'groups', 'remove-users', group, user]
         self._run(cmd)
 
     def _run(self, cmd, **kwargs):
