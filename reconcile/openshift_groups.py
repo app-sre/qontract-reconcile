@@ -82,6 +82,8 @@ def fetch_desired_state():
 
     for r in roles:
         for p in r['permissions']:
+            if 'service' not in p:
+                continue
             if p['service'] != 'openshift-group':
                 continue
 
