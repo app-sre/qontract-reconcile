@@ -1,5 +1,4 @@
 import toml
-import json
 import requests
 
 import utils.vault_client as vault_client

@@ -118,10 +118,12 @@ def get_desired_state():
 def calculate_diff(current_state, desired_state):
     diff = []
     users_to_assign = \
-        subtract_states(desired_state, current_state, "assign_role_to_user")
+        subtract_states(desired_state, current_state,
+                        "assign_role_to_user")
     diff.extend(users_to_assign)
     users_to_unassign = \
-        subtract_states(current_state, desired_state, "unassign_role_from_user")
+        subtract_states(current_state, desired_state,
+                        "unassign_role_from_user")
     diff.extend(users_to_unassign)
 
     return diff
