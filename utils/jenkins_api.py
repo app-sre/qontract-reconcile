@@ -3,6 +3,7 @@ import requests
 
 import utils.vault_client as vault_client
 
+
 class JenkinsApi(object):
     """Wrapper around Jenkins API calls"""
 

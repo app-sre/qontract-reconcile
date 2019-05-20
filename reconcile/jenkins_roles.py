@@ -74,7 +74,7 @@ def get_current_state(jenkins_map):
         roles = jenkins.get_all_roles()
         for role_name, users in roles.items():
             if role_name == 'anonymous':
-              continue
+                continue
 
             for user in users:
                 current_state.append({
