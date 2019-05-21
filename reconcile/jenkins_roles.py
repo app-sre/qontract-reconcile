@@ -36,10 +36,6 @@ ROLES_QUERY = """
       ...on PermissionJenkinsRole_v1 {
         instance
         role
-        token {
-          path
-          field
-        }
       }
     }
   }
