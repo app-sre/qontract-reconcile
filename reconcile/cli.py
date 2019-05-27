@@ -17,6 +17,7 @@ import reconcile.terraform_resources
 import reconcile.terraform_users
 import reconcile.github_repo_invites
 import reconcile.jenkins_roles
+import reconcile.jenkins_plugins
 
 from utils.aggregated_list import RunnerException
 
@@ -96,6 +97,12 @@ def openshift_groups(ctx):
 @click.pass_context
 def jenkins_roles(ctx):
     run_integration(reconcile.jenkins_roles.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def jenkins_plugins(ctx):
+    run_integration(reconcile.jenkins_plugins.run, ctx.obj['dry_run'])
 
 
 @integration.command()
