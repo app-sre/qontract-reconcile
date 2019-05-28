@@ -63,9 +63,7 @@ class JenkinsApi(object):
         res.raise_for_status()
 
     def list_plugins(self):
-        url_params = \
-            "depth=1&xpath=/*/*/shortName|/*/*/version&wrapper=plugins"
-        url = "{}/pluginManager/api/json?{}".format(self.url, url_params)
+        url = "{}/pluginManager/api/json?depth=1".format(self.url)
 
         res = requests.get(
             url,
