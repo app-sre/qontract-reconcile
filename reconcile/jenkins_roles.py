@@ -10,11 +10,13 @@ PERMISSIONS_QUERY = """
   permissions: permissions_v1 {
     service
     ...on PermissionJenkinsRole_v1 {
-      instance
       role
-      token {
-        path
-        field
+      instance {
+        name
+        token {
+          path
+          field
+        }
       }
     }
   }
@@ -34,8 +36,10 @@ ROLES_QUERY = """
     permissions {
       service
       ...on PermissionJenkinsRole_v1 {
-        instance
         role
+        instance {
+          name
+        }
       }
     }
   }
@@ -53,12 +57,13 @@ def get_jenkins_map():
     jenkins_map = {}
     for jp in jenkins_permissions:
         instance = jp['instance']
-        if instance in jenkins_map:
+        instance_name = instance['name']
+        if instance_name in jenkins_map:
             continue
 
-        token = jp['token']
+        token = instance['token']
         jenkins = JenkinsApi(token, False)
-        jenkins_map[instance] = jenkins
+        jenkins_map[instance_name] = jenkins
 
     return jenkins_map
 
@@ -94,7 +99,7 @@ def get_desired_state():
 
             for u in r['users']:
                 desired_state.append({
-                    "instance": p['instance'],
+                    "instance": p['instance']['name'],
                     "role": p['role'],
                     "user": u['redhat_username']
                 })
@@ -103,7 +108,7 @@ def get_desired_state():
                     continue
 
                 desired_state.append({
-                    "instance": p['instance'],
+                    "instance": p['instance']['name'],
                     "role": p['role'],
                     "user": u['redhat_username']
                 })
