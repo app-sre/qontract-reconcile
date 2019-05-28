@@ -16,6 +16,9 @@ Tool to reconcile services with their desired state as defined in the app-interf
 - `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
 - `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
 - `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
+- `qontract-reconcile terraform-users`: Manage AWS users using Terraform.
+- `qontract-reconcile jenkins-roles`: Manage Jenkins roles association via REST API.
+- `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 
 ## Usage
 
