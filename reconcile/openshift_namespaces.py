@@ -61,8 +61,11 @@ def check_ns_exists(spec, oc_map):
     create = False
     try:
         oc_map[cluster].get(namespace, 'Namespace', namespace)
-    except StatusCodeError:
-        create = True
+    except StatusCodeError as e:
+        if 'NotFound' in e.message:
+            create = True
+        else:
+            raise e
 
     return spec, create
 
