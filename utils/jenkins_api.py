@@ -78,7 +78,7 @@ class JenkinsApi(object):
 
     def install_plugin(self, name):
         self.should_restart = True
-        header = {"Content-Type: text/xml"}
+        header = {"Content-Type": "text/xml"}
         url = "{}/pluginManager/installNecessaryPlugins".format(self.url)
         data = \
             '<jenkins><install plugin="{}@current" /></jenkins>'.format(name)
