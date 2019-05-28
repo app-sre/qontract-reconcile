@@ -1,5 +1,6 @@
 import toml
 import requests
+import logging
 
 import utils.vault_client as vault_client
 
@@ -93,6 +94,10 @@ class JenkinsApi(object):
     def safe_restart(self, force_restart=False):
         url = "{}/safeRestart".format(self.url)
         if self.should_restart or force_restart:
+            logging.debug('performing safe restart. ' +
+                          'should_restart={}, ' +
+                          'force_restart={}.'.format(self.should_restart,
+                                                     force_restart))
             res = requests.post(
                 url,
                 verify=self.ssl_verify,
