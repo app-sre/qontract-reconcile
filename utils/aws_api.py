@@ -64,6 +64,9 @@ class AWSApi(object):
 
         self.map_s3_resources()
         self.map_sqs_resources()
+        self.map_dynamodb_resources()
+        # TODO
+        # self.map_rds_resources()
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
@@ -92,6 +95,20 @@ class AWSApi(object):
             unfiltered_queues = \
                 self.custom_sqs_filter(sqs, queues_without_owner)
             self.resources[account]['sqs_no_owner'] = unfiltered_queues
+
+    def map_dynamodb_resources(self):
+        for account, s in self.sessions.items():
+            dynamodb = s.client('dynamodb')
+            tables_list = dynamodb.list_tables()
+            if 'TableNames' not in tables_list:
+                continue
+            tables = tables_list['TableNames']
+            self.resources[account]['dynamodb'] = tables
+            tables_without_owner = \
+                self.get_resources_without_owner(account, tables)
+            unfiltered_tables = \
+                self.custom_dynamodb_filter(s, dynamodb, tables_without_owner)
+            self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
 
     def get_resources_without_owner(self, account, resources):
         resources_without_owner = []
@@ -132,17 +149,17 @@ class AWSApi(object):
             try:
                 tags = s3.get_bucket_tagging(Bucket=b)['TagSet']
                 tag = 'managed_by_integration'
-                value = self.get_s3_tag_value(tags, tag)
+                value = self.get_tag_value_struct(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
                 tag = 'owner'
-                value = self.get_s3_tag_value(tags, tag)
+                value = self.get_tag_value_struct(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
                 tag = 'aws_gc_hands_off'
-                value = self.get_s3_tag_value(tags, tag)
+                value = self.get_tag_value_struct(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
@@ -167,17 +184,17 @@ class AWSApi(object):
             try:
                 tags = sqs.list_queue_tags(QueueUrl=q)['Tags']
                 tag = 'managed_by_integration'
-                value = self.get_sqs_tag_value(tags, tag)
+                value = self.get_tag_value_dict(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(q, tag + '=' + value))
                     continue
                 tag = 'owner'
-                value = self.get_sqs_tag_value(tags, tag)
+                value = self.get_tag_value_dict(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(q, tag + '=' + value))
                     continue
                 tag = 'aws_gc_hands_off'
-                value = self.get_sqs_tag_value(tags, tag)
+                value = self.get_tag_value_dict(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(q, tag + '=' + value))
                     continue
@@ -187,7 +204,45 @@ class AWSApi(object):
                     unfiltered_queues.append(q)
         return unfiltered_queues
 
-    def get_s3_tag_value(self, tags, tag):
+    def custom_dynamodb_filter(self, session, dynamodb, tables):
+        skip_msg = 'skipping table {}, {}'
+        dynamodb_resource = session.resource('dynamodb')
+        unfiltered_tables = []
+        for t in tables:
+            # ignore stage/prod buckets - just for safety
+            if 'prod' in t.lower():
+                logging.debug(skip_msg.format(t, 'production related'))
+                continue
+            if 'stage' in t.lower():
+                logging.debug(skip_msg.format(t, 'stage related'))
+                continue
+            # ignore queues with special tags
+            try:
+                table_arn = dynamodb_resource.Table(t).table_arn
+                tags = dynamodb.list_tags_of_resource(
+                    ResourceArn=table_arn)['Tags']
+                tag = 'managed_by_integration'
+                value = self.get_tag_value_struct(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(t, tag + '=' + value))
+                    continue
+                tag = 'owner'
+                value = self.get_tag_value_struct(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(t, tag + '=' + value))
+                    continue
+                tag = 'aws_gc_hands_off'
+                value = self.get_tag_value_struct(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(t, tag + '=' + value))
+                    continue
+                unfiltered_tables.append(t)
+            except KeyError as e:
+                if 'Tags' in e.message:
+                    unfiltered_tables.append(t)
+        return unfiltered_tables
+
+    def get_tag_value_struct(self, tags, tag):
         value = None
         for t in tags:
             if t['Key'] == tag:
@@ -195,7 +250,7 @@ class AWSApi(object):
                 break
         return value
 
-    def get_sqs_tag_value(self, tags, tag):
+    def get_tag_value_dict(self, tags, tag):
         value = None
         for k, v in tags.items():
             if k == tag:
@@ -203,21 +258,29 @@ class AWSApi(object):
                 break
         return value
 
-    def delete_resources_without_owner(self, dry_run):
+    def delete_resources_without_owner(self, dry_run, enable_deletion):
         for account, s in self.sessions.items():
             if 's3_no_owner' in self.resources[account]:
                 s3 = s.resource('s3')
                 for b in self.resources[account]['s3_no_owner']:
                     logging.info(['delete_resource', 's3', account, b])
-                    if not dry_run:
+                    if not dry_run and enable_deletion:
                         self.delete_bucket(s3, b)
+
             if 'sqs_no_owner' in self.resources[account]:
                 sqs = s.client('sqs')
                 for q in self.resources[account]['sqs_no_owner']:
                     q_name = q.split('/')[-1]
                     logging.info(['delete_resource', 'sqs', account, q_name])
-                    if not dry_run:
+                    if not dry_run and enable_deletion:
                         self.delete_queue(sqs, q)
+
+            if 'dynamodb_no_owner' in self.resources[account]:
+                dynamodb = s.resource('dynamodb')
+                for t in self.resources[account]['dynamodb_no_owner']:
+                    logging.info(['delete_resource', 'dynamodb', account, t])
+                    if not dry_run and enable_deletion:
+                        self.delete_table(dynamodb, t)
 
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
@@ -227,3 +290,7 @@ class AWSApi(object):
 
     def delete_queue(self, sqs, queue_url):
         sqs.delete_queue(QueueUrl=queue_url)
+
+    def delete_table(self, dynamodb, table_name):
+        table = dynamodb.Table(table_name)
+        table.delete()
