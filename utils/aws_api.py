@@ -63,17 +63,35 @@ class AWSApi(object):
             self.resources[account] = {}
 
         self.map_s3_resources()
+        self.map_sqs_resources()
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
             s3 = s.client('s3')
-            buckets = [b['Name'] for b in s3.list_buckets()['Buckets']]
+            buckets_list = s3.list_buckets()
+            if 'Buckets' not in buckets_list:
+                continue
+            buckets = [b['Name'] for b in buckets_list['Buckets']]
             self.resources[account]['s3'] = buckets
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
             unfiltered_buckets = \
                 self.custom_s3_filter(s3, buckets_without_owner)
             self.resources[account]['s3_no_owner'] = unfiltered_buckets
+
+    def map_sqs_resources(self):
+        for account, s in self.sessions.items():
+            sqs = s.client('sqs')
+            queues_list = sqs.list_queues()
+            if 'QueueUrls' not in queues_list:
+                continue
+            queues = queues_list['QueueUrls']
+            self.resources[account]['sqs'] = queues
+            queues_without_owner = \
+                self.get_resources_without_owner(account, queues)
+            unfiltered_queues = \
+                self.custom_sqs_filter(sqs, queues_without_owner)
+            self.resources[account]['sqs_no_owner'] = unfiltered_queues
 
     def get_resources_without_owner(self, account, resources):
         resources_without_owner = []
@@ -89,31 +107,42 @@ class AWSApi(object):
             if resource.lower().startswith(u.lower()):
                 has_owner = True
                 break
+            if '://' in resource:
+                if resource.split('/')[-1].startswith(u.lower()):
+                    has_owner = True
+                    break
         return has_owner
 
     def custom_s3_filter(self, s3, buckets):
         skip_msg = 'skipping bucket {}, {}'
         unfiltered_buckets = []
         for b in buckets:
+            # ignore stage/prod buckets - just for safety
+            if 'prod' in b.lower():
+                logging.debug(skip_msg.format(b, 'production related'))
+                continue
+            if 'stage' in b.lower():
+                logging.debug(skip_msg.format(b, 'stage related'))
+                continue
             # ignore terraform buckets
-            if '-tf-' in b:
+            if '-tf-' in b.lower():
                 logging.debug(skip_msg.format(b, 'terraform related'))
                 continue
             # ignore buckets with special tags
             try:
                 tags = s3.get_bucket_tagging(Bucket=b)['TagSet']
                 tag = 'managed_by_integration'
-                value = self.get_tag_value(tags, tag)
+                value = self.get_s3_tag_value(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
                 tag = 'owner'
-                value = self.get_tag_value(tags, tag)
+                value = self.get_s3_tag_value(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
                 tag = 'aws_gc_hands_off'
-                value = self.get_tag_value(tags, tag)
+                value = self.get_s3_tag_value(tags, tag)
                 if value is not None:
                     logging.debug(skip_msg.format(b, tag + '=' + value))
                     continue
@@ -123,7 +152,42 @@ class AWSApi(object):
                     unfiltered_buckets.append(b)
         return unfiltered_buckets
 
-    def get_tag_value(self, tags, tag):
+    def custom_sqs_filter(self, sqs, queues):
+        skip_msg = 'skipping queue {}, {}'
+        unfiltered_queues = []
+        for q in queues:
+            # ignore stage/prod buckets - just for safety
+            if 'prod' in q.lower():
+                logging.debug(skip_msg.format(q, 'production related'))
+                continue
+            if 'stage' in q.lower():
+                logging.debug(skip_msg.format(q, 'stage related'))
+                continue
+            # ignore queues with special tags
+            try:
+                tags = sqs.list_queue_tags(QueueUrl=q)['Tags']
+                tag = 'managed_by_integration'
+                value = self.get_sqs_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(q, tag + '=' + value))
+                    continue
+                tag = 'owner'
+                value = self.get_sqs_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(q, tag + '=' + value))
+                    continue
+                tag = 'aws_gc_hands_off'
+                value = self.get_sqs_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(q, tag + '=' + value))
+                    continue
+                unfiltered_queues.append(q)
+            except KeyError as e:
+                if 'Tags' in e.message:
+                    unfiltered_queues.append(q)
+        return unfiltered_queues
+
+    def get_s3_tag_value(self, tags, tag):
         value = None
         for t in tags:
             if t['Key'] == tag:
@@ -131,16 +195,35 @@ class AWSApi(object):
                 break
         return value
 
+    def get_sqs_tag_value(self, tags, tag):
+        value = None
+        for k, v in tags.items():
+            if k == tag:
+                value = v
+                break
+        return value
+
     def delete_resources_without_owner(self, dry_run):
         for account, s in self.sessions.items():
-            s3 = s.resource('s3')
-            for b in self.resources[account]['s3_no_owner']:
-                logging.info(['delete_resource', 's3', account, b])
-                if not dry_run:
-                    self.delete_bucket(s3, b)
+            if 's3_no_owner' in self.resources[account]:
+                s3 = s.resource('s3')
+                for b in self.resources[account]['s3_no_owner']:
+                    logging.info(['delete_resource', 's3', account, b])
+                    if not dry_run:
+                        self.delete_bucket(s3, b)
+            if 'sqs_no_owner' in self.resources[account]:
+                sqs = s.client('sqs')
+                for q in self.resources[account]['sqs_no_owner']:
+                    q_name = q.split('/')[-1]
+                    logging.info(['delete_resource', 'sqs', account, q_name])
+                    if not dry_run:
+                        self.delete_queue(sqs, q)
 
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
         for key in bucket.objects.all():
             key.delete()
         bucket.delete()
+
+    def delete_queue(self, sqs, queue_url):
+        sqs.delete_queue(QueueUrl=queue_url)
