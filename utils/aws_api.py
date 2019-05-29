@@ -101,14 +101,22 @@ class AWSApi(object):
                 continue
             # ignore buckets with special tags
             try:
-                special_tags = ['managed_by_integration', 'owner',
-                                'aws_gc_hands_off']
-                for tag in special_tags:
-                    tags = s3.get_bucket_tagging(Bucket=b)['TagSet']
-                    value = self.get_tag_value(tags, tag)
-                    if value is not None:
-                        logging.debug(skip_msg.format(b, tag + '=' + value))
-                        continue
+                tags = s3.get_bucket_tagging(Bucket=b)['TagSet']
+                tag = 'managed_by_integration'
+                value = self.get_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(b, tag + '=' + value))
+                    continue
+                tag = 'owner'
+                value = self.get_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(b, tag + '=' + value))
+                    continue
+                tag = 'aws_gc_hands_off'
+                value = self.get_tag_value(tags, tag)
+                if value is not None:
+                    logging.debug(skip_msg.format(b, tag + '=' + value))
+                    continue
                 unfiltered_buckets.append(b)
             except Exception as e:
                 if 'NoSuchTagSet' in e.message:
