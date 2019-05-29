@@ -18,6 +18,7 @@ import reconcile.terraform_users
 import reconcile.github_repo_invites
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
+import reconcile.aws_garbage_collector
 
 from utils.aggregated_list import RunnerException
 
@@ -103,6 +104,14 @@ def jenkins_roles(ctx):
 @click.pass_context
 def jenkins_plugins(ctx):
     run_integration(reconcile.jenkins_plugins.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@threaded
+@click.pass_context
+def aws_garbage_collector(ctx, thread_pool_size):
+    run_integration(reconcile.aws_garbage_collector.run,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
