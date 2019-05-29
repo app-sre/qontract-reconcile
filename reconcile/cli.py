@@ -108,10 +108,13 @@ def jenkins_plugins(ctx):
 
 @integration.command()
 @threaded
+@click.option('--enable-deletion/--no-enable-deletion',
+              default=False,
+              help='enable destroy/replace action.')
 @click.pass_context
-def aws_garbage_collector(ctx, thread_pool_size):
-    run_integration(reconcile.aws_garbage_collector.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+def aws_garbage_collector(ctx, thread_pool_size, enable_deletion):
+    run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
+                    thread_pool_size, enable_deletion)
 
 
 @integration.command()
