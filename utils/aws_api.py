@@ -1,6 +1,5 @@
 import logging
 import boto3
-import botocore
 
 import utils.vault_client as vault_client
 
@@ -40,7 +39,7 @@ class AWSApi(object):
         vault_specs = []
         for account, data in self.accounts:
             init_spec = {'account': account,
-                            'data': data}
+                         'data': data}
             vault_specs.append(init_spec)
         return vault_specs
 

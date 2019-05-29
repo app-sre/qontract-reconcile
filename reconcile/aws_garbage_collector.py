@@ -1,5 +1,3 @@
-import logging
-
 from utils.aws_api import AWSApi
 
 
