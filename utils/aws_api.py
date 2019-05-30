@@ -14,6 +14,8 @@ class AWSApi(object):
     def __init__(self, thread_pool_size):
         self.thread_pool_size = thread_pool_size
         self.init_sessions()
+
+    def map_resources():
         self.init_users()
         self.map_resources()
 
