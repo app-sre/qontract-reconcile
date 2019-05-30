@@ -304,35 +304,50 @@ class AWSApi(object):
         return value
 
     def delete_resources_without_owner(self, dry_run, enable_deletion):
+        warning_message = '\'delete\' action is not enabled. ' + \
+                          'Please run the integration manually ' + \
+                          'with the \'--enable-deletion\' flag.'
         for account, s in self.sessions.items():
             if 's3_no_owner' in self.resources[account]:
                 s3 = s.resource('s3')
                 for b in self.resources[account]['s3_no_owner']:
                     logging.info(['delete_resource', 's3', account, b])
-                    if not dry_run and enable_deletion:
-                        self.delete_bucket(s3, b)
+                    if not dry_run:
+                        if enable_deletion:
+                            self.delete_bucket(s3, b)
+                        else:
+                            logging.warning(warning_message)
 
             if 'sqs_no_owner' in self.resources[account]:
                 sqs = s.client('sqs')
                 for q in self.resources[account]['sqs_no_owner']:
                     q_name = q.split('/')[-1]
                     logging.info(['delete_resource', 'sqs', account, q_name])
-                    if not dry_run and enable_deletion:
-                        self.delete_queue(sqs, q)
+                    if not dry_run:
+                        if enable_deletion:
+                            self.delete_queue(sqs, q)
+                        else:
+                            logging.warning(warning_message)
 
             if 'dynamodb_no_owner' in self.resources[account]:
                 dynamodb = s.resource('dynamodb')
                 for t in self.resources[account]['dynamodb_no_owner']:
                     logging.info(['delete_resource', 'dynamodb', account, t])
-                    if not dry_run and enable_deletion:
-                        self.delete_table(dynamodb, t)
+                    if not dry_run:
+                        if enable_deletion:
+                            self.delete_table(dynamodb, t)
+                        else:
+                            logging.warning(warning_message)
 
             if 'rds_no_owner' in self.resources[account]:
                 rds = s.client('rds')
                 for i in self.resources[account]['rds_no_owner']:
                     logging.info(['delete_resource', 'rds', account, i])
-                    if not dry_run and enable_deletion:
-                        self.delete_instance(rds, i)
+                    if not dry_run:
+                        if enable_deletion:
+                            self.delete_instance(rds, i)
+                        else:
+                            logging.warning(warning_message)
 
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
@@ -348,4 +363,8 @@ class AWSApi(object):
         table.delete()
 
     def delete_instance(self, rds, instance_name):
-        rds.delete_db_instance(DBInstanceIdentifier=instance_name)
+        rds.delete_db_instance(
+            DBInstanceIdentifier=instance_name,
+            SkipFinalSnapshot=True,
+            DeleteAutomatedBackups=True
+        )
