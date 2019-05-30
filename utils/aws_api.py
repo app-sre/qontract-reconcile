@@ -16,9 +16,6 @@ class AWSApi(object):
         self.init_sessions()
         self.init_users()
 
-    def map_resources():
-        self.map_resources()
-
     def init_sessions(self):
         config = get_config()
         self.accounts = config['terraform'].items()
