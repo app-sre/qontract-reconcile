@@ -176,6 +176,67 @@ class OpenshiftResource(object):
                         subject['apiGroup'] == '':
                     subject.pop('apiGroup')
 
+        if body['kind'] == 'Job':
+            metadata = body['metadata']
+            if 'labels' in metadata:
+                labels = metadata['labels']
+                labels.pop('controller-uid')
+                labels.pop('job-name')
+                if labels == {}:
+                    metadata.pop('labels')
+            if metadata == {}:
+                body.pop('metadata')
+            spec = body['spec']
+            if spec.get('backoffLimit') == 6:
+                spec.pop('backoffLimit')
+            if spec.get('completions') == 1:
+                spec.pop('completions')
+            if spec.get('parallelism') == 1:
+                spec.pop('parallelism')
+            if 'selector' in spec:
+                if 'matchLabels' in spec['selector']:
+                    spec['selector']['matchLabels'].pop('controller-uid')
+                    if spec['selector']['matchLabels'] == {}:
+                        spec['selector'].pop('matchLabels')
+                if spec['selector'] == {}:
+                    spec.pop('selector')
+            template = spec['template']
+            if 'metadata' in template:
+                template_metadata = template['metadata']
+                template_metadata.pop('creationTimestamp')
+                if 'labels' in template_metadata:
+                    template_metadata_labels = template_metadata['labels']
+                    template_metadata_labels.pop('controller-uid')
+                    template_metadata_labels.pop('job-name')
+                    if template_metadata_labels == {}:
+                        template_metadata.pop('labels')
+                if template_metadata == {}:
+                    template.pop('metadata')
+            if 'template' in spec:
+                spec_template = spec['template']
+                if 'spec' in spec_template:
+                    spec_template_spec = spec_template['spec']
+                    for c in spec_template_spec['containers']:
+                        if c.get('imagePullPolicy') == 'Always':
+                            c.pop('imagePullPolicy')
+                        if c.get('resources') == {}:
+                            c.pop('resources')
+                        if c.get('terminationMessagePath') == \
+                                '/dev/termination-log':
+                            c.pop('terminationMessagePath')
+                        if c.get('terminationMessagePolicy') == 'File':
+                            c.pop('terminationMessagePolicy')
+                    if spec_template_spec.get('dnsPolicy') == 'ClusterFirst':
+                        spec_template_spec.pop('dnsPolicy')
+                    if spec_template_spec.get('restartPolicy') == 'Always':
+                        spec_template_spec.pop('restartPolicy')
+                    if 'schedulerName' in spec_template_spec:
+                        spec_template_spec.pop('schedulerName')
+                    if spec_template_spec.get('securityContext') == {}:
+                        spec_template_spec.pop('securityContext')
+                    if spec_template_spec.get('terminationGracePeriodSeconds') == 30:
+                        spec_template_spec.pop('terminationGracePeriodSeconds')
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
