@@ -106,7 +106,12 @@ class AWSApi(object):
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
             unfiltered_tables = \
-                self.custom_dynamodb_filter(account, s, dynamodb, tables_without_owner)
+                self.custom_dynamodb_filter(
+                    account,
+                    s,
+                    dynamodb,
+                    tables_without_owner
+                )
             self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
 
     def map_rds_resources(self):
