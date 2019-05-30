@@ -234,7 +234,8 @@ class OpenshiftResource(object):
                         spec_template_spec.pop('schedulerName')
                     if spec_template_spec.get('securityContext') == {}:
                         spec_template_spec.pop('securityContext')
-                    if spec_template_spec.get('terminationGracePeriodSeconds') == 30:
+                    if spec_template_spec.get(
+                            'terminationGracePeriodSeconds') == 30:
                         spec_template_spec.pop('terminationGracePeriodSeconds')
 
         # remove qontract specific params
