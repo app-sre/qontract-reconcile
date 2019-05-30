@@ -307,3 +307,15 @@ class AWSApi(object):
             SkipFinalSnapshot=True,
             DeleteAutomatedBackups=True
         )
+
+    def delete_keys(self, dry_run, keys_to_delete):
+        for account, s in self.sessions.items():
+            if account not in keys_to_delete:
+                continue
+            keys = keys_to_delete[account]
+            iam = s.client('iam')
+            for k in keys:
+                logging.info(['delete_key', account, k])
+
+                if not dry_run:
+                    iam.delete_access_key(UserName='mafriedm', AccessKeyId=k)

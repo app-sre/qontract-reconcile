@@ -19,6 +19,7 @@ import reconcile.github_repo_invites
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.aws_garbage_collector
+import reconcile.aws_iam_keys
 
 from utils.aggregated_list import RunnerException
 
@@ -124,6 +125,14 @@ def jenkins_plugins(ctx):
 def aws_garbage_collector(ctx, thread_pool_size, enable_deletion):
     run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
                     thread_pool_size, enable_deletion)
+
+
+@integration.command()
+@threaded
+@click.pass_context
+def aws_iam_keys(ctx, thread_pool_size):
+    run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
+                    thread_pool_size)
 
 
 @integration.command()
