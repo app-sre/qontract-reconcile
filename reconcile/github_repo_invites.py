@@ -53,3 +53,5 @@ def run(dry_run):
 
             if not dry_run:
                 g.accept_repo_invitation(invitation_id)
+        else:
+            logging.debug(['skipping', url])
