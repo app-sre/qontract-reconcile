@@ -315,7 +315,17 @@ class AWSApi(object):
             keys = keys_to_delete[account]
             iam = s.client('iam')
             for k in keys:
-                logging.info(['delete_key', account, k])
+                for u in self.users[account]:
+                    key_list = \
+                        iam.list_access_keys(UserName=u)['AccessKeyMetadata']
+                    user_keys = [uk['AccessKeyId'] for uk in key_list]
+                    if k not in user_keys:
+                        continue
+                    logging.info(['delete_key', account, u, k])
 
-                if not dry_run:
-                    iam.delete_access_key(UserName='mafriedm', AccessKeyId=k)
+                    if not dry_run:
+                        iam.delete_access_key(
+                            UserName=u,
+                            AccessKeyId=k
+                        )
+                    break
