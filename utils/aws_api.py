@@ -65,8 +65,7 @@ class AWSApi(object):
         self.map_s3_resources()
         self.map_sqs_resources()
         self.map_dynamodb_resources()
-        # TODO
-        # self.map_rds_resources()
+        self.map_rds_resources()
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
@@ -79,7 +78,7 @@ class AWSApi(object):
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
             unfiltered_buckets = \
-                self.custom_s3_filter(s3, buckets_without_owner)
+                self.custom_s3_filter(account, s3, buckets_without_owner)
             self.resources[account]['s3_no_owner'] = unfiltered_buckets
 
     def map_sqs_resources(self):
@@ -93,7 +92,7 @@ class AWSApi(object):
             queues_without_owner = \
                 self.get_resources_without_owner(account, queues)
             unfiltered_queues = \
-                self.custom_sqs_filter(sqs, queues_without_owner)
+                self.custom_sqs_filter(account, sqs, queues_without_owner)
             self.resources[account]['sqs_no_owner'] = unfiltered_queues
 
     def map_dynamodb_resources(self):
@@ -107,8 +106,23 @@ class AWSApi(object):
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
             unfiltered_tables = \
-                self.custom_dynamodb_filter(s, dynamodb, tables_without_owner)
+                self.custom_dynamodb_filter(account, s, dynamodb, tables_without_owner)
             self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
+
+    def map_rds_resources(self):
+        for account, s in self.sessions.items():
+            rds = s.client('rds')
+            instances_list = rds.describe_db_instances()
+            if 'DBInstances' not in instances_list:
+                continue
+            instances = [t['DBInstanceIdentifier']
+                         for t in instances_list['DBInstances']]
+            self.resources[account]['rds'] = instances
+            instances_without_owner = \
+                self.get_resources_without_owner(account, instances)
+            unfiltered_instances = \
+                self.custom_rds_filter(account, rds, instances_without_owner)
+            self.resources[account]['rds_no_owner'] = unfiltered_instances
 
     def get_resources_without_owner(self, account, resources):
         resources_without_owner = []
@@ -130,38 +144,16 @@ class AWSApi(object):
                     break
         return has_owner
 
-    def custom_s3_filter(self, s3, buckets):
-        skip_msg = 'skipping bucket {}, {}'
+    def custom_s3_filter(self, account, s3, buckets):
+        type = 's3 bucket'
         unfiltered_buckets = []
         for b in buckets:
-            # ignore stage/prod buckets - just for safety
-            if 'prod' in b.lower():
-                logging.debug(skip_msg.format(b, 'production related'))
-                continue
-            if 'stage' in b.lower():
-                logging.debug(skip_msg.format(b, 'stage related'))
-                continue
-            # ignore terraform buckets
-            if '-tf-' in b.lower():
-                logging.debug(skip_msg.format(b, 'terraform related'))
+            if self.resource_has_special_name(account, type, b):
                 continue
             # ignore buckets with special tags
             try:
                 tags = s3.get_bucket_tagging(Bucket=b)['TagSet']
-                tag = 'managed_by_integration'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(b, tag + '=' + value))
-                    continue
-                tag = 'owner'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(b, tag + '=' + value))
-                    continue
-                tag = 'aws_gc_hands_off'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(b, tag + '=' + value))
+                if self.resource_has_special_tags(account, type, b, tags):
                     continue
                 unfiltered_buckets.append(b)
             except Exception as e:
@@ -169,34 +161,16 @@ class AWSApi(object):
                     unfiltered_buckets.append(b)
         return unfiltered_buckets
 
-    def custom_sqs_filter(self, sqs, queues):
-        skip_msg = 'skipping queue {}, {}'
+    def custom_sqs_filter(self, account, sqs, queues):
+        type = 'sqs queue'
         unfiltered_queues = []
         for q in queues:
-            # ignore stage/prod buckets - just for safety
-            if 'prod' in q.lower():
-                logging.debug(skip_msg.format(q, 'production related'))
-                continue
-            if 'stage' in q.lower():
-                logging.debug(skip_msg.format(q, 'stage related'))
+            if self.resource_has_special_name(account, type, q):
                 continue
             # ignore queues with special tags
             try:
                 tags = sqs.list_queue_tags(QueueUrl=q)['Tags']
-                tag = 'managed_by_integration'
-                value = self.get_tag_value_dict(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(q, tag + '=' + value))
-                    continue
-                tag = 'owner'
-                value = self.get_tag_value_dict(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(q, tag + '=' + value))
-                    continue
-                tag = 'aws_gc_hands_off'
-                value = self.get_tag_value_dict(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(q, tag + '=' + value))
+                if self.resource_has_special_tags(account, type, q, tags):
                     continue
                 unfiltered_queues.append(q)
             except KeyError as e:
@@ -204,37 +178,19 @@ class AWSApi(object):
                     unfiltered_queues.append(q)
         return unfiltered_queues
 
-    def custom_dynamodb_filter(self, session, dynamodb, tables):
-        skip_msg = 'skipping table {}, {}'
+    def custom_dynamodb_filter(self, account, session, dynamodb, tables):
+        type = 'dynamodb table'
         dynamodb_resource = session.resource('dynamodb')
         unfiltered_tables = []
         for t in tables:
-            # ignore stage/prod buckets - just for safety
-            if 'prod' in t.lower():
-                logging.debug(skip_msg.format(t, 'production related'))
-                continue
-            if 'stage' in t.lower():
-                logging.debug(skip_msg.format(t, 'stage related'))
+            if self.resource_has_special_name(account, type, t):
                 continue
             # ignore queues with special tags
             try:
                 table_arn = dynamodb_resource.Table(t).table_arn
                 tags = dynamodb.list_tags_of_resource(
                     ResourceArn=table_arn)['Tags']
-                tag = 'managed_by_integration'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(t, tag + '=' + value))
-                    continue
-                tag = 'owner'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(t, tag + '=' + value))
-                    continue
-                tag = 'aws_gc_hands_off'
-                value = self.get_tag_value_struct(tags, tag)
-                if value is not None:
-                    logging.debug(skip_msg.format(t, tag + '=' + value))
+                if self.resource_has_special_tags(account, type, t, tags):
                     continue
                 unfiltered_tables.append(t)
             except KeyError as e:
@@ -242,19 +198,103 @@ class AWSApi(object):
                     unfiltered_tables.append(t)
         return unfiltered_tables
 
-    def get_tag_value_struct(self, tags, tag):
-        value = None
+    def custom_rds_filter(self, account, rds, instances):
+        type = 'rds instance'
+        unfiltered_instances = []
+        for i in instances:
+            if self.resource_has_special_name(account, type, i):
+                continue
+            # ignore queues with special tags
+            try:
+                instance = rds.describe_db_instances(DBInstanceIdentifier=i)
+                instance_arn = instance['DBInstances'][0]['DBInstanceArn']
+                tags = rds.list_tags_for_resource(
+                    ResourceName=instance_arn)['TagList']
+                if self.resource_has_special_tags(account, type, i, tags):
+                    continue
+                unfiltered_instances.append(i)
+            except KeyError as e:
+                print(i)
+                print(instance)
+                print(e.message)
+                if 'TagList' in e.message:
+                    unfiltered_instances.append(i)
+        return unfiltered_instances
+
+    def resource_has_special_name(self, account, type, resource):
+        skip_msg = '[{}] skipping {} '.format(account, type) + \
+            '({}) {}'
+        # ignore stage/prod buckets - just for safety
+        if 'prod' in resource.lower():
+            logging.debug(skip_msg.format('production related', resource))
+            return True
+        if 'stag' in resource.lower():
+            logging.debug(skip_msg.format('stage related', resource))
+            return True
+        # ignore terraform buckets
+        if 'terraform' in resource.lower():
+            logging.debug(skip_msg.format('terraform related', resource))
+            return True
+        if '-tf-' in resource.lower():
+            logging.debug(skip_msg.format('terraform related', resource))
+            return True
+
+        return False
+
+    def resource_has_special_tags(self, account, type, resource, tags):
+        skip_msg = '[{}] skipping {} '.format(account, type) + \
+            '({}={}) {}'
+        tag = 'ENV'
+        value = self.get_tag_value(tags, tag)
+        if 'prod' in value.lower():
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        if 'stag' in value.lower():
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        tag = 'environment'
+        value = self.get_tag_value(tags, tag)
+        if 'prod' in value.lower():
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        if 'stag' in value.lower():
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        tag = 'managed_by_integration'
+        value = self.get_tag_value(tags, tag)
+        if value:
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        tag = 'owner'
+        value = self.get_tag_value(tags, tag)
+        if 'app-sre' in value:
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+        tag = 'aws_gc_hands_off'
+        value = self.get_tag_value(tags, tag)
+        if value:
+            logging.debug(skip_msg.format(tag, value, resource))
+            return True
+
+        return False
+
+    def get_tag_value(self, tags, tag):
+        # tags may be represented as either a dict or a struct.
+        # we try to treat tags as a dict, and if we get an attribute error,
+        # we treat it as a struct.
+        value = ''
+        try:
+            for k, v in tags.items():
+                if k == tag:
+                    value = v
+                    break
+            return value
+        except AttributeError:
+            pass
+
         for t in tags:
             if t['Key'] == tag:
                 value = t['Value']
-                break
-        return value
-
-    def get_tag_value_dict(self, tags, tag):
-        value = None
-        for k, v in tags.items():
-            if k == tag:
-                value = v
                 break
         return value
 
@@ -282,6 +322,13 @@ class AWSApi(object):
                     if not dry_run and enable_deletion:
                         self.delete_table(dynamodb, t)
 
+            if 'rds_no_owner' in self.resources[account]:
+                rds = s.client('rds')
+                for i in self.resources[account]['rds_no_owner']:
+                    logging.info(['delete_resource', 'rds', account, i])
+                    if not dry_run and enable_deletion:
+                        self.delete_instance(rds, i)
+
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
         for key in bucket.objects.all():
@@ -294,3 +341,6 @@ class AWSApi(object):
     def delete_table(self, dynamodb, table_name):
         table = dynamodb.Table(table_name)
         table.delete()
+
+    def delete_instance(self, rds, instance_name):
+        rds.delete_db_instance(DBInstanceIdentifier=instance_name)
