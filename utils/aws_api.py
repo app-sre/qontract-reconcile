@@ -171,7 +171,7 @@ class AWSApi(object):
             table_arn = dynamodb_resource.Table(t).table_arn
             tags = dynamodb.list_tags_of_resource(ResourceArn=table_arn)
             if not self.should_filter(account, type, t, tags, 'Tags'):
-                unfiltered_tables.append(q)
+                unfiltered_tables.append(t)
 
         return unfiltered_tables
 
@@ -182,20 +182,20 @@ class AWSApi(object):
             instance = rds.describe_db_instances(DBInstanceIdentifier=i)
             instance_arn = instance['DBInstances'][0]['DBInstanceArn']
             tags = rds.list_tags_for_resource(ResourceName=instance_arn)
-            if not self.should_filter(account, type, t, tags, 'Tags'):
+            if not self.should_filter(account, type, i, tags, 'TagList'):
                 unfiltered_instances.append(i)
 
         return unfiltered_instances
 
     def should_filter(self, account, resource_type,
                       resource_name, resource_tags, tags_key):
-        if self.resource_has_special_name(account,
-                resource_type, resource_name):
+        if self.resource_has_special_name(account, resource_type,
+                                          resource_name):
             return True
         if tags_key in resource_tags:
             tags = resource_tags[tags_key]
             if self.resource_has_special_tags(account, resource_type,
-                    resource_name, tags):
+                                              resource_name, tags):
                 return True
 
         return False
@@ -268,16 +268,16 @@ class AWSApi(object):
     def delete_resource(self, session, resource_type, resource_name):
         if resource_type == 's3':
             resource = session.resource(resource_type)
-            delete_bucket(resource, resource_name)
+            self.delete_bucket(resource, resource_name)
         elif type == 'sqs':
             client = session.client(resource_type)
-            delete_queue(client, resource_name)
+            self.delete_queue(client, resource_name)
         elif type == 'dynamodb':
             resource = session.resource(resource_type)
-            delete_table(resource, resource_name)
+            self.delete_table(resource, resource_name)
         elif type == 'rds':
             client = session.client(resource_type)
-            delete_instance(client, resource_name)
+            self.delete_instance(client, resource_name)
         else:
             raise Exception('invalid resource type: ' + resource_type)
 
