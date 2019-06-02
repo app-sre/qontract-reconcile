@@ -230,14 +230,14 @@ class AWSApi(object):
             'ENV': ['prod', 'stage', 'staging'],
             'environment': ['prod', 'stage', 'staging'],
             'owner': ['app-sre'],
-            'managed_by_integration': [''],
-            'aws_gc_hands_off': [''],
+            'managed_by_integration': ['terraform_resources', 'terraform_users'],
+            'aws_gc_hands_off': ['true'],
         }
 
         for tag, ignore_values in ignore_tags.items():
             for ignore_value in ignore_values:
                 value = self.get_tag_value(tags, tag)
-                if ignore_value in value:
+                if ignore_value.lower() in value.lower():
                     logging.debug(skip_msg.format(tag, value, resource))
                     return True
 
