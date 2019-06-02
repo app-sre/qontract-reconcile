@@ -216,7 +216,7 @@ class AWSApi(object):
 
         for msg, tags in ignore_names.items():
             for tag in tags:
-                if tag in resource.lower():
+                if tag.lower() in resource.lower():
                     logging.debug(skip_msg.format(msg, resource))
                     return True
 
@@ -273,13 +273,13 @@ class AWSApi(object):
         if resource_type == 's3':
             resource = session.resource(resource_type)
             self.delete_bucket(resource, resource_name)
-        elif type == 'sqs':
+        elif resource_type == 'sqs':
             client = session.client(resource_type)
             self.delete_queue(client, resource_name)
-        elif type == 'dynamodb':
+        elif resource_type == 'dynamodb':
             resource = session.resource(resource_type)
             self.delete_table(resource, resource_name)
-        elif type == 'rds':
+        elif resource_type == 'rds':
             client = session.client(resource_type)
             self.delete_instance(client, resource_name)
         else:
