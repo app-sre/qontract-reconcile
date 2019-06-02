@@ -265,7 +265,7 @@ class AWSApi(object):
                     logging.info(['delete_resource', rt, account, r])
                     if not dry_run:
                         if enable_deletion:
-                            self.delete_resource(s, r)
+                            self.delete_resource(s, rt, r)
                         else:
                             logging.warning(warning_message)
 
