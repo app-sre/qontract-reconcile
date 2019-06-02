@@ -230,7 +230,10 @@ class AWSApi(object):
             'ENV': ['prod', 'stage', 'staging'],
             'environment': ['prod', 'stage', 'staging'],
             'owner': ['app-sre'],
-            'managed_by_integration': ['terraform_resources', 'terraform_users'],
+            'managed_by_integration': [
+                'terraform_resources',
+                'terraform_users'
+            ],
             'aws_gc_hands_off': ['true'],
         }
 
