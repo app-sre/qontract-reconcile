@@ -1,5 +1,6 @@
 import logging
 import boto3
+import botocore
 
 import utils.vault_client as vault_client
 
@@ -147,7 +148,10 @@ class AWSApi(object):
         type = 's3 bucket'
         unfiltered_buckets = []
         for b in buckets:
-            tags = s3.get_bucket_tagging(Bucket=b)
+            try:
+                tags = s3.get_bucket_tagging(Bucket=b)
+            except botocore.exceptions.ClientError:
+                tags = {}
             if not self.should_filter(account, type, b, tags, 'TagSet'):
                 unfiltered_buckets.append(b)
 
@@ -246,8 +250,8 @@ class AWSApi(object):
             for t in tags:
                 if t['Key'] == tag:
                     return t['Value']
-        else:
-            return ''
+
+        return ''
 
     def delete_resources_without_owner(self, dry_run, enable_deletion):
         warning_message = '\'delete\' action is not enabled. ' + \
