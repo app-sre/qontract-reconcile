@@ -6,7 +6,10 @@ from subprocess import PIPE, Popen, STDOUT
 
 def gpg_key_valid(public_gpg_key):
     DENNULL = open(os.devnull, 'w')
-    public_gpg_key_dec = base64.b64decode(public_gpg_key)
+    try:
+        public_gpg_key_dec = base64.b64decode(public_gpg_key)
+    except Exception:
+        return False
     proc = Popen(['gpg'], stdin=PIPE, stdout=DENNULL, stderr=STDOUT)
     proc.communicate(public_gpg_key_dec)
 
