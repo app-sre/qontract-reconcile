@@ -29,9 +29,11 @@ class AWSApi(object):
         for account, secret in results:
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
+            region_name = secret['region']
             session = boto3.Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
+                region_name=region_name,
             )
             self.sessions[account] = session
 
