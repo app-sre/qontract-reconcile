@@ -55,7 +55,7 @@ def setup(print_only, thread_pool_size):
                      thread_pool_size)
     err = ts.populate_users(tf_query)
     if err:
-      return None, err
+        return None, err
 
     working_dirs = ts.dump(print_only)
 
