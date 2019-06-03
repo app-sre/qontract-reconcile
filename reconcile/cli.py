@@ -18,6 +18,7 @@ import reconcile.terraform_users
 import reconcile.github_repo_invites
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
+import reconcile.aws_garbage_collector
 
 from utils.aggregated_list import RunnerException
 
@@ -36,6 +37,17 @@ def terraform(function):
                             default=False)(function)
 
     return function
+
+
+def enable_deletion(**kwargs):
+    def f(function):
+        opt = '--enable-deletion/--no-enable-deletion'
+        msg = 'enable destroy/replace action.'
+        function = click.option(opt,
+                                default=kwargs.get('default', True),
+                                help=msg)(function)
+        return function
+    return f
 
 
 def run_integration(func, *args):
@@ -107,6 +119,15 @@ def jenkins_plugins(ctx):
 
 @integration.command()
 @threaded
+@enable_deletion(default=False)
+@click.pass_context
+def aws_garbage_collector(ctx, thread_pool_size, enable_deletion):
+    run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
+                    thread_pool_size, enable_deletion)
+
+
+@integration.command()
+@threaded
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
@@ -155,9 +176,7 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 @integration.command()
 @terraform
 @threaded
-@click.option('--enable-deletion/--no-enable-deletion',
-              default=False,
-              help='enable destroy/replace action.')
+@enable_deletion(default=False)
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
     run_integration(reconcile.terraform_resources.run,
@@ -168,9 +187,7 @@ def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
 @integration.command()
 @terraform
 @threaded
-@click.option('--enable-deletion/--no-enable-deletion',
-              default=True,
-              help='enable destroy/replace action.')
+@enable_deletion(default=True)
 @click.option('--send-mails/--no-send-mails',
               default=True,
               help='send email invitation to new users.')

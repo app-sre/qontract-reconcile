@@ -29,6 +29,8 @@ setup(
         "semver==2.8.1",
         "python-terraform==0.10.0",
         "jumpssh==1.6.1",
+        "boto3>=1.9.0,<=1.10.0",
+        "botocore>=1.12.159,<=1.13.0",
     ],
 
     test_suite="tests",
