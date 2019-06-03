@@ -309,23 +309,37 @@ class AWSApi(object):
         )
 
     def delete_keys(self, dry_run, keys_to_delete):
+        users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
-            if account not in keys_to_delete:
-                continue
-            keys = keys_to_delete[account]
             iam = s.client('iam')
-            for k in keys:
-                for u in self.users[account]:
-                    key_list = \
-                        iam.list_access_keys(UserName=u)['AccessKeyMetadata']
-                    user_keys = [uk['AccessKeyId'] for uk in key_list]
-                    if k not in user_keys:
-                        continue
-                    logging.info(['delete_key', account, u, k])
+            keys = keys_to_delete.get(account, [])
+            for key in keys:
+                user = [user for user, user_keys
+                        in users_keys[account].items()
+                        if key in user_keys]
+                if not user:
+                    continue
+                # unpack single item from sequence
+                # since only a single user can have a given key
+                [user] = user
 
-                    if not dry_run:
-                        iam.delete_access_key(
-                            UserName=u,
-                            AccessKeyId=k
-                        )
-                    break
+                logging.info(['delete_key', account, user, key])
+
+                if not dry_run:
+                    iam.delete_access_key(
+                        UserName=user,
+                        AccessKeyId=key
+                    )
+
+    def get_users_keys(self):
+        users_keys = {}
+        for account, s in self.sessions.items():
+            iam = s.client('iam')
+            users_keys[account] = {user: self.get_user_keys(iam, user)
+                                   for user in self.users[account]}
+
+        return users_keys
+
+    def get_user_keys(self, iam, user):
+        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+        return [uk['AccessKeyId'] for uk in key_list]
