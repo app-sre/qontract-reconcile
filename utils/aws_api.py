@@ -1,6 +1,8 @@
 import logging
 import boto3
 import botocore
+import json
+import os
 
 import utils.vault_client as vault_client
 
@@ -58,6 +60,21 @@ class AWSApi(object):
             iam = s.client('iam')
             users = [u['UserName'] for u in iam.list_users()['Users']]
             self.users[account] = users
+
+    def simulate_deleted_users(self, io_dir):
+        src_integrations = ['terraform_resources', 'terraform_users']
+        if not os.path.exists(io_dir):
+            return
+        for i in src_integrations:
+            file_path = os.path.join(io_dir, i + '.json')
+            if not os.path.exists(file_path):
+                continue
+            with open(file_path, 'r') as f:  
+                deleted_users = json.load(f)
+            for deleted_user in deleted_users:
+                delete_from_account = deleted_user['account']
+                delete_user = deleted_user['user']
+                self.users[delete_from_account].remove(delete_user)
 
     def map_resources(self):
         self.resources = {}

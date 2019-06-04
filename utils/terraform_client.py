@@ -1,6 +1,8 @@
 import shutil
 import base64
 import logging
+import json
+import os
 
 from utils.openshift_resource import OpenshiftResource
 
@@ -99,12 +101,23 @@ class TerraformClient(object):
                                          enable_deletion=enable_deletion)
         results = self.pool.map(terraform_plan_partial, plan_specs)
 
-        for deletion_detected, error in results:
+        self.deleted_users = []
+        for deletion_detected, deleted_users, error in results:
             if error:
                 errors = True
             if deletion_detected:
                 deletions_detected = True
+                self.deleted_users.extend(deleted_users)
         return deletions_detected, errors
+
+    def dump_deleted_users(self, io_dir):
+        if not self.deleted_users:
+            return
+        if not os.path.exists(io_dir):
+            os.makedirs(io_dir)
+        file_path = os.path.join(io_dir, self.integration + '.json')
+        with open(file_path, 'w') as f:
+            f.write(json.dumps(self.deleted_users)) 
 
     def init_plan_apply_specs(self):
         return [{'name': name, 'tf': tf} for name, tf in self.tfs.items()]
@@ -114,49 +127,60 @@ class TerraformClient(object):
         tf = plan_spec['tf']
         return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
         error = self.check_output(name, return_code, stdout, stderr)
-        deletion_detected = \
+        deletion_detected, deleted_users = \
             self.log_plan_diff(name, stdout, enable_deletion)
-        return deletion_detected, error
+        return deletion_detected, deleted_users, error
 
     def log_plan_diff(self, name, stdout, enable_deletion):
         deletions_detected = False
+        deleted_users = []
         stdout = self.split_to_lines(stdout)
         with self._log_lock:
             for line in stdout:
                 line = line.strip()
                 if line.startswith('+ aws'):
-                    line_split = line.replace('+ ', '').split('.')
-                    logging.info(['create', name, line_split[0],
-                                  line_split[1]])
+                    resource_type, resource_name = \
+                        line.replace('+ ', '').split('.')
+                    logging.info(['create', name,
+                                  resource_type, resource_name])
                 if line.startswith('- aws'):
-                    line_split = line.replace('- ', '').split('.')
+                    resource_type, resource_name = \
+                        line.replace('- ', '').split('.')
                     if enable_deletion:
                         logging.info(['destroy', name,
-                                      line_split[0], line_split[1]])
+                                      resource_type, resource_name])
+                        if resource_type == 'aws_iam_user':
+                            deleted_users.append({
+                                'account': name,
+                                'user': resource_name
+                            })
                     else:
                         logging.error(['destroy', name,
-                                       line_split[0], line_split[1]])
+                                       resource_type, resource_name])
                         logging.error('\'destroy\' action is not enabled. ' +
                                       'Please run the integration manually ' +
                                       'with the \'--enable-deletion\' flag.')
                     deletions_detected = True
                 if line.startswith('~ aws'):
-                    line_split = line.replace('~ ', '').split('.')
-                    logging.info(['update', name, line_split[0],
-                                  line_split[1]])
+                    resource_type, resource_name = \
+                        line.replace('~ ', '').split('.')
+                    logging.info(['update', name,
+                                  resource_type, resource_name])
                 if line.startswith('-/+ aws'):
-                    line_split = line.replace('-/+ ', '').split('.')
+                    resource_type, resource_name = \
+                        line.replace('-/+ ', '').split('.')
+                    resource_name = resource_name.split(' ', 1)[0]
                     if enable_deletion:
-                        logging.info(['replace', name, line_split[0],
-                                      line_split[1].split(' ', 1)[0]])
+                        logging.info(['replace', name,
+                                      resource_type, resource_name])
                     else:
-                        logging.error(['replace', name, line_split[0],
-                                       line_split[1].split(' ', 1)[0]])
+                        logging.error(['replace', name,
+                                       resource_type, resource_name])
                         logging.error('\'replace\' action is not enabled. ' +
                                       'Please run the integration manually ' +
                                       'with the \'--enable-deletion\' flag.')
                     deletions_detected = True
-        return deletions_detected
+        return deletions_detected, deleted_users
 
     # terraform apply
     def apply(self):
