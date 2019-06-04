@@ -263,9 +263,12 @@ def fetch_openshift_resource(resource):
         annotations = {} if ra is None else json.loads(ra)
         rt = resource['type']
         type = 'Opaque' if rt is None else rt
-        openshift_resource = \
-            fetch_provider_vault_secret(path, version, name,
-                                        labels, annotations, type)
+        try:
+            openshift_resource = \
+                fetch_provider_vault_secret(path, version, name,
+                                            labels, annotations, type)
+        except vault_client.SecretVersionNotFound as e:
+            raise FetchVaultSecretError(e)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']
         tls_version = resource['vault_tls_secret_version']
