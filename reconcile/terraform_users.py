@@ -34,7 +34,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_users'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 1)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -53,10 +53,13 @@ def setup(print_only, thread_pool_size):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size)
-    ts.populate_users(tf_query)
+    err = ts.populate_users(tf_query)
+    if err:
+        return None, err
+
     working_dirs = ts.dump(print_only)
 
-    return working_dirs
+    return working_dirs, None
 
 
 def send_email_invites(new_users):
@@ -97,7 +100,9 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run=False, print_only=False,
         enable_deletion=False, thread_pool_size=10,
         send_mails=True):
-    working_dirs = setup(print_only, thread_pool_size)
+    working_dirs, err = setup(print_only, thread_pool_size)
+    if err:
+        cleanup_and_exit(status=err)
     if print_only:
         cleanup_and_exit()
 

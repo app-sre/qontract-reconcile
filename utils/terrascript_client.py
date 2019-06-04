@@ -11,6 +11,7 @@ import utils.vault_client as vault_client
 
 from utils.config import get_config
 from utils.oc import StatusCodeError
+from utils.gpg import gpg_key_valid
 
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
@@ -208,6 +209,13 @@ class TerrascriptClient(object):
                                 user_name)
                         logging.warning(msg)
                         continue
+                    if not gpg_key_valid(user_public_gpg_key):
+                        msg = \
+                            'user {} has an invalid public gpg key.'.format(
+                                user_name)
+                        logging.error(msg)
+                        error = True
+                        return error
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -262,7 +270,9 @@ class TerrascriptClient(object):
 
     def populate_users(self, tf_query):
         self.populate_iam_groups(tf_query)
-        self.populate_iam_users(tf_query)
+        err = self.populate_iam_users(tf_query)
+        if err:
+            return err
         self.validate()
 
     def populate_resources(self, tf_query):
