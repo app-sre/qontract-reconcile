@@ -69,7 +69,7 @@ class AWSApi(object):
             file_path = os.path.join(io_dir, i + '.json')
             if not os.path.exists(file_path):
                 continue
-            with open(file_path, 'r') as f:  
+            with open(file_path, 'r') as f:
                 deleted_users = json.load(f)
             for deleted_user in deleted_users:
                 delete_from_account = deleted_user['account']

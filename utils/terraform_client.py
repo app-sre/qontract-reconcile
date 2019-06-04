@@ -117,7 +117,7 @@ class TerraformClient(object):
             os.makedirs(io_dir)
         file_path = os.path.join(io_dir, self.integration + '.json')
         with open(file_path, 'w') as f:
-            f.write(json.dumps(self.deleted_users)) 
+            f.write(json.dumps(self.deleted_users))
 
     def init_plan_apply_specs(self):
         return [{'name': name, 'tf': tf} for name, tf in self.tfs.items()]
