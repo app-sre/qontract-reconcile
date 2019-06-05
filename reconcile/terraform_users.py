@@ -98,8 +98,8 @@ def cleanup_and_exit(tf=None, status=False):
 
 
 def run(dry_run=False, print_only=False,
-        enable_deletion=False, thread_pool_size=10,
-        send_mails=True):
+        enable_deletion=False, io_dir='throughput/',
+        thread_pool_size=10, send_mails=True):
     working_dirs, err = setup(print_only, thread_pool_size)
     if err:
         cleanup_and_exit(status=err)
@@ -119,8 +119,11 @@ def run(dry_run=False, print_only=False,
     deletions_detected, err = tf.plan(enable_deletion)
     if err:
         cleanup_and_exit(tf, err)
-    if deletions_detected and not enable_deletion:
-        cleanup_and_exit(tf, deletions_detected)
+    if deletions_detected:
+        if enable_deletion:
+            tf.dump_deleted_users(io_dir)
+        else:
+            cleanup_and_exit(tf, deletions_detected)
 
     if dry_run:
         cleanup_and_exit(tf)
