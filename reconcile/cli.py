@@ -40,6 +40,14 @@ def terraform(function):
     return function
 
 
+def throughput(function):
+    function = click.option('--io-dir',
+                            help='directory of input/output files.',
+                            default='throughput/')(function)
+
+    return function
+
+
 def enable_deletion(**kwargs):
     def f(function):
         opt = '--enable-deletion/--no-enable-deletion'
@@ -119,12 +127,13 @@ def jenkins_plugins(ctx):
 
 
 @integration.command()
+@throughput
 @threaded
 @enable_deletion(default=False)
 @click.pass_context
-def aws_garbage_collector(ctx, thread_pool_size, enable_deletion):
+def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
     run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
-                    thread_pool_size, enable_deletion)
+                    thread_pool_size, enable_deletion, io_dir)
 
 
 @integration.command()
@@ -184,29 +193,32 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 
 @integration.command()
 @terraform
+@throughput
 @threaded
 @enable_deletion(default=False)
 @click.pass_context
-def terraform_resources(ctx, print_only, enable_deletion, thread_pool_size):
+def terraform_resources(ctx, print_only, enable_deletion,
+                        io_dir, thread_pool_size):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
-                    enable_deletion, thread_pool_size)
+                    enable_deletion, io_dir, thread_pool_size)
 
 
 @integration.command()
 @terraform
+@throughput
 @threaded
 @enable_deletion(default=True)
 @click.option('--send-mails/--no-send-mails',
               default=True,
               help='send email invitation to new users.')
 @click.pass_context
-def terraform_users(ctx, print_only, enable_deletion,
+def terraform_users(ctx, print_only, enable_deletion, io_dir,
                     thread_pool_size, send_mails):
     run_integration(reconcile.terraform_users.run,
                     ctx.obj['dry_run'], print_only,
-                    enable_deletion, thread_pool_size,
-                    send_mails)
+                    enable_deletion, io_dir,
+                    thread_pool_size, send_mails)
 
 
 @integration.command()

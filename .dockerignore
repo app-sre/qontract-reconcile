@@ -5,6 +5,7 @@ build
 .pytest_cache
 .tox
 venv
+throughput
 
 **/__pycache__
 **/*.pyc
