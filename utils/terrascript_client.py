@@ -308,12 +308,12 @@ class TerrascriptClient(object):
             raise UnknownProviderError(provider)
 
     def populate_tf_resource_rds(self, resource, namespace_info):
-        account, identifier, values, output_resource_name = \
+        account, identifier, values, output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
-                                 output_resource_name)
+                                 output_prefix, output_resource_name)
 
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
@@ -335,23 +335,23 @@ class TerrascriptClient(object):
         # we want the outputs to be formed into an OpenShift Secret
         # with the following fields
         # db.host
-        output_name = output_resource_name + '[db.host]'
+        output_name = output_prefix + '[db.host]'
         output_value = '${' + tf_resource.fullname + '.address}'
         tf_resources.append(output(output_name, value=output_value))
         # db.port
-        output_name = output_resource_name + '[db.port]'
+        output_name = output_prefix + '[db.port]'
         output_value = '${' + tf_resource.fullname + '.port}'
         tf_resources.append(output(output_name, value=output_value))
         # db.name
-        output_name = output_resource_name + '[db.name]'
+        output_name = output_prefix + '[db.name]'
         output_value = values['name']
         tf_resources.append(output(output_name, value=output_value))
         # db.user
-        output_name = output_resource_name + '[db.user]'
+        output_name = output_prefix + '[db.user]'
         output_value = values['username']
         tf_resources.append(output(output_name, value=output_value))
         # db.password
-        output_name = output_resource_name + '[db.password]'
+        output_name = output_prefix + '[db.password]'
         output_value = values['password']
         tf_resources.append(output(output_name, value=output_value))
 
@@ -396,12 +396,13 @@ class TerrascriptClient(object):
                        for i in range(string_length))
 
     def populate_tf_resource_s3(self, resource, namespace_info):
-        account, identifier, common_values, output_resource_name = \
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
-                                 output_resource_name)
+                                 output_prefix, output_resource_name)
 
         # s3 bucket
         # Terraform resource reference:
@@ -412,7 +413,7 @@ class TerrascriptClient(object):
         values['tags'] = common_values['tags']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
-        output_name = output_resource_name + '[bucket]'
+        output_name = output_prefix + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
 
@@ -434,10 +435,10 @@ class TerrascriptClient(object):
         values['depends_on'] = [user_tf_resource]
         tf_resource = aws_iam_access_key(identifier, **values)
         tf_resources.append(tf_resource)
-        output_name = output_resource_name + '[aws_access_key_id]'
+        output_name = output_prefix + '[aws_access_key_id]'
         output_value = '${' + tf_resource.fullname + '.id}'
         tf_resources.append(output(output_name, value=output_value))
-        output_name = output_resource_name + '[aws_secret_access_key]'
+        output_name = output_prefix + '[aws_secret_access_key]'
         output_value = '${' + tf_resource.fullname + '.secret}'
         tf_resources.append(output(output_name, value=output_value))
 
@@ -503,9 +504,12 @@ class TerrascriptClient(object):
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
 
-        output_resource_name = '{}-{}'.format(identifier, provider)
+        output_prefix = '{}-{}'.format(identifier, provider)
+        output_resource_name = resource['output_resource_name']
+        if output_resource_name is None:
+            output_resource_name = output_prefix
 
-        return account, identifier, values, output_resource_name
+        return account, identifier, values, output_prefix, output_resource_name
 
     def override_values(self, base, overrides):
         if overrides is None:
@@ -514,16 +518,25 @@ class TerrascriptClient(object):
         for k, v in data.items():
             base[k] = v
 
-    def init_common_outputs(self, tf_resources, namespace_info, name):
+    def init_common_outputs(self, tf_resources, namespace_info,
+                            output_prefix, output_resource_name):
+        output_format = '{}[{}.{}]'
         cluster, namespace = self.unpack_namespace_info(namespace_info)
-        output_name = name + '[{}.cluster]'.format(self.integration_prefix)
+        output_name = output_format.format(
+            output_prefix, self.integration_prefix, 'cluster')
         output_value = cluster
         tf_resources.append(output(output_name, value=output_value))
-        output_name = name + '[{}.namespace]'.format(self.integration_prefix)
+        output_name = output_format.format(
+            output_prefix, self.integration_prefix, 'namespace')
         output_value = namespace
         tf_resources.append(output(output_name, value=output_value))
-        output_name = name + '[{}.resource]'.format(self.integration_prefix)
+        output_name = output_format.format(
+            output_prefix, self.integration_prefix, 'resource')
         output_value = 'Secret'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_format.format(
+            output_prefix, self.integration_prefix, 'output_resource_name')
+        output_value = output_resource_name
         tf_resources.append(output(output_name, value=output_value))
 
     def get_values(self, path):

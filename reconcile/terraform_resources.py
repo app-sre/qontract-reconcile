@@ -23,12 +23,14 @@ TF_QUERY = """
         identifier
         defaults
         overrides
+        output_resource_name
       }
       ... on NamespaceTerraformResourceS3_v1 {
         account
         identifier
         defaults
         overrides
+        output_resource_name
       }
     }
     cluster {
@@ -45,7 +47,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 4)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
