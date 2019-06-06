@@ -209,12 +209,19 @@ class TerraformClient(object):
                 output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
-                oc_resource = self.construct_oc_resource(name, data)
+                cluster = data['{}.cluster'.format(self.integration_prefix)]
+                namespace = \
+                    data['{}.namespace'.format(self.integration_prefix)]
+                resource = data['{}.resource'.format(self.integration_prefix)]
+                output_resource_name = data['{}.output_resource_name'.format(
+                    self.integration_prefix)]
+                oc_resource = \
+                    self.construct_oc_resource(output_resource_name, data)
                 ri.add_desired(
-                    data['{}.cluster'.format(self.integration_prefix)],
-                    data['{}.namespace'.format(self.integration_prefix)],
-                    data['{}.resource'.format(self.integration_prefix)],
-                    name,
+                    cluster,
+                    namespace,
+                    resource,
+                    output_resource_name,
                     oc_resource
                 )
 
