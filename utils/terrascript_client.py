@@ -403,6 +403,7 @@ class TerrascriptClient(object):
         values['bucket'] = identifier
         values['versioning'] = {'enabled': True}
         values['tags'] = common_values['tags']
+        values['acl'] = common_values['acl']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
