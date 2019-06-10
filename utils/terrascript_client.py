@@ -317,14 +317,6 @@ class TerrascriptClient(object):
 
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
-        try:
-            variables = self.variables[account]
-            values['db_subnet_group_name'] = variables['rds-subnet-group']
-            values['vpc_security_group_ids'] = \
-                variables['rds-security-groups'].split(',')
-        except KeyError as e:
-            logging.error("could not get an account variable: " + e.msg)
-            return
         values['password'] = \
             self.determine_rds_db_password(namespace_info,
                                            output_resource_name)
