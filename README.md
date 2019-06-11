@@ -21,6 +21,7 @@ Tool to reconcile services with their desired state as defined in the app-interf
 - `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `qontract-reconcile aws-garbage-collector`: Delete orphan AWS resources.
 - `qontract-reconcile aws-iam-keys`: Delete IAM access keys by access key ID.
+- `qontract-reconcile slack-usergroups`: Manage Slack User Groups (channels and users).
 
 ## Usage
 
