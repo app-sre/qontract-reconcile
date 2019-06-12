@@ -63,7 +63,7 @@ def get_slack_map():
 
         workspace_spec = {
             "slack": SlackApi(workspace['token']),
-            "manged_usergroups": workspace['managedUsergroups']
+            "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec
 
@@ -75,7 +75,7 @@ def get_current_state(slack_map):
 
     for workspace, spec in slack_map.items():
         slack = spec['slack']
-        managed_usergroups = spec['manged_usergroups']
+        managed_usergroups = spec['managed_usergroups']
         for ug in managed_usergroups:
             users, channels = slack.describe_usergroup(ug)
             current_state.append({
