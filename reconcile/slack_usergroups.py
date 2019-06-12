@@ -175,8 +175,8 @@ def act(desired_state, slack_map):
     for state in desired_state:
         workspace = state['workspace']
         ugid = state['usergroup_id']
-        users = ','.join(state['users'].keys())
-        channels = ','.join(state['channels'].keys())
+        users = state['users'].keys()
+        channels = state['channels'].keys()
         slack = slack_map[workspace]['slack']
         slack.update_usergroup_users(ugid, users)
         slack.update_usergroup_channels(ugid, channels)

@@ -45,7 +45,8 @@ class SlackApi(object):
         [usergroup] = usergroup
         return usergroup
 
-    def update_usergroup_channels(self, id, channels):
+    def update_usergroup_channels(self, id, channels_list):
+        channels = ','.join(channels_list)
         self.sc.api_call(
             "usergroups.update",
             usergroup=id,
@@ -53,18 +54,19 @@ class SlackApi(object):
         )
 
     def get_usergroup_users(self, id):
-        self.sc.api_call(
+        result = self.sc.api_call(
             "usergroups.users.list",
             usergroup=id,
         )
+        return result['users']
 
-    def update_usergroup_users(self, id, users):
-        result = self.sc.api_call(
+    def update_usergroup_users(self, id, users_list):
+        users = ','.join(users_list)
+        self.sc.api_call(
             "usergroups.users.update",
             usergroup=id,
             users=users,
         )
-        return result
 
     def get_channels_by_names(self, channels_names):
         return {k: v for k, v in self.get('channels').items()
