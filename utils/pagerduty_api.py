@@ -18,19 +18,18 @@ class PagerDutyApi(object):
 
     def get_final_schedule(self, schedule_id):
         now = datetime.datetime.now().strftime("%Y-%m-%d")
-        schedule = pypd.Schedule.fetch(
-            id=schedule_id,
-            since=now,
-            until=now,
-            time_zone='UTC')
+        try:
+            schedule = pypd.Schedule.fetch(
+                id=schedule_id,
+                since=now,
+                until=now,
+                time_zone='UTC')
+        except requests.exceptions.HTTPError as e:
+            return None
+
         entries = schedule['final_schedule']['rendered_schedule_entries']
         if len(entries) != 1:
             return None
-        [entry] = entries
 
-        user_id = entry['user']['id']
-        users = pypd.User.find()
-        user = [u for u in users if u['id'] == user_id]
-        [user] = user
-        redhat_username = user['email'].replace('@redhat.com', '')
-        print(redhat_username)
+        [entry] = entries
+        return entry['user']['summary']

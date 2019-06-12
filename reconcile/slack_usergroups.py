@@ -31,6 +31,7 @@ ROLES_QUERY = """
     name
     users {
       slack_username
+      pagerduty_name
     }
     permissions {
       service
@@ -51,6 +52,15 @@ ROLES_QUERY = """
         channels
       }
     }
+  }
+}
+"""
+
+USERS_QUERY = """
+{
+  users: users_v1 {
+    slack_username
+    pagerduty_name
   }
 }
 """
@@ -99,9 +109,28 @@ def get_current_state(slack_map):
     return current_state
 
 
+def get_slack_username_from_pagerduty(pagerduty, users):
+    if pagerduty is None:
+        return None
+
+    pd_token = pagerduty['token']
+    pd_schedule_id = pagerduty['scheduleID']
+    pd = PagerDutyApi(pd_token)
+    pagerduty_name = pd.get_final_schedule(pd_schedule_id)
+    slack_username = [u['slack_username']
+                      for u in users
+                      if u['pagerduty_name'] == pagerduty_name]
+    if len(slack_username) != 1:
+        return None
+
+    [slack_username] = slack_username
+    return slack_username
+
+
 def get_desired_state(slack_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
+    all_users = gqlapi.query(USERS_QUERY)['users']
 
     desired_state = []
     for r in roles:
@@ -129,13 +158,10 @@ def get_desired_state(slack_map):
             ugid = slack.get_usergroup_id(usergroup)
             users_names = [u['slack_username'] for u in r['users']]
 
-            pd = p['pagerduty']
-            if pd is not None:
-                pd_token = pd['token']
-                pd_schedule_id = pd['scheduleID']
-                pagerduty = PagerDutyApi(pd_token)
-                pagerduty.get_final_schedule(pd_schedule_id)
-            
+            slack_username = \
+                get_slack_username_from_pagerduty(p['pagerduty'], all_users)
+            if slack_username is not None:
+                users_names.append(slack_username)
 
             users = slack.get_users_by_names(users_names)
 
