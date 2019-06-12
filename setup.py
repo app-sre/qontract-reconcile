@@ -32,6 +32,7 @@ setup(
         "boto3>=1.9.0,<=1.10.0",
         "botocore>=1.12.159,<=1.13.0",
         "urllib3>=1.21.1,<1.25.0",
+        "slackclient>=1.3.2,<1.4.0",
     ],
 
     test_suite="tests",
