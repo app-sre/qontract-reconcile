@@ -3,6 +3,7 @@ import logging
 import utils.gql as gql
 
 from utils.slack_api import SlackApi
+from utils.pagerduty_api import PagerDutyApi
 
 
 PERMISSIONS_QUERY = """
@@ -39,6 +40,14 @@ ROLES_QUERY = """
           name
           managedUsergroups
         }
+        pagerduty {
+          name
+          token {
+            path
+            field
+          }
+          scheduleID
+        }
         channels
       }
     }
@@ -47,15 +56,17 @@ ROLES_QUERY = """
 """
 
 
-def get_slack_map():
+def get_permissions():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
 
-    slack_permissions = \
-        [p for p in permissions if p['service'] == 'slack-usergroup']
+    return [p for p in permissions if p['service'] == 'slack-usergroup']
 
+
+def get_slack_map():
+    permissions = get_permissions()
     slack_map = {}
-    for sp in slack_permissions:
+    for sp in permissions:
         workspace = sp['workspace']
         workspace_name = workspace['name']
         if workspace_name in slack_map:
@@ -117,6 +128,15 @@ def get_desired_state(slack_map):
             slack = slack_map[workspace_name]['slack']
             ugid = slack.get_usergroup_id(usergroup)
             users_names = [u['slack_username'] for u in r['users']]
+
+            pd = p['pagerduty']
+            if pd is not None:
+                pd_token = pd['token']
+                pd_schedule_id = pd['scheduleID']
+                pagerduty = PagerDutyApi(pd_token)
+                pagerduty.get_final_schedule(pd_schedule_id)
+            
+
             users = slack.get_users_by_names(users_names)
 
             channel_names = [] if p['channels'] is None else p['channels']
