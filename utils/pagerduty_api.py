@@ -1,8 +1,6 @@
-import time
 import pypd
 import datetime
-
-from slackclient import SlackClient
+import requests
 
 import utils.vault_client as vault_client
 
@@ -24,7 +22,7 @@ class PagerDutyApi(object):
                 since=now,
                 until=now,
                 time_zone='UTC')
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError:
             return None
 
         entries = schedule['final_schedule']['rendered_schedule_entries']
