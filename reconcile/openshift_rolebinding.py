@@ -245,7 +245,6 @@ class RunnerAction(object):
                             ))
                         continue
 
-
                 if not self.dry_run:
                     f = getattr(api, method_name)
                     try:
