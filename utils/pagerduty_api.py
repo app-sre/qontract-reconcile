@@ -15,7 +15,7 @@ class PagerDutyApi(object):
         pypd.api_key = pd_api_key
 
     def get_final_schedule(self, schedule_id):
-        now = datetime.datetime.now().strftime("%Y-%m-%d")
+        now = datetime.datetime.utcnow()
         try:
             schedule = pypd.Schedule.fetch(
                 id=schedule_id,
