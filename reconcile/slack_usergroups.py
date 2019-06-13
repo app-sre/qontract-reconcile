@@ -3,6 +3,7 @@ import logging
 import utils.gql as gql
 
 from utils.slack_api import SlackApi
+from utils.pagerduty_api import PagerDutyApi
 
 
 PERMISSIONS_QUERY = """
@@ -30,6 +31,7 @@ ROLES_QUERY = """
     name
     users {
       slack_username
+      pagerduty_name
     }
     permissions {
       service
@@ -39,6 +41,14 @@ ROLES_QUERY = """
           name
           managedUsergroups
         }
+        pagerduty {
+          name
+          token {
+            path
+            field
+          }
+          scheduleID
+        }
         channels
       }
     }
@@ -46,16 +56,27 @@ ROLES_QUERY = """
 }
 """
 
+USERS_QUERY = """
+{
+  users: users_v1 {
+    slack_username
+    pagerduty_name
+  }
+}
+"""
 
-def get_slack_map():
+
+def get_permissions():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
 
-    slack_permissions = \
-        [p for p in permissions if p['service'] == 'slack-usergroup']
+    return [p for p in permissions if p['service'] == 'slack-usergroup']
 
+
+def get_slack_map():
+    permissions = get_permissions()
     slack_map = {}
-    for sp in slack_permissions:
+    for sp in permissions:
         workspace = sp['workspace']
         workspace_name = workspace['name']
         if workspace_name in slack_map:
@@ -88,9 +109,28 @@ def get_current_state(slack_map):
     return current_state
 
 
+def get_slack_username_from_pagerduty(pagerduty, users):
+    if pagerduty is None:
+        return None
+
+    pd_token = pagerduty['token']
+    pd_schedule_id = pagerduty['scheduleID']
+    pd = PagerDutyApi(pd_token)
+    pagerduty_name = pd.get_final_schedule(pd_schedule_id)
+    slack_username = [u['slack_username']
+                      for u in users
+                      if u['pagerduty_name'] == pagerduty_name]
+    if len(slack_username) != 1:
+        return None
+
+    [slack_username] = slack_username
+    return slack_username
+
+
 def get_desired_state(slack_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
+    all_users = gqlapi.query(USERS_QUERY)['users']
 
     desired_state = []
     for r in roles:
@@ -117,6 +157,12 @@ def get_desired_state(slack_map):
             slack = slack_map[workspace_name]['slack']
             ugid = slack.get_usergroup_id(usergroup)
             users_names = [u['slack_username'] for u in r['users']]
+
+            slack_username = \
+                get_slack_username_from_pagerduty(p['pagerduty'], all_users)
+            if slack_username is not None:
+                users_names.append(slack_username)
+
             users = slack.get_users_by_names(users_names)
 
             channel_names = [] if p['channels'] is None else p['channels']
