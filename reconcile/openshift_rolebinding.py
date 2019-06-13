@@ -219,8 +219,7 @@ class RunnerAction(object):
             role = params['role']
             kind = params['kind']
 
-            if not self.dry_run:
-                api = self.cluster_store.api(cluster)
+            api = self.cluster_store.api(cluster)
 
             for member in items:
                 logging.info([
@@ -231,6 +230,21 @@ class RunnerAction(object):
                     kind,
                     member
                 ])
+                if kind == 'User':
+                    try:
+                        api.get_user(member)
+                    except Exception as e:
+                        logging.warning(
+                            'user {} not found in cluster {}, '
+                            'skipping user. '
+                            'has user signed in for the first time? '
+                            '({})'.format(
+                                member,
+                                cluster,
+                                e.message
+                            ))
+                        continue
+
 
                 if not self.dry_run:
                     f = getattr(api, method_name)
