@@ -1,3 +1,5 @@
+import json
+
 from utils.jump_host import (JumpHostSSHRestApi,
                              DummySSHServer,
                              HTTPStatusCodeError)
@@ -331,7 +333,11 @@ class Openshift(object):
             rb[u'subjects'].remove(subject)
             rb[u'userNames'].remove(userName)
 
-            return self.__oapi_put(uri, json=rb)
+            # JumpHostSSHRestApi will use `curl` instead of `requests`, so it
+            # doesn't support `json` header
+            headers = {'Content-type': 'application/json'}
+            data = json.dumps(rb)
+            return self.__oapi_post(uri, data=data, headers=headers)
 
     def add_role_to_user(self, namespace, role, user, kind):
         """
@@ -378,7 +384,11 @@ class Openshift(object):
                              u'name': name}],
               u'userNames': [userName]}
 
-        return self.__oapi_post(uri, json=rb)
+        # JumpHostSSHRestApi will use `curl` instead of `requests`, so it
+        # doesn't support `json` header
+        headers = {'Content-type': 'application/json'}
+        data = json.dumps(rb)
+        return self.__oapi_post(uri, data=data, headers=headers)
 
     def get_pvs(self):
         """Get persistentvolumes"""
