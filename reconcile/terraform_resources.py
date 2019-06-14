@@ -47,7 +47,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 3)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 4)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -152,6 +152,6 @@ def run(dry_run=False, print_only=False,
         cleanup_and_exit(tf, err)
 
     tf.populate_desired_state(ri)
-    openshift_resources.realize_data(dry_run, oc_map, ri)
+    openshift_resources.realize_data(dry_run, oc_map, ri, enable_deletion)
 
     cleanup_and_exit(tf)

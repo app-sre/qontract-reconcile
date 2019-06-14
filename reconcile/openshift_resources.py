@@ -82,7 +82,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 2)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 3)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -423,7 +423,7 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
         oc_map[cluster].delete(namespace, resource_type, name)
 
 
-def realize_data(dry_run, oc_map, ri):
+def realize_data(dry_run, oc_map, ri, enable_deletion=True):
     for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():
@@ -481,8 +481,14 @@ def realize_data(dry_run, oc_map, ri):
                 continue
 
             try:
-                delete(dry_run, oc_map, cluster, namespace,
-                       resource_type, name)
+                if enable_deletion:
+                    delete(dry_run, oc_map, cluster, namespace,
+                        resource_type, name)
+                # this section is only relevant for the terraform integrations
+                else:
+                    logging.error('\'delete\' action is not enabled. ' +
+                                  'Please run the integration manually ' +
+                                  'with the \'--enable-deletion\' flag.')
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {}".format(cluster, namespace, e.message)
