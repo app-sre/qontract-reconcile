@@ -483,7 +483,7 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
             try:
                 if enable_deletion:
                     delete(dry_run, oc_map, cluster, namespace,
-                        resource_type, name)
+                           resource_type, name)
                 # this section is only relevant for the terraform integrations
                 else:
                     logging.error('\'delete\' action is not enabled. ' +
