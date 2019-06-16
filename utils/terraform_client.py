@@ -202,6 +202,15 @@ class TerraformClient(object):
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
+    def get_terraform_output_secrets(self):
+        data = {}
+        for account, tf in self.tfs.items():
+            output = tf.output()
+            data[account] = \
+                self.format_output(output, self.OUTPUT_TYPE_SECRETS)
+
+        return data
+
     def populate_desired_state(self, ri):
         for name, tf in self.tfs.items():
             output = tf.output()

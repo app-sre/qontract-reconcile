@@ -416,7 +416,16 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
         oc_map[cluster].apply(namespace, annotated.toJSON())
 
 
-def delete(dry_run, oc_map, cluster, namespace, resource_type, name):
+def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
+           enable_deletion):
+    # this section is only relevant for the terraform integrations
+    if not enable_deletion:
+        logging.error(['delete', cluster, namespace, resource_type, name])
+        logging.error('\'delete\' action is not enabled. ' +
+                      'Please run the integration manually ' +
+                      'with the \'--enable-deletion\' flag.')
+        return
+        
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
@@ -481,14 +490,8 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
                 continue
 
             try:
-                if enable_deletion:
-                    delete(dry_run, oc_map, cluster, namespace,
-                           resource_type, name)
-                # this section is only relevant for the terraform integrations
-                else:
-                    logging.error('\'delete\' action is not enabled. ' +
-                                  'Please run the integration manually ' +
-                                  'with the \'--enable-deletion\' flag.')
+                delete(dry_run, oc_map, cluster, namespace,
+                       resource_type, name, enable_deletion)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {}".format(cluster, namespace, e.message)

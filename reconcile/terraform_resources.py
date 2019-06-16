@@ -47,7 +47,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 4)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -107,10 +107,17 @@ def setup(print_only, thread_pool_size):
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      oc_map)
-    ts.populate_resources(tf_query)
     working_dirs = ts.dump(print_only)
+    tf = Terraform(QONTRACT_INTEGRATION,
+                   QONTRACT_INTEGRATION_VERSION,
+                   QONTRACT_TF_PREFIX,
+                   working_dirs,
+                   thread_pool_size)
+    existing_secrets = tf.get_terraform_output_secrets()
+    ts.populate_resources(tf_query, existing_secrets)
+    ts.dump(print_only, existing_dirs=working_dirs)
 
-    return ri, oc_map, working_dirs
+    return ri, oc_map, tf
 
 
 def cleanup_and_exit(tf=None, status=False):
@@ -122,15 +129,9 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10):
-    ri, oc_map, working_dirs = setup(print_only, thread_pool_size)
+    ri, oc_map, tf = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
-
-    tf = Terraform(QONTRACT_INTEGRATION,
-                   QONTRACT_INTEGRATION_VERSION,
-                   QONTRACT_TF_PREFIX,
-                   working_dirs,
-                   thread_pool_size)
     if tf is None:
         err = True
         cleanup_and_exit(tf, err)
