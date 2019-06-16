@@ -425,7 +425,7 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
                       'Please run the integration manually ' +
                       'with the \'--enable-deletion\' flag.')
         return
-        
+
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
