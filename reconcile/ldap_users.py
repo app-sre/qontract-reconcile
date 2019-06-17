@@ -36,11 +36,12 @@ def init_users():
 def get_app_interface_gitlab_api():
     config = get_config()
 
-    server = config['app-interface']['server']
-    token = config['app-interface']['token']
-    project_id = config['app-interface']['project_id']
+    gitlab_config = config['gitlab']
+    server = gitlab_config['server']
+    token = gitlab_config['token']
+    project_id = gitlab_config['app-interface']['project_id']
 
-    return GitLabApi(server, token, project_id, False)
+    return GitLabApi(server, token, project_id=project_id, ssl_verify=False)
 
 
 def init_user_spec(user):

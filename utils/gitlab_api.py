@@ -11,10 +11,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class GitLabApi(object):
-    def __init__(self, server, token, project_id, ssl_verify=True):
-        self.gl = gitlab.Gitlab(server, private_token=token,
+    def __init__(self, server, token, project_id=None, ssl_verify=True):
+        self.server = server
+        self.gl = gitlab.Gitlab(self.server, private_token=token,
                                 ssl_verify=ssl_verify)
-        self.project = self.gl.projects.get(project_id)
+        self.gl.auth()
+        self.user = self.gl.user
+        if project_id is not None:
+            self.project = self.gl.projects.get(project_id)
 
     def create_branch(self, new_branch, source_branch):
         data = {
@@ -89,3 +93,22 @@ class GitLabApi(object):
                 return
 
         self.create_mr(branch_name, target_branch, title)
+
+    def get_project_users(self, repo_url):
+        repo = repo_url.replace(self.server + '/', '')
+        project = self.gl.projects.get(repo)
+        users = project.users.list()
+        is_admin = self.get_access_level(project) == 40
+
+        return is_admin, project.users.list()
+
+    def get_access_level(self, project):
+        max_access_level = 0
+        permission_types = ['group_access', 'project_access']
+        for pt in permission_types:
+            try:
+                access_level = project.permissions[pt]['access_level']
+                max_access_level = max(max_access_level, access_level)
+            except (KeyError, TypeError):
+                continue
+        return max_access_level
