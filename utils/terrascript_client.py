@@ -20,6 +20,7 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile)
 from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
 from threading import Lock
 
 
@@ -275,11 +276,14 @@ class TerrascriptClient(object):
             return err
         self.validate()
 
-    def populate_resources(self, tf_query):
+    def populate_resources(self, tf_query, existing_secrets):
         populate_specs = self.init_populate_specs(tf_query)
 
         pool = ThreadPool(self.thread_pool_size)
-        pool.map(self.populate_tf_resources, populate_specs)
+        populate_tf_resources_partial = \
+            partial(self.populate_tf_resources,
+                    existing_secrets=existing_secrets)
+        pool.map(populate_tf_resources_partial, populate_specs)
 
         self.validate()
 
@@ -296,18 +300,20 @@ class TerrascriptClient(object):
                 populate_specs.append(populate_spec)
         return populate_specs
 
-    def populate_tf_resources(self, populate_spec):
+    def populate_tf_resources(self, populate_spec, existing_secrets):
         resource = populate_spec['resource']
         namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
         if provider == 'rds':
-            self.populate_tf_resource_rds(resource, namespace_info)
+            self.populate_tf_resource_rds(resource, namespace_info,
+                                          existing_secrets)
         elif provider == 's3':
             self.populate_tf_resource_s3(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
-    def populate_tf_resource_rds(self, resource, namespace_info):
+    def populate_tf_resource_rds(self, resource, namespace_info,
+                                 existing_secrets):
         account, identifier, values, output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
 
@@ -315,12 +321,17 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        try:
+            password = \
+                existing_secrets[account][output_prefix]['db.password']
+        except KeyError:
+            password = \
+                self.determine_rds_db_password(namespace_info,
+                                               output_resource_name)
+        values['password'] = password
+
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
-        values['password'] = \
-            self.determine_rds_db_password(namespace_info,
-                                           output_resource_name)
-
         tf_resource = aws_db_instance(identifier, **values)
         tf_resources.append(tf_resource)
         # rds outputs
@@ -472,14 +483,20 @@ class TerrascriptClient(object):
         for _, ts in self.tss.items():
             ts.validate()
 
-    def dump(self, print_only=False):
-        working_dirs = {}
+    def dump(self, print_only=False, existing_dirs=None):
+        if existing_dirs is None:
+            working_dirs = {}
+        else:
+            working_dirs = existing_dirs
         for name, ts in self.tss.items():
             if print_only:
                 print('##### {} #####'.format(name))
                 print(ts.dump())
                 continue
-            wd = tempfile.mkdtemp()
+            if existing_dirs is None:
+                wd = tempfile.mkdtemp()
+            else:
+                wd = working_dirs[name]
             with open(wd + '/config.tf', 'w') as f:
                 f.write(ts.dump())
             working_dirs[name] = wd
