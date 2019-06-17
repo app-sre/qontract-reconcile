@@ -26,7 +26,7 @@ from threading import Lock
 |                       | sha256sum is stale      |             |
 |                       | (due to manual changes) |             |
 +-----------------------+-------------------------+-------------+
-| Present               | Skip (exit 1)           | Skip        |
+| Present               | Annotate and apply      | Skip        |
 | (without annotations) |                         |             |
 +-----------------------+-------------------------+-------------+
 | Not Present           | Apply                   | Skip        |
@@ -82,7 +82,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 3)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -439,18 +439,16 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
             c_item = data['current'].get(name)
 
             if c_item is not None:
-                # don't apply if it doesn't have annotations
+                #  If resource doesn't have annotations, annotate and apply
                 if not c_item.has_qontract_annotations():
-                    ri.register_error()
                     msg = (
                         "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, skipping."
+                        "w/o annotations, annotating and applying"
                     ).format(cluster, namespace, resource_type, name)
-                    logging.error(msg)
-                    continue
+                    logging.info(msg)
 
                 # don't apply if sha256sum hashes match
-                if c_item.sha256sum() == d_item.sha256sum():
+                elif c_item.sha256sum() == d_item.sha256sum():
                     if c_item.has_valid_sha256sum():
                         msg = (
                             "[{}/{}] resource '{}/{}' present "
