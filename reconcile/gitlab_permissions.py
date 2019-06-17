@@ -1,3 +1,4 @@
+import sys
 import logging
 
 import utils.gql as gql
@@ -42,10 +43,22 @@ def get_gitlab_api():
 def run(dry_run=False):
     gl = get_gitlab_api()
     repos = get_gitlab_repos(gl.server)
+    app_sre = gl.get_app_sre_group_users()
+    error = False
     for r in repos:
-        is_admin, users = gl.get_project_users(r)
-        if not is_admin:
+        maintainers = gl.get_project_maintainers(r)
+        if gl.user.username not in maintainers:
+            error = True
             logging.error("'{}' is not shared with {} as 'Maintainer'".format(
                 r, gl.user.username
             ))
             continue
+        members_to_add = [u for u in app_sre
+                          if u.username not in maintainers]
+        for m in members_to_add:
+            logging.info(['add_maintainer', r, m.username])
+
+            if not dry_run:
+                gl.add_project_member(r, m)
+
+    sys.exit(error)

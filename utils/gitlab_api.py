@@ -94,21 +94,22 @@ class GitLabApi(object):
 
         self.create_mr(branch_name, target_branch, title)
 
-    def get_project_users(self, repo_url):
+    def get_project_maintainers(self, repo_url):
+        project = self.get_project(repo_url)
+        members = project.members.all(all=True)
+        return [m['username'] for m in members if m['access_level'] >= 40]
+
+    def get_app_sre_group_users(self):
+        app_sre_group = self.gl.groups.get('app-sre')
+        return [m for m in app_sre_group.members.list()]
+
+    def add_project_member(self, repo_url, user):
+        project = self.get_project(repo_url)
+        project.members.create({
+            'user_id': user.id,
+            'access_level': gitlab.MAINTAINER_ACCESS
+        })
+
+    def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
-        project = self.gl.projects.get(repo)
-        users = project.users.list()
-        is_admin = self.get_access_level(project) == 40
-
-        return is_admin, project.users.list()
-
-    def get_access_level(self, project):
-        max_access_level = 0
-        permission_types = ['group_access', 'project_access']
-        for pt in permission_types:
-            try:
-                access_level = project.permissions[pt]['access_level']
-                max_access_level = max(max_access_level, access_level)
-            except (KeyError, TypeError):
-                continue
-        return max_access_level
+        return self.gl.projects.get(repo)
