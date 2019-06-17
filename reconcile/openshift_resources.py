@@ -82,7 +82,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 8, 4)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 0)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -439,7 +439,7 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
             c_item = data['current'].get(name)
 
             if c_item is not None:
-                #  If resource deoesn't have annotations, annotate and apply
+                #  If resource doesn't have annotations, annotate and apply
                 if not c_item.has_qontract_annotations():
                     msg = (
                         "[{}/{}] resource '{}/{}' present "
@@ -448,7 +448,7 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
                     logging.info(msg)
 
                 # don't apply if sha256sum hashes match
-                if c_item.sha256sum() == d_item.sha256sum():
+                elif c_item.sha256sum() == d_item.sha256sum():
                     if c_item.has_valid_sha256sum():
                         msg = (
                             "[{}/{}] resource '{}/{}' present "
