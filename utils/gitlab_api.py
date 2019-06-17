@@ -105,10 +105,14 @@ class GitLabApi(object):
 
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
-        project.members.create({
-            'user_id': user.id,
-            'access_level': gitlab.MAINTAINER_ACCESS
-        })
+        try:
+            project.members.create({
+                'user_id': user.id,
+                'access_level': gitlab.MAINTAINER_ACCESS
+            })
+        except gitlab.exceptions.GitlabCreateError:
+            member = project.members.get(user.id)
+            member.access_level = gitlab.MAINTAINER_ACCESS
 
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
