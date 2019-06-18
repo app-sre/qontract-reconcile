@@ -87,7 +87,7 @@ class ClusterStore(object):
                 )
 
                 api = Openshift(cluster_info['serverUrl'], token,
-                                jump_host=jump_host)
+                                jump_host=jump_host, verify_ssl='/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem')
 
                 _clusters[cluster_name] = {
                     'api': api,
