@@ -9,6 +9,12 @@ _gqlapi = None
 class GqlApiError(Exception):
     pass
 
+class GqlInvalidResponse(Exception):
+    def __init__(self, msg):
+        super(GqlInvalidResponse, self).__init__(
+            "Invalid response from GraphQL: " + str(msg)
+        )
+
 
 class GqlApi(object):
     def __init__(self, url, token=None):
