@@ -11,10 +11,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class GitLabApi(object):
-    def __init__(self, server, token, project_id, ssl_verify=True):
-        self.gl = gitlab.Gitlab(server, private_token=token,
+    def __init__(self, server, token, project_id=None, ssl_verify=True):
+        self.server = server
+        self.gl = gitlab.Gitlab(self.server, private_token=token,
                                 ssl_verify=ssl_verify)
-        self.project = self.gl.projects.get(project_id)
+        self.gl.auth()
+        self.user = self.gl.user
+        if project_id is not None:
+            self.project = self.gl.projects.get(project_id)
 
     def create_branch(self, new_branch, source_branch):
         data = {
@@ -89,3 +93,27 @@ class GitLabApi(object):
                 return
 
         self.create_mr(branch_name, target_branch, title)
+
+    def get_project_maintainers(self, repo_url):
+        project = self.get_project(repo_url)
+        members = project.members.all(all=True)
+        return [m['username'] for m in members if m['access_level'] >= 40]
+
+    def get_app_sre_group_users(self):
+        app_sre_group = self.gl.groups.get('app-sre')
+        return [m for m in app_sre_group.members.list()]
+
+    def add_project_member(self, repo_url, user):
+        project = self.get_project(repo_url)
+        try:
+            project.members.create({
+                'user_id': user.id,
+                'access_level': gitlab.MAINTAINER_ACCESS
+            })
+        except gitlab.exceptions.GitlabCreateError:
+            member = project.members.get(user.id)
+            member.access_level = gitlab.MAINTAINER_ACCESS
+
+    def get_project(self, repo_url):
+        repo = repo_url.replace(self.server + '/', '')
+        return self.gl.projects.get(repo)
