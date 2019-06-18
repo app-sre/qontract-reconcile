@@ -22,6 +22,7 @@ import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
+import reconcile.prometheus_alertmanager
 
 from utils.aggregated_list import RunnerException
 
@@ -242,3 +243,9 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 @click.pass_context
 def github_repo_invites(ctx):
     run_integration(reconcile.github_repo_invites.run, ctx.obj['dry_run'])
+
+@integration.command()
+@click.option('--generate-default-routes/--no-generate-default-routes', default=False)
+@click.pass_context
+def prometheus_alertmanager(ctx, generate_default_routes):
+    run_integration(reconcile.prometheus_alertmanager.run, generate_default_routes=generate_default_routes, dry_run=ctx.obj['dry_run'])
