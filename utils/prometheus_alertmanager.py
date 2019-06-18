@@ -1,4 +1,3 @@
-import copy
 import yaml
 
 
@@ -56,7 +55,7 @@ class Config(YamlEntity):
             )))
 
         self.data['route'].add_route(route)
-        
+
         return self
 
     def add_template(self, path):
@@ -72,10 +71,11 @@ class Config(YamlEntity):
         # Turn off yaml tags
         yaml.emitter.Emitter.process_tag = lambda x: None
 
-        #Turn off yaml aliases (anchors/references)
+        # Turn off yaml aliases (anchors/references)
         yaml.Dumper.ignore_aliases = lambda *args: True
 
         return yaml.dump(self.data)
+
 
 class Receiver(YamlEntity):
     def __init__(self, name):
@@ -106,9 +106,12 @@ class SlackConfig(YamlEntity):
 
 
 class SlackReceiver(Receiver):
-    def __init__(self, name):
+    def __init__(self, name, slack_config=None):
         super(SlackReceiver, self).__init__(name)
         self.data['slack_configs'] = []
+
+        if slack_config:
+            self.add_slack_config(slack_config)
 
     def add_slack_config(self, config):
         if not isinstance(config, SlackConfig):
@@ -133,9 +136,12 @@ class EmailConfig(YamlEntity):
 
 
 class EmailReceiver(Receiver):
-    def __init__(self, name):
+    def __init__(self, name, email_config=None):
         super(EmailReceiver, self).__init__(name)
         self.data['email_configs'] = []
+
+        if email_config:
+            self.add_email_config(email_config)
 
     def add_email_config(self, config):
         if not isinstance(config, EmailConfig):
@@ -160,9 +166,12 @@ class PagerdutyConfig(YamlEntity):
 
 
 class PagerdutyReceiver(Receiver):
-    def __init__(self, name):
+    def __init__(self, name, pagerduty_config=None):
         super(PagerdutyReceiver, self).__init__(name)
         self.data['pagerduty_configs'] = []
+
+        if pagerduty_config:
+            self.add_pagerduty_config(pagerduty_config)
 
     def add_pagerduty_config(self, config):
         if not isinstance(config, PagerdutyConfig):
@@ -175,13 +184,15 @@ class PagerdutyReceiver(Receiver):
 
 
 class Route(YamlEntity):
-    def __init__(self, receiver, **kwargs):
+    def __init__(self, receiver, group_by=None, set_continue=False):
         super(Route, self).__init__()
         self.data['receiver'] = receiver
-        
-        for k, v in kwargs.items():
-            k = k.lstrip('__')
-            self.data[k] = v
+
+        if group_by:
+            self.data['group_by'] = group_by
+
+        if set_continue is True:
+            self.data['continue'] = True
 
     @property
     def receiver(self):
@@ -194,10 +205,6 @@ class Route(YamlEntity):
                 type(route),
             )))
         self.data.setdefault('routes', []).append(route)
-        return self
-
-    def group_by(self, items):
-        self.data['group_by'] = items
         return self
 
     def set_match(self, k, v):

@@ -9,6 +9,7 @@ _gqlapi = None
 class GqlApiError(Exception):
     pass
 
+
 class GqlInvalidResponse(Exception):
     def __init__(self, msg):
         super(GqlInvalidResponse, self).__init__(

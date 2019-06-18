@@ -244,8 +244,12 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 def github_repo_invites(ctx):
     run_integration(reconcile.github_repo_invites.run, ctx.obj['dry_run'])
 
+
 @integration.command()
-@click.option('--generate-default-routes/--no-generate-default-routes', default=False)
+@click.option('--generate-default-routes/--no-generate-default-routes',
+              default=False)
 @click.pass_context
 def prometheus_alertmanager(ctx, generate_default_routes):
-    run_integration(reconcile.prometheus_alertmanager.run, generate_default_routes=generate_default_routes, dry_run=ctx.obj['dry_run'])
+    run_integration(reconcile.prometheus_alertmanager.run,
+                    generate_default_routes=generate_default_routes,
+                    dry_run=ctx.obj['dry_run'])
