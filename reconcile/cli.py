@@ -64,9 +64,9 @@ def enable_deletion(**kwargs):
     return f
 
 
-def run_integration(func, *args):
+def run_integration(func, *args, **kwargs):
     try:
-        func(*args)
+        func(*args, **kwargs)
     except RunnerException as e:
         sys.stderr.write(e.message + "\n")
         sys.exit(1)
