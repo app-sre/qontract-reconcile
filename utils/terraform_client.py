@@ -19,6 +19,13 @@ class ConstructResourceError(Exception):
         )
 
 
+class TerraformError(Exception):
+    def __init__(self, msg):
+        super(ConstructResourceError, self).__init__(
+            "error executing terraform command: " + str(msg)
+        )
+
+
 class OR(OpenshiftResource):
     def __init__(self, body, integration, integration_version):
         super(OR, self).__init__(
@@ -38,7 +45,9 @@ class TerraformClient(object):
         self.pool = ThreadPool(thread_pool_size)
         self._log_lock = Lock()
 
-        self.setup()
+        error = self.setup()
+        if error:
+            raise TerraformError('error in setup')
 
         if init_users:
             self.init_existing_users()
@@ -57,7 +66,9 @@ class TerraformClient(object):
         self.users = all_users
 
     def get_new_users(self):
-        self.output()  # update output after apply
+        error = self.output()  # update output after apply
+        if error:
+            raise TerraformError('error in get_new_users')
         new_users = []
         for spec in self.specs:
             account = spec['name']
@@ -83,8 +94,13 @@ class TerraformClient(object):
         self.init_constants()
         self.init_specs(self.working_dirs)
         results = self.pool.map(self.terraform_init, self.specs)
+        for _, tf in results:
+            if tf is None:
+                return True  # error occured
+
         self.update_specs(results, key='tf')
-        self.output()
+        error = self.output()
+        return error
 
     def init_specs(self, working_dirs):
         self.specs = \
@@ -217,13 +233,33 @@ class TerraformClient(object):
     # terraform output
     def output(self):
         results = self.pool.map(self.terraform_output, self.specs)
+
+        for _, output in results:
+            if output is None:
+                return True  # error occured
+
         self.update_specs(results, key='output')
+        return False  # no error occured
 
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']
         output = tf.output()
+        error = self.check_terraform_output(name, output)
+        if error:
+            return name, None
         return name, output
+
+    def check_terraform_output(self, name, output):
+        line_format = '[{}] {}'
+        error_occured = False
+        output = self.split_to_lines(output)
+        error_indicators = ['error:', 'caused by:']
+        for line in output:
+            if any(ei in line.lower() for ei in error_indicators):
+                logging.error(line_format.format(name, line))
+                error_occured = True
+        return error_occured
 
     def get_terraform_output_secrets(self):
         data = {}
