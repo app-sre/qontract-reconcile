@@ -126,7 +126,7 @@ class TerraformClient(object):
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec['name']
         tf = plan_spec['tf']
-        return_code, stdout, stderr = tf.plan(detailed_exitcode=False, 
+        return_code, stdout, stderr = tf.plan(detailed_exitcode=False,
                                               parallelism=self.parallelism)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected, deleted_users = \
