@@ -130,7 +130,7 @@ class TerraformClient(object):
 
     def update_specs(self, results, key):
         self.specs = \
-            [dict(spec, key=value)
+            [dict(spec, **{key:value})
              for spec in self.specs
              for name, value in results
              if spec['name'] == name]
@@ -216,8 +216,6 @@ class TerraformClient(object):
 
     # terraform output
     def output(self):
-        errors = False
-
         results = self.pool.map(self.terraform_output, self.specs)
         self.update_specs(results, key='output')
 
