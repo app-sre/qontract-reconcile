@@ -112,8 +112,6 @@ class AWSApi(object):
                 continue
             buckets = [b['Name'] for b in buckets_list['Buckets']]
             self.add_resources(account, 's3', buckets)
-            self.add_resources(account, 's3_no_owner', buckets)
-            continue
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
             resource_specs = \
