@@ -47,7 +47,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 0)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
