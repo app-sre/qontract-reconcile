@@ -47,9 +47,8 @@ class TerraformClient(object):
         all_users = {}
         for spec in self.specs:
             account = spec['name']
-            tf = spec['tf']
+            output = spec['output']
             users = []
-            output = tf.output()
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             for user_name in user_passwords:
@@ -58,12 +57,13 @@ class TerraformClient(object):
         self.users = all_users
 
     def get_new_users(self):
+        self.output() # update output after apply
         new_users = []
         for spec in self.specs:
             account = spec['name']
             tf = spec['tf']
+            output = spec['output']
             existing_users = self.users[account]
-            output = tf.output()
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             console_urls = self.format_output(
@@ -84,7 +84,8 @@ class TerraformClient(object):
         self.init_constants()
         self.init_specs(self.working_dirs)
         results = self.pool.map(self.terraform_init, self.specs)
-        self.update_specs(results)
+        self.update_specs(results, key='tf')
+        self.output()
 
     def init_specs(self, working_dirs):
         self.specs = \
@@ -127,11 +128,11 @@ class TerraformClient(object):
         with open(file_path, 'w') as f:
             f.write(json.dumps(self.deleted_users))
 
-    def update_specs(self, results):
+    def update_specs(self, results, key):
         self.specs = \
-            [dict(spec, tf=tf)
+            [dict(spec, key=value)
              for spec in self.specs
-             for name, tf in results
+             for name, value in results
              if spec['name'] == name]
 
     def terraform_plan(self, spec, enable_deletion):
@@ -218,25 +219,20 @@ class TerraformClient(object):
         errors = False
 
         results = self.pool.map(self.terraform_output, self.specs)
-
-        for error in results:
-            if error:
-                errors = True
-        return errors
+        self.update_specs(results, key='output')
 
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']
-        return_code, stdout, stderr = tf.output()
-        error = self.check_output(name, return_code, stdout, stderr)
-        return error
+        output = tf.output()
+        return name, output
 
     def get_terraform_output_secrets(self):
         data = {}
         for spec in self.specs:
             account = spec['name']
             tf = spec['tf']
-            output = tf.output()
+            output = spec['output']
             data[account] = \
                 self.format_output(output, self.OUTPUT_TYPE_SECRETS)
 
@@ -246,7 +242,7 @@ class TerraformClient(object):
         for spec in self.specs:
             name = spec['name']
             tf = spec['tf']
-            output = tf.output()
+            output = spec['output']
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)
 
