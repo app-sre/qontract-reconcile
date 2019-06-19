@@ -34,6 +34,7 @@ class TerraformClient(object):
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.parallelism = thread_pool_size
         self.pool = ThreadPool(thread_pool_size)
         self._log_lock = Lock()
 
@@ -125,7 +126,8 @@ class TerraformClient(object):
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec['name']
         tf = plan_spec['tf']
-        return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
+        return_code, stdout, stderr = tf.plan(detailed_exitcode=False, 
+                                              parallelism=self.parallelism)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected, deleted_users = \
             self.log_plan_diff(name, stdout, enable_deletion)
