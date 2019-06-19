@@ -68,6 +68,8 @@ class InvalidRecipient(Exception):
 
 def run(generate_default_routes=False, dry_run=False):
 
+def run(generate_default_routes=False, dry_run=False, thread_pool_size=10):
+
     # Default receiver for unmatched services
     bh_config = am.SlackConfig('#sd-app-sre-alerts',
                                actions=DEFAULT_SLACK_ACTIONS)
