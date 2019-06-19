@@ -57,11 +57,10 @@ class TerraformClient(object):
         self.users = all_users
 
     def get_new_users(self):
-        self.output() # update output after apply
+        self.output()  # update output after apply
         new_users = []
         for spec in self.specs:
             account = spec['name']
-            tf = spec['tf']
             output = spec['output']
             existing_users = self.users[account]
             user_passwords = self.format_output(
@@ -131,7 +130,7 @@ class TerraformClient(object):
 
     def update_specs(self, results, key):
         self.specs = \
-            [dict(spec, **{key:value})
+            [dict(spec, **{key: value})
              for spec in self.specs
              for name, value in results
              if spec['name'] == name]
@@ -230,7 +229,6 @@ class TerraformClient(object):
         data = {}
         for spec in self.specs:
             account = spec['name']
-            tf = spec['tf']
             output = spec['output']
             data[account] = \
                 self.format_output(output, self.OUTPUT_TYPE_SECRETS)
@@ -240,7 +238,6 @@ class TerraformClient(object):
     def populate_desired_state(self, ri):
         for spec in self.specs:
             name = spec['name']
-            tf = spec['tf']
             output = spec['output']
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)

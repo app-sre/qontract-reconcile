@@ -38,7 +38,7 @@ class AWSApi(object):
 
     def update_specs(self, results, key):
         self.specs = \
-            [dict(spec, **{key:value})
+            [dict(spec, **{key: value})
              for spec in self.specs
              for account, value in results
              if spec['account'] == account]
@@ -166,7 +166,8 @@ class AWSApi(object):
                   'client': dynamodb,
                   'resource': resource}
                  for resource in tables_without_owner]
-            results = self.pool.map(self.custom_dynamodb_filter, resource_specs)
+            results = \
+                self.pool.map(self.custom_dynamodb_filter, resource_specs)
             unfiltered = [r for r in results if r is not None]
             self.add_resources(account, 'dynamodb_no_owner', unfiltered)
 
@@ -211,7 +212,6 @@ class AWSApi(object):
 
     def custom_s3_filter(self, resource_spec):
         account = resource_spec['account']
-        session = resource_spec['session']
         s3 = resource_spec['client']
         resource = resource_spec['resource']
         type = 's3 bucket'
@@ -227,7 +227,6 @@ class AWSApi(object):
 
     def custom_sqs_filter(self, resource_spec):
         account = resource_spec['account']
-        session = resource_spec['session']
         sqs = resource_spec['client']
         resource = resource_spec['resource']
         type = 'sqs queue'
@@ -255,7 +254,6 @@ class AWSApi(object):
 
     def custom_rds_filter(self, resource_spec):
         account = resource_spec['account']
-        session = resource_spec['session']
         rds = resource_spec['client']
         resource = resource_spec['resource']
         type = 'rds instance'
