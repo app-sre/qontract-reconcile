@@ -9,57 +9,66 @@ import utils.vault_client as vault_client
 from utils.config import get_config
 
 from multiprocessing.dummy import Pool as ThreadPool
+from threading import Lock
 
 
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
     def __init__(self, thread_pool_size):
-        self.thread_pool_size = thread_pool_size
-        self.init_sessions()
-        self.init_users()
+        self.pool = ThreadPool(thread_pool_size)
+        self.setup()
+        self._lock = Lock()
 
-    def init_sessions(self):
+    def setup(self):
         config = get_config()
-        self.accounts = config['terraform'].items()
 
-        vault_specs = self.init_vault_tf_secret_specs()
-        pool = ThreadPool(self.thread_pool_size)
-        results = pool.map(self.get_vault_tf_secrets, vault_specs)
+        self.init_specs(config['terraform'])
+        results = self.pool.map(self.get_vault_tf_secret, self.specs)
+        self.update_specs(results, 'secret')
+        results = self.pool.map(self.get_session, self.specs)
+        self.update_specs(results, 'session')
+        results = self.pool.map(self.get_users, self.specs)
+        self.update_specs(results, 'users')
 
-        self.sessions = {}
-        for account, secret in results:
-            access_key = secret['aws_access_key_id']
-            secret_key = secret['aws_secret_access_key']
-            region_name = secret['region']
-            session = boto3.Session(
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                region_name=region_name,
-            )
-            self.sessions[account] = session
+    def init_specs(self, config):
+        self.specs = \
+             [{'account': account, 'data': data}
+              for account, data in config.items()]
 
-    def init_vault_tf_secret_specs(self):
-        vault_specs = []
-        for account, data in self.accounts:
-            init_spec = {'account': account,
-                         'data': data}
-            vault_specs.append(init_spec)
-        return vault_specs
+    def update_specs(self, results, key):
+        self.specs = \
+            [dict(spec, **{key:value})
+             for spec in self.specs
+             for account, value in results
+             if spec['account'] == account]
 
-    def get_vault_tf_secrets(self, init_spec):
-        account = init_spec['account']
-        data = init_spec['data']
+    def get_vault_tf_secret(self, spec):
+        account = spec['account']
+        data = spec['data']
         secrets_path = data['secrets_path']
         secret = vault_client.read_all(secrets_path + '/config')
-        return (account, secret)
+        return account, secret
 
-    def init_users(self):
-        self.users = {}
-        for account, s in self.sessions.items():
-            iam = s.client('iam')
-            users = [u['UserName'] for u in iam.list_users()['Users']]
-            self.users[account] = users
+    def get_session(self, spec):
+        account = spec['account']
+        secret = spec['secret']
+        access_key = secret['aws_access_key_id']
+        secret_key = secret['aws_secret_access_key']
+        region_name = secret['region']
+        session = boto3.Session(
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region_name,
+        )
+        return account, session
+
+    def get_users(self, spec):
+        account = spec['account']
+        s = spec['session']
+        iam = s.client('iam')
+        users = [u['UserName'] for u in iam.list_users()['Users']]
+        return account, users
 
     def simulate_deleted_users(self, io_dir):
         src_integrations = ['terraform_resources', 'terraform_users']
@@ -77,83 +86,120 @@ class AWSApi(object):
                 self.users[delete_from_account].remove(delete_user)
 
     def map_resources(self):
-        self.resources = {}
-        for account, _ in self.accounts:
-            self.resources[account] = {}
-
+        self.init_resources()
         self.map_s3_resources()
         self.map_sqs_resources()
         self.map_dynamodb_resources()
         self.map_rds_resources()
 
+    def init_resources(self):
+        self.resources = {}
+        for spec in self.specs:
+            account = spec['account']
+            self.resources[account] = {}
+
+    def add_resources(self, account, resource_type, resources):
+        with self._lock:
+            self.resources[account][resource_type] = resources
+
     def map_s3_resources(self):
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             s3 = s.client('s3')
             buckets_list = s3.list_buckets()
             if 'Buckets' not in buckets_list:
                 continue
             buckets = [b['Name'] for b in buckets_list['Buckets']]
-            self.resources[account]['s3'] = buckets
+            self.add_resources(account, 's3', buckets)
+            self.add_resources(account, 's3_no_owner', buckets)
+            continue
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
-            unfiltered_buckets = \
-                self.custom_s3_filter(account, s3, buckets_without_owner)
-            self.resources[account]['s3_no_owner'] = unfiltered_buckets
+            resource_specs = \
+                [{'account': account,
+                  'session': s,
+                  'client': s3,
+                  'resource': resource}
+                 for resource in buckets_without_owner]
+            results = self.pool.map(self.custom_s3_filter, resource_specs)
+            unfiltered = [r for r in results if r is not None]
+            self.add_resources(account, 's3_no_owner', unfiltered)
 
     def map_sqs_resources(self):
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             sqs = s.client('sqs')
             queues_list = sqs.list_queues()
             if 'QueueUrls' not in queues_list:
                 continue
             queues = queues_list['QueueUrls']
-            self.resources[account]['sqs'] = queues
+            self.add_resources(account, 'sqs', queues)
             queues_without_owner = \
                 self.get_resources_without_owner(account, queues)
-            unfiltered_queues = \
-                self.custom_sqs_filter(account, sqs, queues_without_owner)
-            self.resources[account]['sqs_no_owner'] = unfiltered_queues
+            resource_specs = \
+                [{'account': account,
+                  'session': s,
+                  'client': sqs,
+                  'resource': resource}
+                 for resource in queues_without_owner]
+            results = self.pool.map(self.custom_sqs_filter, resource_specs)
+            unfiltered = [r for r in results if r is not None]
+            self.add_resources(account, 'sqs_no_owner', unfiltered)
 
     def map_dynamodb_resources(self):
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             dynamodb = s.client('dynamodb')
             tables_list = dynamodb.list_tables()
             if 'TableNames' not in tables_list:
                 continue
             tables = tables_list['TableNames']
-            self.resources[account]['dynamodb'] = tables
+            self.add_resources(account, 'dynamodb', tables)
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
-            unfiltered_tables = \
-                self.custom_dynamodb_filter(
-                    account,
-                    s,
-                    dynamodb,
-                    tables_without_owner
-                )
-            self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
+            resource_specs = \
+                [{'account': account,
+                  'session': s,
+                  'client': dynamodb,
+                  'resource': resource}
+                 for resource in tables_without_owner]
+            results = self.pool.map(self.custom_dynamodb_filter, resource_specs)
+            unfiltered = [r for r in results if r is not None]
+            self.add_resources(account, 'dynamodb_no_owner', unfiltered)
 
     def map_rds_resources(self):
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             rds = s.client('rds')
             instances_list = rds.describe_db_instances()
             if 'DBInstances' not in instances_list:
                 continue
             instances = [t['DBInstanceIdentifier']
                          for t in instances_list['DBInstances']]
-            self.resources[account]['rds'] = instances
+            self.add_resources(account, 'rds', instances)
             instances_without_owner = \
                 self.get_resources_without_owner(account, instances)
-            unfiltered_instances = \
-                self.custom_rds_filter(account, rds, instances_without_owner)
-            self.resources[account]['rds_no_owner'] = unfiltered_instances
+            resource_specs = \
+                [{'account': account,
+                  'session': s,
+                  'client': rds,
+                  'resource': resource}
+                 for resource in instances_without_owner]
+            results = self.pool.map(self.custom_rds_filter, resource_specs)
+            unfiltered = [r for r in results if r is not None]
+            self.add_resources(account, 'rds_no_owner', unfiltered)
 
     def get_resources_without_owner(self, account, resources):
         return [r for r in resources if not self.has_owner(account, r)]
 
     def has_owner(self, account, resource):
         has_owner = False
-        for u in self.users[account]:
+        for u in [spec['users'] for spec in self.specs
+                  if spec['account'] == account][0]:
             if resource.lower().startswith(u.lower()):
                 has_owner = True
                 break
@@ -163,52 +209,64 @@ class AWSApi(object):
                     break
         return has_owner
 
-    def custom_s3_filter(self, account, s3, buckets):
+    def custom_s3_filter(self, resource_spec):
+        account = resource_spec['account']
+        session = resource_spec['session']
+        s3 = resource_spec['client']
+        resource = resource_spec['resource']
         type = 's3 bucket'
-        unfiltered_buckets = []
-        for b in buckets:
-            try:
-                tags = s3.get_bucket_tagging(Bucket=b)
-            except botocore.exceptions.ClientError:
-                tags = {}
-            if not self.should_filter(account, type, b, tags, 'TagSet'):
-                unfiltered_buckets.append(b)
 
-        return unfiltered_buckets
+        try:
+            tags = s3.get_bucket_tagging(Bucket=resource)
+        except botocore.exceptions.ClientError:
+            tags = {}
+        if self.should_filter(account, type, resource, tags, 'TagSet'):
+            return None
 
-    def custom_sqs_filter(self, account, sqs, queues):
+        return resource
+
+    def custom_sqs_filter(self, resource_spec):
+        account = resource_spec['account']
+        session = resource_spec['session']
+        sqs = resource_spec['client']
+        resource = resource_spec['resource']
         type = 'sqs queue'
-        unfiltered_queues = []
-        for q in queues:
-            tags = sqs.list_queue_tags(QueueUrl=q)
-            if not self.should_filter(account, type, q, tags, 'Tags'):
-                unfiltered_queues.append(q)
 
-        return unfiltered_queues
+        tags = sqs.list_queue_tags(QueueUrl=resource)
+        if self.should_filter(account, type, resource, tags, 'Tags'):
+            return None
 
-    def custom_dynamodb_filter(self, account, session, dynamodb, tables):
+        return resource
+
+    def custom_dynamodb_filter(self, resource_spec):
+        account = resource_spec['account']
+        session = resource_spec['session']
+        dynamodb = resource_spec['client']
+        resource = resource_spec['resource']
         type = 'dynamodb table'
+
         dynamodb_resource = session.resource('dynamodb')
-        unfiltered_tables = []
-        for t in tables:
-            table_arn = dynamodb_resource.Table(t).table_arn
-            tags = dynamodb.list_tags_of_resource(ResourceArn=table_arn)
-            if not self.should_filter(account, type, t, tags, 'Tags'):
-                unfiltered_tables.append(t)
+        table_arn = dynamodb_resource.Table(resource).table_arn
+        tags = dynamodb.list_tags_of_resource(ResourceArn=table_arn)
+        if self.should_filter(account, type, resource, tags, 'Tags'):
+            return None
 
-        return unfiltered_tables
+        return resource
 
-    def custom_rds_filter(self, account, rds, instances):
+    def custom_rds_filter(self, resource_spec):
+        account = resource_spec['account']
+        session = resource_spec['session']
+        rds = resource_spec['client']
+        resource = resource_spec['resource']
         type = 'rds instance'
-        unfiltered_instances = []
-        for i in instances:
-            instance = rds.describe_db_instances(DBInstanceIdentifier=i)
-            instance_arn = instance['DBInstances'][0]['DBInstanceArn']
-            tags = rds.list_tags_for_resource(ResourceName=instance_arn)
-            if not self.should_filter(account, type, i, tags, 'TagList'):
-                unfiltered_instances.append(i)
 
-        return unfiltered_instances
+        instance = rds.describe_db_instances(DBInstanceIdentifier=resource)
+        instance_arn = instance['DBInstances'][0]['DBInstanceArn']
+        tags = rds.list_tags_for_resource(ResourceName=instance_arn)
+        if self.should_filter(account, type, resource, tags, 'TagList'):
+            return None
+
+        return resource
 
     def should_filter(self, account, resource_type,
                       resource_name, resource_tags, tags_key):
@@ -281,7 +339,9 @@ class AWSApi(object):
                           'with the \'--enable-deletion\' flag.'
 
         resource_types = ['s3', 'sqs', 'dynamodb', 'rds']
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             for rt in resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
                     logging.info(['delete_resource', rt, account, r])
@@ -329,7 +389,9 @@ class AWSApi(object):
 
     def delete_keys(self, dry_run, keys_to_delete):
         users_keys = self.get_users_keys()
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             iam = s.client('iam')
             keys = keys_to_delete.get(account, [])
             for key in keys:
@@ -352,7 +414,9 @@ class AWSApi(object):
 
     def get_users_keys(self):
         users_keys = {}
-        for account, s in self.sessions.items():
+        for spec in self.specs:
+            account = spec['account']
+            s = spec['session']
             iam = s.client('iam')
             users_keys[account] = {user: self.get_user_keys(iam, user)
                                    for user in self.users[account]}

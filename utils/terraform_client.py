@@ -89,7 +89,8 @@ class TerraformClient(object):
 
     def init_specs(self, working_dirs):
         self.specs = \
-            [{'name': name, 'wd': wd} for name, wd in working_dirs.items()]
+            [{'name': name, 'wd': wd}
+             for name, wd in working_dirs.items()]
 
     def terraform_init(self, spec):
         name = spec['name']
