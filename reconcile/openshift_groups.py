@@ -163,8 +163,9 @@ def validate_diffs(diffs):
 
     if len(invalid_combos) != 0:
         for combo in invalid_combos:
-            msg = ('invalid cluster/group combination: {}/{}'
-                 ' (hint: should be added to managedGroups)'
+            msg = (
+                'invalid cluster/group combination: {}/{}'
+                ' (hint: should be added to managedGroups)'
             ).format(combo['cluster'], combo['group'])
             logging.error(msg)
         sys.exit(1)
