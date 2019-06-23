@@ -5,7 +5,6 @@ from functools import partial
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
 from utils.openshift_resource import ResourceInventory
-from utils.oc import StatusCodeError
 
 
 QUERY = """
