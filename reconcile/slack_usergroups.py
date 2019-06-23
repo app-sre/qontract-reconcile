@@ -126,7 +126,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
                    'to match PagerDuty name: {} '
                    '(hint: user files should contain '
                    'slack_username and pagerduty_name)'
-                  ).format(pagerduty_name)
+            ).format(pagerduty_name)
             logging.warning(msg)
         else:
             slack_usernames.extend(slack_username)
