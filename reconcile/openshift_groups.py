@@ -148,7 +148,7 @@ def validate_diffs(diffs):
     clusters_query = gqlapi.query(GROUPS_QUERY)['clusters']
 
     desired_combos = [{"cluster": diff['cluster'], "group": diff['group']}
-                       for diff in diffs]
+                      for diff in diffs]
     desired_combos_unique = []
     [desired_combos_unique.append(item)
      for item in desired_combos
@@ -163,10 +163,9 @@ def validate_diffs(diffs):
 
     if len(invalid_combos) != 0:
         for combo in invalid_combos:
-            msg = \
-                ('invalid cluster/group combination: {}/{}'
+            msg = ('invalid cluster/group combination: {}/{}'
                  ' (hint: should be added to managedGroups)'
-                ).format(combo['cluster'], combo['group'])
+            ).format(combo['cluster'], combo['group'])
             logging.error(msg)
         sys.exit(1)
 
