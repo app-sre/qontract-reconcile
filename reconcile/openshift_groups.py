@@ -1,3 +1,4 @@
+import sys
 import logging
 
 import utils.gql as gql
@@ -43,6 +44,15 @@ ROLES_QUERY = """
         group
       }
     }
+  }
+}
+"""
+
+GROUPS_QUERY = """
+{
+  clusters: clusters_v1 {
+    name
+    managedGroups
   }
 }
 """
@@ -133,6 +143,34 @@ def subtract_states(from_state, subtract_state, action):
     return result
 
 
+def validate_diffs(diffs):
+    gqlapi = gql.get_api()
+    clusters_query = gqlapi.query(GROUPS_QUERY)['clusters']
+
+    desired_combos = [{"cluster": diff['cluster'], "group": diff['group']}
+                       for diff in diffs]
+    desired_combos_unique = []
+    [desired_combos_unique.append(item)
+     for item in desired_combos
+     if item not in desired_combos_unique]
+
+    valid_combos = [{"cluster": cluster['name'], "group": group}
+                    for cluster in clusters_query
+                    for group in cluster['managedGroups'] or []]
+
+    invalid_combos = [item for item in desired_combos_unique
+                      if item not in valid_combos]
+
+    if len(invalid_combos) != 0:
+        for combo in invalid_combos:
+            msg = \
+                ('invalid cluster/group combination: {}/{}'
+                 ' (hint: should be added to managedGroups)'
+                ).format(combo['cluster'], combo['group'])
+            logging.error(msg)
+        sys.exit(1)
+
+
 def act(diff, oc_map):
     cluster = diff['cluster']
     group = diff['group']
@@ -152,6 +190,7 @@ def run(dry_run=False):
     desired_state = fetch_desired_state()
 
     diffs = calculate_diff(current_state, desired_state)
+    validate_diffs(diffs)
 
     for diff in diffs:
         logging.info(diff.values())
