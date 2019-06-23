@@ -39,6 +39,7 @@ class TerraformClient(object):
         self._log_lock = Lock()
 
         self.init_specs()
+        self.init_outputs()
 
         self.OUTPUT_TYPE_SECRETS = 'Secrets'
         self.OUTPUT_TYPE_PASSWORDS = 'enc-passwords'
@@ -53,7 +54,7 @@ class TerraformClient(object):
             account = spec['name']
             tf = spec['tf']
             users = []
-            output = tf.output()
+            output = self.outputs[account]
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             for user_name in user_passwords:
@@ -63,11 +64,12 @@ class TerraformClient(object):
 
     def get_new_users(self):
         new_users = []
+        self.init_outputs()  # get updated output
         for spec in self.specs:
             account = spec['name']
             tf = spec['tf']
             existing_users = self.users[account]
-            output = tf.output()
+            output = self.outputs[account]
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             console_urls = self.format_output(
@@ -87,7 +89,6 @@ class TerraformClient(object):
         self.specs = \
             [{'name': name, 'tf': tf} for name, tf in results]
 
-
     def terraform_init(self, init_spec):
         name = init_spec['name']
         wd = init_spec['wd']
@@ -97,6 +98,18 @@ class TerraformClient(object):
         if error:
             return name, None
         return name, tf
+
+    def init_outputs(self):
+        self.outputs = {}
+        results = self.pool.map(self.terraform_output, self.specs)
+        for name, output in results:
+            self.outputs[name] = output
+
+    def terraform_output(self, spec):
+        name = spec['name']
+        tf = spec['tf']
+        output = tf.output()
+        return name, output
 
     # terraform plan
     def plan(self, enable_deletion):
@@ -210,17 +223,18 @@ class TerraformClient(object):
         for spec in self.specs:
             account = spec['name']
             tf = spec['tf']
-            output = tf.output()
+            output = self.outputs[account]
             data[account] = \
                 self.format_output(output, self.OUTPUT_TYPE_SECRETS)
 
         return data
 
     def populate_desired_state(self, ri):
+        self.init_outputs()  # get updated output
         for spec in self.specs:
             account = spec['name']
             tf = spec['tf']
-            output = tf.output()
+            output = self.outputs[account]
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)
 
