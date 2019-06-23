@@ -122,10 +122,11 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
                           for u in users
                           if u['pagerduty_name'] == pagerduty_name]
         if len(slack_username) != 1:
-            msg = ('could not find Slack username '
-                   'to match PagerDuty name: {} '
-                   '(hint: user files should contain '
-                   'slack_username and pagerduty_name)'
+            msg = (
+                'could not find Slack username '
+                'to match PagerDuty name: {} '
+                '(hint: user files should contain '
+                'slack_username and pagerduty_name)'
             ).format(pagerduty_name)
             logging.warning(msg)
         else:
