@@ -100,7 +100,7 @@ class TerraformClient(object):
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']
-        output = tf.output()
+        output = tf.output(raise_on_error=True)
         return name, output
 
     # terraform plan
