@@ -26,12 +26,15 @@ import reconcile.aws_iam_keys
 from utils.aggregated_list import RunnerException
 
 
-def threaded(function):
-    function = click.option('--thread-pool-size',
-                            help='number of threads to run in parallel',
-                            default=10)(function)
-
-    return function
+def threaded(**kwargs):
+    def f(function):
+        opt = '--thread-pool-size'
+        msg = 'number of threads to run in parallel.'
+        function = click.option(opt,
+                                default=kwargs.get('default', 10),
+                                help=msg)(function)
+        return function
+    return f
 
 
 def terraform(function):
@@ -142,7 +145,7 @@ def gitlab_permissions(ctx):
 
 @integration.command()
 @throughput
-@threaded
+@threaded(default=10)
 @enable_deletion(default=False)
 @click.pass_context
 def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
@@ -151,7 +154,7 @@ def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
 
 
 @integration.command()
-@threaded
+@threaded(default=10)
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size):
     run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
@@ -159,7 +162,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded
+@threaded(default=10)
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
@@ -167,7 +170,7 @@ def openshift_resources(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded
+@threaded(default=10)
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size):
     run_integration(reconcile.openshift_namespaces.run,
@@ -187,7 +190,7 @@ def quay_repos(ctx):
 
 
 @integration.command()
-@threaded
+@threaded(default=10)
 @click.pass_context
 def ldap_users(ctx, thread_pool_size):
     run_integration(reconcile.ldap_users.run,
@@ -208,7 +211,7 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 @integration.command()
 @terraform
 @throughput
-@threaded
+@threaded(default=20)
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
@@ -221,7 +224,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @integration.command()
 @terraform
 @throughput
-@threaded
+@threaded(default=20)
 @enable_deletion(default=True)
 @click.option('--send-mails/--no-send-mails',
               default=True,

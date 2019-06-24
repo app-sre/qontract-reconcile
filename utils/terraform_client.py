@@ -34,27 +34,24 @@ class TerraformClient(object):
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.parallelism = thread_pool_size
         self.pool = ThreadPool(thread_pool_size)
         self._log_lock = Lock()
 
-        init_specs = self.init_init_specs(working_dirs)
-        results = self.pool.map(self.terraform_init, init_specs)
+        self.init_specs()
+        self.init_outputs()
 
         self.OUTPUT_TYPE_SECRETS = 'Secrets'
         self.OUTPUT_TYPE_PASSWORDS = 'enc-passwords'
         self.OUTPUT_TYPE_CONSOLEURLS = 'console-urls'
-        tfs = {}
-        for name, tf in results:
-            tfs[name] = tf
-        self.tfs = tfs
+
         if init_users:
             self.init_existing_users()
 
     def init_existing_users(self):
         all_users = {}
-        for account, tf in self.tfs.items():
+        for account, output in self.outputs.items():
             users = []
-            output = tf.output()
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             for user_name in user_passwords:
@@ -64,9 +61,9 @@ class TerraformClient(object):
 
     def get_new_users(self):
         new_users = []
-        for account, tf in self.tfs.items():
+        self.init_outputs()  # get updated output
+        for account, output in self.outputs.items():
             existing_users = self.users[account]
-            output = tf.output()
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             console_urls = self.format_output(
@@ -78,8 +75,13 @@ class TerraformClient(object):
                                   user_name, enc_password))
         return new_users
 
-    def init_init_specs(self, working_dirs):
-        return [{'name': name, 'wd': wd} for name, wd in working_dirs.items()]
+    def init_specs(self):
+        wd_specs = \
+            [{'name': name, 'wd': wd}
+             for name, wd in self.working_dirs.items()]
+        results = self.pool.map(self.terraform_init, wd_specs)
+        self.specs = \
+            [{'name': name, 'tf': tf} for name, tf in results]
 
     def terraform_init(self, init_spec):
         name = init_spec['name']
@@ -91,15 +93,24 @@ class TerraformClient(object):
             return name, None
         return name, tf
 
+    def init_outputs(self):
+        results = self.pool.map(self.terraform_output, self.specs)
+        self.outputs = {name: output for name, output in results}
+
+    def terraform_output(self, spec):
+        name = spec['name']
+        tf = spec['tf']
+        output = tf.output(raise_on_error=True)
+        return name, output
+
     # terraform plan
     def plan(self, enable_deletion):
         errors = False
         deletions_detected = False
 
-        plan_specs = self.init_plan_apply_specs()
         terraform_plan_partial = partial(self.terraform_plan,
                                          enable_deletion=enable_deletion)
-        results = self.pool.map(terraform_plan_partial, plan_specs)
+        results = self.pool.map(terraform_plan_partial, self.specs)
 
         self.deleted_users = []
         for deletion_detected, deleted_users, error in results:
@@ -119,13 +130,11 @@ class TerraformClient(object):
         with open(file_path, 'w') as f:
             f.write(json.dumps(self.deleted_users))
 
-    def init_plan_apply_specs(self):
-        return [{'name': name, 'tf': tf} for name, tf in self.tfs.items()]
-
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec['name']
         tf = plan_spec['tf']
-        return_code, stdout, stderr = tf.plan(detailed_exitcode=False)
+        return_code, stdout, stderr = tf.plan(detailed_exitcode=False,
+                                              parallelism=self.parallelism)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected, deleted_users = \
             self.log_plan_diff(name, stdout, enable_deletion)
@@ -187,8 +196,7 @@ class TerraformClient(object):
         errors = False
 
         self.pool = ThreadPool(1)  # TODO: remove this
-        apply_specs = self.init_plan_apply_specs()
-        results = self.pool.map(self.terraform_apply, apply_specs)
+        results = self.pool.map(self.terraform_apply, self.specs)
 
         for error in results:
             if error:
@@ -204,16 +212,15 @@ class TerraformClient(object):
 
     def get_terraform_output_secrets(self):
         data = {}
-        for account, tf in self.tfs.items():
-            output = tf.output()
+        for account, output in self.outputs.items():
             data[account] = \
                 self.format_output(output, self.OUTPUT_TYPE_SECRETS)
 
         return data
 
     def populate_desired_state(self, ri):
-        for name, tf in self.tfs.items():
-            output = tf.output()
+        self.init_outputs()  # get updated output
+        for account, output in self.outputs.items():
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)
 
@@ -333,7 +340,7 @@ class TerraformClient(object):
                 # as it will contain sensitive information, skip printing
                 if line.startswith('Outputs:'):
                     break
-                logging.info(line_format.format(name, line))
+                logging.debug(line_format.format(name, line))
             if return_code == 0:
                 for line in stderr:
                     logging.warning(line_format.format(name, line))
