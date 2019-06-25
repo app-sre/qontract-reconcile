@@ -34,7 +34,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_users'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -57,9 +57,9 @@ def setup(print_only, thread_pool_size):
     if err:
         return None, err
 
-    working_dirs = ts.dump(print_only)
+    working_dirs, error = ts.dump(print_only)
 
-    return working_dirs, None
+    return working_dirs, error
 
 
 def send_email_invites(new_users):
