@@ -274,7 +274,6 @@ class TerrascriptClient(object):
         err = self.populate_iam_users(tf_query)
         if err:
             return err
-        self.validate()
 
     def populate_resources(self, tf_query, existing_secrets):
         populate_specs = self.init_populate_specs(tf_query)
@@ -284,8 +283,6 @@ class TerrascriptClient(object):
             partial(self.populate_tf_resources,
                     existing_secrets=existing_secrets)
         pool.map(populate_tf_resources_partial, populate_specs)
-
-        self.validate()
 
     def init_populate_specs(self, tf_query):
         populate_specs = []
@@ -479,11 +476,8 @@ class TerrascriptClient(object):
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def validate(self):
-        for _, ts in self.tss.items():
-            ts.validate()
-
     def dump(self, print_only=False, existing_dirs=None):
+        error = False
         if existing_dirs is None:
             working_dirs = {}
         else:
@@ -499,8 +493,12 @@ class TerrascriptClient(object):
                 wd = working_dirs[name]
             with open(wd + '/config.tf', 'w') as f:
                 f.write(ts.dump())
+            valid = ts.validate(wd)
+            if not valid:
+                error = not valid
             working_dirs[name] = wd
-        return working_dirs
+
+        return working_dirs, error
 
     def init_values(self, resource, namespace_info):
         account = resource['account']

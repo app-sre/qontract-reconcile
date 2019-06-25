@@ -1,4 +1,5 @@
 import sys
+import shutil
 import semver
 
 import utils.gql as gql
@@ -47,7 +48,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
@@ -107,7 +108,9 @@ def setup(print_only, thread_pool_size):
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      oc_map)
-    working_dirs = ts.dump(print_only)
+    working_dirs, error = ts.dump(print_only)
+    if error:
+        cleanup_and_exit(status=error, working_dirs=working_dirs)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
@@ -115,13 +118,18 @@ def setup(print_only, thread_pool_size):
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
     ts.populate_resources(tf_query, existing_secrets)
-    ts.dump(print_only, existing_dirs=working_dirs)
+    _, error = ts.dump(print_only, existing_dirs=working_dirs)
+    if error:
+        cleanup_and_exit(status=error, working_dirs=working_dirs)
 
     return ri, oc_map, tf
 
 
-def cleanup_and_exit(tf=None, status=False):
-    if tf is not None:
+def cleanup_and_exit(tf=None, status=False, working_dirs={}):
+    if tf is None:
+        for wd in working_dirs.values():
+            shutil.rmtree(wd)
+    else:
         tf.cleanup()
     sys.exit(status)
 

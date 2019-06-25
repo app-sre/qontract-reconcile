@@ -129,31 +129,14 @@ class Terrascript(object):
         return json.dumps(config, indent=INDENT, sort_keys=SORT, default=_json_default)
 
 
-    def validate(self, delete=True):
+    def validate(self, tmpdir):
         """Validate a Terraform configuration."""
-        import tempfile
         import subprocess
-
-        config = self.dump()
-        tmpdir = tempfile.mkdtemp()
-        tmpfile = tempfile.NamedTemporaryFile(mode='w', dir=tmpdir, suffix='.tf.json', delete=delete)
-
-        tmpfile.write(self.dump())
-        tmpfile.flush()
-
-        # Download plugins
-        proc = subprocess.Popen(['terraform','init'], cwd=tmpdir,
-                                stdout=subprocess.PIPE, stderr=None)
-        proc.communicate()
-        assert proc.returncode == 0
 
         # Validate configuration
         proc = subprocess.Popen(['terraform','validate','-check-variables=false'], cwd=tmpdir,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         proc.communicate()
-
-        tmpfile.close()
-        shutil.rmtree(tmpdir)
 
         return proc.returncode == 0
 
