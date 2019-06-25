@@ -109,22 +109,30 @@ def get_current_state(slack_map):
     return current_state
 
 
-def get_slack_username_from_pagerduty(pagerduty, users):
-    if pagerduty is None:
-        return None
+def get_slack_usernames_from_pagerduty(pagerduties, users):
+    slack_usernames = []
+    for pagerduty in pagerduties or []:
+        pd_token = pagerduty['token']
+        pd_schedule_id = pagerduty['scheduleID']
+        pd = PagerDutyApi(pd_token)
+        pagerduty_name = pd.get_final_schedule(pd_schedule_id)
+        if pagerduty_name is None:
+            continue
+        slack_username = [u['slack_username']
+                          for u in users
+                          if u['pagerduty_name'] == pagerduty_name]
+        if len(slack_username) != 1:
+            msg = (
+                'could not find Slack username '
+                'to match PagerDuty name: {} '
+                '(hint: user files should contain '
+                'slack_username and pagerduty_name)'
+            ).format(pagerduty_name)
+            logging.warning(msg)
+        else:
+            slack_usernames.extend(slack_username)
 
-    pd_token = pagerduty['token']
-    pd_schedule_id = pagerduty['scheduleID']
-    pd = PagerDutyApi(pd_token)
-    pagerduty_name = pd.get_final_schedule(pd_schedule_id)
-    slack_username = [u['slack_username']
-                      for u in users
-                      if u['pagerduty_name'] == pagerduty_name]
-    if len(slack_username) != 1:
-        return None
-
-    [slack_username] = slack_username
-    return slack_username
+    return slack_usernames
 
 
 def get_desired_state(slack_map):
@@ -158,10 +166,9 @@ def get_desired_state(slack_map):
             ugid = slack.get_usergroup_id(usergroup)
             users_names = [u['slack_username'] for u in r['users']]
 
-            slack_username = \
-                get_slack_username_from_pagerduty(p['pagerduty'], all_users)
-            if slack_username is not None:
-                users_names.append(slack_username)
+            slack_usernames = \
+                get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
+            users_names.extend(slack_usernames)
 
             users = slack.get_users_by_names(users_names)
 
