@@ -38,8 +38,10 @@ class OC(object):
         cmd = ['get', kind, '-o', 'json']
 
         if 'namespace' in kwargs:
-            cmd.append('-n')
-            cmd.append(kwargs['namespace'])
+            namespace = kwargs['namespace']
+            if not self.project_exists(namespace):
+                return []
+            cmd.extend(['-n', namespace])
 
         if 'labels' in kwargs:
             labels_list = [
@@ -71,6 +73,16 @@ class OC(object):
     def delete(self, namespace, kind, name):
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
+
+    def project_exists(self, name):
+        try:
+            self.get(None, 'Project', name)
+        except StatusCodeError as e:
+            if 'NotFound' in e.message:
+                return False
+            else:
+                raise e
+        return True
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]

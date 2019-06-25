@@ -5,7 +5,6 @@ from functools import partial
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
 from utils.openshift_resource import ResourceInventory
-from utils.oc import StatusCodeError
 
 
 QUERY = """
@@ -57,15 +56,7 @@ def get_desired_state():
 def check_ns_exists(spec, oc_map):
     cluster = spec['cluster']
     namespace = spec['namespace']
-
-    create = False
-    try:
-        oc_map[cluster].get(namespace, 'Namespace', namespace)
-    except StatusCodeError as e:
-        if 'NotFound' in e.message:
-            create = True
-        else:
-            raise e
+    create = not oc_map[cluster].project_exists(namespace)
 
     return spec, create
 
