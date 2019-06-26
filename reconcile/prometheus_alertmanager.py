@@ -133,6 +133,9 @@ def fetch_current_state(namespaces, thread_pool_size):
 
 
 def get_data(name, query):
+    """
+    Get data from GraphQL
+    """
     gqlapi = gql.get_api()
     res = gqlapi.query(query)
 
@@ -148,12 +151,20 @@ def get_data(name, query):
 
 
 def get_vault_config(path, version=None):
+    """
+    Get config from vault
+    """
     data = vault_client.read_all_v2(path, version)
     return data
 
 
 def gen_recipient_name(*args):
-    blacklist = ":/"
+    """
+    Generates a recipient name from a list of strings
+
+    Blacklists some characters from the resulting string
+    """
+    blacklist = ""
     recname = args[0]
 
     for arg in args[1:]:
@@ -166,6 +177,7 @@ def gen_recipient_name(*args):
 
 def run(dry_run=False, thread_pool_size=10,
         show_routing_tree=False, show_config=False):
+
     # Get qontract-reconcile config
     qconfig = get_config()
 
@@ -178,8 +190,8 @@ def run(dry_run=False, thread_pool_size=10,
     # Alertmanager config
     am = Alertmanager()
 
+    # Global configs
     am.set_global('resolve_timeout', '5m')
-
     am.set_global('smtp_auth_username', config['smtp_auth_username'])
     am.set_global('smtp_auth_identity', config['smtp_auth_username'])
     am.set_global('smtp_auth_password', config['smtp_auth_password'])
@@ -189,7 +201,6 @@ def run(dry_run=False, thread_pool_size=10,
         am.set_global('smtp_require_tls', True)
     else:
         am.set_global('smtp_require_tls', False)
-
     am.set_global('slack_api_url', config['slack_api_url'])
 
     default_receiver_name = config['default_receiver_name']

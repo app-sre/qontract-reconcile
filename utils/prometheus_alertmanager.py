@@ -66,6 +66,9 @@ class Route(object):
 
 
 class Alertmanager(object):
+    """
+    Alertmanager object that holds an alertmanager configuration file
+    """
     def __init__(self):
         self._config = OrderedDict()
         self._config['global'] = OrderedDict()
@@ -86,17 +89,21 @@ class Alertmanager(object):
         yaml.add_representer(OrderedDict, self.represent_ordereddict)
 
     def represent_ordereddict(self, dumper, data):
+        """
+        YAML representer for the OrderedDict type
+        """
         value = []
-
         for item_key, item_value in data.items():
             node_key = dumper.represent_data(item_key)
             node_value = dumper.represent_data(item_value)
 
             value.append((node_key, node_value))
-
         return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
     def validate_config(self, amtool=None):
+        """
+        Validate the configuration using `amtool`
+        """
         proc = subprocess.Popen(['amtool', 'check-config'],
                                 stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -109,6 +116,9 @@ class Alertmanager(object):
         return True, None
 
     def config(self, validate=True):
+        """
+        Render the alertmanager configuration in YAML format
+        """
         if validate:
             ok, err = self.validate_config()
             if not ok:
@@ -117,6 +127,9 @@ class Alertmanager(object):
         return yaml.dump(self._config, sort_keys=False)
 
     def routing_tree(self):
+        """
+        Render the routing tree using `amtool`
+        """
         ok, err = self.validate_config()
         if not ok:
             raise(ConfigError(err))
@@ -158,6 +171,9 @@ class Alertmanager(object):
             raise(InvalidType("inhibit rule must be a dict"))
 
     def add_route(self, receiver=None, **kwargs):
+        """
+        Add a route under the default route
+        """
         route = OrderedDict()
 
         if receiver:
@@ -173,6 +189,11 @@ class Alertmanager(object):
         self._config['route'].setdefault('routes', []).append(route)
 
     def add_receiver(self, name, **kwargs):
+        """
+        Add a receiver
+
+        Receiver names should be unique
+        """
         receiver = OrderedDict({'name': name})
 
         # Make sure we don't add duplicates
