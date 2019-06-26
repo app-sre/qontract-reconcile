@@ -1,215 +1,205 @@
 import yaml
+import subprocess
+
+from collections import OrderedDict
 
 
 class InvalidType(Exception):
     pass
 
 
-class YamlEntity(object):
-    def __init__(self):
-        self.data = dict()
-
-    def __str__(self):
-        return yaml.dump(self.data)
-
-    def __getstate__(self):
-        return self.data
+class ConfigError(Exception):
+    pass
 
 
-class Config(YamlEntity):
-    def __init__(self, default_route):
-        super(Config, self).__init__()
-        self.data['global'] = {}
-        self.data['route'] = default_route
-        self.data['receivers'] = []
-        self.data['inhibit_rules'] = []
-        self.data['templates'] = []
+class DuplicateReceiver(Exception):
+    pass
 
-    def add_inhibit_rule(self, rule):
-        if not type(rule) == dict:
-            raise(InvalidType("Expected {}, got {}".format(
-                dict.__name__,
-                type(rule),
-            )))
 
-        # TODO make sure we do not add a duplicate receiver (name)
-        self.data['inhibit_rules'].append(rule)
+class RouteMatcher(object):
+    def __init__(self, k, v):
+        self.config = {}
 
-    def add_receiver(self, receiver):
-        if not isinstance(receiver, Receiver):
-            raise(InvalidType("Expected {}, got {}".format(
-                Receiver.__name__,
-                type(receiver),
-            )))
+        if type(v) == list and len(v) > 1:
+            regex = "^({})$".format('|'.join(v))
+            self._kind = 'match_re'
+            self._rules = {k: regex}
+        elif type(v) == list and len(v) == 1:
+            self._kind = 'match'
+            self._rules = {k: v[0]}
+        else:
+            self._kind = 'match'
+            self._rules = {k: v}
 
-        # TODO make sure we do not add a duplicate receiver (name)
-        self.data['receivers'].append(receiver)
+    @property
+    def kind(self):
+        return self._kind
 
-        return self
+    @property
+    def rules(self):
+        return self._rules
+
+
+class Route(object):
+    def __init__(self, receiver=None, matcher=None, **kwargs):
+        self.config = OrderedDict()
+
+        if receiver:
+            self.config['receiver'] = receiver
+
+        if matcher:
+            self.config[matcher.kind] = matcher.rules
+
+        for k, v in kwargs.items():
+            k = k.lstrip('__')
+            self.config[k] = v
+
+    @property
+    def receiver(self):
+        return self.config['receiver']
 
     def add_route(self, route):
         if not isinstance(route, Route):
-            raise(InvalidType("Expected {}, got {}".format(
-                Route.__name__,
-                type(route),
-            )))
-
-        self.data['route'].add_route(route)
-
+            raise(InvalidType("expected Route object, got {}".format(route)))
+        self.config.setdefault('routes', []).append(route)
         return self
 
-    def add_template(self, path):
-        self.data['templates'].append(path)
 
-    def set_global(self, key, value):
-        self.data['global'][key] = value
+class Alertmanager(object):
+    def __init__(self):
+        self._config = OrderedDict()
+        self._config['global'] = OrderedDict()
+        self._config['inhibit_rules'] = list()
+        self._config['route'] = OrderedDict()
+        self._config['receivers'] = list()
 
-    def render(self):
-        return self.render_yaml()
+        self.set_default_route('default')
+        self.add_receiver('default')
 
-    def render_yaml(self):
         # Turn off yaml tags
         yaml.emitter.Emitter.process_tag = lambda x: None
 
         # Turn off yaml aliases (anchors/references)
         yaml.Dumper.ignore_aliases = lambda *args: True
 
-        return yaml.dump(self.data)
+        # Dump in ordereddict format
+        yaml.add_representer(OrderedDict, self.represent_ordereddict)
 
+    def represent_ordereddict(self, dumper, data):
+        value = []
 
-class Receiver(YamlEntity):
-    def __init__(self, name):
-        super(Receiver, self).__init__()
-        self.data['name'] = name
+        for item_key, item_value in data.items():
+            node_key = dumper.represent_data(item_key)
+            node_value = dumper.represent_data(item_value)
 
-    @property
-    def name(self):
-        return self.data['name']
+            value.append((node_key, node_value))
 
-    def __str__(self):
-        return yaml.dump(self.data)
+        return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
 
-    def __getstate__(self):
-        return self.data
+    def validate_config(self, amtool=None):
+        proc = subprocess.Popen(['amtool', 'check-config'],
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        out = proc.communicate(input=yaml.dump(self._config, sort_keys=False))
 
+        if proc.returncode != 0:
+            return False, out
 
-class SlackConfig(YamlEntity):
-    def __init__(self, channel, **kwargs):
-        super(SlackConfig, self).__init__()
-        self.data = {
-            'channel': channel,
-        }
+        return True, None
 
-        for k, v in kwargs.items():
-            k = k.lstrip('__')
-            self.data[k] = v
+    def config(self, validate=True):
+        if validate:
+            ok, err = self.validate_config()
+            if not ok:
+                raise(ConfigError(err))
 
+        return yaml.dump(self._config, sort_keys=False)
 
-class SlackReceiver(Receiver):
-    def __init__(self, name, slack_config=None):
-        super(SlackReceiver, self).__init__(name)
-        self.data['slack_configs'] = []
+    def routing_tree(self):
+        ok, err = self.validate_config()
+        if not ok:
+            raise(ConfigError(err))
 
-        if slack_config:
-            self.add_slack_config(slack_config)
+        import tempfile
+        f = tempfile.NamedTemporaryFile(delete=False)
+        f.write(self.config())
+        f.close()
 
-    def add_slack_config(self, config):
-        if not isinstance(config, SlackConfig):
-            raise(InvalidType("Expected {}, got {}".format(
-                SlackConfig.__name__,
-                type(config),
-            )))
-        self.data['slack_configs'].append(config)
-        return self
+        cmd = ['amtool',
+               'config',
+               'routes',
+               'show',
+               '--config.file={}'.format(f.name)]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = proc.communicate(input=self.config())
 
+        if proc.returncode != 0:
+            return "Could not generate routing tree: {}".format(out[1])
 
-class EmailConfig(YamlEntity):
-    def __init__(self, to, **kwargs):
-        super(EmailConfig, self).__init__()
-        self.data = {
-            'to': to,
-        }
+        return out[0]
 
-        for k, v in kwargs.items():
-            k = k.lstrip('__')
-            self.data[k] = v
+    def set_global(self, key, val):
+        self._config['global'][key] = val
 
-
-class EmailReceiver(Receiver):
-    def __init__(self, name, email_config=None):
-        super(EmailReceiver, self).__init__(name)
-        self.data['email_configs'] = []
-
-        if email_config:
-            self.add_email_config(email_config)
-
-    def add_email_config(self, config):
-        if not isinstance(config, EmailConfig):
-            raise(InvalidType("Expected {}, got {}".format(
-                EmailConfig.__name__,
-                type(config),
-            )))
-        self.data['email_configs'].append(config)
-        return self
-
-
-class PagerdutyConfig(YamlEntity):
-    def __init__(self, service_key, **kwargs):
-        super(PagerdutyConfig, self).__init__()
-        self.data = {
-            'service_key': service_key,
-        }
+    def set_default_route(self, receiver, **kwargs):
+        self._config['route']['receiver'] = receiver
 
         for k, v in kwargs.items():
             k = k.lstrip('__')
-            self.data[k] = v
+            self._config['route'][k] = v
 
-
-class PagerdutyReceiver(Receiver):
-    def __init__(self, name, pagerduty_config=None):
-        super(PagerdutyReceiver, self).__init__(name)
-        self.data['pagerduty_configs'] = []
-
-        if pagerduty_config:
-            self.add_pagerduty_config(pagerduty_config)
-
-    def add_pagerduty_config(self, config):
-        if not isinstance(config, PagerdutyConfig):
-            raise(InvalidType("Expected {}, got {}".format(
-                PagerdutyConfig.__name__,
-                type(config),
-            )))
-        self.data['pagerduty_configs'].append(config)
-        return self
-
-
-class Route(YamlEntity):
-    def __init__(self, receiver, group_by=None, set_continue=False):
-        super(Route, self).__init__()
-        self.data['receiver'] = receiver
-
-        if group_by:
-            self.data['group_by'] = group_by
-
-        if set_continue is True:
-            self.data['continue'] = True
-
-    @property
-    def receiver(self):
-        return self.data['receiver']
-
-    def add_route(self, route):
-        if not isinstance(route, Route):
-            raise(InvalidType("Expected {}, got {}".format(
-                Route.__name__,
-                type(route),
-            )))
-        self.data.setdefault('routes', []).append(route)
-        return self
-
-    def set_match(self, k, v):
-        if type(v) == list:
-            regex = "^(?:^({})$)$".format('|'.join(v))
-            self.data['match_re'] = {k: regex}
+    def add_inhibit_rule(self, rule):
+        if isinstance(rule, dict):
+            # TODO make sure we do not add a duplicate receiver (name)
+            self._config.setdefault('inhibit_rules', []).append(rule)
         else:
-            self.data['match'] = {k: v}
+            raise(InvalidType("inhibit rule must be a dict"))
+
+    def add_route(self, receiver=None, **kwargs):
+        route = OrderedDict()
+
+        if receiver:
+            route['receiver'] = receiver
+
+        if kwargs['match']:
+            route['match'] = kwargs['match']
+
+        for k, v in kwargs.items():
+            k = k.lstrip('__')
+            route[k] = v
+
+        self._config['route'].setdefault('routes', []).append(route)
+
+    def add_receiver(self, name, **kwargs):
+        receiver = OrderedDict({'name': name})
+
+        # Make sure we don't add duplicates
+        for r in self._config['receivers']:
+            if r['name'] == name:
+                msg = "receiver {} already exists in the config".format(name)
+                raise(DuplicateReceiver(msg))
+
+        for k, v in kwargs.items():
+            if isinstance(v, list):
+                receiver[k] = v
+            else:
+                raise(InvalidType("receiver config must be a list"))
+
+        self._config['receivers'].append(receiver)
+
+    def add_slack_receiver(self, name, params={}):
+        self.add_receiver(name, slack_configs=[params])
+
+    def add_email_receiver(self, name, params={}):
+        self.add_receiver(name, email_configs=[params])
+
+    def add_pagerduty_receiver(self, name, params={}):
+        self.add_receiver(name, pagerduty_configs=[params])
+
+    def add_webhook_receiver(self, name, params={}):
+        self.add_receiver(name, webhook_configs=[params])
+
+    def add_template(self, path):
+        self._config.setdefault('templates', []).append(path)

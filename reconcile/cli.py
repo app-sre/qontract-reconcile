@@ -247,11 +247,13 @@ def github_repo_invites(ctx):
 
 @integration.command()
 @threaded
-@click.option('--generate-default-routes/--no-generate-default-routes',
-              default=False)
+@click.option('--show-routing-tree', default=False, is_flag=True)
+@click.option('--show-config', default=False, is_flag=True)
 @click.pass_context
-def prometheus_alertmanager(ctx, generate_default_routes, thread_pool_size):
+def prometheus_alertmanager(ctx, thread_pool_size,
+                            show_routing_tree, show_config):
     run_integration(reconcile.prometheus_alertmanager.run,
-                    generate_default_routes=generate_default_routes,
                     dry_run=ctx.obj['dry_run'],
-                    thread_pool_size=thread_pool_size)
+                    thread_pool_size=thread_pool_size,
+                    show_routing_tree=show_routing_tree,
+                    show_config=show_config)
