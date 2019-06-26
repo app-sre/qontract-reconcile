@@ -16,6 +16,12 @@ RUN yum install -y unzip && \
     mv terraform /usr/local/bin/terraform && \
     rm terraform.zip
 
+ENV ALERTMANAGER_VERSION 0.17.0
+RUN mkdir -p /tmp/alertmanager && cd /tmp/alertmanager && \
+    curl -sLO https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz && \
+    tar xzvf alertmanager-${ALERTMANAGER_VERSION}.linux-amd64.tar.gz && \
+    /bin/cp -avf alertmanager-${ALERTMANAGER_VERSION}.linux-amd64/amtool /usr/bin/
+
 COPY reconcile /reconcile/reconcile
 COPY utils /reconcile/utils
 COPY terrascript /reconcile/terrascript
