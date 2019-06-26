@@ -246,7 +246,7 @@ def github_repo_invites(ctx):
 
 
 @integration.command()
-@threaded
+@threaded(default=10)
 @click.option('--show-routing-tree', default=False, is_flag=True)
 @click.option('--show-config', default=False, is_flag=True)
 @click.pass_context
