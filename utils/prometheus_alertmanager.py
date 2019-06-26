@@ -1,5 +1,6 @@
-import yaml
+import os
 import subprocess
+import yaml
 
 from collections import OrderedDict
 
@@ -13,6 +14,10 @@ class ConfigError(Exception):
 
 
 class DuplicateReceiver(Exception):
+    pass
+
+
+class MissingAmtool(Exception):
     pass
 
 
@@ -79,6 +84,10 @@ class Alertmanager(object):
         self.set_default_route('default')
         self.add_receiver('default')
 
+        # Check if dependency amtool utility is present
+        if not self.amtool_available():
+            raise MissingAmtool("required `amtool` command is missing")
+
         # Turn off yaml tags
         yaml.emitter.Emitter.process_tag = lambda x: None
 
@@ -99,6 +108,11 @@ class Alertmanager(object):
 
             value.append((node_key, node_value))
         return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
+
+    def amtool_available(self):
+        return any(os.access(
+                os.path.join(path, 'amtool'), os.X_OK
+            ) for path in os.environ["PATH"].split(os.pathsep))
 
     def validate_config(self, amtool=None):
         """
