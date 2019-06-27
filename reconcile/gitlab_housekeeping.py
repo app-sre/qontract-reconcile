@@ -60,7 +60,8 @@ def handle_stale_issues(dry_run, gl, days_interval):
                     note.attributes.get('updated_at'), DATE_FORMAT)
                  for note in cancel_notes]
             latest_note_date = max(d for d in notes_dates)
-            # if the latest cancel note is under days_interval - remove 'stale' label
+            # if the latest cancel note is under
+            # days_interval - remove 'stale' label
             current_interval = now.date() - latest_note_date.date()
             if current_interval <= timedelta(days=days_interval):
                 logging.info(['remove_label', gl.project.name,
