@@ -145,9 +145,13 @@ def gitlab_permissions(ctx):
 
 
 @integration.command()
+@click.option('--days-interval',
+              default=15,
+              help='interval of days between actions.')
 @click.pass_context
-def gitlab_housekeeping(ctx):
-    run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'])
+def gitlab_housekeeping(ctx, days_interval):
+    run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'],
+                    days_interval)
 
 
 @integration.command()
