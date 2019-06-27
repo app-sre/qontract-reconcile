@@ -30,6 +30,8 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      name
+      redhat_username
       slack_username
       pagerduty_name
     }
@@ -59,6 +61,8 @@ ROLES_QUERY = """
 USERS_QUERY = """
 {
   users: users_v1 {
+    name
+    redhat_username
     slack_username
     pagerduty_name
   }
@@ -109,6 +113,14 @@ def get_current_state(slack_map):
     return current_state
 
 
+def get_slack_username(user):
+    return user['slack_username'] or user['redhat_username']
+
+
+def get_pagerduty_name(user):
+    return user['pagerduty_name'] or user['name']
+
+
 def get_slack_usernames_from_pagerduty(pagerduties, users):
     slack_usernames = []
     for pagerduty in pagerduties or []:
@@ -118,15 +130,15 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
         pagerduty_name = pd.get_final_schedule(pd_schedule_id)
         if pagerduty_name is None:
             continue
-        slack_username = [u['slack_username']
+        slack_username = [get_slack_username(u)
                           for u in users
-                          if u['pagerduty_name'] == pagerduty_name]
+                          if get_pagerduty_name(u) == pagerduty_name]
         if len(slack_username) != 1:
             msg = (
                 'could not find Slack username '
                 'to match PagerDuty name: {} '
                 '(hint: user files should contain '
-                'slack_username and pagerduty_name)'
+                'pagerduty_name if it is different then name)'
             ).format(pagerduty_name)
             logging.warning(msg)
         else:
@@ -164,13 +176,13 @@ def get_desired_state(slack_map):
 
             slack = slack_map[workspace_name]['slack']
             ugid = slack.get_usergroup_id(usergroup)
-            users_names = [u['slack_username'] for u in r['users']]
+            user_names = [get_slack_username(u) for u in r['users']]
 
             slack_usernames = \
                 get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
-            users_names.extend(slack_usernames)
+            user_names.extend(slack_usernames)
 
-            users = slack.get_users_by_names(users_names)
+            users = slack.get_users_by_names(user_names)
 
             channel_names = [] if p['channels'] is None else p['channels']
             channels = slack.get_channels_by_names(channel_names)
