@@ -117,3 +117,40 @@ class GitLabApi(object):
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
         return self.gl.projects.get(repo)
+
+    def get_issues(self, state):
+        all_issues = []
+        page = 1
+        while True:
+            issues = self.project.issues.list(state=state, page=page,
+                                              per_page=100)
+            all_issues.extend(issues)
+            if len(issues) < 100:
+                break
+            page += 1
+
+        return all_issues
+
+    def add_label(self, issue, label):
+        note_body = (
+            'issue has been marked as {0}. '
+            'to remove say `/{0} cancel`').format(label)
+        labels = issue.attributes.get('labels')
+        labels.append(label)
+        issue.notes.create({'body': note_body})
+        self.update_labels(issue, labels)
+
+    def remove_label(self, issue, label):
+        labels = issue.attributes.get('labels')
+        labels.remove(label)
+        self.update_labels(issue, labels)
+
+    def update_labels(self, issue, labels):
+        editable_issue = \
+            self.project.issues.get(issue.attributes.get('iid'), lazy=True)
+        editable_issue.labels = labels
+        editable_issue.save()
+
+    def close_issue(self, issue):
+        issue.state_event = 'close'
+        issue.save()
