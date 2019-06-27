@@ -20,6 +20,7 @@ import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
+import reconcile.gitlab_housekeeping
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 
@@ -141,6 +142,12 @@ def slack_usergroups(ctx):
 @click.pass_context
 def gitlab_permissions(ctx):
     run_integration(reconcile.gitlab_permissions.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def gitlab_housekeeping(ctx):
+    run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'])
 
 
 @integration.command()
