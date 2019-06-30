@@ -50,6 +50,7 @@ ROLES_QUERY = """
             field
           }
           scheduleID
+          escalationPolicyID
         }
         channels
       }
@@ -126,23 +127,33 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
     for pagerduty in pagerduties or []:
         pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
+        if pd_schedule_id is not None:
+            pd_resource_type = 'schedule'
+            pd_resource_id = pd_schedule_id
+        pd_escalation_policy_id = pagerduty['escalationPolicyID']
+        if pd_escalation_policy_id is not None:
+            pd_resource_type = 'escalationPolicy'
+            pd_resource_id = pd_escalation_policy_id
+
         pd = PagerDutyApi(pd_token)
-        pagerduty_name = pd.get_final_schedule(pd_schedule_id)
-        if pagerduty_name is None:
+        pagerduty_names = pd.get_pagerduty_users(pd_resource_type,
+                                                 pd_resource_id)
+        if not pagerduty_names:
             continue
-        slack_username = [get_slack_username(u)
-                          for u in users
-                          if get_pagerduty_name(u) == pagerduty_name]
-        if len(slack_username) != 1:
+        slack_usernames = [get_slack_username(u)
+                           for u in users
+                           if get_pagerduty_name(u)
+                           in pagerduty_names]
+        if len(slack_usernames) != len(pagerduty_names):
             msg = (
-                'could not find Slack username '
-                'to match PagerDuty name: {} '
+                'found Slack usernames {} '
+                'do not match all PagerDuty names: {} '
                 '(hint: user files should contain '
                 'pagerduty_name if it is different then name)'
-            ).format(pagerduty_name)
+            ).format(slack_usernames, pagerduty_names)
             logging.warning(msg)
         else:
-            slack_usernames.extend(slack_username)
+            slack_usernames.extend(slack_usernames)
 
     return slack_usernames
 
