@@ -54,8 +54,8 @@ class PagerDutyApi(object):
                     users.extend(schedule_users)
                 elif target_type == 'user_reference':
                     users.append(target['summary'])
-            if rule['escalation_delay_in_minutes'] != 0:
-                # process only first rule
-                # if next escalation is not 0 minutes from now
+            if users and rule['escalation_delay_in_minutes'] != 0:
+                # process only first rule if users are found
+                # and if next escalation is not 0 minutes from now
                 break
         return users
