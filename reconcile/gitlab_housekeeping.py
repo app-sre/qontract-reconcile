@@ -17,7 +17,7 @@ def get_housekeeping_gitlab_api():
     return GitLabApi(server, token, project_id=project_id, ssl_verify=False)
 
 
-def handle_stale_issues(dry_run, gl, days_interval):
+def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
     LABEL = 'stale'
 
@@ -40,8 +40,15 @@ def handle_stale_issues(dry_run, gl, days_interval):
             # if issue has 'stale' label - close it
             else:
                 logging.info(['close_issue', gl.project.name, issue_iid])
-                if not dry_run:
-                    gl.close_issue(issue)
+                if enable_close_issues:
+                    if not dry_run:
+                        gl.close_issue(issue)
+                else:
+                    warning_message = \
+                        '\'close_issue\' action is not enabled. ' + \
+                        'Please run the integration manually ' + \
+                        'with the \'--enable-close-issues\' flag.'
+                    logging.warning(warning_message)
         # if issue is under days_interval
         else:
             if LABEL not in issue_labels:
@@ -70,6 +77,6 @@ def handle_stale_issues(dry_run, gl, days_interval):
                     gl.remove_label(issue, LABEL)
 
 
-def run(dry_run=False, days_interval=15):
+def run(dry_run=False, days_interval=15, enable_close_issues=False):
     gl = get_housekeeping_gitlab_api()
-    handle_stale_issues(dry_run, gl, days_interval)
+    handle_stale_issues(dry_run, gl, days_interval, enable_close_issues)

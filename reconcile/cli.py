@@ -148,10 +148,11 @@ def gitlab_permissions(ctx):
 @click.option('--days-interval',
               default=15,
               help='interval of days between actions.')
+@enable_deletion(default=False)
 @click.pass_context
-def gitlab_housekeeping(ctx, days_interval):
+def gitlab_housekeeping(ctx, days_interval, enable_deletion):
     run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'],
-                    days_interval)
+                    days_interval, enable_deletion)
 
 
 @integration.command()
