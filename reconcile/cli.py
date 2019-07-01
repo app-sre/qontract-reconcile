@@ -5,6 +5,7 @@ import click
 import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
+import reconcile.github_users
 import reconcile.openshift_rolebinding
 import reconcile.openshift_groups
 import reconcile.openshift_resources
@@ -106,6 +107,12 @@ def integration(ctx, configfile, dry_run, log_level):
 @click.pass_context
 def github(ctx):
     run_integration(reconcile.github_org.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def github_users(ctx):
+    run_integration(reconcile.github_users.run, ctx.obj['dry_run'])
 
 
 @integration.command()
