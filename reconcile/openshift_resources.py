@@ -82,7 +82,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 1)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
@@ -280,6 +280,12 @@ def fetch_openshift_resource(resource):
 
 
 def fetch_current_state(oc, ri, cluster, namespace, resource_type):
+    global _log_lock
+
+    msg = "Fetching {}s from {}/{}".format(resource_type, cluster, namespace)
+    _log_lock.acquire()
+    logging.debug(msg)
+    _log_lock.release()
     for item in oc.get_items(resource_type, namespace=namespace):
         openshift_resource = OR(item)
         ri.add_current(
