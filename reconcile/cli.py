@@ -174,7 +174,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded(default=20)
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
