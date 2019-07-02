@@ -1,18 +1,23 @@
+import re
 import logging
-from github import Github
-from github.GithubObject import NotSet
 
 import utils.gql as gql
 
-from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.config import get_config
-from utils.raw_github_api import RawGithubApi
+from reconcile.ldap_users import get_app_interface_gitlab_api
+from reconcile.ldap_users import init_users as init_users_and_paths
+
+from github import Github
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
+
 
 QUERY = """
 {
   users: users_v1 {
     redhat_username
     github_username
+    path
   }
 }
 """
@@ -30,9 +35,45 @@ def init_github():
     return Github(token)
 
 
-def run(dry_run=False):
+def get_user_company(user, github):
+    gh_user = github.get_user(login=user['github_username'])
+    return user['redhat_username'], gh_user.company
+
+
+def get_users_to_delete(results):
+    pattern = r'^.*[Rr]ed ?[Hh]at.*$'
+    redhat_usernames_to_delete = [u for u, c in results
+                                  if c is None
+                                  or not re.search(pattern, c)]
+    users_and_paths = init_users_and_paths()
+    return [u for u in users_and_paths
+            if u['username'] in redhat_usernames_to_delete]
+
+
+def run(dry_run=False, thread_pool_size=10,
+        enable_deletion=False, send_mails=False):
     users = fetch_users()
     g = init_github()
-    for user in users:
-        gh_user = g.get_user(login=user['github_username'])
-        print(gh_user.company)
+
+    pool = ThreadPool(thread_pool_size)
+    get_user_company_partial = partial(get_user_company, github=g)
+    results = pool.map(get_user_company_partial, users)
+
+    users_to_delete = get_users_to_delete(results)
+
+    if not dry_run and enable_deletion:
+        gl = get_app_interface_gitlab_api()
+
+    for user in users_to_delete:
+        username = user['username']
+        paths = user['paths']
+        logging.info(['delete_user', username])
+
+        if not dry_run:
+            if enable_deletion:
+                gl.create_delete_user_mr(username, paths)
+            else:
+                msg = ('\'delete\' action is not enabled. '
+                      'Please run the integration manually '
+                      'with the \'--enable-deletion\' flag.')
+                logging.warning(msg)
