@@ -59,6 +59,9 @@ def send_mail(name, subject, body):
     global _username
     global _mail_address
 
+    if _client is None:
+        init_from_config()
+
     msg = MIMEMultipart()
     from_name = str(Header('App SRE team automation', 'utf-8'))
     to = '{}@{}'.format(name, _mail_address)
