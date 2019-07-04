@@ -5,6 +5,7 @@ import click
 import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
+import reconcile.github_users
 import reconcile.openshift_rolebinding
 import reconcile.openshift_groups
 import reconcile.openshift_resources
@@ -65,6 +66,17 @@ def enable_deletion(**kwargs):
     return f
 
 
+def send_mails(**kwargs):
+    def f(function):
+        opt = '--send-mails/--no-send-mails'
+        msg = 'send email notification to users.'
+        function = click.option(opt,
+                                default=kwargs.get('default', False),
+                                help=msg)(function)
+        return function
+    return f
+
+
 def run_integration(func, *args):
     try:
         func(*args)
@@ -106,6 +118,16 @@ def integration(ctx, configfile, dry_run, log_level):
 @click.pass_context
 def github(ctx):
     run_integration(reconcile.github_org.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@threaded(default=10)
+@enable_deletion(default=False)
+@send_mails(default=False)
+@click.pass_context
+def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
+    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
+                    thread_pool_size, enable_deletion, send_mails)
 
 
 @integration.command()
@@ -238,9 +260,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @enable_deletion(default=True)
-@click.option('--send-mails/--no-send-mails',
-              default=True,
-              help='send email invitation to new users.')
+@send_mails(default=True)
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,
                     thread_pool_size, send_mails):
