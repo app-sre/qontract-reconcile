@@ -6,23 +6,24 @@ Tool to reconcile services with their desired state as defined in the app-interf
 
 ## Subcommands
 
-- `qontract-reconcile github`: Configures the teams and members in a GitHub org.
-- `qontract-reconcile quay-membership`: Configures the teams and members in Quay.
-- `qontract-reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
-- `qontract-reconcile openshift-groups`: Manages OpenShift Groups.
-- `qontract-reconcile openshift-resources`: Manages OpenShift Resources.
-- `qontract-reconcile openshift-namespaces`: Manages OpenShift Namespaces.
-- `qontract-reconcile openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
-- `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
-- `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
-- `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
-- `qontract-reconcile terraform-users`: Manage AWS users using Terraform.
-- `qontract-reconcile jenkins-roles`: Manage Jenkins roles association via REST API.
-- `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `qontract-reconcile aws-garbage-collector`: Delete orphan AWS resources.
 - `qontract-reconcile aws-iam-keys`: Delete IAM access keys by access key ID.
-- `qontract-reconcile slack-usergroups`: Manage Slack User Groups (channels and users).
+- `qontract-reconcile gitlab-housekeeping`: Manage issues on GitLab projects.
 - `qontract-reconcile gitlab-permissions`: Manage permissions on GitLab projects.
+- `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
+- `qontract-reconcile jenkins-roles`: Manage Jenkins roles association via REST API.
+- `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
+- `qontract-reconcile github`: Configures the teams and members in a GitHub org.
+- `qontract-reconcile openshift-groups`: Manages OpenShift Groups.
+- `qontract-reconcile openshift-namespaces`: Manages OpenShift Namespaces.
+- `qontract-reconcile openshift-resources`: Manages OpenShift Resources.
+- `qontract-reconcile openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
+- `qontract-reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `qontract-reconcile quay-membership`: Configures the teams and members in Quay.
+- `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
+- `qontract-reconcile slack-usergroups`: Manage Slack User Groups (channels and users).
+- `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
+- `qontract-reconcile terraform-users`: Manage AWS users using Terraform.
 
 ## Usage
 
