@@ -8,6 +8,7 @@ Tool to reconcile services with their desired state as defined in the app-interf
 
 - `qontract-reconcile aws-garbage-collector`: Delete orphan AWS resources.
 - `qontract-reconcile aws-iam-keys`: Delete IAM access keys by access key ID.
+- `qontract-reconcile github-users`: Validate compliance of GitHub user profiles.
 - `qontract-reconcile gitlab-housekeeping`: Manage issues on GitLab projects.
 - `qontract-reconcile gitlab-permissions`: Manage permissions on GitLab projects.
 - `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
