@@ -21,11 +21,8 @@ import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
-<<<<<<< HEAD
 import reconcile.gitlab_housekeeping
-=======
 import reconcile.gitlab_members
->>>>>>> 638b4ce... WIP gitlabmembers integration
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 
