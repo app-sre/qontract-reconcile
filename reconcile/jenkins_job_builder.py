@@ -22,9 +22,17 @@ QUERY = """
     }
     type
     config
+    config_path
   }
 }
 """
+
+
+class FetchResourceError(Exception):
+    def __init__(self, msg):
+        super(FetchResourceError, self).__init__(
+            "error fetching resource: " + str(msg)
+        )
 
 
 def collect_jenkins_configs():
@@ -40,16 +48,31 @@ def collect_jenkins_configs():
         ini_file_path = '{}/{}.ini'.format(wd, name)
         with open(ini_file_path, 'w') as f:
             f.write(ini)
+            f.write('\n')
         working_dirs[name] = wd
 
     configs.sort(key=sort_by_type)
 
     for c in configs:
         instance_name = c['instance']['name']
+        config = c['config']
         config_file_path = \
             '{}/config.yaml'.format(working_dirs[instance_name])
-        with open(config_file_path, 'a') as f:
-            yaml.dump(yaml.load(c['config'], Loader=yaml.FullLoader), f)
+        if config:
+            with open(config_file_path, 'a') as f:
+                yaml.dump(yaml.load(config, Loader=yaml.FullLoader), f)
+                f.write('\n')
+        else:
+            config_path = c['config_path']
+            # get config data
+            try:
+                config_resource = gqlapi.get_resource(config_path)
+                config = config_resource['content']
+            except gql.GqlApiError as e:
+                raise FetchResourceError(e.message)
+            with open(config_file_path, 'a') as f:
+                f.write(config)
+                f.write('\n')
 
     return working_dirs
 
@@ -79,6 +102,8 @@ def run(dry_run=False):
         config_path = '{}/config.yaml'.format(wd)
         argv = ['--conf', ini_path, 'test', config_path]
         print(name)
+        print(wd)
+        print(argv)
         jjb = JenkinsJobs(argv)
         a = jjb.execute()
-    cleanup(working_dirs)
+    # cleanup(working_dirs)
