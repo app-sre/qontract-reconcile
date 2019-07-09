@@ -13,7 +13,6 @@ from jenkins_jobs.cli.entry import JenkinsJobs
 QUERY = """
 {
   jenkins_configs: jenkins_configs_v1 {
-    path
     instance {
       name
       token {
@@ -21,6 +20,7 @@ QUERY = """
         field
       }
     }
+    type
     config
   }
 }
@@ -42,7 +42,7 @@ def collect_jenkins_configs():
             f.write(ini)
         working_dirs[name] = wd
 
-    configs.sort(key=sort_by_path)
+    configs.sort(key=sort_by_type)
 
     for c in configs:
         instance_name = c['instance']['name']
@@ -54,8 +54,17 @@ def collect_jenkins_configs():
     return working_dirs
 
 
-def sort_by_path(config):
-    return path.basename(config['path'])
+def sort_by_type(config):
+    if config['type'] == 'common':
+        return 00
+    elif config['type'] == 'views':
+        return 10
+    elif config['type'] == 'secrets':
+        return 20
+    elif config['type'] == 'job-templates':
+        return 30
+    elif config['type'] == 'jobs':
+        return 40
 
 
 def cleanup(working_dirs):
