@@ -106,7 +106,7 @@ class GitLabApi(object):
     def get_gitlab_group_members(self, group_name):
         group = self.gl.groups.get(group_name)
         return [m for m in group.members.list()]
-        
+
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
         try:
@@ -117,6 +117,21 @@ class GitLabApi(object):
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
+
+    def add_group_member(self, group_name, user):
+        group = self.gl.groups.get(group_name)
+        try:
+            group.members.create({
+                'user_id': user.id,
+                'access_level': gitlab.MAINTAINER_ACCESS #should they be added as a maintainer?
+                })
+        except gitlab.exceptions.GitlabCreateError:
+            member = group.members.get(user.id)
+            member.access_level = gitlab.MAINTAINER_ACCESS
+    
+    def remove_group_member(self, group_name, user):
+        group = self.gl.groups.get(group_name)
+        group.members.delete(user.id)
 
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
@@ -158,3 +173,7 @@ class GitLabApi(object):
     def close_issue(self, issue):
         issue.state_event = 'close'
         issue.save()
+        
+    def get_user(self, username):
+        user = self.gl.users.list(search=username)
+        return user[0]
