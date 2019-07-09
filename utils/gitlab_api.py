@@ -103,6 +103,10 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
 
+    def get_gitlab_group_members(self, group_name):
+        group = self.gl.groups.get(group_name)
+        return [m for m in group.members.list()]
+        
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
         try:
