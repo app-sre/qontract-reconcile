@@ -41,8 +41,6 @@ def init_from_config():
     global _mail_address
 
     config = get_config()
-
-    config = get_config()
     smtp_secret_path = config['smtp']['secret_path']
     smtp_config = vault_client.read_all(smtp_secret_path)
     host = smtp_config['server']
