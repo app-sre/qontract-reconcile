@@ -41,8 +41,6 @@ def init_from_config():
     global _mail_address
 
     config = get_config()
-
-    config = get_config()
     smtp_secret_path = config['smtp']['secret_path']
     smtp_config = vault_client.read_all(smtp_secret_path)
     host = smtp_config['server']
@@ -58,6 +56,9 @@ def send_mail(name, subject, body):
     global _client
     global _username
     global _mail_address
+
+    if _client is None:
+        init_from_config()
 
     msg = MIMEMultipart()
     from_name = str(Header('App SRE team automation', 'utf-8'))

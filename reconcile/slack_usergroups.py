@@ -30,6 +30,8 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      name
+      redhat_username
       slack_username
       pagerduty_name
     }
@@ -48,6 +50,7 @@ ROLES_QUERY = """
             field
           }
           scheduleID
+          escalationPolicyID
         }
         channels
       }
@@ -59,6 +62,8 @@ ROLES_QUERY = """
 USERS_QUERY = """
 {
   users: users_v1 {
+    name
+    redhat_username
     slack_username
     pagerduty_name
   }
@@ -109,28 +114,46 @@ def get_current_state(slack_map):
     return current_state
 
 
+def get_slack_username(user):
+    return user['slack_username'] or user['redhat_username']
+
+
+def get_pagerduty_name(user):
+    return user['pagerduty_name'] or user['name']
+
+
 def get_slack_usernames_from_pagerduty(pagerduties, users):
     slack_usernames = []
     for pagerduty in pagerduties or []:
         pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
+        if pd_schedule_id is not None:
+            pd_resource_type = 'schedule'
+            pd_resource_id = pd_schedule_id
+        pd_escalation_policy_id = pagerduty['escalationPolicyID']
+        if pd_escalation_policy_id is not None:
+            pd_resource_type = 'escalationPolicy'
+            pd_resource_id = pd_escalation_policy_id
+
         pd = PagerDutyApi(pd_token)
-        pagerduty_name = pd.get_final_schedule(pd_schedule_id)
-        if pagerduty_name is None:
+        pagerduty_names = pd.get_pagerduty_users(pd_resource_type,
+                                                 pd_resource_id)
+        if not pagerduty_names:
             continue
-        slack_username = [u['slack_username']
-                          for u in users
-                          if u['pagerduty_name'] == pagerduty_name]
-        if len(slack_username) != 1:
+        slack_usernames = [get_slack_username(u)
+                           for u in users
+                           if get_pagerduty_name(u)
+                           in pagerduty_names]
+        if len(slack_usernames) != len(pagerduty_names):
             msg = (
-                'could not find Slack username '
-                'to match PagerDuty name: {} '
+                'found Slack usernames {} '
+                'do not match all PagerDuty names: {} '
                 '(hint: user files should contain '
-                'slack_username and pagerduty_name)'
-            ).format(pagerduty_name)
+                'pagerduty_name if it is different then name)'
+            ).format(slack_usernames, pagerduty_names)
             logging.warning(msg)
         else:
-            slack_usernames.extend(slack_username)
+            slack_usernames.extend(slack_usernames)
 
     return slack_usernames
 
@@ -164,13 +187,13 @@ def get_desired_state(slack_map):
 
             slack = slack_map[workspace_name]['slack']
             ugid = slack.get_usergroup_id(usergroup)
-            users_names = [u['slack_username'] for u in r['users']]
+            user_names = [get_slack_username(u) for u in r['users']]
 
             slack_usernames = \
                 get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
-            users_names.extend(slack_usernames)
+            user_names.extend(slack_usernames)
 
-            users = slack.get_users_by_names(users_names)
+            users = slack.get_users_by_names(user_names)
 
             channel_names = [] if p['channels'] is None else p['channels']
             channels = slack.get_channels_by_names(channel_names)

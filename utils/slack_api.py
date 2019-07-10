@@ -76,9 +76,9 @@ class SlackApi(object):
         return {k: v for k, v in self.get('channels').items()
                 if k in channels_ids}
 
-    def get_users_by_names(self, users_names):
+    def get_users_by_names(self, user_names):
         return {k: v for k, v in self.get('users').items()
-                if v in users_names}
+                if v in user_names}
 
     def get_users_by_ids(self, users_ids):
         return {k: v for k, v in self.get('users').items()
