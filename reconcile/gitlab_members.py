@@ -37,20 +37,20 @@ def get_gitlab_api():
     return GitLabApi(server, token, ssl_verify=False)
 
 
-def get_groups():
+def create_groups_dict():
     gqlapi = gql.get_api()
     instances = gqlapi.query(GROUPS_QUERY)['instances']
-    group_dict = {}
+    groups_dict = {}
     for i in instances:
         for g in i['managedGroups']:
-            group_dict[g] = []
-    return group_dict
+            groups_dict[g] = []
+    return groups_dict
 
 def get_desired_state():
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
     users = gqlapi.query(USERS_QUERY)['users']
-    desired_group_members = get_groups()
+    desired_group_members = create_groups_dict()
     for g in desired_group_members:
         for u in users:
             for r in u['roles']:
@@ -62,12 +62,10 @@ def get_desired_state():
 
 
 def get_current_state():
-    gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    groups = get_groups()
-    current_group_members = get_groups()
-    for g in groups:
-        current_group_members[g]=gl.get_gitlab_group_members(g)
+    current_group_members = create_groups_dict()
+    for g in current_group_members:
+        current_group_members[g]=gl.get_group_members(g)
     return current_group_members
 
 def calculate_diff(current_state, desired_state):
@@ -86,9 +84,9 @@ def calculate_diff(current_state, desired_state):
 
 def subtract_states(from_state, subtract_state, action):
     result = []
-    for f_group in from_state:
+    for f_group, f_users in from_state:
         s_group = subtract_state[f_group] #assumming groups are the same in both states which is a bad assumption (ex: groups can be deleted)
-        for f_user in from_state[f_group]:
+        for f_user in f_users:
             found = False
             for s_user in s_group:
                 if f_user.id != s_user.id:

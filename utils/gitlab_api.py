@@ -103,7 +103,7 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
 
-    def get_gitlab_group_members(self, group_name):
+    def get_group_members(self, group_name):
         group = self.gl.groups.get(group_name)
         return [m for m in group.members.list()]
 
