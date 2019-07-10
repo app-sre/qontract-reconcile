@@ -37,8 +37,7 @@ def get_gitlab_api():
     return GitLabApi(server, token, ssl_verify=False)
 
 
-def create_groups_dict():
-    gqlapi = gql.get_api()
+def create_groups_dict(gqlapi):
     instances = gqlapi.query(GROUPS_QUERY)['instances']
     groups_dict = {}
     for i in instances:
@@ -46,11 +45,9 @@ def create_groups_dict():
             groups_dict[g] = []
     return groups_dict
 
-def get_desired_state():
-    gqlapi = gql.get_api()
-    gl = get_gitlab_api()
+def get_desired_state(gqlapi,gl):
     users = gqlapi.query(USERS_QUERY)['users']
-    desired_group_members = create_groups_dict()
+    desired_group_members = create_groups_dict(gqlapi)
     for g in desired_group_members:
         for u in users:
             for r in u['roles']:
@@ -61,9 +58,8 @@ def get_desired_state():
     return desired_group_members
 
 
-def get_current_state():
-    gl = get_gitlab_api()
-    current_group_members = create_groups_dict()
+def get_current_state(gqlapi,gl):
+    current_group_members = create_groups_dict(gqlapi)
     for g in current_group_members:
         current_group_members[g]=gl.get_group_members(g)
     return current_group_members
@@ -84,7 +80,7 @@ def calculate_diff(current_state, desired_state):
 
 def subtract_states(from_state, subtract_state, action):
     result = []
-    for f_group, f_users in from_state:
+    for f_group, f_users in from_state.items():
         s_group = subtract_state[f_group] #assumming groups are the same in both states which is a bad assumption (ex: groups can be deleted)
         for f_user in f_users:
             found = False
@@ -101,11 +97,10 @@ def subtract_states(from_state, subtract_state, action):
                 })
     return result
 
-def act(diff):
+def act(diff,gl):
     group = diff['group']
     username = diff['user']
     action = diff['action']
-    gl = get_gitlab_api()
     if action == "remove_user_from_group":
         gl.remove_group_member(group,username)
     if action == "add_user_to_group":
@@ -113,12 +108,14 @@ def act(diff):
 
 
 def run(dry_run=False):
-    desired_state = get_desired_state()
-    current_state = get_current_state()
+    gqlapi = gql.get_api()
+    gl = get_gitlab_api()
+    desired_state = get_desired_state(gqlapi,gl)
+    current_state = get_current_state(gqlapi,gl)
     diffs = calculate_diff(current_state,desired_state)
     
     for diff in diffs:
         logging.info(diff.values())
         
         if not dry_run:
-            act(diff)
+            act(diff,gl)
