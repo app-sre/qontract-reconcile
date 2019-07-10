@@ -61,7 +61,7 @@ def config_from_vault(vault_path):
 
     try:
         data = vault_client.read_all(vault_path)
-    except Exception as e:
+    except vault_client.SecretNotFound as e:
         raise Exception("Could not retrieve SMTP config from vault: {}"
                         .format(e))
 
