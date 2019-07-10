@@ -7,7 +7,7 @@ from utils.gitlab_api import GitLabApi
 
 GROUPS_QUERY = """
 {
-    groups: gitlabgroups_v1{
+    instances: gitlabinstance_v1{
         managedGroups
     }
 }
@@ -19,7 +19,7 @@ USERS_QUERY = """
         redhat_username
         roles{
             permissions{
-                ... on PermissionGitlabGroups_v1{
+                ... on PermissionGitlabInstance_v1{
                     name
                     group
                 }
@@ -39,19 +39,19 @@ def get_gitlab_api():
 
 def get_groups():
     gqlapi = gql.get_api()
-    groups = gqlapi.query(GROUPS_QUERY)['groups']
+    instances = gqlapi.query(GROUPS_QUERY)['instances']
     group_dict = {}
-    for g in groups[0]['managedGroups']:
-        group_dict[g] = []
+    for i in instances:
+        for g in i['managedGroups']:
+            group_dict[g] = []
     return group_dict
 
 def get_desired_state():
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    groups = gqlapi.query(GROUPS_QUERY)['groups']
     users = gqlapi.query(USERS_QUERY)['users']
     desired_group_members = get_groups()
-    for g in groups[0]['managedGroups']:
+    for g in desired_group_members:
         for u in users:
             for r in u['roles']:
                 for p in r['permissions']:
@@ -64,9 +64,9 @@ def get_desired_state():
 def get_current_state():
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    groups = gqlapi.query(GROUPS_QUERY)['groups']
+    groups = get_groups()
     current_group_members = get_groups()
-    for g in groups[0]['managedGroups']:
+    for g in groups:
         current_group_members[g]=gl.get_gitlab_group_members(g)
     return current_group_members
 
