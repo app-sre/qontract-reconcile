@@ -156,9 +156,14 @@ def jenkins_plugins(ctx):
 
 
 @integration.command()
+@throughput
+@click.option('--compare/--no-compare',
+              default=True,
+              help='compare between current and desired state.')
 @click.pass_context
-def jenkins_job_builder(ctx):
-    run_integration(reconcile.jenkins_job_builder.run, ctx.obj['dry_run'])
+def jenkins_job_builder(ctx, io_dir, compare):
+    run_integration(reconcile.jenkins_job_builder.run, ctx.obj['dry_run'],
+                    io_dir, compare)
 
 
 @integration.command()
