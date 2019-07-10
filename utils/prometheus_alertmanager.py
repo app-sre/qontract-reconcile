@@ -70,11 +70,46 @@ class Route(object):
         return self
 
 
+class Receiver(object):
+    def __init__(self, name, **kwargs):
+        self.config = OrderedDict()
+        self.config['name'] = name
+
+        for k, v in kwargs.items():
+            k = k.lstrip('__')
+            self.config[k] = v
+
+    @property
+    def name(self):
+        return self.config['name']
+
+    def add_config(self, configtype, params={}):
+        self.config.setdefault(configtype, []).append(params)
+        return self
+
+    def add_email_config(self, params={}):
+        self.add_config('email_configs', params)
+        return self
+
+    def add_slack_config(self, params={}):
+        self.add_config('slack_configs', params)
+        return self
+
+    def add_pagerduty_config(self, params={}):
+        self.add_config('pagerduty_configs', params)
+        return self
+
+    def add_webhook_config(self, params={}):
+        self.add_config('webhook_configs', params)
+        return self
+
+
 class Alertmanager(object):
     """
     Alertmanager object that holds an alertmanager configuration file
     """
-    def __init__(self):
+    def __init__(self, name):
+        self._name = name
         self._config = OrderedDict()
         self._config['global'] = OrderedDict()
         self._config['inhibit_rules'] = list()
@@ -82,7 +117,7 @@ class Alertmanager(object):
         self._config['receivers'] = list()
 
         self.set_default_route('default')
-        self.add_receiver('default')
+        self.add_receiver(Receiver('default'))
 
         # Check if dependency amtool utility is present
         if not self.amtool_available():
@@ -96,6 +131,10 @@ class Alertmanager(object):
 
         # Dump in ordereddict format
         yaml.add_representer(OrderedDict, self.represent_ordereddict)
+
+    @property
+    def name(self):
+        return self._name
 
     def represent_ordereddict(self, dumper, data):
         """
@@ -202,39 +241,21 @@ class Alertmanager(object):
 
         self._config['route'].setdefault('routes', []).append(route)
 
-    def add_receiver(self, name, **kwargs):
+    def add_receiver(self, receiver):
         """
         Add a receiver
 
         Receiver names should be unique
         """
-        receiver = OrderedDict({'name': name})
 
         # Make sure we don't add duplicates
         for r in self._config['receivers']:
-            if r['name'] == name:
-                msg = "receiver {} already exists in the config".format(name)
+            if r['name'] == receiver.name:
+                msg = "receiver {} already exists in the config".format(
+                    receiver.name)
                 raise(DuplicateReceiver(msg))
 
-        for k, v in kwargs.items():
-            if isinstance(v, list):
-                receiver[k] = v
-            else:
-                raise(InvalidType("receiver config must be a list"))
-
-        self._config['receivers'].append(receiver)
-
-    def add_slack_receiver(self, name, params={}):
-        self.add_receiver(name, slack_configs=[params])
-
-    def add_email_receiver(self, name, params={}):
-        self.add_receiver(name, email_configs=[params])
-
-    def add_pagerduty_receiver(self, name, params={}):
-        self.add_receiver(name, pagerduty_configs=[params])
-
-    def add_webhook_receiver(self, name, params={}):
-        self.add_receiver(name, webhook_configs=[params])
+        self._config['receivers'].append(receiver.config)
 
     def add_template(self, path):
         self._config.setdefault('templates', []).append(path)
