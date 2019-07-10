@@ -6,7 +6,9 @@ import sys
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
 import utils.vault_client as vault_client
+import utils.smtp_client as smtp_client
 
+from utils.config import get_config
 from utils.openshift_resource import OpenshiftResource, ResourceInventory
 from utils.prometheus_alertmanager import Alertmanager
 from utils.prometheus_alertmanager import Route, RouteMatcher, Receiver
@@ -208,6 +210,10 @@ def massage_data(data):
     if not isinstance(alertmanagers, list):
         return [], [], []
 
+    # Get SMTP configs from vault
+    qconfig = get_config()
+    smtp_config = smtp_client.config_from_vault(qconfig['smtp']['secret_path'])
+
     for alertmanager in data['alertmanagers']:
         # Get integration config from vault
         config = get_vault_data(alertmanager['config']['path'])
@@ -217,16 +223,20 @@ def massage_data(data):
 
         # Global configs
         am.set_global('resolve_timeout', '5m')
-        am.set_global('smtp_auth_username', config['smtp_auth_username'])
-        am.set_global('smtp_auth_identity', config['smtp_auth_username'])
-        am.set_global('smtp_auth_password', config['smtp_auth_password'])
-        am.set_global('smtp_from', config['smtp_from'])
-        am.set_global('smtp_smarthost', config['smtp_smarthost'])
-        if config['smtp_require_tls'].lower() == 'true':
+        am.set_global('slack_api_url', config['slack_api_url'])
+
+        # Global smtp configs
+        am.set_global('smtp_auth_username', smtp_config['username'])
+        am.set_global('smtp_auth_identity', smtp_config['username'])
+        am.set_global('smtp_auth_password', smtp_config['password'])
+        am.set_global('smtp_from', smtp_config['username'])
+        am.set_global('smtp_smarthost', "{}:{}".format(
+            smtp_config['server'],
+            smtp_config['port']))
+        if smtp_config['require_tls'].lower() == 'true':
             am.set_global('smtp_require_tls', True)
         else:
             am.set_global('smtp_require_tls', False)
-        am.set_global('slack_api_url', config['slack_api_url'])
 
         default_receiver_name = config['default_receiver_name']
         default_slack_channel = config['default_slack_channel']
