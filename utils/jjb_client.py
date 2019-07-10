@@ -150,7 +150,6 @@ class JJB(object):
             return file_name.replace('current', 'desired')
 
     def update(self):
-        working_dirs = collect_jenkins_configs()
         for name, wd in self.working_dirs.items():
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
