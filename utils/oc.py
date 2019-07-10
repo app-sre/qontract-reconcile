@@ -88,6 +88,23 @@ class OC(object):
         cmd = ['new-project', namespace]
         self._run(cmd)
 
+    def get_group_if_exists(self, name):
+        try:
+            return self.get(None, 'Group', name)
+        except StatusCodeError as e:
+            if 'NotFound' in e.message:
+                return None
+            else:
+                raise e
+
+    def create_group(self, group):
+        cmd = ['adm', 'groups', 'new', group]
+        self._run(cmd)
+
+    def delete_group(self, group):
+        cmd = ['delete', 'group', group]
+        self._run(cmd)
+
     def add_user_to_group(self, group, user):
         cmd = ['adm', 'groups', 'add-users', group, user]
         self._run(cmd)

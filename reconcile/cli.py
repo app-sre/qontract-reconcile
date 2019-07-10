@@ -5,6 +5,7 @@ import click
 import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
+import reconcile.github_users
 import reconcile.openshift_rolebinding
 import reconcile.openshift_groups
 import reconcile.openshift_resources
@@ -20,6 +21,7 @@ import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
+import reconcile.gitlab_housekeeping
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 
@@ -59,6 +61,17 @@ def enable_deletion(**kwargs):
         msg = 'enable destroy/replace action.'
         function = click.option(opt,
                                 default=kwargs.get('default', True),
+                                help=msg)(function)
+        return function
+    return f
+
+
+def send_mails(**kwargs):
+    def f(function):
+        opt = '--send-mails/--no-send-mails'
+        msg = 'send email notification to users.'
+        function = click.option(opt,
+                                default=kwargs.get('default', False),
                                 help=msg)(function)
         return function
     return f
@@ -108,6 +121,16 @@ def github(ctx):
 
 
 @integration.command()
+@threaded(default=10)
+@enable_deletion(default=False)
+@send_mails(default=False)
+@click.pass_context
+def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
+    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
+                    thread_pool_size, enable_deletion, send_mails)
+
+
+@integration.command()
 @click.pass_context
 def openshift_rolebinding(ctx):
     run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'])
@@ -144,6 +167,17 @@ def gitlab_permissions(ctx):
 
 
 @integration.command()
+@click.option('--days-interval',
+              default=15,
+              help='interval of days between actions.')
+@enable_deletion(default=False)
+@click.pass_context
+def gitlab_housekeeping(ctx, days_interval, enable_deletion):
+    run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'],
+                    days_interval, enable_deletion)
+
+
+@integration.command()
 @throughput
 @threaded(default=10)
 @enable_deletion(default=False)
@@ -162,7 +196,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded(default=20)
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
@@ -226,9 +260,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @enable_deletion(default=True)
-@click.option('--send-mails/--no-send-mails',
-              default=True,
-              help='send email invitation to new users.')
+@send_mails(default=True)
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,
                     thread_pool_size, send_mails):

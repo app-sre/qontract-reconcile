@@ -74,7 +74,9 @@ def fetch_current_state():
         oc_map[cluster] = oc
 
         for group_name in groups:
-            group = oc.get(None, 'Group', group_name)
+            group = oc.get_group_if_exists(group_name)
+            if group is None:
+                continue
             for user in group['users']:
                 current_state.append({
                     "cluster": cluster,
@@ -113,16 +115,18 @@ def fetch_desired_state():
 def calculate_diff(current_state, desired_state):
     diff = []
     users_to_add = \
-        subtract_states(desired_state, current_state, "add_user_to_group")
+        subtract_states(desired_state, current_state,
+                        "add_user_to_group", "create_group")
     diff.extend(users_to_add)
     users_to_del = \
-        subtract_states(current_state, desired_state, "del_user_from_group")
+        subtract_states(current_state, desired_state,
+                        "del_user_from_group", "delete_group")
     diff.extend(users_to_del)
 
     return diff
 
 
-def subtract_states(from_state, subtract_state, action):
+def subtract_states(from_state, subtract_state, user_action, group_action):
     result = []
 
     for f_user in from_state:
@@ -133,8 +137,20 @@ def subtract_states(from_state, subtract_state, action):
             found = True
             break
         if not found:
+            s_groups = set([s_user['group']
+                            for s_user in subtract_state
+                            if f_user['cluster'] == s_user['cluster']])
+            if f_user['group'] not in s_groups:
+                item = {
+                    "action": group_action,
+                    "cluster": f_user['cluster'],
+                    "group": f_user['group'],
+                    "user": None
+                }
+                if item not in result:
+                    result.append(item)
             result.append({
-                "action": action,
+                "action": user_action,
                 "cluster": f_user['cluster'],
                 "group": f_user['group'],
                 "user": f_user['user']
@@ -171,16 +187,27 @@ def validate_diffs(diffs):
         sys.exit(1)
 
 
+def sort_diffs(diff):
+    if diff['action'] in ['create_group', 'del_user_from_group']:
+        return 1
+    else:
+        return 2
+
+
 def act(diff, oc_map):
     cluster = diff['cluster']
     group = diff['group']
     user = diff['user']
     action = diff['action']
 
-    if action == "add_user_to_group":
+    if action == "create_group":
+        oc_map[cluster].create_group(group)
+    elif action == "add_user_to_group":
         oc_map[cluster].add_user_to_group(group, user)
     elif action == "del_user_from_group":
         oc_map[cluster].del_user_from_group(group, user)
+    elif action == "delete_group":
+        oc_map[cluster].delete_group(group)
     else:
         raise Exception("invalid action: {}".format(action))
 
@@ -191,6 +218,7 @@ def run(dry_run=False):
 
     diffs = calculate_diff(current_state, desired_state)
     validate_diffs(diffs)
+    diffs.sort(key=sort_diffs)
 
     for diff in diffs:
         logging.info(diff.values())
