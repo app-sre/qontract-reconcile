@@ -70,7 +70,9 @@ def get_desired_state(gqlapi,gl):
             for r in u['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        desired_group_members[g].append(gl.get_user(u['redhat_username'])) #does redhat_username == gitlab username? this should also account for if user was deleted
+                        user = gl.get_user(u['redhat_username'])
+                        if user != None:
+                            desired_group_members[g].append(user) 
         for b in bots:
             for r in b['roles']:
                 for p in r['permissions']:
@@ -82,7 +84,7 @@ def get_desired_state(gqlapi,gl):
 def get_current_state(gqlapi,gl):
     current_group_members = create_groups_dict(gqlapi)
     for g in current_group_members:
-        current_group_members[g]=gl.get_group_members(g)
+        current_group_members[g]=gl.get_group_members(g) 
     return current_group_members
 
 def calculate_diff(current_state, desired_state):

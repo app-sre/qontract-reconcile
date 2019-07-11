@@ -102,8 +102,14 @@ class GitLabApi(object):
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
+    
 
     def get_group_members(self, group_name):
+        groups = self.gl.groups.list()
+        group_names = list(map(lambda x: x.name,groups))
+        if group_name not in group_names:
+            logging.info(group_name + " group not found")
+            return []
         group = self.gl.groups.get(group_name)
         return [m for m in group.members.list()]
 
@@ -176,4 +182,7 @@ class GitLabApi(object):
         
     def get_user(self, username):
         user = self.gl.users.list(search=username)
+        if len(user) == 0:
+            logging.info(username + " user not found")
+            return 
         return user[0]
