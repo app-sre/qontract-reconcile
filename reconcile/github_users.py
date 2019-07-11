@@ -56,14 +56,16 @@ Hello,
 
 This is an automated message coming from App-Interface.
 
-The App SRE Team adheres to the OpenShift GitHub policy: https://mojo.redhat.com/docs/DOC-1200784
+The App SRE Team adheres to the OpenShift GitHub policy:
+https://mojo.redhat.com/docs/DOC-1200784
 
 Your GitHub profile does not comply with the following requirements:
 
 - Company field should contain "Red Hat".
 
 
-For any questions, please ping @app-sre-ic on #sd-app-sre in CoreOS Slack or mail us at sd-app-sre@redhat.com.
+For any questions, please ping @app-sre-ic on #sd-app-sre in CoreOS Slack,
+or mail us at sd-app-sre@redhat.com.
 
 App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
 
