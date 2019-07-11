@@ -29,6 +29,22 @@ USERS_QUERY = """
 }
   """
 
+BOTS_QUERY = """
+{
+    bots: bots_v1{
+        gitlab_username
+        roles{
+            permissions{
+                ... on PermissionGitlabInstance_v1{
+                    name
+                    group
+                }
+            }
+        }
+    }
+}
+"""
+
 def get_gitlab_api():
     config = get_config()
     gitlab_config = config['gitlab']
@@ -47,6 +63,7 @@ def create_groups_dict(gqlapi):
 
 def get_desired_state(gqlapi,gl):
     users = gqlapi.query(USERS_QUERY)['users']
+    bots = gqlapi.query(BOTS_QUERY)['bots']
     desired_group_members = create_groups_dict(gqlapi)
     for g in desired_group_members:
         for u in users:
@@ -54,7 +71,11 @@ def get_desired_state(gqlapi,gl):
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
                         desired_group_members[g].append(gl.get_user(u['redhat_username'])) #does redhat_username == gitlab username? this should also account for if user was deleted
-        desired_group_members[g].append(gl.get_user('devtools-bot'))
+        for b in bots:
+            for r in b['roles']:
+                for p in r['permissions']:
+                    if 'group' in p and p['group'] == g:
+                        desired_group_members[g].append(gl.get_user(b['gitlab_username']))
     return desired_group_members
 
 
@@ -110,8 +131,8 @@ def act(diff,gl):
 def run(dry_run=False):
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    desired_state = get_desired_state(gqlapi,gl)
     current_state = get_current_state(gqlapi,gl)
+    desired_state = get_desired_state(gqlapi,gl)
     diffs = calculate_diff(current_state,desired_state)
     
     for diff in diffs:
