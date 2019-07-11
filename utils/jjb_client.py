@@ -10,6 +10,7 @@ import utils.vault_client as vault_client
 import utils.gql as gql
 
 from os import path
+from contextlib import contextmanager
 
 from jenkins_jobs.cli.entry import JenkinsJobs
 
@@ -26,8 +27,8 @@ class JJB(object):
 
     def __init__(self, configs, ssl_verify=True):
         self.collect_configs(configs)
+        self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
-        self.default_logging = logging.getLogger().level
 
     def collect_configs(self, configs):
         gqlapi = gql.get_api()
@@ -161,9 +162,22 @@ class JJB(object):
         os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
 
         jjb = JenkinsJobs(args)
-        logging.getLogger().setLevel(logging.ERROR)
-        jjb.execute()
-        logging.getLogger().setLevel(self.default_logging)
+        with self.toggle_logger():
+            jjb.execute()
+
+    def modify_logger(self):
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        logger = logging.getLogger()
+        logger.handlers[0].setFormatter(formatter)
+        self.default_logging = logger.level
+
+    @contextmanager
+    def toggle_logger(self):
+        logger = logging.getLogger()
+        try:
+            yield logger.setLevel(logging.ERROR)
+        finally:
+            logger.setLevel(self.default_logging)
 
     def cleanup(self):
         for wd in self.working_dirs.values():
