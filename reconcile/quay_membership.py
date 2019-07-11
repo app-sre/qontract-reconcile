@@ -79,13 +79,15 @@ def fetch_desired_state(quay_api_store):
                 quay_username = member.get('quay_username')
                 if not quay_username:
                     return
-                # get the first quay api that is found
-                rand_quay_api = quay_api_store.values()[0].values()[0]
-                user_exists = rand_quay_api.user_exists(quay_username)
-                if not user_exists:
-                    logging.warning(
-                        'quay user {} does not exist.'.format(quay_username))
-                    return
+                if quay_api_store is not None:  # compare to None for testing
+                    # get the first quay api that is found
+                    rand_quay_api = quay_api_store.values()[0].values()[0]
+                    user_exists = rand_quay_api.user_exists(quay_username)
+                    if not user_exists:
+                        logging.warning((
+                            'quay user {} does not exist.'
+                        ).format(quay_username))
+                        return
 
                 members.append(quay_username)
 
