@@ -40,6 +40,13 @@ class QuayApi(object):
 
         return self.team_members
 
+    def user_exists(self, user):
+        url = "{}/users/{}".format(self.API_URL, user)
+        r = requests.get(url, headers=self.auth_header)
+        if not r.ok:
+            return False
+        return True
+
     def remove_user(self, user):
         if self.team is None:
             raise('Must define "team"')
