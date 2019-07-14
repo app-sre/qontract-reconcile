@@ -56,7 +56,7 @@ Hello,
 
 This is an automated message coming from App-Interface.
 
-The App SRE Team adheres to the OpenShift GitHub policy:
+The App SRE team adheres to the OpenShift GitHub policy:
 https://mojo.redhat.com/docs/DOC-1200784
 
 Your GitHub profile does not comply with the following requirements:
