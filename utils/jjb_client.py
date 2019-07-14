@@ -12,8 +12,6 @@ import utils.gql as gql
 from os import path
 from contextlib import contextmanager
 
-from jenkins_jobs.cli.entry import JenkinsJobs
-
 
 class FetchResourceError(Exception):
     def __init__(self, msg):
@@ -159,6 +157,7 @@ class JJB(object):
             self.execute(args)
 
     def execute(self, args):
+        from jenkins_jobs.cli.entry import JenkinsJobs
         os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
 
         jjb = JenkinsJobs(args)
