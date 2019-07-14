@@ -154,3 +154,7 @@ class GitLabApi(object):
     def close_issue(self, issue):
         issue.state_event = 'close'
         issue.save()
+
+    def get_project_hooks(self, repo_url):
+        p = self.get_project(repo_url)
+        return p.hooks.list()

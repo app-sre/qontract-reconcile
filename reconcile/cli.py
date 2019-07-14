@@ -20,6 +20,7 @@ import reconcile.github_repo_invites
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.jenkins_job_builder
+import reconcile.jenkins_webhooks
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
@@ -164,6 +165,12 @@ def jenkins_plugins(ctx):
 def jenkins_job_builder(ctx, io_dir, compare):
     run_integration(reconcile.jenkins_job_builder.run, ctx.obj['dry_run'],
                     io_dir, compare)
+
+
+@integration.command()
+@click.pass_context
+def jenkins_webhooks(ctx):
+    run_integration(reconcile.jenkins_webhooks.run, ctx.obj['dry_run'])
 
 
 @integration.command()

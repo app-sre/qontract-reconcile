@@ -12,6 +12,10 @@ import utils.gql as gql
 from os import path
 from contextlib import contextmanager
 
+from jenkins_jobs.builder import JenkinsManager
+from jenkins_jobs.parser import YamlParser
+from jenkins_jobs.registry import ModuleRegistry
+
 
 class FetchResourceError(Exception):
     def __init__(self, msg):
@@ -167,11 +171,13 @@ class JJB(object):
             args = ['--conf', ini_path, 'update', config_path, '--delete-old']
             self.execute(args)
 
-    def execute(self, args):
-        from jenkins_jobs.cli.entry import JenkinsJobs
+    def get_jjb(self, args):
         os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
+        from jenkins_jobs.cli.entry import JenkinsJobs
+        return JenkinsJobs(args)
 
-        jjb = JenkinsJobs(args)
+    def execute(self, args):
+        jjb = self.get_jjb(args)
         with self.toggle_logger():
             jjb.execute()
 
@@ -192,3 +198,38 @@ class JJB(object):
     def cleanup(self):
         for wd in self.working_dirs.values():
             shutil.rmtree(wd)
+
+    def get_job_webhooks_data(self):
+        job_webhooks_data = []
+        for name, wd in self.working_dirs.items():
+            ini_path = '{}/{}.ini'.format(wd, name)
+            config_path = '{}/config.yaml'.format(wd)
+
+            args = ['--conf', ini_path, 'test', config_path]
+            jjb = self.get_jjb(args)
+            builder = JenkinsManager(jjb.jjb_config)
+            registry = ModuleRegistry(jjb.jjb_config, builder.plugins_list)
+            parser = YamlParser(jjb.jjb_config)
+            parser.load_files(jjb.options.path)
+
+            jobs, _ = parser.expandYaml(
+                registry, jjb.options.names)
+
+            for job in jobs:
+                try:
+                    project_url_raw = job['properties'][0]['github']['url']
+                    if 'https://github.com' in project_url_raw:
+                        continue
+                    project_url = project_url_raw.strip('/').replace('.git', '')
+                    gitlab_triggers = job['triggers'][0]['gitlab']
+                    mr_trigger = gitlab_triggers['trigger-merge-request']
+                    trigger = 'pr-check' if mr_trigger else 'build-master'
+                    item = {
+                        'job_name': job['name'],
+                        'repo_url': project_url,
+                        'trigger': trigger,
+                    }
+                    job_webhooks_data.append(item)
+                except KeyError:
+                    continue
+        return job_webhooks_data
