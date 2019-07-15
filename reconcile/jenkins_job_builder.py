@@ -9,6 +9,7 @@ QUERY = """
     name
     instance {
       name
+      serverUrl
       token {
         path
         field

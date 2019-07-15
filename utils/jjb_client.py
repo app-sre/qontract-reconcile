@@ -34,11 +34,15 @@ class JJB(object):
 
     def collect_configs(self, configs):
         gqlapi = gql.get_api()
-        instances = {c['instance']['name']: c['instance']['token']
+        instances = {c['instance']['name']: {'serverUrl': c['instance']['serverUrl'],
+                                             'token': c['instance']['token']}
                      for c in configs}
 
         working_dirs = {}
-        for name, token in instances.items():
+        instance_urls = {}
+        for name, data in instances.items():
+            token = data['token']
+            server_url = data['serverUrl']
             wd = tempfile.mkdtemp()
             ini = vault_client.read(token['path'], token['field'])
             ini = ini.replace('"', '')
@@ -48,6 +52,7 @@ class JJB(object):
                 f.write(ini)
                 f.write('\n')
             working_dirs[name] = wd
+            instance_urls[name] = server_url
 
         self.sort(configs)
 
@@ -72,6 +77,7 @@ class JJB(object):
                     f.write(config)
                     f.write('\n')
 
+        self.instances = instance_urls
         self.working_dirs = working_dirs
 
     def sort(self, configs):
@@ -200,7 +206,7 @@ class JJB(object):
             shutil.rmtree(wd)
 
     def get_job_webhooks_data(self):
-        job_webhooks_data = []
+        job_webhooks_data = {}
         for name, wd in self.working_dirs.items():
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
@@ -220,16 +226,19 @@ class JJB(object):
                     project_url_raw = job['properties'][0]['github']['url']
                     if 'https://github.com' in project_url_raw:
                         continue
-                    project_url = project_url_raw.strip('/').replace('.git', '')
+                    job_url = \
+                        '{}/project/{}'.format(self.instances[name], job['name'])
+                    project_url = \
+                        project_url_raw.strip('/').replace('.git', '')
                     gitlab_triggers = job['triggers'][0]['gitlab']
                     mr_trigger = gitlab_triggers['trigger-merge-request']
-                    trigger = 'pr-check' if mr_trigger else 'build-master'
-                    item = {
-                        'job_name': job['name'],
-                        'repo_url': project_url,
+                    trigger = 'mr' if mr_trigger else 'push'
+                    hook = {
+                        'job_url': job_url,
                         'trigger': trigger,
                     }
-                    job_webhooks_data.append(item)
+                    job_webhooks_data.setdefault(project_url, [])
+                    job_webhooks_data[project_url].append(hook)
                 except KeyError:
                     continue
         return job_webhooks_data
