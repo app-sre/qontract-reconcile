@@ -30,7 +30,7 @@ def get_hooks_to_add(desired_state, gl):
                 }
                 if item in desired_hooks:
                     desired_hooks.remove(item)
-        except:
+        except Exception:
             logging.warning('no access to project: ' + project_url)
             diff[project_url] = []
 
@@ -46,7 +46,8 @@ def run(dry_run=False):
 
     for project_url, hooks in diff.items():
         for h in hooks:
-            logging.info(['create_hook', project_url, h['trigger'], h['job_url']])
+            logging.info(['create_hook', project_url,
+                          h['trigger'], h['job_url']])
 
             if not dry_run:
                 gl.create_project_hook(project_url, h)

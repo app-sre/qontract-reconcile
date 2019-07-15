@@ -34,9 +34,10 @@ class JJB(object):
 
     def collect_configs(self, configs):
         gqlapi = gql.get_api()
-        instances = {c['instance']['name']: {'serverUrl': c['instance']['serverUrl'],
-                                             'token': c['instance']['token']}
-                     for c in configs}
+        instances = \
+            {c['instance']['name']: {'serverUrl': c['instance']['serverUrl'],
+                                     'token': c['instance']['token']}
+             for c in configs}
 
         working_dirs = {}
         instance_urls = {}
@@ -227,7 +228,8 @@ class JJB(object):
                     if 'https://github.com' in project_url_raw:
                         continue
                     job_url = \
-                        '{}/project/{}'.format(self.instances[name], job['name'])
+                        '{}/project/{}'.format(self.instances[name],
+                                               job['name'])
                     project_url = \
                         project_url_raw.strip('/').replace('.git', '')
                     gitlab_triggers = job['triggers'][0]['gitlab']
