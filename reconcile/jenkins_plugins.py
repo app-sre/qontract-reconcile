@@ -28,6 +28,9 @@ def get_jenkins_map():
         instance_name = instance['name']
         if instance_name in jenkins_map:
             continue
+        instance_plugins = instance['plugins']
+        if not instance_plugins:
+            continue
 
         token = instance['token']
         jenkins = JenkinsApi(token, False)
@@ -56,7 +59,7 @@ def get_desired_state():
 
     desired_state = []
     for instance in jenkins_instances:
-        for plugin in instance['plugins']:
+        for plugin in instance['plugins'] or []:
             desired_state.append({
                 "instance": instance['name'],
                 "plugin": plugin

@@ -60,7 +60,7 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def fetch_desired_state():
+def fetch_desired_state(quay_api_store):
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_QUERY)
 
@@ -77,8 +77,19 @@ def fetch_desired_state():
 
             def append_quay_username_members(member):
                 quay_username = member.get('quay_username')
-                if quay_username:
-                    members.append(quay_username)
+                if not quay_username:
+                    return
+                if quay_api_store is not None:  # compare to None for testing
+                    # get the first quay api that is found
+                    rand_quay_api = quay_api_store.values()[0].values()[0]
+                    user_exists = rand_quay_api.user_exists(quay_username)
+                    if not user_exists:
+                        logging.warning((
+                            'quay user {} does not exist.'
+                        ).format(quay_username))
+                        return
+
+                members.append(quay_username)
 
             for user in role['users']:
                 append_quay_username_members(user)
@@ -157,7 +168,7 @@ def run(dry_run=False):
     quay_api_store = get_quay_api_store()
 
     current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(quay_api_store)
 
     # calculate diff
     diff = current_state.diff(desired_state)

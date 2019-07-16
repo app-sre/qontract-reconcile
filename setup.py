@@ -34,6 +34,7 @@ setup(
         "urllib3>=1.21.1,<1.25.0",
         "slackclient>=1.3.2,<1.4.0",
         "pypd>=1.1.0,<1.2.0",
+        "jenkins-job-builder>=2.10.1,<2.11.0",
     ],
 
     test_suite="tests",
