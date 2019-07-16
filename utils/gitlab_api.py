@@ -154,3 +154,20 @@ class GitLabApi(object):
     def close_issue(self, issue):
         issue.state_event = 'close'
         issue.save()
+
+    def get_project_hooks(self, repo_url):
+        p = self.get_project(repo_url)
+        return p.hooks.list(per_page=100)
+
+    def create_project_hook(self, repo_url, data):
+        p = self.get_project(repo_url)
+        url = data['job_url']
+        trigger = data['trigger']
+        hook = {
+            'url': url,
+            'enable_ssl_verification': 1,
+            'note_events': int(trigger == 'mr'),
+            'push_events': int(trigger == 'push'),
+            'merge_requests_events': int(trigger == 'mr'),
+        }
+        p.hooks.create(hook)
