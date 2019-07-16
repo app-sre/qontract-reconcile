@@ -19,7 +19,7 @@ USERS_QUERY = """
         redhat_username
         roles{
             permissions{
-                ... on PermissionGitlabInstance_v1{
+                ... on PermissionGitlabGroupMembership_v1{
                     name
                     group
                 }
@@ -35,7 +35,7 @@ BOTS_QUERY = """
         gitlab_username
         roles{
             permissions{
-                ... on PermissionGitlabInstance_v1{
+                ... on PermissionGitlabGroupMembership_v1{
                     name
                     group
                 }
