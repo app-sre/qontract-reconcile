@@ -41,10 +41,8 @@ def init_from_config():
     global _mail_address
 
     config = get_config()
-
-    config = get_config()
     smtp_secret_path = config['smtp']['secret_path']
-    smtp_config = vault_client.read_all(smtp_secret_path)
+    smtp_config = config_from_vault(smtp_secret_path)
     host = smtp_config['server']
     port = smtp_config['port']
     _username = smtp_config['username']
@@ -52,6 +50,27 @@ def init_from_config():
     _mail_address = config['smtp']['mail_address']
 
     return init(host, port, _username, password)
+
+
+def config_from_vault(vault_path):
+    config = {}
+
+    required_keys = ('password', 'port', 'require_tls', 'server', 'username')
+
+    try:
+        data = vault_client.read_all(vault_path)
+    except vault_client.SecretNotFound as e:
+        raise Exception("Could not retrieve SMTP config from vault: {}"
+                        .format(e))
+
+    try:
+        for k in required_keys:
+            config[k] = data[k]
+    except KeyError as e:
+        raise Exception("Missing expected SMTP config key in vault secret: {}"
+                        .format(e))
+
+    return config
 
 
 def send_mail(name, subject, body):
