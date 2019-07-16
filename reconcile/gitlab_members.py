@@ -104,7 +104,7 @@ def calculate_diff(current_state, desired_state):
 def subtract_states(from_state, subtract_state, action):
     result = []
     for f_group, f_users in from_state.items():
-        s_group = subtract_state[f_group] #assumming groups are the same in both states which is a bad assumption (ex: groups can be deleted)
+        s_group = subtract_state[f_group] 
         for f_user in f_users:
             found = False
             for s_user in s_group:

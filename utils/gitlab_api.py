@@ -129,7 +129,7 @@ class GitLabApi(object):
         try:
             group.members.create({
                 'user_id': user.id,
-                'access_level': gitlab.MAINTAINER_ACCESS #should they be added as a maintainer?
+                'access_level': gitlab.MAINTAINER_ACCESS 
                 })
         except gitlab.exceptions.GitlabCreateError:
             member = group.members.get(user.id)
