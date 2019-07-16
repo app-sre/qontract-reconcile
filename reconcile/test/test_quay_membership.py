@@ -65,7 +65,7 @@ class TestQuayMembership(object):
         with patch('utils.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
-            desired_state = quay_membership.fetch_desired_state().dump()
+            desired_state = quay_membership.fetch_desired_state(None).dump()
 
             expected_desired_state = fixture['state']
 
