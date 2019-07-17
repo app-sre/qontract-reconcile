@@ -102,12 +102,13 @@ class GitLabApi(object):
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
-    
+
     def get_group_members(self, group_name):
         groups = self.gl.groups.list()
-        group_names = list(map(lambda x: x.name,groups))
+        group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
             logging.error(group_name + " group not found")
+            # the group could be made here
             return []
         group = self.gl.groups.get(group_name)
         return [m for m in group.members.list()]
@@ -125,20 +126,20 @@ class GitLabApi(object):
 
     def add_group_member(self, group_name, user):
         groups = self.gl.groups.list()
-        group_names = list(map(lambda x: x.name,groups))
+        group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
-            logging.error(group_name + " group not found, can not add users to it")
+            logging.error(group_name + " group not found")
         else:
             group = self.gl.groups.get(group_name)
             try:
                 group.members.create({
                     'user_id': user.id,
-                    'access_level': gitlab.MAINTAINER_ACCESS 
+                    'access_level': gitlab.MAINTAINER_ACCESS
                     })
             except gitlab.exceptions.GitlabCreateError:
                 member = group.members.get(user.id)
                 member.access_level = gitlab.MAINTAINER_ACCESS
-    
+
     def remove_group_member(self, group_name, user):
         group = self.gl.groups.get(group_name)
         group.members.delete(user.id)
@@ -184,14 +185,12 @@ class GitLabApi(object):
         issue.state_event = 'close'
         issue.save()
 
-        
     def get_user(self, username):
         user = self.gl.users.list(search=username)
         if len(user) == 0:
             logging.error(username + " user not found")
-            return 
+            return
         return user[0]
-
 
     def get_project_hooks(self, repo_url):
         p = self.get_project(repo_url)

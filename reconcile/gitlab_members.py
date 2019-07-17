@@ -1,4 +1,3 @@
-import sys
 import logging
 
 import utils.gql as gql
@@ -27,7 +26,7 @@ USERS_QUERY = """
     }
   }
 }
-  """
+"""
 
 BOTS_QUERY = """
 {
@@ -45,6 +44,7 @@ BOTS_QUERY = """
 }
 """
 
+
 def get_gitlab_api():
     config = get_config()
     gitlab_config = config['gitlab']
@@ -61,7 +61,8 @@ def create_groups_dict(gqlapi):
             groups_dict[g] = []
     return groups_dict
 
-def get_desired_state(gqlapi,gl):
+
+def get_desired_state(gqlapi, gl):
     users = gqlapi.query(USERS_QUERY)['users']
     bots = gqlapi.query(BOTS_QUERY)['bots']
     desired_group_members = create_groups_dict(gqlapi)
@@ -71,21 +72,23 @@ def get_desired_state(gqlapi,gl):
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
                         user = gl.get_user(u['redhat_username'])
-                        if user != None:
-                            desired_group_members[g].append(user) 
+                        if user is not None:
+                            desired_group_members[g].append(user)
         for b in bots:
             for r in b['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        desired_group_members[g].append(gl.get_user(b['redhat_username']))
+                        username = b['redhat_username']
+                        desired_group_members[g].append(gl.get_user(username))
     return desired_group_members
 
 
-def get_current_state(gqlapi,gl):
+def get_current_state(gqlapi, gl):
     current_group_members = create_groups_dict(gqlapi)
     for g in current_group_members:
-        current_group_members[g]=gl.get_group_members(g) 
+        current_group_members[g] = gl.get_group_members(g)
     return current_group_members
+
 
 def calculate_diff(current_state, desired_state):
     diff = []
@@ -104,7 +107,7 @@ def calculate_diff(current_state, desired_state):
 def subtract_states(from_state, subtract_state, action):
     result = []
     for f_group, f_users in from_state.items():
-        s_group = subtract_state[f_group] 
+        s_group = subtract_state[f_group]
         for f_user in f_users:
             found = False
             for s_user in s_group:
@@ -114,31 +117,32 @@ def subtract_states(from_state, subtract_state, action):
                 break
             if not found:
                 result.append({
-                "action": action,
-                "group": f_group,
-                "user": f_user,
+                    "action": action,
+                    "group": f_group,
+                    "user": f_user,
                 })
     return result
 
-def act(diff,gl):
+
+def act(diff, gl):
     group = diff['group']
     username = diff['user']
     action = diff['action']
     if action == "remove_user_from_group":
-        gl.remove_group_member(group,username)
+        gl.remove_group_member(group, username)
     if action == "add_user_to_group":
-        gl.add_group_member(group,username)
+        gl.add_group_member(group, username)
 
 
 def run(dry_run=False):
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    current_state = get_current_state(gqlapi,gl)
-    desired_state = get_desired_state(gqlapi,gl)
-    diffs = calculate_diff(current_state,desired_state)
-    
+    current_state = get_current_state(gqlapi, gl)
+    desired_state = get_desired_state(gqlapi, gl)
+    diffs = calculate_diff(current_state, desired_state)
+
     for diff in diffs:
         logging.info(diff.values())
-        
+
         if not dry_run:
-            act(diff,gl)
+            act(diff, gl)
