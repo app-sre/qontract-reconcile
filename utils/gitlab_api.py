@@ -103,12 +103,11 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
     
-
     def get_group_members(self, group_name):
         groups = self.gl.groups.list()
         group_names = list(map(lambda x: x.name,groups))
         if group_name not in group_names:
-            logging.info(group_name + " group not found")
+            logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
         return [m for m in group.members.list()]
@@ -125,15 +124,20 @@ class GitLabApi(object):
             member.access_level = gitlab.MAINTAINER_ACCESS
 
     def add_group_member(self, group_name, user):
-        group = self.gl.groups.get(group_name)
-        try:
-            group.members.create({
-                'user_id': user.id,
-                'access_level': gitlab.MAINTAINER_ACCESS 
-                })
-        except gitlab.exceptions.GitlabCreateError:
-            member = group.members.get(user.id)
-            member.access_level = gitlab.MAINTAINER_ACCESS
+        groups = self.gl.groups.list()
+        group_names = list(map(lambda x: x.name,groups))
+        if group_name not in group_names:
+            logging.error(group_name + " group not found, can not add users to it")
+        else:
+            group = self.gl.groups.get(group_name)
+            try:
+                group.members.create({
+                    'user_id': user.id,
+                    'access_level': gitlab.MAINTAINER_ACCESS 
+                    })
+            except gitlab.exceptions.GitlabCreateError:
+                member = group.members.get(user.id)
+                member.access_level = gitlab.MAINTAINER_ACCESS
     
     def remove_group_member(self, group_name, user):
         group = self.gl.groups.get(group_name)
@@ -184,7 +188,7 @@ class GitLabApi(object):
     def get_user(self, username):
         user = self.gl.users.list(search=username)
         if len(user) == 0:
-            logging.info(username + " user not found")
+            logging.error(username + " user not found")
             return 
         return user[0]
 

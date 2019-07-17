@@ -7,41 +7,41 @@ from utils.gitlab_api import GitLabApi
 
 GROUPS_QUERY = """
 {
-    instances: gitlabinstance_v1{
-        managedGroups
-    }
+  instances: gitlabinstance_v1{
+    managedGroups
+  }
 }
 """
 
 USERS_QUERY = """
 {
-    users: users_v1{
-        redhat_username
-        roles{
-            permissions{
-                ... on PermissionGitlabGroupMembership_v1{
-                    name
-                    group
-                }
-            }
-        }
+  users: users_v1{
+    redhat_username
+      roles{
+        permissions{
+          ... on PermissionGitlabGroupMembership_v1{
+            name
+            group
+          }
+      }
     }
+  }
 }
   """
 
 BOTS_QUERY = """
 {
-    bots: bots_v1{
-        gitlab_username
-        roles{
-            permissions{
-                ... on PermissionGitlabGroupMembership_v1{
-                    name
-                    group
-                }
-            }
+  bots: bots_v1{
+    redhat_username
+      roles{
+        permissions{
+          ... on PermissionGitlabGroupMembership_v1{
+            name
+            group
         }
+      }
     }
+  }
 }
 """
 
@@ -77,7 +77,7 @@ def get_desired_state(gqlapi,gl):
             for r in b['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        desired_group_members[g].append(gl.get_user(b['gitlab_username']))
+                        desired_group_members[g].append(gl.get_user(b['redhat_username']))
     return desired_group_members
 
 
