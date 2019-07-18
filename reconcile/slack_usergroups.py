@@ -1,4 +1,6 @@
 import logging
+import anymarkup
+import requests
 
 import utils.gql as gql
 
@@ -125,7 +127,7 @@ def get_pagerduty_name(user):
 
 
 def get_slack_usernames_from_pagerduty(pagerduties, users):
-    slack_usernames = []
+    all_slack_usernames = []
     for pagerduty in pagerduties or []:
         pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
@@ -155,18 +157,43 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
             ).format(slack_usernames, pagerduty_names)
             logging.warning(msg)
         else:
-            slack_usernames.extend(slack_usernames)
+            all_slack_usernames.extend(slack_usernames)
 
-    return slack_usernames
+    return all_slack_usernames
 
 
 def get_slack_usernames_from_github_owners(github_owners, users):
-    slack_usernames = []
+    all_slack_usernames = []
     for owners_file in github_owners or []:
         r = requests.get(owners_file)
-        yaml.load(r.text)['approvers']
+        try:
+            github_users = anymarkup.parse(
+                r.content,
+                force_types=None
+            )['approvers']
+        except (anymarkup.AnyMarkupError, KeyError):
+            msg = "Could not parse data. Skipping owners file: {}"
+            logging.warning(e_msg.format(owners_file))
+            continue
 
-    return slack_usernames
+        if not github_users:
+            continue
+
+        slack_usernames = [get_slack_username(u)
+                           for u in users
+                           if u['github_username']
+                           in github_users]
+        if len(slack_usernames) != len(github_users):
+            msg = (
+                'found Slack usernames {} '
+                'do not match all github usernames: {} '
+                '(hint: user is missing from app-interface)'
+            ).format(slack_usernames, github_users)
+            logging.warning(msg)
+        else:
+            all_slack_usernames.extend(slack_usernames)
+
+    return all_slack_usernames
 
 
 def get_desired_state(slack_map):
