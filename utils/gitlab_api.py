@@ -111,7 +111,7 @@ class GitLabApi(object):
             # the group could be made here
             return []
         group = self.gl.groups.get(group_name)
-        return [m for m in group.members.list()]
+        return [{"user":m,"access_level":m.access_level} for m in group.members.list()]
 
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
@@ -124,7 +124,7 @@ class GitLabApi(object):
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
 
-    def add_group_member(self, group_name, user):
+    def add_group_member(self, group_name, user, access):
         groups = self.gl.groups.list()
         group_names = list(map(lambda x: x.name, groups))
         if group_name not in group_names:
@@ -134,11 +134,11 @@ class GitLabApi(object):
             try:
                 group.members.create({
                     'user_id': user.id,
-                    'access_level': gitlab.MAINTAINER_ACCESS
+                    'access_level': access
                     })
             except gitlab.exceptions.GitlabCreateError:
                 member = group.members.get(user.id)
-                member.access_level = gitlab.MAINTAINER_ACCESS
+                member.access_level = access
 
     def remove_group_member(self, group_name, user):
         group = self.gl.groups.get(group_name)

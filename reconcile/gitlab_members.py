@@ -21,6 +21,7 @@ USERS_QUERY = """
           ... on PermissionGitlabGroupMembership_v1{
             name
             group
+            access
           }
       }
     }
@@ -37,6 +38,7 @@ BOTS_QUERY = """
           ... on PermissionGitlabGroupMembership_v1{
             name
             group
+            access
         }
       }
     }
@@ -73,13 +75,13 @@ def get_desired_state(gqlapi, gl):
                     if 'group' in p and p['group'] == g:
                         user = gl.get_user(u['redhat_username'])
                         if user is not None:
-                            desired_group_members[g].append(user)
+                            desired_group_members[g].append({"user": user, "access_level": p['access']})
         for b in bots:
             for r in b['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        username = b['redhat_username']
-                        desired_group_members[g].append(gl.get_user(username))
+                        user = gl.get_user(b['redhat_username'])
+                        desired_group_members[g].append({"user": user, "access_level": p['access']})
     return desired_group_members
 
 
@@ -111,7 +113,7 @@ def subtract_states(from_state, subtract_state, action):
         for f_user in f_users:
             found = False
             for s_user in s_group:
-                if f_user.id != s_user.id:
+                if f_user['user'].id != s_user['user'].id:
                     continue
                 found = True
                 break
@@ -119,19 +121,21 @@ def subtract_states(from_state, subtract_state, action):
                 result.append({
                     "action": action,
                     "group": f_group,
-                    "user": f_user,
+                    "user": f_user['user'],
+                    "access": f_user['access_level']
                 })
     return result
 
 
 def act(diff, gl):
     group = diff['group']
-    username = diff['user']
+    user = diff['user']
     action = diff['action']
+    access = diff['access']
     if action == "remove_user_from_group":
-        gl.remove_group_member(group, username)
+        gl.remove_group_member(group, user)
     if action == "add_user_to_group":
-        gl.add_group_member(group, username)
+        gl.add_group_member(group, user, access)
 
 
 def run(dry_run=False):
