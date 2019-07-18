@@ -173,7 +173,7 @@ def get_slack_usernames_from_github_owners(github_owners, users):
             )['approvers']
         except (anymarkup.AnyMarkupError, KeyError):
             msg = "Could not parse data. Skipping owners file: {}"
-            logging.warning(e_msg.format(owners_file))
+            logging.warning(msg.format(owners_file))
             continue
 
         if not github_users:
