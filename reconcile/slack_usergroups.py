@@ -1,4 +1,6 @@
 import logging
+import anymarkup
+import requests
 
 import utils.gql as gql
 
@@ -52,6 +54,7 @@ ROLES_QUERY = """
           scheduleID
           escalationPolicyID
         }
+        github_owners
         channels
       }
     }
@@ -64,6 +67,7 @@ USERS_QUERY = """
   users: users_v1 {
     name
     redhat_username
+    github_username
     slack_username
     pagerduty_name
   }
@@ -123,7 +127,7 @@ def get_pagerduty_name(user):
 
 
 def get_slack_usernames_from_pagerduty(pagerduties, users):
-    slack_usernames = []
+    all_slack_usernames = []
     for pagerduty in pagerduties or []:
         pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
@@ -153,9 +157,43 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
             ).format(slack_usernames, pagerduty_names)
             logging.warning(msg)
         else:
-            slack_usernames.extend(slack_usernames)
+            all_slack_usernames.extend(slack_usernames)
 
-    return slack_usernames
+    return all_slack_usernames
+
+
+def get_slack_usernames_from_github_owners(github_owners, users):
+    all_slack_usernames = []
+    for owners_file in github_owners or []:
+        r = requests.get(owners_file)
+        try:
+            github_users = anymarkup.parse(
+                r.content,
+                force_types=None
+            )['approvers']
+        except (anymarkup.AnyMarkupError, KeyError):
+            msg = "Could not parse data. Skipping owners file: {}"
+            logging.warning(msg.format(owners_file))
+            continue
+
+        if not github_users:
+            continue
+
+        slack_usernames = [get_slack_username(u)
+                           for u in users
+                           if u['github_username']
+                           in github_users]
+        if len(slack_usernames) != len(github_users):
+            msg = (
+                'found Slack usernames {} '
+                'do not match all github usernames: {} '
+                '(hint: user is missing from app-interface)'
+            ).format(slack_usernames, github_users)
+            logging.warning(msg)
+        else:
+            all_slack_usernames.extend(slack_usernames)
+
+    return all_slack_usernames
 
 
 def get_desired_state(slack_map):
@@ -189,9 +227,14 @@ def get_desired_state(slack_map):
             ugid = slack.get_usergroup_id(usergroup)
             user_names = [get_slack_username(u) for u in r['users']]
 
-            slack_usernames = \
+            slack_usernames_pagerduty = \
                 get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
-            user_names.extend(slack_usernames)
+            user_names.extend(slack_usernames_pagerduty)
+
+            slack_usernames_github = \
+                get_slack_usernames_from_github_owners(p['github_owners'],
+                                                       all_users)
+            user_names.extend(slack_usernames_github)
 
             users = slack.get_users_by_names(user_names)
 
