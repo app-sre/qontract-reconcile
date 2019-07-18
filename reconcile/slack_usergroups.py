@@ -52,6 +52,7 @@ ROLES_QUERY = """
           scheduleID
           escalationPolicyID
         }
+        github_owners
         channels
       }
     }
@@ -64,6 +65,7 @@ USERS_QUERY = """
   users: users_v1 {
     name
     redhat_username
+    github_username
     slack_username
     pagerduty_name
   }
@@ -158,6 +160,15 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
     return slack_usernames
 
 
+def get_slack_usernames_from_github_owners(github_owners, users):
+    slack_usernames = []
+    for owners_file in github_owners or []:
+        r = requests.get(owners_file)
+        yaml.load(r.text)['approvers']
+
+    return slack_usernames
+
+
 def get_desired_state(slack_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
@@ -189,9 +200,14 @@ def get_desired_state(slack_map):
             ugid = slack.get_usergroup_id(usergroup)
             user_names = [get_slack_username(u) for u in r['users']]
 
-            slack_usernames = \
+            slack_usernames_pagerduty = \
                 get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
-            user_names.extend(slack_usernames)
+            user_names.extend(slack_usernames_pagerduty)
+
+            slack_usernames_github = \
+                get_slack_usernames_from_github_owners(p['github_owners'],
+                                                       all_users)
+            user_names.extend(slack_usernames_github)
 
             users = slack.get_users_by_names(user_names)
 
