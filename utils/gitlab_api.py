@@ -103,12 +103,25 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
 
-    def get_group_members(self, group_name):
+    def get_group_names(self):
         groups = self.gl.groups.list()
         group_names = list(map(lambda x: x.name, groups))
+        return group_names
+
+    def check_group_exists(self,group_name):
+        group_names = self.get_group_names()
         if group_name not in group_names:
+            return False
+        return True
+
+    def printGroups(self):
+        groups = self.gl.groups.list()
+        group_names = list(map(lambda x: x.name, groups))
+        print(group_names)
+
+    def get_group_members(self, group_name):
+        if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
-            # the group could be made here
             return []
         group = self.gl.groups.get(group_name)
         return [{"user": m, "access_level": m.access_level} for m in group.members.list()]
@@ -124,10 +137,16 @@ class GitLabApi(object):
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
 
+  
+    def create_group(self,group_name):
+        self.gl.groups.create({'name': group_name, 'path': group_name})
+
+    def remove_group(self,group_name):
+        group = self.gl.groups.get(group_name)
+        group.delete()
+
     def add_group_member(self, group_name, user, access):
-        groups = self.gl.groups.list()
-        group_names = list(map(lambda x: x.name, groups))
-        if group_name not in group_names:
+        if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
         else:
             group = self.gl.groups.get(group_name)
