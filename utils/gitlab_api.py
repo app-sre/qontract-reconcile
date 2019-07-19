@@ -111,7 +111,7 @@ class GitLabApi(object):
             # the group could be made here
             return []
         group = self.gl.groups.get(group_name)
-        return [{"user":m,"access_level":m.access_level} for m in group.members.list()]
+        return [{"user": m, "access_level": m.access_level} for m in group.members.list()]
 
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
@@ -143,6 +143,12 @@ class GitLabApi(object):
     def remove_group_member(self, group_name, user):
         group = self.gl.groups.get(group_name)
         group.members.delete(user.id)
+
+    def change_access(self,group,user,access):
+        group = self.gl.groups.get(group)
+        member = group.members.get(user.id)
+        member.access_level = access
+        member.save()
 
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
