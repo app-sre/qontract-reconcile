@@ -1,4 +1,5 @@
 import re
+import time
 import logging
 
 import utils.gql as gql
@@ -9,6 +10,8 @@ from reconcile.ldap_users import get_app_interface_gitlab_api
 from reconcile.ldap_users import init_users as init_users_and_paths
 
 from github import Github
+from github.GithubException import GithubException
+from requests.exceptions import ReadTimeout
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
@@ -36,8 +39,18 @@ def init_github():
 
 
 def get_user_company(user, github):
-    gh_user = github.get_user(login=user['github_username'])
-    return user['redhat_username'], gh_user.company
+    attempt = 0
+    attempts = 3
+    while attempt < attempts:
+        try:
+            gh_user = github.get_user(login=user['github_username'])
+            return user['redhat_username'], gh_user.company
+        except (GithubException, ReadTimeout) as e:
+            attempt += 1
+            if attempt == attempts:
+                raise e
+            else:
+                time.sleep(attempt)
 
 
 def get_users_to_delete(results):
