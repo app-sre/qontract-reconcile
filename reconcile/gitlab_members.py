@@ -98,14 +98,14 @@ def calculate_diff(current_state, desired_state):
     diff = []
     users_to_add = \
         subtract_states(desired_state, current_state,
-                       "add_user_to_group")
+                        "add_user_to_group")
     diff.extend(users_to_add)
     users_to_remove = \
         subtract_states(current_state, desired_state,
                         "remove_user_from_group")
     diff.extend(users_to_remove)
     users_to_change = \
-      check_access(desired_state, current_state)
+        check_access(desired_state, current_state)
     diff.extend(users_to_change)
 
     return diff
@@ -131,7 +131,8 @@ def subtract_states(from_state, subtract_state, action):
                 })
     return result
 
-def check_access(desired_state,current_state):
+
+def check_access(desired_state, current_state):
     result = []
     for d_group, d_users in desired_state.items():
         c_group = current_state[d_group]
@@ -148,23 +149,6 @@ def check_access(desired_state,current_state):
                     break
     return result
 
-def check_groups(desired_groups, current_groups):
-    groups_to_add = subtract_groups(desired_groups,current_groups)
-    groups_to_remove = subtract_groups(current_groups,desired_groups)
-    return groups_to_add,groups_to_remove
-
-def subtract_groups(from_groups, subtract_groups):
-    result = []
-    for f_group in from_groups:
-        found = False
-        for s_group in subtract_groups:
-            if s_group != f_group:
-                continue
-            found = True
-            break
-        if not found:
-            result.append(f_group)
-    return result
 
 def act(diff, gl):
     group = diff['group']
@@ -176,24 +160,12 @@ def act(diff, gl):
     if action == "add_user_to_group":
         gl.add_group_member(group, user, access)
     if action == "change_access":
-        gl.change_access(group,user,access)
-
+        gl.change_access(group, user, access)
 
 
 def run(dry_run=False):
     gqlapi = gql.get_api()
     gl = get_gitlab_api()
-    desired_groups = create_groups_dict(gqlapi).keys() #-groups with <1 user?
-    #options go get current_groups:
-        #current_groups =  gl.get_group_names() this is how I think it should be done,
-        #current_groups = groups on managed list that exist when searched for
-        #for not just going to have the current_groups set by me for testing
-    current_groups = [u'app-sre', u'app-sre-test2', u'app-sre-test']
-    groups_to_add, groups_to_remove = check_groups(desired_groups,current_groups)
-    for a_group in groups_to_add:
-        logging.info("create group " + a_group)
-        if not dry_run:
-            gl.create_group(a_group)
     current_state = get_current_state(gqlapi, gl)
     desired_state = get_desired_state(gqlapi, gl)
     diffs = calculate_diff(current_state, desired_state)
@@ -203,7 +175,3 @@ def run(dry_run=False):
 
         if not dry_run:
             act(diff, gl)
-    for r_group in groups_to_remove:
-        logging.info("remove group " + r_group)
-        if not dry_run:
-           gl.remove_group(r_group)

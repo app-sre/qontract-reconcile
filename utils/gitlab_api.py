@@ -103,28 +103,20 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
 
-    def get_group_names(self):
+    def check_group_exists(self, group_name):
         groups = self.gl.groups.list()
         group_names = list(map(lambda x: x.name, groups))
-        return group_names
-
-    def check_group_exists(self,group_name):
-        group_names = self.get_group_names()
         if group_name not in group_names:
             return False
         return True
-
-    def printGroups(self):
-        groups = self.gl.groups.list()
-        group_names = list(map(lambda x: x.name, groups))
-        print(group_names)
 
     def get_group_members(self, group_name):
         if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
-        return [{"user": m, "access_level": m.access_level} for m in group.members.list()]
+        return ([{"user": m, "access_level": m.access_level}
+                for m in group.members.list()])
 
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
@@ -136,14 +128,6 @@ class GitLabApi(object):
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
-
-  
-    def create_group(self,group_name):
-        self.gl.groups.create({'name': group_name, 'path': group_name})
-
-    def remove_group(self,group_name):
-        group = self.gl.groups.get(group_name)
-        group.delete()
 
     def add_group_member(self, group_name, user, access):
         if not self.check_group_exists(group_name):
@@ -163,7 +147,7 @@ class GitLabApi(object):
         group = self.gl.groups.get(group_name)
         group.members.delete(user.id)
 
-    def change_access(self,group,user,access):
+    def change_access(self, group, user, access):
         group = self.gl.groups.get(group)
         member = group.members.get(user.id)
         member.access_level = access
