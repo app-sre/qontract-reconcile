@@ -24,6 +24,7 @@ import reconcile.jenkins_webhooks
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
+import reconcile.gitlab_members
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 
@@ -293,3 +294,9 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 @click.pass_context
 def github_repo_invites(ctx):
     run_integration(reconcile.github_repo_invites.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def gitlab_members(ctx):
+    run_integration(reconcile.gitlab_members.run, ctx.obj['dry_run'])

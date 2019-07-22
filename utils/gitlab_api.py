@@ -103,6 +103,21 @@ class GitLabApi(object):
         app_sre_group = self.gl.groups.get('app-sre')
         return [m for m in app_sre_group.members.list()]
 
+    def check_group_exists(self, group_name):
+        groups = self.gl.groups.list()
+        group_names = list(map(lambda x: x.name, groups))
+        if group_name not in group_names:
+            return False
+        return True
+
+    def get_group_members(self, group_name):
+        if not self.check_group_exists(group_name):
+            logging.error(group_name + " group not found")
+            return []
+        group = self.gl.groups.get(group_name)
+        return ([{"user": m, "access_level": m.access_level}
+                for m in group.members.list()])
+
     def add_project_member(self, repo_url, user):
         project = self.get_project(repo_url)
         try:
@@ -113,6 +128,30 @@ class GitLabApi(object):
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
+
+    def add_group_member(self, group_name, user, access):
+        if not self.check_group_exists(group_name):
+            logging.error(group_name + " group not found")
+        else:
+            group = self.gl.groups.get(group_name)
+            try:
+                group.members.create({
+                    'user_id': user.id,
+                    'access_level': access
+                    })
+            except gitlab.exceptions.GitlabCreateError:
+                member = group.members.get(user.id)
+                member.access_level = access
+
+    def remove_group_member(self, group_name, user):
+        group = self.gl.groups.get(group_name)
+        group.members.delete(user.id)
+
+    def change_access(self, group, user, access):
+        group = self.gl.groups.get(group)
+        member = group.members.get(user.id)
+        member.access_level = access
+        member.save()
 
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
@@ -154,6 +193,13 @@ class GitLabApi(object):
     def close_issue(self, issue):
         issue.state_event = 'close'
         issue.save()
+
+    def get_user(self, username):
+        user = self.gl.users.list(search=username)
+        if len(user) == 0:
+            logging.error(username + " user not found")
+            return
+        return user[0]
 
     def get_project_hooks(self, repo_url):
         p = self.get_project(repo_url)
