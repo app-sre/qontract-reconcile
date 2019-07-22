@@ -2,7 +2,7 @@ FROM centos:7
 
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
-ENV TF_VERSION=0.11.13
+ENV TF_VERSION=0.11.14
 
 RUN yum install -y centos-release-openshift-origin && \
     yum install -y epel-release && \
