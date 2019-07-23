@@ -167,10 +167,11 @@ def get_slack_usernames_from_github_owners(github_owners, users):
     for owners_file in github_owners or []:
         r = requests.get(owners_file)
         try:
-            github_users = anymarkup.parse(
+            owners_file = anymarkup.parse(
                 r.content,
                 force_types=None
-            )['approvers']
+            )
+            github_users = [u for l in owners_file.values() for u in l]
         except (anymarkup.AnyMarkupError, KeyError):
             msg = "Could not parse data. Skipping owners file: {}"
             logging.warning(msg.format(owners_file))
@@ -183,7 +184,7 @@ def get_slack_usernames_from_github_owners(github_owners, users):
                            for u in users
                            if u['github_username']
                            in github_users]
-        if len(slack_usernames) != len(github_users):
+        if len(set(slack_usernames)) != len(set(github_users)):
             msg = (
                 'found Slack usernames {} '
                 'do not match all github usernames: {} '
