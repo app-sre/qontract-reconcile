@@ -1,3 +1,4 @@
+import time
 import requests
 
 
@@ -32,11 +33,19 @@ class RawGithubApi(object):
     def query(self, url, headers={}):
         h = self.headers(headers)
 
-        res = requests.get(self.BASE_URL + url, headers=h)
-        try:
-            res.raise_for_status()
-        except Exception as e:
-            raise Exception(e.message)
+        attempt = 0
+        attempts = 3
+        while attempt < attempts:
+            try:
+                res = requests.get(self.BASE_URL + url, headers=h)
+                res.raise_for_status()
+                break
+            except Exception as e:
+                attempt += 1
+                if attempt == attempts:
+                    raise e
+                else:
+                    time.sleep(attempt)
 
         result = res.json()
 
