@@ -25,6 +25,7 @@ Tool to reconcile services with their desired state as defined in the app-interf
 - `qontract-reconcile slack-usergroups`: Manage Slack User Groups (channels and users).
 - `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
 - `qontract-reconcile terraform-users`: Manage AWS users using Terraform.
+- `qontract-reconcile gitlab-members` : Manage GitLab group members.
 
 ## Usage
 
