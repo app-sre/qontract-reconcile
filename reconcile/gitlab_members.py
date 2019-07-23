@@ -73,7 +73,7 @@ def get_desired_state(gqlapi, gl):
             for r in u['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        user =u['redhat_username']
+                        user = u['redhat_username']
                         item = {"user": user, "access_level": p['access']}
                         desired_group_members[g].append(item)
         for b in bots:

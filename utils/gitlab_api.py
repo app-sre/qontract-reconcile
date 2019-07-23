@@ -127,7 +127,9 @@ class GitLabApi(object):
             logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
-        return ([{"user": m.username, "access_level": self.get_string_access_level(m.access_level)}
+        return ([{
+                "user": m.username,
+                "access_level": self.get_string_access_level(m.access_level)}
                 for m in group.members.list()])
 
     def add_project_member(self, repo_url, user):
@@ -168,13 +170,13 @@ class GitLabApi(object):
         if access == "owner":
             access_number = 50
         elif access == "maintainer":
-            access_number =  40
+            access_number = 40
         elif access == "developer":
-            access_number =  30
+            access_number = 30
         elif access == "reporter":
-            access_number =  20
+            access_number = 20
         else:
-            access_number =  10
+            access_number = 10
         group = self.gl.groups.get(group)
         member = group.members.get(user.id)
         member.access_level = access_number
