@@ -127,7 +127,7 @@ class GitLabApi(object):
             logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
-        return ([{"user": m, "access_level": self.get_string_access_level(m.access_level)}
+        return ([{"user": m.username, "access_level": self.get_string_access_level(m.access_level)}
                 for m in group.members.list()])
 
     def add_project_member(self, repo_url, user):
@@ -141,23 +141,27 @@ class GitLabApi(object):
             member = project.members.get(user.id)
             member.access_level = gitlab.MAINTAINER_ACCESS
 
-    def add_group_member(self, group_name, user, access):
+    def add_group_member(self, group_name, username, access):
         if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
         else:
             group = self.gl.groups.get(group_name)
-            try:
-                group.members.create({
-                    'user_id': user.id,
-                    'access_level': access
-                    })
-            except gitlab.exceptions.GitlabCreateError:
-                member = group.members.get(user.id)
-                member.access_level = access
+            user = self.get_user(username)
+            if user is not None:
+                try:
+                    group.members.create({
+                        'user_id': user.id,
+                        'access_level': access
+                        })
+                except gitlab.exceptions.GitlabCreateError:
+                    member = group.members.get(user.id)
+                    member.access_level = access
 
-    def remove_group_member(self, group_name, user):
+    def remove_group_member(self, group_name, username):
         group = self.gl.groups.get(group_name)
-        group.members.delete(user.id)
+        user = self.get_user(username)
+        if user is not None:
+            group.members.delete(user.id)
 
     def change_access(self, group, user, access):
         access = access.lower()

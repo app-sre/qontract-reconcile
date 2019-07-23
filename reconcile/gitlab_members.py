@@ -73,15 +73,14 @@ def get_desired_state(gqlapi, gl):
             for r in u['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        user = gl.get_user(u['redhat_username'])
-                        if user is not None:
-                            item = {"user": user, "access_level": p['access']}
-                            desired_group_members[g].append(item)
+                        user =u['redhat_username']
+                        item = {"user": user, "access_level": p['access']}
+                        desired_group_members[g].append(item)
         for b in bots:
             for r in b['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        user = gl.get_user(b['redhat_username'])
+                        user = b['redhat_username']
                         item = {"user": user, "access_level": p['access']}
                         desired_group_members[g].append(item)
     return desired_group_members
@@ -118,7 +117,7 @@ def subtract_states(from_state, subtract_state, action):
         for f_user in f_users:
             found = False
             for s_user in s_group:
-                if f_user['user'].id != s_user['user'].id:
+                if f_user['user'] != s_user['user']:
                     continue
                 found = True
                 break
@@ -138,7 +137,7 @@ def check_access(desired_state, current_state):
         c_group = current_state[d_group]
         for d_user in d_users:
             for c_user in c_group:
-                if d_user['user'].id == c_user['user'].id:
+                if d_user['user'] == c_user['user']:
                     if d_user['access_level'] != c_user['access_level']:
                         result.append({
                             "action": "change_access",
