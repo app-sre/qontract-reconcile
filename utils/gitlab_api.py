@@ -110,12 +110,24 @@ class GitLabApi(object):
             return False
         return True
 
+    def get_string_access_level(self, access):
+        if access == 50:
+            return "owner"
+        elif access == 40:
+            return "maintainer"
+        elif access == 30:
+            return "developer"
+        elif access == 20:
+            return "reporter"
+        else:
+            return "guest"
+
     def get_group_members(self, group_name):
         if not self.check_group_exists(group_name):
             logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
-        return ([{"user": m, "access_level": m.access_level}
+        return ([{"user": m, "access_level": self.get_string_access_level(m.access_level)}
                 for m in group.members.list()])
 
     def add_project_member(self, repo_url, user):
@@ -148,9 +160,20 @@ class GitLabApi(object):
         group.members.delete(user.id)
 
     def change_access(self, group, user, access):
+        access = access.lower()
+        if access == "owner":
+            access_number = 50
+        elif access == "maintainer":
+            access_number =  40
+        elif access == "developer":
+            access_number =  30
+        elif access == "reporter":
+            access_number =  20
+        else:
+            access_number =  10
         group = self.gl.groups.get(group)
         member = group.members.get(user.id)
-        member.access_level = access
+        member.access_level = access_number
         member.save()
 
     def get_project(self, repo_url):
