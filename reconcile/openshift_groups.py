@@ -75,9 +75,9 @@ def fetch_current_state():
 
         for group_name in groups:
             group = oc.get_group_if_exists(group_name)
-            if group is None or group['users'] is None:
+            if group is None:
                 continue
-            for user in group['users']:
+            for user in group['users'] or []:
                 current_state.append({
                     "cluster": cluster,
                     "group": group_name,
