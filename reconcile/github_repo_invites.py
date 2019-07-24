@@ -38,8 +38,6 @@ def run(dry_run):
             continue
 
         for code_component in app['codeComponents']:
-            if code_component['resource'] != 'upstream':
-                continue
             urls.append(code_component['url'])
 
     for i in g.repo_invitations():
