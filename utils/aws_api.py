@@ -85,6 +85,7 @@ class AWSApi(object):
         self.map_sqs_resources()
         self.map_dynamodb_resources()
         self.map_rds_resources()
+        self.map_rds_snapshots()
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
@@ -147,6 +148,24 @@ class AWSApi(object):
             unfiltered_instances = \
                 self.custom_rds_filter(account, rds, instances_without_owner)
             self.resources[account]['rds_no_owner'] = unfiltered_instances
+
+    def map_rds_snapshots(self):
+        for account, s in self.sessions.items():
+            rds = s.client('rds')
+            snapshots_list = rds.describe_db_snapshots()
+            if 'DBSnapshots' not in snapshots_list:
+                continue
+            snapshots = [t['DBSnapshotIdentifier']
+                         for t in snapshots_list['DBSnapshots']]
+            print(snapshots_list['DBSnapshots'])
+            self.resources[account]['rds_snapshots'] = snapshots
+            unfiltered_snapshots = \
+                [t['DBSnapshotIdentifier']
+                 for t in snapshots_list['DBSnapshots']
+                 if t['DBInstanceIdentifier'] not in
+                 self.resources[account]['rds']]
+            self.resources[account]['rds_snapshots_no_owner'] = \
+                unfiltered_snapshots
 
     def get_resources_without_owner(self, account, resources):
         return [r for r in resources if not self.has_owner(account, r)]
@@ -280,7 +299,7 @@ class AWSApi(object):
                           'Please run the integration manually ' + \
                           'with the \'--enable-deletion\' flag.'
 
-        resource_types = ['s3', 'sqs', 'dynamodb', 'rds']
+        resource_types = ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
         for account, s in self.sessions.items():
             for rt in resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
@@ -304,6 +323,9 @@ class AWSApi(object):
         elif resource_type == 'rds':
             client = session.client(resource_type)
             self.delete_instance(client, resource_name)
+        elif resource_type == 'rds_snapshots':
+            client = session.client(resource_type)
+            self.delete_snapshot(client, resource_name)
         else:
             raise Exception('invalid resource type: ' + resource_type)
 
@@ -325,6 +347,11 @@ class AWSApi(object):
             DBInstanceIdentifier=instance_name,
             SkipFinalSnapshot=True,
             DeleteAutomatedBackups=True
+        )
+
+    def delete_snapshot(self, rds, snapshot_identifier):
+        rds.delete_db_snapshot(
+            DBSnapshotIdentifier=snapshot_identifier
         )
 
     def delete_keys(self, dry_run, keys_to_delete):
