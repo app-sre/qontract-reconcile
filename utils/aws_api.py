@@ -164,7 +164,8 @@ class AWSApi(object):
                  if t['DBInstanceIdentifier'] not in
                  self.resources[account]['rds']]
             unfiltered_snapshots = \
-                self.custom_rds_snapshot_filter(account, rds, snapshots_without_db)
+                self.custom_rds_snapshot_filter(account, rds,
+                                                snapshots_without_db)
             self.resources[account]['rds_snapshots_no_owner'] = \
                 unfiltered_snapshots
 
