@@ -157,13 +157,14 @@ class AWSApi(object):
                 continue
             snapshots = [t['DBSnapshotIdentifier']
                          for t in snapshots_list['DBSnapshots']]
-            print(snapshots_list['DBSnapshots'])
             self.resources[account]['rds_snapshots'] = snapshots
-            unfiltered_snapshots = \
+            snapshots_without_db = \
                 [t['DBSnapshotIdentifier']
                  for t in snapshots_list['DBSnapshots']
                  if t['DBInstanceIdentifier'] not in
                  self.resources[account]['rds']]
+            unfiltered_snapshots = \
+                self.custom_rds_snapshot_filter(account, rds, snapshots_without_db)
             self.resources[account]['rds_snapshots_no_owner'] = \
                 unfiltered_snapshots
 
@@ -228,6 +229,18 @@ class AWSApi(object):
                 unfiltered_instances.append(i)
 
         return unfiltered_instances
+
+    def custom_rds_snapshot_filter(self, account, rds, snapshots):
+        type = 'rds snapshots'
+        unfiltered_snapshots = []
+        for s in snapshots:
+            snapshot = rds.describe_db_snapshots(DBSnapshotIdentifier=s)
+            snapshot_arn = snapshot['DBSnapshots'][0]['DBSnapshotArn']
+            tags = rds.list_tags_for_resource(ResourceName=snapshot_arn)
+            if not self.should_filter(account, type, s, tags, 'TagList'):
+                unfiltered_snapshots.append(s)
+
+        return unfiltered_snapshots
 
     def should_filter(self, account, resource_type,
                       resource_name, resource_tags, tags_key):
