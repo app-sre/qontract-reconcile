@@ -60,7 +60,8 @@ GROUPS_QUERY = """
 }
 """
 
-def get_group(group_name,oc,cluster):
+
+def get_group(group_name, oc, cluster):
     group = oc.get_group_if_exists(group_name)
     ret = []
     if group is None:
@@ -73,7 +74,6 @@ def get_group(group_name,oc,cluster):
                     "user": user
                 })
     return ret
-
 
 
 def fetch_current_state():
@@ -92,7 +92,7 @@ def fetch_current_state():
         oc_map[cluster] = oc
         pool = ThreadPool(10)
         get_group_partial = \
-            partial(get_group,oc=oc,cluster=cluster)
+            partial(get_group, oc=oc, cluster=cluster)
         results = pool.map(get_group_partial, groups)
         flat_results = [item for sublist in results for item in sublist]
         current_state.extend(flat_results)
@@ -249,5 +249,3 @@ def run(dry_run=False):
 
         if not dry_run:
             act(diff, oc_map)
-
-
