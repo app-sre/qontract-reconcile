@@ -76,17 +76,16 @@ def get_group(group_name, oc, cluster):
     return ret
 
 
-def fetch_current_state():
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    current_state = []
-    oc_map = {}
+# this should have a better name, also not confident there isn't going to be
+# a problem with race conditions because all the threads are editing oc_map
+# seperately
 
-    for cluster_info in clusters:
-        groups = cluster_info['managedGroups']
-        if groups is None:
-            continue
 
+def get_cluster_state(cluster_info, oc_map):
+    groups = cluster_info['managedGroups']
+    if groups is None:
+        return []
+    else:
         cluster = cluster_info['name']
         oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
         oc_map[cluster] = oc
@@ -95,7 +94,35 @@ def fetch_current_state():
             partial(get_group, oc=oc, cluster=cluster)
         results = pool.map(get_group_partial, groups)
         flat_results = [item for sublist in results for item in sublist]
-        current_state.extend(flat_results)
+        return flat_results
+
+
+def fetch_current_state():
+    gqlapi = gql.get_api()
+    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
+    current_state = []
+    oc_map = {}
+
+    pool = ThreadPool(10)
+    get_cluster_state_partial = \
+        partial(get_cluster_state, oc_map=oc_map)
+    results = pool.map(get_cluster_state_partial, clusters)
+    current_state = [item for sublist in results for item in sublist]
+
+    for cluster_info in clusters:
+        groups = cluster_info['managedGroups']
+        if groups is None:
+            continue
+
+        # cluster = cluster_info['name']
+        # oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
+        # oc_map[cluster] = oc
+        # pool = ThreadPool(10)
+        # get_group_partial = \
+        #     partial(get_group, oc=oc, cluster=cluster)
+        # results = pool.map(get_group_partial, groups)
+        # flat_results = [item for sublist in results for item in sublist]
+        # current_state2.extend(flat_results)
         # for group_name in groups:
         #     group = oc.get_group_if_exists(group_name)
         #     if group is None:
@@ -249,3 +276,4 @@ def run(dry_run=False):
 
         if not dry_run:
             act(diff, oc_map)
+    print("end :--- %s seconds ---" % (time.time() - start_time))
