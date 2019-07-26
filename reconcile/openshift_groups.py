@@ -1,5 +1,8 @@
 import sys
 import logging
+import time
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
@@ -57,6 +60,21 @@ GROUPS_QUERY = """
 }
 """
 
+def get_group(group_name,oc,cluster):
+    group = oc.get_group_if_exists(group_name)
+    ret = []
+    if group is None:
+        return {}
+    else:
+        for user in group['users'] or []:
+                ret.append({
+                    "cluster": cluster,
+                    "group": group_name,
+                    "user": user
+                })
+    return ret
+
+
 
 def fetch_current_state():
     gqlapi = gql.get_api()
@@ -72,18 +90,22 @@ def fetch_current_state():
         cluster = cluster_info['name']
         oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
         oc_map[cluster] = oc
-
-        for group_name in groups:
-            group = oc.get_group_if_exists(group_name)
-            if group is None:
-                continue
-            for user in group['users'] or []:
-                current_state.append({
-                    "cluster": cluster,
-                    "group": group_name,
-                    "user": user
-                })
-
+        pool = ThreadPool(10)
+        get_group_partial = \
+            partial(get_group,oc=oc,cluster=cluster)
+        results = pool.map(get_group_partial, groups)
+        flat_results = [item for sublist in results for item in sublist]
+        current_state.extend(flat_results)
+        # for group_name in groups:
+        #     group = oc.get_group_if_exists(group_name)
+        #     if group is None:
+        #         continue
+        #     for user in group['users'] or []:
+        #         current_state.append({
+        #             "cluster": cluster,
+        #             "group": group_name,
+        #             "user": user
+        #         })
     return oc_map, current_state
 
 
@@ -213,6 +235,8 @@ def act(diff, oc_map):
 
 
 def run(dry_run=False):
+    start_time = time.time()
+    print("start:--- %s seconds ---" % (time.time() - start_time))
     oc_map, current_state = fetch_current_state()
     desired_state = fetch_desired_state()
 
@@ -225,3 +249,5 @@ def run(dry_run=False):
 
         if not dry_run:
             act(diff, oc_map)
+
+
