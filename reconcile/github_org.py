@@ -3,10 +3,23 @@ from github import Github
 from github.GithubObject import NotSet
 
 import utils.gql as gql
+import utils.vault_client as vault_client
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
-from utils.config import get_config
 from utils.raw_github_api import RawGithubApi
+
+ORGS_QUERY = """
+{
+  orgs: githuborg_v1 {
+    name
+    isManaged
+    token {
+      path
+      field
+    }
+  }
+}
+"""
 
 QUERY = """
 {
@@ -31,6 +44,21 @@ QUERY = """
   }
 }
 """
+
+
+def get_config():
+    gqlapi = gql.get_api()
+    orgs = gqlapi.query(ORGS_QUERY)['orgs']
+
+    config = {'github': {}}
+    for org in orgs:
+        org_name = org['name']
+        org_token = org['token']
+        token = vault_client.read(org_token['path'], org_token['field'])
+        org_config = {'token': token}
+        config['github'][org_name] = org_config
+
+    return config
 
 
 def fetch_current_state(gh_api_store):
