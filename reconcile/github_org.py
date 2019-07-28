@@ -75,7 +75,7 @@ def fetch_current_state(gh_api_store):
         org = g.get_organization(org_name)
 
         org_members = None
-        if is_managed:  
+        if is_managed:
             org_members = [member.login for member in org.get_members()]
             org_members.extend(raw_gh_api.org_invitations(org_name))
 
@@ -151,8 +151,12 @@ class GHApiStore(object):
     def __init__(self, config):
         for org_name, org_config in config['github'].items():
             token = org_config['token']
-            managed_teams = org_config['managed_teams']
-            self._orgs[org_name] = (Github(token), RawGithubApi(token), managed_teams)
+            if 'managed_teams' in org_config:
+                managed_teams = org_config['managed_teams']
+            else:
+                managed_teams = None
+            self._orgs[org_name] = \
+                (Github(token), RawGithubApi(token), managed_teams)
 
     def orgs(self):
         return self._orgs.keys()
