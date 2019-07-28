@@ -151,10 +151,7 @@ class GHApiStore(object):
     def __init__(self, config):
         for org_name, org_config in config['github'].items():
             token = org_config['token']
-            if 'managed_teams' in org_config:
-                managed_teams = org_config['managed_teams']
-            else:
-                managed_teams = None
+            managed_teams = org_config.get('managed_teams', None)
             self._orgs[org_name] = \
                 (Github(token), RawGithubApi(token), managed_teams)
 
