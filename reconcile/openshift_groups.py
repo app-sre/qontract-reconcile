@@ -2,7 +2,7 @@ import sys
 import logging
 import time
 from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
+from functools import partial, reduce
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
@@ -81,20 +81,59 @@ def get_group(group_name, oc, cluster):
 # seperately
 
 
-def get_cluster_state(cluster_info, oc_map):
+def get_cluster_state(cluster_list, oc_map):
+    results = []
+    for cluster_items in cluster_list:
+        cluster_info = cluster_items["cluster_info"]
+        cluster = cluster_info['name']
+        oc = openshift_resources.obtain_oc_client({}, cluster_info)
+        #oc_map[cluster] = oc
+        group_name = cluster_items["group_name"]
+        group = oc.get_group_if_exists(group_name)
+        if group is None:
+            continue
+        for user in group['users'] or []:
+            results.append({
+                "cluster": cluster,
+                "group": group_name,
+                "user": user
+            })
+    return results
+        # pool = ThreadPool(10)
+        # get_group_partial = \
+        #     partial(get_group, oc=oc, cluster=cluster)
+        # results = pool.map(get_group_partial, groups)
+        # flat_results = [item for sublist in results for item in sublist]
+        # return flat_results
+
+def num_groups(cluster_info):
     groups = cluster_info['managedGroups']
     if groups is None:
-        return []
-    else:
-        cluster = cluster_info['name']
-        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
-        oc_map[cluster] = oc
-        pool = ThreadPool(10)
-        get_group_partial = \
-            partial(get_group, oc=oc, cluster=cluster)
-        results = pool.map(get_group_partial, groups)
-        flat_results = [item for sublist in results for item in sublist]
-        return flat_results
+        return 0
+    return len(groups)
+
+
+def divide_clusters(clusters):
+    total_groups = map(num_groups,clusters)
+    sum_total_groups = sum(total_groups)
+    groups_per_thread = sum_total_groups/10 #10 should be var for num of threads
+    clusters_list = []
+    curr_thread = []
+    for cluster_info in clusters:
+        groups = cluster_info['managedGroups']
+        if groups is None:
+            continue
+        for group_name in groups:
+            if len(curr_thread) >= groups_per_thread:
+                clusters_list.append(curr_thread)
+                curr_thread = [] 
+            curr_thread.append({
+                    "cluster_info": cluster_info,
+                    "group_name": group_name
+                })
+    if len(curr_thread) > 0:
+        clusters_list.append(curr_thread)
+    return clusters_list
 
 
 def fetch_current_state():
@@ -104,15 +143,16 @@ def fetch_current_state():
     oc_map = {}
 
     pool = ThreadPool(10)
+    cluster_list = divide_clusters(clusters)
     get_cluster_state_partial = \
         partial(get_cluster_state, oc_map=oc_map)
-    results = pool.map(get_cluster_state_partial, clusters)
+    results = pool.map(get_cluster_state_partial, cluster_list)
     current_state = [item for sublist in results for item in sublist]
 
-    for cluster_info in clusters:
-        groups = cluster_info['managedGroups']
-        if groups is None:
-            continue
+    # for cluster_info in clusters:
+    #     groups = cluster_info['managedGroups']
+    #     if groups is None:
+    #         continue
 
         # cluster = cluster_info['name']
         # oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
