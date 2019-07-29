@@ -3,10 +3,23 @@ from github import Github
 from github.GithubObject import NotSet
 
 import utils.gql as gql
+import utils.vault_client as vault_client
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
-from utils.config import get_config
 from utils.raw_github_api import RawGithubApi
+
+ORGS_QUERY = """
+{
+  orgs: githuborg_v1 {
+    name
+    token {
+      path
+      field
+    }
+    managedTeams
+  }
+}
+"""
 
 QUERY = """
 {
@@ -33,29 +46,47 @@ QUERY = """
 """
 
 
+def get_config():
+    gqlapi = gql.get_api()
+    orgs = gqlapi.query(ORGS_QUERY)['orgs']
+
+    config = {'github': {}}
+    for org in orgs:
+        org_name = org['name']
+        org_token = org['token']
+        token = vault_client.read(org_token['path'], org_token['field'])
+        org_config = {'token': token, 'managed_teams': org['managedTeams']}
+        config['github'][org_name] = org_config
+
+    return config
+
+
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
 
     for org_name in gh_api_store.orgs():
         g = gh_api_store.github(org_name)
         raw_gh_api = gh_api_store.raw_github_api(org_name)
+        managed_teams = gh_api_store.managed_teams(org_name)
+        # if 'managedTeams' is not specified
+        # we manage all teams
+        is_managed = managed_teams is None or len(managed_teams) == 0
 
         org = g.get_organization(org_name)
 
-        members = [member.login for member in org.get_members()]
-        members.extend(raw_gh_api.org_invitations(org_name))
+        org_members = None
+        if is_managed:
+            org_members = [member.login for member in org.get_members()]
+            org_members.extend(raw_gh_api.org_invitations(org_name))
 
-        state.add(
-            {
-                'service': 'github-org',
-                'org': org_name,
-            },
-            members
-        )
-
+        all_team_members = []
         for team in org.get_teams():
+            if not is_managed and team.name not in managed_teams:
+                continue
+
             members = [member.login for member in team.get_members()]
             members.extend(raw_gh_api.team_invitations(team.id))
+            all_team_members.extend(members)
 
             state.add(
                 {
@@ -65,6 +96,16 @@ def fetch_current_state(gh_api_store):
                 },
                 members
             )
+        all_team_members = list(set(all_team_members))
+
+        members = org_members or all_team_members
+        state.add(
+            {
+                'service': 'github-org',
+                'org': org_name,
+            },
+            members
+        )
 
     return state
 
@@ -110,7 +151,9 @@ class GHApiStore(object):
     def __init__(self, config):
         for org_name, org_config in config['github'].items():
             token = org_config['token']
-            self._orgs[org_name] = (Github(token), RawGithubApi(token))
+            managed_teams = org_config.get('managed_teams', None)
+            self._orgs[org_name] = \
+                (Github(token), RawGithubApi(token), managed_teams)
 
     def orgs(self):
         return self._orgs.keys()
@@ -120,6 +163,9 @@ class GHApiStore(object):
 
     def raw_github_api(self, org_name):
         return self._orgs[org_name][1]
+
+    def managed_teams(self, org_name):
+        return self._orgs[org_name][2]
 
 
 class RunnerAction(object):
