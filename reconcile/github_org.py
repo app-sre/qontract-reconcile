@@ -70,7 +70,7 @@ def fetch_current_state(gh_api_store):
         managed_teams = gh_api_store.managed_teams(org_name)
         # if 'managedTeams' is not specified
         # we manage all teams
-        is_managed = managed_teams is None
+        is_managed = managed_teams is None or len(managed_teams) == 0
 
         org = g.get_organization(org_name)
 
