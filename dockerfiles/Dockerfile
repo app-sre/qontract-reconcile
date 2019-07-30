@@ -16,11 +16,12 @@ RUN yum install -y unzip && \
     mv terraform /usr/local/bin/terraform && \
     rm terraform.zip
 
-COPY reconcile /reconcile/reconcile
-COPY utils /reconcile/utils
-COPY terrascript /reconcile/terrascript
-COPY setup.py /reconcile
-
 WORKDIR /reconcile
+
+COPY e2e_tests e2e_tests
+COPY reconcile reconcile
+COPY utils utils
+COPY terrascript terrascript
+COPY setup.py .
 
 RUN python setup.py install
