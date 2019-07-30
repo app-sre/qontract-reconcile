@@ -1,4 +1,4 @@
-.PHONY: build push build-test test clean
+.PHONY: build push rc build-test test clean
 
 IMAGE_TEST := reconcile-test
 
@@ -18,6 +18,10 @@ build:
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
+
+rc:
+	@docker build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc -f dockerfiles/Dockerfile .
+	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
