@@ -3,42 +3,11 @@ import time
 import datetime
 import logging
 
-import utils.gql as gql
-import reconcile.openshift_resources as openshift_resources
-
-CLUSTERS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    serverUrl
-    managedGroups
-    jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        format
-      }
-    }
-    unManaged
-    automationToken {
-      path
-      field
-      format
-    }
-  }
-}
-"""
+from e2e_tests.test_base import get_oc_map
 
 
 def run_create_namespace_test():
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = {}
-    error = False
+    oc_map = get_oc_map()
 
     ns_to_create = 'create-namespace-test-{}'.format(
         datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
@@ -52,19 +21,8 @@ def run_create_namespace_test():
          'role': 'dedicated-project-admin',
          'groups': groups},
     ]
-    for cluster_info in clusters:
-        cluster = cluster_info['name']
-        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
-
-        if not oc:
-            logging.debug("Skipping {} (no automationToken).".format(cluster))
-            continue
-
-        if cluster_info['unManaged']:
-            logging.debug("Skipping {} (unmanaged cluster).".format(cluster))
-            continue
-
-        logging.info("[{}] Creating namespace {}".format(
+    for cluster, oc in oc_map.items():
+        logging.info("[{}] Creating namespace '{}'".format(
             cluster, ns_to_create
         ))
 
@@ -78,15 +36,11 @@ def run_create_namespace_test():
                 rb_group_names = rb['groupNames']
                 assert rb_group_names == expected_rb['groups']
         finally:
-            logging.info("[{}] Deleting namespace {}".format(
+            logging.info("[{}] Deleting namespace '{}'".format(
                 cluster, ns_to_create
             ))
             oc.delete_project(ns_to_create)
 
-    return error
-
 
 def run():
-    error = run_create_namespace_test()
-    if error:
-        sys.exit(1)
+    run_create_namespace_test()
