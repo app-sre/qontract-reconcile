@@ -88,6 +88,10 @@ class OC(object):
         cmd = ['new-project', namespace]
         self._run(cmd)
 
+    def delete_project(self, namespace):
+        cmd = ['delete', 'project', namespace]
+        self._run(cmd)
+
     def get_group_if_exists(self, name):
         try:
             return self.get(None, 'Group', name)
