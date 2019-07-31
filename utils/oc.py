@@ -66,6 +66,12 @@ class OC(object):
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
 
+    def get_all(self, kind, all_namespaces=False):
+        cmd = ['get', '-o', 'json', kind]
+        if all_namespaces:
+            cmd.append('--all-namespaces')
+        return self._run_json(cmd)
+
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
