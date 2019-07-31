@@ -65,8 +65,7 @@ def get_cluster_state(group_items, oc_map):
     results = []
     cluster_info = group_items["cluster_info"]
     cluster = cluster_info['name']
-    oc = openshift_resources.obtain_oc_client({}, cluster_info)
-    #oc_map[cluster] = oc
+    oc = oc_map[cluster]
     group_name = group_items["group_name"]
     group = oc.get_group_if_exists(group_name)
     if group is None:
@@ -92,12 +91,20 @@ def create_groups_list(clusters):
                 })
     return groups_list
 
+def create_oc_map(clusters):
+    oc_map = {}
+    for cluster_info in clusters:
+        cluster = cluster_info['name']
+        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
+        oc_map[cluster] = oc
+    return oc_map
+
 
 def fetch_current_state():
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
-    oc_map = {}
+    oc_map = create_oc_map(clusters)
 
     pool = ThreadPool(10)
     groups_list = create_groups_list(clusters)
