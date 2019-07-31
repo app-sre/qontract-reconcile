@@ -4,6 +4,7 @@ import datetime
 import logging
 
 from e2e_tests.test_base import get_oc_map
+from e2e_tests.dedicated_admin_test_base import get_expected_rolebindings
 
 
 def run_create_namespace_test():
@@ -12,15 +13,7 @@ def run_create_namespace_test():
     ns_to_create = 'create-namespace-test-{}'.format(
         datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
     )
-    groups = ['dedicated-admins', 'system:serviceaccounts:dedicated-admin']
-    expected_rolebindings = [
-        {'name': 'admin-0',
-         'role': 'admin',
-         'groups': groups},
-        {'name': 'dedicated-project-admin',
-         'role': 'dedicated-project-admin',
-         'groups': groups},
-    ]
+    expected_rolebindings = get_expected_rolebindings()
     for cluster, oc in oc_map.items():
         logging.info("[{}] Creating namespace '{}'".format(
             cluster, ns_to_create
