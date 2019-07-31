@@ -5,7 +5,7 @@ import logging
 import utils.gql as gql
 import utils.smtp_client as smtp_client
 
-from utils.config import get_config
+from reconcile.github_org import get_config
 from reconcile.ldap_users import get_app_interface_gitlab_api
 from reconcile.ldap_users import init_users as init_users_and_paths
 
