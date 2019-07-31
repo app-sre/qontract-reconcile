@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 import utils.gql as gql
@@ -46,3 +47,8 @@ def get_oc_map():
 
     return {k: v  for k, v in oc_map.iteritems()
             if v is not False}
+
+def get_test_namespace_name():
+    return 'e2e-test-namespace-{}'.format(
+        datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
+    )
