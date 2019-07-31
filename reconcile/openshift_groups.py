@@ -2,7 +2,7 @@ import sys
 import logging
 import time
 from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial, reduce
+from functools import partial
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
@@ -78,6 +78,7 @@ def get_cluster_state(group_items, oc_map):
         })
     return results
 
+
 def create_groups_list(clusters):
     groups_list = []
     for cluster_info in clusters:
@@ -90,6 +91,7 @@ def create_groups_list(clusters):
                     "group_name": group_name
                 })
     return groups_list
+
 
 def create_oc_map(clusters):
     oc_map = {}
