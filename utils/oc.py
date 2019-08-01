@@ -66,6 +66,12 @@ class OC(object):
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
 
+    def get_all(self, kind, all_namespaces=False):
+        cmd = ['get', '-o', 'json', kind]
+        if all_namespaces:
+            cmd.append('--all-namespaces')
+        return self._run_json(cmd)
+
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
@@ -86,6 +92,10 @@ class OC(object):
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
+        self._run(cmd)
+
+    def delete_project(self, namespace):
+        cmd = ['delete', 'project', namespace]
         self._run(cmd)
 
     def get_group_if_exists(self, name):

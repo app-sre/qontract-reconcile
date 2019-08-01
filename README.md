@@ -2,30 +2,38 @@
 
 # qontract-reconcile
 
-Tool to reconcile services with their desired state as defined in the app-interface DB.
+A tool to reconcile services with their desired state as defined in App-Interface.
+In addition, e2e tests are available to detect potential problems reconciling services with their desired state.
 
 ## Subcommands
 
-- `qontract-reconcile aws-garbage-collector`: Delete orphan AWS resources.
-- `qontract-reconcile aws-iam-keys`: Delete IAM access keys by access key ID.
-- `qontract-reconcile github-users`: Validate compliance of GitHub user profiles.
-- `qontract-reconcile gitlab-housekeeping`: Manage issues on GitLab projects.
-- `qontract-reconcile gitlab-permissions`: Manage permissions on GitLab projects.
-- `qontract-reconcile jenkins-plugins`: Manage Jenkins plugins installation via REST API.
-- `qontract-reconcile jenkins-roles`: Manage Jenkins roles association via REST API.
-- `qontract-reconcile ldap-users`: Removes users which are not found in LDAP search.
-- `qontract-reconcile github`: Configures the teams and members in a GitHub org.
-- `qontract-reconcile openshift-groups`: Manages OpenShift Groups.
-- `qontract-reconcile openshift-namespaces`: Manages OpenShift Namespaces.
-- `qontract-reconcile openshift-resources`: Manages OpenShift Resources.
-- `qontract-reconcile openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
-- `qontract-reconcile openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
-- `qontract-reconcile quay-membership`: Configures the teams and members in Quay.
-- `qontract-reconcile quay-repos`: Creates and Manages Quay Repos.
-- `qontract-reconcile slack-usergroups`: Manage Slack User Groups (channels and users).
-- `qontract-reconcile terraform-resources`: Manage AWS Resources using Terraform.
-- `qontract-reconcile terraform-users`: Manage AWS users using Terraform.
-- `qontract-reconcile gitlab-members` : Manage GitLab group members.
+### qontract-reconcile
+
+- `aws-garbage-collector`: Delete orphan AWS resources.
+- `aws-iam-keys`: Delete IAM access keys by access key ID.
+- `github-users`: Validate compliance of GitHub user profiles.
+- `gitlab-housekeeping`: Manage issues on GitLab projects.
+- `gitlab-permissions`: Manage permissions on GitLab projects.
+- `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
+- `jenkins-roles`: Manage Jenkins roles association via REST API.
+- `ldap-users`: Removes users which are not found in LDAP search.
+- `github`: Configures the teams and members in a GitHub org.
+- `openshift-groups`: Manages OpenShift Groups.
+- `openshift-namespaces`: Manages OpenShift Namespaces.
+- `openshift-resources`: Manages OpenShift Resources.
+- `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
+- `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `quay-membership`: Configures the teams and members in Quay.
+- `quay-repos`: Creates and Manages Quay Repos.
+- `slack-usergroups`: Manage Slack User Groups (channels and users).
+- `terraform-resources`: Manage AWS Resources using Terraform.
+- `terraform-users`: Manage AWS users using Terraform.
+- `gitlab-members` : Manage GitLab group members.
+
+### e2e-tests
+
+- `create-namespace`: A test to create a namespace and verify that required `RoleBinding`s are created as well to be able to reconcile them.
+- `dedicated-admin-rolebindings`: A test to verify that all required namespaces have the required `RoleBinding`s to be able to reconcile them.
 
 ## Usage
 
