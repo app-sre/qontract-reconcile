@@ -141,7 +141,7 @@ class OC(object):
 
         attempt = 0
         attempts = 3
-        while attempt < attempts:
+        while True:
             try:
                 out, err = p.communicate(stdin_text)
                 code = p.returncode
