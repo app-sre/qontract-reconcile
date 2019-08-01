@@ -21,7 +21,7 @@ def run():
             time.sleep(2) #  allow time for RoleBindings to be created
             for expected_rb in expected_rolebindings:
                 rb = oc.get(ns_to_create, 'RoleBinding', expected_rb['name'])
-                dat.assert_rolebinding(expected_rb, rb)
+                tb.assert_rolebinding(expected_rb, rb)
         finally:
             logging.info("[{}] Deleting namespace '{}'".format(
                 cluster, ns_to_create

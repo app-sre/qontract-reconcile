@@ -16,7 +16,3 @@ def get_expected_rolebindings():
     ]
 
     return expected_rolebindings
-
-def assert_rolebinding(expected_rb, rb):
-    assert expected_rb['role'] == rb['roleRef']['name']
-    assert expected_rb['groups'] == rb['groupNames']

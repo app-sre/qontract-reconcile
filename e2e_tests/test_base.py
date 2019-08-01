@@ -52,3 +52,7 @@ def get_test_namespace_name():
     return 'e2e-test-namespace-{}'.format(
         datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
     )
+
+def assert_rolebinding(expected_rb, rb):
+    assert expected_rb['role'] == rb['roleRef']['name']
+    assert expected_rb['groups'] == rb['groupNames']
