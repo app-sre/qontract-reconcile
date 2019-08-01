@@ -157,7 +157,6 @@ class OC(object):
                 else:
                     time.sleep(attempt)
 
-
     def _run_json(self, cmd):
         out = self._run(cmd)
 
