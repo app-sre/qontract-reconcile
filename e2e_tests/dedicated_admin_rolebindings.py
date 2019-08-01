@@ -8,7 +8,10 @@ import e2e_tests.dedicated_admin_test_base as dat
 def run():
     oc_map = tb.get_oc_map()
     pattern = \
-        r'^(default|logging|(openshift|kube-|ops-|dedicated-|management-).*)$'
+        r'^(default|logging|' + \
+        '(openshift|kube-|ops-|dedicated-|management-|{}).*)$'.format(
+            tb.E2E_NS_PFX
+        )
     for cluster, oc in oc_map.items():
         logging.info("[{}] validating RoleBindings".format(cluster))
 

@@ -31,6 +31,8 @@ CLUSTERS_QUERY = """
 }
 """
 
+E2E_NS_PFX = 'e2e-test'
+
 
 def get_oc_map():
     gqlapi = gql.get_api()
@@ -49,8 +51,8 @@ def get_oc_map():
             if v is not False}
 
 def get_test_namespace_name():
-    return 'e2e-test-namespace-{}'.format(
-        datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
+    return '{}-{}'.format(
+        E2E_NS_PFX, datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
     )
 
 def assert_rolebinding(expected_rb, rb):
