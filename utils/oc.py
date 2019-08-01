@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 import json
+import time
 
 from utils.jump_host import JumpHostSSH
 
@@ -138,17 +139,23 @@ class OC(object):
             stderr=PIPE
         )
 
-        out, err = p.communicate(stdin_text)
-
-        code = p.returncode
-
-        if code != 0:
-            raise StatusCodeError(err)
-
-        if not out:
-            raise NoOutputError(err)
-
-        return out.strip()
+        attempt = 0
+        attempts = 3
+        while True:
+            try:
+                out, err = p.communicate(stdin_text)
+                code = p.returncode
+                if code != 0:
+                    raise StatusCodeError(err)
+                if not out:
+                    raise NoOutputError(err)
+                return out.strip()
+            except Exception as e:
+                attempt += 1
+                if attempt == attempts:
+                    raise e
+                else:
+                    time.sleep(attempt)
 
     def _run_json(self, cmd):
         out = self._run(cmd)
