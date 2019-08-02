@@ -1,5 +1,4 @@
 import logging
-import time
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
