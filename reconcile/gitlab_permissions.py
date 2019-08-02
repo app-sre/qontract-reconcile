@@ -55,13 +55,11 @@ def get_members_to_add(repo, gl, app_sre):
     return members_to_add
 
 
-def run(dry_run=False):
-    start_time = time.time()
-    print("start--- %s seconds ---" % (time.time() - start_time))
+def run(dry_run=False, thread_pool_size=10):
     gl = get_gitlab_api()
     repos = get_gitlab_repos(gl.server)
     app_sre = gl.get_app_sre_group_users()
-    pool = ThreadPool(10)
+    pool = ThreadPool(thread_pool_size)
     get_members_to_add_partial = \
         partial(get_members_to_add, gl=gl, app_sre=app_sre)
     results = pool.map(get_members_to_add_partial, repos)
@@ -70,4 +68,3 @@ def run(dry_run=False):
         logging.info(['add_maintainer', m["user"], m["user"].username])
         if not dry_run:
             gl.add_project_member(m["repo"], m["user"])
-    print("end--- %s seconds ---" % (time.time() - start_time))
