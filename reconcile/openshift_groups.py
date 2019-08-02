@@ -1,6 +1,5 @@
 import sys
 import logging
-import time
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
@@ -63,8 +62,7 @@ GROUPS_QUERY = """
 
 def get_cluster_state(group_items, oc_map):
     results = []
-    cluster_info = group_items["cluster_info"]
-    cluster = cluster_info['name']
+    cluster = group_items["cluster"]
     oc = oc_map[cluster]
     group_name = group_items["group_name"]
     group = oc.get_group_if_exists(group_name)
@@ -83,11 +81,12 @@ def create_groups_list(clusters):
     groups_list = []
     for cluster_info in clusters:
         groups = cluster_info['managedGroups']
+        cluster = cluster_info['name']
         if groups is None:
             continue
         for group_name in groups:
             groups_list.append({
-                    "cluster_info": cluster_info,
+                    "cluster": cluster,
                     "group_name": group_name
                 })
     return groups_list
@@ -102,13 +101,13 @@ def create_oc_map(clusters):
     return oc_map
 
 
-def fetch_current_state():
+def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
     oc_map = create_oc_map(clusters)
 
-    pool = ThreadPool(10)
+    pool = ThreadPool(thread_pool_size)
     groups_list = create_groups_list(clusters)
     get_cluster_state_partial = \
         partial(get_cluster_state, oc_map=oc_map)
@@ -242,10 +241,8 @@ def act(diff, oc_map):
         raise Exception("invalid action: {}".format(action))
 
 
-def run(dry_run=False):
-    start_time = time.time()
-    print("start:--- %s seconds ---" % (time.time() - start_time))
-    oc_map, current_state = fetch_current_state()
+def run(dry_run=False, thread_pool_size=10):
+    oc_map, current_state = fetch_current_state(thread_pool_size)
     desired_state = fetch_desired_state()
 
     diffs = calculate_diff(current_state, desired_state)
@@ -257,4 +254,3 @@ def run(dry_run=False):
 
         if not dry_run:
             act(diff, oc_map)
-    print("end :--- %s seconds ---" % (time.time() - start_time))

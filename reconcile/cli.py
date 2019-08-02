@@ -140,8 +140,9 @@ def openshift_rolebinding(ctx):
 
 
 @integration.command()
+@threaded(default=10)
 @click.pass_context
-def openshift_groups(ctx):
+def openshift_groups(ctx, thread_pool_size):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'])
 
 
