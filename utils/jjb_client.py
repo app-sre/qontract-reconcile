@@ -178,7 +178,7 @@ class JJB(object):
 
             os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
             cmd = ['jenkins-jobs', '--conf', ini_path,
-                    'update', config_path, '--delete-old']
+                   'update', config_path, '--delete-old']
             subprocess.call(cmd)
 
     def get_jjb(self, args):
