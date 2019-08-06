@@ -573,7 +573,6 @@ class TerrascriptClient(object):
 
     def aggregate_values(self, values):
         split_char = '.'
-        aggregated_keys = {}
         for k, v in values.items():
             if split_char not in k:
                 continue
