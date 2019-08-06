@@ -17,7 +17,8 @@ def run():
 
         projects = [p['metadata']['name']
                     for p in oc.get_all('Project')['items']
-                    if not re.search(pattern, p['metadata']['name'])]
+                    if p['status']['phase'] != 'Terminating' and
+                    not re.search(pattern, p['metadata']['name'])]
 
         all_rolebindings = \
             oc.get_all('RoleBinding', all_namespaces=True)['items']
