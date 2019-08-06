@@ -47,6 +47,7 @@ NAMESPACES_QUERY = """
       ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
         path
         type
+        variables
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
         path
@@ -114,6 +115,11 @@ class Jinja2TemplateError(Exception):
         )
 
 
+class ResourceTemplateRenderError(Exception):
+    def __init__(self, msg):
+        super(ResourceTemplateRenderError, self).__init__(msg)
+
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super(UnknownProviderError, self).__init__(
@@ -174,16 +180,19 @@ def lookup_vault_secret(path, key, version):
     return r
 
 
-def process_jinja2_template(body):
+def process_jinja2_template(body, vars={}):
+    vars.update({'vault': lookup_vault_secret})
     try:
-        template = jinja2.Template(body)
-        r = template.render({'vault': lookup_vault_secret})
+        env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+        template = env.from_string(body)
+        r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
     return r
 
 
-def process_extracurlyjinja2_template(body):
+def process_extracurlyjinja2_template(body, vars={}):
+    vars.update({'vault': lookup_vault_secret})
     try:
         template = jinja2.Environment(block_start_string='{{%',
                                       block_end_string='%}}',
@@ -191,14 +200,15 @@ def process_extracurlyjinja2_template(body):
                                       variable_end_string='}}}',
                                       comment_start_string='{{#',
                                       comment_end_string='#}}',
+                                      undefined=jinja2.StrictUndefined,
                                       ).from_string(body)
-        r = template.render({'vault': lookup_vault_secret})
+        r = template.render(vars)
     except Exception as e:
         raise Jinja2TemplateError(e)
     return r
 
 
-def fetch_provider_resource(path, tfunc=None):
+def fetch_provider_resource(path, tfunc=None, tvars=None):
     gqlapi = gql.get_api()
 
     # get resource data
@@ -209,7 +219,7 @@ def fetch_provider_resource(path, tfunc=None):
 
     content = resource['content']
     if tfunc:
-        content = tfunc(content)
+        content = tfunc(content, tvars)
 
     try:
         resource['body'] = anymarkup.parse(
@@ -314,6 +324,9 @@ def fetch_openshift_resource(resource):
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
     elif provider == 'resource-template':
+        tv = {}
+        if resource['variables']:
+            tv = anymarkup.parse(resource['variables'], force_types=None)
         tt = resource['type']
         tt = 'jinja2' if tt is None else tt
         if tt == 'jinja2':
@@ -322,7 +335,13 @@ def fetch_openshift_resource(resource):
             tfunc = process_extracurlyjinja2_template
         else:
             UnknownTemplateTypeError(tt)
-        openshift_resource = fetch_provider_resource(path, tfunc=tfunc)
+        try:
+            openshift_resource = fetch_provider_resource(path,
+                                                        tfunc=tfunc,
+                                                        tvars=tv)
+        except Exception as e:
+            msg = "could not render template at path {}\n{}".format(path, e)
+            raise ResourceTemplateRenderError(msg)
     elif provider == 'vault-secret':
         version = resource['version']
         rn = resource['name']
