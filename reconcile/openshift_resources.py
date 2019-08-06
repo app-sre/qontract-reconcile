@@ -324,7 +324,7 @@ def fetch_openshift_resource(resource, parent):
         if resource['variables']:
             tv = anymarkup.parse(resource['variables'], force_types=None)
         tv['resource'] = resource
-        tv['resource']['parent'] = parent
+        tv['resource']['namespace'] = parent
         tt = resource['type']
         tt = 'jinja2' if tt is None else tt
         if tt == 'jinja2':
