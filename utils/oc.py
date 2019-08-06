@@ -3,6 +3,7 @@ import json
 import time
 
 from utils.jump_host import JumpHostSSH
+from retry import retry
 
 
 class StatusCodeError(Exception):
@@ -124,6 +125,7 @@ class OC(object):
         cmd = ['adm', 'groups', 'remove-users', group, user]
         self._run(cmd)
 
+    @retry()
     def _run(self, cmd, **kwargs):
         if kwargs.get('stdin'):
             stdin = PIPE
@@ -132,29 +134,24 @@ class OC(object):
             stdin = None
             stdin_text = None
 
-        attempt = 0
-        attempts = 3
-        while True:
-            try:
-                p = Popen(
-                    self.oc_base_cmd + cmd,
-                    stdin=stdin,
-                    stdout=PIPE,
-                    stderr=PIPE
-                )
-                out, err = p.communicate(stdin_text)
-                code = p.returncode
-                if code != 0:
-                    raise StatusCodeError(err)
-                if not out:
-                    raise NoOutputError(err)
-                return out.strip()
-            except Exception as e:
-                attempt += 1
-                if attempt == attempts:
-                    raise e
-                else:
-                    time.sleep(attempt)
+        p = Popen(
+            self.oc_base_cmd + cmd,
+            stdin=stdin,
+            stdout=PIPE,
+            stderr=PIPE
+        )
+
+        out, err = p.communicate(stdin_text)
+
+        code = p.returncode
+
+        if code != 0:
+            raise StatusCodeError(err)
+
+        if not out:
+            raise NoOutputError(err)
+
+        return out.strip()
 
     def _run_json(self, cmd):
         out = self._run(cmd)
