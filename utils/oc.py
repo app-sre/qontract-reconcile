@@ -132,17 +132,16 @@ class OC(object):
             stdin = None
             stdin_text = None
 
-        p = Popen(
-            self.oc_base_cmd + cmd,
-            stdin=stdin,
-            stdout=PIPE,
-            stderr=PIPE
-        )
-
         attempt = 0
         attempts = 3
         while True:
             try:
+                p = Popen(
+                    self.oc_base_cmd + cmd,
+                    stdin=stdin,
+                    stdout=PIPE,
+                    stderr=PIPE
+                )
                 out, err = p.communicate(stdin_text)
                 code = p.returncode
                 if code != 0:
