@@ -132,8 +132,6 @@ class OC(object):
             stdin = None
             stdin_text = None
 
-        
-
         attempt = 0
         attempts = 3
         while True:
