@@ -4,6 +4,7 @@ import yaml
 import tempfile
 import logging
 import filecmp
+import subprocess
 import xml.etree.ElementTree as et
 import utils.vault_client as vault_client
 
@@ -175,11 +176,12 @@ class JJB(object):
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
 
-            args = ['--conf', ini_path, 'update', config_path, '--delete-old']
-            self.execute(args)
+            os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
+            cmd = ['jenkins-jobs', '--conf', ini_path,
+                   'update', config_path, '--delete-old']
+            subprocess.call(cmd)
 
     def get_jjb(self, args):
-        os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
         from jenkins_jobs.cli.entry import JenkinsJobs
         return JenkinsJobs(args)
 
