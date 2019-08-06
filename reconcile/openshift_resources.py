@@ -180,10 +180,10 @@ def lookup_vault_secret(path, key, version):
     return r
 
 
-def process_jinja2_template(body, vars={}):
+def process_jinja2_template(body, vars={}, env={}):
     vars.update({'vault': lookup_vault_secret})
     try:
-        env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+        env = jinja2.Environment(undefined=jinja2.StrictUndefined, **env)
         template = env.from_string(body)
         r = template.render(vars)
     except Exception as e:
@@ -192,20 +192,15 @@ def process_jinja2_template(body, vars={}):
 
 
 def process_extracurlyjinja2_template(body, vars={}):
-    vars.update({'vault': lookup_vault_secret})
-    try:
-        template = jinja2.Environment(block_start_string='{{%',
-                                      block_end_string='%}}',
-                                      variable_start_string='{{{',
-                                      variable_end_string='}}}',
-                                      comment_start_string='{{#',
-                                      comment_end_string='#}}',
-                                      undefined=jinja2.StrictUndefined,
-                                      ).from_string(body)
-        r = template.render(vars)
-    except Exception as e:
-        raise Jinja2TemplateError(e)
-    return r
+    env = {
+        'block_start_string': '{{%',
+        'block_end_string': '%}}',
+        'variable_start_string': '{{{',
+        'variable_end_string': '}}}',
+        'comment_start_string': '{{#',
+        'comment_end_string': '#}}'
+    }
+    return process_jinja2_template(body, vars=vars, env=env)
 
 
 def fetch_provider_resource(path, tfunc=None, tvars=None):
