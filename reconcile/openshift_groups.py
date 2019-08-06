@@ -1,5 +1,7 @@
 import sys
 import logging
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
@@ -58,32 +60,59 @@ GROUPS_QUERY = """
 """
 
 
-def fetch_current_state():
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    current_state = []
-    oc_map = {}
+def get_cluster_state(group_items, oc_map):
+    results = []
+    cluster = group_items["cluster"]
+    oc = oc_map[cluster]
+    group_name = group_items["group_name"]
+    group = oc.get_group_if_exists(group_name)
+    if group is None:
+        return results
+    for user in group['users'] or []:
+        results.append({
+            "cluster": cluster,
+            "group": group_name,
+            "user": user
+        })
+    return results
 
+
+def create_groups_list(clusters):
+    groups_list = []
     for cluster_info in clusters:
         groups = cluster_info['managedGroups']
+        cluster = cluster_info['name']
         if groups is None:
             continue
+        for group_name in groups:
+            groups_list.append({
+                    "cluster": cluster,
+                    "group_name": group_name
+                })
+    return groups_list
 
+
+def create_oc_map(clusters):
+    oc_map = {}
+    for cluster_info in clusters:
         cluster = cluster_info['name']
         oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
         oc_map[cluster] = oc
+    return oc_map
 
-        for group_name in groups:
-            group = oc.get_group_if_exists(group_name)
-            if group is None:
-                continue
-            for user in group['users'] or []:
-                current_state.append({
-                    "cluster": cluster,
-                    "group": group_name,
-                    "user": user
-                })
 
+def fetch_current_state(thread_pool_size):
+    gqlapi = gql.get_api()
+    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
+    current_state = []
+    oc_map = create_oc_map(clusters)
+
+    pool = ThreadPool(thread_pool_size)
+    groups_list = create_groups_list(clusters)
+    get_cluster_state_partial = \
+        partial(get_cluster_state, oc_map=oc_map)
+    results = pool.map(get_cluster_state_partial, groups_list)
+    current_state = [item for sublist in results for item in sublist]
     return oc_map, current_state
 
 
@@ -212,8 +241,8 @@ def act(diff, oc_map):
         raise Exception("invalid action: {}".format(action))
 
 
-def run(dry_run=False):
-    oc_map, current_state = fetch_current_state()
+def run(dry_run=False, thread_pool_size=10):
+    oc_map, current_state = fetch_current_state(thread_pool_size)
     desired_state = fetch_desired_state()
 
     diffs = calculate_diff(current_state, desired_state)

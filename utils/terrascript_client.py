@@ -18,7 +18,8 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
-                               aws_iam_user_login_profile)
+                               aws_iam_user_login_profile,
+                               aws_elasticache_replication_group)
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from threading import Lock
@@ -306,6 +307,9 @@ class TerrascriptClient(object):
                                           existing_secrets)
         elif provider == 's3':
             self.populate_tf_resource_s3(resource, namespace_info)
+        elif provider == 'elasticache':
+            self.populate_tf_resource_elasticache(resource, namespace_info,
+                                                  existing_secrets)
         else:
             raise UnknownProviderError(provider)
 
@@ -323,8 +327,8 @@ class TerrascriptClient(object):
                 existing_secrets[account][output_prefix]['db.password']
         except KeyError:
             password = \
-                self.determine_rds_db_password(namespace_info,
-                                               output_resource_name)
+                self.determine_db_password(namespace_info,
+                                           output_resource_name)
         values['password'] = password
 
         # rds instance
@@ -358,12 +362,13 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def determine_rds_db_password(self, namespace_info, output_resource_name):
+    def determine_db_password(self, namespace_info, output_resource_name,
+                              secret_key='db.password'):
         existing_oc_resource = \
             self.fetch_existing_oc_resource(namespace_info,
                                             output_resource_name)
         if existing_oc_resource is not None:
-            enc_password = existing_oc_resource['data']['db.password']
+            enc_password = existing_oc_resource['data'][secret_key]
             return base64.b64decode(enc_password)
         return self.generate_random_password()
 
@@ -472,6 +477,52 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_elasticache(self, resource, namespace_info,
+                                         existing_secrets):
+        account, identifier, values, output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+        values['replication_group_id'] = values['identifier']
+        values.pop('identifier', None)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        try:
+            auth_token = \
+                existing_secrets[account][output_prefix]['db.auth_token']
+        except KeyError:
+            auth_token = \
+                self.determine_db_password(namespace_info,
+                                           output_resource_name,
+                                           secret_key='db.auth_token')
+        values['auth_token'] = auth_token
+
+        # elasticache replication group
+        # Ref: https://www.terraform.io/docs/providers/aws/r/
+        # elasticache_replication_group.html
+        tf_resource = aws_elasticache_replication_group(identifier, **values)
+        tf_resources.append(tf_resource)
+        # elasticache outputs
+        # we want the outputs to be formed into an OpenShift Secret
+        # with the following fields
+        # db.endpoint
+        output_name = output_prefix + '[db.endpoint]'
+        output_value = '${' + tf_resource.fullname + \
+                       '.configuration_endpoint_address}'
+        tf_resources.append(output(output_name, value=output_value))
+        # db.port
+        output_name = output_prefix + '[db.port]'
+        output_value = '${' + tf_resource.fullname + '.port}'
+        tf_resources.append(output(output_name, value=output_value))
+        # db.auth_token
+        output_name = output_prefix + '[db.auth_token]'
+        output_value = values['auth_token']
+        tf_resources.append(output(output_name, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
     def add_resource(self, account, tf_resource):
         with self.locks[account]:
             self.tss[account].add(tf_resource)
@@ -508,6 +559,7 @@ class TerrascriptClient(object):
         overrides = resource['overrides']
 
         values = self.get_values(defaults_path)
+        self.aggregate_values(values)
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
@@ -519,12 +571,24 @@ class TerrascriptClient(object):
 
         return account, identifier, values, output_prefix, output_resource_name
 
-    def override_values(self, base, overrides):
+    def aggregate_values(self, values):
+        split_char = '.'
+        for k, v in values.items():
+            if split_char not in k:
+                continue
+            k_split = k.split(split_char)
+            primary_key = k_split[0]
+            secondary_key = k_split[1]
+            values.setdefault(primary_key, {})
+            values[primary_key][secondary_key] = v
+            values.pop(k, None)
+
+    def override_values(self, values, overrides):
         if overrides is None:
             return
         data = json.loads(overrides)
         for k, v in data.items():
-            base[k] = v
+            values[k] = v
 
     def init_common_outputs(self, tf_resources, namespace_info,
                             output_prefix, output_resource_name):
