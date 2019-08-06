@@ -142,12 +142,13 @@ class OR(OpenshiftResource):
 
 
 class StateSpec(object):
-    def __init__(self, type, oc, cluster, namespace, resource):
+    def __init__(self, type, oc, cluster, namespace, resource, parent=None):
         self.type = type
         self.oc = oc
         self.cluster = cluster
         self.namespace = namespace
         self.resource = resource
+        self.parent = parent
 
 
 def obtain_oc_client(oc_map, cluster_info):
@@ -306,7 +307,7 @@ def fetch_provider_route(path, tls_path, tls_version):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource):
+def fetch_openshift_resource(resource, parent):
     global _log_lock
 
     provider = resource['provider']
@@ -322,6 +323,8 @@ def fetch_openshift_resource(resource):
         tv = {}
         if resource['variables']:
             tv = anymarkup.parse(resource['variables'], force_types=None)
+        tv['resource'] = resource
+        tv['resource']['parent'] = parent
         tt = resource['type']
         tt = 'jinja2' if tt is None else tt
         if tt == 'jinja2':
@@ -332,8 +335,8 @@ def fetch_openshift_resource(resource):
             UnknownTemplateTypeError(tt)
         try:
             openshift_resource = fetch_provider_resource(path,
-                                                        tfunc=tfunc,
-                                                        tvars=tv)
+                                                         tfunc=tfunc,
+                                                         tvars=tv)
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
             raise ResourceTemplateRenderError(msg)
@@ -381,11 +384,11 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
         )
 
 
-def fetch_desired_state(ri, cluster, namespace, resource):
+def fetch_desired_state(ri, cluster, namespace, resource, parent):
     global _log_lock
 
     try:
-        openshift_resource = fetch_openshift_resource(resource)
+        openshift_resource = fetch_openshift_resource(resource, parent)
     except (FetchResourceError,
             FetchVaultSecretError,
             UnknownProviderError) as e:
@@ -437,7 +440,8 @@ def fetch_states(spec, ri):
         fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
     if spec.type == "desired":
-        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
+        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource,
+                            spec.parent)
 
 
 def init_specs_to_fetch(ri, oc_map, namespaces_query,
@@ -478,7 +482,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query,
         openshift_resources = namespace_info.get('openshiftResources') or []
         for openshift_resource in openshift_resources:
             d_spec = StateSpec("desired", None, cluster, namespace,
-                               openshift_resource)
+                               openshift_resource, namespace_info)
             state_specs.append(d_spec)
 
     return state_specs
