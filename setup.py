@@ -51,6 +51,7 @@ setup(
     entry_points={
         'console_scripts': [
             'qontract-reconcile = reconcile.cli:integration',
+            'e2e-tests = e2e_tests.cli:test',
         ],
     },
 )

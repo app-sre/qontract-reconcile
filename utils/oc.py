@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 import json
+import time
 
 from utils.jump_host import JumpHostSSH
 
@@ -66,6 +67,12 @@ class OC(object):
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
 
+    def get_all(self, kind, all_namespaces=False):
+        cmd = ['get', '-o', 'json', kind]
+        if all_namespaces:
+            cmd.append('--all-namespaces')
+        return self._run_json(cmd)
+
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
@@ -86,6 +93,10 @@ class OC(object):
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
+        self._run(cmd)
+
+    def delete_project(self, namespace):
+        cmd = ['delete', 'project', namespace]
         self._run(cmd)
 
     def get_group_if_exists(self, name):
@@ -121,24 +132,29 @@ class OC(object):
             stdin = None
             stdin_text = None
 
-        p = Popen(
-            self.oc_base_cmd + cmd,
-            stdin=stdin,
-            stdout=PIPE,
-            stderr=PIPE
-        )
-
-        out, err = p.communicate(stdin_text)
-
-        code = p.returncode
-
-        if code != 0:
-            raise StatusCodeError(err)
-
-        if not out:
-            raise NoOutputError(err)
-
-        return out.strip()
+        attempt = 0
+        attempts = 3
+        while True:
+            try:
+                p = Popen(
+                    self.oc_base_cmd + cmd,
+                    stdin=stdin,
+                    stdout=PIPE,
+                    stderr=PIPE
+                )
+                out, err = p.communicate(stdin_text)
+                code = p.returncode
+                if code != 0:
+                    raise StatusCodeError(err)
+                if not out:
+                    raise NoOutputError(err)
+                return out.strip()
+            except Exception as e:
+                attempt += 1
+                if attempt == attempts:
+                    raise e
+                else:
+                    time.sleep(attempt)
 
     def _run_json(self, cmd):
         out = self._run(cmd)

@@ -33,6 +33,13 @@ TF_QUERY = """
         overrides
         output_resource_name
       }
+      ... on NamespaceTerraformResourceElastiCache_v1 {
+        account
+        identifier
+        defaults
+        overrides
+        output_resource_name
+      }
     }
     cluster {
       name
