@@ -14,6 +14,7 @@ from utils.oc import OC, StatusCodeError
 from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
+from utils.jinja2_ext import B64EncodeExtension
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from threading import Lock
@@ -168,23 +169,33 @@ def obtain_oc_client(oc_map, cluster_info):
     return oc_map[cluster]
 
 
-def lookup_vault_secret(path, key, version):
+def lookup_vault_secret(path, key, version=None):
+    # Try kv engine
     try:
-        raw_data = vault_client.read_all_v2(path, version)
-        r = raw_data[key]
-    except vault_client.SecretVersionNotFound:
-        msg = "secret {} could not be found".format(path)
-        raise FetchVaultSecretError(msg)
-    except KeyError:
+        data = vault_client.read_all(path)
+    except Exception:
+        # Try kv2 engine
+        try:
+            data = vault_client.read_all_v2(path, version)
+        except vault_client.SecretVersionNotFound:
+            msg = "secret {} could not be found".format(path)
+            raise FetchVaultSecretError(msg)
+
+    if key not in data:
         msg = "key {} could not be found in secret".format(key)
         raise FetchVaultSecretError(msg)
-    return r
+
+    return data[key]
 
 
 def process_jinja2_template(body, vars={}, env={}):
     vars.update({'vault': lookup_vault_secret})
     try:
-        env = jinja2.Environment(undefined=jinja2.StrictUndefined, **env)
+        env = jinja2.Environment(
+            extensions=[B64EncodeExtension],
+            undefined=jinja2.StrictUndefined,
+            **env
+        )
         template = env.from_string(body)
         r = template.render(vars)
     except Exception as e:
