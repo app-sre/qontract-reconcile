@@ -1,9 +1,8 @@
 from subprocess import Popen, PIPE
 import json
-import time
 
 from utils.jump_host import JumpHostSSH
-from retry import retry
+from utils.retry import retry
 
 
 class StatusCodeError(Exception):

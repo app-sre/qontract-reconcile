@@ -1,6 +1,6 @@
-
 from functools import wraps
 import time
+
 
 class StatusCodeError(Exception):
     pass
@@ -8,6 +8,7 @@ class StatusCodeError(Exception):
 
 class NoOutputError(Exception):
     pass
+
 
 def retry():
 
