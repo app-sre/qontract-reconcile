@@ -4,6 +4,7 @@ import base64
 import json
 
 import anymarkup
+import jinja2
 import semver
 
 import utils.gql as gql
@@ -42,6 +43,11 @@ NAMESPACES_QUERY = """
       provider
       ... on NamespaceOpenshiftResourceResource_v1 {
         path
+      }
+      ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+        path
+        type
+        variables
       }
       ... on NamespaceOpenshiftResourceVaultSecret_v1 {
         path
@@ -102,10 +108,29 @@ class FetchVaultSecretError(Exception):
         )
 
 
+class Jinja2TemplateError(Exception):
+    def __init__(self, msg):
+        super(Jinja2TemplateError, self).__init__(
+            "error processing jinja2 template: " + str(msg)
+        )
+
+
+class ResourceTemplateRenderError(Exception):
+    def __init__(self, msg):
+        super(ResourceTemplateRenderError, self).__init__(msg)
+
+
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super(UnknownProviderError, self).__init__(
             "unknown provider error: " + str(msg)
+        )
+
+
+class UnknownTemplateTypeError(Exception):
+    def __init__(self, msg):
+        super(UnknownTemplateTypeError, self).__init__(
+            "unknown template type error: " + str(msg)
         )
 
 
@@ -117,12 +142,13 @@ class OR(OpenshiftResource):
 
 
 class StateSpec(object):
-    def __init__(self, type, oc, cluster, namespace, resource):
+    def __init__(self, type, oc, cluster, namespace, resource, parent=None):
         self.type = type
         self.oc = oc
         self.cluster = cluster
         self.namespace = namespace
         self.resource = resource
+        self.parent = parent
 
 
 def obtain_oc_client(oc_map, cluster_info):
@@ -142,7 +168,43 @@ def obtain_oc_client(oc_map, cluster_info):
     return oc_map[cluster]
 
 
-def fetch_provider_resource(path):
+def lookup_vault_secret(path, key, version):
+    try:
+        raw_data = vault_client.read_all_v2(path, version)
+        r = raw_data[key]
+    except vault_client.SecretVersionNotFound:
+        msg = "secret {} could not be found".format(path)
+        raise FetchVaultSecretError(msg)
+    except KeyError:
+        msg = "key {} could not be found in secret".format(key)
+        raise FetchVaultSecretError(msg)
+    return r
+
+
+def process_jinja2_template(body, vars={}, env={}):
+    vars.update({'vault': lookup_vault_secret})
+    try:
+        env = jinja2.Environment(undefined=jinja2.StrictUndefined, **env)
+        template = env.from_string(body)
+        r = template.render(vars)
+    except Exception as e:
+        raise Jinja2TemplateError(e)
+    return r
+
+
+def process_extracurlyjinja2_template(body, vars={}):
+    env = {
+        'block_start_string': '{{%',
+        'block_end_string': '%}}',
+        'variable_start_string': '{{{',
+        'variable_end_string': '}}}',
+        'comment_start_string': '{{#',
+        'comment_end_string': '#}}'
+    }
+    return process_jinja2_template(body, vars=vars, env=env)
+
+
+def fetch_provider_resource(path, tfunc=None, tvars=None):
     gqlapi = gql.get_api()
 
     # get resource data
@@ -151,9 +213,13 @@ def fetch_provider_resource(path):
     except gql.GqlApiError as e:
         raise FetchResourceError(e.message)
 
+    content = resource['content']
+    if tfunc:
+        content = tfunc(content, tvars)
+
     try:
         resource['body'] = anymarkup.parse(
-            resource['content'],
+            content,
             force_types=None
         )
     except anymarkup.AnyMarkupError:
@@ -241,7 +307,7 @@ def fetch_provider_route(path, tls_path, tls_version):
     return openshift_resource
 
 
-def fetch_openshift_resource(resource):
+def fetch_openshift_resource(resource, parent):
     global _log_lock
 
     provider = resource['provider']
@@ -253,6 +319,27 @@ def fetch_openshift_resource(resource):
 
     if provider == 'resource':
         openshift_resource = fetch_provider_resource(path)
+    elif provider == 'resource-template':
+        tv = {}
+        if resource['variables']:
+            tv = anymarkup.parse(resource['variables'], force_types=None)
+        tv['resource'] = resource
+        tv['resource']['namespace'] = parent
+        tt = resource['type']
+        tt = 'jinja2' if tt is None else tt
+        if tt == 'jinja2':
+            tfunc = process_jinja2_template
+        elif tt == 'extracurlyjinja2':
+            tfunc = process_extracurlyjinja2_template
+        else:
+            UnknownTemplateTypeError(tt)
+        try:
+            openshift_resource = fetch_provider_resource(path,
+                                                         tfunc=tfunc,
+                                                         tvars=tv)
+        except Exception as e:
+            msg = "could not render template at path {}\n{}".format(path, e)
+            raise ResourceTemplateRenderError(msg)
     elif provider == 'vault-secret':
         version = resource['version']
         rn = resource['name']
@@ -297,11 +384,11 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
         )
 
 
-def fetch_desired_state(ri, cluster, namespace, resource):
+def fetch_desired_state(ri, cluster, namespace, resource, parent):
     global _log_lock
 
     try:
-        openshift_resource = fetch_openshift_resource(resource)
+        openshift_resource = fetch_openshift_resource(resource, parent)
     except (FetchResourceError,
             FetchVaultSecretError,
             UnknownProviderError) as e:
@@ -353,7 +440,8 @@ def fetch_states(spec, ri):
         fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
     if spec.type == "desired":
-        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource)
+        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource,
+                            spec.parent)
 
 
 def init_specs_to_fetch(ri, oc_map, namespaces_query,
@@ -394,7 +482,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query,
         openshift_resources = namespace_info.get('openshiftResources') or []
         for openshift_resource in openshift_resources:
             d_spec = StateSpec("desired", None, cluster, namespace,
-                               openshift_resource)
+                               openshift_resource, namespace_info)
             state_specs.append(d_spec)
 
     return state_specs
