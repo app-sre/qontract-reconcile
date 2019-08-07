@@ -20,7 +20,6 @@ def retry(max_attempts=3):
 
         @wraps(f)
         def f_retry(*args, **kwargs):
-            attempt = 0
             for attempt in itertools.count(1):
                 try:
                     return f(*args, **kwargs)
