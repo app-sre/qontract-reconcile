@@ -56,6 +56,7 @@ ROLES_QUERY = """
         }
         github_owners
         channels
+        description
       }
     }
   }
@@ -107,12 +108,13 @@ def get_current_state(slack_map):
         slack = spec['slack']
         managed_usergroups = spec['managed_usergroups']
         for ug in managed_usergroups:
-            users, channels = slack.describe_usergroup(ug)
+            users, channels, description = slack.describe_usergroup(ug)
             current_state.append({
                 "workspace": workspace,
                 "usergroup": ug,
                 "users": users,
                 "channels": channels,
+                "description": description,
             })
 
     return current_state
@@ -215,6 +217,7 @@ def get_desired_state(slack_map):
 
             workspace_name = workspace['name']
             usergroup = p['handle']
+            description = p['description']
             if usergroup not in managed_usergroups:
                 logging.warning(
                     '[{}] usergroup {} not in managed usergroups {}'.format(
@@ -248,6 +251,7 @@ def get_desired_state(slack_map):
                 "usergroup_id": ugid,
                 "users": users,
                 "channels": channels,
+                "description": description,
             })
 
     return desired_state
@@ -284,6 +288,10 @@ def print_diff(current_state, desired_state):
             logging.info(['del_user_from_usergroup',
                           workspace, usergroup, u])
 
+        if d_state['description'] != c_state['description']:
+            logging.info(['update_usergroup_description',
+                          workspace, usergroup, d_state['description']])
+
 
 def subtract_state(from_state, subtract_state, type):
     f = from_state[type]
@@ -295,11 +303,12 @@ def act(desired_state, slack_map):
     for state in desired_state:
         workspace = state['workspace']
         ugid = state['usergroup_id']
+        description = state['description']
         users = state['users'].keys()
         channels = state['channels'].keys()
         slack = slack_map[workspace]['slack']
         slack.update_usergroup_users(ugid, users)
-        slack.update_usergroup_channels(ugid, channels)
+        slack.update_usergroup(ugid, channels, description)
 
 
 def run(dry_run=False):
