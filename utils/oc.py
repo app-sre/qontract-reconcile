@@ -124,7 +124,7 @@ class OC(object):
         cmd = ['adm', 'groups', 'remove-users', group, user]
         self._run(cmd)
 
-    @retry()
+    @retry(max_attempts=3)
     def _run(self, cmd, **kwargs):
         if kwargs.get('stdin'):
             stdin = PIPE
