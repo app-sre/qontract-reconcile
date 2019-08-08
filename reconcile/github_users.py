@@ -14,6 +14,7 @@ from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
+from utils.retry import retry
 
 
 QUERY = """
@@ -38,6 +39,7 @@ def init_github():
     return Github(token)
 
 
+@retry(exceptions=Exception, max_attempts=3)
 def get_user_company(user, github):
     attempt = 0
     attempts = 3

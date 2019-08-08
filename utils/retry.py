@@ -14,7 +14,7 @@ class NoOutputError(Exception):
 # source: https://www.calazan.com/retry-decorator-for-python-3/
 
 
-def retry(max_attempts=3):
+def retry(exceptions=Exception, max_attempts=3):
 
     def deco_retry(f):
 
@@ -23,7 +23,7 @@ def retry(max_attempts=3):
             for attempt in itertools.count(1):
                 try:
                     return f(*args, **kwargs)
-                except Exception as e:
+                except exceptions as e:
                     if attempt > max_attempts - 1:
                         raise e
                     time.sleep(attempt)
