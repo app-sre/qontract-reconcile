@@ -23,6 +23,7 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
