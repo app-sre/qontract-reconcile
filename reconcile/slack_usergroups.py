@@ -158,8 +158,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
                 'pagerduty_name if it is different then name)'
             ).format(slack_usernames, pagerduty_names)
             logging.warning(msg)
-        else:
-            all_slack_usernames.extend(slack_usernames)
+        all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
 
@@ -193,8 +192,7 @@ def get_slack_usernames_from_github_owners(github_owners, users):
                 '(hint: user is missing from app-interface)'
             ).format(slack_usernames, github_users)
             logging.warning(msg)
-        else:
-            all_slack_usernames.extend(slack_usernames)
+        all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
 
