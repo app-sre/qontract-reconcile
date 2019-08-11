@@ -116,6 +116,13 @@ class OC(object):
         cmd = ['delete', 'group', group]
         self._run(cmd)
 
+    def get_users(self):
+        return self.get_all('Users')['items']
+
+    def delete_user(self, user):
+        cmd = ['delete', 'user', user]
+        self._run(cmd)
+
     def add_user_to_group(self, group, user):
         cmd = ['adm', 'groups', 'add-users', group, user]
         self._run(cmd)
