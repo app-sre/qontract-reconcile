@@ -166,4 +166,3 @@ def run(dry_run=False, thread_pool_size=10):
 
         if not dry_run:
             act(diff, oc_map)
-            return
