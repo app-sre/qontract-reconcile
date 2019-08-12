@@ -8,6 +8,7 @@ import reconcile.github_org
 import reconcile.github_users
 import reconcile.openshift_rolebinding
 import reconcile.openshift_groups
+import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_resources_annotate
@@ -143,7 +144,16 @@ def openshift_rolebinding(ctx):
 @threaded(default=10)
 @click.pass_context
 def openshift_groups(ctx, thread_pool_size):
-    run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'])
+    run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
+                    thread_pool_size)
+
+
+@integration.command()
+@threaded(default=10)
+@click.pass_context
+def openshift_users(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
+                    thread_pool_size)
 
 
 @integration.command()
