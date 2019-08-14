@@ -182,7 +182,7 @@ def lookup_vault_secret(path, key, version=None):
             raise FetchVaultSecretError(msg)
 
     if key not in data:
-        msg = "key {} could not be found in secret".format(key)
+        msg = "key {} could not be found in secret {}".format(key, path)
         raise FetchVaultSecretError(msg)
 
     return data[key]
