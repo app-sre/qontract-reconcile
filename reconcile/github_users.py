@@ -1,5 +1,4 @@
 import re
-import time
 import logging
 
 import utils.gql as gql
@@ -39,20 +38,10 @@ def init_github():
     return Github(token)
 
 
-@retry(exceptions=Exception, max_attempts=3)
+@retry(exceptions=(GithubException, ReadTimeout))
 def get_user_company(user, github):
-    attempt = 0
-    attempts = 3
-    while attempt < attempts:
-        try:
-            gh_user = github.get_user(login=user['github_username'])
-            return user['redhat_username'], gh_user.company
-        except (GithubException, ReadTimeout) as e:
-            attempt += 1
-            if attempt == attempts:
-                raise e
-            else:
-                time.sleep(attempt)
+    gh_user = github.get_user(login=user['github_username'])
+    return user['redhat_username'], gh_user.company
 
 
 def get_users_to_delete(results):

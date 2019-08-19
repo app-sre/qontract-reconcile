@@ -1,19 +1,10 @@
+import time
+import itertools
+
 from functools import wraps
 
-import itertools
-import time
-
-
-class StatusCodeError(Exception):
-    pass
-
-
-class NoOutputError(Exception):
-    pass
 
 # source: https://www.calazan.com/retry-decorator-for-python-3/
-
-
 def retry(exceptions=Exception, max_attempts=3):
 
     def deco_retry(f):
