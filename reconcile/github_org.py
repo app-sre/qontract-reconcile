@@ -218,7 +218,7 @@ class RunnerAction(object):
                     gh_team.remove_membership(gh_user)
 
                 members = gh_team.get_members()
-                if members.totalCount is None:
+                if len(list(members)) == 0:
                     logging.info(["del_team", org, team])
                     gh_team.delete()
 

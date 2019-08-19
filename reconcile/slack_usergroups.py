@@ -191,7 +191,7 @@ def get_slack_usernames_from_github_owners(github_owners, users):
                 'do not match all github usernames: {} '
                 '(hint: user is missing from app-interface)'
             ).format(slack_usernames, github_users)
-            logging.warning(msg)
+            logging.debug(msg)
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
