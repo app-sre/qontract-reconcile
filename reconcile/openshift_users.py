@@ -55,7 +55,8 @@ def get_cluster_users(cluster, oc_map):
     oc = oc_map[cluster]
     users = [u['metadata']['name'] for u in oc.get_users()
              if len(u['identities']) == 1
-             and u['identities'][0].startswith('github')]
+             and u['identities'][0].startswith('github')
+             and not u['metadata'].get('labels', {}).get('admin', '')]
 
     return [{"cluster": cluster, "user": user} for user in users or []]
 
