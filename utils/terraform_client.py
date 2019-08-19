@@ -5,6 +5,7 @@ import json
 import os
 
 from utils.openshift_resource import OpenshiftResource
+from utils.retry import retry
 
 from python_terraform import Terraform
 from multiprocessing.dummy import Pool as ThreadPool
@@ -97,6 +98,7 @@ class TerraformClient(object):
         results = self.pool.map(self.terraform_output, self.specs)
         self.outputs = {name: output for name, output in results}
 
+    @retry(exceptions=Exception, max_attempts=3)
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']

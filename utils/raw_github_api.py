@@ -1,6 +1,8 @@
 import time
 import requests
 
+from utils.retry import retry
+
 
 class RawGithubApi(object):
     """
@@ -30,6 +32,7 @@ class RawGithubApi(object):
         res.raise_for_status()
         return res
 
+    @retry(exceptions=Exception, max_attempts=3)
     def query(self, url, headers={}):
         h = self.headers(headers)
 
