@@ -21,7 +21,12 @@ class GqlApi(object):
             self.client.inject_token(token)
 
     def query(self, query, variables=None):
-        result_json = self.client.execute(query, variables)
+        try:
+            result_json = self.client.execute(query, variables)
+        except Exception as e:
+            raise GqlApiError(
+                'Could not connect to GraphQL server ({})'.format(e))
+
         result = json.loads(result_json)
 
         if 'errors' in result:
