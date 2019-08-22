@@ -40,6 +40,12 @@ TF_QUERY = """
         overrides
         output_resource_name
       }
+      ... on NamespaceTerraformResourceServiceAccount_v1 {
+        account
+        identifier
+        policies
+        output_resource_name
+      }
     }
     cluster {
       name
