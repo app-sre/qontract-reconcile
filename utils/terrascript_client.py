@@ -441,7 +441,8 @@ class TerrascriptClient(object):
 
         # iam access key for user
         tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, output_prefix))
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
 
         # iam user policy for bucket
         values = {}
@@ -536,7 +537,8 @@ class TerrascriptClient(object):
 
         # iam access key for user
         tf_resources.extend(
-            self.get_tf_iam_access_key(user_tf_resource, output_prefix))
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
 
         # iam user policies
         for policy in common_values['policies']:
@@ -553,12 +555,12 @@ class TerrascriptClient(object):
             self.add_resource(account, tf_resource)
 
     @staticmethod
-    def get_tf_iam_access_key(user_tf_resource, output_prefix):
+    def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
         tf_resources = []
         values = {}
-        values['user'] = user_tf_resource.fullname
+        values['user'] = identifier
         values['depends_on'] = [user_tf_resource]
-        tf_resource = aws_iam_access_key(user_tf_resource.fullname, **values)
+        tf_resource = aws_iam_access_key(identifier, **values)
         tf_resources.append(tf_resource)
         output_name = output_prefix + '[aws_access_key_id]'
         output_value = '${' + tf_resource.fullname + '.id}'
