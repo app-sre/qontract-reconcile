@@ -19,7 +19,8 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile,
-                               aws_elasticache_replication_group)
+                               aws_elasticache_replication_group,
+                               aws_iam_user_policy_attachment)
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 from threading import Lock
@@ -310,6 +311,9 @@ class TerrascriptClient(object):
         elif provider == 'elasticache':
             self.populate_tf_resource_elasticache(resource, namespace_info,
                                                   existing_secrets)
+        elif provider == 'service-account':
+            self.populate_tf_resource_service_account(resource,
+                                                      namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -436,17 +440,9 @@ class TerrascriptClient(object):
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        values = {}
-        values['user'] = identifier
-        values['depends_on'] = [user_tf_resource]
-        tf_resource = aws_iam_access_key(identifier, **values)
-        tf_resources.append(tf_resource)
-        output_name = output_prefix + '[aws_access_key_id]'
-        output_value = '${' + tf_resource.fullname + '.id}'
-        tf_resources.append(output(output_name, value=output_value))
-        output_name = output_prefix + '[aws_secret_access_key]'
-        output_value = '${' + tf_resource.fullname + '.secret}'
-        tf_resources.append(output(output_name, value=output_value))
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
 
         # iam user policy for bucket
         values = {}
@@ -523,6 +519,58 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_service_account(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        # iam user for bucket
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policies
+        for policy in common_values['policies']:
+            tf_iam_user_policy_attachment = \
+                aws_iam_user_policy_attachment(
+                    identifier + '-' + policy,
+                    user=identifier,
+                    policy_arn='arn:aws:iam::aws:policy/' + policy,
+                    depends_on=[user_tf_resource]
+                )
+            tf_resources.append(tf_iam_user_policy_attachment)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
+        tf_resources = []
+        values = {}
+        values['user'] = identifier
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_access_key(identifier, **values)
+        tf_resources.append(tf_resource)
+        output_name = output_prefix + '[aws_access_key_id]'
+        output_value = '${' + tf_resource.fullname + '.id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '[aws_secret_access_key]'
+        output_value = '${' + tf_resource.fullname + '.secret}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        return tf_resources
+
     def add_resource(self, account, tf_resource):
         with self.locks[account]:
             self.tss[account].add(tf_resource)
@@ -555,14 +603,17 @@ class TerrascriptClient(object):
         account = resource['account']
         provider = resource['provider']
         identifier = resource['identifier']
-        defaults_path = resource['defaults']
-        overrides = resource['overrides']
+        defaults_path = resource.get('defaults', None)
+        overrides = resource.get('overrides', None)
+        policies = resource.get('policies', None)
 
-        values = self.get_values(defaults_path)
+        values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
+        if policies:
+            values['policies'] = policies
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
