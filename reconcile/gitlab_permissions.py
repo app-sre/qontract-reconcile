@@ -64,6 +64,6 @@ def run(dry_run=False, thread_pool_size=10):
     results = pool.map(get_members_to_add_partial, repos)
     members_to_add = [item for sublist in results for item in sublist]
     for m in members_to_add:
-        logging.info(['add_maintainer', m["user"], m["user"].username])
+        logging.info(['add_maintainer', m["repo"], m["user"].username])
         if not dry_run:
             gl.add_project_member(m["repo"], m["user"])
