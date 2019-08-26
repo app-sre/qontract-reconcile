@@ -57,7 +57,7 @@ def get_config():
         org_token = org['token']
         try:
             token = vault_client.read(org_token['path'], org_token['field'])
-        except:
+        except vault_client.SecretNotFound:
             token = vault_client.read_all_v2(
                 org_token['path'],
                 org_token['version'])[org_token['field']]
