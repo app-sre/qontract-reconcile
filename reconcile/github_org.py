@@ -15,6 +15,7 @@ ORGS_QUERY = """
     token {
       path
       field
+      version
     }
     managedTeams
   }
@@ -54,7 +55,12 @@ def get_config():
     for org in orgs:
         org_name = org['name']
         org_token = org['token']
-        token = vault_client.read(org_token['path'], org_token['field'])
+        try:
+            token = vault_client.read(org_token['path'], org_token['field'])
+        except:
+            token = vault_client.read_all_v2(
+                org_token['path'],
+                org_token['version'])[org_token['field']]
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
 
