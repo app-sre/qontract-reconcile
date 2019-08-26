@@ -87,12 +87,14 @@ class JJB(object):
         configs.sort(key=self.sort_by_type)
 
     def sort_by_type(self, config):
-        if config['type'] == 'common':
+        if config['type'] == 'defaults':
             return 00
         elif config['type'] == 'views':
             return 10
         elif config['type'] == 'secrets':
             return 20
+        elif config['type'] == 'base-templates':
+            return 25
         elif config['type'] == 'job-templates':
             return 30
         elif config['type'] == 'jobs':
