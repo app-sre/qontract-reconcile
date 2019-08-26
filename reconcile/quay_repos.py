@@ -15,6 +15,7 @@ QUAY_ORG_CATALOG_QUERY = """
       path
       field
       format
+      version
     }
   }
 }
@@ -184,7 +185,14 @@ def get_quay_api_store():
     for org_data in result['quay_orgs']:
         token_path = org_data['automationToken']['path']
         token_field = org_data['automationToken']['field']
-        token = vault_client.read(token_path, token_field)
+        token_version = org_data['automationToken']['version']
+        try:
+            token = vault_client.read(token_path, token_field)
+        except vault_client.SecretNotFound:
+            token = vault_client.read_all_v2(
+                token_path,
+                token_version
+            )[token_field]
 
         name = org_data['name']
 
