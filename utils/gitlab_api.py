@@ -188,7 +188,6 @@ class GitLabApi(object):
         elif access == "guest":
             return gitlab.GUEST_ACCESS
 
-
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
         return self.gl.projects.get(repo)
