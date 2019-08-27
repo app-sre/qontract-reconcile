@@ -61,7 +61,7 @@ def read(secret):
     * path - path to the secret in Vault
     * field - the key to read from the secret
     * format (optional) - plain or base64 (defaults to plain)
-    * version (optional) - the version of the secret to read from (if this is a v2 KV engine)
+    * version (optional) - secret version to read (if this is a v2 KV engine)
     """
     secret_path = secret['path']
     secret_field = secret['field']
@@ -81,7 +81,7 @@ def read_all(secret):
 
     The input secret is a dictionary which contains the following fields:
     * path - path to the secret in Vault
-    * version (optional) - the version of the secret to read from (if this is a v2 KV engine)
+    * version (optional) - secret version to read (if this is a v2 KV engine)
     """
     secret_path = secret['path']
     secret_version = secret.get('version')
