@@ -54,41 +54,56 @@ def init_from_config():
     return init(server, role_id, secret_id)
 
 
-def get_token(automation_token):
-    at_path = automation_token['path']
-    at_field = automation_token['field']
-    at_format = automation_token.get('format', 'plain')
-    at_version = automation_token.get('version', None)
+def read(secret):
+    """Returns a value of a key in a Vault secret.
+
+    The input secret is a dictionary which contains the following fields:
+    * path - path to the secret in Vault
+    * field - the key to read from the secret
+    * format (optional) - plain or base64 (defaults to plain)
+    * version (optional) - the version of the secret to read from (if this is a v2 KV engine)
+    """
+    secret_path = secret['path']
+    secret_field = secret['field']
+    secret_format = secret.get('format', 'plain')
+    secret_version = secret.get('version')
 
     try:
-        token = read(at_path, at_field)
-    except SecretNotFound:
-        token = read_v2(at_path, at_field, at_version)
+        data = read_v1(secret_path, secret_field)
+    except Exception:
+        data = read_v2(secret_path, secret_field, secret_version)
 
-    if at_format == 'base64':
-        token = base64.b64decode(token)
-
-    return token
+    return base64.b64decode(data) if secret_format == 'base64' else data
 
 
-def read(path, field):
-    global _client
-    init_from_config()
+def read_all(secret):
+    """Returns a dictionary of keys and values in a Vault secret.
 
-    secret = _client.read(path)
-
-    if secret is None or 'data' not in secret:
-        raise SecretNotFound(path)
-
+    The input secret is a dictionary which contains the following fields:
+    * path - path to the secret in Vault
+    * version (optional) - the version of the secret to read from (if this is a v2 KV engine)
+    """
+    secret_path = secret['path']
+    secret_version = secret.get('version')
     try:
-        secret_field = secret['data'][field]
+        data = read_all_v1(secret_path)
+    except Exception:
+        data = read_all_v2(secret_path, secret_version)
+
+    return data
+
+
+def read_v1(path, field):
+    data = read_all_v1(path)
+    try:
+        secret_field = data[field]
     except KeyError:
         raise SecretFieldNotFound("{}/{}".format(path, field))
 
     return secret_field
 
 
-def read_all(path):
+def read_all_v1(path):
     global _client
     init_from_config()
 
