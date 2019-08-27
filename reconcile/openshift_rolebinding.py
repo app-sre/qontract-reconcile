@@ -81,10 +81,7 @@ class ClusterStore(object):
                 continue
 
             if _clusters.get(cluster_name) is None:
-                token = vault_client.read(
-                    automation_token['path'],
-                    automation_token['field'],
-                )
+                token = vault_client.read(automation_token)
 
                 api = Openshift(cluster_info['serverUrl'], token,
                                 jump_host=jump_host)

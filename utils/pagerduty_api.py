@@ -9,9 +9,7 @@ class PagerDutyApi(object):
     """Wrapper around PagerDuty API calls"""
 
     def __init__(self, token):
-        token_path = token['path']
-        token_field = token['field']
-        pd_api_key = vault_client.read(token_path, token_field)
+        pd_api_key = vault_client.read(token)
         pypd.api_key = pd_api_key
 
     def get_pagerduty_users(self, resource_type, resource_id):

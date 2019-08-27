@@ -50,8 +50,9 @@ class AWSApi(object):
     def get_vault_tf_secrets(self, init_spec):
         account = init_spec['account']
         data = init_spec['data']
-        secrets_path = data['secrets_path']
-        secret = vault_client.read_all(secrets_path + '/config')
+        secret = vault_client.read_all(
+            {'path': '{}/{}'.format(data['secrets_path'], 'config')}
+        )
         return (account, secret)
 
     def init_users(self):

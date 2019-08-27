@@ -56,12 +56,7 @@ def config_from_vault(vault_path):
     config = {}
 
     required_keys = ('password', 'port', 'require_tls', 'server', 'username')
-
-    try:
-        data = vault_client.read_all(vault_path)
-    except vault_client.SecretNotFound as e:
-        raise Exception("Could not retrieve SMTP config from vault: {}"
-                        .format(e))
+    data = vault_client.read_all({'path': vault_path})
 
     try:
         for k in required_keys:

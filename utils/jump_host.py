@@ -1,5 +1,4 @@
 import tempfile
-import base64
 import shutil
 import os
 import requests
@@ -36,11 +35,7 @@ class JumpHostBase(object):
         self.init_identity_file()
 
     def get_identity_from_vault(self, jh):
-        jh_identity = jh['identity']
-        identity = \
-            vault_client.read(jh_identity['path'], jh_identity['field'])
-        if jh_identity['format'] == 'base64':
-            identity = base64.b64decode(identity)
+        identity = vault_client.read(jh['identity'])
         return identity
 
     def init_identity_file(self):
