@@ -1,6 +1,7 @@
 import time
 import requests
 import hvac
+import base64
 from utils.config import get_config
 
 _client = None
@@ -53,6 +54,23 @@ def init_from_config():
     return init(server, role_id, secret_id)
 
 
+def get_token(automation_token):
+    at_path = automation_token['path']
+    at_field = automation_token['field']
+    at_format = automation_token.get('format', 'plain')
+    at_version = automation_token.get('version', None)
+
+    try:
+        token = read(at_path, at_field)
+    except SecretNotFound:
+        token = read_v2(at_path, at_field, at_version)
+
+    if at_format == 'base64':
+        token = base64.b64decode(token)
+
+    return token
+
+
 def read(path, field):
     global _client
     init_from_config()
@@ -80,6 +98,16 @@ def read_all(path):
         raise SecretNotFound(path)
 
     return secret['data']
+
+
+def read_v2(path, field, version):
+    data = read_all_v2(path, version)
+    try:
+        secret_field = data[field]
+    except KeyError:
+        raise SecretFieldNotFound("{}/{} ({})".format(path, field, version))
+
+    return secret_field
 
 
 def read_all_v2(path, version):
