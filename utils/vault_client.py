@@ -69,9 +69,9 @@ def read(secret):
     secret_version = secret.get('version')
 
     try:
-        data = read_v1(secret_path, secret_field)
+        data = _read_v1(secret_path, secret_field)
     except Exception:
-        data = read_v2(secret_path, secret_field, secret_version)
+        data = _read_v2(secret_path, secret_field, secret_version)
 
     return base64.b64decode(data) if secret_format == 'base64' else data
 
@@ -86,15 +86,15 @@ def read_all(secret):
     secret_path = secret['path']
     secret_version = secret.get('version')
     try:
-        data = read_all_v1(secret_path)
+        data = _read_all_v1(secret_path)
     except Exception:
-        data = read_all_v2(secret_path, secret_version)
+        data = _read_all_v2(secret_path, secret_version)
 
     return data
 
 
-def read_v1(path, field):
-    data = read_all_v1(path)
+def _read_v1(path, field):
+    data = _read_all_v1(path)
     try:
         secret_field = data[field]
     except KeyError:
@@ -103,7 +103,7 @@ def read_v1(path, field):
     return secret_field
 
 
-def read_all_v1(path):
+def _read_all_v1(path):
     global _client
     init_from_config()
 
@@ -115,8 +115,8 @@ def read_all_v1(path):
     return secret['data']
 
 
-def read_v2(path, field, version):
-    data = read_all_v2(path, version)
+def _read_v2(path, field, version):
+    data = _read_all_v2(path, version)
     try:
         secret_field = data[field]
     except KeyError:
@@ -125,7 +125,7 @@ def read_v2(path, field, version):
     return secret_field
 
 
-def read_all_v2(path, version):
+def _read_all_v2(path, version):
     global _client
     init_from_config()
 
