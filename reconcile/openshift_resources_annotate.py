@@ -36,7 +36,7 @@ def get_oc(cluster):
         if at is None:
             return None
         else:
-            token = vault_client.read(at['path'], at['field'])
+            token = vault_client.read(at)
             return utils.oc.OC(cluster_info['serverUrl'], token)
 
     return None

@@ -20,10 +20,10 @@ REPOS_QUERY = """
 
 
 def run(dry_run):
-    config = get_config()
+    config = get_config()['github-repo-invites']
     token = vault_client.read(
-        config['github-repo-invites']['secret_path'],
-        config['github-repo-invites']['secret_field'])
+        {'path': config['secret_path'],
+         'field': config['secret_field']})
 
     g = utils.raw_github_api.RawGithubApi(token)
 

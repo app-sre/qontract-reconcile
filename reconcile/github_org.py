@@ -54,13 +54,7 @@ def get_config():
     config = {'github': {}}
     for org in orgs:
         org_name = org['name']
-        org_token = org['token']
-        try:
-            token = vault_client.read(org_token['path'], org_token['field'])
-        except vault_client.SecretNotFound:
-            token = vault_client.read_all_v2(
-                org_token['path'],
-                org_token['version'])[org_token['field']]
+        token = vault_client.read(org['token'])
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
 

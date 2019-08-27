@@ -46,7 +46,7 @@ class JJB(object):
             token = data['token']
             server_url = data['serverUrl']
             wd = tempfile.mkdtemp()
-            ini = vault_client.read(token['path'], token['field'])
+            ini = vault_client.read(token)
             ini = ini.replace('"', '')
             ini = ini.replace('false', 'False')
             ini_file_path = '{}/{}.ini'.format(wd, name)

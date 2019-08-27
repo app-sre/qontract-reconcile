@@ -1,6 +1,7 @@
 import time
 import requests
 import hvac
+import base64
 from utils.config import get_config
 
 _client = None
@@ -53,24 +54,56 @@ def init_from_config():
     return init(server, role_id, secret_id)
 
 
-def read(path, field):
-    global _client
-    init_from_config()
+def read(secret):
+    """Returns a value of a key in a Vault secret.
 
-    secret = _client.read(path)
-
-    if secret is None or 'data' not in secret:
-        raise SecretNotFound(path)
+    The input secret is a dictionary which contains the following fields:
+    * path - path to the secret in Vault
+    * field - the key to read from the secret
+    * format (optional) - plain or base64 (defaults to plain)
+    * version (optional) - secret version to read (if this is a v2 KV engine)
+    """
+    secret_path = secret['path']
+    secret_field = secret['field']
+    secret_format = secret.get('format', 'plain')
+    secret_version = secret.get('version')
 
     try:
-        secret_field = secret['data'][field]
+        data = _read_v1(secret_path, secret_field)
+    except Exception:
+        data = _read_v2(secret_path, secret_field, secret_version)
+
+    return base64.b64decode(data) if secret_format == 'base64' else data
+
+
+def read_all(secret):
+    """Returns a dictionary of keys and values in a Vault secret.
+
+    The input secret is a dictionary which contains the following fields:
+    * path - path to the secret in Vault
+    * version (optional) - secret version to read (if this is a v2 KV engine)
+    """
+    secret_path = secret['path']
+    secret_version = secret.get('version')
+    try:
+        data = _read_all_v1(secret_path)
+    except Exception:
+        data = _read_all_v2(secret_path, secret_version)
+
+    return data
+
+
+def _read_v1(path, field):
+    data = _read_all_v1(path)
+    try:
+        secret_field = data[field]
     except KeyError:
         raise SecretFieldNotFound("{}/{}".format(path, field))
 
     return secret_field
 
 
-def read_all(path):
+def _read_all_v1(path):
     global _client
     init_from_config()
 
@@ -82,7 +115,17 @@ def read_all(path):
     return secret['data']
 
 
-def read_all_v2(path, version):
+def _read_v2(path, field, version):
+    data = _read_all_v2(path, version)
+    try:
+        secret_field = data[field]
+    except KeyError:
+        raise SecretFieldNotFound("{}/{} ({})".format(path, field, version))
+
+    return secret_field
+
+
+def _read_all_v2(path, version):
     global _client
     init_from_config()
 

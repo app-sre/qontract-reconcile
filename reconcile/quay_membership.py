@@ -151,17 +151,8 @@ def get_quay_api_store():
     result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
 
     for org_data in result['quay_orgs']:
-        token_path = org_data['automationToken']['path']
-        token_field = org_data['automationToken']['field']
-        try:
-            token = vault_client.read(token_path, token_field)
-        except vault_client.SecretNotFound:
-            token = vault_client.read_all_v2(
-                org_data['automationToken']['path'],
-                org_data['automationToken']['version']
-            )[org_data['automationToken']['field']]
-
         name = org_data['name']
+        token = vault_client.read(org_data['automationToken'])
         managed_teams = org_data.get('managedTeams')
 
         store[name] = {}

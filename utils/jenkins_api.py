@@ -9,9 +9,7 @@ class JenkinsApi(object):
     """Wrapper around Jenkins API calls"""
 
     def __init__(self, token, ssl_verify=True):
-        token_path = token['path']
-        token_field = token['field']
-        token_config = vault_client.read(token_path, token_field)
+        token_config = vault_client.read(token)
         config = toml.loads(token_config)
 
         self.url = config['jenkins']['url']

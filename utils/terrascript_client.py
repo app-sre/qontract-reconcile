@@ -104,8 +104,9 @@ class TerrascriptClient(object):
         account = init_spec['account']
         data = init_spec['data']
         type = init_spec['type']
-        secrets_path = data['secrets_path']
-        secret = vault_client.read_all(secrets_path + '/' + type)
+        secret = vault_client.read_all(
+            {'path': '{}/{}'.format(data['secrets_path'], type)}
+        )
         return (account, type, secret)
 
     def get_tf_iam_group(self, group_name):

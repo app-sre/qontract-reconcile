@@ -162,7 +162,7 @@ def obtain_oc_client(oc_map, cluster_info):
     if at is None:
         return oc_map[cluster]
 
-    token = vault_client.read(at['path'], at['field'])
+    token = vault_client.read(at)
     jh = cluster_info.get('jumpHost')
     oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh)
 
@@ -170,22 +170,15 @@ def obtain_oc_client(oc_map, cluster_info):
 
 
 def lookup_vault_secret(path, key, version=None):
-    # Try kv engine
+    secret = {
+        'path': path,
+        'field': key,
+        'version': version
+    }
     try:
-        data = vault_client.read_all(path)
-    except Exception:
-        # Try kv2 engine
-        try:
-            data = vault_client.read_all_v2(path, version)
-        except vault_client.SecretVersionNotFound:
-            msg = "secret {} could not be found".format(path)
-            raise FetchVaultSecretError(msg)
-
-    if key not in data:
-        msg = "key {} could not be found in secret {}".format(key, path)
-        raise FetchVaultSecretError(msg)
-
-    return data[key]
+        return vault_client.read(secret)
+    except Exception as e:
+        raise FetchVaultSecretError(e)
 
 
 def process_jinja2_template(body, vars={}, env={}):
@@ -265,7 +258,7 @@ def fetch_provider_vault_secret(path, version, name,
         body['metadata']['labels'] = labels
 
     # get the fields from vault
-    raw_data = vault_client.read_all_v2(path, version)
+    raw_data = vault_client.read_all({'path': path, 'version': version})
     for k, v in raw_data.items():
         if v == "":
             v = None
@@ -299,7 +292,8 @@ def fetch_provider_route(path, tls_path, tls_version):
     openshift_resource.body['spec'].setdefault('tls', {})
     tls = openshift_resource.body['spec']['tls']
     # get tls fields from vault
-    raw_data = vault_client.read_all_v2(tls_path, tls_version)
+    raw_data = \
+        vault_client.read_all({'path': tls_path, 'version': tls_version})
     valid_keys = ['termination', 'insecureEdgeTerminationPolicy',
                   'certificate', 'key',
                   'caCertificate', 'destinationCACertificate']

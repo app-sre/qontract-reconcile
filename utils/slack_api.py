@@ -13,10 +13,8 @@ class SlackApi(object):
     """Wrapper around Slack API calls"""
 
     def __init__(self, token):
-        token_path = token['path']
-        token_field = token['field']
-        token = vault_client.read(token_path, token_field)
-        self.sc = SlackClient(token)
+        slack_token = vault_client.read(token)
+        self.sc = SlackClient(slack_token)
         self.results = {}
 
     def describe_usergroup(self, handle):
