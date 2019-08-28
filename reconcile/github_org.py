@@ -61,6 +61,7 @@ def get_config():
 
     return config
 
+
 @retry()
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
