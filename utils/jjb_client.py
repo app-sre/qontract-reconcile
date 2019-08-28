@@ -5,6 +5,7 @@ import tempfile
 import logging
 import filecmp
 import subprocess
+import difflib
 import xml.etree.ElementTree as et
 import utils.vault_client as vault_client
 
@@ -157,6 +158,16 @@ class JJB(object):
             item_type = item_type.replace('hudson.model.ListView', 'view')
             item_type = item_type.replace('project', 'job')
             logging.info([action, item_type, instance, item])
+
+            if action == 'update':
+                with open(ft) as c, open(f) as d:
+                    clines = c.readlines()
+                    dlines = d.readlines()
+
+                    differ = difflib.Differ()
+                    diff = [l for l in differ.compare(clines, dlines)
+                            if l.startswith(('-', '+'))]
+                    logging.debug("DIFF:\n" + "".join(diff))
 
     def compare_files(self, from_files, subtract_files, in_op=False):
         return [f for f in from_files
