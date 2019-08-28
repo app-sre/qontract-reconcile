@@ -7,6 +7,7 @@ import utils.vault_client as vault_client
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.raw_github_api import RawGithubApi
+from utils.retry import retry
 
 ORGS_QUERY = """
 {
@@ -60,7 +61,7 @@ def get_config():
 
     return config
 
-
+@retry()
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
 
