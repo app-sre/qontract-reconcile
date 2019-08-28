@@ -3,6 +3,7 @@ import time
 from slackclient import SlackClient
 
 import utils.vault_client as vault_client
+from utils.retry import retry
 
 
 class UsergroupNotFoundException(Exception):
@@ -34,6 +35,7 @@ class SlackApi(object):
         usergroup = self.get_usergroup(handle)
         return usergroup['id']
 
+    @retry()
     def get_usergroup(self, handle):
         result = self.sc.api_call(
             "usergroups.list",
