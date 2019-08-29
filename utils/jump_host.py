@@ -1,11 +1,6 @@
 import tempfile
 import shutil
 import os
-import requests
-import warnings
-import logging
-
-import jumpssh
 
 import utils.gql as gql
 import utils.vault_client as vault_client
@@ -83,53 +78,3 @@ class JumpHostSSH(JumpHostBase):
             '-o', 'StrictHostKeyChecking=yes',
             '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
             '-i', self.identity_file, '-p', str(self.port), user_host]
-
-
-# The following line will supress CryptographyDeprecationWarning
-warnings.filterwarnings(action='ignore', module='.*paramiko.*')
-
-
-class JumpHostSSHRestApi(JumpHostBase):
-    def __init__(self, jh):
-        JumpHostBase.__init__(self, jh)
-
-        self.init_ssh_session()
-        self.default_logging = logging.getLogger().level
-
-    def __enter__(self):
-        logging.getLogger().setLevel(logging.WARNING)
-        gateway_session = self.get_ssh_session().open()
-        return jumpssh.RestSshClient(gateway_session, silent=True)
-
-    def __exit__(self, *args):
-        self.get_ssh_session().close()
-        logging.getLogger().setLevel(self.default_logging)
-
-    def init_ssh_session(self):
-        session = jumpssh.SSHSession(
-            self.hostname,
-            self.user,
-            private_key_file=self.identity_file,
-            port=self.port,
-        )
-        self.ssh_session = session
-
-    def get_ssh_session(self):
-        return self.ssh_session
-
-
-class DummySSHServer(object):
-    def __init__(self, dummy_resource=None):
-        self.dummy_resource = dummy_resource
-
-    def __enter__(self):
-        return requests
-
-    def __exit__(self, *args):
-        pass
-
-    def cleanup(self):
-        pass
-
-    def raise_for_status(self, response):
-        response.raise_for_status()

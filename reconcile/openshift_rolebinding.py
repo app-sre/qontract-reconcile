@@ -3,10 +3,8 @@ import sys
 import copy
 
 import utils.gql as gql
-import utils.vault_client as vault_client
 import reconcile.openshift_resources as openshift_resources
 
-from utils.openshift_api import Openshift
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
                                    RunnerException)
@@ -97,7 +95,7 @@ def fetch_current_state(namespaces, thread_pool_size):
                          if namespace_info['cluster']['name'] == cluster
                          and namespace_info['name'] == namespace][0]
         for role in managed_roles:
-            
+
             users = [
                 subject['name']
                 for rolebinding in rolebindings
