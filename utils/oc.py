@@ -1,6 +1,7 @@
 from subprocess import Popen, PIPE
 import json
 
+import utils.vault_client as vault_client
 from utils.jump_host import JumpHostSSH
 from utils.retry import retry
 
@@ -167,3 +168,55 @@ class OC(object):
             raise JSONParsingError(out + "\n" + e.message)
 
         return out_json
+
+
+class OC_Map(object):
+    """OC_Map gets a GraphQL query results list as input
+    and initiates a dictionary of OC clients per cluster.
+
+    The input must contain either 'clusters' or 'namespaces', but not both.
+
+    In case a cluster does not have an automation token
+    the OC client will be initiated to False.
+    """
+    def __init__(self, clusters=None, namespaces=None, managed_only=False):
+        self.oc_map = {}
+        self.managed_only = managed_only
+
+        if clusters and namespaces:
+            raise KeyError('expected only one of clusters or namespaces.')
+        elif clusters:
+            for cluster_info in clusters:
+                self.init_oc_client(cluster_info)
+        elif namespaces:
+            for namespace_info in namespaces:
+                cluster_info = namespace_info['cluster']
+                self.init_oc_client(cluster_info)
+        else:
+            raise KeyError('expected one of clusters or namespaces.')
+
+    def init_oc_client(self, cluster_info):
+        cluster = cluster_info['name']
+        if self.oc_map.get(cluster):
+            return
+        if self.managed_only and cluster_info.get('unManaged'):
+            return
+
+        automation_token = cluster_info.get('automationToken')
+        if automation_token is None:
+            self.oc_map[cluster] = False
+        else:
+            server_url = cluster_info['serverUrl']
+            token = vault_client.read(automation_token)
+            jump_host = cluster_info.get('jumpHost')
+            self.oc_map[cluster] = OC(server_url, token, jump_host)
+
+    def get(self, cluster):
+        return self.oc_map[cluster]
+
+    def clusters(self):
+        return [k for k, v in self.oc_map.items() if v]
+
+    def cleanup(self):
+        for oc in self.oc_map.values():
+            oc.cleanup()

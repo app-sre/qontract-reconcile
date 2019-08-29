@@ -11,7 +11,8 @@ def run():
     ns_to_create = tb.get_test_namespace_name()
     expected_rolebindings = dat.get_expected_rolebindings()
 
-    for cluster, oc in oc_map.items():
+    for cluster in oc_map.clusters():
+        oc = oc_map.get(cluster)
         logging.info("[{}] Creating namespace '{}'".format(
             cluster, ns_to_create
         ))
