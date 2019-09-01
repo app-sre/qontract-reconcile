@@ -3,6 +3,9 @@ from functools import wraps
 
 # source: https://towerbabbel.com/go-defer-in-python/
 def defer(func):
+    """Defer code execution until the surrounding function returns.
+    Useful for registering cleanup work.
+    """
     @wraps(func)
     def func_wrapper(*args, **kwargs):
         deferred = []
