@@ -30,6 +30,7 @@ import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 
 from utils.aggregated_list import RunnerException
+from utils.binary import binary
 
 
 def threaded(**kwargs):
@@ -136,6 +137,7 @@ def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
 
 @integration.command()
 @threaded()
+@binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_rolebinding(ctx, thread_pool_size):
     run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'],
@@ -144,6 +146,7 @@ def openshift_rolebinding(ctx, thread_pool_size):
 
 @integration.command()
 @threaded()
+@binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_groups(ctx, thread_pool_size):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
@@ -152,6 +155,7 @@ def openshift_groups(ctx, thread_pool_size):
 
 @integration.command()
 @threaded()
+@binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_users(ctx, thread_pool_size):
     run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
@@ -231,6 +235,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 @integration.command()
 @threaded(default=20)
+@binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size):
     run_integration(reconcile.openshift_resources.run,
@@ -239,6 +244,7 @@ def openshift_resources(ctx, thread_pool_size):
 
 @integration.command()
 @threaded()
+@binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size):
     run_integration(reconcile.openshift_namespaces.run,
@@ -280,6 +286,7 @@ def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
 @terraform
 @throughput
 @threaded(default=20)
+@binary(['terraform', 'oc'])
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
@@ -293,6 +300,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @terraform
 @throughput
 @threaded(default=20)
+@binary(['terraform', 'gpg'])
 @enable_deletion(default=True)
 @send_mails(default=True)
 @click.pass_context
