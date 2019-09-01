@@ -3,12 +3,15 @@ import sys
 import copy
 
 import utils.gql as gql
-import utils.vault_client as vault_client
+import reconcile.openshift_resources as openshift_resources
 
-from utils.openshift_api import Openshift
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
                                    RunnerException)
+from utils.oc import OC_Map
+from utils.openshift_resource import ResourceInventory
+
+from multiprocessing.dummy import Pool as ThreadPool
 
 NAMESPACES_QUERY = """
 {
@@ -63,101 +66,70 @@ ROLES_QUERY = """
 """
 
 
-class ClusterStore(object):
-    _clusters = {}
-
-    def __init__(self, namespaces):
-        _clusters = {}
-
-        for namespace_info in namespaces:
-            namespace_name = namespace_info['name']
-            managed_roles = namespace_info.get('managedRoles')
-            cluster_info = namespace_info['cluster']
-            cluster_name = cluster_info['name']
-            jump_host = cluster_info.get('jumpHost')
-            automation_token = cluster_info.get('automationToken')
-
-            if not managed_roles or not automation_token:
-                continue
-
-            if _clusters.get(cluster_name) is None:
-                token = vault_client.read(automation_token)
-
-                api = Openshift(cluster_info['serverUrl'], token,
-                                jump_host=jump_host)
-
-                _clusters[cluster_name] = {
-                    'api': api,
-                    'namespaces': {}
-                }
-
-            _clusters[cluster_name]['namespaces'][namespace_name] = \
-                managed_roles
-
-        self._clusters = _clusters
-
-    def clusters(self):
-        return self._clusters.keys()
-
-    def api(self, cluster):
-        return self._clusters[cluster]['api']
-
-    def namespaces(self, cluster):
-        return self._clusters[cluster]['namespaces'].keys()
-
-    def namespace_managed_roles(self, cluster, namespace):
-        return self._clusters[cluster]['namespaces'][namespace]
-
-    def cleanup(self):
-        for cluster in self.clusters():
-            api = self.api(cluster)
-            api.cleanup()
+def get_rolebindings(spec):
+    rolebindings = spec.oc.get_items('RoleBinding', namespace=spec.namespace)
+    return spec.cluster, spec.namespace, rolebindings
 
 
-def fetch_current_state(cluster_store):
+def fetch_current_state(namespaces, thread_pool_size):
     state = AggregatedList()
+    ri = ResourceInventory()
+    namespaces = [namespace_info for namespace_info
+                  in namespaces
+                  if namespace_info.get('managedRoles')]
+    oc_map = OC_Map(namespaces=namespaces)
 
-    for cluster in cluster_store.clusters():
-        api = cluster_store.api(cluster)
+    state_specs = \
+        openshift_resources.init_specs_to_fetch(
+            ri,
+            oc_map,
+            namespaces,
+            override_managed_types=['RoleBinding']
+        )
+    pool = ThreadPool(thread_pool_size)
+    results = pool.map(get_rolebindings, state_specs)
 
-        for namespace in cluster_store.namespaces(cluster):
-            roles = cluster_store.namespace_managed_roles(cluster, namespace)
+    for cluster, namespace, rolebindings in results:
+        managed_roles = [namespace_info['managedRoles']
+                         for namespace_info in namespaces
+                         if namespace_info['cluster']['name'] == cluster
+                         and namespace_info['name'] == namespace][0]
+        for role in managed_roles:
 
-            for role in roles:
-                rolebindings = api.get_rolebindings(namespace, role)
+            users = [
+                subject['name']
+                for rolebinding in rolebindings
+                for subject in rolebinding['subjects']
+                if subject['kind'] == 'User' and
+                rolebinding['roleRef']['name'] == role
+            ]
 
-                users = [
-                    subject[u'name']
-                    for rolebinding in rolebindings
-                    for subject in rolebinding['subjects']
-                    if subject[u'kind'] == u'User'
-                ]
+            state.add({
+                "service": "openshift-rolebinding",
+                "cluster": cluster,
+                "namespace": namespace,
+                "role": role,
+                "kind": 'User',
+            }, users)
 
-                state.add({
-                    "service": "openshift-rolebinding",
-                    "cluster": cluster,
-                    "namespace": namespace,
-                    "role": role,
-                    "kind": u'User',
-                }, users)
+            bots = [
+                subject['namespace'] + '/' + subject['name']
+                for rolebinding in rolebindings
+                for subject in rolebinding['subjects']
+                if subject['kind'] == 'ServiceAccount' and
+                'namespace' in subject and
+                rolebinding['roleRef']['name'] == role
+            ]
 
-                bots = [
-                    subject[u'namespace'] + '/' + subject[u'name']
-                    for rolebinding in rolebindings
-                    for subject in rolebinding['subjects']
-                    if subject[u'kind'] == u'ServiceAccount' and
-                    u'namespace' in subject
-                ]
+            state.add({
+                "service": "openshift-rolebinding",
+                "cluster": cluster,
+                "namespace": namespace,
+                "role": role,
+                "kind": 'ServiceAccount'
+            }, bots)
 
-                state.add({
-                    "service": "openshift-rolebinding",
-                    "cluster": cluster,
-                    "namespace": namespace,
-                    "role": role,
-                    "kind": u'ServiceAccount'
-                }, bots)
-
-    return state
+    return oc_map, state
 
 
 def fetch_desired_state(roles):
@@ -200,9 +172,9 @@ def permissions_kind(permissions, kind):
 
 
 class RunnerAction(object):
-    def __init__(self, dry_run, cluster_store):
+    def __init__(self, dry_run, oc_map):
         self.dry_run = dry_run
-        self.cluster_store = cluster_store
+        self.oc_map = oc_map
 
     def manage_role(self, label, method_name):
         def action(params, items):
@@ -217,7 +189,7 @@ class RunnerAction(object):
             kind = params['kind']
 
             if not self.dry_run:
-                api = self.cluster_store.api(cluster)
+                oc = self.oc_map.get(cluster)
 
             for member in items:
                 logging.info([
@@ -230,7 +202,7 @@ class RunnerAction(object):
                 ])
 
                 if not self.dry_run:
-                    f = getattr(api, method_name)
+                    f = getattr(oc, method_name)
                     try:
                         f(namespace, role, member, kind)
                     except Exception as e:
@@ -248,15 +220,13 @@ class RunnerAction(object):
         return self.manage_role('del_role', 'remove_role_from_user')
 
 
-def run(dry_run=False):
+def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
 
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     roles = gqlapi.query(ROLES_QUERY)['roles']
 
-    cluster_store = ClusterStore(namespaces)
-
-    current_state = fetch_current_state(cluster_store)
+    oc_map, current_state = fetch_current_state(namespaces, thread_pool_size)
     desired_state = fetch_desired_state(roles)
 
     # calculate diff
@@ -282,7 +252,7 @@ def run(dry_run=False):
         )
 
     # Run actions
-    runner_action = RunnerAction(dry_run, cluster_store)
+    runner_action = RunnerAction(dry_run, oc_map)
     runner = AggregatedDiffRunner(diff)
 
     runner.register("update-insert", runner_action.add_role())

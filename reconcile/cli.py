@@ -125,7 +125,7 @@ def github(ctx):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @enable_deletion(default=False)
 @send_mails(default=False)
 @click.pass_context
@@ -135,13 +135,15 @@ def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
 
 
 @integration.command()
+@threaded()
 @click.pass_context
-def openshift_rolebinding(ctx):
-    run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'])
+def openshift_rolebinding(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'],
+                    thread_pool_size)
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def openshift_groups(ctx, thread_pool_size):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
@@ -149,7 +151,7 @@ def openshift_groups(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def openshift_users(ctx, thread_pool_size):
     run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
@@ -192,7 +194,7 @@ def slack_usergroups(ctx):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def gitlab_permissions(ctx, thread_pool_size):
     run_integration(reconcile.gitlab_permissions.run, ctx.obj['dry_run'])
@@ -211,7 +213,7 @@ def gitlab_housekeeping(ctx, days_interval, enable_deletion):
 
 @integration.command()
 @throughput
-@threaded(default=10)
+@threaded()
 @enable_deletion(default=False)
 @click.pass_context
 def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
@@ -220,7 +222,7 @@ def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size):
     run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
@@ -236,7 +238,7 @@ def openshift_resources(ctx, thread_pool_size):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size):
     run_integration(reconcile.openshift_namespaces.run,
@@ -256,7 +258,7 @@ def quay_repos(ctx):
 
 
 @integration.command()
-@threaded(default=10)
+@threaded()
 @click.pass_context
 def ldap_users(ctx, thread_pool_size):
     run_integration(reconcile.ldap_users.run,
