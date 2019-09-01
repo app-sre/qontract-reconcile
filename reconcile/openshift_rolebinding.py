@@ -222,7 +222,7 @@ class RunnerAction(object):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run=False, thread_pool_size=10, defer=None):
     gqlapi = gql.get_api()
 
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']

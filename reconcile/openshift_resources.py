@@ -577,7 +577,7 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run=False, thread_pool_size=10, defer=None):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     oc_map, ri = fetch_data(namespaces, thread_pool_size)

@@ -72,7 +72,7 @@ def create_new_project(spec, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, desired_state = get_desired_state()
     defer(lambda: oc_map.cleanup())
 

@@ -8,7 +8,7 @@ from utils.defer import defer
 
 
 @defer
-def run():
+def run(defer=None):
     oc_map = tb.get_oc_map()
     defer(lambda: oc_map.cleanup())
     pattern = \

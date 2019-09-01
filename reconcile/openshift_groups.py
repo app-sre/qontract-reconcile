@@ -237,7 +237,7 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, current_state = fetch_current_state(thread_pool_size)
     defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state()
