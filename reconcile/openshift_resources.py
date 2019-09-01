@@ -110,6 +110,7 @@ class FetchVaultSecretError(Exception):
             "error fetching vault secret: " + str(msg)
         )
 
+
 class FetchRouteError(Exception):
     def __init__(self, msg):
         super(FetchRouteError, self).__init__(
