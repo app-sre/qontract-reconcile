@@ -3,8 +3,9 @@ from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 import utils.gql as gql
-import reconcile.openshift_resources as openshift_resources
 import reconcile.openshift_groups as openshift_groups
+
+from utils.oc import OC_Map
 
 CLUSTERS_QUERY = """
 {
@@ -52,7 +53,7 @@ ROLES_QUERY = """
 
 
 def get_cluster_users(cluster, oc_map):
-    oc = oc_map[cluster]
+    oc = oc_map.get(cluster)
     users = [u['metadata']['name'] for u in oc.get_users()
              if len(u['identities']) == 1
              and u['identities'][0].startswith('github')
@@ -61,27 +62,15 @@ def get_cluster_users(cluster, oc_map):
     return [{"cluster": cluster, "user": user} for user in users or []]
 
 
-def create_oc_map(clusters):
-    oc_map = {}
-    for cluster_info in clusters:
-        cluster = cluster_info['name']
-        if cluster_info['unManaged']:
-            continue
-        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
-        oc_map[cluster] = oc
-    return oc_map
-
-
 def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = create_oc_map(clusters)
+    oc_map = OC_Map(clusters=clusters, managed_only=True)
 
     pool = ThreadPool(thread_pool_size)
-    cluster_names = [k for k, v in oc_map.items() if v]
     get_cluster_users_partial = \
         partial(get_cluster_users, oc_map=oc_map)
-    results = pool.map(get_cluster_users_partial, cluster_names)
+    results = pool.map(get_cluster_users_partial, oc_map.clusters())
     current_state = [item for sublist in results for item in sublist]
     return oc_map, current_state
 
@@ -151,7 +140,7 @@ def act(diff, oc_map):
     action = diff['action']
 
     if action == "del_user":
-        oc_map[cluster].delete_user(user)
+        oc_map.get(cluster).delete_user(user)
     else:
         raise Exception("invalid action: {}".format(action))
 

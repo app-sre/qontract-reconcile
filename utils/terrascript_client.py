@@ -42,7 +42,7 @@ class UnknownProviderError(Exception):
 
 class TerrascriptClient(object):
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, oc_map={}):
+                 thread_pool_size, oc_map=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
@@ -125,9 +125,9 @@ class TerrascriptClient(object):
             }
         )
 
-    def populate_iam_groups(self, tf_query):
+    def populate_iam_groups(self, roles):
         groups = {}
-        for role in tf_query:
+        for role in roles:
             users = role['users']
             if len(users) == 0:
                 continue
@@ -161,8 +161,8 @@ class TerrascriptClient(object):
                     groups[account_name][group_name] = 'Done'
         return groups
 
-    def populate_iam_users(self, tf_query):
-        for role in tf_query:
+    def populate_iam_users(self, roles):
+        for role in roles:
             users = role['users']
             if len(users) == 0:
                 continue
@@ -272,14 +272,14 @@ class TerrascriptClient(object):
                         self.add_resource(account_name,
                                           tf_aws_iam_user_policy)
 
-    def populate_users(self, tf_query):
-        self.populate_iam_groups(tf_query)
-        err = self.populate_iam_users(tf_query)
+    def populate_users(self, roles):
+        self.populate_iam_groups(roles)
+        err = self.populate_iam_users(roles)
         if err:
             return err
 
-    def populate_resources(self, tf_query, existing_secrets):
-        populate_specs = self.init_populate_specs(tf_query)
+    def populate_resources(self, namespaces, existing_secrets):
+        populate_specs = self.init_populate_specs(namespaces)
 
         pool = ThreadPool(self.thread_pool_size)
         populate_tf_resources_partial = \
@@ -287,9 +287,9 @@ class TerrascriptClient(object):
                     existing_secrets=existing_secrets)
         pool.map(populate_tf_resources_partial, populate_specs)
 
-    def init_populate_specs(self, tf_query):
+    def init_populate_specs(self, namespaces):
         populate_specs = []
-        for namespace_info in tf_query:
+        for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
             tf_resources = namespace_info.get('terraformResources')
             if not tf_resources:
@@ -391,7 +391,7 @@ class TerrascriptClient(object):
     def fetch_existing_oc_resource(self, namespace_info, resource_name):
         cluster, namespace = self.unpack_namespace_info(namespace_info)
         try:
-            oc = self.oc_map[cluster]
+            oc = self.oc_map.get(cluster)
             return oc.get(namespace, 'Secret', resource_name)
         except StatusCodeError as e:
             if e.message.startswith('Error from server (NotFound):'):

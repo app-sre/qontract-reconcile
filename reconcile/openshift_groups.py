@@ -1,10 +1,12 @@
 import sys
 import logging
+
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 import utils.gql as gql
-import reconcile.openshift_resources as openshift_resources
+
+from utils.oc import OC_Map
 
 CLUSTERS_QUERY = """
 {
@@ -63,7 +65,7 @@ GROUPS_QUERY = """
 def get_cluster_state(group_items, oc_map):
     results = []
     cluster = group_items["cluster"]
-    oc = oc_map[cluster]
+    oc = oc_map.get(cluster)
     group_name = group_items["group_name"]
     group = oc.get_group_if_exists(group_name)
     if group is None:
@@ -92,20 +94,11 @@ def create_groups_list(clusters):
     return groups_list
 
 
-def create_oc_map(clusters):
-    oc_map = {}
-    for cluster_info in clusters:
-        cluster = cluster_info['name']
-        oc = openshift_resources.obtain_oc_client(oc_map, cluster_info)
-        oc_map[cluster] = oc
-    return oc_map
-
-
 def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
-    oc_map = create_oc_map(clusters)
+    oc_map = OC_Map(clusters=clusters)
 
     pool = ThreadPool(thread_pool_size)
     groups_list = create_groups_list(clusters)
@@ -228,15 +221,16 @@ def act(diff, oc_map):
     group = diff['group']
     user = diff['user']
     action = diff['action']
+    oc = oc_map.get(cluster)
 
     if action == "create_group":
-        oc_map[cluster].create_group(group)
+        oc.create_group(group)
     elif action == "add_user_to_group":
-        oc_map[cluster].add_user_to_group(group, user)
+        oc.add_user_to_group(group, user)
     elif action == "del_user_from_group":
-        oc_map[cluster].del_user_from_group(group, user)
+        oc.del_user_from_group(group, user)
     elif action == "delete_group":
-        oc_map[cluster].delete_group(group)
+        oc.delete_group(group)
     else:
         raise Exception("invalid action: {}".format(action))
 

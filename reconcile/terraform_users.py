@@ -38,22 +38,14 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def adjust_tf_query(tf_query):
-    return [r for r in tf_query if r['aws_groups'] is not None]
-
-
-def get_tf_query():
-    gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_QUERY)['roles']
-    return adjust_tf_query(tf_query)
-
-
 def setup(print_only, thread_pool_size):
-    tf_query = get_tf_query()
+    gqlapi = gql.get_api()
+    roles = gqlapi.query(TF_QUERY)['roles']
+    tf_roles = [r for r in roles if r['aws_groups'] is not None]
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size)
-    err = ts.populate_users(tf_query)
+    err = ts.populate_users(tf_roles)
     if err:
         return None, err
 

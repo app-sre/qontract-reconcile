@@ -1,10 +1,13 @@
 import logging
+
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
 import utils.gql as gql
 import reconcile.openshift_resources as openshift_resources
+
 from utils.openshift_resource import ResourceInventory
+from utils.oc import OC_Map
 
 
 QUERY = """
@@ -38,13 +41,13 @@ QUERY = """
 
 def get_desired_state():
     gqlapi = gql.get_api()
-    query = gqlapi.query(QUERY)['namespaces']
+    namespaces = gqlapi.query(QUERY)['namespaces']
     ri = ResourceInventory()
-    oc_map = {}
+    oc_map = OC_Map(namespaces=namespaces)
     openshift_resources.init_specs_to_fetch(
         ri,
         oc_map,
-        query,
+        namespaces,
         override_managed_types=['Namespace']
     )
     desired_state = [{"cluster": cluster, "namespace": namespace}
@@ -56,7 +59,7 @@ def get_desired_state():
 def check_ns_exists(spec, oc_map):
     cluster = spec['cluster']
     namespace = spec['namespace']
-    create = not oc_map[cluster].project_exists(namespace)
+    create = not oc_map.get(cluster).project_exists(namespace)
 
     return spec, create
 
@@ -65,7 +68,7 @@ def create_new_project(spec, oc_map):
     cluster = spec['cluster']
     namespace = spec['namespace']
 
-    oc_map[cluster].new_project(namespace)
+    oc_map.get(cluster).new_project(namespace)
 
 
 def run(dry_run=False, thread_pool_size=10):

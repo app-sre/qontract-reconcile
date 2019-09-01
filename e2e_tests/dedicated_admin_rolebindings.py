@@ -12,7 +12,8 @@ def run():
         '(openshift|kube-|ops-|dedicated-|management-|{}).*)$'.format(
             tb.E2E_NS_PFX
         )
-    for cluster, oc in oc_map.items():
+    for cluster in oc_map.clusters():
+        oc = oc_map.get(cluster)
         logging.info("[{}] validating RoleBindings".format(cluster))
 
         projects = [p['metadata']['name']

@@ -8,11 +8,12 @@ import reconcile.openshift_resources as openshift_resources
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
+from utils.oc import OC_Map
 
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
 
-TF_QUERY = """
+TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
@@ -65,21 +66,6 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def adjust_tf_query(tf_query):
-    out_tf_query = []
-    for namespace_info in tf_query:
-        if not namespace_info.get('managedTerraformResources'):
-            continue
-        out_tf_query.append(namespace_info)
-    return out_tf_query
-
-
-def get_tf_query():
-    gqlapi = gql.get_api()
-    tf_query = gqlapi.query(TF_QUERY)['namespaces']
-    return adjust_tf_query(tf_query)
-
-
 def populate_oc_resources(spec, ri):
     for item in spec.oc.get_items(spec.resource,
                                   namespace=spec.namespace):
@@ -95,14 +81,14 @@ def populate_oc_resources(spec, ri):
         )
 
 
-def fetch_current_state(tf_query, thread_pool_size):
+def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = {}
+    oc_map = OC_Map(namespaces=namespaces)
     state_specs = \
         openshift_resources.init_specs_to_fetch(
             ri,
             oc_map,
-            tf_query,
+            namespaces,
             override_managed_types=['Secret']
         )
 
@@ -115,8 +101,11 @@ def fetch_current_state(tf_query, thread_pool_size):
 
 
 def setup(print_only, thread_pool_size):
-    tf_query = get_tf_query()
-    ri, oc_map = fetch_current_state(tf_query, thread_pool_size)
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
+    tf_namespaces = [namespace_info for namespace_info in namespaces
+                     if namespace_info.get('managedTerraformResources')]
+    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
@@ -130,7 +119,7 @@ def setup(print_only, thread_pool_size):
                    working_dirs,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
-    ts.populate_resources(tf_query, existing_secrets)
+    ts.populate_resources(tf_namespaces, existing_secrets)
     _, error = ts.dump(print_only, existing_dirs=working_dirs)
     if error:
         cleanup_and_exit(status=error, working_dirs=working_dirs)

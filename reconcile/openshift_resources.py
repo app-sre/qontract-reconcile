@@ -10,7 +10,7 @@ import semver
 import utils.gql as gql
 import utils.vault_client as vault_client
 
-from utils.oc import OC, StatusCodeError
+from utils.oc import OC_Map, StatusCodeError
 from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
@@ -150,23 +150,6 @@ class StateSpec(object):
         self.namespace = namespace
         self.resource = resource
         self.parent = parent
-
-
-def obtain_oc_client(oc_map, cluster_info):
-    cluster = cluster_info['name']
-    if oc_map.get(cluster) is not None:
-        return oc_map[cluster]
-
-    oc_map[cluster] = False
-    at = cluster_info.get('automationToken')
-    if at is None:
-        return oc_map[cluster]
-
-    token = vault_client.read(at)
-    jh = cluster_info.get('jumpHost')
-    oc_map[cluster] = OC(cluster_info['serverUrl'], token, jh)
-
-    return oc_map[cluster]
 
 
 def lookup_vault_secret(path, key, version=None):
@@ -449,12 +432,12 @@ def fetch_states(spec, ri):
                             spec.parent)
 
 
-def init_specs_to_fetch(ri, oc_map, namespaces_query,
+def init_specs_to_fetch(ri, oc_map, namespaces,
                         override_managed_types=None,
                         managed_types_key='managedResourceTypes'):
     state_specs = []
 
-    for namespace_info in namespaces_query:
+    for namespace_info in namespaces:
         if override_managed_types is None:
             managed_types = namespace_info.get(managed_types_key)
         else:
@@ -463,11 +446,10 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query,
         if not managed_types:
             continue
 
-        cluster_info = namespace_info['cluster']
-        cluster = cluster_info['name']
+        cluster = namespace_info['cluster']['name']
         namespace = namespace_info['name']
 
-        oc = obtain_oc_client(oc_map, cluster_info)
+        oc = oc_map.get(cluster)
         if oc is False:
             ri.register_error()
             msg = (
@@ -493,14 +475,12 @@ def init_specs_to_fetch(ri, oc_map, namespaces_query,
     return state_specs
 
 
-def fetch_data(namespaces_query, thread_pool_size):
+def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = {}
-
-    state_specs = init_specs_to_fetch(ri, oc_map, namespaces_query)
+    oc_map = OC_Map(namespaces=namespaces)
+    state_specs = init_specs_to_fetch(ri, oc_map, namespaces)
 
     pool = ThreadPool(thread_pool_size)
-
     fetch_states_partial = partial(fetch_states, ri=ri)
     pool.map(fetch_states_partial, state_specs)
 
@@ -512,7 +492,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
     if not dry_run:
         annotated = resource.annotate()
-        oc_map[cluster].apply(namespace, annotated.toJSON())
+        oc_map.get(cluster).apply(namespace, annotated.toJSON())
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
@@ -528,7 +508,7 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not dry_run:
-        oc_map[cluster].delete(namespace, resource_type, name)
+        oc_map.get(cluster).delete(namespace, resource_type, name)
 
 
 def realize_data(dry_run, oc_map, ri, enable_deletion=True):
@@ -595,21 +575,15 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
                 logging.error(msg)
 
 
-def cleanup(oc_map):
-    for oc in oc_map.values():
-        oc.cleanup()
-
-
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
+    namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
+    oc_map, ri = fetch_data(namespaces, thread_pool_size)
 
-    namespaces_query = gqlapi.query(NAMESPACES_QUERY)['namespaces']
-
-    oc_map, ri = fetch_data(namespaces_query, thread_pool_size)
     try:
         realize_data(dry_run, oc_map, ri)
     finally:
-        cleanup(oc_map)
+        oc_map.cleanup()
 
     if ri.has_error_registered():
         sys.exit(1)
