@@ -9,6 +9,7 @@ import semver
 
 import utils.gql as gql
 import utils.vault_client as vault_client
+import utils.openssl as openssl
 
 from utils.oc import OC_Map, StatusCodeError
 from utils.defer import defer
@@ -107,6 +108,12 @@ class FetchVaultSecretError(Exception):
     def __init__(self, msg):
         super(FetchVaultSecretError, self).__init__(
             "error fetching vault secret: " + str(msg)
+        )
+
+class FetchRouteError(Exception):
+    def __init__(self, msg):
+        super(FetchRouteError, self).__init__(
+            "error fetching route: " + str(msg)
         )
 
 
@@ -293,6 +300,14 @@ def fetch_provider_route(path, tls_path, tls_version):
         logging.info(msg)
         _log_lock.release()
 
+    host = openshift_resource.body['spec'].get('host')
+    certificate = openshift_resource.body['spec']['tls'].get('certificate')
+    if host and certificate:
+        match = openssl.certificate_matches_host(certificate, host)
+        if not match:
+            e_msg = "Route host does not match CN (common name): {}"
+            raise FetchRouteError(e_msg.format(path))
+
     return openshift_resource
 
 
@@ -380,6 +395,7 @@ def fetch_desired_state(ri, cluster, namespace, resource, parent):
         openshift_resource = fetch_openshift_resource(resource, parent)
     except (FetchResourceError,
             FetchVaultSecretError,
+            FetchRouteError,
             UnknownProviderError) as e:
         ri.register_error()
         msg = "[{}/{}] {}".format(cluster, namespace, e.message)
