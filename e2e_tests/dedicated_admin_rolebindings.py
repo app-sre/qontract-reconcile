@@ -4,9 +4,13 @@ import logging
 import e2e_tests.test_base as tb
 import e2e_tests.dedicated_admin_test_base as dat
 
+from utils.defer import defer
 
+
+@defer
 def run():
     oc_map = tb.get_oc_map()
+    defer(lambda: oc_map.cleanup())
     pattern = \
         r'^(default|logging|' + \
         '(openshift|kube-|ops-|dedicated-|management-|{}).*)$'.format(

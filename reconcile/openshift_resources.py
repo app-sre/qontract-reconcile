@@ -11,6 +11,7 @@ import utils.gql as gql
 import utils.vault_client as vault_client
 
 from utils.oc import OC_Map, StatusCodeError
+from utils.defer import defer
 from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
@@ -575,15 +576,14 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
                 logging.error(msg)
 
 
+@defer
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     oc_map, ri = fetch_data(namespaces, thread_pool_size)
+    defer(lambda: oc_map.cleanup())
 
-    try:
-        realize_data(dry_run, oc_map, ri)
-    finally:
-        oc_map.cleanup()
+    realize_data(dry_run, oc_map, ri)
 
     if ri.has_error_registered():
         sys.exit(1)

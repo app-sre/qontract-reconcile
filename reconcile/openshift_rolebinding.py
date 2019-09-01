@@ -9,6 +9,7 @@ from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
                                    RunnerException)
 from utils.oc import OC_Map
+from utils.defer import defer
 from utils.openshift_resource import ResourceInventory
 
 from multiprocessing.dummy import Pool as ThreadPool
@@ -220,6 +221,7 @@ class RunnerAction(object):
         return self.manage_role('del_role', 'remove_role_from_user')
 
 
+@defer
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
 
@@ -227,6 +229,7 @@ def run(dry_run=False, thread_pool_size=10):
     roles = gqlapi.query(ROLES_QUERY)['roles']
 
     oc_map, current_state = fetch_current_state(namespaces, thread_pool_size)
+    defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state(roles)
 
     # calculate diff
