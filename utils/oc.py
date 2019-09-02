@@ -237,4 +237,5 @@ class OC_Map(object):
 
     def cleanup(self):
         for oc in self.oc_map.values():
-            oc.cleanup()
+            if oc:
+                oc.cleanup()
