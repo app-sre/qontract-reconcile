@@ -61,7 +61,7 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def fetch_desired_state(quay_api_store):
+def fetch_desired_state():
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_QUERY)
 
@@ -78,19 +78,8 @@ def fetch_desired_state(quay_api_store):
 
             def append_quay_username_members(member):
                 quay_username = member.get('quay_username')
-                if not quay_username:
-                    return
-                if quay_api_store is not None:  # compare to None for testing
-                    # get the first quay api that is found
-                    rand_quay_api = quay_api_store.values()[0].values()[0]
-                    user_exists = rand_quay_api.user_exists(quay_username)
-                    if not user_exists:
-                        logging.warning((
-                            'quay user {} does not exist.'
-                        ).format(quay_username))
-                        return
-
-                members.append(quay_username)
+                if quay_username:
+                    members.append(quay_username)
 
             for user in role['users']:
                 append_quay_username_members(user)
@@ -115,13 +104,16 @@ class RunnerAction(object):
             org = params["org"]
             team = params["team"]
 
-            if self.dry_run:
-                for member in items:
-                    logging.info([label, member, org, team])
-            else:
-                quay_api = self.quay_api_store[org][team]
-                for member in items:
-                    logging.info([label, member, org, team])
+            quay_api = self.quay_api_store[org][team]
+            for member in items:
+                logging.info([label, member, org, team])
+                if self.dry_run:
+                    user_exists = quay_api.user_exists(member)
+                    if not user_exists:
+                        logging.warning((
+                            'quay user {} does not exist.'
+                        ).format(quay_username))
+                else:
                     quay_api.add_user_team(member)
         return action
 
@@ -166,7 +158,7 @@ def run(dry_run=False):
     quay_api_store = get_quay_api_store()
 
     current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state(quay_api_store)
+    desired_state = fetch_desired_state()
 
     # calculate diff
     diff = current_state.diff(desired_state)
