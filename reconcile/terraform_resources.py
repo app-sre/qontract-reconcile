@@ -9,6 +9,7 @@ from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
+from utils.defer import defer
 
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
@@ -136,10 +137,12 @@ def cleanup_and_exit(tf=None, status=False, working_dirs={}):
     sys.exit(status)
 
 
+@defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10):
+        thread_pool_size=10, defer=None):
     ri, oc_map, tf = setup(print_only, thread_pool_size)
+    defer(lambda: oc_map.cleanup())
     if print_only:
         cleanup_and_exit()
     if tf is None:

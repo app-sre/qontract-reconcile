@@ -8,7 +8,7 @@ import reconcile.openshift_resources as openshift_resources
 
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
-
+from utils.defer import defer
 
 QUERY = """
 {
@@ -71,8 +71,10 @@ def create_new_project(spec, oc_map):
     oc_map.get(cluster).new_project(namespace)
 
 
-def run(dry_run=False, thread_pool_size=10):
+@defer
+def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, desired_state = get_desired_state()
+    defer(lambda: oc_map.cleanup())
 
     pool = ThreadPool(thread_pool_size)
     check_ns_exists_partial = \

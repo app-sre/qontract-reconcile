@@ -6,6 +6,7 @@ import utils.gql as gql
 import reconcile.openshift_groups as openshift_groups
 
 from utils.oc import OC_Map
+from utils.defer import defer
 
 CLUSTERS_QUERY = """
 {
@@ -145,8 +146,10 @@ def act(diff, oc_map):
         raise Exception("invalid action: {}".format(action))
 
 
-def run(dry_run=False, thread_pool_size=10):
+@defer
+def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, current_state = fetch_current_state(thread_pool_size)
+    defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state()
 
     diffs = calculate_diff(current_state, desired_state)
