@@ -107,13 +107,13 @@ class RunnerAction(object):
             quay_api = self.quay_api_store[org][team]
             for member in items:
                 logging.info([label, member, org, team])
-                if self.dry_run:
-                    user_exists = quay_api.user_exists(member)
-                    if not user_exists:
-                        logging.warning((
-                            'quay user {} does not exist.'
-                        ).format(quay_username))
-                else:
+                user_exists = quay_api.user_exists(member)
+                if not user_exists:
+                    logging.warning((
+                        'quay user {} does not exist.'
+                    ).format(member))
+                    continue
+                if not self.dry_run:
                     quay_api.add_user_team(member)
         return action
 
