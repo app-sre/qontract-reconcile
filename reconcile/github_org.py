@@ -80,6 +80,7 @@ def fetch_current_state(gh_api_store):
         if is_managed:
             org_members = [member.login for member in org.get_members()]
             org_members.extend(raw_gh_api.org_invitations(org_name))
+            org_members = [m.lower() for m in org_members]
 
         all_team_members = []
         for team in org.get_teams():
@@ -88,6 +89,7 @@ def fetch_current_state(gh_api_store):
 
             members = [member.login for member in team.get_members()]
             members.extend(raw_gh_api.team_invitations(team.id))
+            members = [m.lower() for m in members]
             all_team_members.extend(members)
 
             state.add(
@@ -133,6 +135,7 @@ def fetch_desired_state():
             for bot in role['bots']:
                 if 'github_username' in bot:
                     members.append(bot['github_username'])
+            members = [m.lower() for m in members]
 
             for permission in permissions:
                 if permission['service'] == 'github-org':
