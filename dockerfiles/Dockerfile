@@ -7,7 +7,7 @@ ENV JJB_VERSION=2.10.1
 
 RUN yum install -y centos-release-openshift-origin && \
     yum install -y epel-release && \
-    yum install -y python2-pip origin-clients openssh-clients && \
+    yum install -y python2-pip origin-clients openssh-clients openssl && \
     pip install --upgrade pip setuptools && \
     pip install jenkins-job-builder==${JJB_VERSION} && \
     yum clean all
