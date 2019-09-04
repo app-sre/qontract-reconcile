@@ -48,7 +48,7 @@ def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-    gl = GitLabApi(instance, ssl_verify=False)
+    gl = GitLabApi(instance)
     repos = get_gitlab_repos(gqlapi, gl.server)
     app_sre = gl.get_app_sre_group_users()
     pool = ThreadPool(thread_pool_size)

@@ -7,6 +7,7 @@ GITLAB_INSTANCES_QUERY = """
       field
     }
     managedGroups
+    sslVerify
   }
 }
 """

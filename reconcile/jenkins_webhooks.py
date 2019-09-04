@@ -12,7 +12,7 @@ def get_gitlab_api():
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-    return GitLabApi(instance, ssl_verify=False)
+    return GitLabApi(instance)
 
 
 def get_hooks_to_add(desired_state, gl):

@@ -55,8 +55,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
         gqlapi = gql.get_api()
         # assuming a single GitLab instance for now
         instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-        gl = GitLabApi(instance, project_id=gitlab_project_id,
-                       ssl_verify=False)
+        gl = GitLabApi(instance, project_id=gitlab_project_id)
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])

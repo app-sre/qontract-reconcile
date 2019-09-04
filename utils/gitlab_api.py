@@ -16,6 +16,9 @@ class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True):
         self.server = instance['url']
         token = vault_client.read(instance['token'])
+        ssl_verify = instance['sslVerify']
+        if ssl_verify is None:
+            ssl_verify = True
         self.gl = gitlab.Gitlab(self.server, private_token=token,
                                 ssl_verify=ssl_verify)
         self.gl.auth()

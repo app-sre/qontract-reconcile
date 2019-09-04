@@ -140,7 +140,7 @@ def run(dry_run=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-    gl = GitLabApi(instance, ssl_verify=False)
+    gl = GitLabApi(instance)
     current_state = get_current_state(instance, gl)
     desired_state = get_desired_state(gqlapi, instance, gl)
     diffs = calculate_diff(current_state, desired_state)
