@@ -57,7 +57,7 @@ class GitLabApi(object):
         self.project.mergerequests.create(data)
 
     def mr_exists(self, title):
-        mrs = self.project.mergerequests.list(state='opened')
+        mrs = self.get_merge_requests(state='opened')
         for mr in mrs:
             # since we are using a naming convention for these MRs
             # we can determine if a pending MR exists based on the title
@@ -197,41 +197,53 @@ class GitLabApi(object):
         return self.gl.projects.get(repo)
 
     def get_issues(self, state):
-        all_issues = []
+        return self.get_items(self.project.issues.list, state)
+
+    def get_merge_requests(self, state):
+        return self.get_items(self.project.mergerequests.list, state)
+
+    @staticmethod
+    def get_items(method, state):
+        all_items = []
         page = 1
         while True:
-            issues = self.project.issues.list(state=state, page=page,
-                                              per_page=100)
-            all_issues.extend(issues)
-            if len(issues) < 100:
+            items = method(state=state, page=page, per_page=100)
+            all_items.extend(items)
+            if len(items) < 100:
                 break
             page += 1
 
-        return all_issues
+        return all_items
 
-    def add_label(self, issue, label):
+    def add_label(self, item, item_type, label):
         note_body = (
-            'issue has been marked as {0}. '
+            'item has been marked as {0}. '
             'to remove say `/{0} cancel`').format(label)
-        labels = issue.attributes.get('labels')
+        labels = item.attributes.get('labels')
         labels.append(label)
-        issue.notes.create({'body': note_body})
-        self.update_labels(issue, labels)
+        item.notes.create({'body': note_body})
+        self.update_labels(item, item_type, labels)
 
-    def remove_label(self, issue, label):
-        labels = issue.attributes.get('labels')
+    def remove_label(self, item, item_type, label):
+        labels = item.attributes.get('labels')
         labels.remove(label)
-        self.update_labels(issue, labels)
+        self.update_labels(item, item_type, labels)
 
-    def update_labels(self, issue, labels):
-        editable_issue = \
-            self.project.issues.get(issue.attributes.get('iid'), lazy=True)
-        editable_issue.labels = labels
-        editable_issue.save()
+    def update_labels(self, item, item_type, labels):
+        if item_type == 'issue':
+            editable_item = \
+                self.project.issues.get(
+                    item.attributes.get('iid'), lazy=True)
+        elif item_type == 'merge-request':
+            editable_item = \
+                self.project.mergerequests.get(
+                    item.attributes.get('iid'), lazy=True)
+        editable_item.labels = labels
+        editable_item.save()
 
-    def close_issue(self, issue):
-        issue.state_event = 'close'
-        issue.save()
+    def close(self, item):
+        item.state_event = 'close'
+        item.save()
 
     def get_user(self, username):
         user = self.gl.users.list(search=username)

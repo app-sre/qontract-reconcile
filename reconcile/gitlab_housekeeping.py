@@ -8,45 +8,49 @@ from utils.gitlab_api import GitLabApi
 from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 
-def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
+def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
     LABEL = 'stale'
 
-    issues = gl.get_issues(state='opened')
+    if item_type == 'issue':
+        items = gl.get_issues(state='opened')
+    elif item_type == 'merge-request':
+       items = gl.get_merge_requests(state='opened')
+
     now = datetime.utcnow()
-    for issue in issues:
-        issue_iid = issue.attributes.get('iid')
-        issue_labels = issue.attributes.get('labels')
-        updated_at = issue.attributes.get('updated_at')
+    for item in items:
+        item_iid = item.attributes.get('iid')
+        item_labels = item.attributes.get('labels')
+        updated_at = item.attributes.get('updated_at')
         update_date = datetime.strptime(updated_at, DATE_FORMAT)
 
-        # if issue is over days_interval
+        # if item is over days_interval
         current_interval = now.date() - update_date.date()
         if current_interval > timedelta(days=days_interval):
-            # if issue does not have 'stale' label - add it
-            if LABEL not in issue_labels:
-                logging.info(['add_label', gl.project.name, issue_iid, LABEL])
+            # if item does not have 'stale' label - add it
+            if LABEL not in item_labels:
+                logging.info(['add_label', gl.project.name, item_type, item_iid, LABEL])
                 if not dry_run:
-                    gl.add_label(issue, LABEL)
-            # if issue has 'stale' label - close it
+                    gl.add_label(item, item_type, LABEL)
+            # if item has 'stale' label - close it
             else:
-                logging.info(['close_issue', gl.project.name, issue_iid])
-                if enable_close_issues:
+                logging.info(['close_item', gl.project.name, item_type, item_iid])
+                if enable_closing:
                     if not dry_run:
-                        gl.close_issue(issue)
+                        gl.close(item)
                 else:
                     warning_message = \
-                        '\'close_issue\' action is not enabled. ' + \
+                        '\'close_item\' action is not enabled. ' + \
                         'Please run the integration manually ' + \
-                        'with the \'--enable-close-issues\' flag.'
+                        'with the \'--enable-deletion\' flag.'
                     logging.warning(warning_message)
-        # if issue is under days_interval
+        # if item is under days_interval
         else:
-            if LABEL not in issue_labels:
+            if LABEL not in item_labels:
                 continue
 
-            # if issue has 'stale' label - check the notes
-            notes = issue.notes.list()
+            # if item has 'stale' label - check the notes
+            notes = item.notes.list()
             cancel_notes = [n for n in notes
                             if n.attributes.get('body') ==
                             '/{} cancel'.format(LABEL)]
@@ -63,15 +67,18 @@ def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
             current_interval = now.date() - latest_note_date.date()
             if current_interval <= timedelta(days=days_interval):
                 logging.info(['remove_label', gl.project.name,
-                              issue_iid, LABEL])
+                              item_type, item_iid, LABEL])
                 if not dry_run:
-                    gl.remove_label(issue, LABEL)
+                    gl.remove_label(item, item_type, LABEL)
 
 
 def run(project_id, dry_run=False, days_interval=15,
-        enable_close_issues=False):
+        enable_closing=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
     gl = GitLabApi(instance, project_id=project_id, ssl_verify=False)
-    handle_stale_issues(dry_run, gl, days_interval, enable_close_issues)
+    handle_stale_items(dry_run, gl, days_interval, enable_closing,
+                       'issue')
+    handle_stale_items(dry_run, gl, days_interval, enable_closing,
+                       'merge-request')
