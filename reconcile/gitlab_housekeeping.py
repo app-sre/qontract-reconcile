@@ -75,7 +75,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 
 
 def run(gitlab_project_id, dry_run=False, days_interval=15,
-        enable_close_issues=False):
+        enable_closing=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
