@@ -155,8 +155,9 @@ class GitLabApi(object):
         if user is not None:
             group.members.delete(user.id)
 
-    def change_access(self, group, user, access):
+    def change_access(self, group, username, access):
         group = self.gl.groups.get(group)
+        user = self.get_user(username)
         member = group.members.get(user.id)
         member.access_level = self.get_access_level(access)
         member.save()
