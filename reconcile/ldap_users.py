@@ -44,7 +44,7 @@ def init_user_spec(user):
     return (username, delete, paths)
 
 
-def run(project_id, dry_run=False, thread_pool_size=10):
+def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     users = init_users()
     pool = ThreadPool(thread_pool_size)
     user_specs = pool.map(init_user_spec, users)
@@ -55,7 +55,8 @@ def run(project_id, dry_run=False, thread_pool_size=10):
         gqlapi = gql.get_api()
         # assuming a single GitLab instance for now
         instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-        gl = GitLabApi(instance, project_id=project_id, ssl_verify=False)
+        gl = GitLabApi(instance, project_id=gitlab_project_id,
+                       ssl_verify=False)
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])
