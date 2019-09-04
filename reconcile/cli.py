@@ -126,13 +126,16 @@ def github(ctx):
 
 
 @integration.command()
+@click.argument('gitlab-project-id')
 @threaded()
 @enable_deletion(default=False)
 @send_mails(default=False)
 @click.pass_context
-def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
-    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
-                    thread_pool_size, enable_deletion, send_mails)
+def github_users(ctx, gitlab_project_id, thread_pool_size,
+                 enable_deletion, send_mails):
+    run_integration(reconcile.github_users.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size,
+                    enable_deletion, send_mails)
 
 
 @integration.command()
@@ -205,14 +208,16 @@ def gitlab_permissions(ctx, thread_pool_size):
 
 
 @integration.command()
+@click.argument('gitlab-project-id')
 @click.option('--days-interval',
               default=15,
               help='interval of days between actions.')
 @enable_deletion(default=False)
 @click.pass_context
-def gitlab_housekeeping(ctx, days_interval, enable_deletion):
-    run_integration(reconcile.gitlab_housekeeping.run, ctx.obj['dry_run'],
-                    days_interval, enable_deletion)
+def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
+                        enable_deletion):
+    run_integration(reconcile.gitlab_housekeeping.run, gitlab_project_id,
+                    ctx.obj['dry_run'], days_interval, enable_deletion)
 
 
 @integration.command()
@@ -264,10 +269,11 @@ def quay_repos(ctx):
 
 
 @integration.command()
+@click.argument('gitlab-project-id')
 @threaded()
 @click.pass_context
-def ldap_users(ctx, thread_pool_size):
-    run_integration(reconcile.ldap_users.run,
+def ldap_users(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.ldap_users.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size)
 
 

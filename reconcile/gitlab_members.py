@@ -1,24 +1,17 @@
 import logging
 
 import utils.gql as gql
-from utils.config import get_config
-from utils.gitlab_api import GitLabApi
 
-GROUPS_QUERY = """
-{
-  instances: gitlabinstance_v1{
-    managedGroups
-  }
-}
-"""
+from utils.gitlab_api import GitLabApi
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 USERS_QUERY = """
 {
-  users: users_v1{
+  users: users_v1 {
     redhat_username
-      roles{
-        permissions{
-          ... on PermissionGitlabGroupMembership_v1{
+      roles {
+        permissions {
+          ... on PermissionGitlabGroupMembership_v1 {
             name
             group
             access
@@ -31,11 +24,11 @@ USERS_QUERY = """
 
 BOTS_QUERY = """
 {
-  bots: bots_v1{
+  bots: bots_v1 {
     redhat_username
-      roles{
-        permissions{
-          ... on PermissionGitlabGroupMembership_v1{
+      roles {
+        permissions {
+          ... on PermissionGitlabGroupMembership_v1 {
             name
             group
             access
@@ -47,27 +40,15 @@ BOTS_QUERY = """
 """
 
 
-def get_gitlab_api():
-    config = get_config()
-    gitlab_config = config['gitlab']
-    server = gitlab_config['server']
-    token = gitlab_config['token']
-    return GitLabApi(server, token, ssl_verify=False)
+def get_current_state(instance, gl):
+    return {g: gl.get_group_members(g)
+            for g in instance['managedGroups']}
 
 
-def create_groups_dict(gqlapi):
-    instances = gqlapi.query(GROUPS_QUERY)['instances']
-    groups_dict = {}
-    for i in instances:
-        for g in i['managedGroups']:
-            groups_dict[g] = []
-    return groups_dict
-
-
-def get_desired_state(gqlapi, gl):
+def get_desired_state(gqlapi, instance, gl):
     users = gqlapi.query(USERS_QUERY)['users']
     bots = gqlapi.query(BOTS_QUERY)['bots']
-    desired_group_members = create_groups_dict(gqlapi)
+    desired_group_members = {g: [] for g in instance['managedGroups']}
     for g in desired_group_members:
         for u in users:
             for r in u['roles']:
@@ -84,13 +65,6 @@ def get_desired_state(gqlapi, gl):
                         item = {"user": user, "access_level": p['access']}
                         desired_group_members[g].append(item)
     return desired_group_members
-
-
-def get_current_state(gqlapi, gl):
-    current_group_members = create_groups_dict(gqlapi)
-    for g in current_group_members:
-        current_group_members[g] = gl.get_group_members(g)
-    return current_group_members
 
 
 def calculate_diff(current_state, desired_state):
@@ -164,9 +138,11 @@ def act(diff, gl):
 
 def run(dry_run=False):
     gqlapi = gql.get_api()
-    gl = get_gitlab_api()
-    current_state = get_current_state(gqlapi, gl)
-    desired_state = get_desired_state(gqlapi, gl)
+    # assuming a single GitLab instance for now
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    gl = GitLabApi(instance)
+    current_state = get_current_state(instance, gl)
+    desired_state = get_desired_state(gqlapi, instance, gl)
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:

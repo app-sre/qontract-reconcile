@@ -1,11 +1,12 @@
 import logging
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 
 import utils.gql as gql
-from utils.config import get_config
-from utils.gitlab_api import GitLabApi
 
+from utils.gitlab_api import GitLabApi
+from reconcile.queries import GITLAB_INSTANCES_QUERY
+
+from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
 
 APPS_QUERY = """
 {
@@ -18,8 +19,7 @@ APPS_QUERY = """
 """
 
 
-def get_gitlab_repos(server):
-    gqlapi = gql.get_api()
+def get_gitlab_repos(gqlapi, server):
     apps = gqlapi.query(APPS_QUERY)['apps']
 
     code_components_lists = [a['codeComponents'] for a in apps
@@ -29,16 +29,6 @@ def get_gitlab_repos(server):
     repos = [c['url'] for c in code_components if c['url'].startswith(server)]
 
     return repos
-
-
-def get_gitlab_api():
-    config = get_config()
-
-    gitlab_config = config['gitlab']
-    server = gitlab_config['server']
-    token = gitlab_config['token']
-
-    return GitLabApi(server, token, ssl_verify=False)
 
 
 def get_members_to_add(repo, gl, app_sre):
@@ -55,8 +45,11 @@ def get_members_to_add(repo, gl, app_sre):
 
 
 def run(dry_run=False, thread_pool_size=10):
-    gl = get_gitlab_api()
-    repos = get_gitlab_repos(gl.server)
+    gqlapi = gql.get_api()
+    # assuming a single GitLab instance for now
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    gl = GitLabApi(instance)
+    repos = get_gitlab_repos(gqlapi, gl.server)
     app_sre = gl.get_app_sre_group_users()
     pool = ThreadPool(thread_pool_size)
     get_members_to_add_partial = \

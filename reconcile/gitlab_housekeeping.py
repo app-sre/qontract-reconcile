@@ -2,19 +2,10 @@ import logging
 
 from datetime import datetime, timedelta
 
-from utils.config import get_config
+import utils.gql as gql
+
 from utils.gitlab_api import GitLabApi
-
-
-def get_housekeeping_gitlab_api():
-    config = get_config()
-
-    gitlab_config = config['gitlab']
-    server = gitlab_config['server']
-    token = gitlab_config['token']
-    project_id = gitlab_config['housekeeping']['project_id']
-
-    return GitLabApi(server, token, project_id=project_id, ssl_verify=False)
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 
 def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
@@ -77,6 +68,10 @@ def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
                     gl.remove_label(issue, LABEL)
 
 
-def run(dry_run=False, days_interval=15, enable_close_issues=False):
-    gl = get_housekeeping_gitlab_api()
+def run(gitlab_project_id, dry_run=False, days_interval=15,
+        enable_close_issues=False):
+    gqlapi = gql.get_api()
+    # assuming a single GitLab instance for now
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    gl = GitLabApi(instance, project_id=gitlab_project_id)
     handle_stale_issues(dry_run, gl, days_interval, enable_close_issues)

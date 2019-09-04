@@ -3,8 +3,8 @@ import logging
 import utils.gql as gql
 import utils.ldap_client as ldap_client
 
-from utils.config import get_config
 from utils.gitlab_api import GitLabApi
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from multiprocessing.dummy import Pool as ThreadPool
 from collections import defaultdict
@@ -33,17 +33,6 @@ def init_users():
             for username, paths in users.items()]
 
 
-def get_app_interface_gitlab_api():
-    config = get_config()
-
-    gitlab_config = config['gitlab']
-    server = gitlab_config['server']
-    token = gitlab_config['token']
-    project_id = gitlab_config['app-interface']['project_id']
-
-    return GitLabApi(server, token, project_id=project_id, ssl_verify=False)
-
-
 def init_user_spec(user):
     username = user['username']
     paths = user['paths']
@@ -55,7 +44,7 @@ def init_user_spec(user):
     return (username, delete, paths)
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     users = init_users()
     pool = ThreadPool(thread_pool_size)
     user_specs = pool.map(init_user_spec, users)
@@ -63,7 +52,10 @@ def run(dry_run=False, thread_pool_size=10):
                        in user_specs if delete]
 
     if not dry_run:
-        gl = get_app_interface_gitlab_api()
+        gqlapi = gql.get_api()
+        # assuming a single GitLab instance for now
+        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+        gl = GitLabApi(instance, project_id=gitlab_project_id)
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])
