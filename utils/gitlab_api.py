@@ -4,6 +4,8 @@ import gitlab
 import urllib3
 import uuid
 
+import utils.vault_client as vault_client
+
 
 # The following line will supress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`
@@ -11,8 +13,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class GitLabApi(object):
-    def __init__(self, server, token, project_id=None, ssl_verify=True):
-        self.server = server
+    def __init__(self, instance, project_id=None, ssl_verify=True):
+        self.server = instance['url']
+        token = vault_client.read(instance['token'])
         self.gl = gitlab.Gitlab(self.server, private_token=token,
                                 ssl_verify=ssl_verify)
         self.gl.auth()
