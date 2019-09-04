@@ -1,6 +1,7 @@
 import logging
 
 import utils.gql as gql
+
 from utils.gitlab_api import GitLabApi
 
 INSTANCES_QUERY = """
