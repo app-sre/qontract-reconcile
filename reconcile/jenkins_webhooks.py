@@ -1,19 +1,18 @@
 import copy
 import logging
 
-from utils.config import get_config
+import utils.gql as gql
+
 from utils.gitlab_api import GitLabApi
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 
 def get_gitlab_api():
-    config = get_config()
-
-    gitlab_config = config['gitlab']
-    server = gitlab_config['server']
-    token = gitlab_config['token']
-
-    return GitLabApi(server, token, ssl_verify=False)
+    gqlapi = gql.get_api()
+    # assuming a single GitLab instance for now
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    return GitLabApi(instance, ssl_verify=False)
 
 
 def get_hooks_to_add(desired_state, gl):
