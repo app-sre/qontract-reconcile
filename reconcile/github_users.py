@@ -6,6 +6,7 @@ import utils.smtp_client as smtp_client
 
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
+from utils.gitlab_api import GitLabApi
 from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from github import Github

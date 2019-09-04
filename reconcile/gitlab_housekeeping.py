@@ -68,7 +68,8 @@ def handle_stale_issues(dry_run, gl, days_interval, enable_close_issues):
                     gl.remove_label(issue, LABEL)
 
 
-def run(project_id, dry_run=False, days_interval=15, enable_close_issues=False):
+def run(project_id, dry_run=False, days_interval=15,
+        enable_close_issues=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
