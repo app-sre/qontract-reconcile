@@ -5,8 +5,8 @@ import utils.gql as gql
 import utils.smtp_client as smtp_client
 
 from reconcile.github_org import get_config
-from reconcile.ldap_users import get_app_interface_gitlab_api
 from reconcile.ldap_users import init_users as init_users_and_paths
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from github import Github
 from github.GithubException import GithubException
@@ -81,7 +81,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     smtp_client.send_mail(to, subject, body)
 
 
-def run(dry_run=False, thread_pool_size=10,
+def run(project_id, dry_run=False, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
     users = fetch_users()
     g = init_github()
@@ -93,7 +93,10 @@ def run(dry_run=False, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        gl = get_app_interface_gitlab_api()
+        gqlapi = gql.get_api()
+        # assuming a single GitLab instance for now
+        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+        gl = GitLabApi(instance, project_id=project_id, ssl_verify=False)
 
     for user in users_to_delete:
         username = user['username']

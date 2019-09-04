@@ -126,13 +126,16 @@ def github(ctx):
 
 
 @integration.command()
+@click.argument('project-id')
 @threaded()
 @enable_deletion(default=False)
 @send_mails(default=False)
 @click.pass_context
-def github_users(ctx, thread_pool_size, enable_deletion, send_mails):
-    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
-                    thread_pool_size, enable_deletion, send_mails)
+def github_users(ctx, project_id, thread_pool_size,
+                 enable_deletion, send_mails):
+    run_integration(reconcile.github_users.run, project_id,
+                    ctx.obj['dry_run'], thread_pool_size,
+                    enable_deletion, send_mails)
 
 
 @integration.command()
@@ -264,10 +267,11 @@ def quay_repos(ctx):
 
 
 @integration.command()
+@click.argument('project-id')
 @threaded()
 @click.pass_context
-def ldap_users(ctx, thread_pool_size):
-    run_integration(reconcile.ldap_users.run,
+def ldap_users(ctx, project_id, thread_pool_size):
+    run_integration(reconcile.ldap_users.run, project_id,
                     ctx.obj['dry_run'], thread_pool_size)
 
 
