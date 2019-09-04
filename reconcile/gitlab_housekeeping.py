@@ -15,7 +15,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     if item_type == 'issue':
         items = gl.get_issues(state='opened')
     elif item_type == 'merge-request':
-       items = gl.get_merge_requests(state='opened')
+        items = gl.get_merge_requests(state='opened')
 
     now = datetime.utcnow()
     for item in items:
@@ -29,12 +29,14 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
         if current_interval > timedelta(days=days_interval):
             # if item does not have 'stale' label - add it
             if LABEL not in item_labels:
-                logging.info(['add_label', gl.project.name, item_type, item_iid, LABEL])
+                logging.info(['add_label', gl.project.name, item_type,
+                              item_iid, LABEL])
                 if not dry_run:
                     gl.add_label(item, item_type, LABEL)
             # if item has 'stale' label - close it
             else:
-                logging.info(['close_item', gl.project.name, item_type, item_iid])
+                logging.info(['close_item', gl.project.name,
+                              item_type, item_iid])
                 if enable_closing:
                     if not dry_run:
                         gl.close(item)
