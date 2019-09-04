@@ -3,19 +3,7 @@ import logging
 import utils.gql as gql
 
 from utils.gitlab_api import GitLabApi
-
-INSTANCES_QUERY = """
-{
-  instances: gitlabinstance_v1 {
-    url
-    token {
-      path
-      field
-    }
-    managedGroups
-  }
-}
-"""
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 USERS_QUERY = """
 {
@@ -151,7 +139,7 @@ def act(diff, gl):
 def run(dry_run=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
-    instance = gqlapi.query(INSTANCES_QUERY)['instances'][0]
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
     gl = GitLabApi(instance, ssl_verify=False)
     current_state = get_current_state(instance, gl)
     desired_state = get_desired_state(gqlapi, instance, gl)

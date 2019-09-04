@@ -3,22 +3,10 @@ import logging
 import utils.gql as gql
 
 from utils.gitlab_api import GitLabApi
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from multiprocessing.dummy import Pool as ThreadPool
 from functools import partial
-
-INSTANCES_QUERY = """
-{
-  instances: gitlabinstance_v1 {
-    url
-    token {
-      path
-      field
-    }
-    managedGroups
-  }
-}
-"""
 
 APPS_QUERY = """
 {
@@ -59,7 +47,7 @@ def get_members_to_add(repo, gl, app_sre):
 def run(dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
-    instance = gqlapi.query(INSTANCES_QUERY)['instances'][0]
+    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
     gl = GitLabApi(instance, ssl_verify=False)
     repos = get_gitlab_repos(gqlapi, gl.server)
     app_sre = gl.get_app_sre_group_users()
