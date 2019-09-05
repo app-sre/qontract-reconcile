@@ -2,6 +2,7 @@ import re
 import logging
 
 import utils.gql as gql
+import utils.threaded as threaded
 import utils.smtp_client as smtp_client
 
 from reconcile.github_org import get_config
@@ -12,8 +13,6 @@ from reconcile.queries import GITLAB_INSTANCES_QUERY
 from github import Github
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 from utils.retry import retry
 
 
@@ -87,9 +86,8 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
     users = fetch_users()
     g = init_github()
 
-    pool = ThreadPool(thread_pool_size)
-    get_user_company_partial = partial(get_user_company, github=g)
-    results = pool.map(get_user_company_partial, users)
+    results = threaded.run(get_user_company, users, thread_pool_size,
+                           github=g)
 
     users_to_delete = get_users_to_delete(results)
 

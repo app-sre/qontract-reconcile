@@ -7,12 +7,14 @@ import anymarkup
 import logging
 
 import utils.gql as gql
+import utils.threaded as threaded
 import utils.vault_client as vault_client
 
 from utils.config import get_config
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
 
+from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output
 from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_access_key, aws_iam_user_policy,
@@ -21,9 +23,6 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_login_profile,
                                aws_elasticache_replication_group,
                                aws_iam_user_policy_attachment)
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
-from threading import Lock
 
 
 class FetchResourceError(Exception):
@@ -74,8 +73,8 @@ class TerrascriptClient(object):
         self.init_accounts()
 
         vault_specs = self.init_vault_tf_secret_specs()
-        pool = ThreadPool(self.thread_pool_size)
-        results = pool.map(self.get_vault_tf_secrets, vault_specs)
+        results = threaded.run(self.get_vault_tf_secrets, vault_specs,
+                               self.thread_pool_size)
 
         self.configs = {}
         self.variables = {}
@@ -280,12 +279,9 @@ class TerrascriptClient(object):
 
     def populate_resources(self, namespaces, existing_secrets):
         populate_specs = self.init_populate_specs(namespaces)
-
-        pool = ThreadPool(self.thread_pool_size)
-        populate_tf_resources_partial = \
-            partial(self.populate_tf_resources,
-                    existing_secrets=existing_secrets)
-        pool.map(populate_tf_resources_partial, populate_specs)
+        threaded.run(self.populate_tf_resources, populate_specs,
+                     self.thread_pool_size,
+                     existing_secrets=existing_secrets)
 
     def init_populate_specs(self, namespaces):
         populate_specs = []

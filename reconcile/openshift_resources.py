@@ -8,6 +8,7 @@ import jinja2
 import semver
 
 import utils.gql as gql
+import utils.threaded as threaded
 import utils.vault_client as vault_client
 import utils.openssl as openssl
 
@@ -17,8 +18,6 @@ from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
 from utils.jinja2_ext import B64EncodeExtension
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 from threading import Lock
 
 """
@@ -497,10 +496,7 @@ def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
     oc_map = OC_Map(namespaces=namespaces)
     state_specs = init_specs_to_fetch(ri, oc_map, namespaces)
-
-    pool = ThreadPool(thread_pool_size)
-    fetch_states_partial = partial(fetch_states, ri=ri)
-    pool.map(fetch_states_partial, state_specs)
+    threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
     return oc_map, ri
 

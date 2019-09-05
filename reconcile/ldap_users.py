@@ -1,12 +1,12 @@
 import logging
 
 import utils.gql as gql
+import utils.threaded as threaded
 import utils.ldap_client as ldap_client
 
 from utils.gitlab_api import GitLabApi
 from reconcile.queries import GITLAB_INSTANCES_QUERY
 
-from multiprocessing.dummy import Pool as ThreadPool
 from collections import defaultdict
 
 QUERY = """
@@ -46,8 +46,7 @@ def init_user_spec(user):
 
 def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     users = init_users()
-    pool = ThreadPool(thread_pool_size)
-    user_specs = pool.map(init_user_spec, users)
+    user_specs = threaded.run(init_user_spec, users, thread_pool_size)
     users_to_delete = [(username, paths) for username, delete, paths
                        in user_specs if delete]
 

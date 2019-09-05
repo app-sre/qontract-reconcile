@@ -3,6 +3,7 @@ import shutil
 import semver
 
 import utils.gql as gql
+import utils.threaded as threaded
 import reconcile.openshift_resources as openshift_resources
 
 from utils.terrascript_client import TerrascriptClient as Terrascript
@@ -10,9 +11,6 @@ from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.defer import defer
-
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 
 TF_NAMESPACES_QUERY = """
 {
@@ -92,11 +90,7 @@ def fetch_current_state(namespaces, thread_pool_size):
             namespaces,
             override_managed_types=['Secret']
         )
-
-    pool = ThreadPool(thread_pool_size)
-    populate_oc_resources_partial = \
-        partial(populate_oc_resources, ri=ri)
-    pool.map(populate_oc_resources_partial, state_specs)
+    threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri)
 
     return ri, oc_map
 

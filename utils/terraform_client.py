@@ -4,12 +4,12 @@ import logging
 import json
 import os
 
+import utils.threaded as threaded
+
 from utils.openshift_resource import OpenshiftResource
 from utils.retry import retry
 
 from python_terraform import Terraform, TerraformCommandError
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 from threading import Lock
 
 
@@ -36,7 +36,7 @@ class TerraformClient(object):
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
         self.parallelism = thread_pool_size
-        self.pool = ThreadPool(thread_pool_size)
+        self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()
 
         self.init_specs()
@@ -80,7 +80,8 @@ class TerraformClient(object):
         wd_specs = \
             [{'name': name, 'wd': wd}
              for name, wd in self.working_dirs.items()]
-        results = self.pool.map(self.terraform_init, wd_specs)
+        results = threaded.run(self.terraform_init, wd_specs,
+                               self.thread_pool_size)
         self.specs = \
             [{'name': name, 'tf': tf} for name, tf in results]
 
@@ -95,7 +96,8 @@ class TerraformClient(object):
         return name, tf
 
     def init_outputs(self):
-        results = self.pool.map(self.terraform_output, self.specs)
+        results = threaded.run(self.terraform_output, self.specs,
+                               self.thread_pool_size)
         self.outputs = {name: output for name, output in results}
 
     @retry(exceptions=TerraformCommandError)
@@ -109,10 +111,9 @@ class TerraformClient(object):
     def plan(self, enable_deletion):
         errors = False
         deletions_detected = False
-
-        terraform_plan_partial = partial(self.terraform_plan,
-                                         enable_deletion=enable_deletion)
-        results = self.pool.map(terraform_plan_partial, self.specs)
+        results = threaded.run(self.terraform_plan, self.specs,
+                               self.thread_pool_size,
+                               enable_deletion=enable_deletion)
 
         self.deleted_users = []
         for deletion_detected, deleted_users, error in results:
@@ -197,8 +198,8 @@ class TerraformClient(object):
     def apply(self):
         errors = False
 
-        self.pool = ThreadPool(1)  # TODO: remove this
-        results = self.pool.map(self.terraform_apply, self.specs)
+        results = threaded.run(self.terraform_apply, self.specs,
+                               self.thread_pool_size)
 
         for error in results:
             if error:
