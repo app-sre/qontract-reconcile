@@ -11,13 +11,17 @@ In addition, e2e tests are available to detect potential problems reconciling se
 
 - `aws-garbage-collector`: Delete orphan AWS resources.
 - `aws-iam-keys`: Delete IAM access keys by access key ID.
+- `github`: Configures the teams and members in a GitHub org.
+- `github-repo-invites`: Accept GitHub repository invitations for known repositories.
 - `github-users`: Validate compliance of GitHub user profiles.
-- `gitlab-housekeeping`: Manage issues on GitLab projects.
+- `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
+- `gitlab-members` : Manage GitLab group members.
 - `gitlab-permissions`: Manage permissions on GitLab projects.
+- `jenkins-job-builder`: Manage Jenkins jobs configurations using jenkins-jobs
 - `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `jenkins-roles`: Manage Jenkins roles association via REST API.
+- `jenkins-webhooks`: Manage web hooks to Jenkins jobs.
 - `ldap-users`: Removes users which are not found in LDAP search.
-- `github`: Configures the teams and members in a GitHub org.
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-resources`: Manages OpenShift Resources.
@@ -29,7 +33,6 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
-- `gitlab-members` : Manage GitLab group members.
 
 ### e2e-tests
 
