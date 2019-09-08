@@ -1,10 +1,8 @@
 import sys
 import logging
 
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
-
 import utils.gql as gql
+import utils.threaded as threaded
 
 from utils.oc import OC_Map
 from utils.defer import defer
@@ -101,11 +99,10 @@ def fetch_current_state(thread_pool_size):
     current_state = []
     oc_map = OC_Map(clusters=clusters)
 
-    pool = ThreadPool(thread_pool_size)
     groups_list = create_groups_list(clusters)
-    get_cluster_state_partial = \
-        partial(get_cluster_state, oc_map=oc_map)
-    results = pool.map(get_cluster_state_partial, groups_list)
+    results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
+                           oc_map=oc_map)
+
     current_state = [item for sublist in results for item in sublist]
     return oc_map, current_state
 

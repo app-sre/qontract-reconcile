@@ -4,11 +4,10 @@ import botocore
 import json
 import os
 
+import utils.threaded as threaded
 import utils.vault_client as vault_client
 
 from utils.config import get_config
-
-from multiprocessing.dummy import Pool as ThreadPool
 
 
 class AWSApi(object):
@@ -24,8 +23,8 @@ class AWSApi(object):
         self.accounts = config['terraform'].items()
 
         vault_specs = self.init_vault_tf_secret_specs()
-        pool = ThreadPool(self.thread_pool_size)
-        results = pool.map(self.get_vault_tf_secrets, vault_specs)
+        results = threaded.run(self.get_vault_tf_secrets, vault_specs,
+                               self.thread_pool_size)
 
         self.sessions = {}
         for account, secret in results:

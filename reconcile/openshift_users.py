@@ -1,8 +1,7 @@
 import logging
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
 
 import utils.gql as gql
+import utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
 
 from utils.oc import OC_Map
@@ -67,11 +66,8 @@ def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     oc_map = OC_Map(clusters=clusters, managed_only=True)
-
-    pool = ThreadPool(thread_pool_size)
-    get_cluster_users_partial = \
-        partial(get_cluster_users, oc_map=oc_map)
-    results = pool.map(get_cluster_users_partial, oc_map.clusters())
+    results = threaded.run(get_cluster_users, oc_map.clusters(),
+                           thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]
     return oc_map, current_state
 

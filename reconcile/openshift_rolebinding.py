@@ -3,6 +3,7 @@ import sys
 import copy
 
 import utils.gql as gql
+import utils.threaded as threaded
 import reconcile.openshift_resources as openshift_resources
 
 from utils.aggregated_list import (AggregatedList,
@@ -11,8 +12,6 @@ from utils.aggregated_list import (AggregatedList,
 from utils.oc import OC_Map
 from utils.defer import defer
 from utils.openshift_resource import ResourceInventory
-
-from multiprocessing.dummy import Pool as ThreadPool
 
 NAMESPACES_QUERY = """
 {
@@ -87,8 +86,7 @@ def fetch_current_state(namespaces, thread_pool_size):
             namespaces,
             override_managed_types=['RoleBinding']
         )
-    pool = ThreadPool(thread_pool_size)
-    results = pool.map(get_rolebindings, state_specs)
+    results = threaded.run(get_rolebindings, state_specs, thread_pool_size)
 
     for cluster, namespace, rolebindings in results:
         managed_roles = [namespace_info['managedRoles']

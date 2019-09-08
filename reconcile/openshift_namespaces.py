@@ -1,9 +1,7 @@
 import logging
 
-from multiprocessing.dummy import Pool as ThreadPool
-from functools import partial
-
 import utils.gql as gql
+import utils.threaded as threaded
 import reconcile.openshift_resources as openshift_resources
 
 from utils.openshift_resource import ResourceInventory
@@ -75,11 +73,8 @@ def create_new_project(spec, oc_map):
 def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, desired_state = get_desired_state()
     defer(lambda: oc_map.cleanup())
-
-    pool = ThreadPool(thread_pool_size)
-    check_ns_exists_partial = \
-        partial(check_ns_exists, oc_map=oc_map)
-    results = pool.map(check_ns_exists_partial, desired_state)
+    results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
+                           oc_map=oc_map)
     specs_to_create = [spec for spec, create in results if create]
 
     for spec in specs_to_create:
