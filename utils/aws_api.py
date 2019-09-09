@@ -154,7 +154,8 @@ class AWSApi(object):
     def map_rds_resources(self):
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            results = self.paginate(rds, 'describe_db_instances', 'DBInstances')
+            results = \
+                self.paginate(rds, 'describe_db_instances', 'DBInstances')
             instances = [t['DBInstanceIdentifier'] for t in results]
             self.set_resouces(account, 'rds', instances)
             instances_without_owner = \
@@ -167,7 +168,8 @@ class AWSApi(object):
         self.wait_for_resource('rds')
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            results = self.paginate(rds, 'describe_db_snapshots', 'DBSnapshots')
+            results = \
+                self.paginate(rds, 'describe_db_snapshots', 'DBSnapshots')
             snapshots = [t['DBSnapshotIdentifier'] for t in results]
             self.set_resouces(account, 'rds_snapshots', snapshots)
             snapshots_without_db = [t['DBSnapshotIdentifier'] for t in results
