@@ -90,9 +90,8 @@ class AWSApi(object):
         self.resources = {}
         for account, _ in self.accounts:
             self.resources[account] = {}
-
-        for resource_type in self.resource_types:
-            self.map_resource(resource_type)
+        threaded.run(self.map_resource, self.resource_types,
+                     self.thread_pool_size)
 
     def map_resource(self, resource_type):
         if resource_type == 's3':
