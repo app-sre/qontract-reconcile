@@ -12,6 +12,11 @@ from utils.config import get_config
 
 from threading import Lock
 
+
+class InvalidResourceTypeError(Exception):
+    pass
+
+
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
@@ -20,6 +25,8 @@ class AWSApi(object):
         self.init_sessions()
         self.init_users()
         self._lock = Lock()
+        self.resource_types = \
+            ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
     def init_sessions(self):
         config = get_config()
@@ -84,11 +91,22 @@ class AWSApi(object):
         for account, _ in self.accounts:
             self.resources[account] = {}
 
-        self.map_s3_resources()
-        self.map_sqs_resources()
-        self.map_dynamodb_resources()
-        self.map_rds_resources()
-        self.map_rds_snapshots()
+        for resource_type in self.resource_types:
+            self.map_resource(resource_type)
+
+    def map_resource(self, resource_type):
+        if resource_type == 's3':
+            self.map_s3_resources()
+        elif resource_type == 'sqs':
+            self.map_sqs_resources()
+        elif resource_type == 'dynamodb':
+            self.map_dynamodb_resources()
+        elif resource_type == 'rds':
+            self.map_rds_resources()
+        elif resource_type == 'rds_snapshots':
+            self.map_rds_snapshots()
+        else:
+            raise InvalidResourceTypeError(resource_type)
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
@@ -336,9 +354,8 @@ class AWSApi(object):
                           'Please run the integration manually ' + \
                           'with the \'--enable-deletion\' flag.'
 
-        resource_types = ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
         for account, s in self.sessions.items():
-            for rt in resource_types:
+            for rt in self.resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
                     logging.info(['delete_resource', rt, account, r])
                     if not dry_run:
@@ -364,7 +381,7 @@ class AWSApi(object):
             client = session.client(resource_type)
             self.delete_snapshot(client, resource_name)
         else:
-            raise Exception('invalid resource type: ' + resource_type)
+            raise InvalidResourceTypeError(resource_type)
 
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
