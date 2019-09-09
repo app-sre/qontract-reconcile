@@ -9,6 +9,7 @@ import utils.vault_client as vault_client
 
 from utils.config import get_config
 
+from threading import Lock
 
 class AWSApi(object):
     """Wrapper around AWS SDK"""
@@ -17,6 +18,7 @@ class AWSApi(object):
         self.thread_pool_size = thread_pool_size
         self.init_sessions()
         self.init_users()
+        self._lock = Lock()
 
     def init_sessions(self):
         config = get_config()
@@ -94,12 +96,12 @@ class AWSApi(object):
             if 'Buckets' not in buckets_list:
                 continue
             buckets = [b['Name'] for b in buckets_list['Buckets']]
-            self.resources[account]['s3'] = buckets
+            self.set_resouces(account, 's3', buckets)
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
             unfiltered_buckets = \
                 self.custom_s3_filter(account, s3, buckets_without_owner)
-            self.resources[account]['s3_no_owner'] = unfiltered_buckets
+            self.set_resouces(account, 's3_no_owner', unfiltered_buckets)
 
     def map_sqs_resources(self):
         for account, s in self.sessions.items():
@@ -108,12 +110,12 @@ class AWSApi(object):
             if 'QueueUrls' not in queues_list:
                 continue
             queues = queues_list['QueueUrls']
-            self.resources[account]['sqs'] = queues
+            self.set_resouces(account, 'sqs', queues)
             queues_without_owner = \
                 self.get_resources_without_owner(account, queues)
             unfiltered_queues = \
                 self.custom_sqs_filter(account, sqs, queues_without_owner)
-            self.resources[account]['sqs_no_owner'] = unfiltered_queues
+            self.set_resouces(account, 'sqs_no_owner', unfiltered_queues)
 
     def map_dynamodb_resources(self):
         for account, s in self.sessions.items():
@@ -122,7 +124,7 @@ class AWSApi(object):
             if 'TableNames' not in tables_list:
                 continue
             tables = tables_list['TableNames']
-            self.resources[account]['dynamodb'] = tables
+            self.set_resouces(account, 'dynamodb', tables)
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
             unfiltered_tables = \
@@ -132,7 +134,7 @@ class AWSApi(object):
                     dynamodb,
                     tables_without_owner
                 )
-            self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
+            self.set_resouces(account, 'dynamodb_no_owner', unfiltered_tables)
 
     def map_rds_resources(self):
         for account, s in self.sessions.items():
@@ -142,12 +144,12 @@ class AWSApi(object):
                 continue
             instances = [t['DBInstanceIdentifier']
                          for t in instances_list['DBInstances']]
-            self.resources[account]['rds'] = instances
+            self.set_resouces(account, 'rds', instances)
             instances_without_owner = \
                 self.get_resources_without_owner(account, instances)
             unfiltered_instances = \
                 self.custom_rds_filter(account, rds, instances_without_owner)
-            self.resources[account]['rds_no_owner'] = unfiltered_instances
+            self.set_resouces(account, 'rds_no_owner', unfiltered_instances)
 
     def map_rds_snapshots(self):
         for account, s in self.sessions.items():
@@ -157,7 +159,7 @@ class AWSApi(object):
                 continue
             snapshots = [t['DBSnapshotIdentifier']
                          for t in snapshots_list['DBSnapshots']]
-            self.resources[account]['rds_snapshots'] = snapshots
+            self.set_resouces(account, 'rds_snapshots', snapshots)
             snapshots_without_db = \
                 [t['DBSnapshotIdentifier']
                  for t in snapshots_list['DBSnapshots']
@@ -166,8 +168,12 @@ class AWSApi(object):
             unfiltered_snapshots = \
                 self.custom_rds_snapshot_filter(account, rds,
                                                 snapshots_without_db)
-            self.resources[account]['rds_snapshots_no_owner'] = \
-                unfiltered_snapshots
+            self.set_resouces(account, 'rds_snapshots_no_owner',
+                              unfiltered_snapshots)
+
+    def set_resouces(self, account, key, value):
+        with self._lock:
+            self.resources[account][key] = value
 
     def get_resources_without_owner(self, account, resources):
         return [r for r in resources if not self.has_owner(account, r)]
