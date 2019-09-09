@@ -3,11 +3,18 @@ import boto3
 import botocore
 import json
 import os
+import time
 
 import utils.threaded as threaded
 import utils.vault_client as vault_client
 
 from utils.config import get_config
+
+from threading import Lock
+
+
+class InvalidResourceTypeError(Exception):
+    pass
 
 
 class AWSApi(object):
@@ -17,6 +24,9 @@ class AWSApi(object):
         self.thread_pool_size = thread_pool_size
         self.init_sessions()
         self.init_users()
+        self._lock = Lock()
+        self.resource_types = \
+            ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
     def init_sessions(self):
         config = get_config()
@@ -80,12 +90,22 @@ class AWSApi(object):
         self.resources = {}
         for account, _ in self.accounts:
             self.resources[account] = {}
+        threaded.run(self.map_resource, self.resource_types,
+                     self.thread_pool_size)
 
-        self.map_s3_resources()
-        self.map_sqs_resources()
-        self.map_dynamodb_resources()
-        self.map_rds_resources()
-        self.map_rds_snapshots()
+    def map_resource(self, resource_type):
+        if resource_type == 's3':
+            self.map_s3_resources()
+        elif resource_type == 'sqs':
+            self.map_sqs_resources()
+        elif resource_type == 'dynamodb':
+            self.map_dynamodb_resources()
+        elif resource_type == 'rds':
+            self.map_rds_resources()
+        elif resource_type == 'rds_snapshots':
+            self.map_rds_snapshots()
+        else:
+            raise InvalidResourceTypeError(resource_type)
 
     def map_s3_resources(self):
         for account, s in self.sessions.items():
@@ -94,12 +114,12 @@ class AWSApi(object):
             if 'Buckets' not in buckets_list:
                 continue
             buckets = [b['Name'] for b in buckets_list['Buckets']]
-            self.resources[account]['s3'] = buckets
+            self.set_resouces(account, 's3', buckets)
             buckets_without_owner = \
                 self.get_resources_without_owner(account, buckets)
             unfiltered_buckets = \
                 self.custom_s3_filter(account, s3, buckets_without_owner)
-            self.resources[account]['s3_no_owner'] = unfiltered_buckets
+            self.set_resouces(account, 's3_no_owner', unfiltered_buckets)
 
     def map_sqs_resources(self):
         for account, s in self.sessions.items():
@@ -108,21 +128,18 @@ class AWSApi(object):
             if 'QueueUrls' not in queues_list:
                 continue
             queues = queues_list['QueueUrls']
-            self.resources[account]['sqs'] = queues
+            self.set_resouces(account, 'sqs', queues)
             queues_without_owner = \
                 self.get_resources_without_owner(account, queues)
             unfiltered_queues = \
                 self.custom_sqs_filter(account, sqs, queues_without_owner)
-            self.resources[account]['sqs_no_owner'] = unfiltered_queues
+            self.set_resouces(account, 'sqs_no_owner', unfiltered_queues)
 
     def map_dynamodb_resources(self):
         for account, s in self.sessions.items():
             dynamodb = s.client('dynamodb')
-            tables_list = dynamodb.list_tables()
-            if 'TableNames' not in tables_list:
-                continue
-            tables = tables_list['TableNames']
-            self.resources[account]['dynamodb'] = tables
+            tables = self.paginate(dynamodb, 'list_tables', 'TableNames')
+            self.set_resouces(account, 'dynamodb', tables)
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
             unfiltered_tables = \
@@ -132,42 +149,64 @@ class AWSApi(object):
                     dynamodb,
                     tables_without_owner
                 )
-            self.resources[account]['dynamodb_no_owner'] = unfiltered_tables
+            self.set_resouces(account, 'dynamodb_no_owner', unfiltered_tables)
 
     def map_rds_resources(self):
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            instances_list = rds.describe_db_instances()
-            if 'DBInstances' not in instances_list:
-                continue
-            instances = [t['DBInstanceIdentifier']
-                         for t in instances_list['DBInstances']]
-            self.resources[account]['rds'] = instances
+            results = \
+                self.paginate(rds, 'describe_db_instances', 'DBInstances')
+            instances = [t['DBInstanceIdentifier'] for t in results]
+            self.set_resouces(account, 'rds', instances)
             instances_without_owner = \
                 self.get_resources_without_owner(account, instances)
             unfiltered_instances = \
                 self.custom_rds_filter(account, rds, instances_without_owner)
-            self.resources[account]['rds_no_owner'] = unfiltered_instances
+            self.set_resouces(account, 'rds_no_owner', unfiltered_instances)
 
     def map_rds_snapshots(self):
+        self.wait_for_resource('rds')
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            snapshots_list = rds.describe_db_snapshots()
-            if 'DBSnapshots' not in snapshots_list:
-                continue
-            snapshots = [t['DBSnapshotIdentifier']
-                         for t in snapshots_list['DBSnapshots']]
-            self.resources[account]['rds_snapshots'] = snapshots
-            snapshots_without_db = \
-                [t['DBSnapshotIdentifier']
-                 for t in snapshots_list['DBSnapshots']
-                 if t['DBInstanceIdentifier'] not in
-                 self.resources[account]['rds']]
+            results = \
+                self.paginate(rds, 'describe_db_snapshots', 'DBSnapshots')
+            snapshots = [t['DBSnapshotIdentifier'] for t in results]
+            self.set_resouces(account, 'rds_snapshots', snapshots)
+            snapshots_without_db = [t['DBSnapshotIdentifier'] for t in results
+                                    if t['DBInstanceIdentifier'] not in
+                                    self.resources[account]['rds']]
             unfiltered_snapshots = \
                 self.custom_rds_snapshot_filter(account, rds,
                                                 snapshots_without_db)
-            self.resources[account]['rds_snapshots_no_owner'] = \
-                unfiltered_snapshots
+            self.set_resouces(account, 'rds_snapshots_no_owner',
+                              unfiltered_snapshots)
+
+    def paginate(self, client, method, key):
+        """ paginate returns an aggregated list of the specified key
+        from all pages returned by executing the client's specified method."""
+        paginator = client.get_paginator(method)
+        return [values
+                for page in paginator.paginate()
+                for values in page.get(key, [])]
+
+    def wait_for_resource(self, resource):
+        """ wait_for_resource waits until the specified resource type
+        is ready for all accounts.
+        When we have more resource types then threads,
+        this function will need to change to a dependency graph."""
+        wait = True
+        while wait:
+            wait = False
+            for account in self.sessions:
+                if self.resources[account].get(resource):
+                    continue
+                wait = True
+                time.sleep(2)
+                break
+
+    def set_resouces(self, account, key, value):
+        with self._lock:
+            self.resources[account][key] = value
 
     def get_resources_without_owner(self, account, resources):
         return [r for r in resources if not self.has_owner(account, r)]
@@ -313,9 +352,8 @@ class AWSApi(object):
                           'Please run the integration manually ' + \
                           'with the \'--enable-deletion\' flag.'
 
-        resource_types = ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
         for account, s in self.sessions.items():
-            for rt in resource_types:
+            for rt in self.resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
                     logging.info(['delete_resource', rt, account, r])
                     if not dry_run:
@@ -341,7 +379,7 @@ class AWSApi(object):
             client = session.client(resource_type)
             self.delete_snapshot(client, resource_name)
         else:
-            raise Exception('invalid resource type: ' + resource_type)
+            raise InvalidResourceTypeError(resource_type)
 
     def delete_bucket(self, s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
