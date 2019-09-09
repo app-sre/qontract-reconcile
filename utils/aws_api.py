@@ -3,6 +3,7 @@ import boto3
 import botocore
 import json
 import os
+import time
 
 import utils.threaded as threaded
 import utils.vault_client as vault_client
@@ -152,6 +153,7 @@ class AWSApi(object):
             self.set_resouces(account, 'rds_no_owner', unfiltered_instances)
 
     def map_rds_snapshots(self):
+        self.wait_for_resource('rds')
         for account, s in self.sessions.items():
             rds = s.client('rds')
             snapshots_list = rds.describe_db_snapshots()
@@ -170,6 +172,21 @@ class AWSApi(object):
                                                 snapshots_without_db)
             self.set_resouces(account, 'rds_snapshots_no_owner',
                               unfiltered_snapshots)
+
+    def wait_for_resource(self, resource):
+        """ wait_for_resource waits until the specified resource type
+        is ready for all accounts.
+        When we have more resource types then threads,
+        this function will need to change to a dependency graph."""
+        wait = True
+        while wait:
+            wait = False
+            for account in self.sessions:
+                if self.resources[account].get(resource):
+                    continue
+                wait = True
+                time.sleep(2)
+                break
 
     def set_resouces(self, account, key, value):
         with self._lock:
