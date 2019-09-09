@@ -138,10 +138,7 @@ class AWSApi(object):
     def map_dynamodb_resources(self):
         for account, s in self.sessions.items():
             dynamodb = s.client('dynamodb')
-            tables_list = dynamodb.list_tables()
-            if 'TableNames' not in tables_list:
-                continue
-            tables = tables_list['TableNames']
+            tables = self.paginate(dynamodb, 'list_tables', 'TableNames')
             self.set_resouces(account, 'dynamodb', tables)
             tables_without_owner = \
                 self.get_resources_without_owner(account, tables)
@@ -157,11 +154,8 @@ class AWSApi(object):
     def map_rds_resources(self):
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            instances_list = rds.describe_db_instances()
-            if 'DBInstances' not in instances_list:
-                continue
-            instances = [t['DBInstanceIdentifier']
-                         for t in instances_list['DBInstances']]
+            results = self.paginate(rds, 'describe_db_instances', 'DBInstances')
+            instances = [t['DBInstanceIdentifier'] for t in results]
             self.set_resouces(account, 'rds', instances)
             instances_without_owner = \
                 self.get_resources_without_owner(account, instances)
@@ -173,22 +167,25 @@ class AWSApi(object):
         self.wait_for_resource('rds')
         for account, s in self.sessions.items():
             rds = s.client('rds')
-            snapshots_list = rds.describe_db_snapshots()
-            if 'DBSnapshots' not in snapshots_list:
-                continue
-            snapshots = [t['DBSnapshotIdentifier']
-                         for t in snapshots_list['DBSnapshots']]
+            results = self.paginate(rds, 'describe_db_snapshots', 'DBSnapshots')
+            snapshots = [t['DBSnapshotIdentifier'] for t in results]
             self.set_resouces(account, 'rds_snapshots', snapshots)
-            snapshots_without_db = \
-                [t['DBSnapshotIdentifier']
-                 for t in snapshots_list['DBSnapshots']
-                 if t['DBInstanceIdentifier'] not in
-                 self.resources[account]['rds']]
+            snapshots_without_db = [t['DBSnapshotIdentifier'] for t in results
+                                    if t['DBInstanceIdentifier'] not in
+                                    self.resources[account]['rds']]
             unfiltered_snapshots = \
                 self.custom_rds_snapshot_filter(account, rds,
                                                 snapshots_without_db)
             self.set_resouces(account, 'rds_snapshots_no_owner',
                               unfiltered_snapshots)
+
+    def paginate(self, client, method, key):
+        """ paginate returns an aggregated list of the specified key
+        from all pages returned by executing the client's specified method."""
+        paginator = client.get_paginator(method)
+        return [values
+                for page in paginator.paginate()
+                for values in page.get(key, [])]
 
     def wait_for_resource(self, resource):
         """ wait_for_resource waits until the specified resource type
