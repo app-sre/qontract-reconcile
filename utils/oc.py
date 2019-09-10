@@ -220,8 +220,6 @@ class OC_Map(object):
         if self.oc_map.get(cluster):
             return
         if self.cluster_disabled(cluster_info):
-            print('###################')
-            print('skipping ' + cluster)
             return
 
         automation_token = cluster_info.get('automationToken')
