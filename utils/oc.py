@@ -233,16 +233,14 @@ class OC_Map(object):
 
     def cluster_disabled(self, cluster_info):
         try:
-            disable_integrations = cluster_info['disable']['integrations']
-            if self.calling_integration.replace('_', '-')
-                    in disable_integrations:
+            integrations = cluster_info['disable']['integrations']
+            if self.calling_integration.replace('_', '-') in integrations:
                 return True
         except (KeyError, TypeError):
             pass
         try:
-            disable_e2e_tests = cluster_info['disable']['e2eTests']
-            if self.calling_e2e_test.replace('_', '-')
-                    in disable_e2e_tests:
+            tests = cluster_info['disable']['e2eTests']
+            if self.calling_e2e_test.replace('_', '-') in tests:
                 return True
         except (KeyError, TypeError):
             pass
