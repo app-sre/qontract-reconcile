@@ -66,6 +66,8 @@ QONTRACT_TF_PREFIX = 'qrtf'
 
 
 def populate_oc_resources(spec, ri):
+    if spec.oc is None:
+        return
     for item in spec.oc.get_items(spec.resource,
                                   namespace=spec.namespace):
         openshift_resource = OR(item,
@@ -82,7 +84,8 @@ def populate_oc_resources(spec, ri):
 
 def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces)
+    oc_map = OC_Map(namespaces=namespaces,
+                    integration=QONTRACT_INTEGRATION.replace('_', '-'))
     state_specs = \
         openshift_resources.init_specs_to_fetch(
             ri,

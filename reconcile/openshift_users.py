@@ -23,12 +23,14 @@ CLUSTERS_QUERY = """
         format
       }
     }
-    unManaged
     managedGroups
     automationToken {
       path
       field
       format
+    }
+    disable {
+      integrations
     }
   }
 }
@@ -51,6 +53,8 @@ ROLES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'openshift-users'
+
 
 def get_cluster_users(cluster, oc_map):
     oc = oc_map.get(cluster)
@@ -65,14 +69,14 @@ def get_cluster_users(cluster, oc_map):
 def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = OC_Map(clusters=clusters, managed_only=True)
+    oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]
     return oc_map, current_state
 
 
-def fetch_desired_state():
+def fetch_desired_state(oc_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     desired_state = []
@@ -82,6 +86,8 @@ def fetch_desired_state():
             if 'service' not in p:
                 continue
             if p['service'] != 'openshift-rolebinding':
+                continue
+            if p['cluster'] not in oc_map.clusters():
                 continue
 
             for u in r['users']:
@@ -93,7 +99,7 @@ def fetch_desired_state():
                     "user": u['github_username']
                 })
 
-    groups_desired_state = openshift_groups.fetch_desired_state()
+    groups_desired_state = openshift_groups.fetch_desired_state(oc_map)
     flat_groups_desired_state = \
         [{'cluster': s['cluster'], 'user': s['user']}
          for s in groups_desired_state]
@@ -146,7 +152,7 @@ def act(diff, oc_map):
 def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, current_state = fetch_current_state(thread_pool_size)
     defer(lambda: oc_map.cleanup())
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(oc_map)
 
     diffs = calculate_diff(current_state, desired_state)
 

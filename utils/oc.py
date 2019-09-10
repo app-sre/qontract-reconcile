@@ -197,9 +197,11 @@ class OC_Map(object):
     In case a cluster does not have an automation token
     the OC client will be initiated to False.
     """
-    def __init__(self, clusters=None, namespaces=None, managed_only=False):
+    def __init__(self, clusters=None, namespaces=None,
+                 integration=None, e2e_test=None):
         self.oc_map = {}
-        self.managed_only = managed_only
+        self.calling_integration = integration
+        self.calling_e2e_test = e2e_test
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -217,7 +219,9 @@ class OC_Map(object):
         cluster = cluster_info['name']
         if self.oc_map.get(cluster):
             return
-        if self.managed_only and cluster_info.get('unManaged'):
+        if self.cluster_disabled(cluster_info):
+            print('###################')
+            print('skipping ' + cluster)
             return
 
         automation_token = cluster_info.get('automationToken')
@@ -229,8 +233,24 @@ class OC_Map(object):
             jump_host = cluster_info.get('jumpHost')
             self.oc_map[cluster] = OC(server_url, token, jump_host)
 
+    def cluster_disabled(self, cluster_info):
+        try:
+            disable_integrations = cluster_info['disable']['integrations']
+            if self.calling_integration in disable_integrations:
+                return True
+        except (KeyError, TypeError):
+            pass
+        try:
+            disable_e2e_tests = cluster_info['disable']['e2eTests']
+            if self.calling_e2e_test in disable_e2e_tests:
+                return True
+        except (KeyError, TypeError):
+            pass
+
+        return False
+
     def get(self, cluster):
-        return self.oc_map[cluster]
+        return self.oc_map.get(cluster, None)
 
     def clusters(self):
         return [k for k, v in self.oc_map.items() if v]

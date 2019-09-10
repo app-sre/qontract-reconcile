@@ -84,6 +84,9 @@ NAMESPACES_QUERY = """
         field
         format
       }
+      disable {
+        integrations
+      }
     }
   }
 }
@@ -377,6 +380,8 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
     _log_lock.acquire()
     logging.debug(msg)
     _log_lock.release()
+    if oc is None:
+        return
     for item in oc.get_items(resource_type, namespace=namespace):
         openshift_resource = OR(item)
         ri.add_current(
@@ -467,6 +472,11 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
         namespace = namespace_info['name']
 
         oc = oc_map.get(cluster)
+        if oc is None:
+            msg = (
+                "[{}] cluster skipped."
+            ).format(cluster)
+            logging.debug(msg)
         if oc is False:
             ri.register_error()
             msg = (
@@ -494,7 +504,8 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
 
 def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces)
+    oc_map = OC_Map(namespaces=namespaces,
+                    integration=QONTRACT_INTEGRATION.replace('_', '-'))
     state_specs = init_specs_to_fetch(ri, oc_map, namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
