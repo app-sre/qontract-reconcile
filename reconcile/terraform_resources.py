@@ -84,8 +84,7 @@ def populate_oc_resources(spec, ri):
 
 def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces,
-                    integration=QONTRACT_INTEGRATION.replace('_', '-'))
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
     state_specs = \
         openshift_resources.init_specs_to_fetch(
             ri,

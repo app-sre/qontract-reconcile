@@ -504,8 +504,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
 
 def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces,
-                    integration=QONTRACT_INTEGRATION.replace('_', '-'))
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
     state_specs = init_specs_to_fetch(ri, oc_map, namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 

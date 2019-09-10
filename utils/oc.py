@@ -198,7 +198,7 @@ class OC_Map(object):
     the OC client will be initiated to False.
     """
     def __init__(self, clusters=None, namespaces=None,
-                 integration=None, e2e_test=None):
+                 integration='', e2e_test=''):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
@@ -234,13 +234,15 @@ class OC_Map(object):
     def cluster_disabled(self, cluster_info):
         try:
             disable_integrations = cluster_info['disable']['integrations']
-            if self.calling_integration in disable_integrations:
+            if self.calling_integration.replace('_', '-')
+                    in disable_integrations:
                 return True
         except (KeyError, TypeError):
             pass
         try:
             disable_e2e_tests = cluster_info['disable']['e2eTests']
-            if self.calling_e2e_test in disable_e2e_tests:
+            if self.calling_e2e_test.replace('_', '-')
+                    in disable_e2e_tests:
                 return True
         except (KeyError, TypeError):
             pass
