@@ -22,11 +22,13 @@ CLUSTERS_QUERY = """
         format
       }
     }
-    unManaged
     automationToken {
       path
       field
       format
+    }
+    disable {
+      e2eTests
     }
   }
 }
@@ -35,10 +37,10 @@ CLUSTERS_QUERY = """
 E2E_NS_PFX = 'e2e-test'
 
 
-def get_oc_map():
+def get_oc_map(test_name):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    return OC_Map(clusters=clusters, managed_only=True)
+    return OC_Map(clusters=clusters, e2e_test=test_name)
 
 def get_test_namespace_name():
     return '{}-{}'.format(

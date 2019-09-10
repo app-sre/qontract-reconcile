@@ -6,10 +6,12 @@ import e2e_tests.dedicated_admin_test_base as dat
 
 from utils.defer import defer
 
+QONTRACT_E2E_TEST = 'create-namespace'
+
 
 @defer
 def run(defer=None):
-    oc_map = tb.get_oc_map()
+    oc_map = tb.get_oc_map(QONTRACT_E2E_TEST)
     defer(lambda: oc_map.cleanup())
 
     ns_to_create = tb.get_test_namespace_name()

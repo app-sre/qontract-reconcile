@@ -37,6 +37,9 @@ NAMESPACES_QUERY = """
         field
         format
       }
+      disable {
+        integrations
+      }
     }
   }
 }
@@ -65,6 +68,8 @@ ROLES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'openshift-rolebinding'
+
 
 def get_rolebindings(spec):
     rolebindings = spec.oc.get_items('RoleBinding', namespace=spec.namespace)
@@ -77,7 +82,7 @@ def fetch_current_state(namespaces, thread_pool_size):
     namespaces = [namespace_info for namespace_info
                   in namespaces
                   if namespace_info.get('managedRoles')]
-    oc_map = OC_Map(namespaces=namespaces)
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
 
     state_specs = \
         openshift_resources.init_specs_to_fetch(

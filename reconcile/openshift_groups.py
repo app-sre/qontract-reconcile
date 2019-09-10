@@ -29,6 +29,9 @@ CLUSTERS_QUERY = """
       field
       format
     }
+    disable {
+      integrations
+    }
   }
 }
 """
@@ -60,6 +63,8 @@ GROUPS_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'openshift-groups'
+
 
 def get_cluster_state(group_items, oc_map):
     results = []
@@ -78,12 +83,14 @@ def get_cluster_state(group_items, oc_map):
     return results
 
 
-def create_groups_list(clusters):
+def create_groups_list(clusters, oc_map):
     groups_list = []
     for cluster_info in clusters:
         groups = cluster_info['managedGroups']
         cluster = cluster_info['name']
         if groups is None:
+            continue
+        if cluster not in oc_map.clusters():
             continue
         for group_name in groups:
             groups_list.append({
@@ -97,9 +104,9 @@ def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
-    oc_map = OC_Map(clusters=clusters)
+    oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION)
 
-    groups_list = create_groups_list(clusters)
+    groups_list = create_groups_list(clusters, oc_map)
     results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
                            oc_map=oc_map)
 
@@ -107,7 +114,7 @@ def fetch_current_state(thread_pool_size):
     return oc_map, current_state
 
 
-def fetch_desired_state():
+def fetch_desired_state(oc_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     desired_state = []
@@ -117,6 +124,8 @@ def fetch_desired_state():
             if 'service' not in p:
                 continue
             if p['service'] != 'openshift-group':
+                continue
+            if p['cluster'] not in oc_map.clusters():
                 continue
 
             for u in r['users']:
@@ -237,7 +246,7 @@ def act(diff, oc_map):
 def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, current_state = fetch_current_state(thread_pool_size)
     defer(lambda: oc_map.cleanup())
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(oc_map)
 
     diffs = calculate_diff(current_state, desired_state)
     validate_diffs(diffs)

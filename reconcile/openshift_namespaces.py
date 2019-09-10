@@ -31,17 +31,22 @@ QUERY = """
         field
         format
       }
+      disable {
+        integrations
+      }
     }
   }
 }
 """
+
+QONTRACT_INTEGRATION = 'openshift-namespaces'
 
 
 def get_desired_state():
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(QUERY)['namespaces']
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces)
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
     openshift_resources.init_specs_to_fetch(
         ri,
         oc_map,
@@ -49,7 +54,8 @@ def get_desired_state():
         override_managed_types=['Namespace']
     )
     desired_state = [{"cluster": cluster, "namespace": namespace}
-                     for cluster, namespace, _, _ in ri]
+                     for cluster, namespace, _, _ in ri
+                     if cluster in oc_map.clusters()]
 
     return oc_map, desired_state
 
