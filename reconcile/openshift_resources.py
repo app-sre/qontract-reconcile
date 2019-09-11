@@ -393,8 +393,11 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
         )
 
 
-def fetch_desired_state(ri, cluster, namespace, resource, parent):
+def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
     global _log_lock
+
+    if oc is None:
+        return
 
     try:
         openshift_resource = fetch_openshift_resource(resource, parent)
@@ -450,7 +453,8 @@ def fetch_states(spec, ri):
         fetch_current_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource)
     if spec.type == "desired":
-        fetch_desired_state(ri, spec.cluster, spec.namespace, spec.resource,
+        fetch_desired_state(spec.oc, ri, spec.cluster,
+                            spec.namespace, spec.resource,
                             spec.parent)
 
 
@@ -477,6 +481,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
                 "[{}] cluster skipped."
             ).format(cluster)
             logging.debug(msg)
+            continue
         if oc is False:
             ri.register_error()
             msg = (
@@ -495,7 +500,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
         # Initialize desired state specs
         openshift_resources = namespace_info.get('openshiftResources') or []
         for openshift_resource in openshift_resources:
-            d_spec = StateSpec("desired", None, cluster, namespace,
+            d_spec = StateSpec("desired", oc, cluster, namespace,
                                openshift_resource, namespace_info)
             state_specs.append(d_spec)
 

@@ -136,7 +136,7 @@ def fetch_current_state(namespaces, thread_pool_size):
     return oc_map, state
 
 
-def fetch_desired_state(roles):
+def fetch_desired_state(roles, oc_map):
     state = AggregatedList()
 
     for role in roles:
@@ -146,6 +146,8 @@ def fetch_desired_state(roles):
         ))
         if not permissions:
             continue
+        permissions = [p for p in permissions
+                       if p['cluster'] in oc_map.clusters()]
 
         users = []
         service_accounts = []
@@ -233,7 +235,7 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
 
     oc_map, current_state = fetch_current_state(namespaces, thread_pool_size)
     defer(lambda: oc_map.cleanup())
-    desired_state = fetch_desired_state(roles)
+    desired_state = fetch_desired_state(roles, oc_map)
 
     # calculate diff
     diff = current_state.diff(desired_state)
