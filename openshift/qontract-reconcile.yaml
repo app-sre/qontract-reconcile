@@ -27,7 +27,7 @@ objects:
         - name: slack-usergroups
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml $(DRY_RUN) slack-usergroups; sleep 60; done"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep 60; done"]
           resources:
             requests:
               memory: 256Mi
