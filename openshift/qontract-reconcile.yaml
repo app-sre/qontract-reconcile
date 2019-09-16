@@ -50,4 +50,4 @@ parameters:
 - name: DRY_RUN
   value: --dry-run
 - name: SLEEP_DURATION_SECS
-  value: 300
+  value: "300"
