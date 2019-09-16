@@ -40,6 +40,8 @@ class SlackApi(object):
         result = self.sc.api_call(
             "usergroups.list",
         )
+        if not result['ok']:
+            raise Exception(result['error'])
         usergroup = [g for g in result['usergroups'] if g['handle'] == handle]
         if len(usergroup) != 1:
             raise UsergroupNotFoundException(handle)
