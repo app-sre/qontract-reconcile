@@ -6,6 +6,7 @@ import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_resources as openshift_resources
 
+from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
@@ -99,6 +100,7 @@ def fetch_current_state(namespaces, thread_pool_size):
 
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
+    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
@@ -106,6 +108,7 @@ def setup(print_only, thread_pool_size):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
+                     accounts,
                      oc_map)
     working_dirs, error = ts.dump(print_only)
     if error:

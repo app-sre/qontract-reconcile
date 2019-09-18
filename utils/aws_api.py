@@ -8,8 +8,6 @@ import time
 import utils.threaded as threaded
 import utils.vault_client as vault_client
 
-from utils.config import get_config
-
 from threading import Lock
 
 
@@ -20,23 +18,19 @@ class InvalidResourceTypeError(Exception):
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
-    def __init__(self, thread_pool_size):
+    def __init__(self, thread_pool_size, accounts):
         self.thread_pool_size = thread_pool_size
-        self.init_sessions()
+        self.init_sessions_and_resources(accounts)
         self.init_users()
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
-    def init_sessions(self):
-        config = get_config()
-        self.accounts = config['terraform'].items()
-
-        vault_specs = self.init_vault_tf_secret_specs()
-        results = threaded.run(self.get_vault_tf_secrets, vault_specs,
+    def init_sessions_and_resources(self, accounts):
+        results = threaded.run(self.get_vault_tf_secrets, accounts,
                                self.thread_pool_size)
-
         self.sessions = {}
+        self.resources = {}
         for account, secret in results:
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
@@ -47,22 +41,14 @@ class AWSApi(object):
                 region_name=region_name,
             )
             self.sessions[account] = session
+            self.resources[account] = {}
 
-    def init_vault_tf_secret_specs(self):
-        vault_specs = []
-        for account, data in self.accounts:
-            init_spec = {'account': account,
-                         'data': data}
-            vault_specs.append(init_spec)
-        return vault_specs
-
-    def get_vault_tf_secrets(self, init_spec):
-        account = init_spec['account']
-        data = init_spec['data']
-        secret = vault_client.read_all(
-            {'path': '{}/{}'.format(data['secrets_path'], 'config')}
-        )
-        return (account, secret)
+    @staticmethod
+    def get_vault_tf_secrets(account):
+        account_name = account['name']
+        automation_token = account['automationToken']
+        secret = vault_client.read_all(automation_token)
+        return (account_name, secret)
 
     def init_users(self):
         self.users = {}
@@ -87,9 +73,6 @@ class AWSApi(object):
                 self.users[delete_from_account].remove(delete_user)
 
     def map_resources(self):
-        self.resources = {}
-        for account, _ in self.accounts:
-            self.resources[account] = {}
         threaded.run(self.map_resource, self.resource_types,
                      self.thread_pool_size)
 

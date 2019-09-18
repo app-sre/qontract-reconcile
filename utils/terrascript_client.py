@@ -10,7 +10,6 @@ import utils.gql as gql
 import utils.threaded as threaded
 import utils.vault_client as vault_client
 
-from utils.config import get_config
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
 
@@ -41,12 +40,12 @@ class UnknownProviderError(Exception):
 
 class TerrascriptClient(object):
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, oc_map=None):
+                 thread_pool_size, accounts, oc_map=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
-        self.populate_configs_and_vars_from_vault()
+        self.populate_configs_from_vault(accounts)
         tss = {}
         locks = {}
         for name, config in self.configs.items():
@@ -69,44 +68,17 @@ class TerrascriptClient(object):
         self.tss = tss
         self.locks = locks
 
-    def populate_configs_and_vars_from_vault(self):
-        self.init_accounts()
-
-        vault_specs = self.init_vault_tf_secret_specs()
-        results = threaded.run(self.get_vault_tf_secrets, vault_specs,
+    def populate_configs_from_vault(self, accounts):
+        results = threaded.run(self.get_vault_tf_secrets, accounts,
                                self.thread_pool_size)
+        self.configs = {account: secret for account, secret in results}
 
-        self.configs = {}
-        self.variables = {}
-        for account, type, secret in results:
-            if type == 'config':
-                self.configs[account] = secret
-            if type == 'variables':
-                self.variables[account] = secret
-
-    def init_accounts(self):
-        config = get_config()
-        accounts = config['terraform']
-        self.accounts = accounts.items()
-
-    def init_vault_tf_secret_specs(self):
-        vault_specs = []
-        for account, data in self.accounts:
-            for type in ('config', 'variables'):
-                init_spec = {'account': account,
-                             'data': data,
-                             'type': type}
-                vault_specs.append(init_spec)
-        return vault_specs
-
-    def get_vault_tf_secrets(self, init_spec):
-        account = init_spec['account']
-        data = init_spec['data']
-        type = init_spec['type']
-        secret = vault_client.read_all(
-            {'path': '{}/{}'.format(data['secrets_path'], type)}
-        )
-        return (account, type, secret)
+    @staticmethod
+    def get_vault_tf_secrets(account):
+        account_name = account['name']
+        automation_token = account['automationToken']
+        secret = vault_client.read_all(automation_token)
+        return (account_name, secret)
 
     def get_tf_iam_group(self, group_name):
         return aws_iam_group(
@@ -249,15 +221,14 @@ class TerrascriptClient(object):
                 for ip in range(len(user_policies)):
                     policy_name = user_policies[ip]['name']
                     account_name = aws_groups[ig]['account']['name']
+                    account_uid = aws_groups[ig]['account']['uid']
                     for iu in range(len(users)):
                         # replace known keys with values
                         user_name = users[iu]['redhat_username']
                         policy = user_policies[ip]['policy']
                         policy = policy.replace('${aws:username}', user_name)
-                        policy = policy.replace(
-                            '${aws:accountid}',
-                            self.variables[account_name]['uid']
-                        )
+                        policy = \
+                            policy.replace('${aws:accountid}', account_uid)
 
                         # Ref: terraform aws iam_user_policy
                         tf_iam_user = self.get_tf_iam_user(user_name)

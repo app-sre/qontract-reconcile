@@ -11,3 +11,16 @@ GITLAB_INSTANCES_QUERY = """
   }
 }
 """
+
+AWS_ACCOUNTS_QUERY = """
+{
+  accounts: awsaccounts_v1 {
+    name
+    automationToken {
+      path
+      field
+    }
+    deleteKeys
+  }
+}
+"""
