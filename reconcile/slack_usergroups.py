@@ -128,8 +128,9 @@ def get_pagerduty_name(user):
     return user['pagerduty_name'] or user['name']
 
 
-def get_slack_usernames_from_pagerduty(pagerduties, users):
+def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
     all_slack_usernames = []
+    all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties or []:
         pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
@@ -150,29 +151,32 @@ def get_slack_usernames_from_pagerduty(pagerduties, users):
                            for u in users
                            if get_pagerduty_name(u)
                            in pagerduty_names]
-        if len(slack_usernames) != len(pagerduty_names):
+        not_found_pagerduty_names = \
+            [pagerduty_name for pagerduty_name in pagerduty_names
+             if pagerduty_name not in all_pagerduty_names]
+        if not_found_pagerduty_names:
             msg = (
-                'found Slack usernames {} '
-                'do not match all PagerDuty names: {} '
+                '[{}] PagerDuty names not found in app-interface: {} '
                 '(hint: user files should contain '
                 'pagerduty_name if it is different then name)'
-            ).format(slack_usernames, pagerduty_names)
+            ).format(usergroup, not_found_pagerduty_names)
             logging.warning(msg)
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
 
 
-def get_slack_usernames_from_github_owners(github_owners, users):
+def get_slack_usernames_from_github_owners(github_owners, users, usergroup):
     all_slack_usernames = []
+    all_github_usernames = [u['github_username'] for u in users]
     for owners_file in github_owners or []:
         r = requests.get(owners_file)
         try:
-            owners_file = anymarkup.parse(
+            content = anymarkup.parse(
                 r.content,
                 force_types=None
             )
-            github_users = [u for l in owners_file.values() for u in l]
+            github_users = [u for l in content.values() for u in l]
         except (anymarkup.AnyMarkupError, KeyError):
             msg = "Could not parse data. Skipping owners file: {}"
             logging.warning(msg.format(owners_file))
@@ -185,13 +189,13 @@ def get_slack_usernames_from_github_owners(github_owners, users):
                            for u in users
                            if u['github_username']
                            in github_users]
-        if len(set(slack_usernames)) != len(set(github_users)):
+        not_found_github_users = [github_user for github_user in github_users
+                                  if github_user not in all_github_usernames]
+        if not_found_github_users:
             msg = (
-                'found Slack usernames {} '
-                'do not match all github usernames: {} '
-                '(hint: user is missing from app-interface)'
-            ).format(slack_usernames, github_users)
-            logging.debug(msg)
+                '[{}] github usernames not found in app-interface: {}'
+            ).format(usergroup, not_found_github_users)
+            logging.warning(msg)
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
@@ -230,12 +234,13 @@ def get_desired_state(slack_map):
             user_names = [get_slack_username(u) for u in r['users']]
 
             slack_usernames_pagerduty = \
-                get_slack_usernames_from_pagerduty(p['pagerduty'], all_users)
+                get_slack_usernames_from_pagerduty(p['pagerduty'],
+                                                   all_users, usergroup)
             user_names.extend(slack_usernames_pagerduty)
 
             slack_usernames_github = \
                 get_slack_usernames_from_github_owners(p['github_owners'],
-                                                       all_users)
+                                                       all_users, usergroup)
             user_names.extend(slack_usernames_github)
 
             users = slack.get_users_by_names(user_names)
