@@ -74,7 +74,8 @@ class TerrascriptClient(object):
                                self.thread_pool_size)
         self.configs = {account: secret for account, secret in results}
 
-    def get_vault_tf_secrets(self, account):
+    @staticmethod
+    def get_vault_tf_secrets(account):
         account_name = account['name']
         automation_token = account['automationToken']
         secret = vault_client.read_all(automation_token)
