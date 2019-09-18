@@ -12,6 +12,18 @@ from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.defer import defer
 
+AWS_ACCOUNTS_QUERY = """
+{
+  accounts: awsaccounts_v1 {
+    name
+    automationToken {
+      path
+      field
+    }
+  }
+}
+"""
+
 TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -99,6 +111,7 @@ def fetch_current_state(namespaces, thread_pool_size):
 
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
+    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
@@ -106,6 +119,7 @@ def setup(print_only, thread_pool_size):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
+                     accounts,
                      oc_map)
     working_dirs, error = ts.dump(print_only)
     if error:
