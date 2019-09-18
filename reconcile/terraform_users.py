@@ -4,6 +4,7 @@ import semver
 import utils.gql as gql
 import utils.smtp_client as smtp_client
 
+from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
 
@@ -20,6 +21,7 @@ TF_QUERY = """
       account {
         name
         consoleUrl
+        uid
       }
     }
     user_policies {
@@ -40,11 +42,13 @@ QONTRACT_TF_PREFIX = 'qrtf'
 
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
+    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     roles = gqlapi.query(TF_QUERY)['roles']
     tf_roles = [r for r in roles if r['aws_groups'] is not None]
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
-                     thread_pool_size)
+                     thread_pool_size,
+                     accounts)
     err = ts.populate_users(tf_roles)
     if err:
         return None, err
