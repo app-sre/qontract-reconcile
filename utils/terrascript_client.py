@@ -10,7 +10,6 @@ import utils.gql as gql
 import utils.threaded as threaded
 import utils.vault_client as vault_client
 
-from utils.config import get_config
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
 
@@ -228,7 +227,8 @@ class TerrascriptClient(object):
                         user_name = users[iu]['redhat_username']
                         policy = user_policies[ip]['policy']
                         policy = policy.replace('${aws:username}', user_name)
-                        policy = policy.replace('${aws:accountid}', account_uid)
+                        policy = \
+                            policy.replace('${aws:accountid}', account_uid)
 
                         # Ref: terraform aws iam_user_policy
                         tf_iam_user = self.get_tf_iam_user(user_name)
