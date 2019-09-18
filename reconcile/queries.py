@@ -20,6 +20,7 @@ AWS_ACCOUNTS_QUERY = """
       path
       field
     }
+    deleteKeys
   }
 }
 """
