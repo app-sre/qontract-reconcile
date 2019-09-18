@@ -6,23 +6,12 @@ import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_resources as openshift_resources
 
+from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.defer import defer
-
-AWS_ACCOUNTS_QUERY = """
-{
-  accounts: awsaccounts_v1 {
-    name
-    automationToken {
-      path
-      field
-    }
-  }
-}
-"""
 
 TF_NAMESPACES_QUERY = """
 {
