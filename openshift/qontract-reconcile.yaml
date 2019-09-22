@@ -25,6 +25,41 @@ objects:
           deploymentconfig: qontract-reconcile
       spec:
         containers:
+        - name: aws-garbage-collector
+          image: ${IMAGE}:${IMAGE_TAG}
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done"]
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: aws-iam-keys
+          image: ${IMAGE}:${IMAGE_TAG}
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys; sleep ${SLEEP_DURATION_SECS}; done"]
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: github
+          image: ${IMAGE}:${IMAGE_TAG}
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done"]
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: github-repo-invites
+          image: ${IMAGE}:${IMAGE_TAG}
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done"]
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: quay-membership
+          image: ${IMAGE}:${IMAGE_TAG}
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done"]
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
         - name: slack-usergroups
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]

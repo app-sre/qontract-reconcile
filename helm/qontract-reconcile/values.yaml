@@ -1,4 +1,9 @@
 integrations:
+- name: aws-garbage-collector
+- name: aws-iam-keys
+- name: github
+- name: github-repo-invites
+- name: quay-membership
 - name: slack-usergroups
   resources:
     requests:
