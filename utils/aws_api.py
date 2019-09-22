@@ -181,7 +181,7 @@ class AWSApi(object):
         while wait:
             wait = False
             for account in self.sessions:
-                if self.resources[account].get(resource):
+                if self.resources[account].get(resource) is None:
                     continue
                 wait = True
                 time.sleep(2)
@@ -338,7 +338,7 @@ class AWSApi(object):
         for account, s in self.sessions.items():
             for rt in self.resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
-                    logging.info(['delete_resource', rt, account, r])
+                    logging.info(['delete_resource', account, rt, r])
                     if not dry_run:
                         if enable_deletion:
                             self.delete_resource(s, rt, r)
