@@ -31,7 +31,12 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }}; sleep ${SLEEP_DURATION_SECS}; done"]
           {{- with $integration.resources }}
           resources:
-{{ toYaml . | indent 12 }}
+            requests:
+              memory: {{ .memory }}
+              cpu: {{ .cpu }}
+            limits:
+              memory: {{ .memory }}
+              cpu: {{ .cpu }}
           {{- end }}
           volumeMounts:
           - name: qontract-reconcile-toml

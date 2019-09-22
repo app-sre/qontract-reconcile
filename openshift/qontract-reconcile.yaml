@@ -29,6 +29,13 @@ objects:
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done"]
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -36,6 +43,13 @@ objects:
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys; sleep ${SLEEP_DURATION_SECS}; done"]
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -43,6 +57,13 @@ objects:
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done"]
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -50,6 +71,13 @@ objects:
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done"]
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -57,6 +85,13 @@ objects:
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done"]
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 100Mi
+              cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -65,12 +100,12 @@ objects:
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
-            limits:
-              cpu: 25m
-              memory: 100Mi
             requests:
-              cpu: 25m
               memory: 100Mi
+              cpu: 25m
+            limits:
+              memory: 100Mi
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
