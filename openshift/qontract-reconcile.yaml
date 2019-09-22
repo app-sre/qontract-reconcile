@@ -31,10 +31,10 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
             requests:
-              memory: 100Mi
+              memory: 800Mi
               cpu: 100m
             limits:
-              memory: 100Mi
+              memory: 800Mi
               cpu: 100m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -46,10 +46,10 @@ objects:
           resources:
             requests:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
             limits:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -60,10 +60,10 @@ objects:
           resources:
             requests:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
             limits:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -74,10 +74,10 @@ objects:
           resources:
             requests:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
             limits:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -88,10 +88,10 @@ objects:
           resources:
             requests:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
             limits:
               memory: 100Mi
-              cpu: 100m
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
