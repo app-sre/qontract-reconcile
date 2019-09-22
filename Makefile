@@ -24,8 +24,8 @@ rc:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
-	@helm lint helm/qontract-reconcile
-	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values.yaml > ../../openshift/qontract-reconcile.yaml
+	@helm3 lint helm/qontract-reconcile
+	@helm3 template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values.yaml > openshift/qontract-reconcile.yaml
 
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .

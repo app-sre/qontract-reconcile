@@ -24,20 +24,19 @@ objects:
           deploymentconfig: qontract-reconcile
       spec:
         containers:
-        - name: slack-usergroups
+        {{- range $i, $integration := .Values.integrations }}
+        - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}
           command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done"]
+          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }}; sleep ${SLEEP_DURATION_SECS}; done"]
+          {{- with $integration.resources }}
           resources:
-            requests:
-              memory: 100Mi
-              cpu: 25m
-            limits:
-              memory: 100Mi
-              cpu: 25m
+{{ toYaml . | indent 12 }}
+          {{- end }}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:

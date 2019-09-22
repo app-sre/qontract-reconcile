@@ -1,6 +1,5 @@
 ---
 # Source: qontract-reconcile/templates/template.yaml
----
 apiVersion: v1
 kind: Template
 metadata:
@@ -31,12 +30,12 @@ objects:
           command: ["/bin/sh"]
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
-            requests:
-              memory: 100Mi
-              cpu: 25m
             limits:
-              memory: 100Mi
               cpu: 25m
+              memory: 100Mi
+            requests:
+              cpu: 25m
+              memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
