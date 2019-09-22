@@ -6,7 +6,7 @@ metadata:
   name: qontract-reconcile
 objects:
 - apiVersion: v1
-  kind: DeploymentConfig
+  kind: Deployment
   metadata:
     labels:
       app: qontract-reconcile
@@ -15,20 +15,18 @@ objects:
     replicas: 1
     selector:
       app: qontract-reconcile
-      deploymentconfig: qontract-reconcile
-    strategy:
-      type: Rolling
     template:
       metadata:
         labels:
           app: qontract-reconcile
-          deploymentconfig: qontract-reconcile
       spec:
         containers:
         - name: aws-garbage-collector
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 250Mi
@@ -41,8 +39,10 @@ objects:
             mountPath: /config
         - name: aws-iam-keys
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
@@ -55,8 +55,10 @@ objects:
             mountPath: /config
         - name: github
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 60Mi
@@ -69,8 +71,10 @@ objects:
             mountPath: /config
         - name: github-repo-invites
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 10Mi
@@ -83,8 +87,10 @@ objects:
             mountPath: /config
         - name: quay-membership
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 10Mi
@@ -97,8 +103,10 @@ objects:
             mountPath: /config
         - name: slack-usergroups
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
