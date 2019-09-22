@@ -4,7 +4,7 @@ kind: Template
 metadata:
   name: qontract-reconcile
 objects:
-- apiVersion: v1
+- apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
     labels:
