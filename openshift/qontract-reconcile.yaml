@@ -31,11 +31,11 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
             requests:
-              memory: 800Mi
-              cpu: 100m
+              memory: 250Mi
+              cpu: 25m
             limits:
-              memory: 800Mi
-              cpu: 100m
+              memory: 250Mi
+              cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -59,10 +59,10 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
             requests:
-              memory: 100Mi
+              memory: 60Mi
               cpu: 25m
             limits:
-              memory: 100Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -73,10 +73,10 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
             requests:
-              memory: 100Mi
+              memory: 10Mi
               cpu: 25m
             limits:
-              memory: 100Mi
+              memory: 10Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -87,10 +87,10 @@ objects:
           args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done"]
           resources:
             requests:
-              memory: 100Mi
+              memory: 10Mi
               cpu: 25m
             limits:
-              memory: 100Mi
+              memory: 10Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml

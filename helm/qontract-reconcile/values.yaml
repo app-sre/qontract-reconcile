@@ -1,8 +1,8 @@
 integrations:
 - name: aws-garbage-collector
   resources:
-    cpu: 100m
-    memory: 800Mi
+    cpu: 25m
+    memory: 250Mi
 - name: aws-iam-keys
   resources:
     cpu: 25m
@@ -10,15 +10,15 @@ integrations:
 - name: github
   resources:
     cpu: 25m
-    memory: 100Mi
+    memory: 60Mi
 - name: github-repo-invites
   resources:
     cpu: 25m
-    memory: 100Mi
+    memory: 10Mi
 - name: quay-membership
   resources:
     cpu: 25m
-    memory: 100Mi
+    memory: 10Mi
 - name: slack-usergroups
   resources:
     cpu: 25m
