@@ -1,0 +1,25 @@
+integrations:
+- name: aws-garbage-collector
+  resources:
+    cpu: 100m
+    memory: 100Mi
+- name: aws-iam-keys
+  resources:
+    cpu: 100m
+    memory: 100Mi
+- name: github
+  resources:
+    cpu: 100m
+    memory: 100Mi
+- name: github-repo-invites
+  resources:
+    cpu: 100m
+    memory: 100Mi
+- name: quay-membership
+  resources:
+    cpu: 100m
+    memory: 100Mi
+- name: slack-usergroups
+  resources:
+    cpu: 25m
+    memory: 100Mi
