@@ -5,7 +5,7 @@ metadata:
   name: qontract-reconcile
 objects:
 - apiVersion: v1
-  kind: DeploymentConfig
+  kind: Deployment
   metadata:
     labels:
       app: qontract-reconcile
@@ -14,21 +14,19 @@ objects:
     replicas: 1
     selector:
       app: qontract-reconcile
-      deploymentconfig: qontract-reconcile
-    strategy:
-      type: Rolling
     template:
       metadata:
         labels:
           app: qontract-reconcile
-          deploymentconfig: qontract-reconcile
       spec:
         containers:
         {{- range $i, $integration := .Values.integrations }}
         - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}
-          command: ["/bin/sh"]
-          args: ["-c", "while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }}; sleep ${SLEEP_DURATION_SECS}; done"]
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }}; sleep ${SLEEP_DURATION_SECS}; done
           {{- with $integration.resources }}
           resources:
             requests:
