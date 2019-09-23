@@ -52,6 +52,10 @@ qontract-reconcile --config config.toml --dry-run <subcommand>
 qontract-reconcile --config config.toml <subcommand>
 ```
 
+## OpenShift usage
+
+OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml).
+
 ## Installation
 
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
