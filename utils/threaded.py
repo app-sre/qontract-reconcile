@@ -9,4 +9,4 @@ def run(func, iterable, thread_pool_size, **kwargs):
 
     pool = ThreadPool(thread_pool_size)
     func_partial = partial(func, **kwargs)
-    return pool.map(func_partial, iterable)
+    return pool.map(func_partial, iterable, chunksize=1)
