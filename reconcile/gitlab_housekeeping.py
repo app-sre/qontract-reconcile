@@ -77,8 +77,9 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.remove_label(item, item_type, LABEL)
 
 
-def rebase_merge_requests(dry_run, gl):
+def rebase_merge_requests(dry_run, gl, rebase_limit):
     mrs = gl.get_merge_requests(state='opened')
+    rebases = 0
     for mr in mrs:
         if mr.merge_status == 'cannot_be_merged':
             continue
@@ -92,15 +93,16 @@ def rebase_merge_requests(dry_run, gl):
             continue
 
         logging.info(['rebase', gl.project.name, mr.iid])
-        if not dry_run:
+        if not dry_run and rebases < rebase_limit:
             try:
                 mr.rebase()
+                rebases += 1
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
 def run(gitlab_project_id, dry_run=False, days_interval=15,
-        enable_closing=False):
+        enable_closing=False, rebase_limit=1):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
@@ -109,4 +111,4 @@ def run(gitlab_project_id, dry_run=False, days_interval=15,
                        'issue')
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'merge-request')
-    rebase_merge_requests(dry_run, gl)
+    rebase_merge_requests(dry_run, gl, rebase_limit)
