@@ -103,7 +103,7 @@ class GitLabApi(object):
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
         members = project.members.all(all=True)
-        return [m['username'] for m in members if m['access_level'] >= 40]
+        return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get('app-sre')
