@@ -89,7 +89,7 @@ def rebase_merge_requests(dry_run, gl):
         result = gl.project.repository_compare(mr.sha, head)
         if len(result['commits']) == 0:  # rebased
             continue
-        
+
         logging.info(['rebase', gl.project.name, mr.iid])
         if not dry_run:
             mr.rebase()
