@@ -1,4 +1,5 @@
 import logging
+import gitlab
 
 from datetime import datetime, timedelta
 
@@ -92,7 +93,10 @@ def rebase_merge_requests(dry_run, gl):
 
         logging.info(['rebase', gl.project.name, mr.iid])
         if not dry_run:
-            mr.rebase()
+            try:
+                mr.rebase()
+            except gitlab.exceptions.GitlabMRRebaseError as e:
+                logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
 def run(gitlab_project_id, dry_run=False, days_interval=15,
