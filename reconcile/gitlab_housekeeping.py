@@ -74,13 +74,34 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.remove_label(item, item_type, LABEL)
 
 
+def rebase_merge_requests(dry_run, gl):
+    mrs = gl.get_merge_requests(state='opened')
+    for mr in mrs:
+        if mr.merge_status == 'cannot_be_merged':
+            continue
+        if mr.work_in_progress:
+            continue
+
+        target_branch = mr.target_branch
+        head = gl.project.commits.list(ref_name=target_branch)[0].id
+        result = gl.project.repository_compare(mr.sha, head)
+        if len(result['commits']) == 0:  # rebased
+            continue
+        
+        mr_iid = mr.attributes.get('iid')
+        logging.info(['rebase', gl.project.name, mr_iid])
+        if not dry_run:
+            mr.rebase()
+
+
 def run(gitlab_project_id, dry_run=False, days_interval=15,
         enable_closing=False):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
     gl = GitLabApi(instance, project_id=gitlab_project_id)
-    handle_stale_items(dry_run, gl, days_interval, enable_closing,
-                       'issue')
-    handle_stale_items(dry_run, gl, days_interval, enable_closing,
-                       'merge-request')
+    # handle_stale_items(dry_run, gl, days_interval, enable_closing,
+    #                    'issue')
+    # handle_stale_items(dry_run, gl, days_interval, enable_closing,
+    #                    'merge-request')
+    rebase_merge_requests(dry_run, gl)
