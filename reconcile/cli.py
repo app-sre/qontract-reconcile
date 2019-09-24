@@ -213,12 +213,16 @@ def gitlab_permissions(ctx, thread_pool_size):
 @click.option('--days-interval',
               default=15,
               help='interval of days between actions.')
+@click.option('--rebase-limit',
+              default=1,
+              help='max number of rebases to perform.')
 @enable_deletion(default=False)
 @click.pass_context
 def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
-                        enable_deletion):
+                        enable_deletion, rebase_limit):
     run_integration(reconcile.gitlab_housekeeping.run, gitlab_project_id,
-                    ctx.obj['dry_run'], days_interval, enable_deletion)
+                    ctx.obj['dry_run'], days_interval, enable_deletion,
+                    rebase_limit)
 
 
 @integration.command()
