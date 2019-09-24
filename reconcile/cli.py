@@ -204,7 +204,8 @@ def slack_usergroups(ctx):
 @threaded()
 @click.pass_context
 def gitlab_permissions(ctx, thread_pool_size):
-    run_integration(reconcile.gitlab_permissions.run, ctx.obj['dry_run'])
+    run_integration(reconcile.gitlab_permissions.run, ctx.obj['dry_run'],
+                    thread_pool_size)
 
 
 @integration.command()
