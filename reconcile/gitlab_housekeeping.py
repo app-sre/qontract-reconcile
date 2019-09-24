@@ -21,8 +21,11 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     for item in items:
         item_iid = item.attributes.get('iid')
         item_labels = item.attributes.get('labels')
-        updated_at = item.attributes.get('updated_at')
-        update_date = datetime.strptime(updated_at, DATE_FORMAT)
+        notes = item.notes.list()
+        notes_dates = \
+            [datetime.strptime(note.attributes.get('updated_at'), DATE_FORMAT)
+             for note in notes]
+        update_date = max(d for d in notes_dates)
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
@@ -52,26 +55,44 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                 continue
 
             # if item has 'stale' label - check the notes
-            notes = item.notes.list()
             cancel_notes = [n for n in notes
                             if n.attributes.get('body') ==
                             '/{} cancel'.format(LABEL)]
             if not cancel_notes:
                 continue
 
-            notes_dates = \
+            cancel_notes_dates = \
                 [datetime.strptime(
                     note.attributes.get('updated_at'), DATE_FORMAT)
                  for note in cancel_notes]
-            latest_note_date = max(d for d in notes_dates)
+            latest_cancel_note_date = max(d for d in cancel_notes_dates)
             # if the latest cancel note is under
             # days_interval - remove 'stale' label
-            current_interval = now.date() - latest_note_date.date()
+            current_interval = now.date() - latest_cancel_note_date.date()
             if current_interval <= timedelta(days=days_interval):
                 logging.info(['remove_label', gl.project.name,
                               item_type, item_iid, LABEL])
                 if not dry_run:
                     gl.remove_label(item, item_type, LABEL)
+
+
+def rebase_merge_requests(dry_run, gl):
+    mrs = gl.get_merge_requests(state='opened')
+    for mr in mrs:
+        if mr.merge_status == 'cannot_be_merged':
+            continue
+        if mr.work_in_progress:
+            continue
+
+        target_branch = mr.target_branch
+        head = gl.project.commits.list(ref_name=target_branch)[0].id
+        result = gl.project.repository_compare(mr.sha, head)
+        if len(result['commits']) == 0:  # rebased
+            continue
+
+        logging.info(['rebase', gl.project.name, mr.iid])
+        if not dry_run:
+            mr.rebase()
 
 
 def run(gitlab_project_id, dry_run=False, days_interval=15,
@@ -84,3 +105,4 @@ def run(gitlab_project_id, dry_run=False, days_interval=15,
                        'issue')
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'merge-request')
+    rebase_merge_requests(dry_run, gl)
