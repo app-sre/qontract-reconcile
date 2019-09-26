@@ -78,10 +78,10 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 10Mi
+              memory: 100Mi
               cpu: 25m
             limits:
-              memory: 10Mi
+              memory: 100Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml

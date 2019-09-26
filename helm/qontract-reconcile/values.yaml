@@ -14,7 +14,7 @@ integrations:
 - name: github-repo-invites
   resources:
     cpu: 25m
-    memory: 10Mi
+    memory: 100Mi
 - name: quay-membership
   resources:
     cpu: 25m
