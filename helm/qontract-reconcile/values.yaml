@@ -23,3 +23,7 @@ integrations:
   resources:
     cpu: 25m
     memory: 100Mi
+- name: jira-watcher
+  resources:
+    cpu: 25m
+    memory: 100Mi

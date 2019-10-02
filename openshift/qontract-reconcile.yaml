@@ -118,6 +118,22 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        - name: jira-watcher
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 25m
+            limits:
+              memory: 100Mi
+              cpu: 25m
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
         volumes:
         - name: qontract-reconcile-toml
           secret:
