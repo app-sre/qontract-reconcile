@@ -35,6 +35,7 @@ setup(
         "pypd>=1.1.0,<1.2.0",
         "jenkins-job-builder>=2.10.1,<2.11.0",
         "Jinja2>=2.10.1,<2.11.0",
+        "jira>=2.0.0,<2.1.0",
     ],
 
     test_suite="tests",
