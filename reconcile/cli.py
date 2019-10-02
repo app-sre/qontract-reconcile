@@ -11,6 +11,7 @@ import reconcile.openshift_groups
 import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
+import reconcile.openshift_network_policies
 import reconcile.openshift_resources_annotate
 import reconcile.quay_membership
 import reconcile.quay_repos
@@ -258,6 +259,15 @@ def openshift_resources(ctx, thread_pool_size):
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size):
     run_integration(reconcile.openshift_namespaces.run,
+                    ctx.obj['dry_run'], thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@click.pass_context
+def openshift_network_policies(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_network_policies.run,
                     ctx.obj['dry_run'], thread_pool_size)
 
 
