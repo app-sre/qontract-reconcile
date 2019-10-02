@@ -21,9 +21,11 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `jenkins-roles`: Manage Jenkins roles association via REST API.
 - `jenkins-webhooks`: Manage web hooks to Jenkins jobs.
+- `jira-watcher`: Watch for changes in Jira boards and notify on Slack.
 - `ldap-users`: Removes users which are not found in LDAP search.
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
+- `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
