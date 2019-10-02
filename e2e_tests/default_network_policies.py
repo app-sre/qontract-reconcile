@@ -6,7 +6,7 @@ import e2e_tests.network_policy_test_base as npt
 
 from utils.defer import defer
 
-QONTRACT_E2E_TEST = 'dedicated-admin-rolebindings'
+QONTRACT_E2E_TEST = 'default-network-policies'
 
 
 @defer
@@ -35,7 +35,7 @@ def run(defer=None):
                             npt.get_expected_network_policy_names()]
 
         for project in projects:
-            logging.info("[{}/{}] validating RoleBindings".format(
+            logging.info("[{}/{}] validating NetworkPolicies".format(
                 cluster, project))
             project_nps = [np for np in network_policies
                            if np['metadata']['namespace'] == project]
