@@ -13,11 +13,7 @@ QONTRACT_E2E_TEST = 'default-network-policies'
 def run(defer=None):
     oc_map = tb.get_oc_map(QONTRACT_E2E_TEST)
     defer(lambda: oc_map.cleanup())
-    pattern = \
-        r'^(default|logging|' + \
-        '(openshift|kube-|ops-|dedicated-|management-|{}).*)$'.format(
-            tb.E2E_NS_PFX
-        )
+    pattern = tb.get_namespaces_pattern()
     for cluster in oc_map.clusters():
         oc = oc_map.get(cluster)
         logging.info("[{}] validating default NetworkPolicies".format(cluster))

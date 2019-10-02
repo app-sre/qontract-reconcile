@@ -50,3 +50,11 @@ def get_test_namespace_name():
 def assert_rolebinding(expected_rb, rb):
     assert expected_rb['role'] == rb['roleRef']['name']
     assert expected_rb['groups'] == rb['groupNames']
+
+def get_namespaces_pattern():
+  return r'^(default|logging|olm|' + \
+         '(openshift|kube-|ops-|dedicated-|management-|' + \
+           'uhc-(staging|integration|production)-|' + \
+           '{}).*)$'.format(
+            E2E_NS_PFX
+         )
