@@ -1,6 +1,5 @@
 import time
 import requests
-import logging
 import hvac
 import base64
 from utils.config import get_config
@@ -28,7 +27,6 @@ def init(server, role_id, secret_id):
     global _client
 
     if _client is None:
-        logging.getLogger("urllib3").setLevel(logging.ERROR)
         client = hvac.Client(url=server)
 
         authenticated = False

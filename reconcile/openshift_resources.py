@@ -2,7 +2,7 @@ import logging
 import sys
 import base64
 import json
-import operator
+
 import anymarkup
 import jinja2
 import semver
@@ -504,7 +504,7 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
                                openshift_resource, namespace_info)
             state_specs.append(d_spec)
 
-    return sorted(state_specs, key=operator.attrgetter('type'))
+    return state_specs
 
 
 def fetch_data(namespaces, thread_pool_size):
