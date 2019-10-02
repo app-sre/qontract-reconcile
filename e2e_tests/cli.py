@@ -7,6 +7,7 @@ import utils.gql as gql
 import e2e_tests.create_namespace
 import e2e_tests.dedicated_admin_rolebindings
 import e2e_tests.default_network_policies
+import e2e_tests.default_project_labels
 
 from utils.aggregated_list import RunnerException
 
@@ -57,3 +58,8 @@ def dedicated_admin_rolebindings(ctx):
 @click.pass_context
 def default_network_policies(ctx):
     run_test(e2e_tests.default_network_policies.run)
+
+@test.command()
+@click.pass_context
+def default_project_labels(ctx):
+    run_test(e2e_tests.default_project_labels.run)
