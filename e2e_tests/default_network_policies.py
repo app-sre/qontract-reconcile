@@ -2,7 +2,7 @@ import re
 import logging
 
 import e2e_tests.test_base as tb
-import e2e_tests.dedicated_admin_test_base as dat
+import e2e_tests.network_policy_test_base as npt
 
 from utils.defer import defer
 
@@ -32,8 +32,7 @@ def run(defer=None):
         network_policies = [np for np in all_network_policies
                             if np['metadata']['namespace'] in projects
                             and np['metadata']['name'] in
-                            ['allow-from-default-namespace',
-                             'allow-from-same-namespace']]
+                            npt.get_expected_network_policy_names()]
 
         for project in projects:
             logging.info("[{}/{}] validating RoleBindings".format(
