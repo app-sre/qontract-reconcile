@@ -27,7 +27,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 250Mi
@@ -43,7 +43,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
@@ -59,7 +59,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 60Mi
@@ -75,7 +75,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
@@ -91,7 +91,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
@@ -107,7 +107,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 100Mi
@@ -123,7 +123,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
               memory: 200Mi
