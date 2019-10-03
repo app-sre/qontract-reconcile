@@ -27,3 +27,4 @@ integrations:
   resources:
     cpu: 25m
     memory: 200Mi
+  extraArgs: --io-dir /tmp/throughput/
