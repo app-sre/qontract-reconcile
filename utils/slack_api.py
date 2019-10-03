@@ -13,18 +13,17 @@ class UsergroupNotFoundException(Exception):
 class SlackApi(object):
     """Wrapper around Slack API calls"""
 
-    def __init__(self, token):
+    def __init__(self, token, **chat_kwargs):
         slack_token = vault_client.read(token)
         self.sc = SlackClient(slack_token)
         self.results = {}
+        self.chat_kwargs = chat_kwargs
 
-    def chat_post_message(self, text, channel, icon_emoji, username):
+    def chat_post_message(self, text):
         self.sc.api_call(
             "chat.postMessage",
             text=text,
-            channel=channel,
-            icon_emoji=icon_emoji,
-            username=username
+            **self.chat_kwargs
         )
 
     def describe_usergroup(self, handle):
