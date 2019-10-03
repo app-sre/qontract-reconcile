@@ -18,6 +18,15 @@ class SlackApi(object):
         self.sc = SlackClient(slack_token)
         self.results = {}
 
+    def chat_post_message(self, text, channel, icon_emoji, username):
+        self.sc.api_call(
+            "chat.postMessage",
+            text=text,
+            channel=channel,
+            icon_emoji=icon_emoji,
+            username=username
+        )
+
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
         usergroup_id = usergroup['id']
