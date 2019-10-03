@@ -69,21 +69,21 @@ def format_message(server, key, event,
 def calculate_diff(server, current_state, previous_state):
     messages = []
     new_issues = [format_message(server, key, 'created')
-                    for key in current_state
-                    if key not in previous_state]
+                  for key in current_state
+                  if key not in previous_state]
     messages.extend(new_issues)
 
     deleted_issues = [format_message(server, key, 'deleted')
-                        for key in previous_state
-                        if key not in current_state]
+                      for key in previous_state
+                      if key not in current_state]
     messages.extend(deleted_issues)
 
     updated_issues = \
         [format_message(server, key, 'status change',
                         previous_state[key],
                         current_state[key])
-            for key, status in current_state.items()
-            if key in previous_state and status != previous_state[key]]
+         for key, status in current_state.items()
+         if key in previous_state and status != previous_state[key]]
     messages.extend(updated_issues)
 
     return messages
