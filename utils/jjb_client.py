@@ -273,10 +273,11 @@ class JJB(object):
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
             for job in jobs:
+                job_name = job['name']
                 try:
                     repo_url_raw = job['properties'][0]['github']['url']
                     repo_url = repo_url_raw.strip('/').replace('.git', '')
                     repos.append(repo_url)
                 except:
-                    pass
+                    logging.debug('missing github url: {}'.format(job_name))
         return repos
