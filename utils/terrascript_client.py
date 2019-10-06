@@ -220,8 +220,8 @@ class TerrascriptClient(object):
             if user_policies is not None:
                 for ip in range(len(user_policies)):
                     policy_name = user_policies[ip]['name']
-                    account_name = aws_groups[ig]['account']['name']
-                    account_uid = aws_groups[ig]['account']['uid']
+                    account_name = user_policies[ip]['account']['name']
+                    account_uid = user_policies[ip]['account']['uid']
                     for iu in range(len(users)):
                         # replace known keys with values
                         user_name = users[iu]['redhat_username']
