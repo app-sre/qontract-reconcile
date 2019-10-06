@@ -37,7 +37,7 @@ def get_hooks_to_add(desired_state, gl):
 
 
 def run(dry_run=False):
-    jjb = init_jjb()
+    jjb, _ = init_jjb()
     gl = get_gitlab_api()
 
     desired_state = jjb.get_job_webhooks_data()

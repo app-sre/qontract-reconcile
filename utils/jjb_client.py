@@ -225,21 +225,24 @@ class JJB(object):
         for wd in self.working_dirs.values():
             shutil.rmtree(wd)
 
+    def get_jobs(self, wd, name):
+        ini_path = '{}/{}.ini'.format(wd, name)
+        config_path = '{}/config.yaml'.format(wd)
+
+        args = ['--conf', ini_path, 'test', config_path]
+        jjb = self.get_jjb(args)
+        builder = JenkinsManager(jjb.jjb_config)
+        registry = ModuleRegistry(jjb.jjb_config, builder.plugins_list)
+        parser = YamlParser(jjb.jjb_config)
+        parser.load_files(jjb.options.path)
+        jobs, _ = parser.expandYaml(registry, jjb.options.names)
+
+        return jobs
+
     def get_job_webhooks_data(self):
         job_webhooks_data = {}
         for name, wd in self.working_dirs.items():
-            ini_path = '{}/{}.ini'.format(wd, name)
-            config_path = '{}/config.yaml'.format(wd)
-
-            args = ['--conf', ini_path, 'test', config_path]
-            jjb = self.get_jjb(args)
-            builder = JenkinsManager(jjb.jjb_config)
-            registry = ModuleRegistry(jjb.jjb_config, builder.plugins_list)
-            parser = YamlParser(jjb.jjb_config)
-            parser.load_files(jjb.options.path)
-
-            jobs, _ = parser.expandYaml(
-                registry, jjb.options.names)
+            jobs = self.get_jobs(wd, name)
 
             for job in jobs:
                 try:
@@ -262,4 +265,18 @@ class JJB(object):
                     job_webhooks_data[project_url].append(hook)
                 except KeyError:
                     continue
+
         return job_webhooks_data
+
+    def get_repos(self):
+        repos = []
+        for name, wd in self.working_dirs.items():
+            jobs = self.get_jobs(wd, name)
+            for job in jobs:
+                try:
+                    repo_url_raw = job['properties'][0]['github']['url']
+                    repo_url = repo_url_raw.strip('/').replace('.git', '')
+                    repos.append(repo_url)
+                except:
+                    pass
+        return repos
