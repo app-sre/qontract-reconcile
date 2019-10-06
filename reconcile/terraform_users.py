@@ -29,6 +29,7 @@ TF_QUERY = """
       policy
       account {
         name
+        uid
       }
     }
   }
