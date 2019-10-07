@@ -278,6 +278,6 @@ class JJB(object):
                     repo_url_raw = job['properties'][0]['github']['url']
                     repo_url = repo_url_raw.strip('/').replace('.git', '')
                     repos.append(repo_url)
-                except:
+                except KeyError:
                     logging.debug('missing github url: {}'.format(job_name))
         return repos
