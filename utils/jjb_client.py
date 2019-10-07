@@ -208,6 +208,7 @@ class JJB(object):
             jjb.execute()
 
     def modify_logger(self):
+        yaml.warnings({'YAMLLoadWarning': False})
         formatter = logging.Formatter('%(levelname)s: %(message)s')
         logger = logging.getLogger()
         logger.handlers[0].setFormatter(formatter)
