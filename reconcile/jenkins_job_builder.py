@@ -48,7 +48,8 @@ def validate_repos(jjb, gqlapi):
 def run(dry_run=False, io_dir='throughput/', compare=True, defer=None):
     jjb, gqlapi = init_jjb()
     defer(lambda: jjb.cleanup())
-    validate_repos(jjb, gqlapi)
+    if compare:
+        validate_repos(jjb, gqlapi)
 
     if dry_run:
         jjb.test(io_dir, compare=compare)
