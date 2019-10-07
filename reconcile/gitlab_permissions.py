@@ -17,7 +17,7 @@ APPS_QUERY = """
 """
 
 
-def get_gitlab_repos(gqlapi, server):
+def get_repos(gqlapi, server=''):
     apps = gqlapi.query(APPS_QUERY)['apps']
 
     code_components_lists = [a['codeComponents'] for a in apps
@@ -47,7 +47,7 @@ def run(dry_run=False, thread_pool_size=10):
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
     gl = GitLabApi(instance)
-    repos = get_gitlab_repos(gqlapi, gl.server)
+    repos = get_repos(gqlapi, server=gl.server)
     app_sre = gl.get_app_sre_group_users()
     results = threaded.run(get_members_to_add, repos, thread_pool_size,
                            gl=gl, app_sre=app_sre)
