@@ -8,13 +8,6 @@ from utils.openshift_resource import OR
 from utils.defer import defer
 
 
-class ConstructResourceError(Exception):
-    def __init__(self, msg):
-        super(ConstructResourceError, self).__init__(
-            "error construction openshift resource: " + str(msg)
-        )
-
-
 NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -79,17 +72,7 @@ def construct_oc_resource(name, source_ns):
             ]
         }
     }
-    openshift_resource = OR(body,
-                            QONTRACT_INTEGRATION,
-                            QONTRACT_INTEGRATION_VERSION)
-
-    try:
-        openshift_resource.verify_valid_k8s_object()
-    except (KeyError, TypeError) as e:
-        k = e.__class__.__name__
-        e_msg = "Invalid data ({}). Skipping resource: {}"
-        raise ConstructResourceError(e_msg.format(k, name))
-    return openshift_resource
+    return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
 
 
 def fetch_desired_state(namespaces, ri):

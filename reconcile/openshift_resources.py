@@ -15,6 +15,7 @@ import reconcile.openshift_base as ob
 from utils.oc import OC_Map
 from utils.defer import defer
 from utils.openshift_resource import (OR,
+                                      ConstructResourceError,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
 from utils.jinja2_ext import B64EncodeExtension
@@ -202,18 +203,12 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
 
-    openshift_resource = OR(resource['body'],
-                            QONTRACT_INTEGRATION,
-                            QONTRACT_INTEGRATION_VERSION)
-
     try:
-        openshift_resource.verify_valid_k8s_object()
-    except (KeyError, TypeError) as e:
-        k = e.__class__.__name__
-        e_msg = "Invalid data ({}). Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(k, path))
-
-    return openshift_resource
+        return OR(resource['body'],
+                  QONTRACT_INTEGRATION,
+                  QONTRACT_INTEGRATION_VERSION)
+    except ConstructResourceError as e:
+        raise FetchResourceError(e.message)
 
 
 def fetch_provider_vault_secret(path, version, name,
@@ -242,18 +237,12 @@ def fetch_provider_vault_secret(path, version, name,
             v = base64.b64encode(v)
         body['data'][k] = v
 
-    openshift_resource = OR(body,
-                            QONTRACT_INTEGRATION,
-                            QONTRACT_INTEGRATION_VERSION)
-
     try:
-        openshift_resource.verify_valid_k8s_object()
-    except (KeyError, TypeError) as e:
-        k = e.__class__.__name__
-        e_msg = "Invalid data ({}). Skipping resource: {}"
-        raise FetchVaultSecretError(e_msg.format(k, path))
-
-    return openshift_resource
+        return OR(resource['body'],
+                  QONTRACT_INTEGRATION,
+                  QONTRACT_INTEGRATION_VERSION)
+    except ConstructResourceError as e:
+        raise FetchResourceError(e.message)
 
 
 def fetch_provider_route(path, tls_path, tls_version):

@@ -13,13 +13,6 @@ from python_terraform import Terraform, TerraformCommandError
 from threading import Lock
 
 
-class ConstructResourceError(Exception):
-    def __init__(self, msg):
-        super(ConstructResourceError, self).__init__(
-            "error construction openshift resource: " + str(msg)
-        )
-
-
 class TerraformClient(object):
     def __init__(self, integration, integration_version,
                  integration_prefix, working_dirs, thread_pool_size,
@@ -314,17 +307,8 @@ class TerraformClient(object):
                 v = base64.b64encode(v)
             body['data'][k] = v
 
-        openshift_resource = \
-            OR(body, self.integration, self.integration_version)
+        return OR(body, self.integration, self.integration_version)
 
-        try:
-            openshift_resource.verify_valid_k8s_object()
-        except (KeyError, TypeError) as e:
-            k = e.__class__.__name__
-            e_msg = "Invalid data ({}). Skipping resource: {}"
-            raise ConstructResourceError(e_msg.format(k, name))
-
-        return openshift_resource
 
     def check_output(self, name, return_code, stdout, stderr):
         error_occured = False
