@@ -4,7 +4,7 @@ import logging
 import utils.oc
 import utils.gql as gql
 import utils.vault_client as vault_client
-from utils.openshift_resource import OR
+from utils.openshift_resource import OpenshiftResource as OR
 
 QUERY = """
 {

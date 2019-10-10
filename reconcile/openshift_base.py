@@ -4,7 +4,8 @@ import utils.threaded as threaded
 
 from utils.oc import OC_Map
 from utils.oc import StatusCodeError
-from utils.openshift_resource import OR, ResourceInventory
+from utils.openshift_resource import (OpenshiftResource as OR,
+                                      ResourceInventory)
 
 
 class StateSpec(object):

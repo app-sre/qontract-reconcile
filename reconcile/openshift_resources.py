@@ -14,7 +14,7 @@ import reconcile.openshift_base as ob
 
 from utils.oc import OC_Map
 from utils.defer import defer
-from utils.openshift_resource import (OR,
+from utils.openshift_resource import (OpenshiftResource as OR,
                                       ConstructResourceError,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
@@ -206,7 +206,8 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
     try:
         return OR(resource['body'],
                   QONTRACT_INTEGRATION,
-                  QONTRACT_INTEGRATION_VERSION)
+                  QONTRACT_INTEGRATION_VERSION,
+                  error_details=path)
     except ConstructResourceError as e:
         raise FetchResourceError(e.message)
 
@@ -238,9 +239,10 @@ def fetch_provider_vault_secret(path, version, name,
         body['data'][k] = v
 
     try:
-        return OR(resource['body'],
+        return OR(body,
                   QONTRACT_INTEGRATION,
-                  QONTRACT_INTEGRATION_VERSION)
+                  QONTRACT_INTEGRATION_VERSION,
+                  error_details=path)
     except ConstructResourceError as e:
         raise FetchResourceError(e.message)
 

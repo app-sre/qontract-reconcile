@@ -4,7 +4,7 @@ import semver
 import utils.gql as gql
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import OR
+from utils.openshift_resource import OpenshiftResource as OR
 from utils.defer import defer
 
 
@@ -72,7 +72,8 @@ def construct_oc_resource(name, source_ns):
             ]
         }
     }
-    return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
+    return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
+              error_details=name)
 
 
 def fetch_desired_state(namespaces, ri):

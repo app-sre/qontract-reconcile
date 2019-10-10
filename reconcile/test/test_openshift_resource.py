@@ -3,7 +3,8 @@ from .fixtures import Fixtures
 
 import semver
 
-from utils.openshift_resource import OR
+from utils.openshift_resource import (OpenshiftResource as OR,
+                                      ConstructResourceError)
 
 fxt = Fixtures('openshift_resource')
 
@@ -20,9 +21,9 @@ class TestOpenshiftResource(object):
 
     def test_verify_valid_k8s_object_false(self):
         resource = fxt.get_anymarkup('invalid_resource.yml')
-        openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
 
-        with pytest.raises(KeyError):
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
             assert openshift_resource.verify_valid_k8s_object() is None
 
     def test_annotates_resource(self):

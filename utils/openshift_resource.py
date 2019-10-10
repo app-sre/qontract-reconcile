@@ -19,10 +19,12 @@ class ConstructResourceError(Exception):
 
 
 class OpenshiftResource(object):
-    def __init__(self, body, integration, integration_version):
+    def __init__(self, body, integration, integration_version,
+                 error_details=''):
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
+        self.error_details = error_details
         self.verify_valid_k8s_object()
 
     @property
@@ -38,9 +40,9 @@ class OpenshiftResource(object):
             self.name
             self.kind
         except (KeyError, TypeError) as e:
-            k = e.__class__.__name__
-            e_msg = "Invalid data ({}) in resource: {}"
-            raise ConstructResourceError(e_msg.format(k, name))
+            msg = "resource invalid data ({}). details: {}".format(
+                e.__class__.__name__, self.error_details)
+            raise ConstructResourceError(msg)
 
     def has_qontract_annotations(self):
         try:
@@ -206,13 +208,6 @@ class OpenshiftResource(object):
         m = hashlib.sha256()
         m.update(body.encode('utf-8'))
         return m.hexdigest()
-
-
-class OR(OpenshiftResource):
-    def __init__(self, body, integration, integration_version):
-        super(OR, self).__init__(
-            body, integration, integration_version
-        )
 
 
 class ResourceInventory(object):

@@ -6,7 +6,7 @@ import os
 
 import utils.threaded as threaded
 
-from utils.openshift_resource import OR
+from utils.openshift_resource import OpenshiftResource as OR
 from utils.retry import retry
 
 from python_terraform import Terraform, TerraformCommandError
@@ -307,8 +307,8 @@ class TerraformClient(object):
                 v = base64.b64encode(v)
             body['data'][k] = v
 
-        return OR(body, self.integration, self.integration_version)
-
+        return OR(body, self.integration, self.integration_version,
+                  error_details=name)
 
     def check_output(self, name, return_code, stdout, stderr):
         error_occured = False
