@@ -6,7 +6,7 @@ import os
 
 import utils.threaded as threaded
 
-from utils.openshift_resource import OpenshiftResource
+from utils.openshift_resource import OR
 from utils.retry import retry
 
 from python_terraform import Terraform, TerraformCommandError
@@ -17,13 +17,6 @@ class ConstructResourceError(Exception):
     def __init__(self, msg):
         super(ConstructResourceError, self).__init__(
             "error construction openshift resource: " + str(msg)
-        )
-
-
-class OR(OpenshiftResource):
-    def __init__(self, body, integration, integration_version):
-        super(OR, self).__init__(
-            body, integration, integration_version
         )
 
 

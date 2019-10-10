@@ -4,7 +4,6 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
-import reconcile.openshift_resources as openshift_resources
 import reconcile.openshift_base as ob
 
 from reconcile.queries import AWS_ACCOUNTS_QUERY
@@ -166,6 +165,6 @@ def run(dry_run=False, print_only=False,
         cleanup_and_exit(tf, err)
 
     tf.populate_desired_state(ri)
-    openshift_resources.realize_data(dry_run, oc_map, ri, enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion)
 
     cleanup_and_exit(tf)

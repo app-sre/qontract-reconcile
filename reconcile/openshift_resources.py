@@ -12,9 +12,9 @@ import utils.vault_client as vault_client
 import utils.openssl as openssl
 import reconcile.openshift_base as ob
 
-from utils.oc import OC_Map, StatusCodeError
+from utils.oc import OC_Map
 from utils.defer import defer
-from utils.openshift_resource import (OpenshiftResource,
+from utils.openshift_resource import (OR,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
 from utils.jinja2_ext import B64EncodeExtension
@@ -141,13 +141,6 @@ class UnknownTemplateTypeError(Exception):
         )
 
 
-class OR(OpenshiftResource):
-    def __init__(self, body):
-        super(OR, self).__init__(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
-        )
-
-
 def lookup_vault_secret(path, key, version=None):
     secret = {
         'path': path,
@@ -209,7 +202,9 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
 
-    openshift_resource = OR(resource['body'])
+    openshift_resource = OR(resource['body'],
+                            QONTRACT_INTEGRATION,
+                            QONTRACT_INTEGRATION_VERSION)
 
     try:
         openshift_resource.verify_valid_k8s_object()
@@ -247,7 +242,9 @@ def fetch_provider_vault_secret(path, version, name,
             v = base64.b64encode(v)
         body['data'][k] = v
 
-    openshift_resource = OR(body)
+    openshift_resource = OR(body,
+                            QONTRACT_INTEGRATION,
+                            QONTRACT_INTEGRATION_VERSION)
 
     try:
         openshift_resource.verify_valid_k8s_object()
@@ -368,7 +365,9 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
     if oc is None:
         return
     for item in oc.get_items(resource_type, namespace=namespace):
-        openshift_resource = OR(item)
+        openshift_resource = OR(item,
+                                QONTRACT_INTEGRATION,
+                                QONTRACT_INTEGRATION_VERSION)
         ri.add_current(
             cluster,
             namespace,
@@ -452,94 +451,6 @@ def fetch_data(namespaces, thread_pool_size):
     return oc_map, ri
 
 
-def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
-    logging.info(['apply', cluster, namespace, resource_type, resource.name])
-
-    if not dry_run:
-        annotated = resource.annotate()
-        oc_map.get(cluster).apply(namespace, annotated.toJSON())
-
-
-def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
-           enable_deletion):
-    # this section is only relevant for the terraform integrations
-    if not enable_deletion:
-        logging.error(['delete', cluster, namespace, resource_type, name])
-        logging.error('\'delete\' action is not enabled. ' +
-                      'Please run the integration manually ' +
-                      'with the \'--enable-deletion\' flag.')
-        return
-
-    logging.info(['delete', cluster, namespace, resource_type, name])
-
-    if not dry_run:
-        oc_map.get(cluster).delete(namespace, resource_type, name)
-
-
-def realize_data(dry_run, oc_map, ri, enable_deletion=True):
-    for cluster, namespace, resource_type, data in ri:
-        # desired items
-        for name, d_item in data['desired'].items():
-            c_item = data['current'].get(name)
-
-            if c_item is not None:
-                #  If resource doesn't have annotations, annotate and apply
-                if not c_item.has_qontract_annotations():
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, annotating and applying"
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
-
-                # don't apply if sha256sum hashes match
-                elif c_item.sha256sum() == d_item.sha256sum():
-                    if c_item.has_valid_sha256sum():
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and hashes match, skipping."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.debug(msg)
-                        continue
-                    else:
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and has stale sha256sum due to manual changes."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.info(msg)
-
-                logging.debug("CURRENT: " +
-                              OR.serialize(OR.canonicalize(c_item.body)))
-                logging.debug("DESIRED: " +
-                              OR.serialize(OR.canonicalize(d_item.body)))
-            else:
-                logging.debug("CURRENT: None")
-
-            try:
-                apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item)
-            except StatusCodeError as e:
-                ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
-                logging.error(msg)
-
-        # current items
-        for name, c_item in data['current'].items():
-            d_item = data['desired'].get(name)
-            if d_item is not None:
-                continue
-
-            if not c_item.has_qontract_annotations():
-                continue
-
-            try:
-                delete(dry_run, oc_map, cluster, namespace,
-                       resource_type, name, enable_deletion)
-            except StatusCodeError as e:
-                ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
-                logging.error(msg)
-
-
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
     gqlapi = gql.get_api()
@@ -547,7 +458,7 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, ri = fetch_data(namespaces, thread_pool_size)
     defer(lambda: oc_map.cleanup())
 
-    realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri)
 
     if ri.has_error_registered():
         sys.exit(1)

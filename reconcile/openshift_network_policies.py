@@ -3,19 +3,11 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
-import reconcile.openshift_resources as openshift_resources
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import ResourceInventory, OpenshiftResource
+from utils.openshift_resource import ResourceInventory, OR
 from utils.oc import OC_Map
 from utils.defer import defer
-
-
-class OR(OpenshiftResource):
-    def __init__(self, body, integration, integration_version):
-        super(OR, self).__init__(
-            body, integration, integration_version
-        )
 
 
 class ConstructResourceError(Exception):
@@ -169,4 +161,4 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     ri, oc_map = fetch_current_state(namespaces, thread_pool_size)
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(namespaces, ri)
-    openshift_resources.realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri)
