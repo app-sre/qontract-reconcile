@@ -4,7 +4,7 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
-import reconcile.openshift_resources as openshift_resources
+import reconcile.openshift_base as ob
 
 from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
@@ -87,7 +87,7 @@ def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
     state_specs = \
-        openshift_resources.init_specs_to_fetch(
+        ob.init_specs_to_fetch(
             ri,
             oc_map,
             namespaces,
@@ -165,6 +165,6 @@ def run(dry_run=False, print_only=False,
         cleanup_and_exit(tf, err)
 
     tf.populate_desired_state(ri)
-    openshift_resources.realize_data(dry_run, oc_map, ri, enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion)
 
     cleanup_and_exit(tf)

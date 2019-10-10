@@ -10,6 +10,13 @@ class GqlApiError(Exception):
     pass
 
 
+class GqlGetResourceError(Exception):
+    def __init__(self, path, msg):
+        super(GqlGetResourceError, self).__init__(
+            "error getting resource from path {}: {}".format(path, str(msg))
+        )
+
+
 class GqlApi(object):
     def __init__(self, url, token=None):
         self.url = url
@@ -53,7 +60,9 @@ class GqlApi(object):
         resources = self.query(query, {'path': path})['resources']
 
         if len(resources) != 1:
-            raise GqlApiError('Expecting one and only one resource.')
+            raise GqlGetResourceError(
+                path,
+                'Expecting one and only one resource.')
 
         return resources[0]
 

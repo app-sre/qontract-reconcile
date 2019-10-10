@@ -11,11 +11,21 @@ class ResourceKeyExistsError(Exception):
     pass
 
 
+class ConstructResourceError(Exception):
+    def __init__(self, msg):
+        super(ConstructResourceError, self).__init__(
+            "error constructing openshift resource: " + str(msg)
+        )
+
+
 class OpenshiftResource(object):
-    def __init__(self, body, integration, integration_version):
+    def __init__(self, body, integration, integration_version,
+                 error_details=''):
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
+        self.error_details = error_details
+        self.verify_valid_k8s_object()
 
     @property
     def name(self):
@@ -26,8 +36,13 @@ class OpenshiftResource(object):
         return self.body['kind']
 
     def verify_valid_k8s_object(self):
-        self.name
-        self.kind
+        try:
+            self.name
+            self.kind
+        except (KeyError, TypeError) as e:
+            msg = "resource invalid data ({}). details: {}".format(
+                e.__class__.__name__, self.error_details)
+            raise ConstructResourceError(msg)
 
     def has_qontract_annotations(self):
         try:

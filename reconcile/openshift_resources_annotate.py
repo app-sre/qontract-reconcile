@@ -4,8 +4,7 @@ import logging
 import utils.oc
 import utils.gql as gql
 import utils.vault_client as vault_client
-
-from reconcile.openshift_resources import OR
+from utils.openshift_resource import OpenshiftResource as OR
 
 QUERY = """
 {
@@ -52,7 +51,7 @@ def run(dry_run, cluster, namespace, kind, name):
             logging.error('Resource not found.')
             sys.exit(1)
 
-    openshift_resource = OR(resource)
+    openshift_resource = OR(resource, '', '')
 
     if openshift_resource.has_qontract_annotations():
         logging.error('already annotated')
