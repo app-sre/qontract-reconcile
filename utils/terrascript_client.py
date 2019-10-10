@@ -383,6 +383,9 @@ class TerrascriptClient(object):
         values['versioning'] = {'enabled': True}
         values['tags'] = common_values['tags']
         values['acl'] = common_values['acl']
+        if common_values.get('lifecycle_rules'):
+            # common_values['lifecycle_rules'] is a list of lifecycle_rules
+            values['lifecycle_rule'] = common_values['lifecycle_rules']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
