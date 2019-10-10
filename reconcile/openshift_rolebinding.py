@@ -4,7 +4,7 @@ import copy
 
 import utils.gql as gql
 import utils.threaded as threaded
-import reconcile.openshift_resources as openshift_resources
+import reconcile.openshift_base as ob
 
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
@@ -85,7 +85,7 @@ def fetch_current_state(namespaces, thread_pool_size):
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
 
     state_specs = \
-        openshift_resources.init_specs_to_fetch(
+        ob.init_specs_to_fetch(
             ri,
             oc_map,
             namespaces,

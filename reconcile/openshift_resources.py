@@ -10,6 +10,7 @@ import utils.gql as gql
 import utils.threaded as threaded
 import utils.vault_client as vault_client
 import utils.openssl as openssl
+import reconcile.openshift_base as ob
 
 from utils.oc import OC_Map, StatusCodeError
 from utils.defer import defer
@@ -145,16 +146,6 @@ class OR(OpenshiftResource):
         super(OR, self).__init__(
             body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
-
-
-class StateSpec(object):
-    def __init__(self, type, oc, cluster, namespace, resource, parent=None):
-        self.type = type
-        self.oc = oc
-        self.cluster = cluster
-        self.namespace = namespace
-        self.resource = resource
-        self.parent = parent
 
 
 def lookup_vault_secret(path, key, version=None):
@@ -452,59 +443,10 @@ def fetch_states(spec, ri):
                             spec.parent)
 
 
-def init_specs_to_fetch(ri, oc_map, namespaces,
-                        override_managed_types=None,
-                        managed_types_key='managedResourceTypes'):
-    state_specs = []
-
-    for namespace_info in namespaces:
-        if override_managed_types is None:
-            managed_types = namespace_info.get(managed_types_key)
-        else:
-            managed_types = override_managed_types
-
-        if not managed_types:
-            continue
-
-        cluster = namespace_info['cluster']['name']
-        namespace = namespace_info['name']
-
-        oc = oc_map.get(cluster)
-        if oc is None:
-            msg = (
-                "[{}] cluster skipped."
-            ).format(cluster)
-            logging.debug(msg)
-            continue
-        if oc is False:
-            ri.register_error()
-            msg = (
-                "[{}/{}] cluster has no automationToken."
-            ).format(cluster, namespace)
-            logging.error(msg)
-            continue
-
-        # Initialize current state specs
-        for resource_type in managed_types:
-            ri.initialize_resource_type(cluster, namespace, resource_type)
-            c_spec = StateSpec("current", oc, cluster, namespace,
-                               resource_type)
-            state_specs.append(c_spec)
-
-        # Initialize desired state specs
-        openshift_resources = namespace_info.get('openshiftResources') or []
-        for openshift_resource in openshift_resources:
-            d_spec = StateSpec("desired", oc, cluster, namespace,
-                               openshift_resource, namespace_info)
-            state_specs.append(d_spec)
-
-    return state_specs
-
-
 def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
-    state_specs = init_specs_to_fetch(ri, oc_map, namespaces)
+    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
     return oc_map, ri
