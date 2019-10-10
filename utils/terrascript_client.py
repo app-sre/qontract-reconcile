@@ -12,6 +12,7 @@ import utils.vault_client as vault_client
 
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
+from reconcile.exceptions import FetchResourceError
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output
@@ -22,13 +23,6 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_login_profile,
                                aws_elasticache_replication_group,
                                aws_iam_user_policy_attachment)
-
-
-class FetchResourceError(Exception):
-    def __init__(self, msg):
-        super(FetchResourceError, self).__init__(
-            "error fetching resource: " + str(msg)
-        )
 
 
 class UnknownProviderError(Exception):

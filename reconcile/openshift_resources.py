@@ -2,7 +2,6 @@ import logging
 import sys
 import base64
 import json
-
 import anymarkup
 import jinja2
 import semver
@@ -18,6 +17,8 @@ from utils.openshift_resource import (OpenshiftResource,
                                       ResourceInventory,
                                       ResourceKeyExistsError)
 from utils.jinja2_ext import B64EncodeExtension
+from reconcile.exceptions import FetchResourceError
+
 from threading import Lock
 
 """
@@ -97,13 +98,6 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
 _log_lock = Lock()
-
-
-class FetchResourceError(Exception):
-    def __init__(self, msg):
-        super(FetchResourceError, self).__init__(
-            "error fetching resource: " + str(msg)
-        )
 
 
 class FetchVaultSecretError(Exception):

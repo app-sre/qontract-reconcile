@@ -8,8 +8,9 @@ import subprocess
 import difflib
 import xml.etree.ElementTree as et
 import utils.vault_client as vault_client
-
 import utils.gql as gql
+
+from reconcile.exceptions import FetchResourceError
 
 from os import path
 from contextlib import contextmanager
@@ -17,13 +18,6 @@ from contextlib import contextmanager
 from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
-
-
-class FetchResourceError(Exception):
-    def __init__(self, msg):
-        super(FetchResourceError, self).__init__(
-            "error fetching resource: " + str(msg)
-        )
 
 
 class JJB(object):

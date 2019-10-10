@@ -5,12 +5,7 @@ import os
 import utils.gql as gql
 import utils.vault_client as vault_client
 
-
-class FetchResourceError(Exception):
-    def __init__(self, msg):
-        super(FetchResourceError, self).__init__(
-            "error fetching resource: " + str(msg)
-        )
+from reconcile.exceptions import FetchResourceError
 
 
 class HTTPStatusCodeError(Exception):
