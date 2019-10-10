@@ -74,7 +74,7 @@ class JJB(object):
                 try:
                     config_resource = gqlapi.get_resource(config_path)
                     config = config_resource['content']
-                except gql.GqlApiError as e:
+                except gql.GqlGetResourceError as e:
                     raise FetchResourceError(e.message)
                 with open(config_file_path, 'a') as f:
                     f.write(config)

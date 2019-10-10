@@ -208,7 +208,7 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
     # get resource data
     try:
         resource = gqlapi.get_resource(path)
-    except gql.GqlApiError as e:
+    except gql.GqlGetResourceError as e:
         raise FetchResourceError(e.message)
 
     content = resource['content']

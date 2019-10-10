@@ -634,7 +634,7 @@ class TerrascriptClient(object):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
-        except gql.GqlApiError as e:
+        except gql.GqlGetResourceError as e:
             raise FetchResourceError(e.message)
         try:
             values = anymarkup.parse(

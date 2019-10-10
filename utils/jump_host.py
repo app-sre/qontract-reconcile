@@ -59,7 +59,7 @@ class JumpHostSSH(JumpHostBase):
 
         try:
             known_hosts = gqlapi.get_resource(known_hosts_path)
-        except gql.GqlApiError as e:
+        except gql.GqlGetResourceError as e:
             raise FetchResourceError(e.message)
         return known_hosts['content']
 
