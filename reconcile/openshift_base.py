@@ -1,7 +1,10 @@
 import logging
 
+import utils.threaded as threaded
+
+from utils.oc import OC_Map
 from utils.oc import StatusCodeError
-from utils.openshift_resource import OR
+from utils.openshift_resource import OR, ResourceInventory
 
 
 class StateSpec(object):
@@ -61,6 +64,43 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
             state_specs.append(d_spec)
 
     return state_specs
+
+
+def populate_current_state(spec, ri, integration, integration_version):
+    if spec.oc is None:
+        return
+    for item in spec.oc.get_items(spec.resource,
+                                  namespace=spec.namespace):
+        openshift_resource = OR(item,
+                                integration,
+                                integration_version)
+        ri.add_current(
+            spec.cluster,
+            spec.namespace,
+            spec.resource,
+            openshift_resource.name,
+            openshift_resource
+        )
+
+
+def fetch_current_state(namespaces, thread_pool_size,
+                        integration, integration_version,
+                        override_managed_types=None):
+    ri = ResourceInventory()
+    oc_map = OC_Map(namespaces=namespaces, integration=integration)
+    state_specs = \
+        init_specs_to_fetch(
+            ri,
+            oc_map,
+            namespaces,
+            override_managed_types=override_managed_types
+        )
+    threaded.run(populate_current_state, state_specs, thread_pool_size,
+                 ri=ri,
+                 integration=integration,
+                 integration_version=integration_version)
+
+    return ri, oc_map
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
