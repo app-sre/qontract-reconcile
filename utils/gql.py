@@ -57,7 +57,12 @@ class GqlApi(object):
         }
         """
 
-        resources = self.query(query, {'path': path})['resources']
+        try:
+            resources = self.query(query, {'path': path})['resources']
+        except GqlApiError:
+            raise GqlGetResourceError(
+                path,
+                'Resource not found.')
 
         if len(resources) != 1:
             raise GqlGetResourceError(
