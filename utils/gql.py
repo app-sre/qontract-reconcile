@@ -12,7 +12,7 @@ class GqlApiError(Exception):
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
-        super(FetchResourceError, self).__init__(
+        super(GqlGetResourceError, self).__init__(
             "error getting resource from path {}: {}".format(path, str(msg))
         )
 
