@@ -147,6 +147,7 @@ def merge_merge_requests(dry_run, gl, merge_limit):
             mr.merge()
             merges += 1
 
+
 def run(gitlab_project_id, dry_run=False, days_interval=15,
         enable_closing=False, limit=1):
     gqlapi = gql.get_api()
