@@ -101,8 +101,54 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
                 logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
+def merge_merge_requests(dry_run, gl, merge_limit):
+    MERGE_LABELS = ['lgtm', 'automerge']
+
+    mrs = gl.get_merge_requests(state='opened')
+    merges = 0
+    for mr in mrs:
+        if mr.merge_status == 'cannot_be_merged':
+            continue
+        if mr.work_in_progress:
+            continue
+
+        target_branch = mr.target_branch
+        head = gl.project.commits.list(ref_name=target_branch)[0].id
+        result = gl.project.repository_compare(mr.sha, head)
+        if len(result['commits']) != 0:  # not rebased
+            continue
+
+        labels = mr.attributes.get('labels')
+        if not labels:
+            continue
+
+        good_to_merge = all(elem in MERGE_LABELS for elem in labels)
+        if not good_to_merge:
+            continue
+
+        pipelines = mr.pipelines()
+        if not pipelines:
+            continue
+
+        # posibble statuses:
+        # running, pending, success, failed, canceled, skipped
+        incomplete_pipelines = \
+            [p for p in pipelines
+             if p['status'] in ['running', 'pending']]
+        if incomplete_pipelines:
+            continue
+
+        last_pipeline_result = pipelines[0]['status']
+        if last_pipeline_result != 'success':
+            continue
+
+        logging.info(['merge', gl.project.name, mr.iid])
+        if not dry_run and merges < merge_limit:
+            mr.merge()
+            merges += 1
+
 def run(gitlab_project_id, dry_run=False, days_interval=15,
-        enable_closing=False, rebase_limit=1):
+        enable_closing=False, limit=1):
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
@@ -111,4 +157,5 @@ def run(gitlab_project_id, dry_run=False, days_interval=15,
                        'issue')
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'merge-request')
-    rebase_merge_requests(dry_run, gl, rebase_limit)
+    rebase_merge_requests(dry_run, gl, limit)
+    merge_merge_requests(dry_run, gl, limit)
