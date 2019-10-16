@@ -12,7 +12,7 @@ TF_QUERY = """
 {
   roles: roles_v1 {
     users {
-      redhat_username
+      org_username
       public_gpg_key
     }
     aws_groups {

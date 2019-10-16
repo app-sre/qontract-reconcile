@@ -33,7 +33,7 @@ ROLES_QUERY = """
     name
     users {
       name
-      redhat_username
+      org_username
       slack_username
       pagerduty_name
     }
@@ -67,7 +67,7 @@ USERS_QUERY = """
 {
   users: users_v1 {
     name
-    redhat_username
+    org_username
     github_username
     slack_username
     pagerduty_name
@@ -121,7 +121,7 @@ def get_current_state(slack_map):
 
 
 def get_slack_username(user):
-    return user['slack_username'] or user['redhat_username']
+    return user['slack_username'] or user['org_username']
 
 
 def get_pagerduty_name(user):

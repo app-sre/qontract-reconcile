@@ -148,7 +148,7 @@ class TerrascriptClient(object):
                 self.add_resource(account_name, tf_output)
 
                 for iu in range(len(users)):
-                    user_name = users[iu]['redhat_username']
+                    user_name = users[iu]['org_username']
 
                     # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
@@ -218,7 +218,7 @@ class TerrascriptClient(object):
                     account_uid = user_policies[ip]['account']['uid']
                     for iu in range(len(users)):
                         # replace known keys with values
-                        user_name = users[iu]['redhat_username']
+                        user_name = users[iu]['org_username']
                         policy = user_policies[ip]['policy']
                         policy = policy.replace('${aws:username}', user_name)
                         policy = \

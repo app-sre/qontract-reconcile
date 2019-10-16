@@ -8,7 +8,7 @@ from reconcile.queries import GITLAB_INSTANCES_QUERY
 USERS_QUERY = """
 {
   users: users_v1 {
-    redhat_username
+    org_username
       roles {
         permissions {
           ... on PermissionGitlabGroupMembership_v1 {
@@ -25,7 +25,7 @@ USERS_QUERY = """
 BOTS_QUERY = """
 {
   bots: bots_v1 {
-    redhat_username
+    org_username
       roles {
         permissions {
           ... on PermissionGitlabGroupMembership_v1 {
@@ -54,14 +54,14 @@ def get_desired_state(gqlapi, instance, gl):
             for r in u['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        user = u['redhat_username']
+                        user = u['org_username']
                         item = {"user": user, "access_level": p['access']}
                         desired_group_members[g].append(item)
         for b in bots:
             for r in b['roles']:
                 for p in r['permissions']:
                     if 'group' in p and p['group'] == g:
-                        user = b['redhat_username']
+                        user = b['org_username']
                         item = {"user": user, "access_level": p['access']}
                         desired_group_members[g].append(item)
     return desired_group_members
