@@ -13,7 +13,7 @@ QUERY = """
 {
   users: users_v1 {
     path
-    redhat_username
+    org_username
   }
 }
 """
@@ -25,7 +25,7 @@ def init_users():
 
     users = defaultdict(list)
     for user in result:
-        u = user['redhat_username']
+        u = user['org_username']
         p = 'data' + user['path']
         users[u].append(p)
 

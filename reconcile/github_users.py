@@ -19,7 +19,7 @@ from utils.retry import retry
 QUERY = """
 {
   users: users_v1 {
-    redhat_username
+    org_username
     github_username
   }
 }
@@ -41,17 +41,17 @@ def init_github():
 @retry(exceptions=(GithubException, ReadTimeout))
 def get_user_company(user, github):
     gh_user = github.get_user(login=user['github_username'])
-    return user['redhat_username'], gh_user.company
+    return user['org_username'], gh_user.company
 
 
 def get_users_to_delete(results):
     pattern = r'^.*[Rr]ed ?[Hh]at.*$'
-    redhat_usernames_to_delete = [u for u, c in results
-                                  if c is None
-                                  or not re.search(pattern, c)]
+    org_usernames_to_delete = [u for u, c in results
+                               if c is None
+                               or not re.search(pattern, c)]
     users_and_paths = init_users_and_paths()
     return [u for u in users_and_paths
-            if u['username'] in redhat_usernames_to_delete]
+            if u['username'] in org_usernames_to_delete]
 
 
 def send_email_notification(user):

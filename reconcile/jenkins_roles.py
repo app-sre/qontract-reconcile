@@ -28,10 +28,10 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
-      redhat_username
+      org_username
     }
     bots {
-      redhat_username
+      org_username
     }
     permissions {
       service
@@ -101,16 +101,16 @@ def get_desired_state():
                 desired_state.append({
                     "instance": p['instance']['name'],
                     "role": p['role'],
-                    "user": u['redhat_username']
+                    "user": u['org_username']
                 })
             for u in r['bots']:
-                if u['redhat_username'] is None:
+                if u['org_username'] is None:
                     continue
 
                 desired_state.append({
                     "instance": p['instance']['name'],
                     "role": p['role'],
-                    "user": u['redhat_username']
+                    "user": u['org_username']
                 })
 
     return desired_state
