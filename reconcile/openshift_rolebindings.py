@@ -56,13 +56,14 @@ ROLES_QUERY = """
       github_username
       openshift_serviceaccount
     }
-    permissions {
-      ...on PermissionOpenshiftRolebinding_v1 {
-        service
-        cluster
-        namespace
-        role
+    access {
+      namespace {
+        name
+        cluster {
+          name
+        }
       }
+      role
     }
   }
 }
@@ -109,7 +110,6 @@ def fetch_current_state(namespaces, thread_pool_size):
             ]
 
             state.add({
-                "service": "openshift-rolebinding",
                 "cluster": cluster,
                 "namespace": namespace,
                 "role": role,
@@ -126,7 +126,6 @@ def fetch_current_state(namespaces, thread_pool_size):
             ]
 
             state.add({
-                "service": "openshift-rolebinding",
                 "cluster": cluster,
                 "namespace": namespace,
                 "role": role,
@@ -140,10 +139,10 @@ def fetch_desired_state(roles, oc_map):
     state = AggregatedList()
 
     for role in roles:
-        permissions = list(filter(
-            lambda p: p.get('service') == 'openshift-rolebinding',
-            role['permissions']
-        ))
+        permissions = [{'cluster': a['namespace']['cluster']['name'],
+                        'namespace': a['namespace']['name'],
+                        'role': a['role']}
+                       for a in role['access'] or []]
         if not permissions:
             continue
         permissions = [p for p in permissions
