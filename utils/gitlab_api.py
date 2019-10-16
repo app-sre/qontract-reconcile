@@ -50,12 +50,13 @@ class GitLabApi(object):
         self.project.commits.create(data)
 
     def create_mr(self, source_branch, target_branch, title,
-                  remove_source_branch=True):
+                  remove_source_branch=True, labels=[]):
         data = {
             'source_branch': source_branch,
             'target_branch': target_branch,
             'title': title,
-            'remove_source_branch': str(remove_source_branch)
+            'remove_source_branch': str(remove_source_branch),
+            'labels': labels
         }
         self.project.mergerequests.create(data)
 
@@ -72,6 +73,7 @@ class GitLabApi(object):
         return False
 
     def create_delete_user_mr(self, username, paths):
+        LABELS = ['automerge']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-{}-{}'.format(
@@ -98,7 +100,7 @@ class GitLabApi(object):
                 )
                 return
 
-        self.create_mr(branch_name, target_branch, title)
+        self.create_mr(branch_name, target_branch, title, labels=LABELS)
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
