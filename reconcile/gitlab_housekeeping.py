@@ -23,10 +23,10 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
         item_iid = item.attributes.get('iid')
         item_labels = item.attributes.get('labels')
         notes = item.notes.list()
-        notes_dates = \
+        note_dates = \
             [datetime.strptime(note.attributes.get('updated_at'), DATE_FORMAT)
              for note in notes]
-        update_date = max(d for d in notes_dates)
+        update_date = max(d for d in note_dates) if note_dates else now
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
