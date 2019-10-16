@@ -69,7 +69,7 @@ ROLES_QUERY = """
 }
 """
 
-QONTRACT_INTEGRATION = 'openshift-rolebinding'
+QONTRACT_INTEGRATION = 'openshift-rolebindings'
 
 
 def get_rolebindings(spec):
