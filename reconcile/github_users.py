@@ -47,8 +47,8 @@ def get_user_company(user, github):
 def get_users_to_delete(results):
     pattern = r'^.*[Rr]ed ?[Hh]at.*$'
     org_usernames_to_delete = [u for u, c in results
-                                  if c is None
-                                  or not re.search(pattern, c)]
+                               if c is None
+                               or not re.search(pattern, c)]
     users_and_paths = init_users_and_paths()
     return [u for u in users_and_paths
             if u['username'] in org_usernames_to_delete]
