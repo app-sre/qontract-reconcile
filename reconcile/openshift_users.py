@@ -43,10 +43,11 @@ ROLES_QUERY = """
     users {
       github_username
     }
-    permissions {
-      ...on PermissionOpenshiftRolebinding_v1 {
-        service
-        cluster
+    access {
+      namespace {
+        cluster {
+          name
+        }
       }
     }
   }
@@ -82,12 +83,9 @@ def fetch_desired_state(oc_map):
     desired_state = []
 
     for r in roles:
-        for p in r['permissions']:
-            if 'service' not in p:
-                continue
-            if p['service'] != 'openshift-rolebinding':
-                continue
-            if p['cluster'] not in oc_map.clusters():
+        for a in r['access'] or []:
+            cluster = a['namespace']['cluster']['name']
+            if cluster not in oc_map.clusters():
                 continue
 
             for u in r['users']:
@@ -95,7 +93,7 @@ def fetch_desired_state(oc_map):
                     continue
 
                 desired_state.append({
-                    "cluster": p['cluster'],
+                    "cluster": cluster,
                     "user": u['github_username']
                 })
 

@@ -1,4 +1,4 @@
-from subprocess import PIPE, Popen
+from OpenSSL import crypto
 
 
 def certificate_matches_host(certificate, host):
@@ -7,12 +7,6 @@ def certificate_matches_host(certificate, host):
 
 
 def get_certificate_common_name(certificate):
-    proc = Popen(
-        ['openssl', 'x509', '-noout', '-subject'],
-        stdin=PIPE,
-        stdout=PIPE,
-        stderr=PIPE
-    )
-    out, err = proc.communicate(certificate)
-
-    return out.split('/CN=')[1].strip()
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, certificate)
+    subject = cert.get_subject()
+    return subject.CN

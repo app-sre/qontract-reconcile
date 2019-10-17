@@ -69,9 +69,9 @@ def read(secret):
     secret_version = secret.get('version')
 
     try:
-        data = _read_v1(secret_path, secret_field)
-    except Exception:
         data = _read_v2(secret_path, secret_field, secret_version)
+    except Exception:
+        data = _read_v1(secret_path, secret_field)
 
     return base64.b64decode(data) if secret_format == 'base64' else data
 
@@ -86,9 +86,9 @@ def read_all(secret):
     secret_path = secret['path']
     secret_version = secret.get('version')
     try:
-        data = _read_all_v1(secret_path)
-    except Exception:
         data = _read_all_v2(secret_path, secret_version)
+    except Exception:
+        data = _read_all_v1(secret_path)
 
     return data
 
