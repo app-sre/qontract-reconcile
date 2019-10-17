@@ -20,7 +20,12 @@ class JSONParsingError(Exception):
 
 class OC(object):
     def __init__(self, server, token, jh=None):
-        oc_base_cmd = ['oc', '--server', server, '--token', token]
+        oc_base_cmd = [
+            'oc',
+            '--config', '/dev/null',
+            '--server', server,
+            '--token', token
+        ]
 
         if jh is not None:
             self.jump_host = JumpHostSSH(jh)
