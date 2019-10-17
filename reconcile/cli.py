@@ -6,7 +6,7 @@ import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
 import reconcile.github_users
-import reconcile.openshift_rolebinding
+import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
 import reconcile.openshift_users
 import reconcile.openshift_resources
@@ -144,8 +144,8 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 @threaded()
 @binary(['oc', 'ssh'])
 @click.pass_context
-def openshift_rolebinding(ctx, thread_pool_size):
-    run_integration(reconcile.openshift_rolebinding.run, ctx.obj['dry_run'],
+def openshift_rolebindings(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_rolebindings.run, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
