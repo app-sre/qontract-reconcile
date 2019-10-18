@@ -80,7 +80,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 def rebase_merge_requests(dry_run, gl, rebase_limit):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
-    for mr in mrs:
+    for mr in reversed(mrs):
         if mr.merge_status == 'cannot_be_merged':
             continue
         if mr.work_in_progress:
@@ -106,7 +106,7 @@ def merge_merge_requests(dry_run, gl, merge_limit):
 
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
-    for mr in mrs:
+    for mr in reversed(mrs):
         if mr.merge_status == 'cannot_be_merged':
             continue
         if mr.work_in_progress:
