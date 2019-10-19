@@ -424,3 +424,19 @@ class AWSApi(object):
     def get_user_keys(self, iam, user):
         key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         return [uk['AccessKeyId'] for uk in key_list]
+
+    def get_support_cases(self):
+        self.support_cases = {}
+        for account, s in self.sessions.items():
+            try:
+                support = s.client('support')
+                support_cases = support.describe_cases(
+                    includeResolvedCases=True,
+                    includeCommunications=True
+                )['cases']
+                self.support_cases[account] = support_cases
+            except Exception:
+                msg = '[{}] error getting support cases, check support level'
+                logging.error(msg.format(account))
+
+        return self.support_cases
