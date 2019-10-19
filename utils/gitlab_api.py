@@ -132,8 +132,8 @@ class GitLabApi(object):
 
         self.create_branch(branch_name, target_branch)
 
-        with open(path, 'r') as f:  # TODO: this is wrong
-            content = yaml.safe_load(f.read())
+        f = self.project.files.get(file_path=path, ref=target_branch)
+        content = yaml.safe_load(f.decode())
         content.setdefault('deleteKeys', [])
         content['deleteKeys'].append(key)
         try:
