@@ -1,8 +1,8 @@
 import logging
-import yaml
 import gitlab
 import urllib3
 import uuid
+import ruamel.yaml as yaml
 
 import utils.vault_client as vault_client
 
@@ -133,11 +133,12 @@ class GitLabApi(object):
         self.create_branch(branch_name, target_branch)
 
         f = self.project.files.get(file_path=path, ref=target_branch)
-        content = yaml.safe_load(f.decode())
+        content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
         content.setdefault('deleteKeys', [])
         content['deleteKeys'].append(key)
+        new_content = yaml.dump(content, Dumper=yaml.RoundTripDumper)
         try:
-            self.update_file(branch_name, path, title, yaml.dump(content))
+            self.update_file(branch_name, path, title, new_content)
         except gitlab.exceptions.GitlabCreateError as e:
             self.delete_branch(branch_name)
             if str(e) != "400: A file with this name doesn't exist":
