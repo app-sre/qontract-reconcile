@@ -29,7 +29,8 @@ def get_keys_to_delete(aws_support_cases):
     return keys
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10, enable_deletion=False):
+def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+        enable_deletion=False):
     gqlapi = gql.get_api()
     accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     aws = AWSApi(thread_pool_size, accounts)
