@@ -47,8 +47,10 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10, enable_deletion=F
         gl = GitLabApi(instance, project_id=gitlab_project_id)
 
     for k in keys_to_delete:
-        logging.info(['delete_aws_access_key', k['account'], k['key']])
+        account = k['account']
+        key = k['key']
+        logging.info(['delete_aws_access_key', account, key])
         if not dry_run:
             path = 'data' + \
-                [a['path'] for a in accounts if a['name'] == k['account']][0]
-            gl.create_delete_aws_access_key_mr(account, path, k['key'])
+                [a['path'] for a in accounts if a['name'] == account][0]
+            gl.create_delete_aws_access_key_mr(account, path, key)

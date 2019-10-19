@@ -1,5 +1,5 @@
 import logging
-
+import yaml
 import gitlab
 import urllib3
 import uuid
@@ -125,26 +125,29 @@ class GitLabApi(object):
             key,
             str(uuid.uuid4())[0:6]
         )
-        title = '[{}] delete {} AWS access key {}'.format(prefix, account, key)
+        title = '[{}] delete {} access key {}'.format(prefix, account, key)
 
         if self.mr_exists(title):
             return
 
-        # self.create_branch(branch_name, target_branch)
+        self.create_branch(branch_name, target_branch)
 
-        # content = get_new_content()
-        # try:
-        #     self.update_file(branch_name, path, title, content)
-        # except gitlab.exceptions.GitlabCreateError as e:
-        #     self.delete_branch(branch_name)
-        #     if str(e) != "400: A file with this name doesn't exist":
-        #         raise e
-        #     logging.info(
-        #         "File {} does not exist, not opening MR".format(path)
-        #     )
-        #     return
+        with open(path, 'r') as f:  # TODO: this is wrong
+            content = yaml.safe_load(f.read())
+        content.setdefault('deleteKeys', [])
+        content['deleteKeys'].append(key)
+        try:
+            self.update_file(branch_name, path, title, yaml.dump(content))
+        except gitlab.exceptions.GitlabCreateError as e:
+            self.delete_branch(branch_name)
+            if str(e) != "400: A file with this name doesn't exist":
+                raise e
+            logging.info(
+                "File {} does not exist, not opening MR".format(path)
+            )
+            return
 
-        # self.create_mr(branch_name, target_branch, title)
+        self.create_mr(branch_name, target_branch, title)
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
