@@ -136,7 +136,8 @@ class GitLabApi(object):
         content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
         content.setdefault('deleteKeys', [])
         content['deleteKeys'].append(key)
-        new_content = yaml.dump(content, Dumper=yaml.RoundTripDumper)
+        new_content = '---\n' + \
+            yaml.dump(content, Dumper=yaml.RoundTripDumper)
         try:
             self.update_file(branch_name, path, title, new_content)
         except gitlab.exceptions.GitlabCreateError as e:
