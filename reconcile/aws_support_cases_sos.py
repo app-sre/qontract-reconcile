@@ -1,7 +1,11 @@
+import logging
+
 import utils.gql as gql
 
 from reconcile.queries import AWS_ACCOUNTS_QUERY
+from reconcile.queries import GITLAB_INSTANCES_QUERY
 from utils.aws_api import AWSApi
+from utils.gitlab_api import GitLabApi
 
 
 def get_deleted_keys(accounts):
@@ -25,7 +29,7 @@ def get_keys_to_delete(aws_support_cases):
     return keys
 
 
-def run(dry_run=False, thread_pool_size=10, enable_deletion=False):
+def run(gitlab_project_id, dry_run=False, thread_pool_size=10, enable_deletion=False):
     gqlapi = gql.get_api()
     accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     aws = AWSApi(thread_pool_size, accounts)
@@ -36,6 +40,15 @@ def run(dry_run=False, thread_pool_size=10, enable_deletion=False):
     keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
                       if ktd['key'] not in deleted_keys[ktd['account']]
                       and ktd['key'] in existing_keys[ktd['account']]]
+
+    if not dry_run and keys_to_delete:
+        # assuming a single GitLab instance for now
+        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+        gl = GitLabApi(instance, project_id=gitlab_project_id)
+
     for k in keys_to_delete:
-        print(k['account'])
-        print(k['key'])
+        logging.info(['delete_aws_access_key', k['account'], k['key']])
+        if not dry_run:
+            path = 'data' + \
+                [a['path'] for a in accounts if a['name'] == k['account']][0]
+            gl.create_delete_aws_access_key_mr(account, path, k['key'])

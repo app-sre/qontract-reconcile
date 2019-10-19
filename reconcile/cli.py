@@ -254,11 +254,12 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
+@click.argument('gitlab-project-id')
 @threaded()
 @click.pass_context
-def aws_support_cases_sos(ctx, thread_pool_size):
-    run_integration(reconcile.aws_support_cases_sos.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.aws_support_cases_sos.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
