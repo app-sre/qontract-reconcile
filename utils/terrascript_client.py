@@ -97,7 +97,7 @@ class TerrascriptClient(object):
             if len(users) == 0:
                 continue
 
-            aws_groups = role['aws_groups']
+            aws_groups = role['aws_groups'] or []
             for aws_group in aws_groups:
                 group_name = aws_group['name']
                 group_policies = aws_group['policies']
@@ -132,7 +132,7 @@ class TerrascriptClient(object):
             if len(users) == 0:
                 continue
 
-            aws_groups = role['aws_groups']
+            aws_groups = role['aws_groups'] or []
             for ig in range(len(aws_groups)):
                 group_name = aws_groups[ig]['name']
                 account_name = aws_groups[ig]['account']['name']
@@ -210,31 +210,30 @@ class TerrascriptClient(object):
                     tf_output = output(output_name, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-            user_policies = role['user_policies']
-            if user_policies is not None:
-                for ip in range(len(user_policies)):
-                    policy_name = user_policies[ip]['name']
-                    account_name = user_policies[ip]['account']['name']
-                    account_uid = user_policies[ip]['account']['uid']
-                    for iu in range(len(users)):
-                        # replace known keys with values
-                        user_name = users[iu]['org_username']
-                        policy = user_policies[ip]['policy']
-                        policy = policy.replace('${aws:username}', user_name)
-                        policy = \
-                            policy.replace('${aws:accountid}', account_uid)
+            user_policies = role['user_policies'] or []
+            for ip in range(len(user_policies)):
+                policy_name = user_policies[ip]['name']
+                account_name = user_policies[ip]['account']['name']
+                account_uid = user_policies[ip]['account']['uid']
+                for iu in range(len(users)):
+                    # replace known keys with values
+                    user_name = users[iu]['org_username']
+                    policy = user_policies[ip]['policy']
+                    policy = policy.replace('${aws:username}', user_name)
+                    policy = \
+                        policy.replace('${aws:accountid}', account_uid)
 
-                        # Ref: terraform aws iam_user_policy
-                        tf_iam_user = self.get_tf_iam_user(user_name)
-                        tf_aws_iam_user_policy = aws_iam_user_policy(
-                            user_name + '-' + policy_name,
-                            name=user_name + '-' + policy_name,
-                            user=user_name,
-                            policy=policy,
-                            depends_on=[tf_iam_user]
-                        )
-                        self.add_resource(account_name,
-                                          tf_aws_iam_user_policy)
+                    # Ref: terraform aws iam_user_policy
+                    tf_iam_user = self.get_tf_iam_user(user_name)
+                    tf_aws_iam_user_policy = aws_iam_user_policy(
+                        user_name + '-' + policy_name,
+                        name=user_name + '-' + policy_name,
+                        user=user_name,
+                        policy=policy,
+                        depends_on=[tf_iam_user]
+                    )
+                    self.add_resource(account_name,
+                                      tf_aws_iam_user_policy)
 
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
