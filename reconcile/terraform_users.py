@@ -45,7 +45,9 @@ def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
     roles = gqlapi.query(TF_QUERY)['roles']
-    tf_roles = [r for r in roles if r['aws_groups'] is not None]
+    tf_roles = [r for r in roles
+                if r['aws_groups'] is not None
+                or r['user_policies'] is not None]
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
