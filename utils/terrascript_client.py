@@ -505,7 +505,7 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
-        for policy in common_values['policies']:
+        for policy in common_values['policies'] or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
@@ -514,6 +514,27 @@ class TerrascriptClient(object):
                     depends_on=[user_tf_resource]
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
+
+        user_policy = common_values['user_policy']
+        if user_policy:
+            variables = common_values['variables']
+            # variables are replaced in the user_policy
+            # and also added to the output resource
+            if variables:
+                data = json.loads(variables)
+                for k, v in data.items():
+                    to_replace = '${' + k + '}'
+                    user_policy = user_policy.replace(to_replace, v)
+                    output_name = output_prefix + '[{}]'.format(k)
+                    tf_resources.append(output(output_name, value=v))
+            tf_aws_iam_user_policy = aws_iam_user_policy(
+                identifier,
+                name=identifier,
+                user=identifier,
+                policy=user_policy,
+                depends_on=[user_tf_resource]
+            )
+            tf_resources.append(tf_aws_iam_user_policy)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
@@ -569,15 +590,18 @@ class TerrascriptClient(object):
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
         overrides = resource.get('overrides', None)
+        variables = resource.get('variables', None)
         policies = resource.get('policies', None)
+        user_policy = resource.get('user_policy', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        if policies:
-            values['policies'] = policies
+        values['variables'] = variables
+        values['policies'] = policies
+        values['user_policy'] = user_policy
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']

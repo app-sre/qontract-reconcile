@@ -44,7 +44,9 @@ TF_NAMESPACES_QUERY = """
       ... on NamespaceTerraformResourceServiceAccount_v1 {
         account
         identifier
+        variables
         policies
+        user_policy
         output_resource_name
       }
     }
