@@ -23,6 +23,7 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `jenkins-webhooks`: Manage web hooks to Jenkins jobs.
 - `jira-watcher`: Watch for changes in Jira boards and notify on Slack.
 - `ldap-users`: Removes users which are not found in LDAP search.
+- `openshift-acme`: Manages openshift-acme deployments (https://github.com/tnozicka/openshift-acme)
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
