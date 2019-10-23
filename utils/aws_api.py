@@ -426,7 +426,7 @@ class AWSApi(object):
         return [uk['AccessKeyId'] for uk in key_list]
 
     def get_support_cases(self):
-        self.support_cases = {}
+        all_support_cases = {}
         for account, s in self.sessions.items():
             try:
                 support = s.client('support')
@@ -434,9 +434,9 @@ class AWSApi(object):
                     includeResolvedCases=True,
                     includeCommunications=True
                 )['cases']
-                self.support_cases[account] = support_cases
-            except Exception:
-                msg = '[{}] error getting support cases, check support level'
-                logging.error(msg.format(account))
+                all_support_cases[account] = support_cases
+            except Exception as e:
+                msg = '[{}] error getting support cases. details: {}'
+                logging.error(msg.format(account, e.message))
 
-        return self.support_cases
+        return all_support_cases
