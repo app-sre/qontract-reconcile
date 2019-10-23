@@ -50,7 +50,11 @@ def init_cluster_specs_to_fetch(clusters, ri, oc_map,
 
         for resource_type in managed_types:
             ri.initialize_resource_type(cluster_name, None, resource_type)
-            c_spec = StateSpec("current", oc, cluster_name, None, resource_type)
+            c_spec = StateSpec("current",
+                               oc,
+                               cluster_name,
+                               None,
+                               resource_type)
             state_specs.append(c_spec)
 
     return state_specs
