@@ -145,7 +145,7 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 @integration.command()
 @click.argument('gitlab-project-id')
 @threaded()
-@binary(['git-secrets'])
+@binary(['git', 'git-secrets'])
 @click.pass_context
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.github_scanner.run, gitlab_project_id,
