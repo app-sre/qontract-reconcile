@@ -1,7 +1,5 @@
 import logging
 
-from git import Repo
-
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.git_secrets as git_secrets
@@ -44,7 +42,8 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     all_repos = get_all_repos_to_scan(app_int_github_repos)
     logging.info('about to scan {} repos'.format(len(all_repos)))
 
-    results = threaded.run(git_secrets.scan_history, all_repos, thread_pool_size,
+    results = threaded.run(git_secrets.scan_history, all_repos,
+                           thread_pool_size,
                            existing_keys=existing_keys_list)
     all_leaked_keys = [key for keys in results for key in keys]
 
@@ -55,4 +54,4 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
          for account, user_keys in existing_keys.items()
          if key in [uk for uks in user_keys.values() for uk in uks]
          and key not in deleted_keys[account]]
-    aws_sos.act(dry_run, gitlab_project_id, gqlapi, keys_to_delete)
+    aws_sos.act(dry_run, gitlab_project_id, gqlapi, accounts, keys_to_delete)
