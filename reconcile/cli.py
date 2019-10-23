@@ -30,6 +30,7 @@ import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
+import reconcile.aws_support_cases_sos
 
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
@@ -250,6 +251,15 @@ def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
 def aws_iam_keys(ctx, thread_pool_size):
     run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
                     thread_pool_size)
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@threaded()
+@click.pass_context
+def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.aws_support_cases_sos.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()

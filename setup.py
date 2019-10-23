@@ -37,6 +37,7 @@ setup(
         "Jinja2>=2.10.1,<2.11.0",
         "jira>=2.0.0,<2.1.0",
         "pyOpenSSL>=19.0.0,<20.0.0",
+        "ruamel.yaml>=0.16.5,<0.17.0",
     ],
 
     test_suite="tests",
@@ -47,7 +48,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.6',
     ],
     entry_points={

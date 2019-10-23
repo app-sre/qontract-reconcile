@@ -1,8 +1,8 @@
 import logging
-
 import gitlab
 import urllib3
 import uuid
+import ruamel.yaml as yaml
 
 import utils.vault_client as vault_client
 
@@ -44,7 +44,21 @@ class GitLabApi(object):
                 {
                     'action': 'delete',
                     'file_path': file_path
-                    }
+                }
+            ]
+        }
+        self.project.commits.create(data)
+
+    def update_file(self, branch_name, file_path, commit_message, content):
+        data = {
+            'branch': branch_name,
+            'commit_message': commit_message,
+            'actions': [
+                {
+                    'action': 'update',
+                    'file_path': file_path,
+                    'content': content
+                }
             ]
         }
         self.project.commits.create(data)
@@ -101,6 +115,41 @@ class GitLabApi(object):
                 return
 
         self.create_mr(branch_name, target_branch, title, labels=LABELS)
+
+    def create_delete_aws_access_key_mr(self, account, path, key):
+        prefix = 'qontract-reconcile'
+        target_branch = 'master'
+        branch_name = '{}-delete-aws-access-key-{}-{}-{}'.format(
+            prefix,
+            account,
+            key,
+            str(uuid.uuid4())[0:6]
+        )
+        title = '[{}] delete {} access key {}'.format(prefix, account, key)
+
+        if self.mr_exists(title):
+            return
+
+        self.create_branch(branch_name, target_branch)
+
+        f = self.project.files.get(file_path=path, ref=target_branch)
+        content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
+        content.setdefault('deleteKeys', [])
+        content['deleteKeys'].append(key)
+        new_content = '---\n' + \
+            yaml.dump(content, Dumper=yaml.RoundTripDumper)
+        try:
+            self.update_file(branch_name, path, title, new_content)
+        except gitlab.exceptions.GitlabCreateError as e:
+            self.delete_branch(branch_name)
+            if str(e) != "400: A file with this name doesn't exist":
+                raise e
+            logging.info(
+                "File {} does not exist, not opening MR".format(path)
+            )
+            return
+
+        self.create_mr(branch_name, target_branch, title)
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
