@@ -32,19 +32,7 @@ def get_keys_to_delete(aws_support_cases):
     return keys
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
-        enable_deletion=False):
-    gqlapi = gql.get_api()
-    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
-    aws = AWSApi(thread_pool_size, accounts)
-    deleted_keys = get_deleted_keys(accounts)
-    existing_keys = aws.get_users_keys()
-    aws_support_cases = aws.get_support_cases()
-    keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
-    keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
-                      if ktd['key'] not in deleted_keys[ktd['account']]
-                      and ktd['key'] in existing_keys[ktd['account']]]
-
+def act(dry_run, gitlab_project_id, gqlapi, accounts, keys_to_delete):
     if not dry_run and keys_to_delete:
         # assuming a single GitLab instance for now
         instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
@@ -58,3 +46,18 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
             path = 'data' + \
                 [a['path'] for a in accounts if a['name'] == account][0]
             gl.create_delete_aws_access_key_mr(account, path, key)
+
+
+def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+        enable_deletion=False):
+    gqlapi = gql.get_api()
+    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+    aws = AWSApi(thread_pool_size, accounts)
+    deleted_keys = get_deleted_keys(accounts)
+    existing_keys = aws.get_users_keys()
+    aws_support_cases = aws.get_support_cases()
+    keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
+    keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
+                      if ktd['key'] not in deleted_keys[ktd['account']]
+                      and ktd['key'] in existing_keys[ktd['account']]]
+    act(dry_run, gitlab_project_id, gqlapi, accounts, keys_to_delete)

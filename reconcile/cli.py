@@ -6,6 +6,7 @@ import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
 import reconcile.github_users
+import reconcile.github_scanner
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
 import reconcile.openshift_users
@@ -139,6 +140,16 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
     run_integration(reconcile.github_users.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size,
                     enable_deletion, send_mails)
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@threaded()
+@binary(['git', 'git-secrets'])
+@click.pass_context
+def github_scanner(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.github_scanner.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()

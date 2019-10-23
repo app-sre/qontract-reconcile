@@ -26,6 +26,7 @@ setup(
         "ldap3>=2.5.2,<2.6.0",
         "anymarkup>=0.7.0,<0.8.0",
         "python-gitlab>=1.11.0,<1.12.0",
+        "GitPython>=2.1.14,<3.0.0",
         "semver>=2.8.0,<2.9.0",
         "python-terraform>=0.10.0,<0.11.0",
         "boto3>=1.9.0,<=1.10.0",
