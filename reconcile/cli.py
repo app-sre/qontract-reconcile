@@ -158,7 +158,8 @@ def github_scanner(ctx, gitlab_project_id, thread_pool_size):
 @binary(['oc', 'ssh'])
 @click.pass_context
 def openshift_clusterrolebindings(ctx, thread_pool_size):
-    run_integration(reconcile.openshift_clusterrolebindings.run, ctx.obj['dry_run'],
+    run_integration(reconcile.openshift_clusterrolebindings.run,
+                    ctx.obj['dry_run'],
                     thread_pool_size)
 
 
