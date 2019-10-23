@@ -23,5 +23,13 @@ def scan_history(repo_url, defer=None):
                  cwd=wd, stdout=PIPE, stderr=PIPE)
     _, err = proc.communicate()
     if proc.returncode != 0:
-        return False, err
+        return False, get_suspected_urls(repo_url, err)
     return True, None
+
+def get_suspected_urls(repo_url, error):
+    suspects = []
+    for e in error.split('\n'):
+        if e == "":
+            break
+        suspects.append(e)
+    return suspects
