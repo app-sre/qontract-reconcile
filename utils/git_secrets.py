@@ -3,11 +3,11 @@ import tempfile
 import shutil
 import logging
 
+from utils.defer import defer
+
 from git import Repo
 from os import path
 from subprocess import PIPE, Popen, STDOUT
-
-from utils.defer import defer
 
 
 @defer

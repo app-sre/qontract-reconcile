@@ -9,9 +9,7 @@ import reconcile.gitlab_permissions as gitlab_permissions
 import reconcile.aws_support_cases_sos as aws_sos
 
 from utils.aws_api import AWSApi
-from utils.gitlab_api import GitLabApi
 from reconcile.queries import AWS_ACCOUNTS_QUERY
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 from reconcile.github_users import init_github
 
 
