@@ -86,6 +86,10 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     clusters = [cluster for cluster
                 in gqlapi.query(CLUSTERROLEBINDINGS_QUERY)['clusters']
                 if cluster.get('clusterRoleBindings')]
+
+    if not clusters:
+        return
+
     ri, oc_map = \
         ob.fetch_current_state(
             clusters=clusters,
