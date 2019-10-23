@@ -3,6 +3,7 @@ import logging
 from git import Repo
 
 import utils.gql as gql
+import utils.threaded as threaded
 import utils.git_secrets as git_secrets
 import reconcile.gitlab_permissions as gitlab_permissions
 import reconcile.aws_support_cases_sos as aws_sos
@@ -14,14 +15,14 @@ from reconcile.queries import GITLAB_INSTANCES_QUERY
 from reconcile.github_users import init_github
 
 
-def get_key_to_delete(err):
-    return err
+def strip_repo_url(repo_url):
+    return repo_url.rstrip('/').replace('.git')
 
 
 def get_all_repos_to_scan(repos):
     logging.info('getting full list of repos')
     all_repos = []
-    all_repos.extend(repos)
+    all_repos.extend([strip_repo_url(r) for r in repos])
     g = init_github()
     for r in repos:
         logging.debug('getting forks: {}'.format(r))
@@ -30,39 +31,34 @@ def get_all_repos_to_scan(repos):
         forks = repo.get_forks()
         for f in forks or []:
             logging.debug('found fork: {}'.format(f.clone_url))
-        all_repos.extend([f.clone_url for f in forks])
+        all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
     return all_repos
 
 
 def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     gqlapi = gql.get_api()
+    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+    aws = AWSApi(thread_pool_size, accounts)
+    existing_keys = aws.get_users_keys()
+    existing_keys_list = [key for user_key in existing_keys.values()
+                          for keys in user_key.values() for key in keys]
+
     app_int_github_repos = \
         gitlab_permissions.get_repos(gqlapi, server='https://github.com')
     all_repos = get_all_repos_to_scan(app_int_github_repos)
     logging.info('about to scan {} repos'.format(len(all_repos)))
 
-    keys_to_delete = []
-    for r in all_repos:
-        ok, err = git_secrets.scan_history(r)
-        if not ok:
-            key_to_delete = get_key_to_delete(err)
-            keys_to_delete.append(key_to_delete)
-            print(key_to_delete)
+    results = threaded.run(git_secrets.scan_history, all_repos, thread_pool_size,
+                           existing_keys=existing_keys_list)
+    all_leaked_keys = [key for keys in results for key in keys]
 
-    import sys
-    sys.exit()
-
-
-    # from here things will be a bit different
-    # need to find which account holds a key to delete
-    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
-    aws = AWSApi(thread_pool_size, accounts)
     deleted_keys = aws_sos.get_deleted_keys(accounts)
-    existing_keys = aws.get_users_keys()
-    keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
-    keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
-                      if ktd['key'] not in deleted_keys[ktd['account']]
-                      and ktd['key'] in existing_keys[ktd['account']]]
+    keys_to_delete = \
+        [{'account': account, 'key': key}
+         for key in all_leaked_keys
+         for account, user_keys in existing_keys.items()
+         if key in [uk for uks in user_keys.values() for uk in uks]
+         and key not in deleted_keys[account]]
 
     if not dry_run and keys_to_delete:
         # assuming a single GitLab instance for now
