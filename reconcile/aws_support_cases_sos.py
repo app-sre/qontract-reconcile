@@ -17,6 +17,9 @@ def get_deleted_keys(accounts):
 def get_keys_to_delete(aws_support_cases):
     search_pattern = 'We have become aware that the AWS Access Key '
     keys = []
+    # ref:
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/
+    # reference/services/support.html#Support.Client.describe_cases
     for account, cases in aws_support_cases.items():
         for case in cases:
             comms = case['recentCommunications']['communications']
