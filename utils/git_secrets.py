@@ -41,6 +41,8 @@ def get_suspected_files(error):
     for e in error.split('\n'):
         if e == "":
             break
+        if e.startswith('warning'):
+            continue
         commit_path_split = e.split(' ')[0].split(':')
         commit, path = commit_path_split[0], commit_path_split[1]
 
