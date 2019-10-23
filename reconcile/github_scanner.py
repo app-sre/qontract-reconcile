@@ -16,7 +16,7 @@ from reconcile.github_users import init_github
 
 
 def strip_repo_url(repo_url):
-    return repo_url.rstrip('/').replace('.git')
+    return repo_url.rstrip('/').replace('.git', '')
 
 
 def get_all_repos_to_scan(repos):
