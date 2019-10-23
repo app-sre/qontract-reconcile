@@ -29,8 +29,6 @@ def get_all_repos_to_scan(repos):
         repo_name = r.replace('https://github.com/', '')
         repo = g.get_repo(repo_name)
         forks = repo.get_forks()
-        for f in forks or []:
-            logging.debug('found fork: {}'.format(f.clone_url))
         all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
     return all_repos
 
