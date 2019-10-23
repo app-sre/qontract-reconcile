@@ -44,7 +44,7 @@ class OC(object):
     def get_items(self, kind, **kwargs):
         cmd = ['get', kind, '-o', 'json']
 
-        if 'namespace' in kwargs:
+        if 'namespace' in kwargs and kwargs['namespace']:
             namespace = kwargs['namespace']
             if not self.project_exists(namespace):
                 return []
@@ -69,7 +69,7 @@ class OC(object):
 
     def get(self, namespace, kind, name):
         cmd = ['get', '-o', 'json', kind, name]
-        if namespace is not None:
+        if namespace is not None and namespace != '_':
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
 
@@ -80,11 +80,15 @@ class OC(object):
         return self._run_json(cmd)
 
     def apply(self, namespace, resource):
-        cmd = ['apply', '-n', namespace, '-f', '-']
+        cmd = ['apply', '-f', '-']
+        if namespace is not None and namespace != '_':
+            cmd.extend(['-n', namespace])
         self._run(cmd, stdin=resource)
 
     def delete(self, namespace, kind, name):
-        cmd = ['delete', '-n', namespace, kind, name]
+        cmd = ['delete', kind, name]
+        if namespace is not None and namespace != '_':
+            cmd.extend(['-n', namespace])
         self._run(cmd)
 
     def project_exists(self, name):

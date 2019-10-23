@@ -169,7 +169,7 @@ class OpenshiftResource(object):
                         not rule['attributeRestrictions']:
                     rule.pop('attributeRestrictions')
 
-        if body['kind'] == 'RoleBinding':
+        if body['kind'] in ('ClusterRoleBinding', 'RoleBinding'):
             if 'groupNames' in body:
                 body.pop('groupNames')
             if 'userNames' in body:
@@ -217,6 +217,8 @@ class ResourceInventory(object):
         self._lock = Lock()
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
+        if namespace is None:
+            namespace = '_'
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(resource_type, {
@@ -225,6 +227,8 @@ class ResourceInventory(object):
         })
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
+        if namespace is None:
+            namespace = '_'
         with self._lock:
             desired = \
                 self._clusters[cluster][namespace][resource_type]['desired']
@@ -233,6 +237,8 @@ class ResourceInventory(object):
             desired[name] = value
 
     def add_current(self, cluster, namespace, resource_type, name, value):
+        if namespace is None:
+            namespace = '_'
         with self._lock:
             current = \
                 self._clusters[cluster][namespace][resource_type]['current']

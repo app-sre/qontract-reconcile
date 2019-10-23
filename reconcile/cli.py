@@ -7,6 +7,7 @@ import utils.gql as gql
 import reconcile.github_org
 import reconcile.github_users
 import reconcile.github_scanner
+import reconcile.openshift_clusterrolebindings
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
 import reconcile.openshift_users
@@ -150,6 +151,15 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.github_scanner.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@click.pass_context
+def openshift_clusterrolebindings(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_clusterrolebindings.run, ctx.obj['dry_run'],
+                    thread_pool_size)
 
 
 @integration.command()

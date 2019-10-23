@@ -109,10 +109,12 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
                   if namespace_info.get('networkPoliciesAllow')]
     ri, oc_map = \
-        ob.fetch_current_state(namespaces, thread_pool_size,
-                               QONTRACT_INTEGRATION,
-                               QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['NetworkPolicy'])
+        ob.fetch_current_state(
+            namespaces=namespaces,
+            thread_pool_size=thread_pool_size,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            override_managed_types=['NetworkPolicy'])
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(namespaces, ri)
     ob.realize_data(dry_run, oc_map, ri)

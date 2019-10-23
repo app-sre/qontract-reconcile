@@ -18,9 +18,47 @@ class StateSpec(object):
         self.parent = parent
 
 
-def init_specs_to_fetch(ri, oc_map, namespaces,
-                        override_managed_types=None,
-                        managed_types_key='managedResourceTypes'):
+def init_cluster_specs_to_fetch(clusters, ri, oc_map,
+                                override_managed_types,
+                                managed_types_key='managedResourceTypes'):
+    state_specs = []
+
+    for cluster in clusters:
+        if override_managed_types is None:
+            managed_types = cluster.get(managed_types_key)
+        else:
+            managed_types = override_managed_types
+
+        if not managed_types:
+            continue
+
+        cluster_name = cluster['name']
+        oc = oc_map.get(cluster_name)
+        if oc is None:
+            msg = (
+                "[{}] cluster skipped."
+            ).format(cluster)
+            logging.debug(msg)
+            continue
+        if oc is False:
+            ri.register_error()
+            msg = (
+                "[{}] cluster has no automationToken."
+            ).format(cluster)
+            logging.error(msg)
+            continue
+
+        for resource_type in managed_types:
+            ri.initialize_resource_type(cluster_name, None, resource_type)
+            c_spec = StateSpec("current", oc, cluster_name, None, resource_type)
+            state_specs.append(c_spec)
+
+    return state_specs
+
+
+def init_namespaced_specs_to_fetch(namespaces, ri, oc_map,
+                                   override_managed_types,
+                                   managed_types_key='managedResourceTypes'):
     state_specs = []
 
     for namespace_info in namespaces:
@@ -67,6 +105,26 @@ def init_specs_to_fetch(ri, oc_map, namespaces,
     return state_specs
 
 
+def init_specs_to_fetch(clusters=None, namespaces=None,
+                        ri=None, oc_map=None,
+                        override_managed_types=None,
+                        managed_types_key='managedResourceTypes'):
+    if clusters and namespaces:
+        raise KeyError('expected only one of clusters or namespaces.')
+    elif clusters:
+        state_specs = init_cluster_specs_to_fetch(clusters, ri, oc_map,
+                                                  override_managed_types,
+                                                  managed_types_key)
+    elif namespaces:
+        state_specs = init_namespaced_specs_to_fetch(namespaces, ri, oc_map,
+                                                     override_managed_types,
+                                                     managed_types_key)
+    else:
+        raise KeyError('expected one of clusters or namespaces.')
+
+    return state_specs
+
+
 def populate_current_state(spec, ri, integration, integration_version):
     if spec.oc is None:
         return
@@ -84,18 +142,36 @@ def populate_current_state(spec, ri, integration, integration_version):
         )
 
 
-def fetch_current_state(namespaces, thread_pool_size,
-                        integration, integration_version,
+def fetch_current_state(clusters=None, namespaces=None,
+                        thread_pool_size=None,
+                        integration=None,
+                        integration_version=None,
                         override_managed_types=None):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=integration)
-    state_specs = \
-        init_specs_to_fetch(
-            ri,
-            oc_map,
-            namespaces,
-            override_managed_types=override_managed_types
-        )
+
+    if clusters and namespaces:
+        raise KeyError('expected only one of clusters or namespaces.')
+    elif clusters:
+        oc_map = OC_Map(clusters=clusters, integration=integration)
+        state_specs = \
+            init_specs_to_fetch(
+                ri=ri,
+                oc_map=oc_map,
+                clusters=clusters,
+                override_managed_types=override_managed_types
+            )
+    elif namespaces:
+        oc_map = OC_Map(namespaces=namespaces, integration=integration)
+        state_specs = \
+            init_specs_to_fetch(
+                ri=ri,
+                oc_map=oc_map,
+                namespaces=namespaces,
+                override_managed_types=override_managed_types
+            )
+    else:
+        raise KeyError('expected one of clusters or namespaces.')
+
     threaded.run(populate_current_state, state_specs, thread_pool_size,
                  ri=ri,
                  integration=integration,
