@@ -59,17 +59,4 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
          for account, user_keys in existing_keys.items()
          if key in [uk for uks in user_keys.values() for uk in uks]
          and key not in deleted_keys[account]]
-
-    if not dry_run and keys_to_delete:
-        # assuming a single GitLab instance for now
-        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
-        gl = GitLabApi(instance, project_id=gitlab_project_id)
-
-    for k in keys_to_delete:
-        account = k['account']
-        key = k['key']
-        logging.info(['delete_aws_access_key', account, key])
-        if not dry_run:
-            path = 'data' + \
-                [a['path'] for a in accounts if a['name'] == account][0]
-            gl.create_delete_aws_access_key_mr(account, path, key)
+    aws_sos.act(dry_run, gitlab_project_id, gqlapi, keys_to_delete)
