@@ -11,8 +11,10 @@ In addition, e2e tests are available to detect potential problems reconciling se
 
 - `aws-garbage-collector`: Delete orphan AWS resources.
 - `aws-iam-keys`: Delete IAM access keys by access key ID.
+- `aws-support-cases-sos`: Scan AWS support cases for reports of leaked keys and remove them (only submits PR)
 - `github`: Configures the teams and members in a GitHub org.
 - `github-repo-invites`: Accept GitHub repository invitations for known repositories.
+- `github-scanner`: Scan GitHub repositories for leaked keys and remove them (only submits PR).
 - `github-users`: Validate compliance of GitHub user profiles.
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-members` : Manage GitLab group members.

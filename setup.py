@@ -26,6 +26,7 @@ setup(
         "ldap3>=2.5.2,<2.6.0",
         "anymarkup>=0.7.0,<0.8.0",
         "python-gitlab>=1.11.0,<1.12.0",
+        "GitPython>=2.1.14,<3.0.0",
         "semver>=2.8.0,<2.9.0",
         "python-terraform>=0.10.0,<0.11.0",
         "boto3>=1.9.0,<=1.10.0",
@@ -37,6 +38,7 @@ setup(
         "Jinja2>=2.10.1,<2.11.0",
         "jira>=2.0.0,<2.1.0",
         "pyOpenSSL>=19.0.0,<20.0.0",
+        "ruamel.yaml>=0.16.5,<0.17.0",
     ],
 
     test_suite="tests",
@@ -47,7 +49,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.6',
     ],
     entry_points={

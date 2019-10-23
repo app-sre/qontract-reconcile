@@ -54,7 +54,7 @@ def assert_rolebinding(expected_rb, rb):
 def get_namespaces_pattern():
   return r'^(default|logging|olm|' + \
          '(openshift|kube-|ops-|dedicated-|management-|' + \
-           'uhc-(staging|integration|production)-|' + \
+           'uhc-(staging|integration|production|jenkins)-|' + \
            '{}).*)$'.format(
             E2E_NS_PFX
          )

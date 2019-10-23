@@ -97,7 +97,7 @@ class TerrascriptClient(object):
             if len(users) == 0:
                 continue
 
-            aws_groups = role['aws_groups']
+            aws_groups = role['aws_groups'] or []
             for aws_group in aws_groups:
                 group_name = aws_group['name']
                 group_policies = aws_group['policies']
@@ -132,7 +132,7 @@ class TerrascriptClient(object):
             if len(users) == 0:
                 continue
 
-            aws_groups = role['aws_groups']
+            aws_groups = role['aws_groups'] or []
             for ig in range(len(aws_groups)):
                 group_name = aws_groups[ig]['name']
                 account_name = aws_groups[ig]['account']['name']
@@ -210,31 +210,30 @@ class TerrascriptClient(object):
                     tf_output = output(output_name, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-            user_policies = role['user_policies']
-            if user_policies is not None:
-                for ip in range(len(user_policies)):
-                    policy_name = user_policies[ip]['name']
-                    account_name = user_policies[ip]['account']['name']
-                    account_uid = user_policies[ip]['account']['uid']
-                    for iu in range(len(users)):
-                        # replace known keys with values
-                        user_name = users[iu]['org_username']
-                        policy = user_policies[ip]['policy']
-                        policy = policy.replace('${aws:username}', user_name)
-                        policy = \
-                            policy.replace('${aws:accountid}', account_uid)
+            user_policies = role['user_policies'] or []
+            for ip in range(len(user_policies)):
+                policy_name = user_policies[ip]['name']
+                account_name = user_policies[ip]['account']['name']
+                account_uid = user_policies[ip]['account']['uid']
+                for iu in range(len(users)):
+                    # replace known keys with values
+                    user_name = users[iu]['org_username']
+                    policy = user_policies[ip]['policy']
+                    policy = policy.replace('${aws:username}', user_name)
+                    policy = \
+                        policy.replace('${aws:accountid}', account_uid)
 
-                        # Ref: terraform aws iam_user_policy
-                        tf_iam_user = self.get_tf_iam_user(user_name)
-                        tf_aws_iam_user_policy = aws_iam_user_policy(
-                            user_name + '-' + policy_name,
-                            name=user_name + '-' + policy_name,
-                            user=user_name,
-                            policy=policy,
-                            depends_on=[tf_iam_user]
-                        )
-                        self.add_resource(account_name,
-                                          tf_aws_iam_user_policy)
+                    # Ref: terraform aws iam_user_policy
+                    tf_iam_user = self.get_tf_iam_user(user_name)
+                    tf_aws_iam_user_policy = aws_iam_user_policy(
+                        user_name + '-' + policy_name,
+                        name=user_name + '-' + policy_name,
+                        user=user_name,
+                        policy=policy,
+                        depends_on=[tf_iam_user]
+                    )
+                    self.add_resource(account_name,
+                                      tf_aws_iam_user_policy)
 
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
@@ -506,7 +505,7 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
-        for policy in common_values['policies']:
+        for policy in common_values['policies'] or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
@@ -515,6 +514,27 @@ class TerrascriptClient(object):
                     depends_on=[user_tf_resource]
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
+
+        user_policy = common_values['user_policy']
+        if user_policy:
+            variables = common_values['variables']
+            # variables are replaced in the user_policy
+            # and also added to the output resource
+            if variables:
+                data = json.loads(variables)
+                for k, v in data.items():
+                    to_replace = '${' + k + '}'
+                    user_policy = user_policy.replace(to_replace, v)
+                    output_name = output_prefix + '[{}]'.format(k)
+                    tf_resources.append(output(output_name, value=v))
+            tf_aws_iam_user_policy = aws_iam_user_policy(
+                identifier,
+                name=identifier,
+                user=identifier,
+                policy=user_policy,
+                depends_on=[user_tf_resource]
+            )
+            tf_resources.append(tf_aws_iam_user_policy)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
@@ -570,15 +590,18 @@ class TerrascriptClient(object):
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
         overrides = resource.get('overrides', None)
+        variables = resource.get('variables', None)
         policies = resource.get('policies', None)
+        user_policy = resource.get('user_policy', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        if policies:
-            values['policies'] = policies
+        values['variables'] = variables
+        values['policies'] = policies
+        values['user_policy'] = user_policy
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']

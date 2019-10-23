@@ -6,6 +6,7 @@ import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
 import reconcile.github_users
+import reconcile.github_scanner
 import reconcile.openshift_acme
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
@@ -31,6 +32,7 @@ import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
+import reconcile.aws_support_cases_sos
 
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
@@ -139,6 +141,16 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
     run_integration(reconcile.github_users.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size,
                     enable_deletion, send_mails)
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@threaded()
+@binary(['git', 'git-secrets'])
+@click.pass_context
+def github_scanner(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.github_scanner.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
@@ -251,6 +263,15 @@ def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
 def aws_iam_keys(ctx, thread_pool_size):
     run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
                     thread_pool_size)
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@threaded()
+@click.pass_context
+def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.aws_support_cases_sos.run, gitlab_project_id,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
