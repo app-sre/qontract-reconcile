@@ -1,17 +1,14 @@
 import copy
 import logging
 
-import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 
 def get_gitlab_api():
-    gqlapi = gql.get_api()
-    # assuming a single GitLab instance for now
-    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    instance = queries.get_gitlab_instance()
     return GitLabApi(instance)
 
 
