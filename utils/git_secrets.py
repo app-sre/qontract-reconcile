@@ -2,8 +2,10 @@ import os
 import tempfile
 import shutil
 import logging
+import requests
 
 from utils.defer import defer
+from utils.retry import retry
 
 from git import Repo
 from os import path
@@ -11,10 +13,15 @@ from subprocess import PIPE, Popen
 
 
 @defer
+@retry()
 def scan_history(repo_url, existing_keys, defer=None):
     logging.info('scanning {}'.format(repo_url))
+    if requests.get(repo_url).status_code == 404:
+        logging.info('not found {}'.format(repo_url))
+        return []
+
     wd = tempfile.mkdtemp()
-    defer(lambda: shutil.rmtree(wd))
+    defer(lambda: cleanup(wd))
 
     repo = Repo.clone_from(repo_url, wd)
     DEVNULL = open(os.devnull, 'w')
@@ -28,12 +35,19 @@ def scan_history(repo_url, existing_keys, defer=None):
         return []
 
     logging.info('found suspects in {}'.format(repo_url))
-    suspcted_files = get_suspected_files(err)
-    leaked_keys = get_leaked_keys(repo, suspcted_files, existing_keys)
+    suspected_files = get_suspected_files(err)
+    leaked_keys = get_leaked_keys(repo, suspected_files, existing_keys)
     if leaked_keys:
         logging.info('found suspected leaked keys: {}'.format(leaked_keys))
 
     return leaked_keys
+
+
+def cleanup(wd):
+    try:
+        shutil.rmtree(wd)
+    except Exception:
+        pass
 
 
 def get_suspected_files(error):
@@ -50,9 +64,9 @@ def get_suspected_files(error):
     return set(suspects)
 
 
-def get_leaked_keys(repo, suspcted_files, existing_keys):
+def get_leaked_keys(repo, suspected_files, existing_keys):
     all_leaked_keys = []
-    for s in suspcted_files:
+    for s in suspected_files:
         commit, file_relative_path = s[0], s[1]
         repo.head.reference = repo.commit(commit)
         repo.head.reset(index=True, working_tree=True)

@@ -3,8 +3,8 @@ import semver
 
 import utils.gql as gql
 import utils.smtp_client as smtp_client
+import reconcile.queries as queries
 
-from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
 
@@ -43,7 +43,7 @@ QONTRACT_TF_PREFIX = 'qrtf'
 
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
-    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+    accounts = queries.get_aws_accounts()
     roles = gqlapi.query(TF_QUERY)['roles']
     tf_roles = [r for r in roles
                 if r['aws_groups'] is not None
