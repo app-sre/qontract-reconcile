@@ -8,7 +8,7 @@ from utils.openshift_resource import OpenshiftResource as OR
 from utils.openshift_resource import ConstructResourceError
 from utils.defer import defer
 
-from utils.openshift_acme import NAMESPACES_QUERY
+from reconcile.queries import NAMESPACES_QUERY
 from utils.openshift_acme import (ACME_DEPLOYMENT,
                                   ACME_ROLE,
                                   ACME_ROLEBINDING,
