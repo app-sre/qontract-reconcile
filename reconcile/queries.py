@@ -17,6 +17,7 @@ GITLAB_INSTANCES_QUERY = """
 
 
 def get_gitlab_instance():
+    """ Returns a single GitLab instance """
     gqlapi = gql.get_api()
     # assuming a single GitLab instance for now
     return gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
@@ -38,6 +39,7 @@ AWS_ACCOUNTS_QUERY = """
 
 
 def get_aws_accounts():
+    """ Returns all AWS accounts """
     gqlapi = gql.get_api()
     return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
 
@@ -54,6 +56,10 @@ APPS_QUERY = """
 
 
 def get_repos(server=''):
+    """ Returns all repos defined under codeComponents
+    Optional arguments:
+    server: url of the server to return. for example: https://github.com
+    """
     gqlapi = gql.get_api()
     apps = gqlapi.query(APPS_QUERY)['apps']
     code_components_lists = [a['codeComponents'] for a in apps
