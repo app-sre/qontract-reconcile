@@ -1,9 +1,9 @@
 import logging
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 USERS_QUERY = """
 {
@@ -45,7 +45,8 @@ def get_current_state(instance, gl):
             for g in instance['managedGroups']}
 
 
-def get_desired_state(gqlapi, instance, gl):
+def get_desired_state(instance, gl):
+    gqlapi = gql.get_api()
     users = gqlapi.query(USERS_QUERY)['users']
     bots = gqlapi.query(BOTS_QUERY)['bots']
     desired_group_members = {g: [] for g in instance['managedGroups']}
@@ -137,12 +138,10 @@ def act(diff, gl):
 
 
 def run(dry_run=False):
-    gqlapi = gql.get_api()
-    # assuming a single GitLab instance for now
-    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance)
     current_state = get_current_state(instance, gl)
-    desired_state = get_desired_state(gqlapi, instance, gl)
+    desired_state = get_desired_state(instance, gl)
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:
