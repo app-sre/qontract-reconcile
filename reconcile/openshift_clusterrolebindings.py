@@ -1,4 +1,6 @@
+import logging
 import semver
+import sys
 
 import utils.gql as gql
 import reconcile.openshift_base as ob
@@ -79,6 +81,24 @@ def fetch_desired_state(clusters, ri):
             )
 
 
+def check_already_exists_without_annotations(ri):
+    has_errors = False
+    for cluster, namespace, resource_type, data in ri:
+        for name, d_item in data['desired'].items():
+            c_item = data['current'].get(name)
+
+            if c_item is not None:
+                if not c_item.has_qontract_annotations():
+                    has_errors = True
+                    msg = (
+                        "[{}] resource '{}/{}' present "
+                        "w/o annotations. Refusing to overwrite "
+                        "an unmanaged ClusterRoleBinding"
+                    ).format(cluster, resource_type, name)
+                    logging.error(msg)
+    return has_errors
+
+
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
     gqlapi = gql.get_api()
@@ -99,4 +119,13 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
             override_managed_types=['ClusterRoleBinding'])
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(clusters, ri)
+
+    if check_already_exists_without_annotations(ri):
+        logging.error('One or more desired ClusterRoleBinding object already '
+                      'exist on the cluster without qontract-reconcile '
+                      'annotations. If you are sure you want to override it '
+                      'you can add the qontract-reconcile annotation manually '
+                      'and run the integration again.')
+        sys.exit(1)
+
     ob.realize_data(dry_run, oc_map, ri)
