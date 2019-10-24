@@ -7,6 +7,7 @@ import time
 
 import utils.threaded as threaded
 import utils.vault_client as vault_client
+import utils.lean_terraform_client as terraform
 
 from threading import Lock
 
@@ -392,7 +393,29 @@ class AWSApi(object):
             DBSnapshotIdentifier=snapshot_identifier
         )
 
-    def delete_keys(self, dry_run, keys_to_delete):
+    @staticmethod
+    def determine_key_action(tags):
+        managed_by_integration_tag = \
+            [t['Value'] for t in tags
+             if t['Key'] == 'managed_by_integration']
+        # if this key belongs to a user without tags, i.e. not
+        # managed by an integration, or to a user with
+        # 'terraform-users' managed tag - we just delete the key
+        if not managed_by_integration_tag or \
+                managed_by_integration_tag[0] == 'terraform_users':
+            return 'delete'
+        # if this key belongs to a user created by the
+        # 'terraform-resources' integration, we remove
+        # the key from terraform state and let it create
+        # a new one on its own
+        if managed_by_integration_tag[0] == 'terraform_resources':
+            return 'remove_from_state'
+
+        huh = 'unrecognized managed_by_integration tag: {}'.format(
+            managed_by_integration_tag[0])
+        raise InvalidResourceTypeError(huh)
+
+    def delete_keys(self, dry_run, keys_to_delete, working_dirs):
         users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
             iam = s.client('iam')
@@ -407,13 +430,23 @@ class AWSApi(object):
                 # since only a single user can have a given key
                 [user] = user
 
-                logging.info(['delete_key', account, user, key])
+                tags = iam.list_user_tags(UserName=user)['Tags']
+                key_action = self.determine_key_action(tags)
+                if key_action == 'delete':
+                    logging.info(['delete_key', account, user, key])
 
-                if not dry_run:
-                    iam.delete_access_key(
-                        UserName=user,
-                        AccessKeyId=key
-                    )
+                    if not dry_run:
+                        iam.delete_access_key(
+                            UserName=user,
+                            AccessKeyId=key
+                        )
+                elif key_action == 'remove_from_state':
+                    logging.info(['remove_from_state', account, user, key])
+
+                    if not dry_run:
+                        terraform.state_rm_access_key(
+                            working_dirs, account, user
+                        )
 
     def get_users_keys(self):
         users_keys = {}
