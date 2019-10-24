@@ -1,3 +1,4 @@
+import sys
 import shutil
 
 import reconcile.queries as queries
@@ -28,4 +29,6 @@ def run(dry_run=False, thread_pool_size=10, enable_deletion=False,
     # error in init_working_dirs is very unlikely
     _, working_dirs, _ = init_working_dirs(accounts, thread_pool_size)
     defer(lambda: cleanup(working_dirs))
-    aws.delete_keys(dry_run, keys_to_delete, working_dirs)
+    error = aws.delete_keys(dry_run, keys_to_delete, working_dirs)
+    if error:
+        sys.exit(1)

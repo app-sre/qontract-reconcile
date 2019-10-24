@@ -394,7 +394,7 @@ class AWSApi(object):
         )
 
     @staticmethod
-    def determine_key_action(tags):
+    def determine_key_type(tags):
         managed_by_integration_tag = \
             [t['Value'] for t in tags
              if t['Key'] == 'managed_by_integration']
@@ -403,19 +403,20 @@ class AWSApi(object):
         # 'terraform-users' managed tag - we just delete the key
         if not managed_by_integration_tag or \
                 managed_by_integration_tag[0] == 'terraform_users':
-            return 'delete'
+            return 'user'
         # if this key belongs to a user created by the
         # 'terraform-resources' integration, we remove
         # the key from terraform state and let it create
         # a new one on its own
         if managed_by_integration_tag[0] == 'terraform_resources':
-            return 'remove_from_state'
+            return 'service_account'
 
         huh = 'unrecognized managed_by_integration tag: {}'.format(
             managed_by_integration_tag[0])
         raise InvalidResourceTypeError(huh)
 
     def delete_keys(self, dry_run, keys_to_delete, working_dirs):
+        error = False
         users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
             iam = s.client('iam')
@@ -431,8 +432,8 @@ class AWSApi(object):
                 [user] = user
 
                 tags = iam.list_user_tags(UserName=user)['Tags']
-                key_action = self.determine_key_action(tags)
-                if key_action == 'delete':
+                key_type = self.determine_key_type(tags)
+                if key_type == 'user':
                     logging.info(['delete_key', account, user, key])
 
                     if not dry_run:
@@ -440,13 +441,48 @@ class AWSApi(object):
                             UserName=user,
                             AccessKeyId=key
                         )
-                elif key_action == 'remove_from_state':
-                    logging.info(['remove_from_state', account, user, key])
+                elif key_type == 'service_account':
+                    user_keys = iam.list_access_keys(
+                        UserName=user)['AccessKeyMetadata']
 
-                    if not dry_run:
-                        terraform.state_rm_access_key(
-                            working_dirs, account, user
-                        )
+                    # if key is disabled - delete it
+                    # this will happen after terraform-resources ran,
+                    # provisioned a new key, updated the output Secret,
+                    # recycled the pods and disabled the key.
+                    key_status = [k['Status'] for k in user_keys
+                                  if k['AccessKeyId'] == key][0]
+                    if key_status == 'Inactive':
+                        logging.info(['delete_inactive_key',
+                                     account, user, key])
+                        if not dry_run:
+                            iam.delete_access_key(
+                                UserName=user,
+                                AccessKeyId=key
+                            )
+
+                    logging.info(['remove_from_state', account, user, key])
+                    # if key is active and it is the only one -
+                    # remove it from terraform state. terraform-resources
+                    # will provision a new one.
+                    if len(user_keys) == 1:
+                        if not dry_run:
+                            terraform.state_rm_access_key(
+                                working_dirs, account, user
+                            )
+
+                    # if user has 2 keys and we remove the key from
+                    # terraform state, terraform-resources will not
+                    # be able to provision a new key - limbo.
+                    # this state should happen when terraform-resources
+                    # is running, provisioned a new key,
+                    # but did not disable the old key yet.
+                    if len(user_keys) == 2:
+                        msg = 'user {} has 2 keys, skipping to avoid failure'
+                        logging.error(msg.format(user))
+                        error = True
+                        continue
+
+        return error
 
     def get_users_keys(self):
         users_keys = {}
