@@ -7,7 +7,6 @@ import utils.threaded as threaded
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from reconcile.queries import AWS_ACCOUNTS_QUERY
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory

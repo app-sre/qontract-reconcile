@@ -6,7 +6,6 @@ import reconcile.aws_support_cases_sos as aws_sos
 import reconcile.queries as queries
 
 from utils.aws_api import AWSApi
-from reconcile.queries import AWS_ACCOUNTS_QUERY
 from reconcile.github_users import init_github
 
 
