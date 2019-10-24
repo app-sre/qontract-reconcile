@@ -141,6 +141,9 @@ class OpenshiftResource(object):
                 body.get('type') == 'Opaque':
             body.pop('type')
 
+        if body['kind'] == 'Deployment':
+            annotations.pop('deployment.kubernetes.io/revision', None)
+
         if body['kind'] == 'Route':
             if body['spec'].get('wildcardPolicy') == 'None':
                 body['spec'].pop('wildcardPolicy')

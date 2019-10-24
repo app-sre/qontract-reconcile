@@ -37,6 +37,47 @@ AWS_ACCOUNTS_QUERY = """
 }
 """
 
+NAMESPACES_QUERY = """
+{
+  namespaces: namespaces_v1 {
+    name
+    cluster {
+      name
+      serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      disable {
+        integrations
+      }
+    }
+    openshiftAcme {
+      name
+      image
+      overrides {
+        deploymentName
+        roleName
+        rolebindingName
+        serviceaccountName
+      }
+    }
+  }
+}
+"""
+
 
 def get_aws_accounts():
     """ Returns all AWS accounts """
