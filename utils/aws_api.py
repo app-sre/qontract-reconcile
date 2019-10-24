@@ -489,7 +489,6 @@ class AWSApi(object):
                         msg = 'user {} has 2 keys, skipping to avoid failure'
                         logging.error(msg.format(user))
                         error = True
-                        continue
 
         return error
 
