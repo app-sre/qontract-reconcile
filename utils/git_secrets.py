@@ -2,6 +2,7 @@ import os
 import tempfile
 import shutil
 import logging
+import requests
 
 from utils.defer import defer
 from utils.retry import retry
@@ -15,6 +16,10 @@ from subprocess import PIPE, Popen
 @retry()
 def scan_history(repo_url, existing_keys, defer=None):
     logging.info('scanning {}'.format(repo_url))
+    if requests.get(repo_url).status_code == 404:
+        logging.info('not found {}'.format(repo_url))
+        return []
+
     wd = tempfile.mkdtemp()
     defer(lambda: cleanup(wd))
 
