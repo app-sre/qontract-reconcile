@@ -3,9 +3,9 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.ldap_client as ldap_client
+import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from collections import defaultdict
 
@@ -51,9 +51,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
                        in user_specs if delete]
 
     if not dry_run:
-        gqlapi = gql.get_api()
-        # assuming a single GitLab instance for now
-        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+        instance = queries.get_gitlab_instance()
         gl = GitLabApi(instance, project_id=gitlab_project_id)
 
     for username, paths in users_to_delete:

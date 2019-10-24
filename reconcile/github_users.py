@@ -4,11 +4,11 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
+import reconcile.queries as queries
 
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
 from utils.gitlab_api import GitLabApi
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 from github import Github
 from github.GithubException import GithubException
@@ -92,9 +92,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        gqlapi = gql.get_api()
-        # assuming a single GitLab instance for now
-        instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+        instance = queries.get_gitlab_instance()
         gl = GitLabApi(instance, project_id=gitlab_project_id)
 
     for user in users_to_delete:
