@@ -1,13 +1,11 @@
 import logging
 
-import utils.gql as gql
 import utils.threaded as threaded
 import utils.git_secrets as git_secrets
-import reconcile.gitlab_permissions as gitlab_permissions
 import reconcile.aws_support_cases_sos as aws_sos
+import reconcile.queries as queries
 
 from utils.aws_api import AWSApi
-from reconcile.queries import AWS_ACCOUNTS_QUERY
 from reconcile.github_users import init_github
 
 
@@ -30,15 +28,13 @@ def get_all_repos_to_scan(repos):
 
 
 def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
-    gqlapi = gql.get_api()
-    accounts = gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+    accounts = queries.get_aws_accounts()
     aws = AWSApi(thread_pool_size, accounts)
     existing_keys = aws.get_users_keys()
     existing_keys_list = [key for user_key in existing_keys.values()
                           for keys in user_key.values() for key in keys]
 
-    app_int_github_repos = \
-        gitlab_permissions.get_repos(gqlapi, server='https://github.com')
+    app_int_github_repos = queries.get_repos(server='https://github.com')
     all_repos = get_all_repos_to_scan(app_int_github_repos)
     logging.info('about to scan {} repos'.format(len(all_repos)))
 
@@ -54,4 +50,4 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
          for account, user_keys in existing_keys.items()
          if key in [uk for uks in user_keys.values() for uk in uks]
          and key not in deleted_keys[account]]
-    aws_sos.act(dry_run, gitlab_project_id, gqlapi, accounts, keys_to_delete)
+    aws_sos.act(dry_run, gitlab_project_id, accounts, keys_to_delete)

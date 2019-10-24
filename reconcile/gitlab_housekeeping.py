@@ -3,10 +3,9 @@ import gitlab
 
 from datetime import datetime, timedelta
 
-import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
-from reconcile.queries import GITLAB_INSTANCES_QUERY
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
@@ -150,9 +149,7 @@ def merge_merge_requests(dry_run, gl, merge_limit):
 
 def run(gitlab_project_id, dry_run=False, days_interval=15,
         enable_closing=False, limit=1):
-    gqlapi = gql.get_api()
-    # assuming a single GitLab instance for now
-    instance = gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
+    instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_id=gitlab_project_id)
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'issue')
