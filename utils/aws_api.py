@@ -394,15 +394,19 @@ class AWSApi(object):
         )
 
     @staticmethod
-    def determine_key_type(tags):
+    def determine_key_type(iam, user):
+        tags = iam.list_user_tags(UserName=user)['Tags']
         managed_by_integration_tag = \
             [t['Value'] for t in tags
              if t['Key'] == 'managed_by_integration']
         # if this key belongs to a user without tags, i.e. not
-        # managed by an integration, or to a user with
-        # 'terraform-users' managed tag - we just delete the key
-        if not managed_by_integration_tag or \
-                managed_by_integration_tag[0] == 'terraform_users':
+        # managed by an integration, this key is probably created
+        # manually. disable it to leave a trace
+        if not managed_by_integration_tag:
+            return 'unmanaged'
+        # if this key belongs to a user created by the
+        # 'terraform-users' integration, we just delete the key
+        if managed_by_integration_tag[0] == 'terraform_users':
             return 'user'
         # if this key belongs to a user created by the
         # 'terraform-resources' integration, we remove
@@ -430,10 +434,18 @@ class AWSApi(object):
                 # unpack single item from sequence
                 # since only a single user can have a given key
                 [user] = user
+                key_type = self.determine_key_type(iam, user)
+                key_status = self.get_user_key_status(iam, user, key)
+                if key_type == 'unmanaged' and key_status == 'Active':
+                    logging.info(['disable_key', account, user, key])
 
-                tags = iam.list_user_tags(UserName=user)['Tags']
-                key_type = self.determine_key_type(tags)
-                if key_type == 'user':
+                    if not dry_run:
+                        iam.update_access_key(
+                            UserName=user,
+                            AccessKeyId=key,
+                            Status='Inactive'
+                        )
+                elif key_type == 'user':
                     logging.info(['delete_key', account, user, key])
 
                     if not dry_run:
@@ -442,15 +454,10 @@ class AWSApi(object):
                             AccessKeyId=key
                         )
                 elif key_type == 'service_account':
-                    user_keys = iam.list_access_keys(
-                        UserName=user)['AccessKeyMetadata']
-
                     # if key is disabled - delete it
                     # this will happen after terraform-resources ran,
                     # provisioned a new key, updated the output Secret,
                     # recycled the pods and disabled the key.
-                    key_status = [k['Status'] for k in user_keys
-                                  if k['AccessKeyId'] == key][0]
                     if key_status == 'Inactive':
                         logging.info(['delete_inactive_key',
                                      account, user, key])
@@ -459,11 +466,13 @@ class AWSApi(object):
                                 UserName=user,
                                 AccessKeyId=key
                             )
+                        continue
 
-                    logging.info(['remove_from_state', account, user, key])
                     # if key is active and it is the only one -
                     # remove it from terraform state. terraform-resources
                     # will provision a new one.
+                    # may be a race condition here. TODO: check it
+                    logging.info(['remove_from_state', account, user, key])
                     if len(user_keys) == 1:
                         if not dry_run:
                             terraform.state_rm_access_key(
@@ -496,6 +505,11 @@ class AWSApi(object):
     def get_user_keys(self, iam, user):
         key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         return [uk['AccessKeyId'] for uk in key_list]
+
+    @staticmethod
+    def get_user_key_status(iam, user, key):
+        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+        return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
     def get_support_cases(self):
         all_support_cases = {}
