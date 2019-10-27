@@ -22,7 +22,8 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile,
                                aws_elasticache_replication_group,
-                               aws_iam_user_policy_attachment)
+                               aws_iam_user_policy_attachment,
+                               aws_sqs_queue)
 
 
 class UnknownProviderError(Exception):
@@ -61,6 +62,9 @@ class TerrascriptClient(object):
             locks[name] = Lock()
         self.tss = tss
         self.locks = locks
+        self.uids = {a['name']: a['uid'] for a in accounts}
+        self.default_regions = {a['name']: a['resourcesDefaultRegion']
+                                for a in accounts}
 
     def populate_configs_from_vault(self, accounts):
         results = threaded.run(self.get_vault_tf_secrets, accounts,
@@ -275,6 +279,8 @@ class TerrascriptClient(object):
         elif provider == 'service-account':
             self.populate_tf_resource_service_account(resource,
                                                       namespace_info)
+        elif provider == 'sqs':
+            self.populate_tf_resource_sqs(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -539,6 +545,74 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_sqs(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+        uid = self.uids[account]
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+        region = common_values['region'] or self.default_regions[account]
+        queues = common_values['queues']
+        for queue in queues:
+            # sqs queue
+            # Terraform resource reference:
+            # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
+            values = {}
+            values['name'] = queue
+            values['tags'] = common_values['tags']
+            queue_tf_resource = aws_sqs_queue(queue, **values)
+            tf_resources.append(queue_tf_resource)
+            queue_key = '{}_queue_url'.format(queue.replace('-', '_').lower())
+            output_name = '{}[{}]'.format(output_prefix, queue_key)
+            output_value = \
+                'https://sqs.{}.amazonaws.com/{}/{}'.format(
+                    region, uid, queue)
+            tf_resources.append(output(output_name, value=output_value))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for queue
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy for queue
+        values = {}
+        values['user'] = identifier
+        values['name'] = identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["sqs:*"],
+                    "Resource": [
+                        ["arn:aws:sqs:*:{}:{}".format(uid, q)
+                         for q in queues]
+                    ]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
     @staticmethod
     def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
         tf_resources = []
@@ -593,6 +667,8 @@ class TerrascriptClient(object):
         variables = resource.get('variables', None)
         policies = resource.get('policies', None)
         user_policy = resource.get('user_policy', None)
+        region = resource.get('region', None)
+        queues = resource.get('queues', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -602,6 +678,8 @@ class TerrascriptClient(object):
         values['variables'] = variables
         values['policies'] = policies
         values['user_policy'] = user_policy
+        values['region'] = region
+        values['queues'] = queues
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']

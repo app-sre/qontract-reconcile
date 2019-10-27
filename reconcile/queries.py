@@ -28,6 +28,8 @@ AWS_ACCOUNTS_QUERY = """
   accounts: awsaccounts_v1 {
     path
     name
+    uid
+    resourcesDefaultRegion
     automationToken {
       path
       field

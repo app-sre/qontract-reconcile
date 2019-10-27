@@ -49,6 +49,15 @@ TF_NAMESPACES_QUERY = """
         user_policy
         output_resource_name
       }
+      ... on NamespaceTerraformResourceSQS_v1 {
+        account
+        region
+        identifier
+        defaults
+        overrides
+        output_resource_name
+        queues
+      }
     }
     cluster {
       name
