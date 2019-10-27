@@ -1,6 +1,23 @@
 import utils.gql as gql
 
 
+APP_INTERFACE_SETTINGS_QUERY = """
+{
+  settings: app_interface_settings_v1 {
+    vault
+    kubeBinary
+    pullRequestGateway
+  }
+}
+"""
+
+
+def get_app_interface_settings():
+    """ Returns App Interface settings """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)['settings']
+
+
 GITLAB_INSTANCES_QUERY = """
 {
   instances: gitlabinstance_v1 {
@@ -38,6 +55,40 @@ AWS_ACCOUNTS_QUERY = """
   }
 }
 """
+
+
+def get_aws_accounts():
+    """ Returns all AWS accounts """
+    gqlapi = gql.get_api()
+    return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+
+
+APPS_QUERY = """
+{
+  apps: apps_v1 {
+    codeComponents {
+        url
+    }
+  }
+}
+"""
+
+
+def get_repos(server=''):
+    """ Returns all repos defined under codeComponents
+    Optional arguments:
+    server: url of the server to return. for example: https://github.com
+    """
+    gqlapi = gql.get_api()
+    apps = gqlapi.query(APPS_QUERY)['apps']
+    code_components_lists = [a['codeComponents'] for a in apps
+                             if a['codeComponents'] is not None]
+    code_components = [item for sublist in code_components_lists
+                       for item in sublist]
+    repos = [c['url'] for c in code_components if c['url'].startswith(server)]
+
+    return repos
+
 
 NAMESPACES_QUERY = """
 {
@@ -79,36 +130,3 @@ NAMESPACES_QUERY = """
   }
 }
 """
-
-
-def get_aws_accounts():
-    """ Returns all AWS accounts """
-    gqlapi = gql.get_api()
-    return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
-
-
-APPS_QUERY = """
-{
-  apps: apps_v1 {
-    codeComponents {
-        url
-    }
-  }
-}
-"""
-
-
-def get_repos(server=''):
-    """ Returns all repos defined under codeComponents
-    Optional arguments:
-    server: url of the server to return. for example: https://github.com
-    """
-    gqlapi = gql.get_api()
-    apps = gqlapi.query(APPS_QUERY)['apps']
-    code_components_lists = [a['codeComponents'] for a in apps
-                             if a['codeComponents'] is not None]
-    code_components = [item for sublist in code_components_lists
-                       for item in sublist]
-    repos = [c['url'] for c in code_components if c['url'].startswith(server)]
-
-    return repos

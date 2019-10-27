@@ -18,13 +18,14 @@ class InvalidResourceTypeError(Exception):
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
-    def __init__(self, thread_pool_size, accounts):
+    def __init__(self, thread_pool_size, accounts, pr_gitlab_project_id=None):
         self.thread_pool_size = thread_pool_size
         self.init_sessions_and_resources(accounts)
         self.init_users()
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
+        self.pr_gitlab_project_id = pr_gitlab_project_id
 
     def init_sessions_and_resources(self, accounts):
         results = threaded.run(self.get_vault_tf_secrets, accounts,
@@ -440,3 +441,33 @@ class AWSApi(object):
                 logging.error(msg.format(account, e.message))
 
         return all_support_cases
+
+    def submit_pr_to_app_interface_queue(self, pr_type, **kwargs):
+        s = [s for account, s in self.sessions.items()
+             if account == queue_account][0]
+        sqs = s.client('sqs')
+        body = {
+            'pr_type': 'create_delete_aws_access_key_mr',
+            **kwargs
+        }
+        queue_url = os.environ['APP_INTERFACE_PR_SUBMITTER_QUEUE_URL']
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=body,
+        )
+
+    def create_delete_aws_access_key_mr(self, account, path, key,
+                                        queue_account='app-sre'):
+        self.submit_pr_to_app_interface_queue(
+            'create_delete_aws_access_key_mr',
+            account=account,
+            path=path,
+            key=key
+        )
+
+    def create_delete_user_mr(self, username, paths):
+        self.submit_pr_to_app_interface_queue(
+            'create_delete_user_mr',
+            username=username,
+            paths=paths
+        )

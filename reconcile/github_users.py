@@ -5,10 +5,10 @@ import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
 import reconcile.queries as queries
+import reconcile.pull_request_gateway as prg
 
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
-from utils.gitlab_api import GitLabApi
 
 from github import Github
 from github.GithubException import GithubException
@@ -92,8 +92,8 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        instance = queries.get_gitlab_instance()
-        gl = GitLabApi(instance, project_id=gitlab_project_id)
+        settings = queries.get_app_interface_settings()
+        gw = prg.init(settings, gitlab_project_id)
 
     for user in users_to_delete:
         username = user['username']
@@ -104,7 +104,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
             if send_mails:
                 send_email_notification(user)
             elif enable_deletion:
-                gl.create_delete_user_mr(username, paths)
+                gw.create_delete_user_mr(username, paths)
             else:
                 msg = ('\'delete\' action is not enabled. '
                        'Please run the integration manually '
