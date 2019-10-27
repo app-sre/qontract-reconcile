@@ -599,8 +599,8 @@ class TerrascriptClient(object):
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
                     "Resource": [
-                        ["arn:aws:sqs:*:{}:{}".format(uid, q)
-                         for q in queues]
+                        "arn:aws:sqs:*:{}:{}".format(uid, q)
+                        for q in queues
                     ]
                 }
             ]
