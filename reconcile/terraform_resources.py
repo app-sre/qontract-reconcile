@@ -29,6 +29,7 @@ TF_NAMESPACES_QUERY = """
       }
       ... on NamespaceTerraformResourceS3_v1 {
         account
+        region
         identifier
         defaults
         overrides

@@ -396,6 +396,12 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
+        region = common_values['region'] or self.default_regions[account]
+        output_name = output_prefix + '[region]'
+        tf_resources.append(output(output_name, value=region))
+        endpoint = 's3.{}.amazonaws.com'.format(region)
+        output_name = output_prefix + '[endpoint]'
+        tf_resources.append(output(output_name, value=endpoint))
 
         # iam resources
         # Terraform resource reference:
