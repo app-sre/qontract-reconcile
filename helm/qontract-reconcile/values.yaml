@@ -40,7 +40,7 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: aws_region
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: app_interface_gitlab_pr_submitter_queue_url
+    secretKey: gitlab_pr_submitter_queue_url
 - name: github-scanner
   resources:
     cpu: 200m
@@ -53,7 +53,7 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: aws_region
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: app_interface_gitlab_pr_submitter_queue_url
+    secretKey: gitlab_pr_submitter_queue_url
 - name: aws-support-cases-sos
   resources:
     cpu: 25m
@@ -66,4 +66,4 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: aws_region
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: app_interface_gitlab_pr_submitter_queue_url
+    secretKey: gitlab_pr_submitter_queue_url
