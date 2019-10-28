@@ -15,7 +15,8 @@ APP_INTERFACE_SETTINGS_QUERY = """
 def get_app_interface_settings():
     """ Returns App Interface settings """
     gqlapi = gql.get_api()
-    return gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)['settings']
+    # assuming a single settings file for now
+    return gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)['settings'][0]
 
 
 GITLAB_INSTANCES_QUERY = """

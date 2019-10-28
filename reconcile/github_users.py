@@ -4,7 +4,6 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
-import reconcile.queries as queries
 import reconcile.pull_request_gateway as prg
 
 from reconcile.github_org import get_config

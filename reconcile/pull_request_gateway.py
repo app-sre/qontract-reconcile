@@ -1,7 +1,11 @@
 import reconcile.queries as queries
 
-from utils.aws_api import AWSApi
+from utils.sqs_gateway import SQSGateway
 from utils.gitlab_api import GitLabApi
+
+
+class PullRequestGatewayError(Exception):
+    pass
 
 
 def init(gitlab_project_id=None):
@@ -10,7 +14,8 @@ def init(gitlab_project_id=None):
 
     if pr_gateway_type == 'gitlab':
         instance = queries.get_gitlab_instance()
+        if gitlab_project_id is None:
+            raise PullRequestGatewayError('missing gitlab project id')
         return GitLabApi(instance, project_id=gitlab_project_id)
     elif pr_gateway_type == 'sqs':
-        accounts = queries.get_aws_accounts()
-        return AWSApi(thread_pool_size, accounts)
+        return SQSGateway()
