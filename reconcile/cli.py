@@ -30,6 +30,7 @@ import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
+import reconcile.gitlab_pr_submitter
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
@@ -263,6 +264,18 @@ def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
 
 
 @integration.command()
+@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
+          'gitlab_pr_submitter_queue_url'])
+@gitlab_project_id
+@threaded()
+@binary(['git', 'git-secrets'])
+@click.pass_context
+def github_scanner(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.github_scanner.run, ctx.obj['dry_run'],
+                    gitlab_project_id, thread_pool_size)
+
+
+@integration.command()
 @throughput
 @threaded()
 @enable_deletion(default=False)
@@ -283,12 +296,11 @@ def aws_iam_keys(ctx, thread_pool_size):
 @integration.command()
 @environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
           'gitlab_pr_submitter_queue_url'])
-@gitlab_project_id
-@threaded()
+@click.argument('gitlab-project-id')
 @click.pass_context
-def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.aws_support_cases_sos.run, ctx.obj['dry_run'],
-                    gitlab_project_id, thread_pool_size)
+def gitlab_pr_submitter(ctx, gitlab_project_id):
+    run_integration(reconcile.gitlab_pr_submitter.run, gitlab_project_id,
+                    ctx.obj['dry_run'])
 
 
 @integration.command()
