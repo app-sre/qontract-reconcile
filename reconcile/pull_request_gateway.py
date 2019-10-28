@@ -10,7 +10,7 @@ class PullRequestGatewayError(Exception):
 
 def init(gitlab_project_id=None):
     settings = queries.get_app_interface_settings()
-    pr_gateway_type = settings.get('pullRequestGateway', 'gitlab')
+    pr_gateway_type = settings.get('pullRequestGateway') or 'gitlab'
 
     if pr_gateway_type == 'gitlab':
         instance = queries.get_gitlab_instance()
