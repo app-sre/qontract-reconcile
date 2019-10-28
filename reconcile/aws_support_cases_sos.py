@@ -30,9 +30,9 @@ def get_keys_to_delete(aws_support_cases):
     return keys
 
 
-def act(dry_run, settings, gitlab_project_id, accounts, keys_to_delete):
+def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
     if not dry_run and keys_to_delete:
-        gw = prg.init(settings, gitlab_project_id=gitlab_project_id)
+        gw = prg.init(gitlab_project_id=gitlab_project_id)
 
     for k in keys_to_delete:
         account = k['account']
@@ -46,7 +46,6 @@ def act(dry_run, settings, gitlab_project_id, accounts, keys_to_delete):
 
 def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False):
-    settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     aws = AWSApi(thread_pool_size, accounts)
     deleted_keys = get_deleted_keys(accounts)
@@ -56,4 +55,4 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
     keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
                       if ktd['key'] not in deleted_keys[ktd['account']]
                       and ktd['key'] in existing_keys[ktd['account']]]
-    act(dry_run, settings, gitlab_project_id, accounts, keys_to_delete)
+    act(dry_run, gitlab_project_id, accounts, keys_to_delete)
