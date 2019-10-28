@@ -57,7 +57,10 @@ TF_NAMESPACES_QUERY = """
         defaults
         overrides
         output_resource_name
-        queues
+        queues {
+          key
+          value
+        }
       }
     }
     cluster {
