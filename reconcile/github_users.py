@@ -81,7 +81,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     smtp_client.send_mail(to, subject, body)
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
     users = fetch_users()
     g = init_github()
@@ -92,8 +92,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        settings = queries.get_app_interface_settings()
-        gw = prg.init(settings, gitlab_project_id)
+        gw = prg.init(gitlab_project_id=gitlab_project_id)
 
     for user in users_to_delete:
         username = user['username']

@@ -442,32 +442,32 @@ class AWSApi(object):
 
         return all_support_cases
 
-    def submit_pr_to_app_interface_queue(self, pr_type, **kwargs):
-        s = [s for account, s in self.sessions.items()
-             if account == queue_account][0]
-        sqs = s.client('sqs')
-        body = {
-            'pr_type': 'create_delete_aws_access_key_mr',
-            **kwargs
-        }
-        queue_url = os.environ['APP_INTERFACE_PR_SUBMITTER_QUEUE_URL']
-        sqs.send_message(
-            QueueUrl=queue_url,
-            MessageBody=body,
-        )
+    # def submit_pr_to_app_interface_queue(self, pr_type, **kwargs):
+    #     s = [s for account, s in self.sessions.items()
+    #          if account == queue_account][0]
+    #     sqs = s.client('sqs')
+    #     body = {
+    #         'pr_type': 'create_delete_aws_access_key_mr',
+    #         **kwargs
+    #     }
+    #     queue_url = os.environ['APP_INTERFACE_PR_SUBMITTER_QUEUE_URL']
+    #     sqs.send_message(
+    #         QueueUrl=queue_url,
+    #         MessageBody=body,
+    #     )
 
-    def create_delete_aws_access_key_mr(self, account, path, key,
-                                        queue_account='app-sre'):
-        self.submit_pr_to_app_interface_queue(
-            'create_delete_aws_access_key_mr',
-            account=account,
-            path=path,
-            key=key
-        )
+    # def create_delete_aws_access_key_mr(self, account, path, key,
+    #                                     queue_account='app-sre'):
+    #     self.submit_pr_to_app_interface_queue(
+    #         'create_delete_aws_access_key_mr',
+    #         account=account,
+    #         path=path,
+    #         key=key
+    #     )
 
-    def create_delete_user_mr(self, username, paths):
-        self.submit_pr_to_app_interface_queue(
-            'create_delete_user_mr',
-            username=username,
-            paths=paths
-        )
+    # def create_delete_user_mr(self, username, paths):
+    #     self.submit_pr_to_app_interface_queue(
+    #         'create_delete_user_mr',
+    #         username=username,
+    #         paths=paths
+    #     )

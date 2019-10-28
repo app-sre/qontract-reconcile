@@ -569,7 +569,7 @@ class TerrascriptClient(object):
             # Terraform resource reference:
             # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
             values = {}
-            values['name'] = queue
+            values['name'] = queue['value']
             values['tags'] = common_values['tags']
             queue_tf_resource = aws_sqs_queue(queue, **values)
             tf_resources.append(queue_tf_resource)

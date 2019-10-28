@@ -32,7 +32,7 @@ def get_keys_to_delete(aws_support_cases):
 
 def act(dry_run, settings, gitlab_project_id, accounts, keys_to_delete):
     if not dry_run and keys_to_delete:
-        gw = prg.init(settings, gitlab_project_id)
+        gw = prg.init(settings, gitlab_project_id=gitlab_project_id)
 
     for k in keys_to_delete:
         account = k['account']
@@ -44,7 +44,7 @@ def act(dry_run, settings, gitlab_project_id, accounts, keys_to_delete):
             gw.create_delete_aws_access_key_mr(account, path, key)
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
