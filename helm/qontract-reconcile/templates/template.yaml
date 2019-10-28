@@ -28,6 +28,16 @@ objects:
           - /bin/sh
           - -c
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; sleep ${SLEEP_DURATION_SECS}; done
+          {{- with $integration.extraEnv }}
+          env:
+          {{- range $i, $env := . }}
+          - name: {{ $env.secretKey }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ $env.secretName }}
+                key: {{ $env.secretKey }}
+          {{- end }}
+          {{- end }}
           {{- with $integration.resources }}
           resources:
             requests:
@@ -54,3 +64,5 @@ parameters:
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"
+- name: APP_INTERFACE_SQS_SECRET_NAME
+  value: app-interface-sqs
