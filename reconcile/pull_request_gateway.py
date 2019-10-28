@@ -1,3 +1,5 @@
+import logging
+
 import reconcile.queries as queries
 
 from utils.sqs_gateway import SQSGateway

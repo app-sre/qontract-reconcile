@@ -1,5 +1,3 @@
-import logging
-
 import reconcile.pull_request_gateway as prg
 
 
