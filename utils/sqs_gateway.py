@@ -1,4 +1,5 @@
 import os
+import json
 import boto3
 
 
@@ -26,7 +27,7 @@ class SQSGateway(object):
     def send_message(self, body):
         self.sqs.send_message(
             QueueUrl=self.queue_url,
-            MessageBody=str(body)
+            MessageBody=json.dumps(body)
         )
 
     def create_delete_aws_access_key_mr(self, account, path, key):
