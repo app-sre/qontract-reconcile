@@ -30,11 +30,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 250Mi
+              memory: 200Mi
               cpu: 25m
             limits:
-              memory: 250Mi
-              cpu: 25m
+              memory: 400Mi
+              cpu: 50m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -47,9 +47,9 @@ objects:
           resources:
             requests:
               memory: 100Mi
-              cpu: 25m
+              cpu: 15m
             limits:
-              memory: 100Mi
+              memory: 200Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -62,10 +62,10 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 60Mi
-              cpu: 25m
+              memory: 50Mi
+              cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 80Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -78,10 +78,10 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 100Mi
-              cpu: 25m
+              memory: 30Mi
+              cpu: 15m
             limits:
-              memory: 100Mi
+              memory: 55Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -94,10 +94,10 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 100Mi
-              cpu: 25m
+              memory: 30Mi
+              cpu: 15m
             limits:
-              memory: 100Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -110,11 +110,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups ; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 100Mi
-              cpu: 25m
+              memory: 75Mi
+              cpu: 20m
             limits:
-              memory: 100Mi
-              cpu: 25m
+              memory: 150Mi
+              cpu: 40m
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -126,8 +126,8 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             requests:
-              memory: 200Mi
-              cpu: 25m
+              memory: 80Mi
+              cpu: 15m
             limits:
               memory: 200Mi
               cpu: 25m
@@ -163,8 +163,8 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             requests:
-              memory: 100Mi
-              cpu: 25m
+              memory: 50Mi
+              cpu: 15m
             limits:
               memory: 100Mi
               cpu: 25m
@@ -200,8 +200,8 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             requests:
-              memory: 600Mi
-              cpu: 200m
+              memory: 300Mi
+              cpu: 100m
             limits:
               memory: 600Mi
               cpu: 200m
@@ -237,10 +237,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             requests:
-              memory: 400Mi
-              cpu: 25m
+              memory: 50Mi
+              cpu: 15m
             limits:
-              memory: 400Mi
+              memory: 150Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
