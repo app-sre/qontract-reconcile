@@ -134,6 +134,117 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        - name: github-users
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-users ; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: aws_access_key_id
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_access_key_id
+          - name: aws_secret_access_key
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_secret_access_key
+          - name: aws_region
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_region
+          - name: app_interface_gitlab_pr_submitter_queue_url
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: app_interface_gitlab_pr_submitter_queue_url
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 25m
+            limits:
+              memory: 100Mi
+              cpu: 25m
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: github-scanner
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner ; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: aws_access_key_id
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_access_key_id
+          - name: aws_secret_access_key
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_secret_access_key
+          - name: aws_region
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_region
+          - name: app_interface_gitlab_pr_submitter_queue_url
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: app_interface_gitlab_pr_submitter_queue_url
+          resources:
+            requests:
+              memory: 600Mi
+              cpu: 200m
+            limits:
+              memory: 600Mi
+              cpu: 200m
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        - name: aws-support-cases-sos
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: aws_access_key_id
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_access_key_id
+          - name: aws_secret_access_key
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_secret_access_key
+          - name: aws_region
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: aws_region
+          - name: app_interface_gitlab_pr_submitter_queue_url
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: app_interface_gitlab_pr_submitter_queue_url
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 25m
+            limits:
+              memory: 100Mi
+              cpu: 25m
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -147,3 +258,5 @@ parameters:
   value: --dry-run
 - name: SLEEP_DURATION_SECS
   value: "300"
+- name: APP_INTERFACE_SQS_SECRET_NAME
+  value: app-interface-sqs
