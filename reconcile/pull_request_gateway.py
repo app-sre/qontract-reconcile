@@ -30,7 +30,7 @@ def init(gitlab_project_id=None, override_pr_gateway_type=None):
             'invalid pull request gateway: {}'.format(pr_gateway_type))
 
 
-def submit_to_gitlab(gitlab_project_id):
+def submit_to_gitlab(gitlab_project_id, dry_run):
     client = init()
     gl = init(gitlab_project_id=gitlab_project_id,
               override_pr_gateway_type='gitlab')
@@ -45,8 +45,25 @@ def submit_to_gitlab(gitlab_project_id):
     # using while instead of iterating over the queue
     # since additional messages may be coming in
     while True:
-        # read message
-        # break if no messages
-        break
-        # submit to gitlab
-        # delete message
+        messages = client.receive_messages()
+        if not messages:
+            break
+        for m in messages:
+            receipt_handle, body = m[0], m[1]
+            pr_type = body['pr_type']
+            if pr_type == 'create_delete_aws_access_key_mr':
+                account, path, key = \
+                    body['account'], body['path'], body['key']
+                logging.info([pr_type, account, key])
+                if not dry_run:
+                    gl.create_delete_aws_access_key_mr(account, path, key)
+            elif pr_type == 'create_delete_user_mr':
+                username, paths = body['username'], body['paths']
+                logging.info([pr_type, username])
+                if not dry_run:
+                    gl.create_delete_user_mr(username, paths)
+            else:
+                raise PullRequestGatewayError(
+                    'invalid pull request type: {}'.format(pr_type))
+            if not dry_run:
+                client.delete_message(receipt_handle)

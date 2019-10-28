@@ -30,6 +30,7 @@ import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
+import reconcile.gitlab_pr_submitter
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
