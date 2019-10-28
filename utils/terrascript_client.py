@@ -563,7 +563,7 @@ class TerrascriptClient(object):
         region = common_values['region'] or self.default_regions[account]
         queues = common_values['queues']
         for queue_kv in queues:
-            queue_key = queue_kv['key']	
+            queue_key = queue_kv['key']
             queue = queue_kv['value']
             # sqs queue
             # Terraform resource reference:
