@@ -176,7 +176,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: aws_access_key_id
             valueFrom:
@@ -237,10 +237,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             requests:
-              memory: 100Mi
+              memory: 400Mi
               cpu: 25m
             limits:
-              memory: 100Mi
+              memory: 400Mi
               cpu: 25m
           volumeMounts:
           - name: qontract-reconcile-toml
