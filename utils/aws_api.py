@@ -18,14 +18,13 @@ class InvalidResourceTypeError(Exception):
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
-    def __init__(self, thread_pool_size, accounts, pr_gitlab_project_id=None):
+    def __init__(self, thread_pool_size, accounts):
         self.thread_pool_size = thread_pool_size
         self.init_sessions_and_resources(accounts)
         self.init_users()
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
-        self.pr_gitlab_project_id = pr_gitlab_project_id
 
     def init_sessions_and_resources(self, accounts):
         results = threaded.run(self.get_vault_tf_secrets, accounts,
