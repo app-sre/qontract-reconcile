@@ -30,6 +30,7 @@ import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
+import reconcile.gitlab_pr_submitter
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
@@ -260,6 +261,16 @@ def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
     run_integration(reconcile.gitlab_housekeeping.run, gitlab_project_id,
                     ctx.obj['dry_run'], days_interval, enable_deletion,
                     limit)
+
+
+@integration.command()
+@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
+          'gitlab_pr_submitter_queue_url'])
+@click.argument('gitlab-project-id')
+@click.pass_context
+def gitlab_pr_submitter(ctx, gitlab_project_id):
+    run_integration(reconcile.gitlab_pr_submitter.run, gitlab_project_id,
+                    ctx.obj['dry_run'])
 
 
 @integration.command()

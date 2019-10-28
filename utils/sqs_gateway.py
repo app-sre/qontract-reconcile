@@ -30,6 +30,20 @@ class SQSGateway(object):
             MessageBody=json.dumps(body)
         )
 
+    def receive_messages(self, visibility_timeout=30):
+        messages = self.sqs.receive_message(
+            QueueUrl=self.queue_url,
+            VisibilityTimeout=visibility_timeout
+        ).get('Messages', [])
+        return [(m['ReceiptHandle'], json.loads(m['Body']))
+                for m in messages]
+
+    def delete_message(self, receipt_handle):
+        self.sqs.delete_message(
+            QueueUrl=self.queue_url,
+            ReceiptHandle=receipt_handle
+        )
+
     def create_delete_aws_access_key_mr(self, account, path, key):
         body = {
             'pr_type': 'create_delete_aws_access_key_mr',
