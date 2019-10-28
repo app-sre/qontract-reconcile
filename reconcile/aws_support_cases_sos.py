@@ -1,9 +1,9 @@
 import logging
 
 import reconcile.queries as queries
+import reconcile.pull_request_gateway as prg
 
 from utils.aws_api import AWSApi
-from utils.gitlab_api import GitLabApi
 
 
 def get_deleted_keys(accounts):
@@ -32,8 +32,7 @@ def get_keys_to_delete(aws_support_cases):
 
 def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
     if not dry_run and keys_to_delete:
-        instance = queries.get_gitlab_instance()
-        gl = GitLabApi(instance, project_id=gitlab_project_id)
+        gw = prg.init(gitlab_project_id=gitlab_project_id)
 
     for k in keys_to_delete:
         account = k['account']
@@ -42,10 +41,10 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
         if not dry_run:
             path = 'data' + \
                 [a['path'] for a in accounts if a['name'] == account][0]
-            gl.create_delete_aws_access_key_mr(account, path, key)
+            gw.create_delete_aws_access_key_mr(account, path, key)
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False):
     accounts = queries.get_aws_accounts()
     aws = AWSApi(thread_pool_size, accounts)

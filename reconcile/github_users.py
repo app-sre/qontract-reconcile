@@ -4,11 +4,10 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
-import reconcile.queries as queries
+import reconcile.pull_request_gateway as prg
 
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
-from utils.gitlab_api import GitLabApi
 
 from github import Github
 from github.GithubException import GithubException
@@ -81,7 +80,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     smtp_client.send_mail(to, subject, body)
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
+def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
     users = fetch_users()
     g = init_github()
@@ -92,8 +91,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        instance = queries.get_gitlab_instance()
-        gl = GitLabApi(instance, project_id=gitlab_project_id)
+        gw = prg.init(gitlab_project_id=gitlab_project_id)
 
     for user in users_to_delete:
         username = user['username']
@@ -104,7 +102,7 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10,
             if send_mails:
                 send_email_notification(user)
             elif enable_deletion:
-                gl.create_delete_user_mr(username, paths)
+                gw.create_delete_user_mr(username, paths)
             else:
                 msg = ('\'delete\' action is not enabled. '
                        'Please run the integration manually '

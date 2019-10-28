@@ -1,6 +1,24 @@
 import utils.gql as gql
 
 
+APP_INTERFACE_SETTINGS_QUERY = """
+{
+  settings: app_interface_settings_v1 {
+    vault
+    kubeBinary
+    pullRequestGateway
+  }
+}
+"""
+
+
+def get_app_interface_settings():
+    """ Returns App Interface settings """
+    gqlapi = gql.get_api()
+    # assuming a single settings file for now
+    return gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)['settings'][0]
+
+
 GITLAB_INSTANCES_QUERY = """
 {
   instances: gitlabinstance_v1 {
@@ -38,6 +56,7 @@ AWS_ACCOUNTS_QUERY = """
   }
 }
 """
+
 
 NAMESPACES_QUERY = """
 {

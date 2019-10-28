@@ -65,6 +65,16 @@ def throughput(function):
     return function
 
 
+def gitlab_project_id(function):
+    function = click.option('--gitlab-project-id',
+                            help='gitlab project id to submit PRs to. '
+                                 'not required if pullRequestGateway '
+                                 'is not set to gitlab',
+                            default=None)(function)
+
+    return function
+
+
 def enable_deletion(**kwargs):
     def f(function):
         opt = '--enable-deletion/--no-enable-deletion'
@@ -131,26 +141,26 @@ def github(ctx):
 
 
 @integration.command()
-@click.argument('gitlab-project-id')
+@gitlab_project_id
 @threaded()
 @enable_deletion(default=False)
 @send_mails(default=False)
 @click.pass_context
 def github_users(ctx, gitlab_project_id, thread_pool_size,
                  enable_deletion, send_mails):
-    run_integration(reconcile.github_users.run, gitlab_project_id,
-                    ctx.obj['dry_run'], thread_pool_size,
+    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
+                    gitlab_project_id, thread_pool_size,
                     enable_deletion, send_mails)
 
 
 @integration.command()
-@click.argument('gitlab-project-id')
+@gitlab_project_id
 @threaded()
 @binary(['git', 'git-secrets'])
 @click.pass_context
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.github_scanner.run, gitlab_project_id,
-                    ctx.obj['dry_run'], thread_pool_size)
+    run_integration(reconcile.github_scanner.run, ctx.obj['dry_run'],
+                    gitlab_project_id, thread_pool_size)
 
 
 @integration.command()
@@ -266,12 +276,12 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
-@click.argument('gitlab-project-id')
+@gitlab_project_id
 @threaded()
 @click.pass_context
 def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.aws_support_cases_sos.run, gitlab_project_id,
-                    ctx.obj['dry_run'], thread_pool_size)
+    run_integration(reconcile.aws_support_cases_sos.run, ctx.obj['dry_run'],
+                    gitlab_project_id, thread_pool_size)
 
 
 @integration.command()
