@@ -36,6 +36,7 @@ import reconcile.aws_support_cases_sos
 
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
+from utils.environ import environ
 
 
 def threaded(**kwargs):
@@ -141,6 +142,8 @@ def github(ctx):
 
 
 @integration.command()
+@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
+          'gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @enable_deletion(default=False)
@@ -154,6 +157,8 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 
 
 @integration.command()
+@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
+          'gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @binary(['git', 'git-secrets'])
@@ -276,6 +281,8 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
+@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
+          'gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @click.pass_context
