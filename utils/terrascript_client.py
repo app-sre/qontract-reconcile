@@ -397,7 +397,7 @@ class TerrascriptClient(object):
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
         region = common_values['region'] or self.default_regions[account]
-        output_name = output_prefix + '[region]'
+        output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
         endpoint = 's3.{}.amazonaws.com'.format(region)
         output_name = output_prefix + '[endpoint]'
@@ -562,7 +562,9 @@ class TerrascriptClient(object):
                                  output_prefix, output_resource_name)
         region = common_values['region'] or self.default_regions[account]
         queues = common_values['queues']
-        for queue in queues:
+        for queue_kv in queues:
+            queue_key = queue_kv['key']
+            queue = queue_kv['value']
             # sqs queue
             # Terraform resource reference:
             # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
@@ -571,7 +573,8 @@ class TerrascriptClient(object):
             values['tags'] = common_values['tags']
             queue_tf_resource = aws_sqs_queue(queue, **values)
             tf_resources.append(queue_tf_resource)
-            queue_key = '{}_queue_url'.format(queue.replace('-', '_').lower())
+            output_name = output_prefix + '[aws_region]'
+            tf_resources.append(output(output_name, value=region))
             output_name = '{}[{}]'.format(output_prefix, queue_key)
             output_value = \
                 'https://sqs.{}.amazonaws.com/{}/{}'.format(
@@ -605,7 +608,7 @@ class TerrascriptClient(object):
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
                     "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, q)
+                        "arn:aws:sqs:*:{}:{}".format(uid, q['value'])
                         for q in queues
                     ]
                 }
