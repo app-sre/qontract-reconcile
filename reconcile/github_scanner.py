@@ -31,8 +31,12 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10):
     accounts = queries.get_aws_accounts()
     aws = AWSApi(thread_pool_size, accounts)
     existing_keys = aws.get_users_keys()
+    for account, keys in existing_keys.items():
+        logging.info('found {} existing keys for account {}'.format(
+            len(keys), account))
     existing_keys_list = [key for user_key in existing_keys.values()
                           for keys in user_key.values() for key in keys]
+    logging.info('found {} existing keys'.format(len(existing_keys_list)))
 
     app_int_github_repos = queries.get_repos(server='https://github.com')
     all_repos = get_all_repos_to_scan(app_int_github_repos)
