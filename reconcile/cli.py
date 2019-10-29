@@ -143,8 +143,7 @@ def github(ctx):
 
 
 @integration.command()
-@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
-          'gitlab_pr_submitter_queue_url'])
+@environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @enable_deletion(default=False)
@@ -158,8 +157,7 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 
 
 @integration.command()
-@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
-          'gitlab_pr_submitter_queue_url'])
+@environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @binary(['git', 'git-secrets'])
@@ -264,8 +262,7 @@ def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
 
 
 @integration.command()
-@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
-          'gitlab_pr_submitter_queue_url'])
+@environ(['gitlab_pr_submitter_queue_url'])
 @click.argument('gitlab-project-id')
 @click.pass_context
 def gitlab_pr_submitter(ctx, gitlab_project_id):
@@ -292,8 +289,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 
 
 @integration.command()
-@environ(['aws_access_key_id', 'aws_secret_access_key', 'aws_region',
-          'gitlab_pr_submitter_queue_url'])
+@environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
 @click.pass_context
