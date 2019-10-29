@@ -40,7 +40,7 @@ spec:
         imagePullPolicy: Always
         name: openshift-acme
         ports:
-        - containerPort: 5001
+        - containerPort: 5000
           protocol: TCP
         resources:
           limits:
