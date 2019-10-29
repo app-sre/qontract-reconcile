@@ -112,7 +112,8 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         annotated = resource.annotate()
         oc_map.get(cluster).apply(namespace, annotated.toJSON())
         if recycle_pods:
-            oc_map.get(cluster).recycle_pods(namespace, resource_type, resource.name)
+            oc_map.get(cluster).recycle_pods(
+                namespace, resource_type, resource.name)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
