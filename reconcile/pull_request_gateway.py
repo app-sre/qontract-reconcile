@@ -24,7 +24,8 @@ def init(gitlab_project_id=None, override_pr_gateway_type=None):
             raise PullRequestGatewayError('missing gitlab project id')
         return GitLabApi(instance, project_id=gitlab_project_id)
     elif pr_gateway_type == 'sqs':
-        return SQSGateway()
+        accounts = queries.get_aws_accounts()
+        return SQSGateway(accounts)
     else:
         raise PullRequestGatewayError(
             'invalid pull request gateway: {}'.format(pr_gateway_type))

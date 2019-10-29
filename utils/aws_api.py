@@ -43,6 +43,9 @@ class AWSApi(object):
             self.sessions[account] = session
             self.resources[account] = {}
 
+    def get_session(self, account):
+        return self.sessions[account]
+
     @staticmethod
     def get_vault_tf_secrets(account):
         account_name = account['name']

@@ -34,24 +34,12 @@ integrations:
     memory: 100Mi
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_access_key_id
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_secret_access_key
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_region
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
 - name: github-scanner
   resources:
     cpu: 200m
     memory: 600Mi
   extraEnv:
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_access_key_id
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_secret_access_key
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_region
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
   extraArgs: --thread-pool-size 1
@@ -60,11 +48,5 @@ integrations:
     cpu: 25m
     memory: 400Mi
   extraEnv:
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_access_key_id
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_secret_access_key
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: aws_region
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url

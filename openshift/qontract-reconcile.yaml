@@ -141,21 +141,6 @@ objects:
           - -c
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-users ; sleep ${SLEEP_DURATION_SECS}; done
           env:
-          - name: aws_access_key_id
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_access_key_id
-          - name: aws_secret_access_key
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_secret_access_key
-          - name: aws_region
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_region
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -178,21 +163,6 @@ objects:
           - -c
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; sleep ${SLEEP_DURATION_SECS}; done
           env:
-          - name: aws_access_key_id
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_access_key_id
-          - name: aws_secret_access_key
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_secret_access_key
-          - name: aws_region
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_region
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -215,21 +185,6 @@ objects:
           - -c
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; sleep ${SLEEP_DURATION_SECS}; done
           env:
-          - name: aws_access_key_id
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_access_key_id
-          - name: aws_secret_access_key
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_secret_access_key
-          - name: aws_region
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: aws_region
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:

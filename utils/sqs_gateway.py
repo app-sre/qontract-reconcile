@@ -1,6 +1,7 @@
 import os
 import json
-import boto3
+
+from utils.aws_api import AWSApi
 
 
 class SQSGatewayInitError(Exception):
@@ -10,19 +11,25 @@ class SQSGatewayInitError(Exception):
 class SQSGateway(object):
     """Wrapper around SQS AWS SDK"""
 
-    def __init__(self):
-        access_key = os.environ['aws_access_key_id']
-        secret_key = os.environ['aws_secret_access_key']
-        region_name = os.environ['aws_region']
+    def __init__(self, accounts):
         queue_url = os.environ['gitlab_pr_submitter_queue_url']
+        account = self.get_queue_account(accounts, queue_url)
+        print(account)
+        aws_api = AWSApi(1, accounts)
+        session = aws_api.get_session(account)
 
-        session = boto3.Session(
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            region_name=region_name,
-        )
         self.sqs = session.client('sqs')
         self.queue_url = queue_url
+
+    @staticmethod
+    def get_queue_account(accounts, queue_url):
+        queue_account_uid = queue_url.split('/')[3]
+        queue_account_name = [a['name'] for a in accounts
+                              if a['uid'] == queue_account_uid]
+        if len(queue_account_name) != 1:
+            raise SQSGatewayInitError(
+                'account uid not found: {}'.format(queue_account_uid))
+        return queue_account_name[0]
 
     def send_message(self, body):
         self.sqs.send_message(
