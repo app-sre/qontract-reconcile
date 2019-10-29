@@ -104,12 +104,15 @@ def fetch_current_state(namespaces, thread_pool_size,
     return ri, oc_map
 
 
-def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
+def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
+          recycle_pods):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     if not dry_run:
         annotated = resource.annotate()
         oc_map.get(cluster).apply(namespace, annotated.toJSON())
+        if recycle_pods:
+            oc_map.get(cluster).recycle_pods(namespace, resource_type, resource.name)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
@@ -128,7 +131,9 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
         oc_map.get(cluster).delete(namespace, resource_type, name)
 
 
-def realize_data(dry_run, oc_map, ri, enable_deletion=True):
+def realize_data(dry_run, oc_map, ri,
+                 enable_deletion=True,
+                 recycle_pods=False):
     for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():
@@ -168,7 +173,7 @@ def realize_data(dry_run, oc_map, ri, enable_deletion=True):
 
             try:
                 apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item)
+                      resource_type, d_item, recycle_pods)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {}".format(cluster, namespace, e.message)
