@@ -1,51 +1,91 @@
 integrations:
 - name: aws-garbage-collector
   resources:
-    cpu: 25m
-    memory: 250Mi
+    requests:
+        memory: 200Mi
+        cpu: 25m
+    limits:
+      memory: 400Mi
+      cpu: 50m
 - name: aws-iam-keys
   resources:
-    cpu: 25m
-    memory: 100Mi
+    requests:
+      memory: 100Mi
+      cpu: 15m
+    limits:
+      memory: 200Mi
+      cpu: 25m
 - name: github
   resources:
-    cpu: 25m
-    memory: 60Mi
+    requests:
+      memory: 50Mi
+      cpu: 15m
+    limits:
+      memory: 80Mi
+      cpu: 25m
 - name: github-repo-invites
   resources:
-    cpu: 25m
-    memory: 100Mi
+    requests:
+      memory: 30Mi
+      cpu: 15m
+    limits:
+      memory: 55Mi
+      cpu: 25m
 - name: quay-membership
   resources:
-    cpu: 25m
-    memory: 100Mi
+    requests:
+      memory: 30Mi
+      cpu: 15m
+    limits:
+      memory: 60Mi
+      cpu: 25m
 - name: slack-usergroups
   resources:
-    cpu: 25m
-    memory: 100Mi
+    requests:
+      memory: 75Mi
+      cpu: 20m
+    limits:
+      memory: 150Mi
+      cpu: 40m
 - name: jira-watcher
   resources:
-    cpu: 25m
-    memory: 200Mi
+    requests:
+      memory: 80Mi
+      cpu: 15m
+    limits:
+      memory: 200Mi
+      cpu: 25m
   extraArgs: --io-dir /tmp/throughput/
 - name: github-users
   resources:
-    cpu: 25m
-    memory: 100Mi
+    requests:
+      memory: 50Mi
+      cpu: 15m
+    limits:
+      memory: 150Mi
+      cpu: 25m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
 - name: github-scanner
   resources:
-    cpu: 200m
-    memory: 600Mi
+    requests:
+      memory: 500Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
 - name: aws-support-cases-sos
   resources:
-    cpu: 25m
-    memory: 400Mi
+    requests:
+      memory: 100Mi
+      cpu: 25m
+    limits:
+      memory: 200Mi
+      cpu: 50m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
