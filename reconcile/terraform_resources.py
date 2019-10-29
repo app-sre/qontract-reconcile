@@ -180,6 +180,8 @@ def run(dry_run=False, print_only=False,
         cleanup_and_exit(tf, err)
 
     tf.populate_desired_state(ri)
-    ob.realize_data(dry_run, oc_map, ri, enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri,
+                    enable_deletion=enable_deletion,
+                    recycle_pods=True)
 
     cleanup_and_exit(tf)

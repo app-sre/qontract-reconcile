@@ -18,6 +18,14 @@ class JSONParsingError(Exception):
     pass
 
 
+class RecyclePodsUnsupportedKindError(Exception):
+    pass
+
+
+class PodNotReadyError(Exception):
+    pass
+
+
 class OC(object):
     def __init__(self, server, token, jh=None):
         oc_base_cmd = [
@@ -67,8 +75,10 @@ class OC(object):
 
         return items
 
-    def get(self, namespace, kind, name):
-        cmd = ['get', '-o', 'json', kind, name]
+    def get(self, namespace, kind, name=None):
+        cmd = ['get', '-o', 'json', kind]
+        if name:
+            cmd.extend(name)
         if namespace is not None:
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
@@ -154,6 +164,59 @@ class OC(object):
         namespace = user.split('/')[0]
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
+
+    def recycle_pods(self, namespace, kind, name):
+        """ recycles pods which are using the specified resources.
+        currently only supports kind = Secret. """
+
+        pods = self.get(namespace, 'Pods')['items']
+
+        if kind == 'Secret':
+            pods_to_recycle = [pod['metadata']['name'] for pod in pods
+                               if self.secret_used_in_pod(name, pod)]
+        else:
+            raise RecyclePodsUnsupportedKindError(kind)
+
+        for pod in pods_to_recycle:
+            self.delete(namespace, 'Pod', pod)
+            pods = self.get(namespace, 'Pods')['items']
+            pods_to_validate = [pod for pod in pods
+                                if self.secret_used_in_pod(name, pod)]
+            self.validate_pods_ready(pods_to_validate)
+
+    @staticmethod
+    def secret_used_in_pod(secret_name, pod):
+        volumes = pod['spec']['volumes']
+        for v in volumes:
+            secret = v.get('secret', {})
+            try:
+                if secret['secretName'] == secret_name:
+                    return True
+            except KeyError:
+                continue
+        containers = pod['spec']['containers']
+        for c in containers:
+            for e in c.get('envFrom', []):
+                try:
+                    if e['secretRef']['name'] == secret_name:
+                        return True
+                except KeyError:
+                    continue
+            for e in c.get('env', []):
+                try:
+                    if e['valueFrom']['secretKeyRef']['name'] == secret_name:
+                        return True
+                except KeyError:
+                    continue
+        return False
+
+    @staticmethod
+    @retry(max_attempts=20)
+    def validate_pods_ready(pods):
+        for pod in pods:
+            for status in pod['status']['containerStatuses']:
+                if not status['ready']:
+                    raise PodNotReadyError(pod['metadata']['name'])
 
     @retry(exceptions=(StatusCodeError, NoOutputError))
     def _run(self, cmd, **kwargs):
