@@ -42,7 +42,13 @@ spec:
         ports:
         - containerPort: 5001
           protocol: TCP
-        resources: {}
+        resources:
+          limits:
+            cpu: 50m
+            memory: 100Mi
+          requests:
+            cpu: 5m
+            memory: 50Mi
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
