@@ -161,7 +161,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
