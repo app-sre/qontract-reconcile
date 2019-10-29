@@ -1,3 +1,4 @@
+import json
 import logging
 
 import reconcile.queries as queries
@@ -47,10 +48,13 @@ def submit_to_gitlab(gitlab_project_id, dry_run):
     # since additional messages may be coming in
     while True:
         messages = client.receive_messages()
+        logging.info('received {} messages'.format(len(messages)))
         if not messages:
             break
         for m in messages:
             receipt_handle, body = m[0], m[1]
+            logging.info('received message {} with body {}'.format(
+                receipt_handle[:6], json.dumps(body)))
             pr_type = body['pr_type']
             if pr_type == 'create_delete_aws_access_key_mr':
                 account, path, key = \
