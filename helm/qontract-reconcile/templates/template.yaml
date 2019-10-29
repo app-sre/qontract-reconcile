@@ -38,15 +38,8 @@ objects:
                 key: {{ $env.secretKey }}
           {{- end }}
           {{- end }}
-          {{- with $integration.resources }}
           resources:
-            requests:
-              memory: {{ .memory }}
-              cpu: {{ .cpu }}
-            limits:
-              memory: {{ .memory }}
-              cpu: {{ .cpu }}
-          {{- end }}
+{{ toYaml $integration.resources | indent 12 }}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
