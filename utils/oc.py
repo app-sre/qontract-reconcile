@@ -78,7 +78,7 @@ class OC(object):
     def get(self, namespace, kind, name=None):
         cmd = ['get', '-o', 'json', kind]
         if name:
-            cmd.extend(name)
+            cmd.append(name)
         if namespace is not None:
             cmd.extend(['-n', namespace])
         return self._run_json(cmd)
