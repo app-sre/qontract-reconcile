@@ -23,7 +23,9 @@ def scan_history(repo_url, existing_keys, defer=None):
     wd = tempfile.mkdtemp()
     defer(lambda: cleanup(wd))
 
+    logging.info('cloning {}'.format(repo_url))
     repo = Repo.clone_from(repo_url, wd)
+    logging.info('cloned {}'.format(repo_url))
     DEVNULL = open(os.devnull, 'w')
     proc = Popen(['git', 'secrets', '--register-aws'],
                  cwd=wd, stdout=DEVNULL)
