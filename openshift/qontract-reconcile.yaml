@@ -38,22 +38,6 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
-        - name: aws-iam-keys
-          image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; sleep ${SLEEP_DURATION_SECS}; done
-          resources:
-            limits:
-              cpu: 25m
-              memory: 200Mi
-            requests:
-              cpu: 15m
-              memory: 100Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
         - name: github
           image: ${IMAGE}:${IMAGE_TAG}
           command:
