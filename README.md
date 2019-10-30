@@ -4,6 +4,7 @@
 
 A tool to reconcile services with their desired state as defined in App-Interface.
 In addition, e2e tests are available to detect potential problems reconciling services with their desired state.
+Additional tools that use the libraries created by the reconciliations are also hosted here.
 
 ## Subcommands
 
@@ -12,10 +13,10 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `aws-garbage-collector`: Delete orphan AWS resources.
 - `aws-iam-keys`: Delete IAM access keys by access key ID.
 - `aws-support-cases-sos`: Scan AWS support cases for reports of leaked keys and remove them (only submits PR)
-- `github`: Configures the teams and members in a GitHub org.
 - `github-repo-invites`: Accept GitHub repository invitations for known repositories.
 - `github-scanner`: Scan GitHub repositories for leaked keys and remove them (only submits PR).
 - `github-users`: Validate compliance of GitHub user profiles.
+- `github`: Configures the teams and members in a GitHub org.
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-members` : Manage GitLab group members.
 - `gitlab-permissions`: Manage permissions on GitLab projects.
@@ -29,8 +30,8 @@ In addition, e2e tests are available to detect potential problems reconciling se
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
-- `openshift-resources`: Manages OpenShift Resources.
 - `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
+- `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
@@ -43,6 +44,10 @@ In addition, e2e tests are available to detect potential problems reconciling se
 
 - `create-namespace`: A test to create a namespace and verify that required `RoleBinding`s are created as well to be able to reconcile them.
 - `dedicated-admin-rolebindings`: A test to verify that all required namespaces have the required `RoleBinding`s to be able to reconcile them.
+
+### tools
+
+- `app-interface-reporter`: Creates service reports and submits PR to App-Interface.
 
 ## Usage
 
