@@ -137,6 +137,11 @@ def run_integration(func, *args):
         sys.exit(1)
 
 
+def init_log_level(log_level):
+    level = getattr(logging, log_level) if log_level else logging.INFO
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+
+
 @click.group()
 @config_file
 @dry_run
@@ -145,11 +150,8 @@ def run_integration(func, *args):
 def integration(ctx, configfile, dry_run, log_level):
     ctx.ensure_object(dict)
 
-    level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
-
+    init_log_level(log_level)
     config.init_from_toml(configfile)
-
     gql.init_from_config()
     ctx.obj['dry_run'] = dry_run
 
