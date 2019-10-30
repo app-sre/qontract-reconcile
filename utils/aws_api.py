@@ -419,21 +419,24 @@ class AWSApi(object):
             managed_by_integration_tag[0])
         raise InvalidResourceTypeError(huh)
 
-    def delete_keys(self, dry_run, keys_to_delete, working_dirs):
+    def delete_keys(self, dry_run, keys_to_delete, working_dirs,
+                    disable_service_account_keys):
         error = False
         users_keys = self.get_users_keys()
         for account, s in self.sessions.items():
             iam = s.client('iam')
             keys = keys_to_delete.get(account, [])
             for key in keys:
-                user = [user for user, user_keys
-                        in users_keys[account].items()
-                        if key in user_keys]
-                if not user:
+                user_and_user_keys = [(user, user_keys) for user, user_keys
+                                      in users_keys[account].items()
+                                      if key in user_keys]
+                if not user_and_user_keys:
                     continue
                 # unpack single item from sequence
                 # since only a single user can have a given key
-                [user] = user
+                [user_and_user_keys] = user_and_user_keys
+                user = user_and_user_keys[0]
+                user_keys = user_and_user_keys[1]
                 key_type = self.determine_key_type(iam, user)
                 key_status = self.get_user_key_status(iam, user, key)
                 if key_type == 'unmanaged' and key_status == 'Active':
@@ -472,8 +475,9 @@ class AWSApi(object):
                     # remove it from terraform state. terraform-resources
                     # will provision a new one.
                     # may be a race condition here. TODO: check it
-                    logging.info(['remove_from_state', account, user, key])
                     if len(user_keys) == 1:
+                        logging.info(['remove_from_state',
+                                      account, user, key])
                         if not dry_run:
                             terraform.state_rm_access_key(
                                 working_dirs, account, user
@@ -486,9 +490,23 @@ class AWSApi(object):
                     # is running, provisioned a new key,
                     # but did not disable the old key yet.
                     if len(user_keys) == 2:
-                        msg = 'user {} has 2 keys, skipping to avoid failure'
-                        logging.error(msg.format(user))
-                        error = True
+                        # if true, this is a call made by terraform-resources
+                        # itself. disable the key and proceed. the key will be
+                        # deleted in a following iteration of aws-iam-keys.
+                        if disable_service_account_keys:
+                            logging.info(['disable_key', account, user, key])
+
+                            if not dry_run:
+                                iam.update_access_key(
+                                    UserName=user,
+                                    AccessKeyId=key,
+                                    Status='Inactive'
+                                )
+                        else:
+                            msg = \
+                                'user {} has 2 keys, skipping to avoid error'
+                            logging.error(msg.format(user))
+                            error = True
 
         return error
 

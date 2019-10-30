@@ -12,6 +12,7 @@ from utils.terraform_client import OR, TerraformClient as Terraform
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.defer import defer
+from reconcile.aws_iam_keys import run as disable_keys
 
 TF_NAMESPACES_QUERY = """
 {
@@ -191,5 +192,7 @@ def run(dry_run=False, print_only=False,
     ob.realize_data(dry_run, oc_map, ri,
                     enable_deletion=enable_deletion,
                     recycle_pods=True)
+    disable_keys(dry_run, thread_pool_size,
+                 disable_service_account_keys=True)
 
     cleanup_and_exit(tf)
