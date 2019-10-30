@@ -117,6 +117,7 @@ class GitLabApi(object):
         self.create_mr(branch_name, target_branch, title, labels=LABELS)
 
     def create_delete_aws_access_key_mr(self, account, path, key):
+        LABELS = ['automerge']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-aws-access-key-{}-{}-{}'.format(
@@ -149,7 +150,7 @@ class GitLabApi(object):
             )
             return
 
-        self.create_mr(branch_name, target_branch, title)
+        self.create_mr(branch_name, target_branch, title, labels=LABELS)
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
