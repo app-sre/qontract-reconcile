@@ -113,6 +113,17 @@ def fetch_current_state(namespaces, thread_pool_size):
     return ri, oc_map
 
 
+def init_working_dirs(accounts, thread_pool_size,
+                      print_only=False, oc_map=None):
+    ts = Terrascript(QONTRACT_INTEGRATION,
+                     QONTRACT_TF_PREFIX,
+                     thread_pool_size,
+                     accounts,
+                     oc_map)
+    working_dirs, error = ts.dump(print_only)
+    return ts, working_dirs, error
+
+
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
@@ -120,12 +131,9 @@ def setup(print_only, thread_pool_size):
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
     ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
-    ts = Terrascript(QONTRACT_INTEGRATION,
-                     QONTRACT_TF_PREFIX,
-                     thread_pool_size,
-                     accounts,
-                     oc_map)
-    working_dirs, error = ts.dump(print_only)
+    ts, working_dirs, error = init_working_dirs(accounts, thread_pool_size,
+                                                print_only=print_only,
+                                                oc_map=oc_map)
     if error:
         cleanup_and_exit(status=error, working_dirs=working_dirs)
     tf = Terraform(QONTRACT_INTEGRATION,
