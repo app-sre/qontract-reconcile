@@ -134,28 +134,6 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
-        - name: github-users
-          image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-users ; sleep ${SLEEP_DURATION_SECS}; done
-          env:
-          - name: gitlab_pr_submitter_queue_url
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: gitlab_pr_submitter_queue_url
-          resources:
-            limits:
-              cpu: 25m
-              memory: 150Mi
-            requests:
-              cpu: 15m
-              memory: 50Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
         - name: github-scanner
           image: ${IMAGE}:${IMAGE_TAG}
           command:
