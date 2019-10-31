@@ -54,6 +54,7 @@ setup(
         'console_scripts': [
             'qontract-reconcile = reconcile.cli:integration',
             'e2e-tests = e2e_tests.cli:test',
+            'app-interface-reporter = tools.app_interface_reporter:main',
         ],
     },
 )

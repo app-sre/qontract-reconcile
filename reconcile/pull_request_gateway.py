@@ -7,6 +7,13 @@ from utils.sqs_gateway import SQSGateway
 from utils.gitlab_api import GitLabApi
 
 
+PR_TYPES = {
+    'create_delete_aws_access_key_mr': ['account', 'path', 'key'],
+    'create_delete_user_mr': ['username', 'paths'],
+    'create_app_interface_reporter_mr': ['reports'],
+}
+
+
 class PullRequestGatewayError(Exception):
     pass
 
@@ -49,26 +56,24 @@ def submit_to_gitlab(gitlab_project_id, dry_run):
     while True:
         messages = client.receive_messages()
         logging.info('received {} messages'.format(len(messages)))
+
         if not messages:
             break
+
         for m in messages:
             receipt_handle, body = m[0], m[1]
+
             logging.info('received message {} with body {}'.format(
                 receipt_handle[:6], json.dumps(body)))
+
             pr_type = body['pr_type']
-            if pr_type == 'create_delete_aws_access_key_mr':
-                account, path, key = \
-                    body['account'], body['path'], body['key']
-                logging.info([pr_type, account, key])
-                if not dry_run:
-                    gl.create_delete_aws_access_key_mr(account, path, key)
-            elif pr_type == 'create_delete_user_mr':
-                username, paths = body['username'], body['paths']
-                logging.info([pr_type, username])
-                if not dry_run:
-                    gl.create_delete_user_mr(username, paths)
-            else:
+            if pr_type not in PR_TYPES:
                 raise PullRequestGatewayError(
                     'invalid pull request type: {}'.format(pr_type))
+
+            args = [body[arg] for arg in PR_TYPES[pr_type]]
+            logging.info([pr_type] + args)
+
             if not dry_run:
+                getattr(gl, pr_type)(*args)
                 client.delete_message(receipt_handle)

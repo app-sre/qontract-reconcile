@@ -40,6 +40,36 @@ from utils.binary import binary
 from utils.environ import environ
 
 
+def config_file(function):
+    help_msg = 'Path to configuration file in toml format.'
+    function = click.option('--config', 'configfile',
+                            required=True,
+                            help=help_msg)(function)
+    return function
+
+
+def log_level(function):
+    function = click.option('--log-level',
+                            help='log-level of the command. Defaults to INFO.',
+                            type=click.Choice([
+                                'DEBUG',
+                                'INFO',
+                                'WARNING',
+                                'ERROR',
+                                'CRITICAL']))(function)
+    return function
+
+
+def dry_run(function):
+    help_msg = ('If `true`, it will only print the planned actions '
+                'that would be performed, without executing them.')
+
+    function = click.option('--dry-run/--no-dry-run',
+                            default=False,
+                            help=help_msg)(function)
+    return function
+
+
 def threaded(**kwargs):
     def f(function):
         opt = '--thread-pool-size'
@@ -107,31 +137,21 @@ def run_integration(func, *args):
         sys.exit(1)
 
 
+def init_log_level(log_level):
+    level = getattr(logging, log_level) if log_level else logging.INFO
+    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+
+
 @click.group()
-@click.option('--config', 'configfile',
-              required=True,
-              help='Path to configuration file in toml format.')
-@click.option('--dry-run/--no-dry-run',
-              default=False,
-              help='If `true`, it will only print the planned actions '
-                   'that would be performed, without executing them.')
-@click.option('--log-level',
-              help='log-level of the command. Defaults to INFO.',
-              type=click.Choice([
-                  'DEBUG',
-                  'INFO',
-                  'WARNING',
-                  'ERROR',
-                  'CRITICAL']))
+@config_file
+@dry_run
+@log_level
 @click.pass_context
 def integration(ctx, configfile, dry_run, log_level):
     ctx.ensure_object(dict)
 
-    level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
-
+    init_log_level(log_level)
     config.init_from_toml(configfile)
-
     gql.init_from_config()
     ctx.obj['dry_run'] = dry_run
 

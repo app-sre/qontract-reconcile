@@ -66,3 +66,10 @@ class SQSGateway(object):
             'paths': paths
         }
         self.send_message(body)
+
+    def create_app_interface_reporter_mr(self, reports):
+        body = {
+            'pr_type': 'create_app_interface_reporter_mr',
+            'reports': reports
+        }
+        self.send_message(body)
