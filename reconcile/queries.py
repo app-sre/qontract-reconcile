@@ -52,6 +52,9 @@ AWS_ACCOUNTS_QUERY = """
       path
       field
     }
+    disable {
+      integrations
+    }
     deleteKeys
   }
 }
