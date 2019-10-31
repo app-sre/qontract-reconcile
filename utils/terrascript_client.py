@@ -72,11 +72,11 @@ class TerrascriptClient(object):
         for account in accounts:
             try:
                 disabled_integrations = account['disable']['integrations']
-                integration = self.integration.replace('_', '-')
-                if integration not in disabled_integrations:
-                    filtered_accounts.append(account)
             except (KeyError, TypeError):
-                pass
+                disabled_integrations = []
+            integration = self.integration.replace('_', '-')
+            if integration not in disabled_integrations:
+                filtered_accounts.append(account)
         return filtered_accounts
 
     def populate_configs_from_vault(self, accounts):
