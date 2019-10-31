@@ -18,6 +18,13 @@ def init_tf_working_dirs(accounts, thread_pool_size):
     # copied here to avoid circular dependency
     QONTRACT_INTEGRATION = 'terraform_resources'
     QONTRACT_TF_PREFIX = 'qrtf'
+    # if the terraform-resources integration is disabled
+    # for an account, it means that Terrascript will not
+    # initiate that account's config and will not create
+    # a working directory for it. this means that we are
+    # not able to recycle access keys belonging to users
+    # created by terraform-resources, but it is disabled
+    # tl;dr - we are good. how cool is this alignment...
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,

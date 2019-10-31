@@ -40,7 +40,8 @@ class TerrascriptClient(object):
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
-        self.populate_configs_from_vault(accounts)
+        filtered_accounts = self.filter_disabled_accounts(accounts)
+        self.populate_configs_from_vault(filtered_accounts)
         tss = {}
         locks = {}
         for name, config in self.configs.items():
@@ -62,9 +63,21 @@ class TerrascriptClient(object):
             locks[name] = Lock()
         self.tss = tss
         self.locks = locks
-        self.uids = {a['name']: a['uid'] for a in accounts}
+        self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
-                                for a in accounts}
+                                for a in filtered_accounts}
+
+    def filter_disabled_accounts(self, accounts):
+        filtered_accounts = []
+        for account in accounts:
+            try:
+                disabled_integrations = account['disable']['integrations']
+                integration = self.integration.replace('_', '-')
+                if integration not in disabled_integrations:
+                    filtered_accounts.append(account)
+            except (KeyError, TypeError):
+                pass
+        return filtered_accounts
 
     def populate_configs_from_vault(self, accounts):
         results = threaded.run(self.get_vault_tf_secrets, accounts,
@@ -640,6 +653,11 @@ class TerrascriptClient(object):
         return tf_resources
 
     def add_resource(self, account, tf_resource):
+        if account not in self.locks:
+            logging.warning(
+                'integration {} is disabled for account {}. '
+                'can not add resource'.format(self.integration, account))
+            return
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
