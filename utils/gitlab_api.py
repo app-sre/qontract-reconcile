@@ -1,7 +1,9 @@
 import logging
+import uuid
+from datetime import datetime
+
 import gitlab
 import urllib3
-import uuid
 import ruamel.yaml as yaml
 
 import utils.vault_client as vault_client
@@ -35,6 +37,19 @@ class GitLabApi(object):
 
     def delete_branch(self, branch):
         self.project.branches.delete(branch)
+
+    def create_commit(self, branch_name, commit_message, actions):
+        """
+        actions is a list of 'action' dictionaries. The 'action' dict is
+        documented here: https://docs.gitlab.com/ee/api/commits.html
+                         #create-a-commit-with-multiple-files-and-actions
+        """
+
+        self.project.commits.create({
+            'branch': branch_name,
+            'commit_message': commit_message,
+            'actions': actions
+        })
 
     def delete_file(self, branch_name, file_path, commit_message):
         data = {
@@ -72,7 +87,7 @@ class GitLabApi(object):
             'remove_source_branch': str(remove_source_branch),
             'labels': labels
         }
-        self.project.mergerequests.create(data)
+        return self.project.mergerequests.create(data)
 
     def mr_exists(self, title):
         mrs = self.get_merge_requests(state='opened')
@@ -86,8 +101,38 @@ class GitLabApi(object):
 
         return False
 
+    def create_app_interface_reporter_mr(self, reports):
+        labels = ['automerge']
+        prefix = 'app-interface-reporter'
+        target_branch = 'master'
+
+        now = datetime.now()
+        ts = now.strftime("%Y%m%d%H%M%S")
+        isodate = now.isoformat()
+
+        branch_name = 'app-interface-reporter-{}'.format(ts)
+        commit_message = '[{}] reports for {}'.format(
+            prefix, isodate
+        )
+
+        self.create_branch(branch_name, target_branch)
+
+        actions = [
+            {
+                'action': 'create',
+                'file_path': report['file_path'],
+                'content': report['content'],
+            }
+            for report in reports
+        ]
+
+        self.create_commit(branch_name, commit_message, actions)
+
+        return self.create_mr(branch_name, target_branch,
+                              commit_message, labels=labels)
+
     def create_delete_user_mr(self, username, paths):
-        LABELS = ['automerge']
+        labels = ['automerge']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-{}-{}'.format(
@@ -114,10 +159,10 @@ class GitLabApi(object):
                 )
                 return
 
-        self.create_mr(branch_name, target_branch, title, labels=LABELS)
+        return self.create_mr(branch_name, target_branch, title, labels=labels)
 
     def create_delete_aws_access_key_mr(self, account, path, key):
-        LABELS = ['automerge']
+        labels = ['automerge']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = '{}-delete-aws-access-key-{}-{}-{}'.format(
@@ -150,7 +195,7 @@ class GitLabApi(object):
             )
             return
 
-        self.create_mr(branch_name, target_branch, title, labels=LABELS)
+        return self.create_mr(branch_name, target_branch, title, labels=labels)
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
@@ -176,7 +221,7 @@ class GitLabApi(object):
         return ([{
                 "user": m.username,
                 "access_level": self.get_access_level_string(m.access_level)}
-                for m in group.members.list()])
+            for m in group.members.list()])
 
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)
@@ -202,7 +247,7 @@ class GitLabApi(object):
                     group.members.create({
                         'user_id': user.id,
                         'access_level': access_level
-                        })
+                    })
                 except gitlab.exceptions.GitlabCreateError:
                     member = group.members.get(user.id)
                     member.access_level = access_level
