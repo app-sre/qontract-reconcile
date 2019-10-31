@@ -90,4 +90,4 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
         mr = gw.create_app_interface_reporter_mr(reports)
-        logging.info(['create_mr', mr.web_url])
+        logging.info(['created_mr', mr.web_url])
