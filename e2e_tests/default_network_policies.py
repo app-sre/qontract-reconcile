@@ -21,7 +21,8 @@ def run(defer=None):
         projects = [p['metadata']['name']
                     for p in oc.get_all('Project')['items']
                     if p['status']['phase'] != 'Terminating' and
-                    not re.search(pattern, p['metadata']['name'])]
+                    not re.search(pattern, p['metadata']['name']) and
+                    'api.openshift.com/id' not in p['metadata']['labels']]
 
         all_network_policies = \
             oc.get_all('NetworkPolicy', all_namespaces=True)['items']
