@@ -367,6 +367,14 @@ def quay_repos(ctx):
 
 
 @integration.command()
+@click.pass_context
+@threaded()
+@binary(['skopeo'])
+def quay_mirror(ctx):
+    run_integration(reconcile.quay_repos.run, ctx.obj['dry_run'])
+
+
+@integration.command()
 @click.argument('gitlab-project-id')
 @threaded()
 @click.pass_context
