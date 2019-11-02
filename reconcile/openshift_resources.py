@@ -49,6 +49,7 @@ NAMESPACES_QUERY = """
       provider
       ... on NamespaceOpenshiftResourceResource_v1 {
         path
+        validate_json
       }
       ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
         path
@@ -183,7 +184,8 @@ def process_extracurlyjinja2_template(body, vars={}):
     return process_jinja2_template(body, vars=vars, env=env)
 
 
-def fetch_provider_resource(path, tfunc=None, tvars=None):
+def fetch_provider_resource(path, tfunc=None, tvars=None,
+                            validate_json=False):
     gqlapi = gql.get_api()
 
     # get resource data
@@ -204,6 +206,15 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
     except anymarkup.AnyMarkupError:
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
+
+    if validate_json:
+        files = resource['body']['data']
+        for file_name, file_content in files.items():
+            try:
+                json.loads(file_content)
+            except ValueError:
+                raise FetchResourceError(
+                    'invalid json in {} under {}'.format(path, file_name))
 
     try:
         return OR(resource['body'],
@@ -300,7 +311,9 @@ def fetch_openshift_resource(resource, parent):
     _log_lock.release()
 
     if provider == 'resource':
-        openshift_resource = fetch_provider_resource(path)
+        validate_json = resource.get('validate_json') or False
+        openshift_resource = \
+            fetch_provider_resource(path, validate_json=validate_json)
     elif provider == 'resource-template':
         tv = {}
         if resource['variables']:
