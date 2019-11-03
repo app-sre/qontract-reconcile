@@ -137,7 +137,7 @@ def fetch_current_state(gh_api_store):
     return state
 
 
-def fetch_desired_state():
+def fetch_desired_state(infer_clusters=True):
     gqlapi = gql.get_api()
     state = AggregatedList()
 
@@ -170,6 +170,9 @@ def fetch_desired_state():
                     'service': 'github-org',
                     'org': permission['org'],
                 }, members)
+
+    if not infer_clusters:
+        return state
 
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     oc_map = OC_Map(clusters=clusters)
