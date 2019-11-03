@@ -43,12 +43,11 @@ ROLES_QUERY = """
     users {
       github_username
     }
-    permissions {
-      ...on PermissionOpenshiftGroup_v1 {
-        service
-        cluster
-        group
+    access {
+      cluster {
+        name
       }
+      group
     }
   }
 }
@@ -120,12 +119,10 @@ def fetch_desired_state(oc_map):
     desired_state = []
 
     for r in roles:
-        for p in r['permissions']:
-            if 'service' not in p:
+        for a in r['access'] or []:
+            if None in [a['cluster'], a['group']]:
                 continue
-            if p['service'] != 'openshift-group':
-                continue
-            if p['cluster'] not in oc_map.clusters():
+            if a['cluster']['name'] not in oc_map.clusters():
                 continue
 
             for u in r['users']:
@@ -133,8 +130,8 @@ def fetch_desired_state(oc_map):
                     continue
 
                 desired_state.append({
-                    "cluster": p['cluster'],
-                    "group": p['group'],
+                    "cluster": a['cluster']['name'],
+                    "group": a['group'],
                     "user": u['github_username']
                 })
 

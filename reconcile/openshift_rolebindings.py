@@ -77,7 +77,9 @@ def get_rolebindings(spec):
     return spec.cluster, spec.namespace, rolebindings
 
 
-def fetch_current_state(namespaces, thread_pool_size):
+def fetch_current_state(thread_pool_size):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     state = AggregatedList()
     ri = ResourceInventory()
     namespaces = [namespace_info for namespace_info
@@ -135,14 +137,17 @@ def fetch_current_state(namespaces, thread_pool_size):
     return oc_map, state
 
 
-def fetch_desired_state(roles, oc_map):
+def fetch_desired_state(oc_map):
+    gqlapi = gql.get_api()
+    roles = gqlapi.query(ROLES_QUERY)['roles']
     state = AggregatedList()
 
     for role in roles:
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
-                       for a in role['access'] or []]
+                       for a in role['access'] or []
+                       if None not in [a['namespace'], a['role']]]
         if not permissions:
             continue
         permissions = [p for p in permissions
@@ -227,14 +232,9 @@ class RunnerAction(object):
 
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
-    gqlapi = gql.get_api()
-
-    namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
-    roles = gqlapi.query(ROLES_QUERY)['roles']
-
-    oc_map, current_state = fetch_current_state(namespaces, thread_pool_size)
+    oc_map, current_state = fetch_current_state(thread_pool_size)
     defer(lambda: oc_map.cleanup())
-    desired_state = fetch_desired_state(roles, oc_map)
+    desired_state = fetch_desired_state(oc_map)
 
     # calculate diff
     diff = current_state.diff(desired_state)
