@@ -3,6 +3,7 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
+import reconcile.openshift_rolebindings as openshift_rolebindings
 
 from utils.oc import OC_Map
 from utils.defer import defer
@@ -36,24 +37,6 @@ CLUSTERS_QUERY = """
 }
 """
 
-ROLES_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      github_username
-    }
-    access {
-      namespace {
-        cluster {
-          name
-        }
-      }
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = 'openshift-users'
 
 
@@ -78,30 +61,23 @@ def fetch_current_state(thread_pool_size):
 
 
 def fetch_desired_state(oc_map):
-    gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
     desired_state = []
 
-    for r in roles:
-        for a in r['access'] or []:
-            cluster = a['namespace']['cluster']['name']
-            if cluster not in oc_map.clusters():
-                continue
-
-            for u in r['users']:
-                if u['github_username'] is None:
-                    continue
-
-                desired_state.append({
-                    "cluster": cluster,
-                    "user": u['github_username']
-                })
+    rolebindings_desired_state = \
+        openshift_rolebindings.fetch_desired_state(oc_map)
+    flat_rolebindings_desired_state = \
+        [{'cluster': s['params']['cluster'], 'user': u}
+         for s in rolebindings_desired_state.dump()
+         for u in s['items']
+         if s['params']['kind'] == 'User']
+    desired_state.extend(flat_rolebindings_desired_state)
 
     groups_desired_state = openshift_groups.fetch_desired_state(oc_map)
     flat_groups_desired_state = \
         [{'cluster': s['cluster'], 'user': s['user']}
          for s in groups_desired_state]
     desired_state.extend(flat_groups_desired_state)
+
     return desired_state
 
 
