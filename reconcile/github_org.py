@@ -4,13 +4,10 @@ from github.GithubObject import NotSet
 
 import utils.gql as gql
 import utils.vault_client as vault_client
-import reconcile.openshift_users as openshift_users
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.raw_github_api import RawGithubApi
 from utils.retry import retry
-from utils.oc import OC_Map
-from utils.defer import defer
 
 ORGS_QUERY = """
 {
@@ -26,7 +23,7 @@ ORGS_QUERY = """
 }
 """
 
-ROLES_QUERY = """
+QUERY = """
 {
   roles: roles_v1 {
     name
@@ -45,26 +42,6 @@ ROLES_QUERY = """
         org
         team
       }
-    }
-  }
-}
-"""
-
-
-CLUSTERS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    serverUrl
-    auth {
-      service
-      org
-      team
-    }
-    automationToken {
-      path
-      field
-      format
     }
   }
 }
@@ -137,67 +114,38 @@ def fetch_current_state(gh_api_store):
     return state
 
 
-def fetch_desired_state(infer_clusters=True):
+def fetch_desired_state():
     gqlapi = gql.get_api()
+    result = gqlapi.query(QUERY)
+
     state = AggregatedList()
 
-    roles = gqlapi.query(ROLES_QUERY)['roles']
-    for role in roles:
+    for role in result['roles']:
         permissions = list(filter(
             lambda p: p.get('service') in ['github-org', 'github-org-team'],
             role['permissions']
         ))
 
-        if not permissions:
-            continue
+        if permissions:
+            members = []
 
-        members = []
+            for user in role['users']:
+                members.append(user['github_username'])
 
-        for user in role['users']:
-            members.append(user['github_username'])
+            for bot in role['bots']:
+                if 'github_username' in bot:
+                    members.append(bot['github_username'])
+            members = [m.lower() for m in members]
 
-        for bot in role['bots']:
-            if 'github_username' in bot:
-                members.append(bot['github_username'])
-        members = [m.lower() for m in members]
-
-        for permission in permissions:
-            if permission['service'] == 'github-org':
-                state.add(permission, members)
-            elif permission['service'] == 'github-org-team':
-                state.add(permission, members)
-                state.add({
-                    'service': 'github-org',
-                    'org': permission['org'],
-                }, members)
-
-    if not infer_clusters:
-        return state
-
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = OC_Map(clusters=clusters)
-    defer(lambda: oc_map.cleanup())
-    openshift_users_desired_state = \
-        openshift_users.fetch_desired_state(oc_map)
-    for cluster in clusters:
-        if not cluster['auth']:
-            continue
-
-        cluster_name = cluster['name']
-        members = [ou['user'].lower()
-                   for ou in openshift_users_desired_state
-                   if ou['cluster'] == cluster_name]
-
-        state.add({
-            'service': 'github-org',
-            'org': cluster['auth']['org'],
-        }, members)
-        if cluster['auth']['service'] == 'github-org-team':
-            state.add({
-                'service': 'github-org-team',
-                'org': cluster['auth']['org'],
-                'team': cluster['auth']['team'],
-            }, members)
+            for permission in permissions:
+                if permission['service'] == 'github-org':
+                    state.add(permission, members)
+                elif permission['service'] == 'github-org-team':
+                    state.add(permission, members)
+                    state.add({
+                        'service': 'github-org',
+                        'org': permission['org'],
+                    }, members)
 
     return state
 
