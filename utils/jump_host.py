@@ -33,7 +33,7 @@ class JumpHostBase(object):
 
         identity_file = self._identity_dir + '/id'
         with open(identity_file, 'w') as f:
-            f.write(str(self.identity))
+            f.write(self.identity.decode("utf-8"))
         os.chmod(identity_file, 0o600)
         self.identity_file = identity_file
 
