@@ -6,7 +6,7 @@ ENV LANG=en_US.utf8
 RUN yum install -y epel-release && \
     yum install -y python36 python36-pip git && \
     python3.6 -m pip install --upgrade pip && \
-    pip3.6 install tox
+    python3.6 -m pip install tox
 
 COPY . /package
 WORKDIR /package
