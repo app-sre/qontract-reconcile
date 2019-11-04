@@ -22,4 +22,4 @@ class B64EncodeExtension(Extension):
     def _b64encode(self, caller):
         content = caller()
         content = textwrap.dedent(content)
-        return base64.b64encode(content)
+        return base64.b64encode(content.encode())
