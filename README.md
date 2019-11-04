@@ -32,7 +32,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `openshift-resources`: Manages OpenShift Resources.
-- `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
