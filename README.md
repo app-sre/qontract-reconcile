@@ -71,20 +71,20 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml).
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 
 ```sh
-virtualenv venv
+python3 -m venv venv
 source venv/bin/activate
 
 # make sure you are running the latest setuptools
-pip install --upgrade pip setuptools
+python3 -m pip install --upgrade pip setuptools
 ```
 
 Install the package:
 
 ```sh
-python setup.py install
+python3 setup.py install
 
 # or alternatively use this for a devel environment
-python setup.py develop
+python3 setup.py develop
 ```
 
 ### Requirements
