@@ -284,7 +284,7 @@ class TerraformClient(object):
             self.OUTPUT_TYPE_PASSWORDS,
             self.OUTPUT_TYPE_CONSOLEURLS
         ):
-            return data[data.keys()[0]]
+            return data[list(data.keys())[0]]
         return data
 
     def construct_oc_resource(self, name, data):
