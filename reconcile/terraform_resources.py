@@ -63,6 +63,19 @@ TF_NAMESPACES_QUERY = """
           value
         }
       }
+      ... on NamespaceTerraformResourceDynamoDB_v1 {
+        account
+        region
+        identifier
+        output_resource_name
+        specs {
+          defaults
+          tables {
+            key
+            value
+          }
+        }
+      }
     }
     cluster {
       name
