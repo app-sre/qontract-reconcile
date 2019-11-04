@@ -23,7 +23,7 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_login_profile,
                                aws_elasticache_replication_group,
                                aws_iam_user_policy_attachment,
-                               aws_sqs_queue)
+                               aws_sqs_queue, aws_dynamodb_table)
 
 
 class UnknownProviderError(Exception):
@@ -294,6 +294,8 @@ class TerrascriptClient(object):
                                                       namespace_info)
         elif provider == 'sqs':
             self.populate_tf_resource_sqs(resource, namespace_info)
+        elif provider == 'dynamodb':
+            self.populate_tf_resource_dynamodb(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -635,6 +637,84 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_dynamodb(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+        uid = self.uids[account]
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+        region = common_values['region'] or self.default_regions[account]
+        specs = common_values['specs']
+        all_tables = []
+        for spec in specs:
+            defaults = self.get_values(spec['defaults'])
+            attributes = defaults.pop('attributes')
+            tables = spec['tables']
+            for table_kv in tables:
+                table_key = table_kv['key']
+                table = table_kv['value']
+                all_tables.append(table)
+                # dynamodb table
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/r/
+                # dynamodb_table.html
+                values = {}
+                values['name'] = table
+                values['tags'] = common_values['tags']
+                values.update(defaults)
+                values['attribute'] = attributes
+                table_tf_resource = aws_dynamodb_table(table, **values)
+                tf_resources.append(table_tf_resource)
+                output_name = '{}[{}]'.format(output_prefix, table_key)
+                tf_resources.append(output(output_name, value=table))
+
+        output_name = output_prefix + '[aws_region]'
+        tf_resources.append(output(output_name, value=region))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for table
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy for queue
+        values = {}
+        values['user'] = identifier
+        values['name'] = identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["dynamodb:*"],
+                    "Resource": [
+                        "arn:aws:dynamodb:{}:{}:table/{}".format(
+                            region, uid, t) for t in all_tables
+                    ]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
     @staticmethod
     def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
         tf_resources = []
@@ -696,6 +776,7 @@ class TerrascriptClient(object):
         user_policy = resource.get('user_policy', None)
         region = resource.get('region', None)
         queues = resource.get('queues', None)
+        specs = resource.get('specs', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -707,6 +788,7 @@ class TerrascriptClient(object):
         values['user_policy'] = user_policy
         values['region'] = region
         values['queues'] = queues
+        values['specs'] = specs
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
