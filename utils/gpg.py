@@ -14,7 +14,7 @@ def gpg_key_valid(public_gpg_key):
     if proc.returncode != 0:
         return False
 
-    keys = out[0].split('\n')
+    keys = out[0].decode("utf-8").split('\n')
     key_types = [k.split(' ')[0] for k in keys if k]
     ok = all(elem in key_types for elem in ['pub', 'sub'])
     if not ok:
