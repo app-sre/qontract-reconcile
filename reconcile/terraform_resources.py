@@ -146,8 +146,8 @@ def setup(print_only, thread_pool_size):
                      if namespace_info.get('managedTerraformResources')]
     ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
-                                                print_only=print_only,
-                                                oc_map=oc_map)
+                                         print_only=print_only,
+                                         oc_map=oc_map)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
