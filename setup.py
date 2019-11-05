@@ -38,7 +38,6 @@ setup(
         "jira>=2.0.0,<2.1.0",
         "pyOpenSSL>=19.0.0,<20.0.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
-        "simplejson>=3.16.0,<3.17.0",
     ],
 
     test_suite="tests",

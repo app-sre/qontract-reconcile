@@ -235,7 +235,7 @@ def fetch_provider_vault_secret(path, version, name,
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
             k = k[:-len(QONTRACT_BASE64_SUFFIX)]
         elif v is not None:
-            v = base64.b64encode(v.encode())
+            v = base64.b64encode(v.encode()).decode('utf-8')
         body['data'][k] = v
 
     try:

@@ -1,6 +1,6 @@
 import copy
 import hashlib
-import simplejson as json
+import json
 import semver
 import datetime
 
@@ -204,7 +204,11 @@ class OpenshiftResource(object):
 
     @staticmethod
     def serialize(body):
-        return json.dumps(body, sort_keys=True)
+        try:
+            return json.dumps(body, sort_keys=True)
+        except:
+            print('##############################')
+            print(body)
 
     @staticmethod
     def calculate_sha256sum(body):
