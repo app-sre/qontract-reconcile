@@ -134,8 +134,8 @@ def init_working_dirs(accounts, thread_pool_size,
                      thread_pool_size,
                      accounts,
                      oc_map)
-    working_dirs, error = ts.dump(print_only)
-    return ts, working_dirs, error
+    working_dirs = ts.dump(print_only)
+    return ts, working_dirs
 
 
 def setup(print_only, thread_pool_size):
@@ -145,11 +145,9 @@ def setup(print_only, thread_pool_size):
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
     ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
-    ts, working_dirs, error = init_working_dirs(accounts, thread_pool_size,
+    ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                                 print_only=print_only,
                                                 oc_map=oc_map)
-    if error:
-        cleanup_and_exit(status=error, working_dirs=working_dirs)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
@@ -157,9 +155,7 @@ def setup(print_only, thread_pool_size):
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
     ts.populate_resources(tf_namespaces, existing_secrets)
-    _, error = ts.dump(print_only, existing_dirs=working_dirs)
-    if error:
-        cleanup_and_exit(status=error, working_dirs=working_dirs)
+    ts.dump(print_only, existing_dirs=working_dirs)
 
     return ri, oc_map, tf
 

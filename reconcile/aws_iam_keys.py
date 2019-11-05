@@ -29,10 +29,7 @@ def init_tf_working_dirs(accounts, thread_pool_size):
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts)
-    working_dirs, _ = ts.dump()
-    # no use for terrascript for us here
-    # and an error here is very unlikely
-    return working_dirs
+    return ts.dump()
 
 
 def cleanup(working_dirs):

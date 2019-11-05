@@ -742,7 +742,6 @@ class TerrascriptClient(object):
             self.tss[account].add(tf_resource)
 
     def dump(self, print_only=False, existing_dirs=None):
-        error = False
         if existing_dirs is None:
             working_dirs = {}
         else:
@@ -758,12 +757,9 @@ class TerrascriptClient(object):
                 wd = working_dirs[name]
             with open(wd + '/config.tf', 'w') as f:
                 f.write(ts.dump())
-            valid = ts.validate(wd)
-            if not valid:
-                error = not valid
             working_dirs[name] = wd
 
-        return working_dirs, error
+        return working_dirs
 
     def init_values(self, resource, namespace_info):
         account = resource['account']
