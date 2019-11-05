@@ -216,7 +216,7 @@ class RunnerAction(object):
                     try:
                         f(namespace, role, member, kind)
                     except Exception as e:
-                        logging.error(e.message)
+                        logging.error(str(e))
                         status = False
 
             return status

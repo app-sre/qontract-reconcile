@@ -540,6 +540,6 @@ class AWSApi(object):
                 all_support_cases[account] = support_cases
             except Exception as e:
                 msg = '[{}] error getting support cases. details: {}'
-                logging.error(msg.format(account, e.message))
+                logging.error(msg.format(account, str(e)))
 
         return all_support_cases

@@ -47,7 +47,7 @@ def run(dry_run, cluster, namespace, kind, name):
     try:
         resource = oc.get(namespace, kind, name)
     except utils.oc.StatusCodeError as e:
-        if e.message.startswith('Error from server (NotFound):'):
+        if str(e).startswith('Error from server (NotFound):'):
             logging.error('Resource not found.')
             sys.exit(1)
 
