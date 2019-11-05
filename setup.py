@@ -38,6 +38,7 @@ setup(
         "jira>=2.0.0,<2.1.0",
         "pyOpenSSL>=19.0.0,<20.0.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
+        "terrascript>=0.6.1,<0.7.0",
     ],
 
     test_suite="tests",

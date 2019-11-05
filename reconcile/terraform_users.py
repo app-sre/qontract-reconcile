@@ -56,9 +56,9 @@ def setup(print_only, thread_pool_size):
     if err:
         return None, err
 
-    working_dirs, error = ts.dump(print_only)
+    working_dirs = ts.dump(print_only)
 
-    return working_dirs, error
+    return working_dirs
 
 
 def send_email_invites(new_users):
@@ -99,9 +99,7 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
-    working_dirs, err = setup(print_only, thread_pool_size)
-    if err:
-        cleanup_and_exit(status=err)
+    working_dirs = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
 
