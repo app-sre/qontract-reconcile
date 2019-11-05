@@ -30,7 +30,6 @@ COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY tools tools
 COPY utils utils
-COPY terrascript terrascript
 COPY setup.py .
 
 RUN python3 setup.py install
