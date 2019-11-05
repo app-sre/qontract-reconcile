@@ -304,7 +304,7 @@ class TerraformClient(object):
             if v == "":
                 v = None
             else:
-                v = base64.b64encode(v.encode())
+                v = base64.b64encode(v.encode()).decode('utf-8')
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,
