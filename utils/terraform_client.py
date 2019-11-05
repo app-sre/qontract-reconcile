@@ -284,7 +284,7 @@ class TerraformClient(object):
             self.OUTPUT_TYPE_PASSWORDS,
             self.OUTPUT_TYPE_CONSOLEURLS
         ):
-            return data[data.keys()[0]]
+            return data[list(data.keys())[0]]
         return data
 
     def construct_oc_resource(self, name, data):
@@ -304,7 +304,7 @@ class TerraformClient(object):
             if v == "":
                 v = None
             else:
-                v = base64.b64encode(v)
+                v = base64.b64encode(v.encode()).decode('utf-8')
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,

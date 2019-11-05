@@ -32,7 +32,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `openshift-resources`: Manages OpenShift Resources.
-- `openshift-rolebinding`: Configures Rolebindings in OpenShift clusters.
+- `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
@@ -71,20 +71,20 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml).
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 
 ```sh
-virtualenv venv
+python3 -m venv venv
 source venv/bin/activate
 
 # make sure you are running the latest setuptools
-pip install --upgrade pip setuptools
+python3 -m pip install --upgrade pip setuptools
 ```
 
 Install the package:
 
 ```sh
-python setup.py install
+python3 setup.py install
 
 # or alternatively use this for a devel environment
-python setup.py develop
+python3 setup.py develop
 ```
 
 ### Requirements

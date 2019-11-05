@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="reconcile",
-    version="0.1.0",
+    version="0.2.0",
     license="BSD",
 
     author="Red Hat App-SRE Team",
@@ -45,8 +45,6 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
     ],
