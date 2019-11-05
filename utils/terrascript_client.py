@@ -22,6 +22,7 @@ from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile,
                                aws_elasticache_replication_group,
+                               aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
                                aws_sqs_queue, aws_dynamodb_table)
 
@@ -475,6 +476,18 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        parameter_group = values['parameter_group']
+        if parameter_group:
+            pg_values = self.get_values(parameter_group)
+            pg_identifier = pg_values['name']
+            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_tf_resource = \
+                aws_elasticache_parameter_group(pg_identifier, **pg_values)
+            tf_resources.append(pg_tf_resource)
+            values['depends_on'] = [pg_tf_resource]
+            values['parameter_group_name'] = pg_identifier
+            values.pop('parameter_group', None)
+
         try:
             auth_token = \
                 existing_secrets[account][output_prefix]['db.auth_token']
@@ -773,6 +786,7 @@ class TerrascriptClient(object):
         region = resource.get('region', None)
         queues = resource.get('queues', None)
         specs = resource.get('specs', None)
+        parameter_group = resource.get('parameter_group', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -785,6 +799,7 @@ class TerrascriptClient(object):
         values['region'] = region
         values['queues'] = queues
         values['specs'] = specs
+        values['parameter_group'] = parameter_group
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
