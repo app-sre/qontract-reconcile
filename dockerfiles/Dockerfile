@@ -33,4 +33,4 @@ COPY utils utils
 COPY terrascript terrascript
 COPY setup.py .
 
-RUN python setup.py install
+RUN python3 setup.py install
