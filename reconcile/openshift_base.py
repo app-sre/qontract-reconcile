@@ -177,7 +177,7 @@ def realize_data(dry_run, oc_map, ri,
                       resource_type, d_item, recycle_pods)
             except StatusCodeError as e:
                 ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+                msg = "[{}/{}] {}".format(cluster, namespace, str(e))
                 logging.error(msg)
 
         # current items
@@ -194,5 +194,5 @@ def realize_data(dry_run, oc_map, ri,
                        resource_type, name, enable_deletion)
             except StatusCodeError as e:
                 ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+                msg = "[{}/{}] {}".format(cluster, namespace, str(e))
                 logging.error(msg)

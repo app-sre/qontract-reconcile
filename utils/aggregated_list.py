@@ -118,6 +118,6 @@ class AggregatedDiffRunner(object):
                     except Exception as e:
                         status = False
                         logging.error([params, items])
-                        logging.error(e.message)
+                        logging.error(str(e))
 
         return status

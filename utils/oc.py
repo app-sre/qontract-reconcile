@@ -104,7 +104,7 @@ class OC(object):
         try:
             self.get(None, 'Project', name)
         except StatusCodeError as e:
-            if 'NotFound' in e.message:
+            if 'NotFound' in str(e):
                 return False
             else:
                 raise e
@@ -122,7 +122,7 @@ class OC(object):
         try:
             return self.get(None, 'Group', name)
         except StatusCodeError as e:
-            if 'NotFound' in e.message:
+            if 'NotFound' in str(e):
                 return None
             else:
                 raise e
@@ -257,7 +257,7 @@ class OC(object):
         try:
             out_json = json.loads(out)
         except ValueError as e:
-            raise JSONParsingError(out + "\n" + e.message)
+            raise JSONParsingError(out + "\n" + str(e))
 
         return out_json
 

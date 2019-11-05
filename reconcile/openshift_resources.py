@@ -188,7 +188,7 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
     try:
         resource = gqlapi.get_resource(path)
     except gql.GqlGetResourceError as e:
-        raise FetchResourceError(e.message)
+        raise FetchResourceError(str(e))
 
     content = resource['content']
     if tfunc:
@@ -209,7 +209,7 @@ def fetch_provider_resource(path, tfunc=None, tvars=None):
                   QONTRACT_INTEGRATION_VERSION,
                   error_details=path)
     except ConstructResourceError as e:
-        raise FetchResourceError(e.message)
+        raise FetchResourceError(str(e))
 
 
 def fetch_provider_vault_secret(path, version, name,
@@ -244,7 +244,7 @@ def fetch_provider_vault_secret(path, version, name,
                   QONTRACT_INTEGRATION_VERSION,
                   error_details=path)
     except ConstructResourceError as e:
-        raise FetchResourceError(e.message)
+        raise FetchResourceError(str(e))
 
 
 def fetch_provider_route(path, tls_path, tls_version):
@@ -381,7 +381,7 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
             FetchRouteError,
             UnknownProviderError) as e:
         ri.register_error()
-        msg = "[{}/{}] {}".format(cluster, namespace, e.message)
+        msg = "[{}/{}] {}".format(cluster, namespace, str(e))
         _log_lock.acquire()
         logging.error(msg)
         _log_lock.release()

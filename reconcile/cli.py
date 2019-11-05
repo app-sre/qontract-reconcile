@@ -133,7 +133,7 @@ def run_integration(func, *args):
     try:
         func(*args)
     except RunnerException as e:
-        sys.stderr.write(e.message + "\n")
+        sys.stderr.write(str(e) + "\n")
         sys.exit(1)
 
 

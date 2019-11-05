@@ -375,7 +375,7 @@ class TerrascriptClient(object):
             oc = self.oc_map.get(cluster)
             return oc.get(namespace, 'Secret', resource_name)
         except StatusCodeError as e:
-            if e.message.startswith('Error from server (NotFound):'):
+            if str(e).startswith('Error from server (NotFound):'):
                 msg = 'Secret {} does not exist.'.format(resource_name)
                 logging.debug(msg)
         return None
@@ -795,7 +795,8 @@ class TerrascriptClient(object):
 
     def aggregate_values(self, values):
         split_char = '.'
-        for k, v in values.items():
+        copy = values.copy()
+        for k, v in copy.items():
             if split_char not in k:
                 continue
             k_split = k.split(split_char)
@@ -838,7 +839,7 @@ class TerrascriptClient(object):
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
-            raise FetchResourceError(e.message)
+            raise FetchResourceError(str(e))
         try:
             values = anymarkup.parse(
                 raw_values['content'],
