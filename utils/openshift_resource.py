@@ -204,11 +204,7 @@ class OpenshiftResource(object):
 
     @staticmethod
     def serialize(body):
-        try:
-            return json.dumps(body, sort_keys=True)
-        except:
-            print('##############################')
-            print(body)
+        return json.dumps(body, sort_keys=True)
 
     @staticmethod
     def calculate_sha256sum(body):
