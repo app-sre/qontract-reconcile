@@ -116,7 +116,9 @@ def populate_oc_resources(spec, ri):
 
 def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,

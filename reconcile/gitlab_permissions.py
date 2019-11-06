@@ -21,7 +21,8 @@ def get_members_to_add(repo, gl, app_sre):
 
 def run(dry_run=False, thread_pool_size=10):
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance)
+    settings = queries.get_app_interface_settings()
+    gl = GitLabApi(instance, settings=settings)
     repos = queries.get_repos(server=gl.server)
     app_sre = gl.get_app_sre_group_users()
     results = threaded.run(get_members_to_add, repos, thread_pool_size,

@@ -64,7 +64,9 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
 
     if not dry_run:
         instance = queries.get_gitlab_instance()
-        gl = GitLabApi(instance, project_id=gitlab_project_id)
+        settings = queries.get_app_interface_settings()
+        gl = GitLabApi(instance, project_id=gitlab_project_id,
+                       settings=settings)
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])

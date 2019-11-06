@@ -1,6 +1,7 @@
 import logging
 
 import utils.threaded as threaded
+import reconcile.queries as queries
 
 from utils.oc import OC_Map
 from utils.oc import StatusCodeError
@@ -88,7 +89,9 @@ def fetch_current_state(namespaces, thread_pool_size,
                         integration, integration_version,
                         override_managed_types=None):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=integration)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=integration,
+                    settings=settings)
     state_specs = \
         init_specs_to_fetch(
             ri,

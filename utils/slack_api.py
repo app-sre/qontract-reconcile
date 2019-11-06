@@ -1,9 +1,10 @@
 import time
 
-from slackclient import SlackClient
+import utils.secret_reader as secret_reader
 
-import utils.vault_client as vault_client
 from utils.retry import retry
+
+from slackclient import SlackClient
 
 
 class UsergroupNotFoundException(Exception):
@@ -13,8 +14,8 @@ class UsergroupNotFoundException(Exception):
 class SlackApi(object):
     """Wrapper around Slack API calls"""
 
-    def __init__(self, token, **chat_kwargs):
-        slack_token = vault_client.read(token)
+    def __init__(self, token, settings=None, **chat_kwargs):
+        slack_token = secret_reader.read(token, settings=settings)
         self.sc = SlackClient(slack_token)
         self.results = {}
         self.chat_kwargs = chat_kwargs

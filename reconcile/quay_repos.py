@@ -1,7 +1,8 @@
 import logging
 
 import utils.gql as gql
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
+import reconcile.queries as queries
 
 from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
@@ -181,10 +182,12 @@ def get_quay_api_store():
 
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
+    settings = queries.get_app_interface_settings()
 
     for org_data in result['quay_orgs']:
         name = org_data['name']
-        token = vault_client.read(org_data['automationToken'])
+        token = secret_reader.read(org_data['automationToken'],
+                                   settings=settings)
         store[name] = QuayApi(token, name)
 
     return store

@@ -9,7 +9,8 @@ from reconcile.jenkins_job_builder import init_jjb
 
 def get_gitlab_api():
     instance = queries.get_gitlab_instance()
-    return GitLabApi(instance)
+    settings = queries.get_app_interface_settings()
+    return GitLabApi(instance, settings=settings)
 
 
 def get_hooks_to_add(desired_state, gl):

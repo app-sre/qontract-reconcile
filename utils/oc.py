@@ -1,7 +1,7 @@
 import json
 import logging
 
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 from subprocess import Popen, PIPE
 
@@ -272,10 +272,11 @@ class OC_Map(object):
     the OC client will be initiated to False.
     """
     def __init__(self, clusters=None, namespaces=None,
-                 integration='', e2e_test=''):
+                 integration='', e2e_test='', settings=None):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
+        self.settings = settings
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -301,7 +302,7 @@ class OC_Map(object):
             self.oc_map[cluster] = False
         else:
             server_url = cluster_info['serverUrl']
-            token = vault_client.read(automation_token)
+            token = secret_reader.read(automation_token, self.settings)
             jump_host = cluster_info.get('jumpHost')
             self.oc_map[cluster] = OC(server_url, token, jump_host)
 

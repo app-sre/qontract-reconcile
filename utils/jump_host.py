@@ -3,7 +3,7 @@ import shutil
 import os
 
 import utils.gql as gql
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 from reconcile.exceptions import FetchResourceError
 
@@ -16,17 +16,12 @@ class HTTPStatusCodeError(Exception):
 
 
 class JumpHostBase(object):
-    def __init__(self, jh):
+    def __init__(self, jh, settings=None):
         self.hostname = jh['hostname']
         self.user = jh['user']
         self.port = 22 if jh['port'] is None else jh['port']
-        self.identity = self.get_identity_from_vault(jh)
-
+        self.identity = secret_reader.read(jh['identity'], settings=settings)
         self.init_identity_file()
-
-    def get_identity_from_vault(self, jh):
-        identity = vault_client.read(jh['identity'])
-        return identity
 
     def init_identity_file(self):
         self._identity_dir = tempfile.mkdtemp()
