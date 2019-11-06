@@ -30,7 +30,6 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
-- `openshift-resources-annotate`: Annotates OpenShift Resources so they can be used by the `openshift-resources` integration.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
