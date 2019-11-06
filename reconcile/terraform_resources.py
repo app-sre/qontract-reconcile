@@ -25,6 +25,7 @@ TF_NAMESPACES_QUERY = """
         account
         identifier
         defaults
+        parameter_group
         overrides
         output_resource_name
       }
