@@ -52,7 +52,8 @@ class AWSApi(object):
     def get_vault_tf_secrets(account):
         account_name = account['name']
         automation_token = account['automationToken']
-        secret = secret_reader.read_all(automation_token, settings=settings)
+        secret = secret_reader.read_all(automation_token,
+                                        settings=self.settings)
         return (account_name, secret)
 
     def init_users(self):
