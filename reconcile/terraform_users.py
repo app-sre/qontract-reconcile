@@ -44,6 +44,7 @@ QONTRACT_TF_PREFIX = 'qrtf'
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
+    settings = queries.get_app_interface_settings()
     roles = gqlapi.query(TF_QUERY)['roles']
     tf_roles = [r for r in roles
                 if r['aws_groups'] is not None
@@ -51,7 +52,8 @@ def setup(print_only, thread_pool_size):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
-                     accounts)
+                     accounts,
+                     settings=settings)
     err = ts.populate_users(tf_roles)
     if err:
         return None, err
