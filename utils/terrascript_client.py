@@ -417,6 +417,8 @@ class TerrascriptClient(object):
         values['versioning'] = {'enabled': True}
         values['tags'] = common_values['tags']
         values['acl'] = common_values['acl']
+        values['server_side_encryption_configuration'] = \
+            common_values.get('server_side_encryption_configuration')
         if common_values.get('lifecycle_rules'):
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
             values['lifecycle_rule'] = common_values['lifecycle_rules']
