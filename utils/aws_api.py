@@ -21,9 +21,9 @@ class AWSApi(object):
 
     def __init__(self, thread_pool_size, accounts, settings=None):
         self.thread_pool_size = thread_pool_size
+        self.settings = settings
         self.init_sessions_and_resources(accounts)
         self.init_users()
-        self.settings = settings
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
