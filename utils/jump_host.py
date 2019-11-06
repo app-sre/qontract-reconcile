@@ -37,8 +37,8 @@ class JumpHostBase(object):
 
 
 class JumpHostSSH(JumpHostBase):
-    def __init__(self, jh):
-        JumpHostBase.__init__(self, jh)
+    def __init__(self, jh, settings=None):
+        JumpHostBase.__init__(self, jh, settings=settings)
 
         self.known_hosts = self.get_known_hosts(jh)
         self.init_known_hosts_file()

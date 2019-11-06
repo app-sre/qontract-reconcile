@@ -30,7 +30,7 @@ class PodNotReadyError(Exception):
 
 
 class OC(object):
-    def __init__(self, server, token, jh=None):
+    def __init__(self, server, token, jh=None, settings=None):
         oc_base_cmd = [
             'oc',
             '--config', '/dev/null',
@@ -39,7 +39,7 @@ class OC(object):
         ]
 
         if jh is not None:
-            self.jump_host = JumpHostSSH(jh)
+            self.jump_host = JumpHostSSH(jh, settings=settings)
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
@@ -304,7 +304,8 @@ class OC_Map(object):
             server_url = cluster_info['serverUrl']
             token = secret_reader.read(automation_token, self.settings)
             jump_host = cluster_info.get('jumpHost')
-            self.oc_map[cluster] = OC(server_url, token, jump_host)
+            self.oc_map[cluster] = OC(server_url, token, jump_host,
+                                      settings=self.settings)
 
     def cluster_disabled(self, cluster_info):
         try:
