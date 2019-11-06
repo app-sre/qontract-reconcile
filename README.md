@@ -28,6 +28,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `ldap-users`: Removes users which are not found in LDAP search.
 - `openshift-acme`: Manages openshift-acme deployments (https://github.com/tnozicka/openshift-acme)
 - `openshift-groups`: Manages OpenShift Groups.
+- `openshift-limitranges`: Manages OpenShift LimitRange objects.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-resources`: Manages OpenShift Resources.
