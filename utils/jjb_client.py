@@ -24,10 +24,10 @@ class JJB(object):
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True, settings=None):
+        self.settings = settings
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
-        self.settings = settings
 
     def collect_configs(self, configs):
         gqlapi = gql.get_api()
