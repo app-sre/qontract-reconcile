@@ -35,7 +35,8 @@ def init(gitlab_project_id=None, override_pr_gateway_type=None):
                          settings=settings)
     elif pr_gateway_type == 'sqs':
         accounts = queries.get_aws_accounts()
-        return SQSGateway(accounts)
+        settings = queries.get_app_interface_settings()
+        return SQSGateway(accounts, settings=settings)
     else:
         raise PullRequestGatewayError(
             'invalid pull request gateway: {}'.format(pr_gateway_type))

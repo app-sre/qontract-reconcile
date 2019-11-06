@@ -1,4 +1,4 @@
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 from jira import JIRA
 
@@ -6,17 +6,17 @@ from jira import JIRA
 class JiraClient(object):
     """Wrapper around Jira client"""
 
-    def __init__(self, jira_board):
+    def __init__(self, jira_board, settings=None):
         self.project = jira_board['name']
         self.server = jira_board['serverUrl']
         token = jira_board['token']
-        oauth = self.get_oauth_secret(token)
+        oauth = self.get_oauth_secret(token, settings)
         self.jira = JIRA(self.server, oauth=oauth)
 
-    def get_oauth_secret(self, token):
+    def get_oauth_secret(self, token, settings):
         required_keys = ['access_token', 'access_token_secret',
                          'consumer_key', 'key_cert']
-        secret = vault_client.read_all(token)
+        secret = secret_reader.read_all(token, settings)
         oauth = {k: v for k, v in secret.items() if k in required_keys}
         ok = all(elem in oauth.keys() for elem in required_keys)
         if not ok:

@@ -41,7 +41,8 @@ def cleanup(working_dirs):
 def run(dry_run=False, thread_pool_size=10,
         disable_service_account_keys=False, defer=None):
     accounts = queries.get_aws_accounts()
-    aws = AWSApi(thread_pool_size, accounts)
+    settings = queries.get_app_interface_settings()
+    aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size)
     defer(lambda: cleanup(working_dirs))

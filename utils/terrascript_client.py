@@ -8,7 +8,7 @@ import logging
 
 import utils.gql as gql
 import utils.threaded as threaded
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
@@ -37,13 +37,13 @@ class UnknownProviderError(Exception):
 
 class TerrascriptClient(object):
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, oc_map=None):
+                 thread_pool_size, accounts, oc_map=None, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
-        self.populate_configs_from_vault(filtered_accounts)
+        self.populate_configs(filtered_accounts, settings)
         tss = {}
         locks = {}
         for name, config in self.configs.items():
@@ -81,16 +81,16 @@ class TerrascriptClient(object):
                 filtered_accounts.append(account)
         return filtered_accounts
 
-    def populate_configs_from_vault(self, accounts):
-        results = threaded.run(self.get_vault_tf_secrets, accounts,
-                               self.thread_pool_size)
+    def populate_configs(self, accounts, settings):
+        results = threaded.run(self.get_tf_secrets, accounts,
+                               self.thread_pool_size, settings=settings)
         self.configs = {account: secret for account, secret in results}
 
     @staticmethod
-    def get_vault_tf_secrets(account):
+    def get_tf_secrets(account, settings=None):
         account_name = account['name']
         automation_token = account['automationToken']
-        secret = vault_client.read_all(automation_token)
+        secret = secret_reader.read_all(automation_token, settings)
         return (account_name, secret)
 
     def get_tf_iam_group(self, group_name):

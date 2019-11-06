@@ -1,6 +1,6 @@
 import smtplib
 
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 from utils.config import get_config
 
@@ -36,13 +36,13 @@ def teardown():
     _client.quit()
 
 
-def init_from_config():
+def init_from_config(settings):
     global _username
     global _mail_address
 
     config = get_config()
     smtp_secret_path = config['smtp']['secret_path']
-    smtp_config = config_from_vault(smtp_secret_path)
+    smtp_config = get_smtp_config(smtp_secret_path, settings)
     host = smtp_config['server']
     port = smtp_config['port']
     _username = smtp_config['username']
@@ -52,11 +52,11 @@ def init_from_config():
     return init(host, port, _username, password)
 
 
-def config_from_vault(vault_path):
+def get_smtp_config(path, settings):
     config = {}
 
     required_keys = ('password', 'port', 'require_tls', 'server', 'username')
-    data = vault_client.read_all({'path': vault_path})
+    data = secret_reader.read_all({'path': path}, settings=settings)
 
     try:
         for k in required_keys:
@@ -68,13 +68,13 @@ def config_from_vault(vault_path):
     return config
 
 
-def send_mail(name, subject, body):
+def send_mail(name, subject, body, settings=None):
     global _client
     global _username
     global _mail_address
 
     if _client is None:
-        init_from_config()
+        init_from_config(settings)
 
     msg = MIMEMultipart()
     from_name = str(Header('App SRE team automation', 'utf-8'))
@@ -90,10 +90,10 @@ def send_mail(name, subject, body):
     _client.sendmail(_username, to, msg.as_string())
 
 
-def send_mails(mails):
+def send_mails(mails, settings=None):
     global _client
 
-    init_from_config()
+    init_from_config(settings)
     try:
         for name, subject, body in mails:
             send_mail(name, subject, body)
