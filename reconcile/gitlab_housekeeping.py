@@ -77,12 +77,22 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit):
+    HOLD_LABELS = [
+        'blocked/devtools-bot-access',
+        'do-not-merge/hold',
+        'awaiting-approval',
+        'stale'
+    ]
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for mr in reversed(mrs):
         if mr.merge_status == 'cannot_be_merged':
             continue
         if mr.work_in_progress:
+            continue
+        labels = mr.attributes.get('labels')
+        hold_rebase = any(l in HOLD_LABELS for l in labels)
+        if hold_rebase:
             continue
 
         target_branch = mr.target_branch
@@ -121,7 +131,7 @@ def merge_merge_requests(dry_run, gl, merge_limit):
         if not labels:
             continue
 
-        good_to_merge = all(elem in MERGE_LABELS for elem in labels)
+        good_to_merge = all(l in MERGE_LABELS for l in labels)
         if not good_to_merge:
             continue
 
