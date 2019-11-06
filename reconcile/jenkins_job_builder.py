@@ -31,7 +31,8 @@ QUERY = """
 def init_jjb():
     gqlapi = gql.get_api()
     configs = gqlapi.query(QUERY)['jenkins_configs']
-    return JJB(configs, ssl_verify=False)
+    settings = queries.get_app_interface_settings()
+    return JJB(configs, ssl_verify=False, settings=settings)
 
 
 def validate_repos(jjb):
