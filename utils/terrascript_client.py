@@ -16,7 +16,8 @@ from reconcile.exceptions import FetchResourceError
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output
-from terrascript.aws.r import (aws_db_instance, aws_s3_bucket, aws_iam_user,
+from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
+                               aws_s3_bucket, aws_iam_user,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
@@ -309,6 +310,18 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        parameter_group = values.pop('parameter_group')
+        if parameter_group:
+            pg_values = self.get_values(parameter_group)
+            pg_name = pg_values['name']
+            pg_identifier = pg_values.pop('identifier') or pg_name
+            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_tf_resource = \
+                aws_db_parameter_group(pg_identifier, **pg_values)
+            tf_resources.append(pg_tf_resource)
+            values['depends_on'] = [pg_tf_resource]
+            values['parameter_group_name'] = pg_name
+
         try:
             password = \
                 existing_secrets[account][output_prefix]['db.password']
@@ -356,7 +369,7 @@ class TerrascriptClient(object):
                                             output_resource_name)
         if existing_oc_resource is not None:
             enc_password = existing_oc_resource['data'][secret_key]
-            return base64.b64decode(enc_password)
+            return base64.b64decode(enc_password).decode('utf-8')
         return self.generate_random_password()
 
         # TODO: except KeyError?
