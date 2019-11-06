@@ -29,7 +29,7 @@ class AWSApi(object):
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
     def init_sessions_and_resources(self, accounts):
-        results = threaded.run(self.get_vault_tf_secrets, accounts,
+        results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
         self.sessions = {}
         self.resources = {}
@@ -48,8 +48,7 @@ class AWSApi(object):
     def get_session(self, account):
         return self.sessions[account]
 
-    @staticmethod
-    def get_vault_tf_secrets(account):
+    def get_tf_secrets(self, account):
         account_name = account['name']
         automation_token = account['automationToken']
         secret = secret_reader.read_all(automation_token,
