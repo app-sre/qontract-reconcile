@@ -102,6 +102,32 @@ NAMESPACES_QUERY = """
         serviceaccountName
       }
     }
+    limitRanges {
+      name
+      limits {
+        default {
+          cpu
+          memory
+        }
+        defaultRequest {
+          cpu
+          memory
+        }
+        max {
+          cpu
+          memory
+        }
+        maxLimitRequestRatio {
+          cpu
+          memory
+        }
+        min {
+          cpu
+          memory
+        }
+        type
+      }
+    }
   }
 }
 """
