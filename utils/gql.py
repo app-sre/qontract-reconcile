@@ -87,14 +87,15 @@ def get_sha_url(server, token=None):
     return f'{server}/{sha}'
 
 
-def init_from_config():
+def init_from_config(sha_url=True):
     config = get_config()
 
     server = config['graphql']['server']
     token = config['graphql'].get('token')
-    server_with_sha = get_sha_url(server, token)
+    if sha_url:
+        server = get_sha_url(server, token)
 
-    return init(server_with_sha, token)
+    return init(server, token)
 
 
 def get_api():
