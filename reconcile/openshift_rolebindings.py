@@ -83,7 +83,10 @@ def construct_sa_oc_resource(role, namespace, sa_name):
               error_details=name), name
 
 
-def fetch_desired_state(roles, ri):
+def fetch_desired_state(ri):
+    gqlapi = gql.get_api()
+    roles = gqlapi.query(ROLES_QUERY)['roles']
+    users_desired_state = []
     for role in roles:
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
@@ -106,6 +109,14 @@ def fetch_desired_state(roles, ri):
 
         for permission in permissions:
             for user in users:
+                # used by openshift-users and github integrations
+                # this is just to simplify things a bit on the their side
+                users_desired_state.append({
+                    'cluster': permission['cluster'],
+                    'user': user
+                })
+                if ri is None:
+                    continue
                 oc_resource, resource_name = \
                     construct_user_oc_resource(permission['role'], user)
                 try:
@@ -121,6 +132,8 @@ def fetch_desired_state(roles, ri):
                     # from multiple app-interface roles
                     pass
             for sa in service_accounts:
+                if ri is None:
+                    continue
                 namespace, sa_name = sa.split('/')
                 oc_resource, resource_name = \
                     construct_sa_oc_resource(
@@ -138,6 +151,8 @@ def fetch_desired_state(roles, ri):
                     # from multiple app-interface roles
                     pass
 
+    return users_desired_state
+
 
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
@@ -151,6 +166,5 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
                                QONTRACT_INTEGRATION_VERSION,
                                override_managed_types=['RoleBinding'])
     defer(lambda: oc_map.cleanup())
-    roles = gqlapi.query(ROLES_QUERY)['roles']
-    fetch_desired_state(roles, ri)
+    fetch_desired_state(ri)
     ob.realize_data(dry_run, oc_map, ri)
