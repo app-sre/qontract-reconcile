@@ -3,6 +3,7 @@ import logging
 import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
@@ -46,7 +47,9 @@ def get_desired_state():
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(QUERY)['namespaces']
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
     ob.init_specs_to_fetch(
         ri,
         oc_map,

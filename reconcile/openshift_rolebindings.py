@@ -5,6 +5,7 @@ import copy
 import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
@@ -85,7 +86,9 @@ def fetch_current_state(thread_pool_size):
     namespaces = [namespace_info for namespace_info
                   in namespaces
                   if namespace_info.get('managedRoles')]
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
 
     state_specs = \
         ob.init_specs_to_fetch(

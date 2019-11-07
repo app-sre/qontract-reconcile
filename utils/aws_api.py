@@ -6,7 +6,7 @@ import os
 import time
 
 import utils.threaded as threaded
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 import utils.lean_terraform_client as terraform
 
 from threading import Lock
@@ -19,8 +19,9 @@ class InvalidResourceTypeError(Exception):
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
-    def __init__(self, thread_pool_size, accounts):
+    def __init__(self, thread_pool_size, accounts, settings=None):
         self.thread_pool_size = thread_pool_size
+        self.settings = settings
         self.init_sessions_and_resources(accounts)
         self.init_users()
         self._lock = Lock()
@@ -28,7 +29,7 @@ class AWSApi(object):
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
     def init_sessions_and_resources(self, accounts):
-        results = threaded.run(self.get_vault_tf_secrets, accounts,
+        results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
         self.sessions = {}
         self.resources = {}
@@ -47,11 +48,11 @@ class AWSApi(object):
     def get_session(self, account):
         return self.sessions[account]
 
-    @staticmethod
-    def get_vault_tf_secrets(account):
+    def get_tf_secrets(self, account):
         account_name = account['name']
         automation_token = account['automationToken']
-        secret = vault_client.read_all(automation_token)
+        secret = secret_reader.read_all(automation_token,
+                                        settings=self.settings)
         return (account_name, secret)
 
     def init_users(self):

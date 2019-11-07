@@ -116,7 +116,9 @@ def populate_oc_resources(spec, ri):
 
 def fetch_current_state(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,
@@ -130,12 +132,13 @@ def fetch_current_state(namespaces, thread_pool_size):
 
 
 def init_working_dirs(accounts, thread_pool_size,
-                      print_only=False, oc_map=None):
+                      print_only=False, oc_map=None, settings=None):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     oc_map)
+                     oc_map,
+                     settings=settings)
     working_dirs = ts.dump(print_only)
     return ts, working_dirs
 
@@ -143,13 +146,15 @@ def init_working_dirs(accounts, thread_pool_size,
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
+    settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
     ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
-                                         oc_map=oc_map)
+                                         oc_map=oc_map,
+                                         settings=settings)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,

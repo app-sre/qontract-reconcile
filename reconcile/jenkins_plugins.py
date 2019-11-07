@@ -1,6 +1,7 @@
 import logging
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.jenkins_api import JenkinsApi
 
@@ -22,6 +23,7 @@ INSTANCES_QUERY = """
 def get_jenkins_map():
     gqlapi = gql.get_api()
     jenkins_instances = gqlapi.query(INSTANCES_QUERY)['instances']
+    settings = queries.get_app_interface_settings()
 
     jenkins_map = {}
     for instance in jenkins_instances:
@@ -33,7 +35,7 @@ def get_jenkins_map():
             continue
 
         token = instance['token']
-        jenkins = JenkinsApi(token, False)
+        jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map

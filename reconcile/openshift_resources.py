@@ -11,6 +11,7 @@ import utils.threaded as threaded
 import utils.vault_client as vault_client
 import utils.openssl as openssl
 import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
 from utils.oc import OC_Map
 from utils.defer import defer
@@ -435,7 +436,9 @@ def fetch_states(spec, ri):
 
 def fetch_data(namespaces, thread_pool_size):
     ri = ResourceInventory()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
     state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 

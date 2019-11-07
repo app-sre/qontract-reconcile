@@ -1,10 +1,12 @@
 import logging
 import os
 
-import utils.raw_github_api
-import utils.vault_client as vault_client
-from utils.config import get_config
 import utils.gql as gql
+import utils.raw_github_api
+import utils.secret_reader as secret_reader
+import reconcile.queries as queries
+
+from utils.config import get_config
 
 
 REPOS_QUERY = """
@@ -20,15 +22,14 @@ REPOS_QUERY = """
 
 
 def run(dry_run):
-    config = get_config()['github-repo-invites']
-    token = vault_client.read(
-        {'path': config['secret_path'],
-         'field': config['secret_field']})
-
-    g = utils.raw_github_api.RawGithubApi(token)
-
     gqlapi = gql.get_api()
     result = gqlapi.query(REPOS_QUERY)
+    config = get_config()['github-repo-invites']
+    settings = queries.get_app_interface_settings()
+    secret = {'path': config['secret_path'],
+              'field': config['secret_field']}
+    token = secret_reader.read(secret, settings=settings)
+    g = utils.raw_github_api.RawGithubApi(token)
 
     urls = []
     for app in result['apps_v1']:

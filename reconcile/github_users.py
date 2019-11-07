@@ -5,6 +5,7 @@ import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
 import reconcile.pull_request_gateway as prg
+import reconcile.queries as queries
 
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
@@ -53,7 +54,7 @@ def get_users_to_delete(results):
             if u['username'] in org_usernames_to_delete]
 
 
-def send_email_notification(user):
+def send_email_notification(user, settings):
     msg_template = '''
 Hello,
 
@@ -77,7 +78,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     subject = 'App-Interface compliance - GitHub profile'
     body = msg_template
 
-    smtp_client.send_mail(to, subject, body)
+    smtp_client.send_mail(to, subject, body, settings=settings)
 
 
 def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
@@ -92,6 +93,7 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
 
     if not dry_run and enable_deletion:
         gw = prg.init(gitlab_project_id=gitlab_project_id)
+        settings = queries.get_app_interface_settings()
 
     for user in users_to_delete:
         username = user['username']
@@ -100,7 +102,7 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
 
         if not dry_run:
             if send_mails:
-                send_email_notification(user)
+                send_email_notification(user, settings)
             elif enable_deletion:
                 gw.create_delete_user_mr(username, paths)
             else:

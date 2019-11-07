@@ -3,8 +3,9 @@ from github import Github
 from github.GithubObject import NotSet
 
 import utils.gql as gql
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 import reconcile.openshift_users as openshift_users
+import reconcile.queries as queries
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.raw_github_api import RawGithubApi
@@ -74,11 +75,12 @@ CLUSTERS_QUERY = """
 def get_config():
     gqlapi = gql.get_api()
     orgs = gqlapi.query(ORGS_QUERY)['orgs']
+    settings = queries.get_app_interface_settings()
 
     config = {'github': {}}
     for org in orgs:
         org_name = org['name']
-        token = vault_client.read(org['token'])
+        token = secret_reader.read(org['token'], settings=settings)
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
 
@@ -175,7 +177,8 @@ def fetch_desired_state(infer_clusters=True):
         return state
 
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = OC_Map(clusters=clusters)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(clusters=clusters, settings=settings)
     defer(lambda: oc_map.cleanup())
     openshift_users_desired_state = \
         openshift_users.fetch_desired_state(oc_map)

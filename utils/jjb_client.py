@@ -7,23 +7,24 @@ import filecmp
 import subprocess
 import difflib
 import xml.etree.ElementTree as et
-import utils.vault_client as vault_client
-import utils.gql as gql
 
-from reconcile.exceptions import FetchResourceError
+import utils.secret_reader as secret_reader
+import utils.gql as gql
 
 from os import path
 from contextlib import contextmanager
-
 from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
+
+from reconcile.exceptions import FetchResourceError
 
 
 class JJB(object):
     """Wrapper around Jenkins Jobs"""
 
-    def __init__(self, configs, ssl_verify=True):
+    def __init__(self, configs, ssl_verify=True, settings=None):
+        self.settings = settings
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
@@ -41,7 +42,7 @@ class JJB(object):
             token = data['token']
             server_url = data['serverUrl']
             wd = tempfile.mkdtemp()
-            ini = vault_client.read(token)
+            ini = secret_reader.read(token, settings=self.settings)
             ini = ini.replace('"', '')
             ini = ini.replace('false', 'False')
             ini_file_path = '{}/{}.ini'.format(wd, name)

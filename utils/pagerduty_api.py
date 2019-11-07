@@ -2,14 +2,14 @@ import pypd
 import datetime
 import requests
 
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 
 class PagerDutyApi(object):
     """Wrapper around PagerDuty API calls"""
 
-    def __init__(self, token):
-        pd_api_key = vault_client.read(token)
+    def __init__(self, token, settings=None):
+        pd_api_key = secret_reader.read(token, settings=settings)
         pypd.api_key = pd_api_key
 
     def get_pagerduty_users(self, resource_type, resource_id):

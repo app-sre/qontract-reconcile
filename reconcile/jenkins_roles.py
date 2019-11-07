@@ -1,6 +1,7 @@
 import logging
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.jenkins_api import JenkinsApi
 
@@ -50,6 +51,7 @@ ROLES_QUERY = """
 def get_jenkins_map():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
+    settings = queries.get_app_interface_settings()
 
     jenkins_permissions = \
         [p for p in permissions if p['service'] == 'jenkins-role']
@@ -62,7 +64,7 @@ def get_jenkins_map():
             continue
 
         token = instance['token']
-        jenkins = JenkinsApi(token, False)
+        jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
         jenkins_map[instance_name] = jenkins
 
     return jenkins_map

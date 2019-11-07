@@ -1,12 +1,12 @@
 import logging
 import uuid
-from datetime import datetime
-
 import gitlab
 import urllib3
 import ruamel.yaml as yaml
 
-import utils.vault_client as vault_client
+from datetime import datetime
+
+import utils.secret_reader as secret_reader
 
 
 # The following line will supress
@@ -15,9 +15,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class GitLabApi(object):
-    def __init__(self, instance, project_id=None, ssl_verify=True):
+    def __init__(self, instance, project_id=None, ssl_verify=True,
+                 settings=None):
         self.server = instance['url']
-        token = vault_client.read(instance['token'])
+        token = secret_reader.read(instance['token'], settings=settings)
         ssl_verify = instance['sslVerify']
         if ssl_verify is None:
             ssl_verify = True

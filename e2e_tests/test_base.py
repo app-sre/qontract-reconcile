@@ -2,6 +2,7 @@ import datetime
 import logging
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.oc import OC_Map
 
@@ -40,7 +41,8 @@ E2E_NS_PFX = 'e2e-test'
 def get_oc_map(test_name):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    return OC_Map(clusters=clusters, e2e_test=test_name)
+    settings = queries.get_app_interface_settings()
+    return OC_Map(clusters=clusters, e2e_test=test_name, settings=settings)
 
 def get_test_namespace_name():
     return '{}-{}'.format(

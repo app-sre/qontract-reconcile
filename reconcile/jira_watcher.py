@@ -3,6 +3,7 @@ import json
 import logging
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.jira_client import JiraClient
 from utils.slack_api import SlackApi
@@ -95,7 +96,9 @@ def init_slack(jira_board):
     icon_emoji = \
         ':{}:'.format(slack_info.get('icon_emoji', 'jira'))
     username = slack_info.get('username', 'Jira')
+    settings = queries.get_app_interface_settings()
     slack = SlackApi(slack_info['token'],
+                     settings=settings,
                      channel=channel,
                      icon_emoji=icon_emoji,
                      username=username)

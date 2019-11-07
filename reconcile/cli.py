@@ -14,7 +14,6 @@ import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
-import reconcile.openshift_resources_annotate
 import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
@@ -373,17 +372,6 @@ def quay_repos(ctx):
 def ldap_users(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.ldap_users.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size)
-
-
-@integration.command()
-@click.argument('cluster')
-@click.argument('namespace')
-@click.argument('kind')
-@click.argument('name')
-@click.pass_context
-def openshift_resources_annotate(ctx, cluster, namespace, kind, name):
-    run_integration(reconcile.openshift_resources_annotate.run,
-                    ctx.obj['dry_run'], cluster, namespace, kind, name)
 
 
 @integration.command()

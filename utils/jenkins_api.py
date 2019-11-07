@@ -2,14 +2,14 @@ import toml
 import requests
 import logging
 
-import utils.vault_client as vault_client
+import utils.secret_reader as secret_reader
 
 
 class JenkinsApi(object):
     """Wrapper around Jenkins API calls"""
 
-    def __init__(self, token, ssl_verify=True):
-        token_config = vault_client.read(token)
+    def __init__(self, token, ssl_verify=True, settings=None):
+        token_config = secret_reader.read(token, settings=settings)
         config = toml.loads(token_config)
 
         self.url = config['jenkins']['url']

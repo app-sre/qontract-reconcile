@@ -160,7 +160,8 @@ def merge_merge_requests(dry_run, gl, merge_limit):
 def run(gitlab_project_id, dry_run=False, days_interval=15,
         enable_closing=False, limit=1):
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance, project_id=gitlab_project_id)
+    settings = queries.get_app_interface_settings()
+    gl = GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'issue')
     handle_stale_items(dry_run, gl, days_interval, enable_closing,

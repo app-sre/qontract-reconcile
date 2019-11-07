@@ -44,6 +44,7 @@ QONTRACT_TF_PREFIX = 'qrtf'
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
+    settings = queries.get_app_interface_settings()
     roles = gqlapi.query(TF_QUERY)['roles']
     tf_roles = [r for r in roles
                 if r['aws_groups'] is not None
@@ -51,7 +52,8 @@ def setup(print_only, thread_pool_size):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
-                     accounts)
+                     accounts,
+                     settings=settings)
     err = ts.populate_users(tf_roles)
     if err:
         return None, err
@@ -61,7 +63,7 @@ def setup(print_only, thread_pool_size):
     return working_dirs
 
 
-def send_email_invites(new_users):
+def send_email_invites(new_users, settings):
     msg_template = '''
 You have been invited to join the {} AWS account!
 Below you will find credentials for the first sign in.
@@ -87,7 +89,7 @@ Encrypted password: {}
                                    user_name, enc_password)
         mails.append((to, subject, body))
 
-    smtp_client.send_mails(mails)
+    smtp_client.send_mails(mails, settings=settings)
 
 
 def cleanup_and_exit(tf=None, status=False):
@@ -131,6 +133,7 @@ def run(dry_run=False, print_only=False,
 
     if send_mails:
         new_users = tf.get_new_users()
-        send_email_invites(new_users)
+        settings = queries.get_app_interface_settings()
+        send_email_invites(new_users, settings)
 
     cleanup_and_exit(tf)

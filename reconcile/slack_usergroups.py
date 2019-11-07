@@ -3,6 +3,7 @@ import anymarkup
 import requests
 
 import utils.gql as gql
+import reconcile.queries as queries
 
 from utils.slack_api import SlackApi
 from utils.pagerduty_api import PagerDutyApi
@@ -84,6 +85,7 @@ def get_permissions():
 
 
 def get_slack_map():
+    settings = queries.get_app_interface_settings()
     permissions = get_permissions()
     slack_map = {}
     for sp in permissions:
@@ -93,7 +95,7 @@ def get_slack_map():
             continue
 
         workspace_spec = {
-            "slack": SlackApi(workspace['token']),
+            "slack": SlackApi(workspace['token'], settings=settings),
             "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec
@@ -129,6 +131,7 @@ def get_pagerduty_name(user):
 
 
 def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
+    settings = queries.get_app_interface_settings()
     all_slack_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties or []:
@@ -142,7 +145,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
             pd_resource_type = 'escalationPolicy'
             pd_resource_id = pd_escalation_policy_id
 
-        pd = PagerDutyApi(pd_token)
+        pd = PagerDutyApi(pd_token, settings=settings)
         pagerduty_names = pd.get_pagerduty_users(pd_resource_type,
                                                  pd_resource_id)
         if not pagerduty_names:

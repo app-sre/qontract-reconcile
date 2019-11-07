@@ -4,6 +4,7 @@ import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
 import reconcile.openshift_rolebindings as openshift_rolebindings
+import reconcile.queries as queries
 
 from utils.oc import OC_Map
 from utils.defer import defer
@@ -53,7 +54,9 @@ def get_cluster_users(cluster, oc_map):
 def fetch_current_state(thread_pool_size):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION)
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                    settings=settings)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]

@@ -139,7 +139,8 @@ def act(diff, gl):
 
 def run(dry_run=False):
     instance = queries.get_gitlab_instance()
-    gl = GitLabApi(instance)
+    settings = queries.get_app_interface_settings()
+    gl = GitLabApi(instance, settings=settings)
     current_state = get_current_state(instance, gl)
     desired_state = get_desired_state(instance, gl)
     diffs = calculate_diff(current_state, desired_state)
