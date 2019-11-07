@@ -1,4 +1,5 @@
 import json
+import requests
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
@@ -78,13 +79,22 @@ def init(url, token=None):
     return _gqlapi
 
 
+def get_sha_url(server, token=None):
+    sha_endpoint = server.replace('graphql', 'sha256')
+    headers = {'Authorization': token} if token else None
+    r = requests.get(sha_endpoint, headers=headers)
+    sha = r.content.decode('utf-8')
+    return f'{server}/{sha}'
+
+
 def init_from_config():
     config = get_config()
 
     server = config['graphql']['server']
     token = config['graphql'].get('token')
+    server_with_sha = get_sha_url(server, token)
 
-    return init(server, token)
+    return init(server_with_sha, token)
 
 
 def get_api():
