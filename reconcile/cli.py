@@ -10,6 +10,7 @@ import reconcile.github_scanner
 import reconcile.openshift_acme
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
+import reconcile.openshift_limitranges
 import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
@@ -350,6 +351,15 @@ def openshift_network_policies(ctx, thread_pool_size):
 @click.pass_context
 def openshift_acme(ctx, thread_pool_size):
     run_integration(reconcile.openshift_acme.run,
+                    ctx.obj['dry_run'], thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@click.pass_context
+def openshift_limitranges(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_limitranges.run,
                     ctx.obj['dry_run'], thread_pool_size)
 
 
