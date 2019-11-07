@@ -150,18 +150,6 @@ class OC(object):
         cmd = ['adm', 'groups', 'remove-users', group, user]
         self._run(cmd)
 
-    def add_role_to_user(self, namespace, role, user, kind):
-        if kind == 'ServiceAccount':
-            user = self.get_service_account_username(user)
-        cmd = ['policy', '-n', namespace, 'add-role-to-user', role, user]
-        self._run(cmd)
-
-    def remove_role_from_user(self, namespace, role, user, kind):
-        if kind == 'ServiceAccount':
-            user = self.get_service_account_username(user)
-        cmd = ['policy', '-n', namespace, 'remove-role-from-user', role, user]
-        self._run(cmd)
-
     @staticmethod
     def get_service_account_username(user):
         namespace = user.split('/')[0]

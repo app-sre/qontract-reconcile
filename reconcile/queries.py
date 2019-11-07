@@ -68,6 +68,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    managedRoles
     cluster {
       name
       serverUrl
