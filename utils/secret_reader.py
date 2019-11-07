@@ -1,4 +1,5 @@
 import utils.vault_client as vault_client
+import utils.config as config
 
 
 def read(secret, settings=None):
@@ -22,8 +23,7 @@ def read(secret, settings=None):
     if settings and settings.get('vault'):
         return vault_client.read(secret)
     else:
-        raise NotImplementedError(
-            'reading secrets from a config file is not yet implemented')
+        return config.read(secret)
 
 
 def read_all(secret, settings=None):
@@ -46,5 +46,4 @@ def read_all(secret, settings=None):
     if settings and settings.get('vault'):
         return vault_client.read_all(secret)
     else:
-        raise NotImplementedError(
-            'reading secrets from a config file is not yet implemented')
+        return config.read_all(secret)
