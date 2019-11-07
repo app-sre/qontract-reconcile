@@ -24,6 +24,13 @@ SUPPORTED_LIMITRANGE_TYPES = (
 
 def construct_resources(namespaces):
     for namespace in namespaces:
+        if 'limitRanges' not in namespace:
+            logging.warning(
+                "limitRanges key not found on namespace %s. Skipping." %
+                (namespace['name'])
+            )
+            continue
+
         # Get the linked limitRanges schema settings
         limitranges = namespace.get("limitRanges", {})
 
@@ -56,6 +63,8 @@ def construct_resources(namespaces):
 
 def add_desired_state(namespaces, ri):
     for namespace in namespaces:
+        if 'resources' not in namespace:
+            continue
         for resource in namespace["resources"]:
             ri.add_desired(
                 namespace['cluster']['name'],
@@ -101,9 +110,9 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
                                QONTRACT_INTEGRATION,
                                QONTRACT_INTEGRATION_VERSION,
                                override_managed_types=['LimitRange'])
+    defer(lambda: oc_map.cleanup())
+
     add_desired_state(namespaces, ri)
     set_delete_state(namespaces, ri)
-
-    defer(lambda: oc_map.cleanup())
 
     ob.realize_data(dry_run, oc_map, ri, enable_deletion=True)
