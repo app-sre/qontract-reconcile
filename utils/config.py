@@ -35,6 +35,7 @@ def read(secret):
         raise SecretNotFound(
             f'key not found in config file {path}: {str(e)}')
 
+
 def read_all(secret):
     path = secret['path']
     try:
