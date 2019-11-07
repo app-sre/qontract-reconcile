@@ -55,6 +55,11 @@ def construct_resources(namespaces):
 
         resource = OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
 
+        # k8s changes an empty array to null/None. we do this here
+        # to be consistent
+        if len(body['spec']['limits']) == 0:
+            body['spec']['limits'] = None
+        
         # Create the resources and append them to the namespace
         namespace["resources"] = [resource]
 
