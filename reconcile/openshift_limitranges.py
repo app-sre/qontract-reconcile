@@ -59,7 +59,7 @@ def construct_resources(namespaces):
         # to be consistent
         if len(body['spec']['limits']) == 0:
             body['spec']['limits'] = None
-        
+
         # Create the resources and append them to the namespace
         namespace["resources"] = [resource]
 
