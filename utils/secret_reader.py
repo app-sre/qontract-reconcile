@@ -12,7 +12,8 @@ def read(secret, settings=None):
       * Note: if this is Vault secret and a v2 KV engine
 
     The input settings is an optional app-interface-settings object
-    queried from app-interface.
+    queried from app-interface. It is a dictionary containing `value: true`
+    if Vault is to be used as the secret backend.
 
     Default vault setting is false, to allow using a config file
     without creating app-interface-settings.
