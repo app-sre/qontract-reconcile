@@ -65,14 +65,8 @@ def fetch_current_state(thread_pool_size):
 
 def fetch_desired_state(oc_map):
     desired_state = []
-
-    rolebindings_desired_state = \
-        openshift_rolebindings.fetch_desired_state(oc_map)
     flat_rolebindings_desired_state = \
-        [{'cluster': s['params']['cluster'], 'user': u}
-         for s in rolebindings_desired_state.dump()
-         for u in s['items']
-         if s['params']['kind'] == 'User']
+        openshift_rolebindings.fetch_desired_state(ri=None)
     desired_state.extend(flat_rolebindings_desired_state)
 
     groups_desired_state = openshift_groups.fetch_desired_state(oc_map)
