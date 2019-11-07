@@ -1,4 +1,3 @@
-import logging
 import semver
 
 import utils.gql as gql
