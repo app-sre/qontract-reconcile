@@ -80,23 +80,6 @@ def add_desired_state(namespaces, ri):
             )
 
 
-def set_delete_state(namespaces, ri):
-    for cluster, namespace, resource_type, data in ri:
-        for name, c_item in data['current'].items():
-
-            # look if resource is present in the ones we want to apply
-            for ns in namespaces:
-                if not ns['name'] == namespace:
-                    continue
-                if not name == ns['limitRanges']['name']:
-                    # if resource is not the one we want to apply...
-                    # set fake annotations as if we owned it
-                    c_item = c_item.annotate()
-                    # re-add to inventory
-                    ri.add_current(cluster, namespace,
-                                   resource_type, name, c_item)
-
-
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
     gqlapi = gql.get_api()
@@ -118,6 +101,4 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri)
-    set_delete_state(namespaces, ri)
-
-    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True, take_over=True)

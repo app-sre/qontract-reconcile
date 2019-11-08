@@ -199,8 +199,8 @@ def realize_data(dry_run, oc_map, ri,
                 continue
 
             if not c_item.has_qontract_annotations():
-                continue
-
+                if not take_over:
+                    continue
             try:
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)
