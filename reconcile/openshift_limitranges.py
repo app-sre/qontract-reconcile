@@ -81,7 +81,7 @@ def add_desired_state(namespaces, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, take_over=True, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -101,4 +101,4 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri)
-    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True, take_over=True)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True, take_over=take_over)
