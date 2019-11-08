@@ -190,7 +190,7 @@ class OpenshiftResource(object):
                 if 'namespace' in subject:
                     subject.pop('namespace')
                 if 'apiGroup' in subject and \
-                        (subject['apiGroup'] == '' or 
+                        (subject['apiGroup'] == '' or
                             subject['apiGroup'] in body['apiVersion']):
                     subject.pop('apiGroup')
             if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
