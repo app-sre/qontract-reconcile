@@ -128,7 +128,7 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:
-        logging.info(diff.values())
+        logging.info(list(diff.values()))
 
         if not dry_run:
             act(diff, oc_map)
