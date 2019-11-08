@@ -107,8 +107,8 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     namespaces = construct_resources(namespaces)
 
     if not namespaces:
-        logging.warning("No LimitRanges definition found in app-interface!")
-        sys.exit(1)
+        logging.debug("No LimitRanges definition found in app-interface!")
+        sys.exit(0)
 
     ri, oc_map = \
         ob.fetch_current_state(namespaces, thread_pool_size,
