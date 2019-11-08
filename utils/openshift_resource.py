@@ -182,17 +182,19 @@ class OpenshiftResource(object):
                 if 'namespace' in roleRef:
                     roleRef.pop('namespace')
                 if 'apiGroup' in roleRef and \
-                        roleRef['apiGroup'] == body['apiVersion']:
+                        roleRef['apiGroup'] in body['apiVersion']:
                     roleRef.pop('apiGroup')
-                if 'kind' in roleRef and \
-                        roleRef['kind'] == 'Role':
+                if 'kind' in roleRef:
                     roleRef.pop('kind')
             for subject in body['subjects']:
                 if 'namespace' in subject:
                     subject.pop('namespace')
                 if 'apiGroup' in subject and \
-                        subject['apiGroup'] == '':
+                        (subject['apiGroup'] == '' or
+                            subject['apiGroup'] in body['apiVersion']):
                     subject.pop('apiGroup')
+            if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
+                body['apiVersion'] = 'authorization.openshift.io/v1'
 
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
