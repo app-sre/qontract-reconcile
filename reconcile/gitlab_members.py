@@ -146,7 +146,7 @@ def run(dry_run=False):
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:
-        logging.info(diff.values())
+        logging.info(list(diff.values()))
 
         if not dry_run:
             act(diff, gl)
