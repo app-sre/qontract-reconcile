@@ -35,7 +35,8 @@ QONTRACT_INTEGRATION = 'jira-watcher'
 
 
 def fetch_current_state(jira_board):
-    jira = JiraClient(jira_board)
+    settings = queries.get_app_interface_settings()
+    jira = JiraClient(jira_board, settings=settings)
     issues = jira.get_issues()
     return jira, {issue.key: issue.fields.status.name for issue in issues}
 
