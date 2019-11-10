@@ -103,3 +103,27 @@ class JenkinsApi(object):
             )
 
             res.raise_for_status()
+
+    def get_build_history(self, job_name):
+        url = f"{self.url}/job/{job_name}/api/json"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        builds = res.json()['builds']
+        return [b['url'] for b in builds]
+
+    def get_build(self, build_url):
+        url = f"{build_url}/api/json"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        result = res.json()
+        return result['result'], result['timestamp']

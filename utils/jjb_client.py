@@ -6,13 +6,14 @@ import logging
 import filecmp
 import subprocess
 import difflib
+import time
 import xml.etree.ElementTree as et
-
 import utils.secret_reader as secret_reader
 import utils.gql as gql
 
 from os import path
 from contextlib import contextmanager
+from dateutil.relativedelta import relativedelta
 from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
@@ -277,3 +278,26 @@ class JJB(object):
                 except KeyError:
                     logging.debug('missing github url: {}'.format(job_name))
         return repos
+
+    def get_jobs_history(self, jenkins_map, job_type='', month_delta=1):
+        print(time.time())
+        time_limit = \
+            int(time.time() * 1000) - relativedelta(months=month_delta).seconds
+        history = []
+        for name, wd in self.working_dirs.items():
+            logging.info(f'getting jobs from {name}')
+            jobs = self.get_jobs(wd, name)
+            jenkins = jenkins_map[name]
+            for job in jobs:
+                job_name = job['name']
+                if job_type not in job_name:
+                    continue
+                logging.info(f'getting build history for {job_name}')
+                build_history = jenkins.get_build_history(job_name)
+                for build in build_history:
+                    status, timestamp = jenkins.get_build(build)
+                    print(timestamp)
+                    print(time_limit)
+                    print(status)
+                    if timestamp < time_limit:
+                        break

@@ -142,12 +142,21 @@ def get_aws_accounts():
 APPS_QUERY = """
 {
   apps: apps_v1 {
+    path
+    name
     codeComponents {
-        url
+      url
+      resource
     }
   }
 }
 """
+
+
+def get_apps():
+  """ Returns all apps along with their codeComponents """
+  gqlapi = gql.get_api()
+  return gqlapi.query(APPS_QUERY)['apps']
 
 
 def get_repos(server=''):

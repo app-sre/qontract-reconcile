@@ -30,9 +30,6 @@ def get_jenkins_map():
         instance_name = instance['name']
         if instance_name in jenkins_map:
             continue
-        instance_plugins = instance['plugins']
-        if not instance_plugins:
-            continue
 
         token = instance['token']
         jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
