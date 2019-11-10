@@ -101,4 +101,5 @@ def run(dry_run=False, thread_pool_size=10, take_over=True, defer=None):
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri)
-    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True, take_over=take_over)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True,
+                    take_over=take_over)

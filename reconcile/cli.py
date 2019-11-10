@@ -83,7 +83,7 @@ def threaded(**kwargs):
 
 def take_over(**kwargs):
     def f(function):
-        help_msg = 'manage resources exclusively (take over existing resources).'
+        help_msg = 'manage resources exclusively (take over existing ones).'
         function = click.option('--take-over/--no-take-over',
                                 help=help_msg,
                                 default=True)(function)
