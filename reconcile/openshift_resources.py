@@ -452,6 +452,11 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     oc_map, ri = fetch_data(namespaces, thread_pool_size)
     defer(lambda: oc_map.cleanup())
 
+    # check for unused resources types
+    # listed under `managedResourceTypes`
+    # only applicable for openshift-resources
+    ob.check_unused_resource_types(ri)
+
     ob.realize_data(dry_run, oc_map, ri)
 
     if ri.has_error_registered():
