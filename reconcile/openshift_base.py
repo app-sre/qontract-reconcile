@@ -139,6 +139,13 @@ def realize_data(dry_run, oc_map, ri,
                  enable_deletion=True,
                  recycle_pods=False):
     for cluster, namespace, resource_type, data in ri:
+        # unused resource types
+        if not data['desired'].items():
+            msg = f'[{cluster}/{namespace}] unused ' + \
+                f'resource type: {resource_type}. please remove it ' + \
+                f'in a following PR.'
+            logging.warning(msg)
+
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)
