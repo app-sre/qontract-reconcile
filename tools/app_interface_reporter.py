@@ -40,6 +40,7 @@ class Report(object):
     def content(self):
         report_content = """report for {} on {}:
 {}
+{}
 """
         return {
             '$schema': '/app-sre/report-1.yml',
@@ -50,7 +51,8 @@ class Report(object):
             'content': report_content.format(
                 self.app['name'],
                 self.date,
-                self.get_production_promotions(self.app['promotions'])
+                self.get_production_promotions(self.app.get('promotions')),
+                self.get_merge_activity(self.app.get('merge_activity'))
             )
         }
 
@@ -65,8 +67,19 @@ class Report(object):
 
     def get_production_promotions(self, promotions):
         header = 'Number of Production promotions:'
+        return self.get_activity_content(header, promotions)
+
+    def get_merge_activity(self, merge_activity):
+        header = 'Number of merges to master:'
+        return self.get_activity_content(header, merge_activity)
+
+    @staticmethod
+    def get_activity_content(header, activity):
+        if not activity:
+            return ''
+
         lines = [f"{repo}: {results[0]} ({int(results[1])}% success)"
-                 for repo, results in promotions.items()]
+                 for repo, results in activity.items()]
         content = header + '\n' + '\n'.join(lines) if lines else ''
 
         return content
@@ -75,27 +88,45 @@ class Report(object):
 def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     jjb = init_jjb()
-    jobs = jjb.get_all_jobs(job_type='saas-deploy')
+    saas_jobs = jjb.get_all_jobs(job_type='saas-deploy')
+    build_master_jobs = jjb.get_all_jobs(job_type='build-master')
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
-    build_history = get_build_history(jenkins_map, jobs, timestamp_limit)
+    saas_build_history = \
+        get_build_history(jenkins_map, saas_jobs, timestamp_limit)
+    build_master_build_history = \
+        get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
     for app in apps:
-        logging.info(f"collecting promotions for {app['name']}")
-        app['promotions'] = {}
         if not app['codeComponents']:
             continue
+
+        app_name = app['name']
+        logging.info(f"collecting promotions for {app_name}")
+        app['promotions'] = {}
         saas_repos = [c['url'] for c in app['codeComponents']
                       if c['resource'] == 'saasrepo']
         for sr in saas_repos:
-            sr_history = build_history.get(sr)
+            sr_history = saas_build_history.get(sr)
             if not sr_history:
                 continue
             successes = [h for h in sr_history if h == 'SUCCESS']
             app['promotions'][sr] = \
                 (len(sr_history), (len(successes) / len(sr_history) * 100))
+
+        logging.info(f"collecting merge activity for {app_name}")
+        app['merge_activity'] = {}
+        code_repos = [c['url'] for c in app['codeComponents']
+                      if c['resource'] == 'upstream']
+        for cr in code_repos:
+            cr_history = build_master_build_history.get(cr)
+            if not cr_history:
+                continue
+            successes = [h for h in cr_history if h == 'SUCCESS']
+            app['merge_activity'][cr] = \
+                (len(cr_history), (len(successes) / len(cr_history) * 100))
 
     return apps
 
