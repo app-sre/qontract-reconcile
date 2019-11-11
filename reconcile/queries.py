@@ -154,9 +154,9 @@ APPS_QUERY = """
 
 
 def get_apps():
-  """ Returns all apps along with their codeComponents """
-  gqlapi = gql.get_api()
-  return gqlapi.query(APPS_QUERY)['apps']
+    """ Returns all apps along with their codeComponents """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APPS_QUERY)['apps']
 
 
 def get_repos(server=''):

@@ -2,7 +2,7 @@ import yaml
 import click
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 
 import utils.gql as gql
@@ -50,7 +50,7 @@ class Report(object):
             'content': report_content.format(
                 self.app['name'],
                 self.date,
-                self.get_production_promotions()
+                self.get_production_promotions(self.app['promotions'])
             )
         }
 
@@ -63,37 +63,60 @@ class Report(object):
             'content': self.to_yaml()
         }
 
-    def get_production_promotions(self):
-        content = """Number of Production promotions:
-{}"""
+    def get_production_promotions(self, promotions):
+        header = 'Number of Production promotions:'
+        lines = [f"{repo}: {results[0]} ({int(results[1])}% success)"
+                 for repo, results in promotions.items()]
+        content = header + '\n' + '\n'.join(lines) if lines else ''
+
         return content
 
 
-def get_apps_data():
+def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     jjb = init_jjb()
+    jobs = jjb.get_all_jobs(job_type='saas-deploy')
     jenkins_map = jenkins_base.get_jenkins_map()
-    jobs_history = jjb.get_jobs_history(jenkins_map, job_type='saas-deploy')
-    import sys
-    sys.exit()
+    time_limit = date - relativedelta(months=month_delta)
+    timestamp_limit = \
+        int(time_limit.replace(tzinfo=timezone.utc).timestamp())
+    build_history = get_build_history(jenkins_map, jobs, timestamp_limit)
 
-    webhooks = jjb.get_job_webhooks_data(include_github=True)
     for app in apps:
-        print(app['name'])
-        app['promotions'] = []
+        logging.info(f"collecting promotions for {app['name']}")
+        app['promotions'] = {}
         if not app['codeComponents']:
             continue
         saas_repos = [c['url'] for c in app['codeComponents']
                       if c['resource'] == 'saasrepo']
         for sr in saas_repos:
-            print(sr)
-            print(webhooks)
-            job_urls = [w['job_url'] for w in webhooks[sr]
-                        if w['trigger'] == 'push']
-            for job_url in job_urls:
-                print(job_url)
+            sr_history = build_history.get(sr)
+            if not sr_history:
+                continue
+            successes = [h for h in sr_history if h == 'SUCCESS']
+            app['promotions'][sr] = \
+                (len(sr_history), (len(successes) / len(sr_history) * 100))
 
     return apps
+
+
+def get_build_history(jenkins_map, jobs, timestamp_limit):
+    history = {}
+    for instance, jobs in jobs.items():
+        jenkins = jenkins_map[instance]
+        for job in jobs:
+            logging.info(f"getting build history for {job['name']}")
+            build_history = \
+                jenkins.get_build_history(job['name'], timestamp_limit)
+            repo_url = get_repo_url(job)
+            history[repo_url] = build_history
+
+    return history
+
+
+def get_repo_url(job):
+    repo_url_raw = job['properties'][0]['github']['url']
+    return repo_url_raw.strip('/').replace('.git', '')
 
 
 @click.command()
@@ -109,8 +132,7 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
     gql.init_from_config()
 
     now = datetime.now()
-
-    apps = get_apps_data()
+    apps = get_apps_data(now)
 
     reports = [Report(app, now).to_message() for app in apps]
 
