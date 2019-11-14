@@ -146,7 +146,8 @@ def check_unused_resource_types(ri):
 
 def realize_data(dry_run, oc_map, ri,
                  enable_deletion=True,
-                 recycle_pods=False):
+                 recycle_pods=False,
+                 take_over=False):
     for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():
