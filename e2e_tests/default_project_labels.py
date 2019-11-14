@@ -28,3 +28,5 @@ def run(defer=None):
                 cluster, project['metadata']['name']))
             assert project['metadata']['labels']['name'] == \
                 project['metadata']['name']
+            monitoring_label = "openshift.io/workload-monitoring"
+            assert project['metadata']['labels'][monitoring_label] == "true"
