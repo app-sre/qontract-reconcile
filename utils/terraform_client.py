@@ -195,7 +195,8 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True)
+        return_code, stdout, stderr = tf.apply(auto_approve=True,
+                                               skip_plan=True)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
