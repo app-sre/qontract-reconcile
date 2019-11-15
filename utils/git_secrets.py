@@ -36,7 +36,7 @@ def scan_history(repo_url, existing_keys, defer=None):
         return []
 
     logging.info('found suspects in {}'.format(repo_url))
-    suspected_files = get_suspected_files(err)
+    suspected_files = get_suspected_files(err.decode('utf-8'))
     leaked_keys = get_leaked_keys(wd, suspected_files, existing_keys)
     if leaked_keys:
         logging.info('found suspected leaked keys: {}'.format(leaked_keys))
