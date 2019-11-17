@@ -81,6 +81,16 @@ def threaded(**kwargs):
     return f
 
 
+def take_over(**kwargs):
+    def f(function):
+        help_msg = 'manage resources exclusively (take over existing ones).'
+        function = click.option('--take-over/--no-take-over',
+                                help=help_msg,
+                                default=True)(function)
+        return function
+    return f
+
+
 def terraform(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the terraform config file.',
@@ -356,11 +366,12 @@ def openshift_acme(ctx, thread_pool_size):
 
 @integration.command()
 @threaded()
+@take_over()
 @binary(['oc', 'ssh'])
 @click.pass_context
-def openshift_limitranges(ctx, thread_pool_size):
+def openshift_limitranges(ctx, thread_pool_size, take_over):
     run_integration(reconcile.openshift_limitranges.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, take_over)
 
 
 @integration.command()

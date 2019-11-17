@@ -146,7 +146,8 @@ def check_unused_resource_types(ri):
 
 def realize_data(dry_run, oc_map, ri,
                  enable_deletion=True,
-                 recycle_pods=False):
+                 recycle_pods=False,
+                 take_over=False):
     for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():
@@ -199,8 +200,8 @@ def realize_data(dry_run, oc_map, ri,
                 continue
 
             if not c_item.has_qontract_annotations():
-                continue
-
+                if not take_over:
+                    continue
             try:
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)
