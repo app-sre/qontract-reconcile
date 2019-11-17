@@ -9,7 +9,7 @@ import utils.threaded as threaded
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.retry import retry
 
-from python_terraform import Terraform, TerraformCommandError
+from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from threading import Lock
 
 
@@ -90,8 +90,17 @@ class TerraformClient(object):
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']
-        output = tf.output(raise_on_error=True)
-        return name, output
+        return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
+        error = self.check_output(name, return_code, stdout, stderr)
+        no_output_error = \
+            'The module root could not be found. There is nothing to output.'
+        if error:
+            if no_output_error in stderr:
+                stdout = '{}'
+            else:
+                raise TerraformCommandError(
+                    return_code, 'output', out=stdout, err=stderr)
+        return name, json.loads(stdout)
 
     # terraform plan
     def plan(self, enable_deletion):
@@ -195,7 +204,8 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True)
+        return_code, stdout, stderr = tf.apply(auto_approve=True,
+                                               skip_plan=True)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
