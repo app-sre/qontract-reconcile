@@ -756,7 +756,7 @@ objects:
         volumes:
         - name: qontract-reconcile-toml
           secret:
-            secretName: qontract-reconcile-toml}}
+            secretName: qontract-reconcile-toml
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
