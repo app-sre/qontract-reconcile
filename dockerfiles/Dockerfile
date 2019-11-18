@@ -1,5 +1,6 @@
 FROM centos:7
 
+ENV USER_ID=1031160000
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 ENV TF_VERSION=0.11.14
@@ -24,6 +25,8 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     mv git-secrets-${GIT_SECRETS_VERSION}/git-secrets /usr/local/bin/git-secrets && \
     rm -rf git-secrets*
 
+RUN useradd -u ${USER_ID} reconcile
+USER reconcile
 WORKDIR /reconcile
 
 COPY e2e_tests e2e_tests
