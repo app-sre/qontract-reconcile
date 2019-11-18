@@ -87,3 +87,11 @@ integrations:
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
+- name: openshift-users
+  resources:
+    requests:
+        memory: 200Mi
+        cpu: 25m
+    limits:
+      memory: 400Mi
+      cpu: 50m

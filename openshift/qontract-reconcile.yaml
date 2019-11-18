@@ -387,6 +387,43 @@ objects:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-users
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-users
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 50m
+              memory: 400Mi
+            requests:
+              cpu: 25m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
