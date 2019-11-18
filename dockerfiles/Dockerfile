@@ -25,8 +25,6 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     mv git-secrets-${GIT_SECRETS_VERSION}/git-secrets /usr/local/bin/git-secrets && \
     rm -rf git-secrets*
 
-RUN useradd -l -u ${USER_ID} reconcile
-USER reconcile
 WORKDIR /reconcile
 
 COPY e2e_tests e2e_tests
@@ -36,3 +34,6 @@ COPY utils utils
 COPY setup.py .
 
 RUN python3 setup.py install
+
+RUN useradd -l -u ${USER_ID} reconcile
+USER reconcile
