@@ -84,7 +84,8 @@ def get_sha_url(server, token=None):
     headers = {'Authorization': token} if token else None
     r = requests.get(sha_endpoint, headers=headers)
     sha = r.content.decode('utf-8')
-    return f'{server}/{sha}'
+    gql_sha_endpoint = server.replace('graphql', 'graphqlsha')
+    return f'{gql_sha_endpoint}/{sha}'
 
 
 def init_from_config(sha_url=True):
