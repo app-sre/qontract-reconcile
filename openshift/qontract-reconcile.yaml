@@ -21,6 +21,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: aws-garbage-collector
           image: ${IMAGE}:${IMAGE_TAG}
@@ -58,6 +60,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: aws-iam-keys
           image: ${IMAGE}:${IMAGE_TAG}
@@ -95,6 +99,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: github
           image: ${IMAGE}:${IMAGE_TAG}
@@ -132,6 +138,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: github-repo-invites
           image: ${IMAGE}:${IMAGE_TAG}
@@ -169,6 +177,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: quay-membership
           image: ${IMAGE}:${IMAGE_TAG}
@@ -206,6 +216,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: quay-repos
           image: ${IMAGE}:${IMAGE_TAG}
@@ -243,6 +255,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: slack-usergroups
           image: ${IMAGE}:${IMAGE_TAG}
@@ -280,6 +294,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: jira-watcher
           image: ${IMAGE}:${IMAGE_TAG}
@@ -317,6 +333,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: github-scanner
           image: ${IMAGE}:${IMAGE_TAG}
@@ -360,6 +378,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: aws-support-cases-sos
           image: ${IMAGE}:${IMAGE_TAG}
@@ -403,6 +423,8 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
+        securityContext:
+          runAsUser: ${USER_ID}
         containers:
         - name: openshift-users
           image: ${IMAGE}:${IMAGE_TAG}
@@ -435,3 +457,5 @@ parameters:
   value: "300"
 - name: APP_INTERFACE_SQS_SECRET_NAME
   value: app-interface-sqs
+- name: USER_ID
+  value: 1031160000
