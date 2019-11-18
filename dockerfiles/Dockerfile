@@ -25,7 +25,7 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     mv git-secrets-${GIT_SECRETS_VERSION}/git-secrets /usr/local/bin/git-secrets && \
     rm -rf git-secrets*
 
-RUN useradd -u ${USER_ID} reconcile
+RUN useradd -l -u ${USER_ID} reconcile
 USER reconcile
 WORKDIR /reconcile
 
