@@ -458,4 +458,4 @@ parameters:
 - name: APP_INTERFACE_SQS_SECRET_NAME
   value: app-interface-sqs
 - name: USER_ID
-  value: 1031160000
+  value: "1031160000"
