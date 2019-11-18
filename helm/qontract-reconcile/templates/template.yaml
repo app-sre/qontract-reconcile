@@ -47,7 +47,7 @@ objects:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
-{{- end }}}}
+{{- end }}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
