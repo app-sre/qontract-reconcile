@@ -10,7 +10,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile
-    name: qontract-reconcile
+    name: qontract-reconcile-aws-garbage-collector
   spec:
     replicas: 1
     selector:
@@ -27,7 +27,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 50m
@@ -38,12 +38,70 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-aws-iam-keys
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: aws-iam-keys
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 25m
+              memory: 200Mi
+            requests:
+              cpu: 15m
+              memory: 100Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-github
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: github
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -54,12 +112,33 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-github-repo-invites
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: github-repo-invites
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -70,12 +149,33 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-quay-membership
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: quay-membership
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -86,12 +186,70 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-quay-repos
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: quay-repos
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-repos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 25m
+              memory: 60Mi
+            requests:
+              cpu: 15m
+              memory: 30Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-slack-usergroups
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: slack-usergroups
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 40m
@@ -102,12 +260,33 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-jira-watcher
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: jira-watcher
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -118,12 +297,33 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-github-scanner
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: github-scanner
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
@@ -140,12 +340,33 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-aws-support-cases-sos
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
         - name: aws-support-cases-sos
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
@@ -166,6 +387,376 @@ objects:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-groups
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-groups
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-groups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 40m
+              memory: 150Mi
+            requests:
+              cpu: 20m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-users
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-users
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 40m
+              memory: 150Mi
+            requests:
+              cpu: 20m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-namespaces
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-namespaces
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-namespaces ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 150Mi
+            requests:
+              cpu: 50m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-rolebindings
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-rolebindings
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-rolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 300Mi
+            requests:
+              cpu: 50m
+              memory: 150Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-resources
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-resources
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-resources ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 300m
+              memory: 400Mi
+            requests:
+              cpu: 150m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-network-policies
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-network-policies
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-network-policies ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 150Mi
+            requests:
+              cpu: 50m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-acme
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-acme
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-acme ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 150Mi
+            requests:
+              cpu: 50m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-openshift-limitranges
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: openshift-limitranges
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-limitranges ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 150Mi
+            requests:
+              cpu: 50m
+              memory: 75Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-terraform-resources
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: terraform-resources
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-resources ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 300m
+              memory: 400Mi
+            requests:
+              cpu: 150m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-terraform-users
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        containers:
+        - name: terraform-users
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 300m
+              memory: 400Mi
+            requests:
+              cpu: 150m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml}}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile

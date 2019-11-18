@@ -4,12 +4,13 @@ kind: Template
 metadata:
   name: qontract-reconcile
 objects:
+{{- range $i, $integration := .Values.integrations }}
 - apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
     labels:
       app: qontract-reconcile
-    name: qontract-reconcile
+    name: qontract-reconcile-{{ $integration.name }}
   spec:
     replicas: 1
     selector:
@@ -21,13 +22,12 @@ objects:
           app: qontract-reconcile
       spec:
         containers:
-        {{- range $i, $integration := .Values.integrations }}
         - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           {{- with $integration.extraEnv }}
           env:
           {{- range $i, $env := . }}
@@ -43,11 +43,11 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
-        {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+{{- end }}}}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
