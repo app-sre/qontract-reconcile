@@ -27,7 +27,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; sleep ${SLEEP_DURATION_SECS}; done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           {{- with $integration.extraEnv }}
           env:
           {{- range $i, $env := . }}
