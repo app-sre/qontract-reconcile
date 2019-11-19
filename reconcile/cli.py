@@ -351,10 +351,11 @@ def openshift_resources(ctx, thread_pool_size, internal):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_namespaces(ctx, thread_pool_size):
+def openshift_namespaces(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_namespaces.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
