@@ -46,7 +46,8 @@ class OpenshiftResource(object):
             raise ConstructResourceError(msg)
 
         r = '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
-        if not re.search(r'^{}$'.format(r), self.name):
+        if self.kind not in ['Role', 'RoleBinding'] and \
+                not re.search(r'^{}$'.format(r), self.name):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                 f"metadata.name: Invalid value: \"{self.name}\": " + \
                 f"a DNS-1123 subdomain must consist of lower case " + \
