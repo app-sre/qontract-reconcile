@@ -210,10 +210,11 @@ def github_scanner(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size):
+def openshift_rolebindings(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_rolebindings.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal)
 
 
 @integration.command()

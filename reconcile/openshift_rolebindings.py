@@ -83,7 +83,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
               error_details=name), name
 
 
-def fetch_desired_state(ri):
+def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     users_desired_state = []
@@ -108,11 +108,14 @@ def fetch_desired_state(ri):
                             if bot.get('openshift_serviceaccount')]
 
         for permission in permissions:
+            cluster = permission['cluster']
+            if not oc_map.get(cluster):
+                continue
             for user in users:
                 # used by openshift-users and github integrations
                 # this is just to simplify things a bit on the their side
                 users_desired_state.append({
-                    'cluster': permission['cluster'],
+                    'cluster': cluster,
                     'user': user
                 })
                 if ri is None:
@@ -121,7 +124,7 @@ def fetch_desired_state(ri):
                     construct_user_oc_resource(permission['role'], user)
                 try:
                     ri.add_desired(
-                        permission['cluster'],
+                        cluster,
                         permission['namespace'],
                         'RoleBinding',
                         resource_name,
@@ -155,7 +158,7 @@ def fetch_desired_state(ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -164,7 +167,8 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
         ob.fetch_current_state(namespaces, thread_pool_size,
                                QONTRACT_INTEGRATION,
                                QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['RoleBinding'])
+                               override_managed_types=['RoleBinding'],
+                               internal=internal)
     defer(lambda: oc_map.cleanup())
-    fetch_desired_state(ri)
+    fetch_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)
