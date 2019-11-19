@@ -382,10 +382,11 @@ def openshift_acme(ctx, thread_pool_size, internal):
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_limitranges(ctx, thread_pool_size, take_over):
+def openshift_limitranges(ctx, thread_pool_size, internal, take_over):
     run_integration(reconcile.openshift_limitranges.run,
-                    ctx.obj['dry_run'], thread_pool_size, take_over)
+                    ctx.obj['dry_run'], thread_pool_size, internal, take_over)
 
 
 @integration.command()

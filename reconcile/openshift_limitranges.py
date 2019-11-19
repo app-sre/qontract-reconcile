@@ -66,8 +66,11 @@ def construct_resources(namespaces):
     return namespaces
 
 
-def add_desired_state(namespaces, ri):
+def add_desired_state(namespaces, ri, oc_map):
     for namespace in namespaces:
+        cluster = namespace['cluster']['name']
+        if not oc_map.get(cluster):
+            continue
         if 'resources' not in namespace:
             continue
         for resource in namespace["resources"]:
@@ -81,7 +84,8 @@ def add_desired_state(namespaces, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, take_over=True, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        take_over=True, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -97,9 +101,10 @@ def run(dry_run=False, thread_pool_size=10, take_over=True, defer=None):
         ob.fetch_current_state(namespaces, thread_pool_size,
                                QONTRACT_INTEGRATION,
                                QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['LimitRange'])
+                               override_managed_types=['LimitRange'],
+                               internal=internal)
     defer(lambda: oc_map.cleanup())
 
-    add_desired_state(namespaces, ri)
+    add_desired_state(namespaces, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri, enable_deletion=True,
                     take_over=take_over)
