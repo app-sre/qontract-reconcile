@@ -111,7 +111,7 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
                                    'Role',
                                    'RoleBinding',
                                    'ServiceAccount'],
-                                internal=internal)
+                               internal=internal)
     add_desired_state(namespaces, ri, oc_map)
 
     defer(lambda: oc_map.cleanup())
