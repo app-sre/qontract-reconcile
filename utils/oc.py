@@ -260,11 +260,13 @@ class OC_Map(object):
     the OC client will be initiated to False.
     """
     def __init__(self, clusters=None, namespaces=None,
-                 integration='', e2e_test='', settings=None):
+                 integration='', e2e_test='', settings=None,
+                 internal=None):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
         self.settings = settings
+        self.internal = internal
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -284,6 +286,13 @@ class OC_Map(object):
             return
         if self.cluster_disabled(cluster_info):
             return
+        if self.internal is not None:
+            # integration is executed with `--internal` or `--external`
+            # filter out non matching clusters
+            if self.internal and not cluster_info['internal']:
+                return
+            if not self.internal and cluster_info['internal']:
+                return
 
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:

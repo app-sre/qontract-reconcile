@@ -91,6 +91,16 @@ def take_over(**kwargs):
     return f
 
 
+def internal(**kwargs):
+    def f(function):
+        help_msg = 'manage resources in internal or external clusters only.'
+        function = click.option('--internal/--external',
+                                help=help_msg,
+                                default=None)(function)
+        return function
+    return f
+
+
 def terraform(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the terraform config file.',
@@ -331,10 +341,11 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_resources(ctx, thread_pool_size):
+def openshift_resources(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_resources.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
