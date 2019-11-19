@@ -87,11 +87,12 @@ def populate_current_state(spec, ri, integration, integration_version):
 
 def fetch_current_state(namespaces, thread_pool_size,
                         integration, integration_version,
-                        override_managed_types=None):
+                        override_managed_types=None,
+                        internal=None):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=integration,
-                    settings=settings)
+                    settings=settings, internal=internal)
     state_specs = \
         init_specs_to_fetch(
             ri,
