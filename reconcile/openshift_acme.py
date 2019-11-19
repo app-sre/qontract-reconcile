@@ -78,8 +78,11 @@ def construct_resources(namespaces):
     return namespaces
 
 
-def add_desired_state(namespaces, ri):
+def add_desired_state(namespaces, ri, oc_map):
     for namespace in namespaces:
+        cluster = namespace['cluster']['name']
+        if not oc_map.get(cluster):
+            continue
         for resource in namespace["resources"]:
             ri.add_desired(
                 namespace['cluster']['name'],
@@ -91,7 +94,7 @@ def add_desired_state(namespaces, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -107,8 +110,9 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
                                    'Deployment',
                                    'Role',
                                    'RoleBinding',
-                                   'ServiceAccount'])
-    add_desired_state(namespaces, ri)
+                                   'ServiceAccount'],
+                                internal=internal)
+    add_desired_state(namespaces, ri, oc_map)
 
     defer(lambda: oc_map.cleanup())
 
