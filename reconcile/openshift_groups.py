@@ -30,6 +30,7 @@ CLUSTERS_QUERY = """
       field
       format
     }
+    internal
     disable {
       integrations
     }
@@ -86,11 +87,11 @@ def get_cluster_state(group_items, oc_map):
 def create_groups_list(clusters, oc_map):
     groups_list = []
     for cluster_info in clusters:
-        groups = cluster_info['managedGroups']
         cluster = cluster_info['name']
-        if groups is None:
+        if not oc_map.get(cluster):
             continue
-        if cluster not in oc_map.clusters():
+        groups = cluster_info['managedGroups']
+        if groups is None:
             continue
         for group_name in groups:
             groups_list.append({
@@ -100,13 +101,13 @@ def create_groups_list(clusters, oc_map):
     return groups_list
 
 
-def fetch_current_state(thread_pool_size):
+def fetch_current_state(thread_pool_size, internal):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     current_state = []
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
 
     groups_list = create_groups_list(clusters, oc_map)
     results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
@@ -243,8 +244,8 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
-    oc_map, current_state = fetch_current_state(thread_pool_size)
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+    oc_map, current_state = fetch_current_state(thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state(oc_map)
 

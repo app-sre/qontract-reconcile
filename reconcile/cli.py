@@ -220,10 +220,11 @@ def openshift_rolebindings(ctx, thread_pool_size, internal):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_groups(ctx, thread_pool_size):
+def openshift_groups(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal)
 
 
 @integration.command()
