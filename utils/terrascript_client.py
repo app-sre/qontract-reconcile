@@ -484,7 +484,7 @@ class TerrascriptClient(object):
                                          existing_secrets):
         account, identifier, values, output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        values['replication_group_id'] = values['identifier']
+        values.setdefault('replication_group_id', values['identifier'])
         values.pop('identifier', None)
 
         tf_resources = []
