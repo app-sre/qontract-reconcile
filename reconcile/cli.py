@@ -415,13 +415,14 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'oc'])
+@internal()
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
-                        io_dir, thread_pool_size):
+                        io_dir, thread_pool_size, internal):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
-                    enable_deletion, io_dir, thread_pool_size)
+                    enable_deletion, io_dir, thread_pool_size, internal)
 
 
 @integration.command()
