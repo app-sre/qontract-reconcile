@@ -524,7 +524,7 @@ class TerrascriptClient(object):
         # db.endpoint
         output_name = output_prefix + '[db.endpoint]'
         output_value = '${' + tf_resource.fullname + \
-                       '.configuration_endpoint_address}'
+                       '.primary_endpoint_address}'
         tf_resources.append(output(output_name, value=output_value))
         # db.port
         output_name = output_prefix + '[db.port]'
