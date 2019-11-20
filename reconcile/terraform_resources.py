@@ -87,6 +87,7 @@ TF_NAMESPACES_QUERY = """
         field
         format
       }
+      internal
     }
   }
 }
@@ -114,11 +115,11 @@ def populate_oc_resources(spec, ri):
         )
 
 
-def fetch_current_state(namespaces, thread_pool_size):
+def fetch_current_state(namespaces, thread_pool_size, internal):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,
@@ -143,14 +144,14 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(print_only, thread_pool_size):
+def setup(print_only, thread_pool_size, internal):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
+    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size, internal)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
                                          oc_map=oc_map,
@@ -179,8 +180,8 @@ def cleanup_and_exit(tf=None, status=False, working_dirs={}):
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, defer=None):
-    ri, oc_map, tf = setup(print_only, thread_pool_size)
+        thread_pool_size=10, internal=None, defer=None):
+    ri, oc_map, tf = setup(print_only, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
     if print_only:
         cleanup_and_exit()
@@ -204,7 +205,7 @@ def run(dry_run=False, print_only=False,
     if err:
         cleanup_and_exit(tf, err)
 
-    tf.populate_desired_state(ri)
+    tf.populate_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri,
                     enable_deletion=enable_deletion,
                     recycle_pods=True)

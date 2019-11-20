@@ -217,7 +217,7 @@ class TerraformClient(object):
 
         return data
 
-    def populate_desired_state(self, ri):
+    def populate_desired_state(self, ri, oc_map):
         self.init_outputs()  # get updated output
         for account, output in self.outputs.items():
             formatted_output = self.format_output(
@@ -225,6 +225,8 @@ class TerraformClient(object):
 
             for name, data in formatted_output.items():
                 cluster = data['{}.cluster'.format(self.integration_prefix)]
+                if not oc_map.get(cluster):
+                    continue
                 namespace = \
                     data['{}.namespace'.format(self.integration_prefix)]
                 resource = data['{}.resource'.format(self.integration_prefix)]

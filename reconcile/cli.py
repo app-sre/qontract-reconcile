@@ -91,6 +91,16 @@ def take_over(**kwargs):
     return f
 
 
+def internal(**kwargs):
+    def f(function):
+        help_msg = 'manage resources in internal or external clusters only.'
+        function = click.option('--internal/--external',
+                                help=help_msg,
+                                default=None)(function)
+        return function
+    return f
+
+
 def terraform(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the terraform config file.',
@@ -200,28 +210,31 @@ def github_scanner(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size):
+def openshift_rolebindings(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_rolebindings.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_groups(ctx, thread_pool_size):
+def openshift_groups(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_users(ctx, thread_pool_size):
+def openshift_users(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal)
 
 
 @integration.command()
@@ -331,47 +344,52 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_resources(ctx, thread_pool_size):
+def openshift_resources(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_resources.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_namespaces(ctx, thread_pool_size):
+def openshift_namespaces(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_namespaces.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_network_policies(ctx, thread_pool_size):
+def openshift_network_policies(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_network_policies.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_acme(ctx, thread_pool_size):
+def openshift_acme(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_acme.run,
-                    ctx.obj['dry_run'], thread_pool_size)
+                    ctx.obj['dry_run'], thread_pool_size, internal)
 
 
 @integration.command()
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
+@internal()
 @click.pass_context
-def openshift_limitranges(ctx, thread_pool_size, take_over):
+def openshift_limitranges(ctx, thread_pool_size, internal, take_over):
     run_integration(reconcile.openshift_limitranges.run,
-                    ctx.obj['dry_run'], thread_pool_size, take_over)
+                    ctx.obj['dry_run'], thread_pool_size, internal, take_over)
 
 
 @integration.command()
@@ -400,13 +418,14 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'oc'])
+@internal()
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
-                        io_dir, thread_pool_size):
+                        io_dir, thread_pool_size, internal):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
-                    enable_deletion, io_dir, thread_pool_size)
+                    enable_deletion, io_dir, thread_pool_size, internal)
 
 
 @integration.command()

@@ -31,6 +31,7 @@ NAMESPACES_QUERY = """
         field
         format
       }
+      internal
       disable {
         integrations
       }
@@ -76,10 +77,12 @@ def construct_oc_resource(name, source_ns):
               error_details=name)
 
 
-def fetch_desired_state(namespaces, ri):
+def fetch_desired_state(namespaces, ri, oc_map):
     for namespace_info in namespaces:
         namespace = namespace_info['name']
         cluster = namespace_info['cluster']['name']
+        if not oc_map.get(cluster):
+            continue
         source_namespaces = namespace_info['networkPoliciesAllow']
         for source_namespace_info in source_namespaces:
             source_namespace = source_namespace_info['name']
@@ -103,7 +106,7 @@ def fetch_desired_state(namespaces, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -112,7 +115,8 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
         ob.fetch_current_state(namespaces, thread_pool_size,
                                QONTRACT_INTEGRATION,
                                QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['NetworkPolicy'])
+                               override_managed_types=['NetworkPolicy'],
+                               internal=internal)
     defer(lambda: oc_map.cleanup())
-    fetch_desired_state(namespaces, ri)
+    fetch_desired_state(namespaces, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)
