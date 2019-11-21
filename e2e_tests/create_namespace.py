@@ -26,10 +26,10 @@ def run(defer=None):
 
         try:
             oc.new_project(ns_to_create)
-            time.sleep(5) #  allow time for resources to be created
+            time.sleep(5)  # allow time for resources to be created
             all_rolebindings = oc.get(ns_to_create, 'RoleBinding')['items']
             rolebindings = [rb for rb in all_rolebindings
-                            if rb['groupNames'] == \
+                            if rb['groupNames'] ==
                             dat.get_dedicated_admin_groups()
                             and rb['roleRef']['name']
                             in dat.get_expected_roles()]

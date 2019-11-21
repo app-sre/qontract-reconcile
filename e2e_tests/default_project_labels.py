@@ -2,7 +2,6 @@ import re
 import logging
 
 import e2e_tests.test_base as tb
-import e2e_tests.network_policy_test_base as npt
 
 from utils.defer import defer
 
