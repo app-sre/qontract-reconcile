@@ -2,7 +2,7 @@ def get_dedicated_admin_groups():
     return ['dedicated-admins', 'system:serviceaccounts:dedicated-admin']
 
 def get_expected_roles():
-    return ['admin', 'dedicated-project-admin']
+    return ['admin', 'dedicated-project-admin', 'dedicated-admins-project']
 
 def get_expected_rolebindings():
     groups = get_dedicated_admin_groups()
