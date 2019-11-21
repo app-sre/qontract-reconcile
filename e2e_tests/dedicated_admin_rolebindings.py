@@ -41,6 +41,6 @@ def run(defer=None):
                 cluster, project))
             project_rbs = [rb for rb in rolebindings
                            if rb['metadata']['namespace'] == project]
-            assert len(project_rbs) == 2
-            assert project_rbs[0]['roleRef']['name'] != \
-                project_rbs[1]['roleRef']['name']
+            roles = {rb['roleRef']['name'] for rb in project_rbs}
+            assert len(roles) == 2
+            assert 'admin' in roles
