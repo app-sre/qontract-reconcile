@@ -49,15 +49,18 @@ def test(ctx, configfile, log_level):
 def create_namespace(ctx):
     run_test(e2e_tests.create_namespace.run)
 
+
 @test.command()
 @click.pass_context
 def dedicated_admin_rolebindings(ctx):
     run_test(e2e_tests.dedicated_admin_rolebindings.run)
 
+
 @test.command()
 @click.pass_context
 def default_network_policies(ctx):
     run_test(e2e_tests.default_network_policies.run)
+
 
 @test.command()
 @click.pass_context

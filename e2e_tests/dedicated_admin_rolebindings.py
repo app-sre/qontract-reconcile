@@ -32,8 +32,8 @@ def run(defer=None):
             oc.get_all('RoleBinding', all_namespaces=True)['items']
         rolebindings = [rb for rb in all_rolebindings
                         if rb['metadata']['namespace'] in projects
-                        and rb['groupNames'] == \
-                            dat.get_dedicated_admin_groups()
+                        and rb['groupNames'] ==
+                        dat.get_dedicated_admin_groups()
                         and rb['roleRef']['name'] in dat.get_expected_roles()]
 
         for project in projects:
