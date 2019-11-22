@@ -26,7 +26,8 @@ def run(defer=None):
         for project in projects:
             logging.info("[{}/{}] validating default Project labels".format(
                 cluster, project['metadata']['name']))
-            assert project['metadata']['labels']['name'] == \
-                project['metadata']['name']
-            monitoring_label = "openshift.io/workload-monitoring"
-            assert project['metadata']['labels'][monitoring_label] == "true"
+            if project['metadata'].get('labels'):
+                assert project['metadata']['labels']['name'] == \
+                    project['metadata']['name']
+                monitoring_label = "openshift.io/workload-monitoring"
+                assert project['metadata']['labels'][monitoring_label] == "true"
