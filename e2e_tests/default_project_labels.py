@@ -30,4 +30,4 @@ def run(defer=None):
                 assert project['metadata']['labels']['name'] == \
                     project['metadata']['name']
                 monitoring_label = "openshift.io/workload-monitoring"
-                assert project['metadata']['labels'][monitoring_label] == "true"
+                assert project['metadata']['labels'][monitoring_label] == "true"  # noqa: #E501
