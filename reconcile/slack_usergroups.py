@@ -173,7 +173,7 @@ def get_slack_usernames_from_github_owners(github_owners, users, usergroup):
     all_slack_usernames = []
     all_github_usernames = [u['github_username'] for u in users]
     for owners_file in github_owners or []:
-        r = requests.get(owners_file)
+        r = requests.get(owners_file, verify=False)
         try:
             content = anymarkup.parse(
                 r.content,
