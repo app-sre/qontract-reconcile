@@ -5,6 +5,7 @@ import requests
 import utils.gql as gql
 import reconcile.queries as queries
 
+from utils.retry import retry
 from utils.slack_api import SlackApi
 from utils.pagerduty_api import PagerDutyApi
 
@@ -185,7 +186,7 @@ def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
     all_slack_usernames = []
     all_username_keys = [u[user_key] for u in users]
     for owners_file in owners_raw_url or []:
-        r = requests.get(owners_file, verify=ssl_verify)
+        r = get_raw_owners_content(owners_file, ssl_verify=ssl_verify)
         try:
             content = anymarkup.parse(
                 r.content,
@@ -213,6 +214,11 @@ def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
+
+
+@retry()
+def get_raw_owners_content(owners_file, ssl_verify):
+    return requests.get(owners_file, verify=ssl_verify)
 
 
 def get_desired_state(slack_map):
