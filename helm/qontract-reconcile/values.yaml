@@ -86,7 +86,7 @@ integrations:
       cpu: 20m
     limits:
       memory: 200Mi
-      cpu: 30m
+      cpu: 40m
 - name: openshift-groups
   resources:
     requests:
@@ -98,20 +98,20 @@ integrations:
 - name: openshift-namespaces
   resources:
     requests:
-      memory: 300Mi
+      memory: 200Mi
       cpu: 100m
     limits:
-      memory: 400Mi
+      memory: 300Mi
       cpu: 200m
   extraArgs: --external
 - name: openshift-rolebindings
   resources:
     requests:
-      memory: 150Mi
-      cpu: 100m
-    limits:
-      memory: 250Mi
+      memory: 200Mi
       cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 300m
 - name: openshift-network-policies
   resources:
     requests:
@@ -142,7 +142,7 @@ integrations:
       memory: 400Mi
       cpu: 600m
     limits:
-      memory: 800Mi
+      memory: 600Mi
       cpu: 1000m
   extraArgs: --external
 - name: terraform-resources
@@ -151,14 +151,14 @@ integrations:
       memory: 800Mi
       cpu: 200m
     limits:
-      memory: 1200Mi
+      memory: 1000Mi
       cpu: 400m
   extraArgs: --external
 - name: terraform-users
   resources:
     requests:
-      memory: 800Mi
+      memory: 1000Mi
       cpu: 200m
     limits:
-      memory: 1200Mi
+      memory: 1500Mi
       cpu: 400m

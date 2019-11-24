@@ -395,7 +395,7 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 30m
+              cpu: 40m
               memory: 200Mi
             requests:
               cpu: 20m
@@ -474,10 +474,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 400Mi
+              memory: 300Mi
             requests:
               cpu: 100m
-              memory: 300Mi
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -512,11 +512,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-rolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 200m
-              memory: 250Mi
+              cpu: 300m
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 150Mi
+              cpu: 200m
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -669,7 +669,7 @@ objects:
           resources:
             limits:
               cpu: 1000m
-              memory: 800Mi
+              memory: 600Mi
             requests:
               cpu: 600m
               memory: 400Mi
@@ -708,7 +708,7 @@ objects:
           resources:
             limits:
               cpu: 400m
-              memory: 1200Mi
+              memory: 1000Mi
             requests:
               cpu: 200m
               memory: 800Mi
@@ -747,10 +747,10 @@ objects:
           resources:
             limits:
               cpu: 400m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 200m
-              memory: 800Mi
+              memory: 1000Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
