@@ -22,7 +22,7 @@ objects:
           app: qontract-reconcile
       spec:
         securityContext:
-          runAsUser: ${{USER_ID}}
+          runAsUser: {{ "${{USER_ID}}" }}
         containers:
         - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}

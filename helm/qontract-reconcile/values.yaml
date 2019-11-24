@@ -47,14 +47,6 @@ integrations:
     limits:
       memory: 60Mi
       cpu: 25m
-- name: slack-usergroups
-  resources:
-    requests:
-      memory: 75Mi
-      cpu: 20m
-    limits:
-      memory: 150Mi
-      cpu: 40m
 - name: jira-watcher
   resources:
     requests:

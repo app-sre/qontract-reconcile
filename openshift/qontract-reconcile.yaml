@@ -244,45 +244,6 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile
-    name: qontract-reconcile-slack-usergroups
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: qontract-reconcile
-    template:
-      metadata:
-        labels:
-          app: qontract-reconcile
-      spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
-        containers:
-        - name: slack-usergroups
-          image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} slack-usergroups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
-          resources:
-            limits:
-              cpu: 40m
-              memory: 150Mi
-            requests:
-              cpu: 20m
-              memory: 75Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
-        volumes:
-        - name: qontract-reconcile-toml
-          secret:
-            secretName: qontract-reconcile-toml
-- apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    labels:
-      app: qontract-reconcile
     name: qontract-reconcile-jira-watcher
   spec:
     replicas: 1
