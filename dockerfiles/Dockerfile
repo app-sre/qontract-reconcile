@@ -1,6 +1,5 @@
 FROM centos:7
 
-ENV USER_ID=1031160000
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 ENV TF_VERSION=0.11.14
@@ -35,5 +34,8 @@ COPY setup.py .
 
 RUN python3 setup.py install
 
-RUN useradd -l -u ${USER_ID} reconcile
-USER reconcile
+# required to run ssh on OpenShift
+ENV STAGE_USER_ID=1031160000
+RUN useradd -l -u ${STAGE_USER_ID} reconcile
+ENV PROD_USER_ID=1001450000
+RUN useradd -l -u ${PROD_USER_ID} reconcile
