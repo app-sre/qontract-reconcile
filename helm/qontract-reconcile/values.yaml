@@ -82,83 +82,83 @@ integrations:
 - name: openshift-users
   resources:
     requests:
-        memory: 200Mi
-        cpu: 25m
+      memory: 150Mi
+      cpu: 20m
     limits:
-      memory: 400Mi
-      cpu: 50m
+      memory: 200Mi
+      cpu: 30m
 - name: openshift-groups
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 200Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
-      cpu: 200m
+      memory: 300Mi
+      cpu: 150m
 - name: openshift-namespaces
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 300Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
+      memory: 400Mi
       cpu: 200m
   extraArgs: --external
 - name: openshift-rolebindings
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 150Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
+      memory: 250Mi
       cpu: 200m
 - name: openshift-network-policies
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 150Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
+      memory: 250Mi
       cpu: 200m
 - name: openshift-acme
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 300Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
+      memory: 400Mi
       cpu: 200m
 - name: openshift-limitranges
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 50Mi
+      cpu: 100m
     limits:
-      memory: 800Mi
-      cpu: 200m
+      memory: 100Mi
+      cpu: 150m
 - name: openshift-resources
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
+      memory: 400Mi
+      cpu: 600m
     limits:
       memory: 800Mi
-      cpu: 200m
+      cpu: 1000m
   extraArgs: --external
 - name: terraform-resources
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
-    limits:
       memory: 800Mi
       cpu: 200m
+    limits:
+      memory: 1200Mi
+      cpu: 400m
   extraArgs: --external
 - name: terraform-users
   resources:
     requests:
-        memory: 400Mi
-        cpu: 100m
-    limits:
       memory: 800Mi
       cpu: 200m
+    limits:
+      memory: 1200Mi
+      cpu: 400m

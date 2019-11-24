@@ -395,11 +395,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 50m
-              memory: 400Mi
-            requests:
-              cpu: 25m
+              cpu: 30m
               memory: 200Mi
+            requests:
+              cpu: 20m
+              memory: 150Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -434,11 +434,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-groups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 200m
-              memory: 800Mi
+              cpu: 150m
+              memory: 300Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -474,10 +474,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 800Mi
+              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -513,10 +513,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 800Mi
+              memory: 250Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 150Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -552,10 +552,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 800Mi
+              memory: 250Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 150Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -591,10 +591,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 800Mi
+              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -629,11 +629,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-limitranges ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 200m
-              memory: 800Mi
+              cpu: 150m
+              memory: 100Mi
             requests:
               cpu: 100m
-              memory: 400Mi
+              memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -668,10 +668,10 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-resources --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
-              cpu: 200m
+              cpu: 1000m
               memory: 800Mi
             requests:
-              cpu: 100m
+              cpu: 600m
               memory: 400Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -707,11 +707,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-resources --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
+              cpu: 400m
+              memory: 1200Mi
+            requests:
               cpu: 200m
               memory: 800Mi
-            requests:
-              cpu: 100m
-              memory: 400Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -746,11 +746,11 @@ objects:
           - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
+              cpu: 400m
+              memory: 1200Mi
+            requests:
               cpu: 200m
               memory: 800Mi
-            requests:
-              cpu: 100m
-              memory: 400Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
