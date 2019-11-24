@@ -36,6 +36,6 @@ RUN python3 setup.py install
 
 # required to run ssh on OpenShift
 ENV STAGE_USER_ID=1031160000
-RUN useradd -l -u ${STAGE_USER_ID} reconcile
+RUN useradd -l -u ${STAGE_USER_ID} reconcile-stage
 ENV PROD_USER_ID=1001450000
 RUN useradd -l -u ${PROD_USER_ID} reconcile
