@@ -22,7 +22,6 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile, aws_iam_policy,
-                               aws_iam_user_policy_attachment,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
@@ -678,9 +677,11 @@ class TerrascriptClient(object):
             # iam user policy attachment
             values = {}
             values['user'] = identifier
-            values['policy_arn'] = '${' + policy_tf_resource.fullname + '.arn}'
+            values['policy_arn'] = \
+                '${' + policy_tf_resource.fullname + '.arn}'
             values['depends_on'] = [user_tf_resource, policy_tf_resource]
-            tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
+            tf_resource = \
+                aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
         for tf_resource in tf_resources:
