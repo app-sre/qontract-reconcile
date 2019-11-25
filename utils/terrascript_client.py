@@ -647,6 +647,16 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policy for queue
+        tf_resource = \
+            self.get_sqs_user_policies(
+                identifier, uid, all_queues, user_tf_resource)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def get_sqs_user_policies(identifier, uid, queues, user_tf_resource):
         values = {}
         values['user'] = identifier
         values['name'] = identifier
@@ -665,11 +675,7 @@ class TerrascriptClient(object):
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
         values['depends_on'] = [user_tf_resource]
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
-
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        return aws_iam_user_policy(identifier, **values)
 
     def populate_tf_resource_dynamodb(self, resource, namespace_info):
         account, identifier, common_values, \
