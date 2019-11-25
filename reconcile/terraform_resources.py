@@ -57,12 +57,13 @@ TF_NAMESPACES_QUERY = """
         account
         region
         identifier
-        defaults
-        overrides
         output_resource_name
-        queues {
-          key
-          value
+        specs {
+          defaults
+          queues {
+            key
+            value
+          }
         }
       }
       ... on NamespaceTerraformResourceDynamoDB_v1 {
