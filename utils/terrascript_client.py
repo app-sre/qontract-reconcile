@@ -5,7 +5,6 @@ import base64
 import json
 import anymarkup
 import logging
-import copy
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -613,6 +612,7 @@ class TerrascriptClient(object):
             for queue_kv in queues:
                 queue_key = queue_kv['key']
                 queue = queue_kv['value']
+                all_queues.append(queue)
                 # sqs queue
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
@@ -657,8 +657,8 @@ class TerrascriptClient(object):
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
                     "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, q['value'])
-                        for q in queues
+                        "arn:aws:sqs:*:{}:{}".format(uid, q)
+                        for q in all_queues
                     ]
                 }
             ]
