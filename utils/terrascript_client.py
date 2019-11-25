@@ -647,35 +647,46 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policy for queue
-        tf_resource = \
+        iam_policy_tf_resources = \
             self.get_sqs_user_policies(
                 identifier, uid, all_queues, user_tf_resource)
-        tf_resources.append(tf_resource)
+        tf_resources.extend(iam_policy_tf_resources)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
     @staticmethod
     def get_sqs_user_policies(identifier, uid, queues, user_tf_resource):
+        aws_iam_user_policies = []
         values = {}
         values['user'] = identifier
         values['name'] = identifier
+        values['depends_on'] = [user_tf_resource]
         policy = {
             "Version": "2012-10-17",
             "Statement": [
                 {
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
-                    "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, q)
-                        for q in all_queues
-                    ]
+                    "Resource": []
                 }
             ]
         }
-        values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = [user_tf_resource]
-        return aws_iam_user_policy(identifier, **values)
+        policies = []
+        for q in queues:
+            policy["Statement"][0]["Resource"] = \
+                [f"arn:aws:sqs:*:{uid}:{q}"]
+            policies.append(policy)
+
+        policy_index = 0
+        for policy in policies:
+            values['policy'] = json.dumps(policy, sort_keys=True)
+            if len(policies) > 1:
+                values['name'] = f"{identifier}-{policy_index}"
+                policy_index += 1
+            tf_resource = aws_iam_user_policy(values['name'], **values)
+            aws_iam_user_policies.append(tf_resource)
+        return aws_iam_user_policies
 
     def populate_tf_resource_dynamodb(self, resource, namespace_info):
         account, identifier, common_values, \
