@@ -21,7 +21,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
-                               aws_iam_user_login_profile,
+                               aws_iam_user_login_profile, aws_iam_policy,
+                               aws_iam_user_policy_attachment,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
@@ -605,10 +606,11 @@ class TerrascriptClient(object):
                                  output_prefix, output_resource_name)
         region = common_values['region'] or self.default_regions[account]
         specs = common_values['specs']
-        all_queues = []
+        all_queues_per_spec = []
         for spec in specs:
             defaults = self.get_values(spec['defaults'])
             queues = spec.pop('queues', [])
+            all_queues = []
             for queue_kv in queues:
                 queue_key = queue_kv['key']
                 queue = queue_kv['value']
@@ -629,6 +631,7 @@ class TerrascriptClient(object):
                     'https://sqs.{}.amazonaws.com/{}/{}'.format(
                         region, uid, queue)
                 tf_resources.append(output(output_name, value=output_value))
+            all_queues_per_spec.append(all_queues)
 
         # iam resources
         # Terraform resource reference:
@@ -646,27 +649,39 @@ class TerrascriptClient(object):
             self.get_tf_iam_access_key(
                 user_tf_resource, identifier, output_prefix))
 
-        # iam user policy for queue
-        values = {}
-        values['user'] = identifier
-        values['name'] = identifier
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": ["sqs:*"],
-                    "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, q)
-                        for q in all_queues
-                    ]
-                }
-            ]
-        }
-        values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = [user_tf_resource]
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+        # iam policy for queue
+        policy_index = 0
+        for all_queues in all_queues_per_spec:
+            policy_identifier = f"{identifier}-{policy_index}"
+            policy_index += 1
+            if len(all_queues_per_spec) == 1:
+                policy_identifier = identifier
+            values = {}
+            values['name'] = policy_identifier
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["sqs:*"],
+                        "Resource": [
+                            "arn:aws:sqs:*:{}:{}".format(uid, q)
+                            for q in all_queues
+                        ]
+                    }
+                ]
+            }
+            values['policy'] = json.dumps(policy, sort_keys=True)
+            policy_tf_resource = aws_iam_policy(policy_identifier, **values)
+            tf_resources.append(policy_tf_resource)
+
+            # iam user policy attachment
+            values = {}
+            values['user'] = identifier
+            values['policy_arn'] = '${' + policy_tf_resource.fullname + '.arn}'
+            values['depends_on'] = [user_tf_resource, policy_tf_resource]
+            tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
+            tf_resources.append(tf_resource)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
