@@ -5,6 +5,7 @@ import base64
 import json
 import anymarkup
 import logging
+import copy
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -604,25 +605,30 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
         region = common_values['region'] or self.default_regions[account]
-        queues = common_values['queues']
-        for queue_kv in queues:
-            queue_key = queue_kv['key']
-            queue = queue_kv['value']
-            # sqs queue
-            # Terraform resource reference:
-            # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
-            values = {}
-            values['name'] = queue
-            values['tags'] = common_values['tags']
-            queue_tf_resource = aws_sqs_queue(queue, **values)
-            tf_resources.append(queue_tf_resource)
-            output_name = output_prefix + '[aws_region]'
-            tf_resources.append(output(output_name, value=region))
-            output_name = '{}[{}]'.format(output_prefix, queue_key)
-            output_value = \
-                'https://sqs.{}.amazonaws.com/{}/{}'.format(
-                    region, uid, queue)
-            tf_resources.append(output(output_name, value=output_value))
+        specs = common_values['specs']
+        all_queues = []
+        for spec in specs:
+            defaults = self.get_values(spec['defaults'])
+            queues = spec.pop('queues', [])
+            for queue_kv in queues:
+                queue_key = queue_kv['key']
+                queue = queue_kv['value']
+                # sqs queue
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
+                values = {}
+                values['name'] = queue
+                values['tags'] = common_values['tags']
+                values.update(defaults)
+                queue_tf_resource = aws_sqs_queue(queue, **values)
+                tf_resources.append(queue_tf_resource)
+                output_name = output_prefix + '[aws_region]'
+                tf_resources.append(output(output_name, value=region))
+                output_name = '{}[{}]'.format(output_prefix, queue_key)
+                output_value = \
+                    'https://sqs.{}.amazonaws.com/{}/{}'.format(
+                        region, uid, queue)
+                tf_resources.append(output(output_name, value=output_value))
 
         # iam resources
         # Terraform resource reference:
