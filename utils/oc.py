@@ -138,9 +138,13 @@ class OC(object):
     def get_users(self):
         return self.get_all('Users')['items']
 
-    def delete_user(self, user):
-        cmd = ['delete', 'user', user]
+    def delete_user(self, user_name):
+        user = self.get(None, 'User', user_name)
+        cmd = ['delete', 'user', user_name]
         self._run(cmd)
+        for identity in user['identities']:
+            cmd = ['delete', 'identity', identity]
+            self._run(cmd)
 
     def add_user_to_group(self, group, user):
         cmd = ['adm', 'groups', 'add-users', group, user]
