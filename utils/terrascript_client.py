@@ -25,7 +25,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
-                               aws_sqs_queue, aws_dynamodb_table)
+                               aws_sqs_queue, aws_dynamodb_table,
+                               aws_ecr_repository)
 
 
 class UnknownProviderError(Exception):
@@ -298,6 +299,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_sqs(resource, namespace_info)
         elif provider == 'dynamodb':
             self.populate_tf_resource_dynamodb(resource, namespace_info)
+        elif provider == 'ecr':
+            self.populate_tf_resource_ecr(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -754,6 +757,97 @@ class TerrascriptClient(object):
                         "arn:aws:dynamodb:{}:{}:table/{}".format(
                             region, uid, t) for t in all_tables
                     ]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_ecr(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        # ecr repository
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/ecr_repository.html
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        values['image_scanning_configuration'] = {'scan_on_push': False}
+
+        ecr_tf_resource = aws_ecr_repository(identifier, **values)
+        tf_resources.append(ecr_tf_resource)
+        output_name = output_prefix + '[url]'
+        output_value = '${' + ecr_tf_resource.fullname + '.repository_url}'
+        tf_resources.append(output(output_name, value=output_value))
+        region = common_values['region'] or self.default_regions[account]
+        output_name = output_prefix + '[aws_region]'
+        tf_resources.append(output(output_name, value=region))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for repository
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        values['depends_on'] = [ecr_tf_resource]
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy for bucket
+        values = {}
+        values['user'] = identifier
+        values['name'] = identifier
+        policy = {
+            "Version":"2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "ListImagesInRepository",
+                    "Effect": "Allow",
+                    "Action": ["ecr:ListImages"],
+                    "Resource": "${" + ecr_tf_resource.fullname + ".arn}"
+                },
+                {
+                    "Sid": "GetAuthorizationToken",
+                    "Effect": "Allow",
+                    "Action": ["ecr:GetAuthorizationToken"],
+                    "Resource": "*"
+                },
+                {
+                    "Sid": "ManageRepositoryContents",
+                    "Effect": "Allow",
+                    "Action": [
+                            "ecr:GetAuthorizationToken",
+                            "ecr:BatchCheckLayerAvailability",
+                            "ecr:GetDownloadUrlForLayer",
+                            "ecr:GetRepositoryPolicy",
+                            "ecr:DescribeRepositories",
+                            "ecr:ListImages",
+                            "ecr:DescribeImages",
+                            "ecr:BatchGetImage",
+                            "ecr:InitiateLayerUpload",
+                            "ecr:UploadLayerPart",
+                            "ecr:CompleteLayerUpload",
+                            "ecr:PutImage"
+                    ],
+                    "Resource": "${" + ecr_tf_resource.fullname + ".arn}"
                 }
             ]
         }

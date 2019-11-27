@@ -79,6 +79,11 @@ TF_NAMESPACES_QUERY = """
           }
         }
       }
+      ... on NamespaceTerraformResourceECR_v1 {
+        account
+        identifier
+        output_resource_name
+      }
     }
     cluster {
       name
