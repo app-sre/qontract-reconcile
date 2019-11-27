@@ -783,7 +783,6 @@ class TerrascriptClient(object):
         values = {}
         values['name'] = identifier
         values['tags'] = common_values['tags']
-        values['image_scanning_configuration'] = {'scan_on_push': False}
 
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
@@ -814,9 +813,8 @@ class TerrascriptClient(object):
         # iam user policy for bucket
         values = {}
         values['user'] = identifier
-        values['name'] = identifier
         policy = {
-            "Version":"2012-10-17",
+            "Version": "2012-10-17",
             "Statement": [
                 {
                     "Sid": "ListImagesInRepository",
