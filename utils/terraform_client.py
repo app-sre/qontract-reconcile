@@ -71,6 +71,7 @@ class TerraformClient(object):
         self.specs = \
             [{'name': name, 'tf': tf} for name, tf in results]
 
+    @retry(exceptions=TerraformCommandError)
     def terraform_init(self, init_spec):
         name = init_spec['name']
         wd = init_spec['wd']
@@ -78,7 +79,8 @@ class TerraformClient(object):
         return_code, stdout, stderr = tf.init()
         error = self.check_output(name, return_code, stdout, stderr)
         if error:
-            return name, None
+            raise TerraformCommandError(
+                return_code, 'init', out=stdout, err=stderr)
         return name, tf
 
     def init_outputs(self):
