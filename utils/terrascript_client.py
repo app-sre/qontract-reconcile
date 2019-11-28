@@ -813,6 +813,7 @@ class TerrascriptClient(object):
         # iam user policy for bucket
         values = {}
         values['user'] = identifier
+        values['name'] = identifier
         policy = {
             "Version": "2012-10-17",
             "Statement": [
