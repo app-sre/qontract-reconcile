@@ -5,6 +5,7 @@ import base64
 import json
 import anymarkup
 import logging
+import re
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -313,6 +314,14 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        # we want to allow an empty name, so we
+        # only validate names which are not emtpy
+        if values['name'] and not self.validate_db_name(values['name']):
+            print(values)
+            raise FetchResourceError(
+                f"[{account}] RDS name must begin with a letter " +
+                f"and contain only alphanumeric characters: {values['name']}")
+
         parameter_group = values.pop('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
@@ -364,6 +373,14 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def validate_db_name(name):
+        """ Handle for Error creating DB Instance:
+        InvalidParameterValue: DBName must begin with a letter
+        and contain only alphanumeric characters. """
+        pattern = r'^[a-zA-Z][a-zA-Z0-9]+$'
+        return re.search(pattern, name)
 
     def determine_db_password(self, namespace_info, output_resource_name,
                               secret_key='db.password'):
