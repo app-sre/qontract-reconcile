@@ -317,7 +317,6 @@ class TerrascriptClient(object):
         # we want to allow an empty name, so we
         # only validate names which are not emtpy
         if values['name'] and not self.validate_db_name(values['name']):
-            print(values)
             raise FetchResourceError(
                 f"[{account}] RDS name must begin with a letter " +
                 f"and contain only alphanumeric characters: {values['name']}")
