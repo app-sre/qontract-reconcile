@@ -4,6 +4,7 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
+import utils.vault_client as vault_client
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
@@ -183,10 +184,21 @@ def cleanup_and_exit(tf=None, status=False, working_dirs={}):
     sys.exit(status)
 
 
+def write_outputs_to_vault(vault_path, ri):
+    integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+    for cluster, namespace, _, data in ri:
+        for name, d_item in data['desired'].items():
+            secret_path = \
+              f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
+            secret = {'path': secret_path, 'data': d_item.body['data']}
+            vault_client.write(secret)
+
+
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, internal=None, light=False, defer=None):
+        thread_pool_size=10, internal=None, light=False,
+        vault_output_path='', defer=None):
     ri, oc_map, tf = setup(print_only, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
     if print_only:
@@ -219,5 +231,7 @@ def run(dry_run=False, print_only=False,
                     recycle_pods=True)
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
+    if vault_output_path:
+        write_outputs_to_vault(vault_output_path, ri)
 
     cleanup_and_exit(tf)

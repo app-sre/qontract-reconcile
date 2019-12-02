@@ -117,6 +117,14 @@ def throughput(function):
     return function
 
 
+def vault_output_path(function):
+    function = click.option('--vault-output-path',
+                            help='path in Vault to store output resources.',
+                            default='')(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
@@ -416,6 +424,7 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @terraform
 @throughput
+@vault_output_path
 @threaded(default=20)
 @binary(['terraform', 'oc'])
 @internal()
@@ -425,11 +434,12 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
               help='run without executing terraform plan and apply.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
-                        io_dir, thread_pool_size, internal, light):
+                        io_dir, thread_pool_size, internal, light,
+                        vault_output_path):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, io_dir, thread_pool_size,
-                    internal, light)
+                    internal, light, vault_output_path)
 
 
 @integration.command()

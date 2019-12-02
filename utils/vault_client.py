@@ -76,6 +76,24 @@ def read(secret):
     return base64.b64decode(data) if secret_format == 'base64' else data
 
 
+def write(secret):
+    """Writes a dictionary of keys and values to a Vault secret.
+
+    The input secret is a dictionary which contains the following fields:
+    * path - path to the secret in Vault
+    * data - data (dictionary) to write
+    """
+    secret_path = secret['path']
+    b64_data = secret['data']
+    data = {k: base64.b64decode(v or '').decode('utf-8')
+            for k, v in b64_data.items()}
+
+    try:
+        _write_v1(secret_path, data)
+    except Exception:
+        _write_v2(secret_path, data)
+
+
 def read_all(secret):
     """Returns a dictionary of keys and values in a Vault secret.
 
@@ -103,6 +121,13 @@ def _read_v1(path, field):
     return secret_field
 
 
+def _write_v1(path, data):
+    global _client
+    init_from_config()
+
+    _client.write(path, **data)
+
+
 def _read_all_v1(path):
     global _client
     init_from_config()
@@ -123,6 +148,10 @@ def _read_v2(path, field, version):
         raise SecretFieldNotFound("{}/{} ({})".format(path, field, version))
 
     return secret_field
+
+
+def _write_v2(path, data):
+    raise NotImplementedError('vault_client write v2')
 
 
 def _read_all_v2(path, version):
