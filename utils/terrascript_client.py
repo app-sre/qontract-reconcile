@@ -686,6 +686,11 @@ class TerrascriptClient(object):
                             "arn:aws:sqs:*:{}:{}".format(uid, q)
                             for q in all_queues
                         ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": ["sqs:ListQueues"],
+                        "Resource": "*"
                     }
                 ]
             }
