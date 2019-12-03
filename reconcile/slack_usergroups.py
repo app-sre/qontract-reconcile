@@ -173,7 +173,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
 
 def get_slack_usernames_from_github_owners(github_owners, users, usergroup):
     return get_slack_usernames_from_owners(
-        github_owners, users, usergroup, 'github_username')
+        github_owners, users, usergroup, 'github_username',
+        missing_user_log_method=logging.debug)
 
 
 def get_slack_usernames_from_gitlab_owners(gitlab_owners, users, usergroup):
@@ -182,7 +183,8 @@ def get_slack_usernames_from_gitlab_owners(gitlab_owners, users, usergroup):
 
 
 def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
-                                    user_key, ssl_verify=True):
+                                    user_key, ssl_verify=True,
+                                    missing_user_log_method=logging.warning):
     all_slack_usernames = []
     all_username_keys = [u[user_key] for u in users]
     for owners_file in owners_raw_url or []:
@@ -210,7 +212,7 @@ def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
         if not_found_users:
             msg = f'[{usergroup}] {user_key} not found in app-interface: ' + \
                 f'{not_found_users}'
-            logging.warning(msg)
+            missing_user_log_method(msg)
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
