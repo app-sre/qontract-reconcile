@@ -747,6 +747,9 @@ class TerrascriptClient(object):
 
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
+        output_name = output_prefix + '[endpoint]'
+        output_value = f"https://dynamodb.{region}.amazonaws.com"
+        tf_resources.append(output(output_name, value=output_value))
 
         # iam resources
         # Terraform resource reference:
