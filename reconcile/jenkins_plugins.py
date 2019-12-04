@@ -20,7 +20,7 @@ INSTANCES_QUERY = """
 """
 
 
-def get_jenkins_map():
+def get_jenkins_map(plugins_only=False):
     gqlapi = gql.get_api()
     jenkins_instances = gqlapi.query(INSTANCES_QUERY)['instances']
     settings = queries.get_app_interface_settings()
@@ -30,6 +30,9 @@ def get_jenkins_map():
         instance_name = instance['name']
         if instance_name in jenkins_map:
             continue
+        if plugins_only and not instance['plugins']:
+            continue
+
 
         token = instance['token']
         jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
@@ -109,7 +112,7 @@ def act(diff, jenkins_map):
 
 
 def run(dry_run=False):
-    jenkins_map = get_jenkins_map()
+    jenkins_map = get_jenkins_map(plugins_only=True)
     current_state = get_current_state(jenkins_map)
     desired_state = get_desired_state()
     diffs = calculate_diff(current_state, desired_state)
