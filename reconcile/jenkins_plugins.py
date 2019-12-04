@@ -33,7 +33,6 @@ def get_jenkins_map(plugins_only=False):
         if plugins_only and not instance['plugins']:
             continue
 
-
         token = instance['token']
         jenkins = JenkinsApi(token, ssl_verify=False, settings=settings)
         jenkins_map[instance_name] = jenkins
