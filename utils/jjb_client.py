@@ -7,7 +7,6 @@ import filecmp
 import subprocess
 import difflib
 import xml.etree.ElementTree as et
-
 import utils.secret_reader as secret_reader
 import utils.gql as gql
 
@@ -271,9 +270,20 @@ class JJB(object):
             for job in jobs:
                 job_name = job['name']
                 try:
-                    repo_url_raw = job['properties'][0]['github']['url']
-                    repo_url = repo_url_raw.strip('/').replace('.git', '')
-                    repos.append(repo_url)
+                    repos.append(self.get_repo_url(job))
                 except KeyError:
                     logging.debug('missing github url: {}'.format(job_name))
         return repos
+
+    def get_all_jobs(self, job_type=''):
+        all_jobs = {}
+        for name, wd in self.working_dirs.items():
+            logging.info(f'getting jobs from {name}')
+            all_jobs[name] = []
+            jobs = self.get_jobs(wd, name)
+            for job in jobs:
+                if job_type not in job['name']:
+                    continue
+                all_jobs[name].append(job)
+
+        return all_jobs

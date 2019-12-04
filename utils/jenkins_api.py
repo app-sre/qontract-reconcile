@@ -103,3 +103,20 @@ class JenkinsApi(object):
             )
 
             res.raise_for_status()
+
+    def get_build_history(self, job_name, time_limit):
+        url = f"{self.url}/job/{job_name}/api/json" + \
+            f"?tree=builds[timestamp,result]"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        return [b['result'] for b in res.json()['builds']
+                if time_limit < self.timestamp_seconds(b['timestamp'])]
+
+    @staticmethod
+    def timestamp_seconds(timestamp):
+        return int(timestamp / 1000)
