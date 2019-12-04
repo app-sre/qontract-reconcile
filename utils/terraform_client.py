@@ -9,7 +9,7 @@ import utils.threaded as threaded
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.retry import retry
 
-from python_terraform import Terraform, TerraformCommandError
+from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from threading import Lock
 
 
@@ -71,6 +71,7 @@ class TerraformClient(object):
         self.specs = \
             [{'name': name, 'tf': tf} for name, tf in results]
 
+    @retry(exceptions=TerraformCommandError)
     def terraform_init(self, init_spec):
         name = init_spec['name']
         wd = init_spec['wd']
@@ -78,7 +79,8 @@ class TerraformClient(object):
         return_code, stdout, stderr = tf.init()
         error = self.check_output(name, return_code, stdout, stderr)
         if error:
-            return name, None
+            raise TerraformCommandError(
+                return_code, 'init', out=stdout, err=stderr)
         return name, tf
 
     def init_outputs(self):
@@ -90,8 +92,17 @@ class TerraformClient(object):
     def terraform_output(self, spec):
         name = spec['name']
         tf = spec['tf']
-        output = tf.output(raise_on_error=True)
-        return name, output
+        return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
+        error = self.check_output(name, return_code, stdout, stderr)
+        no_output_error = \
+            'The module root could not be found. There is nothing to output.'
+        if error:
+            if no_output_error in stderr:
+                stdout = '{}'
+            else:
+                raise TerraformCommandError(
+                    return_code, 'output', out=stdout, err=stderr)
+        return name, json.loads(stdout)
 
     # terraform plan
     def plan(self, enable_deletion):
@@ -195,7 +206,8 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True)
+        return_code, stdout, stderr = tf.apply(auto_approve=True,
+                                               skip_plan=True)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
@@ -207,7 +219,7 @@ class TerraformClient(object):
 
         return data
 
-    def populate_desired_state(self, ri):
+    def populate_desired_state(self, ri, oc_map):
         self.init_outputs()  # get updated output
         for account, output in self.outputs.items():
             formatted_output = self.format_output(
@@ -215,6 +227,8 @@ class TerraformClient(object):
 
             for name, data in formatted_output.items():
                 cluster = data['{}.cluster'.format(self.integration_prefix)]
+                if not oc_map.get(cluster):
+                    continue
                 namespace = \
                     data['{}.namespace'.format(self.integration_prefix)]
                 resource = data['{}.resource'.format(self.integration_prefix)]

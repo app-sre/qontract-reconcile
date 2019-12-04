@@ -3,6 +3,7 @@ import hashlib
 import json
 import semver
 import datetime
+import re
 
 from threading import Lock
 
@@ -42,6 +43,17 @@ class OpenshiftResource(object):
         except (KeyError, TypeError) as e:
             msg = "resource invalid data ({}). details: {}".format(
                 e.__class__.__name__, self.error_details)
+            raise ConstructResourceError(msg)
+
+        r = '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+        if self.kind not in ['Role', 'RoleBinding'] and \
+                not re.search(r'^{}$'.format(r), self.name):
+            msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
+                f"metadata.name: Invalid value: \"{self.name}\": " + \
+                f"a DNS-1123 subdomain must consist of lower case " + \
+                f"alphanumeric characters, '-' or '.', and must start " + \
+                f"and end with an alphanumeric character (e.g. " + \
+                f"'example.com', regex used for validation is '{r}')"
             raise ConstructResourceError(msg)
 
     def has_qontract_annotations(self):

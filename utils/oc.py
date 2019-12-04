@@ -138,9 +138,13 @@ class OC(object):
     def get_users(self):
         return self.get_all('Users')['items']
 
-    def delete_user(self, user):
-        cmd = ['delete', 'user', user]
+    def delete_user(self, user_name):
+        user = self.get(None, 'User', user_name)
+        cmd = ['delete', 'user', user_name]
         self._run(cmd)
+        for identity in user['identities']:
+            cmd = ['delete', 'identity', identity]
+            self._run(cmd)
 
     def add_user_to_group(self, group, user):
         cmd = ['adm', 'groups', 'add-users', group, user]
@@ -260,11 +264,13 @@ class OC_Map(object):
     the OC client will be initiated to False.
     """
     def __init__(self, clusters=None, namespaces=None,
-                 integration='', e2e_test='', settings=None):
+                 integration='', e2e_test='', settings=None,
+                 internal=None):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
         self.settings = settings
+        self.internal = internal
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -284,6 +290,13 @@ class OC_Map(object):
             return
         if self.cluster_disabled(cluster_info):
             return
+        if self.internal is not None:
+            # integration is executed with `--internal` or `--external`
+            # filter out non matching clusters
+            if self.internal and not cluster_info['internal']:
+                return
+            if not self.internal and cluster_info['internal']:
+                return
 
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:

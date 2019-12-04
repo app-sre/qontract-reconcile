@@ -66,8 +66,11 @@ def construct_resources(namespaces):
     return namespaces
 
 
-def add_desired_state(namespaces, ri):
+def add_desired_state(namespaces, ri, oc_map):
     for namespace in namespaces:
+        cluster = namespace['cluster']['name']
+        if not oc_map.get(cluster):
+            continue
         if 'resources' not in namespace:
             continue
         for resource in namespace["resources"]:
@@ -80,25 +83,9 @@ def add_desired_state(namespaces, ri):
             )
 
 
-def set_delete_state(namespaces, ri):
-    for cluster, namespace, resource_type, data in ri:
-        for name, c_item in data['current'].items():
-
-            # look if resource is present in the ones we want to apply
-            for ns in namespaces:
-                if not ns['name'] == namespace:
-                    continue
-                if not name == ns['limitRanges']['name']:
-                    # if resource is not the one we want to apply...
-                    # set fake annotations as if we owned it
-                    c_item = c_item.annotate()
-                    # re-add to inventory
-                    ri.add_current(cluster, namespace,
-                                   resource_type, name, c_item)
-
-
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        take_over=True, defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
@@ -114,10 +101,10 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
         ob.fetch_current_state(namespaces, thread_pool_size,
                                QONTRACT_INTEGRATION,
                                QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['LimitRange'])
+                               override_managed_types=['LimitRange'],
+                               internal=internal)
     defer(lambda: oc_map.cleanup())
 
-    add_desired_state(namespaces, ri)
-    set_delete_state(namespaces, ri)
-
-    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True)
+    add_desired_state(namespaces, ri, oc_map)
+    ob.realize_data(dry_run, oc_map, ri, enable_deletion=True,
+                    take_over=take_over)

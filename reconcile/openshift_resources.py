@@ -88,6 +88,7 @@ NAMESPACES_QUERY = """
         field
         format
       }
+      internal
       disable {
         integrations
       }
@@ -434,11 +435,11 @@ def fetch_states(spec, ri):
                             spec.parent)
 
 
-def fetch_data(namespaces, thread_pool_size):
+def fetch_data(namespaces, thread_pool_size, internal):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
     state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
@@ -446,11 +447,13 @@ def fetch_data(namespaces, thread_pool_size):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
-    oc_map, ri = fetch_data(namespaces, thread_pool_size)
+    oc_map, ri = fetch_data(namespaces, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
+    if ri.has_error_registered():
+        sys.exit(1)
 
     # check for unused resources types
     # listed under `managedResourceTypes`

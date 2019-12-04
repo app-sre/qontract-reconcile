@@ -5,6 +5,7 @@ import base64
 import json
 import anymarkup
 import logging
+import re
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -21,11 +22,12 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
-                               aws_iam_user_login_profile,
+                               aws_iam_user_login_profile, aws_iam_policy,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
-                               aws_sqs_queue, aws_dynamodb_table)
+                               aws_sqs_queue, aws_dynamodb_table,
+                               aws_ecr_repository)
 
 
 class UnknownProviderError(Exception):
@@ -298,6 +300,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_sqs(resource, namespace_info)
         elif provider == 'dynamodb':
             self.populate_tf_resource_dynamodb(resource, namespace_info)
+        elif provider == 'ecr':
+            self.populate_tf_resource_ecr(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -309,6 +313,13 @@ class TerrascriptClient(object):
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
+
+        # we want to allow an empty name, so we
+        # only validate names which are not emtpy
+        if values['name'] and not self.validate_db_name(values['name']):
+            raise FetchResourceError(
+                f"[{account}] RDS name must begin with a letter " +
+                f"and contain only alphanumeric characters: {values['name']}")
 
         parameter_group = values.pop('parameter_group')
         if parameter_group:
@@ -361,6 +372,14 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def validate_db_name(name):
+        """ Handle for Error creating DB Instance:
+        InvalidParameterValue: DBName must begin with a letter
+        and contain only alphanumeric characters. """
+        pattern = r'^[a-zA-Z][a-zA-Z0-9]+$'
+        return re.search(pattern, name)
 
     def determine_db_password(self, namespace_info, output_resource_name,
                               secret_key='db.password'):
@@ -484,7 +503,7 @@ class TerrascriptClient(object):
                                          existing_secrets):
         account, identifier, values, output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        values['replication_group_id'] = values['identifier']
+        values.setdefault('replication_group_id', values['identifier'])
         values.pop('identifier', None)
 
         tf_resources = []
@@ -524,7 +543,7 @@ class TerrascriptClient(object):
         # db.endpoint
         output_name = output_prefix + '[db.endpoint]'
         output_value = '${' + tf_resource.fullname + \
-                       '.configuration_endpoint_address}'
+                       '.primary_endpoint_address}'
         tf_resources.append(output(output_name, value=output_value))
         # db.port
         output_name = output_prefix + '[db.port]'
@@ -604,25 +623,33 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
         region = common_values['region'] or self.default_regions[account]
-        queues = common_values['queues']
-        for queue_kv in queues:
-            queue_key = queue_kv['key']
-            queue = queue_kv['value']
-            # sqs queue
-            # Terraform resource reference:
-            # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
-            values = {}
-            values['name'] = queue
-            values['tags'] = common_values['tags']
-            queue_tf_resource = aws_sqs_queue(queue, **values)
-            tf_resources.append(queue_tf_resource)
-            output_name = output_prefix + '[aws_region]'
-            tf_resources.append(output(output_name, value=region))
-            output_name = '{}[{}]'.format(output_prefix, queue_key)
-            output_value = \
-                'https://sqs.{}.amazonaws.com/{}/{}'.format(
-                    region, uid, queue)
-            tf_resources.append(output(output_name, value=output_value))
+        specs = common_values['specs']
+        all_queues_per_spec = []
+        for spec in specs:
+            defaults = self.get_values(spec['defaults'])
+            queues = spec.pop('queues', [])
+            all_queues = []
+            for queue_kv in queues:
+                queue_key = queue_kv['key']
+                queue = queue_kv['value']
+                all_queues.append(queue)
+                # sqs queue
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
+                values = {}
+                values['name'] = queue
+                values['tags'] = common_values['tags']
+                values.update(defaults)
+                queue_tf_resource = aws_sqs_queue(queue, **values)
+                tf_resources.append(queue_tf_resource)
+                output_name = output_prefix + '[aws_region]'
+                tf_resources.append(output(output_name, value=region))
+                output_name = '{}[{}]'.format(output_prefix, queue_key)
+                output_value = \
+                    'https://sqs.{}.amazonaws.com/{}/{}'.format(
+                        region, uid, queue)
+                tf_resources.append(output(output_name, value=output_value))
+            all_queues_per_spec.append(all_queues)
 
         # iam resources
         # Terraform resource reference:
@@ -640,27 +667,46 @@ class TerrascriptClient(object):
             self.get_tf_iam_access_key(
                 user_tf_resource, identifier, output_prefix))
 
-        # iam user policy for queue
-        values = {}
-        values['user'] = identifier
-        values['name'] = identifier
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Action": ["sqs:*"],
-                    "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, q['value'])
-                        for q in queues
-                    ]
-                }
-            ]
-        }
-        values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = [user_tf_resource]
-        tf_resource = aws_iam_user_policy(identifier, **values)
-        tf_resources.append(tf_resource)
+        # iam policy for queue
+        policy_index = 0
+        for all_queues in all_queues_per_spec:
+            policy_identifier = f"{identifier}-{policy_index}"
+            policy_index += 1
+            if len(all_queues_per_spec) == 1:
+                policy_identifier = identifier
+            values = {}
+            values['name'] = policy_identifier
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": ["sqs:*"],
+                        "Resource": [
+                            "arn:aws:sqs:*:{}:{}".format(uid, q)
+                            for q in all_queues
+                        ]
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": ["sqs:ListQueues"],
+                        "Resource": "*"
+                    }
+                ]
+            }
+            values['policy'] = json.dumps(policy, sort_keys=True)
+            policy_tf_resource = aws_iam_policy(policy_identifier, **values)
+            tf_resources.append(policy_tf_resource)
+
+            # iam user policy attachment
+            values = {}
+            values['user'] = identifier
+            values['policy_arn'] = \
+                '${' + policy_tf_resource.fullname + '.arn}'
+            values['depends_on'] = [user_tf_resource, policy_tf_resource]
+            tf_resource = \
+                aws_iam_user_policy_attachment(policy_identifier, **values)
+            tf_resources.append(tf_resource)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
@@ -701,6 +747,9 @@ class TerrascriptClient(object):
 
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
+        output_name = output_prefix + '[endpoint]'
+        output_value = f"https://dynamodb.{region}.amazonaws.com"
+        tf_resources.append(output(output_name, value=output_value))
 
         # iam resources
         # Terraform resource reference:
@@ -732,6 +781,96 @@ class TerrascriptClient(object):
                         "arn:aws:dynamodb:{}:{}:table/{}".format(
                             region, uid, t) for t in all_tables
                     ]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_ecr(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        # ecr repository
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/ecr_repository.html
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+
+        ecr_tf_resource = aws_ecr_repository(identifier, **values)
+        tf_resources.append(ecr_tf_resource)
+        output_name = output_prefix + '[url]'
+        output_value = '${' + ecr_tf_resource.fullname + '.repository_url}'
+        tf_resources.append(output(output_name, value=output_value))
+        region = common_values['region'] or self.default_regions[account]
+        output_name = output_prefix + '[aws_region]'
+        tf_resources.append(output(output_name, value=region))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for repository
+        values = {}
+        values['name'] = identifier
+        values['tags'] = common_values['tags']
+        values['depends_on'] = [ecr_tf_resource]
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy for bucket
+        values = {}
+        values['user'] = identifier
+        values['name'] = identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "ListImagesInRepository",
+                    "Effect": "Allow",
+                    "Action": ["ecr:ListImages"],
+                    "Resource": "${" + ecr_tf_resource.fullname + ".arn}"
+                },
+                {
+                    "Sid": "GetAuthorizationToken",
+                    "Effect": "Allow",
+                    "Action": ["ecr:GetAuthorizationToken"],
+                    "Resource": "*"
+                },
+                {
+                    "Sid": "ManageRepositoryContents",
+                    "Effect": "Allow",
+                    "Action": [
+                            "ecr:GetAuthorizationToken",
+                            "ecr:BatchCheckLayerAvailability",
+                            "ecr:GetDownloadUrlForLayer",
+                            "ecr:GetRepositoryPolicy",
+                            "ecr:DescribeRepositories",
+                            "ecr:ListImages",
+                            "ecr:DescribeImages",
+                            "ecr:BatchGetImage",
+                            "ecr:InitiateLayerUpload",
+                            "ecr:UploadLayerPart",
+                            "ecr:CompleteLayerUpload",
+                            "ecr:PutImage"
+                    ],
+                    "Resource": "${" + ecr_tf_resource.fullname + ".arn}"
                 }
             ]
         }

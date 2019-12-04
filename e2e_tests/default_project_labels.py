@@ -2,7 +2,6 @@ import re
 import logging
 
 import e2e_tests.test_base as tb
-import e2e_tests.network_policy_test_base as npt
 
 from utils.defer import defer
 
@@ -21,10 +20,13 @@ def run(defer=None):
         projects = [p for p in oc.get_all('Project')['items']
                     if p['status']['phase'] != 'Terminating' and
                     not re.search(pattern, p['metadata']['name']) and
-                    'api.openshift.com/id' not in p['metadata']['labels']]
+                    'api.openshift.com/id'
+                    not in p['metadata'].get('labels', {})]
 
         for project in projects:
             logging.info("[{}/{}] validating default Project labels".format(
                 cluster, project['metadata']['name']))
             assert project['metadata']['labels']['name'] == \
                 project['metadata']['name']
+            monitoring_label = "openshift.io/workload-monitoring"
+            assert project['metadata']['labels'][monitoring_label] == "true"

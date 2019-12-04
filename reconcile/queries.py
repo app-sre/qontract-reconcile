@@ -88,6 +88,7 @@ NAMESPACES_QUERY = """
         field
         format
       }
+      internal
       disable {
         integrations
       }

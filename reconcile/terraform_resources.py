@@ -4,6 +4,7 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
+import utils.vault_client as vault_client
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
@@ -57,12 +58,13 @@ TF_NAMESPACES_QUERY = """
         account
         region
         identifier
-        defaults
-        overrides
         output_resource_name
-        queues {
-          key
-          value
+        specs {
+          defaults
+          queues {
+            key
+            value
+          }
         }
       }
       ... on NamespaceTerraformResourceDynamoDB_v1 {
@@ -78,6 +80,11 @@ TF_NAMESPACES_QUERY = """
           }
         }
       }
+      ... on NamespaceTerraformResourceECR_v1 {
+        account
+        identifier
+        output_resource_name
+      }
     }
     cluster {
       name
@@ -87,6 +94,7 @@ TF_NAMESPACES_QUERY = """
         field
         format
       }
+      internal
     }
   }
 }
@@ -114,11 +122,11 @@ def populate_oc_resources(spec, ri):
         )
 
 
-def fetch_current_state(namespaces, thread_pool_size):
+def fetch_current_state(namespaces, thread_pool_size, internal):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,
@@ -143,14 +151,14 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(print_only, thread_pool_size):
+def setup(print_only, thread_pool_size, internal):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size)
+    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size, internal)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
                                          oc_map=oc_map,
@@ -176,11 +184,22 @@ def cleanup_and_exit(tf=None, status=False, working_dirs={}):
     sys.exit(status)
 
 
+def write_outputs_to_vault(vault_path, ri):
+    integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+    for cluster, namespace, _, data in ri:
+        for name, d_item in data['desired'].items():
+            secret_path = \
+              f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
+            secret = {'path': secret_path, 'data': d_item.body['data']}
+            vault_client.write(secret)
+
+
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, defer=None):
-    ri, oc_map, tf = setup(print_only, thread_pool_size)
+        thread_pool_size=10, internal=None, light=False,
+        vault_output_path='', defer=None):
+    ri, oc_map, tf = setup(print_only, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
     if print_only:
         cleanup_and_exit()
@@ -188,27 +207,31 @@ def run(dry_run=False, print_only=False,
         err = True
         cleanup_and_exit(tf, err)
 
-    deletions_detected, err = tf.plan(enable_deletion)
-    if err:
-        cleanup_and_exit(tf, err)
-    if deletions_detected:
-        if enable_deletion:
-            tf.dump_deleted_users(io_dir)
-        else:
-            cleanup_and_exit(tf, deletions_detected)
+    if not light:
+        deletions_detected, err = tf.plan(enable_deletion)
+        if err:
+            cleanup_and_exit(tf, err)
+        if deletions_detected:
+            if enable_deletion:
+                tf.dump_deleted_users(io_dir)
+            else:
+                cleanup_and_exit(tf, deletions_detected)
 
     if dry_run:
         cleanup_and_exit(tf)
 
-    err = tf.apply()
-    if err:
-        cleanup_and_exit(tf, err)
+    if not light:
+        err = tf.apply()
+        if err:
+            cleanup_and_exit(tf, err)
 
-    tf.populate_desired_state(ri)
+    tf.populate_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri,
                     enable_deletion=enable_deletion,
                     recycle_pods=True)
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
+    if vault_output_path:
+        write_outputs_to_vault(vault_output_path, ri)
 
     cleanup_and_exit(tf)

@@ -1,5 +1,4 @@
 import datetime
-import logging
 
 import utils.gql as gql
 import reconcile.queries as queries
@@ -44,18 +43,19 @@ def get_oc_map(test_name):
     settings = queries.get_app_interface_settings()
     return OC_Map(clusters=clusters, e2e_test=test_name, settings=settings)
 
+
 def get_test_namespace_name():
     return '{}-{}'.format(
         E2E_NS_PFX, datetime.datetime.utcnow().strftime('%Y%m%d%H%M')
     )
 
+
 def assert_rolebinding(expected_rb, rb):
     assert expected_rb['role'] == rb['roleRef']['name']
     assert expected_rb['groups'] == rb['groupNames']
 
+
 def get_namespaces_pattern():
-  return r'^(default|logging|olm|' + \
-         '(openshift|kube-|ops-|dedicated-|management-|' + \
-           '{}).*)$'.format(
-            E2E_NS_PFX
-         )
+    return r'^(default|logging|olm|' + \
+           '(openshift|kube-|ops-|dedicated-|management-|' + \
+           '{}).*)$'.format(E2E_NS_PFX)

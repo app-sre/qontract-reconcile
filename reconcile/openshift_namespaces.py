@@ -32,6 +32,7 @@ QUERY = """
         field
         format
       }
+      internal
       disable {
         integrations
       }
@@ -43,13 +44,13 @@ QUERY = """
 QONTRACT_INTEGRATION = 'openshift-namespaces'
 
 
-def get_desired_state():
+def get_desired_state(internal):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(QUERY)['namespaces']
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
     ob.init_specs_to_fetch(
         ri,
         oc_map,
@@ -79,8 +80,8 @@ def create_new_project(spec, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
-    oc_map, desired_state = get_desired_state()
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+    oc_map, desired_state = get_desired_state(internal)
     defer(lambda: oc_map.cleanup())
     results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
                            oc_map=oc_map)

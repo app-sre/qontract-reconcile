@@ -30,7 +30,7 @@ class QuayApiMock(object):
 class TestQuayMembership(object):
     def setup_method(self, method):
         config.init_from_toml(fxt.path('config.toml'))
-        gql.init_from_config()
+        gql.init_from_config(sha_url=False)
 
     def do_current_state_test(self, path):
         fixture = fxt.get_anymarkup(path)

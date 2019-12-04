@@ -31,6 +31,7 @@ CLUSTERS_QUERY = """
       field
       format
     }
+    internal
     disable {
       integrations
     }
@@ -51,12 +52,12 @@ def get_cluster_users(cluster, oc_map):
     return [{"cluster": cluster, "user": user} for user in users or []]
 
 
-def fetch_current_state(thread_pool_size):
+def fetch_current_state(thread_pool_size, internal):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                    settings=settings)
+                    settings=settings, internal=internal)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]
@@ -66,7 +67,7 @@ def fetch_current_state(thread_pool_size):
 def fetch_desired_state(oc_map):
     desired_state = []
     flat_rolebindings_desired_state = \
-        openshift_rolebindings.fetch_desired_state(ri=None)
+        openshift_rolebindings.fetch_desired_state(ri=None, oc_map=oc_map)
     desired_state.extend(flat_rolebindings_desired_state)
 
     groups_desired_state = openshift_groups.fetch_desired_state(oc_map)
@@ -120,8 +121,8 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
-    oc_map, current_state = fetch_current_state(thread_pool_size)
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+    oc_map, current_state = fetch_current_state(thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state(oc_map)
 

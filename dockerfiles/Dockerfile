@@ -31,5 +31,13 @@ COPY reconcile reconcile
 COPY tools tools
 COPY utils utils
 COPY setup.py .
+COPY requirements.txt .
 
+RUN python3 -m pip install -r requirements.txt
 RUN python3 setup.py install
+
+# required to run ssh on OpenShift
+ENV PROD_USER_ID=1001450000
+RUN useradd -l -u ${PROD_USER_ID} reconcile
+ENV STAGE_USER_ID=1031160000
+RUN useradd -l -u ${STAGE_USER_ID} reconcile-stage

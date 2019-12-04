@@ -26,14 +26,15 @@ def run(defer=None):
                     for p in oc.get_all('Project')['items']
                     if p['status']['phase'] != 'Terminating' and
                     not re.search(pattern, p['metadata']['name']) and
-                    'api.openshift.com/id' not in p['metadata']['labels']]
+                    'api.openshift.com/id'
+                    not in p['metadata'].get('labels', {})]
 
         all_rolebindings = \
             oc.get_all('RoleBinding', all_namespaces=True)['items']
         rolebindings = [rb for rb in all_rolebindings
                         if rb['metadata']['namespace'] in projects
-                        and rb['groupNames'] == \
-                            dat.get_dedicated_admin_groups()
+                        and rb['groupNames'] ==
+                        dat.get_dedicated_admin_groups()
                         and rb['roleRef']['name'] in dat.get_expected_roles()]
 
         for project in projects:
@@ -41,6 +42,6 @@ def run(defer=None):
                 cluster, project))
             project_rbs = [rb for rb in rolebindings
                            if rb['metadata']['namespace'] == project]
-            assert len(project_rbs) == 2
-            assert project_rbs[0]['roleRef']['name'] != \
-                project_rbs[1]['roleRef']['name']
+            roles = {rb['roleRef']['name'] for rb in project_rbs}
+            assert len(roles) == 2
+            assert 'admin' in roles

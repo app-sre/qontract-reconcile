@@ -1,7 +1,10 @@
 import utils.vault_client as vault_client
 import utils.config as config
 
+from utils.retry import retry
 
+
+@retry()
 def read(secret, settings=None):
     """Returns a value of a key from Vault secret or configuration file.
 
@@ -26,6 +29,7 @@ def read(secret, settings=None):
         return config.read(secret)
 
 
+@retry()
 def read_all(secret, settings=None):
     """Returns a dictionary of keys and values
     from Vault secret or configuration file.

@@ -5,6 +5,7 @@ import requests
 import utils.gql as gql
 import reconcile.queries as queries
 
+from utils.retry import retry
 from utils.slack_api import SlackApi
 from utils.pagerduty_api import PagerDutyApi
 
@@ -56,6 +57,7 @@ ROLES_QUERY = """
           escalationPolicyID
         }
         github_owners
+        gitlab_owners
         channels
         description
       }
@@ -170,38 +172,55 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
 
 
 def get_slack_usernames_from_github_owners(github_owners, users, usergroup):
+    return get_slack_usernames_from_owners(
+        github_owners, users, usergroup, 'github_username',
+        missing_user_log_method=logging.debug)
+
+
+def get_slack_usernames_from_gitlab_owners(gitlab_owners, users, usergroup):
+    return get_slack_usernames_from_owners(
+        gitlab_owners, users, usergroup, 'org_username', ssl_verify=False)
+
+
+def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
+                                    user_key, ssl_verify=True,
+                                    missing_user_log_method=logging.warning):
     all_slack_usernames = []
-    all_github_usernames = [u['github_username'] for u in users]
-    for owners_file in github_owners or []:
-        r = requests.get(owners_file)
+    all_username_keys = [u[user_key] for u in users]
+    for owners_file in owners_raw_url or []:
+        r = get_raw_owners_content(owners_file, ssl_verify=ssl_verify)
         try:
             content = anymarkup.parse(
                 r.content,
                 force_types=None
             )
-            github_users = [u for l in content.values() for u in l]
+            owners = [u for l in content.values() for u in l]
         except (anymarkup.AnyMarkupError, KeyError):
             msg = "Could not parse data. Skipping owners file: {}"
             logging.warning(msg.format(owners_file))
             continue
 
-        if not github_users:
+        if not owners:
             continue
 
         slack_usernames = [get_slack_username(u)
                            for u in users
-                           if u['github_username']
-                           in github_users]
-        not_found_github_users = [github_user for github_user in github_users
-                                  if github_user not in all_github_usernames]
-        if not_found_github_users:
-            msg = (
-                '[{}] github usernames not found in app-interface: {}'
-            ).format(usergroup, not_found_github_users)
-            logging.warning(msg)
+                           if u[user_key]
+                           in owners]
+        not_found_users = [owner for owner in owners
+                           if owner not in all_username_keys]
+        if not_found_users:
+            msg = f'[{usergroup}] {user_key} not found in app-interface: ' + \
+                f'{not_found_users}'
+            missing_user_log_method(msg)
         all_slack_usernames.extend(slack_usernames)
 
     return all_slack_usernames
+
+
+@retry()
+def get_raw_owners_content(owners_file, ssl_verify):
+    return requests.get(owners_file, verify=ssl_verify)
 
 
 def get_desired_state(slack_map):
@@ -245,6 +264,11 @@ def get_desired_state(slack_map):
                 get_slack_usernames_from_github_owners(p['github_owners'],
                                                        all_users, usergroup)
             user_names.extend(slack_usernames_github)
+
+            slack_usernames_gitlab = \
+                get_slack_usernames_from_gitlab_owners(p['gitlab_owners'],
+                                                       all_users, usergroup)
+            user_names.extend(slack_usernames_gitlab)
 
             users = slack.get_users_by_names(user_names)
 

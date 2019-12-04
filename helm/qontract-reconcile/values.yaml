@@ -7,6 +7,14 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 50m
+- name: aws-iam-keys
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 15m
+    limits:
+      memory: 200Mi
+      cpu: 25m
 - name: github
   resources:
     requests:
@@ -31,14 +39,14 @@ integrations:
     limits:
       memory: 60Mi
       cpu: 25m
-- name: slack-usergroups
+- name: quay-repos
   resources:
     requests:
-      memory: 75Mi
-      cpu: 20m
+      memory: 30Mi
+      cpu: 15m
     limits:
-      memory: 150Mi
-      cpu: 40m
+      memory: 60Mi
+      cpu: 25m
 - name: jira-watcher
   resources:
     requests:
@@ -71,3 +79,86 @@ integrations:
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
+- name: openshift-users
+  resources:
+    requests:
+      memory: 150Mi
+      cpu: 20m
+    limits:
+      memory: 200Mi
+      cpu: 40m
+- name: openshift-groups
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 300Mi
+      cpu: 150m
+- name: openshift-namespaces
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 300Mi
+      cpu: 200m
+  extraArgs: --external
+- name: openshift-rolebindings
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 300m
+- name: openshift-network-policies
+  resources:
+    requests:
+      memory: 150Mi
+      cpu: 100m
+    limits:
+      memory: 250Mi
+      cpu: 200m
+- name: openshift-acme
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+- name: openshift-limitranges
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 100m
+    limits:
+      memory: 100Mi
+      cpu: 150m
+- name: openshift-resources
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 600m
+    limits:
+      memory: 600Mi
+      cpu: 1000m
+  extraArgs: --external
+- name: terraform-resources
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
+  extraArgs: --external --vault-output-path app-sre/integrations-output
+- name: terraform-users
+  resources:
+    requests:
+      memory: 1000Mi
+      cpu: 200m
+    limits:
+      memory: 1500Mi
+      cpu: 400m

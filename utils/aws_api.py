@@ -187,10 +187,9 @@ class AWSApi(object):
             wait = False
             for account in self.sessions:
                 if self.resources[account].get(resource) is None:
-                    continue
-                wait = True
+                    wait = True
+            if wait:
                 time.sleep(2)
-                break
 
     def set_resouces(self, account, key, value):
         with self._lock:
