@@ -275,6 +275,11 @@ class JJB(object):
                     logging.debug('missing github url: {}'.format(job_name))
         return repos
 
+    @staticmethod
+    def get_repo_url(job):
+        repo_url_raw = job['properties'][0]['github']['url']
+        return repo_url_raw.strip('/').replace('.git', '')
+
     def get_all_jobs(self, job_type=''):
         all_jobs = {}
         for name, wd in self.working_dirs.items():
