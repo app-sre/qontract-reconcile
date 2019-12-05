@@ -1,0 +1,28 @@
+local slo = import 'slo-libsonnet/slo.libsonnet';
+local slos = import '{{ libsonnetFile }}';
+
+{
+  apiVersion: 'monitoring.coreos.com/v1',
+  kind: 'PrometheusRule',
+  metadata: {
+    name: '{{ component }}-slo-{{ namespace }}',
+    labels: {{ manifestLabels }},
+  },
+  spec: {
+    groups: [
+      {
+        name: '{{ component }}.slo.rules',
+        rules:
+          local availability = slos.prometheusSLOs.errors {
+            selectors+: {{ selectors }},
+            labels: [
+              'component="{{ component }}"',
+            ],
+          };
+          slo.errorburn(availability).recordingrules +
+          slo.errorburn(availability).alerts +
+          slo.errorbudget(availability).recordingrules,
+      },
+    ],
+  },
+}

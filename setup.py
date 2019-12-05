@@ -14,6 +14,8 @@ setup(
                 "state as defined in the app-interface DB.",
 
     packages=find_packages(exclude=('tests',)),
+    package_data={'templates': ['*.j2']},
+    include_package_data=True,
 
     install_requires=[
         "Click>=7.0,<8.0",

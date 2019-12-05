@@ -15,6 +15,7 @@ import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
+import reconcile.openshift_prometheusrules
 import reconcile.quay_membership
 import reconcile.quay_repos
 import reconcile.ldap_users
@@ -377,6 +378,16 @@ def openshift_namespaces(ctx, thread_pool_size, internal):
 def openshift_network_policies(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_network_policies.run,
                     ctx.obj['dry_run'], thread_pool_size, internal)
+
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'jb', 'jsonnet'])
+@click.pass_context
+def openshift_prometheusrules(ctx, thread_pool_size):
+    run_integration(reconcile.openshift_prometheusrules.run,
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
