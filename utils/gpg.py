@@ -4,6 +4,14 @@ from subprocess import PIPE, Popen, STDOUT
 
 
 def gpg_key_valid(public_gpg_key):
+    stripped_public_gpg_key = public_gpg_key.rstrip()
+    if ' ' in stripped_public_gpg_key:
+        return False
+
+    equal_sign_count = public_gpg_key.count('=')
+    if not stripped_public_gpg_key.endswith('=' * equal_sign_count):
+        return False
+
     try:
         public_gpg_key_dec = base64.b64decode(public_gpg_key)
     except Exception:
