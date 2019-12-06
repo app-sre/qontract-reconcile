@@ -46,7 +46,8 @@ class OpenshiftResource(object):
             raise ConstructResourceError(msg)
 
         r = '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
-        if self.kind not in ['Role', 'RoleBinding'] and \
+        if self.kind not in \
+                ['Role', 'RoleBinding', 'ClusterRoleBinding'] and \
                 not re.search(r'^{}$'.format(r), self.name):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                 f"metadata.name: Invalid value: \"{self.name}\": " + \
@@ -207,6 +208,10 @@ class OpenshiftResource(object):
                     subject.pop('apiGroup')
             if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
                 body['apiVersion'] = 'authorization.openshift.io/v1'
+
+        if body['kind'] == 'ClusterRoleBinding':
+            if 'groupNames' in body:
+                body.pop('groupNames')
 
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
