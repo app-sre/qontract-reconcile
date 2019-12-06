@@ -19,51 +19,82 @@ class StateSpec(object):
         self.parent = parent
 
 
-def init_specs_to_fetch(ri, oc_map, namespaces,
+def init_specs_to_fetch(ri, oc_map,
+                        namespaces=None,
+                        clusters=None,
                         override_managed_types=None,
                         managed_types_key='managedResourceTypes'):
     state_specs = []
 
-    for namespace_info in namespaces:
-        if override_managed_types is None:
-            managed_types = namespace_info.get(managed_types_key)
-        else:
-            managed_types = override_managed_types
+    if clusters and namespaces:
+        raise KeyError('expected only one of clusters or namespaces.')
+    elif namespaces:
+        for namespace_info in namespaces:
+            if override_managed_types is None:
+                managed_types = namespace_info.get(managed_types_key)
+            else:
+                managed_types = override_managed_types
 
-        if not managed_types:
-            continue
+            if not managed_types:
+                continue
 
-        cluster = namespace_info['cluster']['name']
-        namespace = namespace_info['name']
+            cluster = namespace_info['cluster']['name']
+            oc = oc_map.get(cluster)
+            if oc is None:
+                msg = f"[{cluster}] cluster skipped."
+                logging.debug(msg)
+                continue
+            if oc is False:
+                ri.register_error()
+                msg = f"[{cluster}] cluster has no automationToken."
+                logging.error(msg)
+                continue
 
-        oc = oc_map.get(cluster)
-        if oc is None:
-            msg = (
-                "[{}] cluster skipped."
-            ).format(cluster)
-            logging.debug(msg)
-            continue
-        if oc is False:
-            ri.register_error()
-            msg = (
-                "[{}/{}] cluster has no automationToken."
-            ).format(cluster, namespace)
-            logging.error(msg)
-            continue
+            namespace = namespace_info['name']
 
-        # Initialize current state specs
-        for resource_type in managed_types:
-            ri.initialize_resource_type(cluster, namespace, resource_type)
-            c_spec = StateSpec("current", oc, cluster, namespace,
-                               resource_type)
-            state_specs.append(c_spec)
+            # Initialize current state specs
+            for resource_type in managed_types:
+                ri.initialize_resource_type(cluster, namespace, resource_type)
+                c_spec = StateSpec("current", oc, cluster, namespace,
+                                    resource_type)
+                state_specs.append(c_spec)
 
-        # Initialize desired state specs
-        openshift_resources = namespace_info.get('openshiftResources') or []
-        for openshift_resource in openshift_resources:
-            d_spec = StateSpec("desired", oc, cluster, namespace,
-                               openshift_resource, namespace_info)
-            state_specs.append(d_spec)
+            # Initialize desired state specs
+            openshift_resources = namespace_info.get('openshiftResources')
+            for openshift_resource in openshift_resources or []:
+                d_spec = StateSpec("desired", oc, cluster, namespace,
+                                    openshift_resource, namespace_info)
+                state_specs.append(d_spec)
+    elif clusters:
+        # set namespace to something indicative
+        namespace = 'cluster'
+        for cluster_info in clusters or []:
+            cluster = cluster_info['name']
+            oc = oc_map.get(cluster)
+            if oc is None:
+                msg = f"[{cluster}] cluster skipped."
+                logging.debug(msg)
+                continue
+            if oc is False:
+                ri.register_error()
+                msg = f"[{cluster}] cluster has no automationToken."
+                logging.error(msg)
+                continue
+
+            # we currently only use override_managed_types,
+            # and not allow a `managedResourcesTypes` field in a cluster file
+            for resource_type in override_managed_types or []:
+                ri.initialize_resource_type(cluster, namespace, resource_type)
+                # Initialize current state specs
+                c_spec = StateSpec("current", oc, cluster, namespace,
+                                   resource_type)
+                state_specs.append(c_spec)
+                # Initialize desired state specs
+                d_spec = StateSpec("desired", oc, cluster, namespace,
+                                   resource_type)
+                state_specs.append(d_spec)
+    else:
+        raise KeyError('expected one of clusters or namespaces.')
 
     return state_specs
 
@@ -85,19 +116,26 @@ def populate_current_state(spec, ri, integration, integration_version):
         )
 
 
-def fetch_current_state(namespaces, thread_pool_size,
-                        integration, integration_version,
+def fetch_current_state(namespaces=None,
+                        clusters=None,
+                        thread_pool_size=None,
+                        integration=None,
+                        integration_version=None,
                         override_managed_types=None,
                         internal=None):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(namespaces=namespaces, integration=integration,
-                    settings=settings, internal=internal)
+    oc_map = OC_Map(namespaces=namespaces,
+                    clusters=clusters,
+                    integration=integration,
+                    settings=settings,
+                    internal=internal)
     state_specs = \
         init_specs_to_fetch(
             ri,
             oc_map,
-            namespaces,
+            namespaces=namespaces,
+            clusters=clusters,
             override_managed_types=override_managed_types
         )
     threaded.run(populate_current_state, state_specs, thread_pool_size,
@@ -181,10 +219,11 @@ def realize_data(dry_run, oc_map, ri,
 
                 logging.debug("CURRENT: " +
                               OR.serialize(OR.canonicalize(c_item.body)))
-                logging.debug("DESIRED: " +
-                              OR.serialize(OR.canonicalize(d_item.body)))
             else:
                 logging.debug("CURRENT: None")
+
+            logging.debug("DESIRED: " +
+                          OR.serialize(OR.canonicalize(d_item.body)))
 
             try:
                 apply(dry_run, oc_map, cluster, namespace,

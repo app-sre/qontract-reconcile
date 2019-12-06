@@ -102,16 +102,17 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
 
     namespaces = construct_resources(namespaces)
 
-    ri, oc_map = \
-        ob.fetch_current_state(namespaces, thread_pool_size,
-                               QONTRACT_INTEGRATION,
-                               QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=[
-                                   'Deployment',
-                                   'Role',
-                                   'RoleBinding',
-                                   'ServiceAccount'],
-                               internal=internal)
+    ri, oc_map = ob.fetch_current_state(
+        namespaces=namespaces,
+        thread_pool_size=thread_pool_size,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        override_managed_types=[
+            'Deployment',
+            'Role',
+            'RoleBinding',
+            'ServiceAccount'],
+        internal=internal)
     add_desired_state(namespaces, ri, oc_map)
 
     defer(lambda: oc_map.cleanup())

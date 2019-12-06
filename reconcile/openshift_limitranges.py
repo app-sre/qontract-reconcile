@@ -97,12 +97,13 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         logging.debug("No LimitRanges definition found in app-interface!")
         sys.exit(0)
 
-    ri, oc_map = \
-        ob.fetch_current_state(namespaces, thread_pool_size,
-                               QONTRACT_INTEGRATION,
-                               QONTRACT_INTEGRATION_VERSION,
-                               override_managed_types=['LimitRange'],
-                               internal=internal)
+    ri, oc_map = ob.fetch_current_state(
+        namespaces=namespaces,
+        thread_pool_size=thread_pool_size,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        override_managed_types=['LimitRange'],
+        internal=internal)
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri, oc_map)

@@ -131,7 +131,7 @@ def fetch_current_state(namespaces, thread_pool_size, internal):
         ob.init_specs_to_fetch(
             ri,
             oc_map,
-            namespaces,
+            namespaces=namespaces,
             override_managed_types=['Secret']
         )
     threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri)

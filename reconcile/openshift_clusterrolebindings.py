@@ -2,11 +2,11 @@ import semver
 
 import utils.gql as gql
 import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceKeyExistsError)
 from utils.defer import defer
-from reconcile.queries import NAMESPACES_QUERY
 
 
 ROLES_QUERY = """
@@ -21,29 +21,25 @@ ROLES_QUERY = """
       openshift_serviceaccount
     }
     access {
-      namespace {
+      cluster {
         name
-        managedRoles
-        cluster {
-          name
-        }
       }
-      role
+      clusterRole
     }
   }
 }
 """
 
 
-QONTRACT_INTEGRATION = 'openshift-rolebindings'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 0)
+QONTRACT_INTEGRATION = 'openshift-clusterrolebindings'
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def construct_user_oc_resource(role, user):
     name = f"{role}-{user}"
     body = {
         "apiVersion": "authorization.openshift.io/v1",
-        "kind": "RoleBinding",
+        "kind": "ClusterRoleBinding",
         "metadata": {
             "name": name
         },
@@ -63,7 +59,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
     name = f"{role}-{namespace}-{sa_name}"
     body = {
         "apiVersion": "authorization.openshift.io/v1",
-        "kind": "RoleBinding",
+        "kind": "ClusterRoleBinding",
         "metadata": {
             "name": name
         },
@@ -87,13 +83,13 @@ def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     users_desired_state = []
+    # set namespace to something indicative
+    namepsace = 'cluster'
     for role in roles:
-        permissions = [{'cluster': a['namespace']['cluster']['name'],
-                        'namespace': a['namespace']['name'],
-                        'role': a['role']}
+        permissions = [{'cluster': a['cluster']['name'],
+                        'cluster_role': a['clusterRole']}
                        for a in role['access'] or []
-                       if None not in [a['namespace'], a['role']]
-                       and a['namespace'].get('managedRoles')]
+                       if None not in [a['cluster'], a['clusterRole']]]
         if not permissions:
             continue
 
@@ -121,12 +117,13 @@ def fetch_desired_state(ri, oc_map):
                 if ri is None:
                     continue
                 oc_resource, resource_name = \
-                    construct_user_oc_resource(permission['role'], user)
+                    construct_user_oc_resource(
+                        permission['cluster_role'], user)
                 try:
                     ri.add_desired(
                         cluster,
-                        permission['namespace'],
-                        'RoleBinding',
+                        namepsace,
+                        'ClusterRoleBinding',
                         resource_name,
                         oc_resource
                     )
@@ -140,12 +137,12 @@ def fetch_desired_state(ri, oc_map):
                 namespace, sa_name = sa.split('/')
                 oc_resource, resource_name = \
                     construct_sa_oc_resource(
-                        permission['role'], namespace, sa_name)
+                        permission['cluster_role'], namespace, sa_name)
                 try:
                     ri.add_desired(
                         permission['cluster'],
-                        permission['namespace'],
-                        'RoleBinding',
+                        namepsace,
+                        'ClusterRoleBinding',
                         resource_name,
                         oc_resource
                     )
@@ -159,16 +156,15 @@ def fetch_desired_state(ri, oc_map):
 
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
-    gqlapi = gql.get_api()
-    namespaces = [namespace_info for namespace_info
-                  in gqlapi.query(NAMESPACES_QUERY)['namespaces']
-                  if namespace_info.get('managedRoles')]
+    clusters = [cluster_info for cluster_info
+                in queries.get_clusters()
+                if cluster_info.get('managedClusterRoles')]
     ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
+        clusters=clusters,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=['RoleBinding'],
+        override_managed_types=['ClusterRoleBinding'],
         internal=internal)
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(ri, oc_map)

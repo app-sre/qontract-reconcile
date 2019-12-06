@@ -64,6 +64,50 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
+def get_aws_accounts():
+    """ Returns all AWS accounts """
+    gqlapi = gql.get_api()
+    return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+
+
+CLUSTERS_QUERY = """
+{
+  clusters: clusters_v1 {
+    name
+    serverUrl
+    managedGroups
+    managedClusterRoles
+    jumpHost {
+      hostname
+      knownHosts
+      user
+      port
+      identity {
+        path
+        field
+        format
+      }
+    }
+    automationToken {
+      path
+      field
+      format
+    }
+    internal
+    disable {
+      integrations
+    }
+  }
+}
+"""
+
+
+def get_clusters():
+    """ Returns all Clusters """
+    gqlapi = gql.get_api()
+    return gqlapi.query(CLUSTERS_QUERY)['clusters']
+
+
 NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -132,12 +176,6 @@ NAMESPACES_QUERY = """
   }
 }
 """
-
-
-def get_aws_accounts():
-    """ Returns all AWS accounts """
-    gqlapi = gql.get_api()
-    return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
 
 
 APPS_QUERY = """
