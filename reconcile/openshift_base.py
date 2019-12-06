@@ -56,14 +56,14 @@ def init_specs_to_fetch(ri, oc_map,
             for resource_type in managed_types:
                 ri.initialize_resource_type(cluster, namespace, resource_type)
                 c_spec = StateSpec("current", oc, cluster, namespace,
-                                    resource_type)
+                                   resource_type)
                 state_specs.append(c_spec)
 
             # Initialize desired state specs
             openshift_resources = namespace_info.get('openshiftResources')
             for openshift_resource in openshift_resources or []:
                 d_spec = StateSpec("desired", oc, cluster, namespace,
-                                    openshift_resource, namespace_info)
+                                   openshift_resource, namespace_info)
                 state_specs.append(d_spec)
     elif clusters:
         # set namespace to something indicative
