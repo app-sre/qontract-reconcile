@@ -490,6 +490,45 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile
+    name: qontract-reconcile-openshift-clusterrolebindings
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        securityContext:
+          runAsUser: ${{USER_ID}}
+        containers:
+        - name: openshift-clusterrolebindings
+          image: ${IMAGE}:${IMAGE_TAG}
+          command:
+          - /bin/sh
+          - -c
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-clusterrolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          resources:
+            limits:
+              cpu: 150m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
     name: qontract-reconcile-openshift-rolebindings
   spec:
     replicas: 1
