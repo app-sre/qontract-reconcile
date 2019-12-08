@@ -8,36 +8,6 @@ import reconcile.queries as queries
 from utils.oc import OC_Map
 from utils.defer import defer
 
-CLUSTERS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    serverUrl
-    managedGroups
-    jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        format
-      }
-    }
-    automationToken {
-      path
-      field
-      format
-    }
-    internal
-    disable {
-      integrations
-    }
-  }
-}
-"""
-
 ROLES_QUERY = """
 {
   roles: roles_v1 {
@@ -102,8 +72,7 @@ def create_groups_list(clusters, oc_map):
 
 
 def fetch_current_state(thread_pool_size, internal):
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
+    clusters = queries.get_clusters()
     current_state = []
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,

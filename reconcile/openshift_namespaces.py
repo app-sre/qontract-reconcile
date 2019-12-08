@@ -54,7 +54,7 @@ def get_desired_state(internal):
     ob.init_specs_to_fetch(
         ri,
         oc_map,
-        namespaces,
+        namespaces=namespaces,
         override_managed_types=['Namespace']
     )
     desired_state = [{"cluster": cluster, "namespace": namespace}

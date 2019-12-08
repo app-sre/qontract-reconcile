@@ -453,7 +453,7 @@ def fetch_data(namespaces, thread_pool_size, internal):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal)
-    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces)
+    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
     return oc_map, ri

@@ -57,9 +57,12 @@ class OC(object):
 
         if 'namespace' in kwargs:
             namespace = kwargs['namespace']
-            if not self.project_exists(namespace):
-                return []
-            cmd.extend(['-n', namespace])
+            # for cluster scoped integrations
+            # currently only openshift-clusterrolebindings
+            if namespace != 'cluster':
+                if not self.project_exists(namespace):
+                    return []
+                cmd.extend(['-n', namespace])
 
         if 'labels' in kwargs:
             labels_list = [
