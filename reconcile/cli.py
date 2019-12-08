@@ -36,6 +36,7 @@ import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
 
+from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
@@ -164,6 +165,14 @@ def run_integration(func, *args):
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(1)
+    except GqlApiError as e:
+        if '409' in str(e):
+            logging.error(f'Data changed during execution. Details: {e}')
+            # exit code to relect conflict
+            # TODO: document this better
+            sys.exit(3)
+        else:
+            raise e
 
 
 def init_log_level(log_level):
