@@ -166,9 +166,10 @@ def run_integration(func, *args):
         sys.exit(1)
 
 
-def init_log_level(log_level):
+def init_log_level(log_level, invoked_subcommand):
     level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+    log_format = f'[{invoked_subcommand}] %(levelname)s: %(message)s'
+    logging.basicConfig(format=log_format, level=level)
 
 
 @click.group()
@@ -179,7 +180,7 @@ def init_log_level(log_level):
 def integration(ctx, configfile, dry_run, log_level):
     ctx.ensure_object(dict)
 
-    init_log_level(log_level)
+    init_log_level(log_level, ctx.invoked_subcommand)
     config.init_from_toml(configfile)
     gql.init_from_config()
     ctx.obj['dry_run'] = dry_run
