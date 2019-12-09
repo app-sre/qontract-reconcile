@@ -26,10 +26,17 @@ objects:
         containers:
         - name: aws-garbage-collector
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: aws-garbage-collector
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 50m
@@ -65,10 +72,17 @@ objects:
         containers:
         - name: aws-iam-keys
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: aws-iam-keys
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -104,10 +118,17 @@ objects:
         containers:
         - name: github
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: github
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -143,10 +164,17 @@ objects:
         containers:
         - name: github-repo-invites
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: github-repo-invites
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -182,10 +210,17 @@ objects:
         containers:
         - name: quay-membership
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: quay-membership
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -221,10 +256,17 @@ objects:
         containers:
         - name: quay-repos
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-repos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: quay-repos
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -260,10 +302,17 @@ objects:
         containers:
         - name: jira-watcher
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: jira-watcher
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--io-dir /tmp/throughput/"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -299,11 +348,17 @@ objects:
         containers:
         - name: github-scanner
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: github-scanner
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--thread-pool-size 1"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -344,11 +399,17 @@ objects:
         containers:
         - name: aws-support-cases-sos
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: aws-support-cases-sos
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -389,10 +450,17 @@ objects:
         containers:
         - name: openshift-users
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-users
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 40m
@@ -428,10 +496,17 @@ objects:
         containers:
         - name: openshift-groups
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-groups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-groups
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 150m
@@ -467,10 +542,17 @@ objects:
         containers:
         - name: openshift-namespaces
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-namespaces --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-namespaces
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--external"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 200m
@@ -506,10 +588,17 @@ objects:
         containers:
         - name: openshift-clusterrolebindings
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-clusterrolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-clusterrolebindings
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 150m
@@ -545,10 +634,17 @@ objects:
         containers:
         - name: openshift-rolebindings
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-rolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-rolebindings
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 300m
@@ -584,10 +680,17 @@ objects:
         containers:
         - name: openshift-network-policies
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-network-policies ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-network-policies
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 200m
@@ -623,10 +726,17 @@ objects:
         containers:
         - name: openshift-acme
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-acme ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-acme
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 200m
@@ -662,10 +772,17 @@ objects:
         containers:
         - name: openshift-limitranges
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-limitranges ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-limitranges
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 150m
@@ -701,10 +818,17 @@ objects:
         containers:
         - name: openshift-resources
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-resources --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-resources
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--external"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 1000m
@@ -740,10 +864,17 @@ objects:
         containers:
         - name: terraform-resources
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-resources --external --vault-output-path app-sre/integrations-output; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: terraform-resources
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--external --vault-output-path app-sre/integrations-output"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 400m
@@ -779,10 +910,17 @@ objects:
         containers:
         - name: terraform-users
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: terraform-users
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 400m
@@ -810,3 +948,5 @@ parameters:
   value: app-interface-sqs
 - name: USER_ID
   value: "1000720000"
+- name: LOG_FILE
+  value: ""
