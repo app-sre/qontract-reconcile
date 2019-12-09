@@ -172,6 +172,9 @@ class OpenshiftResource(object):
                     tls = body['spec']['tls']
                     tls.pop('key', None)
                     tls.pop('certificate', None)
+            subdomain = body['spec'].get('subdomain', None)
+            if subdomain == '':
+                body['spec'].pop('subdomain', None)
 
         if body['kind'] == 'ServiceAccount':
             if 'imagePullSecrets' in body:
