@@ -29,7 +29,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-garbage-collector ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 50m
@@ -68,7 +68,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-iam-keys ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -107,7 +107,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -146,7 +146,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-repo-invites ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -185,7 +185,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-membership ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -224,7 +224,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-repos ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} quay-repos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -263,7 +263,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} jira-watcher --io-dir /tmp/throughput/; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 25m
@@ -302,7 +302,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} github-scanner --thread-pool-size 1; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
@@ -347,7 +347,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} aws-support-cases-sos ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           env:
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
@@ -392,7 +392,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 40m
@@ -431,7 +431,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-groups ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-groups ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 150m
@@ -470,7 +470,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-namespaces --external; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-namespaces --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 200m
@@ -509,7 +509,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-clusterrolebindings ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-clusterrolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 150m
@@ -548,7 +548,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-rolebindings ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-rolebindings ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 300m
@@ -587,7 +587,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-network-policies ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-network-policies ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 200m
@@ -626,7 +626,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-acme ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-acme ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 200m
@@ -665,7 +665,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-limitranges ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-limitranges ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 150m
@@ -704,7 +704,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-resources --external; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} openshift-resources --external; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 1000m
@@ -743,7 +743,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-resources --external --vault-output-path app-sre/integrations-output; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-resources --external --vault-output-path app-sre/integrations-output; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 400m
@@ -782,7 +782,7 @@ objects:
           command:
           - /bin/sh
           - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-users ; STATUS=$?; [ $STATUS -ne 3 ] && ([ $STATUS -ne 0 ] && exit $STATUS || sleep ${SLEEP_DURATION_SECS}); done
+          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} terraform-users ; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
           resources:
             limits:
               cpu: 400m
