@@ -1,6 +1,7 @@
 import yaml
 import click
 import logging
+import textwrap
 
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -38,10 +39,12 @@ class Report(object):
         )
 
     def content(self):
-        report_content = """report for {} on {}:
-{}
-{}
-"""
+        report_content = textwrap.dedent("""\
+        report for {} on {}:
+        {}
+        {}
+        """)
+
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
@@ -165,14 +168,16 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
     now = datetime.now()
     apps = get_apps_data(now)
 
-    reports = [Report(app, now).to_message() for app in apps]
+    reports = [Report(app, now) for app in apps]
 
     for report in reports:
-        logging.info(['create_report', report['file_path']])
-        print(report)
+        report_msg = report.to_message()
+        logging.info(['create_report', report_msg['file_path']])
+        print(report_msg)
 
     if not dry_run:
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
-        mr = gw.create_app_interface_reporter_mr(reports)
+        mr = gw.create_app_interface_reporter_mr([report.to_message()
+                                                  for report in reports])
         logging.info(['created_mr', mr.web_url])
