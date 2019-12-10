@@ -144,6 +144,7 @@ kind: RoleBinding
 metadata:
   name: %(rolebinding_name)s
 roleRef:
+  kind: Role
   name: %(role_name)s
   namespace: %(namespace_name)s
 subjects:
