@@ -39,5 +39,10 @@ RUN python3 setup.py install
 # required to run ssh on OpenShift
 ENV PROD_USER_ID=1001450000
 RUN useradd -l -u ${PROD_USER_ID} reconcile
-ENV STAGE_USER_ID=1031160000
+ENV STAGE_USER_ID=1000720000
 RUN useradd -l -u ${STAGE_USER_ID} reconcile-stage
+ENV STAGE_USER_ID_V3=1031160000
+RUN useradd -l -u ${STAGE_USER_ID_V3} reconcile-stage-v3
+
+COPY dockerfiles/hack/run-integration.sh /run-integration.sh
+CMD [ "/run-integration.sh" ]

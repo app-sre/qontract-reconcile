@@ -172,6 +172,9 @@ class OpenshiftResource(object):
                     tls = body['spec']['tls']
                     tls.pop('key', None)
                     tls.pop('certificate', None)
+            subdomain = body['spec'].get('subdomain', None)
+            if subdomain == '':
+                body['spec'].pop('subdomain', None)
 
         if body['kind'] == 'ServiceAccount':
             if 'imagePullSecrets' in body:
@@ -206,6 +209,7 @@ class OpenshiftResource(object):
                         (subject['apiGroup'] == '' or
                             subject['apiGroup'] in body['apiVersion']):
                     subject.pop('apiGroup')
+            # TODO: remove this once we have no 3.11 clusters
             if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
                 body['apiVersion'] = 'authorization.openshift.io/v1'
 

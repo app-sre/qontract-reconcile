@@ -26,12 +26,18 @@ objects:
         containers:
         - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}
-          command:
-          - /bin/sh
-          - -c
-          - while true; do qontract-reconcile --config /config/config.toml ${DRY_RUN} {{ $integration.name }} {{ $integration.extraArgs }}; STATUS=$?; [ "$STATUS" != "0" ] && exit $STATUS; sleep ${SLEEP_DURATION_SECS}; done
-          {{- with $integration.extraEnv }}
           env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: {{ $integration.name }}
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "{{ $integration.extraArgs }}"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
             valueFrom:
@@ -62,4 +68,6 @@ parameters:
 - name: APP_INTERFACE_SQS_SECRET_NAME
   value: app-interface-sqs
 - name: USER_ID
-  value: "1031160000"
+  value: "1000720000"
+- name: LOG_FILE
+  value: ""

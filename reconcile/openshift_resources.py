@@ -227,6 +227,10 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
 
 def fetch_provider_vault_secret(path, version, name,
                                 labels, annotations, type):
+    # get the fields from vault
+    raw_data = vault_client.read_all({'path': path, 'version': version})
+
+    # construct oc resource
     body = {
         "apiVersion": "v1",
         "kind": "Secret",
@@ -234,14 +238,14 @@ def fetch_provider_vault_secret(path, version, name,
         "metadata": {
             "name": name,
             "annotations": annotations
-        },
-        "data": {}
+        }
     }
     if labels:
         body['metadata']['labels'] = labels
+    if raw_data.items():
+        body['data'] = {}
 
-    # get the fields from vault
-    raw_data = vault_client.read_all({'path': path, 'version': version})
+    # populate data
     for k, v in raw_data.items():
         if v == "":
             v = None
