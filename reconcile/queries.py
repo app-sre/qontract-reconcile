@@ -145,6 +145,7 @@ NAMESPACES_QUERY = """
         roleName
         rolebindingName
         serviceaccountName
+        rbacApiVersion
       }
     }
     limitRanges {

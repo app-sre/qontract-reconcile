@@ -83,7 +83,7 @@ metadata:
 """
 
 ACME_ROLE = """
-apiVersion: authorization.openshift.io/v1
+apiVersion: %(role_api_version)s
 kind: Role
 metadata:
   name: %(role_name)s
@@ -138,7 +138,7 @@ rules:
 """
 
 ACME_ROLEBINDING = """
-apiVersion: authorization.openshift.io/v1
+apiVersion: %(rolebinding_api_version)s
 groupNames: null
 kind: RoleBinding
 metadata:

@@ -38,14 +38,18 @@ def construct_resources(namespaces):
         acme = namespace.get("openshiftAcme", {})
         image = acme.get("image")
         acme_overrides = acme.get("overrides", {})
-        deployment_name = acme_overrides.get('deploymentName',
-                                             'openshift-acme')
-        serviceaccount_name = acme_overrides.get('serviceaccountName',
-                                                 'openshift-acme')
-        role_name = acme_overrides.get('roleName',
-                                       'openshift-acme')
-        rolebinding_name = acme_overrides.get('roleName',
-                                              'openshift-acme')
+        default_name = 'openshift-acme'
+        default_rbac_api_version = 'authorization.openshift.io/v1'
+        deployment_name = \
+            acme_overrides.get('deploymentName') or default_name
+        serviceaccount_name = \
+            acme_overrides.get('serviceaccountName') or default_name
+        role_name = \
+            acme_overrides.get('roleName') or default_name
+        rolebinding_name = \
+            acme_overrides.get('roleName') or default_name
+        rbac_api_version = \
+            acme_overrides.get('rbacApiVersion') or default_rbac_api_version
 
         # Create the resources and append them to the namespace
         namespace["resources"] = []
@@ -63,13 +67,15 @@ def construct_resources(namespaces):
         )
         namespace["resources"].append(
             process_template(ACME_ROLE, {
-                'role_name': role_name
+                'role_name': role_name,
+                'role_api_version': rbac_api_version
             })
         )
         namespace["resources"].append(
             process_template(ACME_ROLEBINDING, {
                 'role_name': role_name,
                 'rolebinding_name': rolebinding_name,
+                'rolebinding_api_version': rbac_api_version,
                 'serviceaccount_name': serviceaccount_name,
                 'namespace_name': namespace_name
             })

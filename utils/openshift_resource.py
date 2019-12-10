@@ -209,8 +209,6 @@ class OpenshiftResource(object):
                         (subject['apiGroup'] == '' or
                             subject['apiGroup'] in body['apiVersion']):
                     subject.pop('apiGroup')
-            if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
-                body['apiVersion'] = 'authorization.openshift.io/v1'
 
         if body['kind'] == 'ClusterRoleBinding':
             if 'groupNames' in body:
