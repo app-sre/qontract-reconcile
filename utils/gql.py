@@ -1,5 +1,7 @@
 import json
 import requests
+import os
+import contextlib
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
@@ -30,7 +32,11 @@ class GqlApi(object):
 
     def query(self, query, variables=None):
         try:
-            result_json = self.client.execute(query, variables)
+            # supress print on HTTP error
+            # https://github.com/prisma-labs/python-graphql-client
+            # /blob/master/graphqlclient/client.py#L32-L33
+            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+                result_json = self.client.execute(query, variables)
         except Exception as e:
             raise GqlApiError(
                 'Could not connect to GraphQL server ({})'.format(e))
