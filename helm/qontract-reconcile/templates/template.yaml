@@ -23,6 +23,52 @@ objects:
       spec:
         securityContext:
           runAsUser: {{ "${{USER_ID}}" }}
+        {{- if $integration.logs }}
+        initContainers:
+        - name: config
+          image: busybox
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <match integration>
+              @type slack
+              webhook_url ${SLACK_WEBHOOK_URL}
+              channel ${SLACK_CHANNEL}
+              username sd-app-sre-bot
+              flush_interval 10s
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        {{- end }}
         containers:
         - name: {{ $integration.name }}
           image: ${IMAGE}:${IMAGE_TAG}
@@ -51,10 +97,34 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+        {{- if $integration.logs }}
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: quay.io/app-sre/fluentd:latest
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        {{- if $integration.logs }}
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+        {{- end }}
 {{- end }}
 parameters:
 - name: IMAGE
@@ -71,3 +141,5 @@ parameters:
   value: "1000720000"
 - name: LOG_FILE
   value: ""
+- name: SLACK_CHANNEL
+  value: "sd-app-sre-reconcile-test"

@@ -143,6 +143,7 @@ integrations:
     limits:
       memory: 600Mi
       cpu: 1000m
+  logs: true
   extraArgs: --external
 - name: terraform-resources
   resources:
