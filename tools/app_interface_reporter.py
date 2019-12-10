@@ -1,7 +1,6 @@
 import yaml
 import click
 import logging
-import textwrap
 
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -30,6 +29,17 @@ class Report(object):
 
         self.app = app
         self.date = date
+        self.report_sections = []
+
+        self.add_report_section(
+            'Number of Production Promotions',
+            self.get_activity_content(self.app.get('promotions'))
+        )
+
+        self.add_report_section(
+            'Number of Merges to Master',
+            self.get_activity_content(self.app.get('merge_activity'))
+        )
 
     @property
     def path(self):
@@ -39,24 +49,13 @@ class Report(object):
         )
 
     def content(self):
-        report_content = textwrap.dedent("""\
-        report for {} on {}:
-        {}
-        {}
-        """)
-
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
             'name': self.app['name'],
             'app': {'$ref': self.app['path']},
             'date': self.date,
-            'content': report_content.format(
-                self.app['name'],
-                self.date,
-                self.get_production_promotions(self.app.get('promotions')),
-                self.get_merge_activity(self.app.get('merge_activity'))
-            )
+            'content': "\n\n".join(self.report_sections),
         }
 
     def to_yaml(self):
@@ -68,24 +67,21 @@ class Report(object):
             'content': self.to_yaml()
         }
 
-    def get_production_promotions(self, promotions):
-        header = 'Number of Production promotions:'
-        return self.get_activity_content(header, promotions)
+    def add_report_section(self, header, content):
+        if not content:
+            content = 'No data.'
 
-    def get_merge_activity(self, merge_activity):
-        header = 'Number of merges to master:'
-        return self.get_activity_content(header, merge_activity)
+        self.report_sections.append("# {}\n\n{}".format(header, content))
 
     @staticmethod
-    def get_activity_content(header, activity):
+    def get_activity_content(activity):
         if not activity:
             return ''
 
         lines = [f"{repo}: {results[0]} ({int(results[1])}% success)"
                  for repo, results in activity.items()]
-        content = header + '\n' + '\n'.join(lines) if lines else ''
 
-        return content
+        return '\n'.join(lines) if lines else ''
 
 
 def get_apps_data(date, month_delta=1):
