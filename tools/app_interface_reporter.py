@@ -1,9 +1,13 @@
-import yaml
-import click
+import json
 import logging
+import textwrap
 
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
+from functools import lru_cache
+
+import click
+import yaml
 
 import utils.gql as gql
 import utils.config as config
@@ -31,11 +35,16 @@ class Report(object):
         self.date = date
         self.report_sections = []
 
+        # slo
+        self.add_report_section('SLOs', self.slo_content())
+
+        # promotions
         self.add_report_section(
             'Number of Production Promotions',
             self.get_activity_content(self.app.get('promotions'))
         )
 
+        # merges to master
         self.add_report_section(
             'Number of Merges to Master',
             self.get_activity_content(self.app.get('merge_activity'))
@@ -70,8 +79,67 @@ class Report(object):
     def add_report_section(self, header, content):
         if not content:
             content = 'No data.'
+        else:
+            content = content.strip()
 
-        self.report_sections.append("# {}\n\n{}".format(header, content))
+        self.report_sections.append(f"# {header}\n\n{content}")
+
+    def slo_content(self):
+        def prettify_selectors(selectors):
+            return ", ".join([
+                f'{k}="{v}"'
+                for k, v in json.loads(selectors).items()
+            ])
+
+        performance_parameters = [
+            pp for pp in get_performance_parameters()
+            if pp['app']['path'] == self.app['path']
+        ]
+
+        metrics = []
+
+        for pp in performance_parameters:
+            # availability
+            for am in pp.get('availability', []):
+                if am['kind'] != 'SLO':
+                    continue
+
+                selectors = prettify_selectors(am['selectors'])
+
+                target_slo = round(1 - float(am['errorBudget']), 2)
+                achieved_slo = '0'
+                slo_met = True
+
+                metrics.append({
+                    'Component': pp['component'],
+                    'Type': 'availability',
+                    'Selectors': selectors,
+                    'Target SLO': f'{target_slo}%',
+                    'Achieved': f'{achieved_slo}%',
+                    'SLO met': slo_met,
+                })
+
+            # latency
+            for lm in pp.get('latency', []):
+                if lm['kind'] != 'SLO':
+                    continue
+
+                selectors = prettify_selectors(lm['selectors'])
+
+                target_slo = f'{lm["threshold"]}ms ({lm["percentile"]}%)'
+                achieved_slo = '0'
+                slo_met = True
+
+                metrics.append({
+                    'Component': pp['component'],
+                    'Type': 'latency',
+                    'Selectors': selectors,
+                    'Target Latency': target_slo,
+                    'Achieved': f'{achieved_slo}%',
+                    'SLO met': slo_met,
+                })
+
+        return yaml.safe_dump(metrics, sort_keys=False)
 
     @staticmethod
     def get_activity_content(activity):
@@ -82,6 +150,39 @@ class Report(object):
                  for repo, results in activity.items()]
 
         return '\n'.join(lines) if lines else ''
+
+
+@lru_cache()
+def get_performance_parameters():
+    query = """
+    {
+      performance_parameters_v1 {
+        path
+        name
+        component
+        app {
+          path
+          name
+        }
+        availability {
+          kind
+          metric
+          errorBudget
+          selectors
+        }
+        latency {
+          kind
+          metric
+          threshold
+          percentile
+          selectors
+        }
+      }
+    }
+    """
+
+    gqlapi = gql.get_api()
+    return gqlapi.query(query)['performance_parameters_v1']
 
 
 def get_apps_data(date, month_delta=1):
