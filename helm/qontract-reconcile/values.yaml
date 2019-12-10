@@ -26,26 +26,26 @@ integrations:
 - name: github-repo-invites
   resources:
     requests:
-      memory: 30Mi
+      memory: 50Mi
       cpu: 15m
     limits:
-      memory: 55Mi
+      memory: 150Mi
       cpu: 25m
 - name: quay-membership
   resources:
     requests:
-      memory: 30Mi
+      memory: 50Mi
       cpu: 15m
     limits:
-      memory: 60Mi
+      memory: 150Mi
       cpu: 25m
 - name: quay-repos
   resources:
     requests:
-      memory: 30Mi
+      memory: 50Mi
       cpu: 15m
     limits:
-      memory: 60Mi
+      memory: 150Mi
       cpu: 25m
 - name: jira-watcher
   resources:
@@ -123,10 +123,10 @@ integrations:
 - name: openshift-network-policies
   resources:
     requests:
-      memory: 150Mi
+      memory: 200Mi
       cpu: 100m
     limits:
-      memory: 250Mi
+      memory: 400Mi
       cpu: 200m
 - name: openshift-acme
   resources:
