@@ -63,7 +63,7 @@ def init_specs_to_fetch(ri, oc_map,
                 resource_names = \
                     [mrn['resourceNames'] for mrn in managed_resource_names
                      if mrn['resource'] == resource_type] \
-                     if managed_resource_names else None
+                    if managed_resource_names else None
                 # If not None, there is a single element in the list
                 if resource_names:
                     [resource_names] = resource_names
