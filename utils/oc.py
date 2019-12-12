@@ -73,7 +73,17 @@ class OC(object):
             cmd.append('-l')
             cmd.append(','.join(labels_list))
 
-        items_list = self._run_json(cmd)
+        resource_names = kwargs.get('resource_names')
+        if resource_names:
+            items = []
+            for resource_name in resource_names:
+                resource_cmd = cmd + [resource_name]
+                item = self._run_json(resource_cmd, allow_not_found=True)
+                if item:
+                    items.append(item)
+            items_list = {'items': items}
+        else:
+            items_list = self._run_json(cmd)
 
         items = items_list.get('items')
         if items is None:
@@ -238,16 +248,22 @@ class OC(object):
 
         code = p.returncode
 
+        allow_not_found = kwargs.get('allow_not_found')
+
         if code != 0:
-            raise StatusCodeError(err)
+            if not (allow_not_found and 'NotFound' in err.decode('utf-8')):
+                raise StatusCodeError(err)
 
         if not out:
-            raise NoOutputError(err)
+            if allow_not_found:
+                return '{}'
+            else:
+                raise NoOutputError(err)
 
         return out.strip()
 
-    def _run_json(self, cmd):
-        out = self._run(cmd)
+    def _run_json(self, cmd, allow_not_found=False):
+        out = self._run(cmd, allow_not_found=allow_not_found)
 
         try:
             out_json = json.loads(out)
