@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from functools import lru_cache
 
 import click
+import requests
 import yaml
 
 import utils.gql as gql
@@ -36,7 +37,7 @@ class Report(object):
         self.report_sections = []
 
         # slo
-        self.add_report_section('SLOs', self.slo_content())
+        self.add_report_section('SLOs', self.slo_section())
 
         # promotions
         self.add_report_section(
@@ -84,62 +85,100 @@ class Report(object):
 
         self.report_sections.append(f"# {header}\n\n{content}")
 
-    def slo_content(self):
-        def prettify_selectors(selectors):
-            return ", ".join([
-                f'{k}="{v}"'
-                for k, v in json.loads(selectors).items()
-            ])
-
+    def slo_section(self):
         performance_parameters = [
             pp for pp in get_performance_parameters()
             if pp['app']['path'] == self.app['path']
         ]
 
-        metrics = []
+        metrics_availability = self.get_performance_metrics(
+            performance_parameters,
+            self.calculate_performance_availability,
+            'availability'
+        )
 
-        for pp in performance_parameters:
-            # availability
-            for am in pp.get('availability', []):
-                if am['kind'] != 'SLO':
-                    continue
+        metrics_latency = self.get_performance_metrics(
+            performance_parameters,
+            self.calculate_performance_latency,
+            'latency'
+        )
 
-                selectors = prettify_selectors(am['selectors'])
+        metrics = [
+            *metrics_availability,
+            *metrics_latency
+        ]
 
-                target_slo = round(1 - float(am['errorBudget']), 2)
-                achieved_slo = '0'
-                slo_met = True
-
-                metrics.append({
-                    'Component': pp['component'],
-                    'Type': 'availability',
-                    'Selectors': selectors,
-                    'Target SLO': f'{target_slo}%',
-                    'Achieved': f'{achieved_slo}%',
-                    'SLO met': slo_met,
-                })
-
-            # latency
-            for lm in pp.get('latency', []):
-                if lm['kind'] != 'SLO':
-                    continue
-
-                selectors = prettify_selectors(lm['selectors'])
-
-                target_slo = f'{lm["threshold"]}ms ({lm["percentile"]}%)'
-                achieved_slo = '0'
-                slo_met = True
-
-                metrics.append({
-                    'Component': pp['component'],
-                    'Type': 'latency',
-                    'Selectors': selectors,
-                    'Target Latency': target_slo,
-                    'Achieved': f'{achieved_slo}%',
-                    'SLO met': slo_met,
-                })
+        if not metrics:
+            return None
 
         return yaml.safe_dump(metrics, sort_keys=False)
+
+    def get_performance_metrics(self, performance_parameters, method, field):
+        return [
+            method(pp['component'], ns['name'], metric)
+            for pp in performance_parameters
+            for ns in pp['namespaces']
+            for metric in pp.get(field, [])
+            if metric['kind'] == 'SLO'
+        ]
+
+    def calculate_performance_availability(self, component, ns, metric):
+        prom_metric_availability = ("errorbudget:status_code:"
+                                    f"{metric['metric']}:increase30d:sum")
+
+        selectors = json.loads(metric['selectors'])
+        selectors['component'] = component
+        selectors['namespace'] = ns
+
+        prom_selector = self.promqlify(selectors)
+        promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
+
+        target_slo = 1 - float(metric['errorBudget'])
+        # achieved_slo = 1 - (target_slo * remaining_error_budget)
+        achieved_slo = 0
+
+        slo_met = True
+
+        return {
+            'Component': component,
+            'Type': 'availability',
+            'Selectors': selectors,
+            'Target SLO': f'{target_slo}%',
+            'Achieved': f'{achieved_slo}%',
+            'Query': promql_query,
+            'SLO met': slo_met,
+        }
+
+    def calculate_performance_latency(self, component, ns, metric):
+        prom_metric_availability = (f"TODO_LATENCY_{metric['metric']}")
+
+        selectors = json.loads(metric['selectors'])
+        selectors['component'] = component
+        selectors['namespace'] = ns
+
+        prom_selector = self.promqlify(selectors)
+        promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
+
+        target_slo = f'{metric["threshold"]}ms ({metric["percentile"]}%)'
+        achieved_slo = '0'
+        slo_met = True
+
+        return {
+            'Component': component,
+            'Type': 'latency',
+            'Selectors': selectors,
+            'Target Latency': target_slo,
+            'Achieved': f'{achieved_slo}%',
+            'Query': promql_query,
+            'SLO met': slo_met,
+        }
+
+    @staticmethod
+    def promqlify(selectors):
+        return ", ".join([
+            f'{k}="{v}"'
+            for k, v in selectors.items()
+        ])
 
     @staticmethod
     def get_activity_content(activity):
@@ -160,6 +199,9 @@ def get_performance_parameters():
         path
         name
         component
+        namespaces {
+          name
+        }
         app {
           path
           name
