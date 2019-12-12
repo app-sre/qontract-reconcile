@@ -45,6 +45,10 @@ NAMESPACES_QUERY = """
   namespaces: namespaces_v1 {
     name
     managedResourceTypes
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     openshiftResources {
       provider
       ... on NamespaceOpenshiftResourceResource_v1 {
@@ -365,7 +369,8 @@ def fetch_openshift_resource(resource, parent):
     return openshift_resource
 
 
-def fetch_current_state(oc, ri, cluster, namespace, resource_type):
+def fetch_current_state(oc, ri, cluster, namespace, resource_type,
+                        resource_names=None):
     global _log_lock
 
     msg = "Fetching {}s from {}/{}".format(resource_type, cluster, namespace)
@@ -374,7 +379,8 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type):
     _log_lock.release()
     if oc is None:
         return
-    for item in oc.get_items(resource_type, namespace=namespace):
+    for item in oc.get_items(resource_type, namespace=namespace,
+                             resource_names=resource_names):
         openshift_resource = OR(item,
                                 QONTRACT_INTEGRATION,
                                 QONTRACT_INTEGRATION_VERSION)
@@ -445,7 +451,8 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
 def fetch_states(spec, ri):
     if spec.type == "current":
         fetch_current_state(spec.oc, ri, spec.cluster,
-                            spec.namespace, spec.resource)
+                            spec.namespace, spec.resource,
+                            spec.resource_names)
     if spec.type == "desired":
         fetch_desired_state(spec.oc, ri, spec.cluster,
                             spec.namespace, spec.resource,
