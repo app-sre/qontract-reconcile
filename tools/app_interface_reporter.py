@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import textwrap
 
 from datetime import datetime, timezone
@@ -12,6 +13,7 @@ import yaml
 
 import utils.gql as gql
 import utils.config as config
+import utils.secret_reader as secret_reader
 import reconcile.queries as queries
 import reconcile.pull_request_gateway as prg
 import reconcile.jenkins_plugins as jenkins_base
@@ -24,6 +26,40 @@ from reconcile.cli import (
     init_log_level,
     gitlab_project_id
 )
+
+
+def promql(url, query, auth=None):
+    """
+    Run an instant-query on the prometheus instance.
+
+    The returned structure is documented here:
+    https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+
+
+    :param url: base prometheus url (not the API endpoint).
+    :type url: string
+    :param query: this is a second value
+    :type query: string
+    :param auth: auth object
+    :type auth: requests.auth
+    :return: structure with the metrics
+    :rtype: dictionary
+    """
+
+    url = os.path.join(url, 'api/v1/query')
+
+    if auth is None:
+        auth = {}
+
+    params = {'query': query}
+
+    response = requests.get(url, params=params, auth=auth)
+
+    response.raise_for_status()
+    response = response.json()
+
+    # TODO ensure len response == 1
+    return response['data']['result']
 
 
 class Report(object):
@@ -115,11 +151,12 @@ class Report(object):
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
-            method(pp['component'], ns['name'], metric)
+            method(pp['component'], ns, metric)
             for pp in performance_parameters
             for ns in pp['namespaces']
             for metric in pp.get(field, [])
             if metric['kind'] == 'SLO'
+            if ns['cluster']['prometheus']
         ]
 
     def calculate_performance_availability(self, component, ns, metric):
@@ -128,13 +165,34 @@ class Report(object):
 
         selectors = json.loads(metric['selectors'])
         selectors['component'] = component
-        selectors['namespace'] = ns
+        selectors['namespace'] = ns['name']
 
         prom_selector = self.promqlify(selectors)
         promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
 
+        settings = queries.get_app_interface_settings()
+        prom_info = ns['cluster']['prometheus']
+
+        prom_auth = secret_reader.read(prom_info['auth'], settings)
+
+        promql_query_result = promql(
+            prom_info['url'],
+            promql_query,
+            auth=requests.auth.HTTPBasicAuth(*prom_auth.split(':'))
+        )
+
+        if len(promql_query_result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {promql_query}"))
+
+            return None
+
+        remaining_error_budget = float(promql_query_result[0]['value'][1])
+
         target_slo = 1 - float(metric['errorBudget'])
-        # achieved_slo = 1 - (target_slo * remaining_error_budget)
+
+        # TODO:
         achieved_slo = 0
 
         slo_met = True
@@ -144,6 +202,7 @@ class Report(object):
             'Type': 'availability',
             'Selectors': selectors,
             'Target SLO': f'{target_slo}%',
+            'Remaining Error Budget': remaining_error_budget,
             'Achieved': f'{achieved_slo}%',
             'Query': promql_query,
             'SLO met': slo_met,
@@ -154,7 +213,7 @@ class Report(object):
 
         selectors = json.loads(metric['selectors'])
         selectors['component'] = component
-        selectors['namespace'] = ns
+        selectors['namespace'] = ns['name']
 
         prom_selector = self.promqlify(selectors)
         promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
@@ -201,6 +260,15 @@ def get_performance_parameters():
         component
         namespaces {
           name
+          cluster {
+            prometheus {
+              url
+              auth {
+                path
+                field
+              }
+            }
+          }
         }
         app {
           path
