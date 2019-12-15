@@ -138,14 +138,20 @@ NAMESPACES_QUERY = """
       }
     }
     openshiftAcme {
-      name
-      image
-      overrides {
-        deploymentName
-        roleName
-        rolebindingName
-        serviceaccountName
-        rbacApiVersion
+      config {
+        name
+        image
+        overrides {
+          deploymentName
+          roleName
+          rolebindingName
+          serviceaccountName
+          rbacApiVersion
+        }
+      }
+      accountSecret {
+        path
+        version
       }
     }
     limitRanges {

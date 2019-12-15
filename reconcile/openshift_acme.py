@@ -3,6 +3,7 @@ import semver
 import anymarkup
 import utils.gql as gql
 import reconcile.openshift_base as ob
+import reconcile.openshift_resources as openshift_resources
 
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.openshift_resource import ConstructResourceError
@@ -16,7 +17,7 @@ from utils.openshift_acme import (ACME_DEPLOYMENT,
 
 
 QONTRACT_INTEGRATION = 'openshift-acme'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 
 
 def process_template(template, values):
@@ -33,11 +34,12 @@ def process_template(template, values):
 def construct_resources(namespaces):
     for namespace in namespaces:
         namespace_name = namespace["name"]
+        acme = namespace.get("openshiftAcme", {})
 
         # Get the linked acme schema settings
-        acme = namespace.get("openshiftAcme", {})
-        image = acme.get("image")
-        acme_overrides = acme.get("overrides", {})
+        acme_config = acme.get("config", {})
+        image = acme_config.get("image")
+        acme_overrides = acme_config.get("overrides", {})
         default_name = 'openshift-acme'
         default_rbac_api_version = 'authorization.openshift.io/v1'
         deployment_name = \
@@ -81,6 +83,22 @@ def construct_resources(namespaces):
             })
         )
 
+        # If acme-account Secret is defined, add it to the namespace
+        acme_account_secret = acme.get("accountSecret", {})
+        if acme_account_secret:
+            namespace["resources"].append(
+                openshift_resources.fetch_provider_vault_secret(
+                    acme_account_secret['path'],
+                    acme_account_secret['version'],
+                    'acme-account',
+                    labels={'kubernetes.io/acme.type': 'account'},
+                    annotations={},
+                    type='Opaque',
+                    integration=QONTRACT_INTEGRATION,
+                    integration_version=QONTRACT_INTEGRATION_VERSION
+                )
+            )
+
     return namespaces
 
 
@@ -117,7 +135,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
             'Deployment',
             'Role',
             'RoleBinding',
-            'ServiceAccount'],
+            'ServiceAccount',
+            'Secret'],
         internal=internal)
     add_desired_state(namespaces, ri, oc_map)
 
