@@ -47,15 +47,6 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
-- name: jira-watcher
-  resources:
-    requests:
-      memory: 80Mi
-      cpu: 15m
-    limits:
-      memory: 200Mi
-      cpu: 25m
-  extraArgs: --io-dir /tmp/throughput/
 - name: github-scanner
   resources:
     requests:
