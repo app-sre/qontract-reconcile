@@ -286,52 +286,6 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile
-    name: qontract-reconcile-jira-watcher
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: qontract-reconcile
-    template:
-      metadata:
-        labels:
-          app: qontract-reconcile
-      spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
-        containers:
-        - name: jira-watcher
-          image: ${IMAGE}:${IMAGE_TAG}
-          env:
-          - name: DRY_RUN
-            value: ${DRY_RUN}
-          - name: INTEGRATION_NAME
-            value: jira-watcher
-          - name: INTEGRATION_EXTRA_ARGS
-            value: "--io-dir /tmp/throughput/"
-          - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
-          resources:
-            limits:
-              cpu: 25m
-              memory: 200Mi
-            requests:
-              cpu: 15m
-              memory: 80Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
-        volumes:
-        - name: qontract-reconcile-toml
-          secret:
-            secretName: qontract-reconcile-toml
-- apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    labels:
-      app: qontract-reconcile
     name: qontract-reconcile-github-scanner
   spec:
     replicas: 1
