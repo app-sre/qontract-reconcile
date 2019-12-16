@@ -870,7 +870,7 @@ objects:
           - name: INTEGRATION_NAME
             value: terraform-users
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--io-dir /tmp/throughput/"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: LOG_FILE
