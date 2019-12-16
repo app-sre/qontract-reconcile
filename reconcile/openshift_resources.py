@@ -229,8 +229,11 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
         raise FetchResourceError(str(e))
 
 
-def fetch_provider_vault_secret(path, version, name,
-                                labels, annotations, type):
+def fetch_provider_vault_secret(
+        path, version, name,
+        labels, annotations, type,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION):
     # get the fields from vault
     raw_data = vault_client.read_all({'path': path, 'version': version})
 
@@ -261,8 +264,8 @@ def fetch_provider_vault_secret(path, version, name,
 
     try:
         return OR(body,
-                  QONTRACT_INTEGRATION,
-                  QONTRACT_INTEGRATION_VERSION,
+                  integration,
+                  integration_version,
                   error_details=path)
     except ConstructResourceError as e:
         raise FetchResourceError(str(e))
