@@ -161,3 +161,4 @@ integrations:
     limits:
       memory: 1500Mi
       cpu: 400m
+  extraArgs: --io-dir /tmp/throughput/
