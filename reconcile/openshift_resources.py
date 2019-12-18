@@ -354,6 +354,8 @@ def fetch_openshift_resource(resource, parent):
         labels = {} if rl is None else json.loads(rl)
         ra = resource['annotations']
         annotations = {} if ra is None else json.loads(ra)
+        annotations['vault.secret.path'] = path
+        annotations['vault.secret.version'] = version
         rt = resource['type']
         type = 'Opaque' if rt is None else rt
         try:
