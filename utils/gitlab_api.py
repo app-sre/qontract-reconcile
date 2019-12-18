@@ -293,22 +293,34 @@ class GitLabApi(object):
         elif access == "guest":
             return gitlab.GUEST_ACCESS
 
+    def get_group_id_and_projects(self, group_name):
+        groups = self.gl.groups.list()
+        group = [g for g in groups if g.path == group_name]
+        if len(group) != 1:
+            logging.error(group_name + " group not found")
+            return []
+        [group] = group
+        return group.id, [p.name for p in self.get_items(group.projects.list)]
+
+    def create_project(self, group_id, project):
+        self.gl.projects.create({'name': project, 'namespace_id': group_id})
+
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
         return self.gl.projects.get(repo)
 
     def get_issues(self, state):
-        return self.get_items(self.project.issues.list, state)
+        return self.get_items(self.project.issues.list, state=state)
 
     def get_merge_requests(self, state):
-        return self.get_items(self.project.mergerequests.list, state)
+        return self.get_items(self.project.mergerequests.list, state=state)
 
     @staticmethod
-    def get_items(method, state):
+    def get_items(method, **kwargs):
         all_items = []
         page = 1
         while True:
-            items = method(state=state, page=page, per_page=100)
+            items = method(page=page, per_page=100, **kwargs)
             all_items.extend(items)
             if len(items) < 100:
                 break

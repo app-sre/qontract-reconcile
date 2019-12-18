@@ -32,6 +32,7 @@ import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
 import reconcile.gitlab_pr_submitter
+import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
@@ -488,3 +489,9 @@ def github_repo_invites(ctx):
 @click.pass_context
 def gitlab_members(ctx):
     run_integration(reconcile.gitlab_members.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def gitlab_projects(ctx):
+    run_integration(reconcile.gitlab_projects.run, ctx.obj['dry_run'])

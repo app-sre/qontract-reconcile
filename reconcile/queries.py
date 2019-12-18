@@ -31,6 +31,10 @@ GITLAB_INSTANCES_QUERY = """
       field
     }
     managedGroups
+    projectRequests {
+      group
+      projects
+    }
     sslVerify
   }
 }

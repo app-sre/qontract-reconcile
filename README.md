@@ -20,6 +20,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-members` : Manage GitLab group members.
 - `gitlab-permissions`: Manage permissions on GitLab projects.
+- `gitlab-projects`: Create GitLab projects.
 - `jenkins-job-builder`: Manage Jenkins jobs configurations using jenkins-jobs
 - `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `jenkins-roles`: Manage Jenkins roles association via REST API.
