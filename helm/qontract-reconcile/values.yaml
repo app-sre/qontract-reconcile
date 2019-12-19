@@ -42,6 +42,15 @@ integrations:
       memory: 150Mi
       cpu: 25m
   logs: true
+- name: quay-mirror
+  resources:
+    requests:
+      memory: 150Mi
+      cpu: 15m
+    limits:
+      memory: 200Mi
+      cpu: 25m
+  logs: true
 - name: quay-repos
   resources:
     requests:
