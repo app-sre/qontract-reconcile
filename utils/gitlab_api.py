@@ -200,6 +200,8 @@ class GitLabApi(object):
 
     def get_project_maintainers(self, repo_url):
         project = self.get_project(repo_url)
+        if project is None:
+            return None
         members = project.members.all(all=True)
         return [m.username for m in members if m.access_level >= 40]
 
@@ -226,6 +228,8 @@ class GitLabApi(object):
 
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)
+        if project is None:
+            return
         access_level = self.get_access_level(access)
         try:
             project.members.create({
@@ -305,9 +309,17 @@ class GitLabApi(object):
     def create_project(self, group_id, project):
         self.gl.projects.create({'name': project, 'namespace_id': group_id})
 
+    def get_project_url(self, group, project):
+        return f"{self.server}/{group}/{project}"
+
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
-        return self.gl.projects.get(repo)
+        try:
+            project = self.gl.projects.get(repo)
+        except gitlab.exceptions.GitlabGetError:
+            logging.error(f'{repo_url} not found')
+            project = None
+        return project
 
     def get_issues(self, state):
         return self.get_items(self.project.issues.list, state=state)
@@ -367,10 +379,14 @@ class GitLabApi(object):
 
     def get_project_hooks(self, repo_url):
         p = self.get_project(repo_url)
+        if p is None:
+            return []
         return p.hooks.list(per_page=100)
 
     def create_project_hook(self, repo_url, data):
         p = self.get_project(repo_url)
+        if p is None:
+            return
         url = data['job_url']
         trigger = data['trigger']
         hook = {
