@@ -317,7 +317,7 @@ class GitLabApi(object):
         try:
             project = self.gl.projects.get(repo)
         except gitlab.exceptions.GitlabGetError:
-            logging.error(f'{repo_url} not found')
+            logging.warning(f'{repo_url} not found')
             project = None
         return project
 
