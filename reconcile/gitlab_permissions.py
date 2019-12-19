@@ -8,6 +8,8 @@ from utils.gitlab_api import GitLabApi
 
 def get_members_to_add(repo, gl, app_sre):
     maintainers = gl.get_project_maintainers(repo)
+    if maintainers is None:
+        return []
     if gl.user.username not in maintainers:
         logging.error("'{}' is not shared with {} as 'Maintainer'".format(
             repo, gl.user.username
