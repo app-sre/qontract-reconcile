@@ -35,7 +35,6 @@ def promql(url, query, auth=None):
     The returned structure is documented here:
     https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
 
-
     :param url: base prometheus url (not the API endpoint).
     :type url: string
     :param query: this is a second value
@@ -160,76 +159,125 @@ class Report(object):
         ]
 
     def calculate_performance_availability(self, component, ns, metric):
-        prom_metric_availability = ("errorbudget:status_code:"
-                                    f"{metric['metric']}:increase30d:sum")
-
-        selectors = json.loads(metric['selectors'])
-        selectors['component'] = component
-        selectors['namespace'] = ns['name']
-
-        prom_selector = self.promqlify(selectors)
-        promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
+        metric_selectors = json.loads(metric['selectors'])
+        metric_name = metric['metric']
 
         settings = queries.get_app_interface_settings()
         prom_info = ns['cluster']['prometheus']
+        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
 
-        prom_auth = secret_reader.read(prom_info['auth'], settings)
+        # volume
+        vol_selectors = metric_selectors.copy()
+        vol_selectors['namespace'] = ns['name']
 
-        promql_query_result = promql(
+        prom_vol_selectors = self.promqlify(vol_selectors)
+        vol_promql_query = (f"sum(increase({metric_name}"
+                            f"{{{prom_vol_selectors}}}[30d]))")
+
+        vol_promql_query_result = promql(
             prom_info['url'],
-            promql_query,
-            auth=requests.auth.HTTPBasicAuth(*prom_auth.split(':'))
+            vol_promql_query,
+            auth=prom_auth,
         )
 
-        if len(promql_query_result) != 1:
+        if len(vol_promql_query_result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {vol_promql_query}"))
+            return None
+
+        volume = int(float(vol_promql_query_result[0]['value'][1]))
+
+        # availability
+        avail_selectors = metric_selectors.copy()
+        avail_selectors['namespace'] = ns['name']
+        prom_avail_selectors = self.promqlify(avail_selectors)
+
+        avail_promql_query = f"""
+        sum(increase(
+            {metric_name}{{{prom_avail_selectors}, code!~"5.."}}[30d]
+            ))
+            /
+        sum(increase(
+            {metric_name}{{{prom_avail_selectors}}}[30d]
+            )) * 100
+        """
+
+        avail_promql_query_result = promql(
+            prom_info['url'],
+            avail_promql_query,
+            auth=prom_auth,
+        )
+
+        if len(avail_promql_query_result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {avail_promql_query}"))
+
+            return None
+
+        availability = float(avail_promql_query_result[0]['value'][1])
+        target_slo = 100 - float(metric['errorBudget'])
+
+        availability_slo_met = availability >= target_slo
+
+        return {
+            'component': component,
+            'type': 'availability',
+            'selectors': self.promqlify(metric_selectors),
+            'total_requests': volume,
+            'availability': round(availability, 2),
+            'availability_slo_met': availability_slo_met,
+        }
+
+    def calculate_performance_latency(self, component, ns, metric):
+        metric_selectors = json.loads(metric['selectors'])
+        # metric_name = metric['metric']
+        metric_name = "http_request_duration_seconds_bucket"
+
+        selectors = metric_selectors.copy()
+        selectors['namespace'] = ns['name']
+
+        settings = queries.get_app_interface_settings()
+        prom_info = ns['cluster']['prometheus']
+        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
+
+        percentile = float(metric['percentile']) / 100
+
+        prom_selectors = self.promqlify(selectors)
+        promql_query = f"""
+            histogram_quantile({percentile},
+                sum by (le) (increase(
+                    {metric_name}{{
+                        {prom_selectors}, code!~"5.."
+                    }}[30d]))
+            )
+        """
+
+        result = promql(
+            prom_info['url'],
+            promql_query,
+            auth=prom_auth,
+        )
+
+        if len(result) != 1:
             logging.error(("unexpected promql result:\n"
                            f"url: {prom_info['url']}\n"
                            f"query: {promql_query}"))
 
             return None
 
-        remaining_error_budget = float(promql_query_result[0]['value'][1])
-
-        target_slo = 1 - float(metric['errorBudget'])
-
-        # TODO:
-        achieved_slo = 0
-
-        slo_met = True
+        latency = float(result[0]['value'][1])
+        latency_slo_met = latency <= float(metric['threshold'])
 
         return {
-            'Component': component,
-            'Type': 'availability',
-            'Selectors': selectors,
-            'Target SLO': f'{target_slo}%',
-            'Remaining Error Budget': remaining_error_budget,
-            'Achieved': f'{achieved_slo}%',
-            'Query': promql_query,
-            'SLO met': slo_met,
-        }
-
-    def calculate_performance_latency(self, component, ns, metric):
-        prom_metric_availability = (f"TODO_LATENCY_{metric['metric']}")
-
-        selectors = json.loads(metric['selectors'])
-        selectors['component'] = component
-        selectors['namespace'] = ns['name']
-
-        prom_selector = self.promqlify(selectors)
-        promql_query = f"{prom_metric_availability}{{{prom_selector}}}"
-
-        target_slo = f'{metric["threshold"]}ms ({metric["percentile"]}%)'
-        achieved_slo = '0'
-        slo_met = True
-
-        return {
-            'Component': component,
-            'Type': 'latency',
-            'Selectors': selectors,
-            'Target Latency': target_slo,
-            'Achieved': f'{achieved_slo}%',
-            'Query': promql_query,
-            'SLO met': slo_met,
+            'component': component,
+            'type': 'latency',
+            'selectors': self.promqlify(metric_selectors),
+            'latency': round(latency, 2),
+            'latency_slo_met': latency_slo_met,
         }
 
     @staticmethod
