@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import textwrap
 
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -26,6 +25,8 @@ from reconcile.cli import (
     init_log_level,
     gitlab_project_id
 )
+
+REPORT_VERSION = '1.0.0'
 
 
 def promql(url, query, auth=None):
@@ -69,20 +70,20 @@ class Report(object):
 
         self.app = app
         self.date = date
-        self.report_sections = []
+        self.report_sections = {}
 
-        # slo
-        self.add_report_section('SLOs', self.slo_section())
+        # valet
+        self.add_report_section('valet', self.slo_section())
 
         # promotions
         self.add_report_section(
-            'Number of Production Promotions',
+            'production_promotions',
             self.get_activity_content(self.app.get('promotions'))
         )
 
         # merges to master
         self.add_report_section(
-            'Number of Merges to Master',
+            'merges_to_master',
             self.get_activity_content(self.app.get('merge_activity'))
         )
 
@@ -94,17 +95,20 @@ class Report(object):
         )
 
     def content(self):
+        report_content = {'reportVersion': REPORT_VERSION}
+        report_content.update(self.report_sections)
+
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
             'name': self.app['name'],
             'app': {'$ref': self.app['path']},
             'date': self.date,
-            'content': "\n\n".join(self.report_sections),
+            'content': yaml.safe_dump(report_content, sort_keys=False)
         }
 
     def to_yaml(self):
-        return yaml.safe_dump(self.content())
+        return yaml.safe_dump(self.content(), sort_keys=False)
 
     def to_message(self):
         return {
@@ -114,11 +118,9 @@ class Report(object):
 
     def add_report_section(self, header, content):
         if not content:
-            content = 'No data.'
-        else:
-            content = content.strip()
+            content = None
 
-        self.report_sections.append(f"# {header}\n\n{content}")
+        self.report_sections[header] = content
 
     def slo_section(self):
         performance_parameters = [
@@ -146,7 +148,7 @@ class Report(object):
         if not metrics:
             return None
 
-        return yaml.safe_dump(metrics, sort_keys=False)
+        return metrics
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
@@ -290,12 +292,16 @@ class Report(object):
     @staticmethod
     def get_activity_content(activity):
         if not activity:
-            return ''
+            return []
 
-        lines = [f"{repo}: {results[0]} ({int(results[1])}% success)"
-                 for repo, results in activity.items()]
-
-        return '\n'.join(lines) if lines else ''
+        return [
+            {
+                "repo": repo,
+                "total": int(results[0]),
+                "success": int(results[1]),
+            }
+            for repo, results in activity.items()
+        ]
 
 
 @lru_cache()
@@ -371,8 +377,7 @@ def get_apps_data(date, month_delta=1):
             if not sr_history:
                 continue
             successes = [h for h in sr_history if h == 'SUCCESS']
-            app['promotions'][sr] = \
-                (len(sr_history), (len(successes) / len(sr_history) * 100))
+            app['promotions'][sr] = (len(sr_history), len(successes))
 
         logging.info(f"collecting merge activity for {app_name}")
         app['merge_activity'] = {}
@@ -383,8 +388,7 @@ def get_apps_data(date, month_delta=1):
             if not cr_history:
                 continue
             successes = [h for h in cr_history if h == 'SUCCESS']
-            app['merge_activity'][cr] = \
-                (len(cr_history), (len(successes) / len(cr_history) * 100))
+            app['merge_activity'][cr] = (len(cr_history), len(successes))
 
     return apps
 
