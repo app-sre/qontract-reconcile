@@ -26,7 +26,7 @@ from reconcile.cli import (
     gitlab_project_id
 )
 
-REPORT_VERSION = '1.0.0'
+CONTENT_FORMAT_VERSION = '1.0.0'
 
 
 def promql(url, query, auth=None):
@@ -95,16 +95,14 @@ class Report(object):
         )
 
     def content(self):
-        report_content = {'reportVersion': REPORT_VERSION}
-        report_content.update(self.report_sections)
-
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
             'name': self.app['name'],
             'app': {'$ref': self.app['path']},
             'date': self.date,
-            'content': yaml.safe_dump(report_content, sort_keys=False)
+            'contentFormatVersion': CONTENT_FORMAT_VERSION,
+            'content': yaml.safe_dump(self.report_sections, sort_keys=False)
         }
 
     def to_yaml(self):
