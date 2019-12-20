@@ -1,12 +1,18 @@
-import yaml
-import click
+import json
 import logging
+import os
 
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
+from functools import lru_cache
+
+import click
+import requests
+import yaml
 
 import utils.gql as gql
 import utils.config as config
+import utils.secret_reader as secret_reader
 import reconcile.queries as queries
 import reconcile.pull_request_gateway as prg
 import reconcile.jenkins_plugins as jenkins_base
@@ -20,6 +26,41 @@ from reconcile.cli import (
     gitlab_project_id
 )
 
+CONTENT_FORMAT_VERSION = '1.0.0'
+
+
+def promql(url, query, auth=None):
+    """
+    Run an instant-query on the prometheus instance.
+
+    The returned structure is documented here:
+    https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+
+    :param url: base prometheus url (not the API endpoint).
+    :type url: string
+    :param query: this is a second value
+    :type query: string
+    :param auth: auth object
+    :type auth: requests.auth
+    :return: structure with the metrics
+    :rtype: dictionary
+    """
+
+    url = os.path.join(url, 'api/v1/query')
+
+    if auth is None:
+        auth = {}
+
+    params = {'query': query}
+
+    response = requests.get(url, params=params, auth=auth)
+
+    response.raise_for_status()
+    response = response.json()
+
+    # TODO ensure len response == 1
+    return response['data']['result']
+
 
 class Report(object):
     def __init__(self, app, date):
@@ -29,6 +70,22 @@ class Report(object):
 
         self.app = app
         self.date = date
+        self.report_sections = {}
+
+        # valet
+        self.add_report_section('valet', self.slo_section())
+
+        # promotions
+        self.add_report_section(
+            'production_promotions',
+            self.get_activity_content(self.app.get('promotions'))
+        )
+
+        # merges to master
+        self.add_report_section(
+            'merges_to_master',
+            self.get_activity_content(self.app.get('merge_activity'))
+        )
 
     @property
     def path(self):
@@ -38,26 +95,18 @@ class Report(object):
         )
 
     def content(self):
-        report_content = """report for {} on {}:
-{}
-{}
-"""
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
             'name': self.app['name'],
             'app': {'$ref': self.app['path']},
             'date': self.date,
-            'content': report_content.format(
-                self.app['name'],
-                self.date,
-                self.get_production_promotions(self.app.get('promotions')),
-                self.get_merge_activity(self.app.get('merge_activity'))
-            )
+            'contentFormatVersion': CONTENT_FORMAT_VERSION,
+            'content': yaml.safe_dump(self.report_sections, sort_keys=False)
         }
 
     def to_yaml(self):
-        return yaml.safe_dump(self.content())
+        return yaml.safe_dump(self.content(), sort_keys=False)
 
     def to_message(self):
         return {
@@ -65,24 +114,237 @@ class Report(object):
             'content': self.to_yaml()
         }
 
-    def get_production_promotions(self, promotions):
-        header = 'Number of Production promotions:'
-        return self.get_activity_content(header, promotions)
+    def add_report_section(self, header, content):
+        if not content:
+            content = None
 
-    def get_merge_activity(self, merge_activity):
-        header = 'Number of merges to master:'
-        return self.get_activity_content(header, merge_activity)
+        self.report_sections[header] = content
+
+    def slo_section(self):
+        performance_parameters = [
+            pp for pp in get_performance_parameters()
+            if pp['app']['path'] == self.app['path']
+        ]
+
+        metrics_availability = self.get_performance_metrics(
+            performance_parameters,
+            self.calculate_performance_availability,
+            'availability'
+        )
+
+        metrics_latency = self.get_performance_metrics(
+            performance_parameters,
+            self.calculate_performance_latency,
+            'latency'
+        )
+
+        metrics = [
+            *metrics_availability,
+            *metrics_latency
+        ]
+
+        if not metrics:
+            return None
+
+        return metrics
+
+    def get_performance_metrics(self, performance_parameters, method, field):
+        return [
+            method(pp['component'], ns, metric)
+            for pp in performance_parameters
+            for ns in pp['namespaces']
+            for metric in pp.get(field, [])
+            if metric['kind'] == 'SLO'
+            if ns['cluster']['prometheus']
+        ]
+
+    def calculate_performance_availability(self, component, ns, metric):
+        metric_selectors = json.loads(metric['selectors'])
+        metric_name = metric['metric']
+
+        settings = queries.get_app_interface_settings()
+        prom_info = ns['cluster']['prometheus']
+        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
+
+        # volume
+        vol_selectors = metric_selectors.copy()
+        vol_selectors['namespace'] = ns['name']
+
+        prom_vol_selectors = self.promqlify(vol_selectors)
+        vol_promql_query = (f"sum(increase({metric_name}"
+                            f"{{{prom_vol_selectors}}}[30d]))")
+
+        vol_promql_query_result = promql(
+            prom_info['url'],
+            vol_promql_query,
+            auth=prom_auth,
+        )
+
+        if len(vol_promql_query_result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {vol_promql_query}"))
+            return None
+
+        volume = int(float(vol_promql_query_result[0]['value'][1]))
+
+        # availability
+        avail_selectors = metric_selectors.copy()
+        avail_selectors['namespace'] = ns['name']
+        prom_avail_selectors = self.promqlify(avail_selectors)
+
+        avail_promql_query = f"""
+        sum(increase(
+            {metric_name}{{{prom_avail_selectors}, code!~"5.."}}[30d]
+            ))
+            /
+        sum(increase(
+            {metric_name}{{{prom_avail_selectors}}}[30d]
+            )) * 100
+        """
+
+        avail_promql_query_result = promql(
+            prom_info['url'],
+            avail_promql_query,
+            auth=prom_auth,
+        )
+
+        if len(avail_promql_query_result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {avail_promql_query}"))
+
+            return None
+
+        availability = float(avail_promql_query_result[0]['value'][1])
+        target_slo = 100 - float(metric['errorBudget'])
+
+        availability_slo_met = availability >= target_slo
+
+        return {
+            'component': component,
+            'type': 'availability',
+            'selectors': self.promqlify(metric_selectors),
+            'total_requests': volume,
+            'availability': round(availability, 2),
+            'availability_slo_met': availability_slo_met,
+        }
+
+    def calculate_performance_latency(self, component, ns, metric):
+        metric_selectors = json.loads(metric['selectors'])
+        # metric_name = metric['metric']
+        metric_name = "http_request_duration_seconds_bucket"
+
+        selectors = metric_selectors.copy()
+        selectors['namespace'] = ns['name']
+
+        settings = queries.get_app_interface_settings()
+        prom_info = ns['cluster']['prometheus']
+        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
+
+        percentile = float(metric['percentile']) / 100
+
+        prom_selectors = self.promqlify(selectors)
+        promql_query = f"""
+            histogram_quantile({percentile},
+                sum by (le) (increase(
+                    {metric_name}{{
+                        {prom_selectors}, code!~"5.."
+                    }}[30d]))
+            )
+        """
+
+        result = promql(
+            prom_info['url'],
+            promql_query,
+            auth=prom_auth,
+        )
+
+        if len(result) != 1:
+            logging.error(("unexpected promql result:\n"
+                           f"url: {prom_info['url']}\n"
+                           f"query: {promql_query}"))
+
+            return None
+
+        latency = float(result[0]['value'][1])
+        latency_slo_met = latency <= float(metric['threshold'])
+
+        return {
+            'component': component,
+            'type': 'latency',
+            'selectors': self.promqlify(metric_selectors),
+            'latency': round(latency, 2),
+            'latency_slo_met': latency_slo_met,
+        }
 
     @staticmethod
-    def get_activity_content(header, activity):
+    def promqlify(selectors):
+        return ", ".join([
+            f'{k}="{v}"'
+            for k, v in selectors.items()
+        ])
+
+    @staticmethod
+    def get_activity_content(activity):
         if not activity:
-            return ''
+            return []
 
-        lines = [f"{repo}: {results[0]} ({int(results[1])}% success)"
-                 for repo, results in activity.items()]
-        content = header + '\n' + '\n'.join(lines) if lines else ''
+        return [
+            {
+                "repo": repo,
+                "total": int(results[0]),
+                "success": int(results[1]),
+            }
+            for repo, results in activity.items()
+        ]
 
-        return content
+
+@lru_cache()
+def get_performance_parameters():
+    query = """
+    {
+      performance_parameters_v1 {
+        path
+        name
+        component
+        namespaces {
+          name
+          cluster {
+            prometheus {
+              url
+              auth {
+                path
+                field
+              }
+            }
+          }
+        }
+        app {
+          path
+          name
+        }
+        availability {
+          kind
+          metric
+          errorBudget
+          selectors
+        }
+        latency {
+          kind
+          metric
+          threshold
+          percentile
+          selectors
+        }
+      }
+    }
+    """
+
+    gqlapi = gql.get_api()
+    return gqlapi.query(query)['performance_parameters_v1']
 
 
 def get_apps_data(date, month_delta=1):
@@ -113,8 +375,7 @@ def get_apps_data(date, month_delta=1):
             if not sr_history:
                 continue
             successes = [h for h in sr_history if h == 'SUCCESS']
-            app['promotions'][sr] = \
-                (len(sr_history), (len(successes) / len(sr_history) * 100))
+            app['promotions'][sr] = (len(sr_history), len(successes))
 
         logging.info(f"collecting merge activity for {app_name}")
         app['merge_activity'] = {}
@@ -125,8 +386,7 @@ def get_apps_data(date, month_delta=1):
             if not cr_history:
                 continue
             successes = [h for h in cr_history if h == 'SUCCESS']
-            app['merge_activity'][cr] = \
-                (len(cr_history), (len(successes) / len(cr_history) * 100))
+            app['merge_activity'][cr] = (len(cr_history), len(successes))
 
     return apps
 
@@ -165,14 +425,16 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
     now = datetime.now()
     apps = get_apps_data(now)
 
-    reports = [Report(app, now).to_message() for app in apps]
+    reports = [Report(app, now) for app in apps]
 
     for report in reports:
-        logging.info(['create_report', report['file_path']])
-        print(report)
+        report_msg = report.to_message()
+        logging.info(['create_report', report_msg['file_path']])
+        print(report_msg)
 
     if not dry_run:
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
-        mr = gw.create_app_interface_reporter_mr(reports)
+        mr = gw.create_app_interface_reporter_mr([report.to_message()
+                                                  for report in reports])
         logging.info(['created_mr', mr.web_url])
