@@ -233,8 +233,7 @@ class Report(object):
 
     def calculate_performance_latency(self, component, ns, metric):
         metric_selectors = json.loads(metric['selectors'])
-        # metric_name = metric['metric']
-        metric_name = "http_request_duration_seconds_bucket"
+        metric_name = metric['metric']
 
         selectors = metric_selectors.copy()
         selectors['namespace'] = ns['name']
@@ -416,7 +415,8 @@ def get_repo_url(job):
 @log_level
 # TODO: @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
-def main(configfile, dry_run, log_level, gitlab_project_id):
+@click.option('--reports-path', help='path to write reports')
+def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
     config.init_from_toml(configfile)
     init_log_level(log_level)
     config.init_from_toml(configfile)
@@ -425,15 +425,24 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
     now = datetime.now()
     apps = get_apps_data(now)
 
-    reports = [Report(app, now) for app in apps]
+    reports = [Report(app, now).to_message() for app in apps]
 
     for report in reports:
-        report_msg = report.to_message()
-        logging.info(['create_report', report_msg['file_path']])
+        logging.info(['create_report', report['file_path']])
+
+        if reports_path:
+            report_file = os.path.join(reports_path, report['file_path'])
+
+            try:
+                os.makedirs(os.path.dirname(report_file))
+            except FileExistsError:
+                pass
+
+            with open(report_file, 'w') as f:
+                f.write(report['content'])
 
     if not dry_run:
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
-        mr = gw.create_app_interface_reporter_mr([report.to_message()
-                                                  for report in reports])
+        mr = gw.create_app_interface_reporter_mr(reports)
         logging.info(['created_mr', mr.web_url])
