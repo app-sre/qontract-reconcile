@@ -233,8 +233,7 @@ class Report(object):
 
     def calculate_performance_latency(self, component, ns, metric):
         metric_selectors = json.loads(metric['selectors'])
-        # metric_name = metric['metric']
-        metric_name = "http_request_duration_seconds_bucket"
+        metric_name = metric['metric']
 
         selectors = metric_selectors.copy()
         selectors['namespace'] = ns['name']
