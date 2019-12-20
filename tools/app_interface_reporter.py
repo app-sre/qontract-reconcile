@@ -430,7 +430,6 @@ def main(configfile, dry_run, log_level, gitlab_project_id):
     for report in reports:
         report_msg = report.to_message()
         logging.info(['create_report', report_msg['file_path']])
-        print(report_msg)
 
     if not dry_run:
         gw = prg.init(gitlab_project_id=gitlab_project_id,
