@@ -415,7 +415,7 @@ def get_repo_url(job):
 @log_level
 # TODO: @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
-@click.option('--reports-path', help='(optional) reports path')
+@click.option('--reports-path', help='path to write reports')
 def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
     config.init_from_toml(configfile)
     init_log_level(log_level)
