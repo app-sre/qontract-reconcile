@@ -57,12 +57,21 @@ objects:
               </parse>
             </source>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
             <match integration>
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
               username sd-app-sre-bot
               flush_interval 10s
+              message "[{{ $integration.name }}] %s"
             </match>
             EOF
           volumeMounts:
