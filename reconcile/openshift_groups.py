@@ -30,6 +30,7 @@ GROUPS_QUERY = """
   clusters: clusters_v1 {
     name
     managedGroups
+    ocm
   }
 }
 """
@@ -73,6 +74,7 @@ def create_groups_list(clusters, oc_map):
 
 def fetch_current_state(thread_pool_size, internal):
     clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('ocm') is None]
     current_state = []
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
