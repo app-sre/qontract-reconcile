@@ -95,6 +95,7 @@ CLUSTERS_QUERY = """
     ocm {
       name
       url
+      accessTokenClientId
       accessTokenUrl
       offlineToken {
         path

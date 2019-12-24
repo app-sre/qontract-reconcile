@@ -17,9 +17,6 @@ def fetch_current_state(thread_pool_size):
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
     groups_list = openshift_groups.create_groups_list(clusters, oc_map=ocm_map)
-    print(groups_list)
-    import sys
-    sys.exit()
     results = threaded.run(openshift_groups.get_cluster_state, groups_list,
                            thread_pool_size, oc_map=ocm_map)
 

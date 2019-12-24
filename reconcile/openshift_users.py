@@ -26,7 +26,9 @@ CLUSTERS_QUERY = """
       }
     }
     managedGroups
-    ocm
+    ocm {
+      name
+    }
     automationToken {
       path
       field

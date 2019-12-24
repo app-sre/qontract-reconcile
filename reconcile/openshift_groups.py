@@ -30,7 +30,9 @@ GROUPS_QUERY = """
   clusters: clusters_v1 {
     name
     managedGroups
-    ocm
+    ocm {
+      name
+    }
   }
 }
 """

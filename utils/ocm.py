@@ -1,4 +1,5 @@
 import json
+import requests
 
 import utils.secret_reader as secret_reader
 
@@ -26,8 +27,14 @@ class OCM(object):
         self.init_access_token()
 
     def init_access_token(self):
-        # get access token using offline token
-        self.access_token = ''
+        data = {
+            'grant_type': 'refresh_token',
+            'client_id': self.access_token_client_id,
+            'refresh_token': self.offline_token
+        }
+        r = requests.post(self.access_token_url, data=data)
+        r.raise_for_status()
+        self.access_token = r.json().get('access_token')
 
     def get_group_if_exists(self, name):
         return None
@@ -81,7 +88,7 @@ class OCMMap(object):
         if self.cluster_disabled(cluster_info):
             return
 
-        access_token_client_id = ocm_info.get('access_token_client_id')
+        access_token_client_id = ocm_info.get('accessTokenClientId')
         access_token_url = ocm_info.get('accessTokenUrl')
         ocm_offline_token = ocm_info.get('offlineToken')
         if ocm_offline_token is None:
@@ -107,4 +114,4 @@ class OCMMap(object):
         return self.ocm_map.get(ocm, None)
 
     def clusters(self):
-        return [k for k, v in self.ocm_map.items() if v]
+        return [k for k, v in self.clusters_map.items() if v]
