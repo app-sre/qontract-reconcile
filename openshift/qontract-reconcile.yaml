@@ -120,10 +120,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -242,10 +242,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -364,10 +364,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -486,10 +486,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -710,10 +710,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -832,10 +832,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -954,10 +954,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1076,10 +1076,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1198,10 +1198,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1320,10 +1320,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1442,10 +1442,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1610,10 +1610,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1732,10 +1732,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1854,10 +1854,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
