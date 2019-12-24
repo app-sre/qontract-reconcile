@@ -165,6 +165,7 @@ integrations:
       memory: 1000Mi
       cpu: 400m
   extraArgs: --external --vault-output-path app-sre/integrations-output
+  logs: true
 - name: terraform-users
   resources:
     requests:
@@ -174,3 +175,4 @@ integrations:
       memory: 1500Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
+  logs: true
