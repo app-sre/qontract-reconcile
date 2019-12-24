@@ -24,9 +24,11 @@ class OCM(object):
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
         self.offline_token = offline_token
-        self.init_access_token()
+        self._init_access_token()
+        self._init_request_headers()
+        self._init_clusters()
 
-    def init_access_token(self):
+    def _init_access_token(self):
         data = {
             'grant_type': 'refresh_token',
             'client_id': self.access_token_client_id,
@@ -36,14 +38,38 @@ class OCM(object):
         r.raise_for_status()
         self.access_token = r.json().get('access_token')
 
-    def get_group_if_exists(self, name):
-        return None
+    def _init_request_headers(self):
+        self.headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "accept": "application/json",
+        }
+
+    def _init_clusters(self):
+        api = '/api/clusters_mgmt/v1/clusters'
+        clusters = self._get_json(api)['items']
+        self.cluster_ids = {c['name']: c['id'] for c in clusters}
+
+    def get_group_if_exists(self, cluster, group_id):
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups'
+        groups = self._get_json(api)['items']
+        if group_id not in [g['id'] for g in groups]:
+            return None
+
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users'
+        users = self._get_json(api)['items']
+        return {'users': [u['id'] for u in users]}
 
     def add_user_to_group(self, group, user):
         return
 
     def del_user_from_group(self, group, user):
         return
+
+    def _get_json(self, api):
+        r = requests.get(f"{self.url}/{api}", headers=self.headers)
+        r.raise_for_status()
+        return r.json()
 
     @retry(exceptions=(StatusCodeError, NoOutputError))
     def _run(self, cmd, **kwargs):
