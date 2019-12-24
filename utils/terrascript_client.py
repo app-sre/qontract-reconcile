@@ -302,6 +302,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_dynamodb(resource, namespace_info)
         elif provider == 'ecr':
             self.populate_tf_resource_ecr(resource, namespace_info)
+        elif provider == 's3-cloudfront':
+            self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -435,18 +437,21 @@ class TerrascriptClient(object):
         values['bucket'] = identifier
         values['versioning'] = {'enabled': True}
         values['tags'] = common_values['tags']
-        values['acl'] = common_values['acl']
+        values['acl'] = common_values.get('acl') or 'private'
         values['server_side_encryption_configuration'] = \
             common_values.get('server_side_encryption_configuration')
         if common_values.get('lifecycle_rules'):
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
             values['lifecycle_rule'] = common_values['lifecycle_rules']
+        if common_values.get('cors_rules'):
+            # common_values['cors_rules'] is a list of cors_rules
+            values['cors_rule'] = common_values['cors_rules']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
         endpoint = 's3.{}.amazonaws.com'.format(region)
@@ -617,12 +622,12 @@ class TerrascriptClient(object):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        uid = self.uids[account]
+        uid = self.uids.get(account)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         specs = common_values['specs']
         all_queues_per_spec = []
         for spec in specs:
@@ -715,12 +720,12 @@ class TerrascriptClient(object):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        uid = self.uids[account]
+        uid = self.uids.get(account)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         specs = common_values['specs']
         all_tables = []
         for spec in specs:
@@ -813,7 +818,7 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[url]'
         output_value = '${' + ecr_tf_resource.fullname + '.repository_url}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
 
@@ -881,6 +886,9 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
+        self.populate_tf_resource_s3(resource, namespace_info)
 
     @staticmethod
     def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
