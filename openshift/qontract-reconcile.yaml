@@ -161,7 +161,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[github] %s"
+              message "```[github] %s```"
             </match>
             EOF
           volumeMounts:
@@ -283,7 +283,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[github-repo-invites] %s"
+              message "```[github-repo-invites] %s```"
             </match>
             EOF
           volumeMounts:
@@ -405,7 +405,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[quay-membership] %s"
+              message "```[quay-membership] %s```"
             </match>
             EOF
           volumeMounts:
@@ -527,7 +527,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[quay-repos] %s"
+              message "```[quay-repos] %s```"
             </match>
             EOF
           volumeMounts:
@@ -747,7 +747,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-users] %s"
+              message "```[openshift-users] %s```"
             </match>
             EOF
           volumeMounts:
@@ -869,7 +869,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-groups] %s"
+              message "```[openshift-groups] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1035,7 +1035,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-clusterrolebindings] %s"
+              message "```[openshift-clusterrolebindings] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1157,7 +1157,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-rolebindings] %s"
+              message "```[openshift-rolebindings] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1279,7 +1279,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-network-policies] %s"
+              message "```[openshift-network-policies] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1401,7 +1401,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-acme] %s"
+              message "```[openshift-acme] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1567,7 +1567,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[openshift-resources] %s"
+              message "```[openshift-resources] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1689,7 +1689,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[terraform-resources] %s"
+              message "```[terraform-resources] %s```"
             </match>
             EOF
           volumeMounts:
@@ -1811,7 +1811,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[terraform-users] %s"
+              message "```[terraform-users] %s```"
             </match>
             EOF
           volumeMounts:
