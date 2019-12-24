@@ -3,10 +3,6 @@ import requests
 
 import utils.secret_reader as secret_reader
 
-from subprocess import Popen, PIPE
-
-from utils.retry import retry
-
 
 class StatusCodeError(Exception):
     pass
@@ -56,24 +52,35 @@ class OCM(object):
         if group_id not in [g['id'] for g in groups]:
             return None
 
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups/{group_id}/users'
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'groups/{group_id}/users'
         users = self._get_json(api)['items']
         return {'users': [u['id'] for u in users]}
 
-    def add_user_to_group(self, group, user):
-        return
+    def add_user_to_group(self, cluster, group_id, user):
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'groups/{group_id}/users'
+        self._post(api, {'id': user})
 
-    def del_user_from_group(self, group, user):
-        return
+    def del_user_from_group(self, cluster, group_id, user_id):
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'groups/{group_id}/users/{user_id}'
+        self._delete(api)
 
     def _get_json(self, api):
-        r = requests.get(f"{self.url}/{api}", headers=self.headers)
+        r = requests.get(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
         return r.json()
 
-    @retry(exceptions=(StatusCodeError, NoOutputError))
-    def _run(self, cmd, **kwargs):
-        return
+    def _post(self, api, data):
+        r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
+        r.raise_for_status()
+
+    def _delete(self, api):
+        r = requests.delete(f"{self.url}{api}", headers=self.headers)
+        r.raise_for_status()
 
 
 class OCMMap(object):
