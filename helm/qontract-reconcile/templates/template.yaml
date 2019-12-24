@@ -93,8 +93,10 @@ objects:
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          {{- if $integration.logs }}
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
