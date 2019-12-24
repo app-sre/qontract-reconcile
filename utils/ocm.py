@@ -3,14 +3,6 @@ import requests
 import utils.secret_reader as secret_reader
 
 
-class StatusCodeError(Exception):
-    pass
-
-
-class NoOutputError(Exception):
-    pass
-
-
 class OCM(object):
     """OCM is an instance of OpenShift Cluster Manager"""
     def __init__(self, url, access_token_client_id, access_token_url,
