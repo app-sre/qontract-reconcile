@@ -120,10 +120,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -201,10 +201,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -242,10 +242,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -323,10 +323,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -364,10 +364,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -445,10 +445,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -486,10 +486,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -567,10 +567,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -710,10 +710,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -791,10 +791,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -832,10 +832,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -913,10 +913,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -954,10 +954,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1035,10 +1035,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1076,10 +1076,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1157,10 +1157,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1198,10 +1198,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1279,10 +1279,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1320,10 +1320,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1401,10 +1401,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1442,10 +1442,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1523,10 +1523,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1610,10 +1610,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1691,10 +1691,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1732,10 +1732,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1813,10 +1813,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
@@ -1854,10 +1854,10 @@ objects:
           image: busybox
           resources:
             requests:
-              memory: 30Mi
+              memory: 10Mi
               cpu: 15m
             limits:
-              memory: 60Mi
+              memory: 20Mi
               cpu: 25m
           env:
           - name: SLACK_WEBHOOK_URL
@@ -1935,10 +1935,10 @@ objects:
           image: quay.io/app-sre/fluentd:latest
           resources:
             requests:
-              memory: 10Mi
+              memory: 30Mi
               cpu: 15m
             limits:
-              memory: 20Mi
+              memory: 60Mi
               cpu: 25m
           volumeMounts:
           - name: logs
