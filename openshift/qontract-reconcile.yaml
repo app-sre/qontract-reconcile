@@ -69,59 +69,6 @@ objects:
       spec:
         securityContext:
           runAsUser: ${{USER_ID}}
-        initContainers:
-        - name: config
-          image: busybox
-          resources:
-            requests:
-              memory: 10Mi
-              cpu: 15m
-            limits:
-              memory: 20Mi
-              cpu: 25m
-          env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          command: ["/bin/sh", "-c"]
-          args:
-          - |
-            # generate fluent.conf
-            cat > /fluentd/etc/fluent.conf <<EOF
-            <source>
-              @type tail
-              path /fluentd/log/integration.log
-              pos_file /fluentd/log/integration.log.pos
-              tag integration
-              <parse>
-                @type none
-              </parse>
-            </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "[aws-iam-keys] %s"
-            </match>
-            EOF
-          volumeMounts:
-          - name: fluentd-config
-            mountPath: /fluentd/etc/
         containers:
         - name: aws-iam-keys
           image: ${IMAGE}:${IMAGE_TAG}
@@ -146,30 +93,10 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
-          - name: logs
-            mountPath: /fluentd/log/
-        - name: fluentd
-          image: quay.io/app-sre/fluentd:latest
-          resources:
-            requests:
-              memory: 10Mi
-              cpu: 15m
-            limits:
-              memory: 20Mi
-              cpu: 25m
-          volumeMounts:
-          - name: logs
-            mountPath: /fluentd/log/
-          - name: fluentd-config
-            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
-        - name: logs
-          emptyDir: {}
-        - name: fluentd-config
-          emptyDir: {}
 - apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
@@ -206,6 +133,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -233,6 +162,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[github] %s"
@@ -325,6 +255,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -352,6 +284,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[github-repo-invites] %s"
@@ -444,6 +377,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -471,6 +406,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[quay-membership] %s"
@@ -563,6 +499,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -590,6 +528,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[quay-repos] %s"
@@ -784,6 +723,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -811,6 +752,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-users] %s"
@@ -903,6 +845,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -930,6 +874,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-groups] %s"
@@ -1022,6 +967,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1049,6 +996,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-namespaces] %s"
@@ -1141,6 +1089,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1168,6 +1118,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-clusterrolebindings] %s"
@@ -1260,6 +1211,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1287,6 +1240,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-rolebindings] %s"
@@ -1379,6 +1333,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1406,6 +1362,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-network-policies] %s"
@@ -1498,6 +1455,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1525,6 +1484,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-acme] %s"
@@ -1663,6 +1623,8 @@ objects:
                 name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1690,6 +1652,7 @@ objects:
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
               channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
               message "[openshift-resources] %s"
@@ -1854,4 +1817,6 @@ parameters:
 - name: LOG_FILE
   value: ""
 - name: SLACK_CHANNEL
-  value: "sd-app-sre-reconcile-test"
+  value: "sd-app-sre-reconcile-stage"
+- name: SLACK_ICON_EMOJI
+  value: ":bust_in_silhouette:"
