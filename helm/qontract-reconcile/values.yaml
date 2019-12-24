@@ -23,6 +23,7 @@ integrations:
     limits:
       memory: 80Mi
       cpu: 25m
+  logs: true
 - name: github-repo-invites
   resources:
     requests:
@@ -31,6 +32,7 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
+  logs: true
 - name: quay-membership
   resources:
     requests:
@@ -39,6 +41,7 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
+  logs: true
 - name: quay-repos
   resources:
     requests:
@@ -47,6 +50,7 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
+  logs: true
 - name: github-scanner
   resources:
     requests:
@@ -78,6 +82,7 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 40m
+  logs: true
 - name: openshift-groups
   resources:
     requests:
@@ -86,6 +91,7 @@ integrations:
     limits:
       memory: 300Mi
       cpu: 150m
+  logs: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -95,6 +101,7 @@ integrations:
       memory: 300Mi
       cpu: 200m
   extraArgs: --external
+  logs: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -103,6 +110,7 @@ integrations:
     limits:
       memory: 300Mi
       cpu: 150m
+  logs: true
 - name: openshift-rolebindings
   resources:
     requests:
@@ -111,6 +119,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 300m
+  logs: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -119,6 +128,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  logs: true
 - name: openshift-acme
   resources:
     requests:
@@ -127,6 +137,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  logs: true
 - name: openshift-limitranges
   resources:
     requests:
@@ -143,6 +154,7 @@ integrations:
     limits:
       memory: 600Mi
       cpu: 1000m
+  logs: true
   extraArgs: --external
 - name: terraform-resources
   resources:
@@ -153,6 +165,7 @@ integrations:
       memory: 1000Mi
       cpu: 400m
   extraArgs: --external --vault-output-path app-sre/integrations-output
+  logs: true
 - name: terraform-users
   resources:
     requests:
@@ -162,3 +175,4 @@ integrations:
       memory: 1500Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
+  logs: true
