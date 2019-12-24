@@ -101,7 +101,6 @@ integrations:
       memory: 300Mi
       cpu: 200m
   extraArgs: --external
-  logs: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
