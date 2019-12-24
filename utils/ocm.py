@@ -1,4 +1,3 @@
-import json
 import requests
 
 import utils.secret_reader as secret_reader
