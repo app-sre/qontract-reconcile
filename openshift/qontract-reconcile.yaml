@@ -35,8 +35,6 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 50m
@@ -81,8 +79,6 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 25m
@@ -615,8 +611,6 @@ objects:
             value: "--thread-pool-size 1"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -666,8 +660,6 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -1571,8 +1563,6 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
           resources:
             limits:
               cpu: 150m
