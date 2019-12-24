@@ -3,7 +3,7 @@
 set -o pipefail
 
 while true; do
-    qontract-reconcile --config /config/config.toml $DRY_RUN $INTEGRATION_NAME $INTEGRATION_EXTRA_ARGS | tee -a $LOG_FILE
+    qontract-reconcile --config /config/config.toml $DRY_RUN $INTEGRATION_NAME $INTEGRATION_EXTRA_ARGS 2>&1 | tee -a $LOG_FILE
     STATUS=$?
 
     if [ $STATUS -ne 3 ]; then
