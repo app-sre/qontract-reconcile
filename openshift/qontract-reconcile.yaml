@@ -1933,7 +1933,7 @@ objects:
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
-              message "[ocm-groups] %s"
+              message "\`\`\`[ocm-groups] %s\`\`\`"
             </match>
             EOF
           volumeMounts:
@@ -1956,10 +1956,10 @@ objects:
           resources:
             limits:
               cpu: 25m
-              memory: 150Mi
+              memory: 200Mi
             requests:
               cpu: 15m
-              memory: 50Mi
+              memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config

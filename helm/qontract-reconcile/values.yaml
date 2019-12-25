@@ -178,9 +178,9 @@ integrations:
 - name: ocm-groups
   resources:
     requests:
-      memory: 50Mi
+      memory: 100Mi
       cpu: 15m
     limits:
-      memory: 150Mi
+      memory: 200Mi
       cpu: 25m
   logs: true
