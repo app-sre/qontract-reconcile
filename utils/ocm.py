@@ -1,6 +1,7 @@
 import requests
 
 import utils.secret_reader as secret_reader
+from utils.retry import retry
 
 
 class OCM(object):
@@ -98,6 +99,7 @@ class OCM(object):
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
+    @retry()
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
