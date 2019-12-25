@@ -82,7 +82,7 @@ objects:
             mountPath: /fluentd/etc/
         {{- end }}
         containers:
-        - name: {{ $integration.name }}
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
