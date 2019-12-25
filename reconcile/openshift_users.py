@@ -26,6 +26,9 @@ CLUSTERS_QUERY = """
       }
     }
     managedGroups
+    ocm {
+      name
+    }
     automationToken {
       path
       field
@@ -55,6 +58,7 @@ def get_cluster_users(cluster, oc_map):
 def fetch_current_state(thread_pool_size, internal):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
+    clusters = [c for c in clusters if c.get('ocm') is None]
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal)

@@ -92,6 +92,18 @@ CLUSTERS_QUERY = """
         format
       }
     }
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      offlineToken {
+        path
+        field
+        format
+        version
+      }
+    }
     automationToken {
       path
       field

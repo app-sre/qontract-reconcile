@@ -175,3 +175,12 @@ integrations:
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   logs: true
+- name: ocm-groups
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 15m
+    limits:
+      memory: 150Mi
+      cpu: 25m
+  logs: true

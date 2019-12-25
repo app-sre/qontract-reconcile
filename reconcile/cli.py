@@ -36,6 +36,7 @@ import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
+import reconcile.ocm_groups
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -495,3 +496,11 @@ def gitlab_members(ctx):
 @click.pass_context
 def gitlab_projects(ctx):
     run_integration(reconcile.gitlab_projects.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def ocm_groups(ctx, thread_pool_size):
+    run_integration(reconcile.ocm_groups.run, ctx.obj['dry_run'],
+                    thread_pool_size)

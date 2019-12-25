@@ -41,6 +41,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
+- `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
 
 ### e2e-tests
 
