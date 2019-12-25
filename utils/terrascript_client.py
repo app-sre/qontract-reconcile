@@ -942,7 +942,7 @@ class TerrascriptClient(object):
             'default_cache_behavior', {}).setdefault(
                 'target_origin_id', 'default')
         origin = {
-            'domain_name': 
+            'domain_name':
                 '${' + bucket_tf_resource.fullname +
                 '.bucket_domain_name}',
             'origin_id':
@@ -950,7 +950,7 @@ class TerrascriptClient(object):
             's3_origin_config': {
                 'origin_access_identity':
                     'origin-access-identity/cloudfront/' +
-                    '${' + cf_oai_tf_resource.fullname + '.id}'
+                        '${' + cf_oai_tf_resource.fullname + '.id}'
             }
         }
         values['origin'] = [origin]
