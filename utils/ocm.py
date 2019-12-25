@@ -51,11 +51,11 @@ class OCM(object):
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
         If the group does not exist, None will be returned.
-        
+
         Arguments:
             cluster {string} -- cluster name
             group_id {string} -- group name
-        
+
         Returns:
             dict or None -- a dict with a single 'users' key containing
                             a list of users, or None if the group does
@@ -74,7 +74,7 @@ class OCM(object):
 
     def add_user_to_group(self, cluster, group_id, user):
         """Adds a user to a group in a cluster.
-        
+
         Arguments:
             cluster {string} -- cluster name
             group_id {string} -- group name
@@ -87,7 +87,7 @@ class OCM(object):
 
     def del_user_from_group(self, cluster, group_id, user_id):
         """Deletes a user from a group in a cluster.
-        
+
         Arguments:
             cluster {string} -- cluster name
             group_id {string} -- group name
@@ -157,7 +157,7 @@ class OCMMap(object):
         Gets the OCM information and initiates an OCM client.
         Skip initiating OCM if it has already been initialized or if
         the current integration is disabled on it.
-        
+
         Arguments:
             cluster_info {dict} -- Graphql cluster query result
         """
@@ -184,10 +184,10 @@ class OCMMap(object):
 
     def cluster_disabled(self, cluster_info):
         """Checks if the calling integration is disabled in this cluster.
-        
+
         Arguments:
             cluster_info {dict} -- Grapqh cluster query result
-        
+
         Returns:
             bool -- Is calling integration disabled on this cluster
         """
@@ -202,10 +202,10 @@ class OCMMap(object):
 
     def get(self, cluster):
         """Gets an OCM instance by cluster.
-        
+
         Arguments:
             cluster {string} -- cluster name
-        
+
         Returns:
             OCM -- OCM instance referenced by this cluster
         """
@@ -214,7 +214,7 @@ class OCMMap(object):
 
     def clusters(self):
         """Get list of cluster names initiated in the OCM map.
-        
+
         Returns:
             list -- cluster names (string)
         """
