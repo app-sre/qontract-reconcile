@@ -950,8 +950,8 @@ class TerrascriptClient(object):
             's3_origin_config': {
                 'origin_access_identity':
                     'origin-access-identity/cloudfront/' +
-                        '${' + cf_oai_tf_resource.fullname + '.id}'
-            }
+                    '${' + cf_oai_tf_resource.fullname + '.id}'
+                }
         }
         values['origin'] = [origin]
         cf_distribution_tf_resource = \
