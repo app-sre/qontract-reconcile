@@ -936,11 +936,49 @@ class TerrascriptClient(object):
         tf_resources.append(bucket_policy_tf_resource)
 
         # cloud front distribution
-        values = {}
-
+        values = common_values.get('distribution_config', {})
+        values['tags'] = common_values['tags']
+        values.setdefault(
+            'default_cache_behavior', {}).setdefault(
+                'target_origin_id', 'default')
+        origin = {
+            'domain_name': 
+                '${' + bucket_tf_resource.fullname +
+                '.bucket_domain_name}',
+            'origin_id':
+                values['default_cache_behavior']['target_origin_id'],
+            's3_origin_config': {
+                'origin_access_identity':
+                    'origin-access-identity/cloudfront/' +
+                    '${' + cf_oai_tf_resource.fullname + '.id}'
+            }
+        }
+        values['origin'] = [origin]
         cf_distribution_tf_resource = \
             aws_cloudfront_distribution(identifier, **values)
         tf_resources.append(cf_distribution_tf_resource)
+
+        # outputs
+        output_name = output_prefix + \
+            '[cloud_front_origin_access_identity_id]'
+        output_value = '${' + cf_oai_tf_resource.fullname + \
+            '.id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[s3_canonical_user_id]'
+        output_value = '${' + cf_oai_tf_resource.fullname + \
+            '.s3_canonical_user_id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[distribution_domain]'
+        output_value = '${' + cf_distribution_tf_resource.fullname + \
+            '.domain_name}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[origin_access_identity]'
+        output_value = 'origin-access-identity/cloudfront/' + \
+            '${' + cf_oai_tf_resource.fullname + '.id}'
+        tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
