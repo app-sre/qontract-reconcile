@@ -99,7 +99,7 @@ class OCM(object):
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
-    @retry()
+    @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
