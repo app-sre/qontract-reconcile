@@ -24,7 +24,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: aws-garbage-collector
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -68,7 +68,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: aws-iam-keys
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -168,7 +168,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: github
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -290,7 +290,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: github-repo-invites
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -412,7 +412,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: quay-membership
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -534,7 +534,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: quay-repos
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -600,7 +600,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: github-scanner
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -649,7 +649,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: aws-support-cases-sos
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -754,7 +754,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-users
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -876,7 +876,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-groups
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -942,7 +942,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: openshift-namespaces
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -956,10 +956,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 300Mi
+              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 200Mi
+              memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1042,7 +1042,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-clusterrolebindings
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1164,7 +1164,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-rolebindings
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1286,7 +1286,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-network-policies
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1408,7 +1408,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-acme
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1474,7 +1474,7 @@ objects:
         securityContext:
           runAsUser: ${{USER_ID}}
         containers:
-        - name: openshift-limitranges
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1574,7 +1574,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: openshift-resources
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1696,7 +1696,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: terraform-resources
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1818,7 +1818,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: terraform-users
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
@@ -1940,7 +1940,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         containers:
-        - name: ocm-groups
+        - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: DRY_RUN
