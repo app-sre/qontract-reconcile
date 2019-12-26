@@ -97,6 +97,15 @@ objects:
           - name: LOG_FILE
             value: "${LOG_FILE}"
           {{- end }}
+          {{- if $integration.state }}
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
@@ -151,6 +160,8 @@ parameters:
   value: "300"
 - name: APP_INTERFACE_SQS_SECRET_NAME
   value: app-interface-sqs
+- name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+  value: app-sre
 - name: USER_ID
   value: "1000720000"
 - name: LOG_FILE
