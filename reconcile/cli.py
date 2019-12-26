@@ -37,6 +37,7 @@ import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
+import reconcile.email_sender
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -504,3 +505,10 @@ def gitlab_projects(ctx):
 def ocm_groups(ctx, thread_pool_size):
     run_integration(reconcile.ocm_groups.run, ctx.obj['dry_run'],
                     thread_pool_size)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def email_sender(ctx):
+    run_integration(reconcile.email_sender.run, ctx.obj['dry_run'])

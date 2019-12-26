@@ -22,6 +22,48 @@ def get_app_interface_settings():
     return None
 
 
+APP_INTERFACE_EMAILS_QUERY = """
+{
+  emails: app_interface_emails_v1 {
+    name
+    subject
+    to {
+      aliases
+      services {
+        serviceOwners {
+          email
+        }
+      }
+      clusters {
+        name
+      }
+      namespaces {
+        name
+      }
+      aws_accounts {
+        name
+      }
+      roles {
+        users {
+          org_username
+        }
+      }
+      users {
+        org_username
+      }
+    }
+    body
+  }
+}
+"""
+
+
+def get_app_interface_emails():
+  """ Returns Email resources defined in app-interface """
+  gqlapi = gql.get_api()
+  return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
+
+
 GITLAB_INSTANCES_QUERY = """
 {
   instances: gitlabinstance_v1 {
