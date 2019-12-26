@@ -12,13 +12,13 @@ QONTRACT_INTEGRATION = 'email-sender'
 
 def collect_to(to):
     """Collect audience to send email to from to object
-    
+
     Arguments:
         to {dict} -- AppInterfaceEmailAudience_v1 object
-    
+
     Raises:
         AttributeError: Unknown alias
-    
+
     Returns:
         set -- Audience to send email to
     """

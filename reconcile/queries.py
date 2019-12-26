@@ -59,9 +59,9 @@ APP_INTERFACE_EMAILS_QUERY = """
 
 
 def get_app_interface_emails():
-  """ Returns Email resources defined in app-interface """
-  gqlapi = gql.get_api()
-  return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
+    """ Returns Email resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
 
 
 GITLAB_INSTANCES_QUERY = """

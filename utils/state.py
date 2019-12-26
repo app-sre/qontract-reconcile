@@ -1,5 +1,4 @@
 import os
-import json
 
 from botocore.errorfactory import ClientError
 
@@ -35,10 +34,10 @@ class State(object):
 
     def exists(self, key):
         """checks if a key exists in the state
-        
+
         Arguments:
             key {string} -- key to check
-        
+
         Returns:
             bool -- True if key exists in state, else False
         """
@@ -51,10 +50,10 @@ class State(object):
 
     def add(self, key):
         """adds a key to the state and fails if the key already exists
-        
+
         Arguments:
             key {string} -- key to add
-        
+
         Raises:
             KeyError: key already exists in the state
         """
