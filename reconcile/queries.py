@@ -300,6 +300,6 @@ USERS_QUERY = """
 
 
 def get_users():
-  """ Returnes all Users. """
-  gqlapi = gql.get_api()
-  return gqlapi.query(USERS_QUERY)['users']
+    """ Returnes all Users. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(USERS_QUERY)['users']
