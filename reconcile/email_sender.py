@@ -31,7 +31,8 @@ def collect_to(to):
                 users = queries.get_users()
                 to['users'] = users
             elif alias == 'all-service-owners':
-                pass
+                services = queries.get_apps()
+                to['services'] = services
             else:
                 raise AttributeError(f"unknown alias: {alias}")
 

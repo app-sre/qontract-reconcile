@@ -285,6 +285,10 @@ APPS_QUERY = """
   apps: apps_v1 {
     path
     name
+    serviceOwners {
+      name
+      email
+    }
     codeComponents {
       url
       resource
@@ -295,7 +299,7 @@ APPS_QUERY = """
 
 
 def get_apps():
-    """ Returns all apps along with their codeComponents """
+    """ Returns all Apps. """
     gqlapi = gql.get_api()
     return gqlapi.query(APPS_QUERY)['apps']
 
