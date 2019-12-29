@@ -442,7 +442,22 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
                 f.write(report['content'])
 
     if not dry_run:
+        email_schema = '/app-interface/app-interface-email-1.yml'
+        email_body = """Hello,
+
+A new report by the App SRE team is now available at:
+https://visual-app-interface.devshift.net/reports
+
+You can use the Search bar to search by App.
+
+You can also view reports per service here:
+https://visual-app-interface.devshift.net/services
+
+
+Having problems? Ping us on #sd-app-sre on Slack!
+"""
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
-        mr = gw.create_app_interface_reporter_mr(reports)
+        mr = gw.create_app_interface_reporter_mr(
+            reports, email_schema, email_body, reports_path)
         logging.info(['created_mr', mr.web_url])
