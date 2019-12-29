@@ -1,5 +1,6 @@
 import semver
 
+import utils.gql as gql
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
