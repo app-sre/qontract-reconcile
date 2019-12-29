@@ -51,6 +51,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### tools
 
 - `app-interface-reporter`: Creates service reports and submits PR to App-Interface.
+- `qontract-cli`: A cli tool for qontract (currently very good at getting information).
 
 ## Usage
 
