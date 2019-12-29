@@ -53,14 +53,11 @@ class OCM(object):
         """Returns a list of users in a group in a cluster.
         If the group does not exist, None will be returned.
 
-        Arguments:
-            cluster {string} -- cluster name
-            group_id {string} -- group name
+        :param cluster: cluster name
+        :param group_id: group name
 
-        Returns:
-            dict or None -- a dict with a single 'users' key containing
-                            a list of users, or None if the group does
-                            not exist
+        :type cluster: string
+        :type group_id: string
         """
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups'
@@ -74,12 +71,16 @@ class OCM(object):
         return {'users': [u['id'] for u in users]}
 
     def add_user_to_group(self, cluster, group_id, user):
-        """Adds a user to a group in a cluster.
+        """
+        Adds a user to a group in a cluster.
 
-        Arguments:
-            cluster {string} -- cluster name
-            group_id {string} -- group name
-            user {string} -- user name
+        :param cluster: cluster name
+        :param group_id: group name
+        :param user: user name
+
+        :type cluster: string
+        :type group_id: string
+        :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
@@ -89,10 +90,13 @@ class OCM(object):
     def del_user_from_group(self, cluster, group_id, user_id):
         """Deletes a user from a group in a cluster.
 
-        Arguments:
-            cluster {string} -- cluster name
-            group_id {string} -- group name
-            user_id {string} -- user name
+        :param cluster: cluster name
+        :param group_id: group name
+        :param user: user name
+
+        :type cluster: string
+        :type group_id: string
+        :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
@@ -155,13 +159,15 @@ class OCMMap(object):
             raise KeyError('expected one of clusters or namespaces.')
 
     def init_ocm_client(self, cluster_info):
-        """Initiate OCM client.
+        """
+        Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
         Skip initiating OCM if it has already been initialized or if
         the current integration is disabled on it.
 
-        Arguments:
-            cluster_info {dict} -- Graphql cluster query result
+        :param cluster_info: Graphql cluster query result
+
+        :type cluster_info: dict
         """
         if self.cluster_disabled(cluster_info):
             return
@@ -185,13 +191,12 @@ class OCMMap(object):
                 OCM(url, access_token_client_id, access_token_url, token)
 
     def cluster_disabled(self, cluster_info):
-        """Checks if the calling integration is disabled in this cluster.
+        """
+        Checks if the calling integration is disabled in this cluster.
 
-        Arguments:
-            cluster_info {dict} -- Grapqh cluster query result
+        :param cluster_info: Graphql cluster query result
 
-        Returns:
-            bool -- Is calling integration disabled on this cluster
+        :type cluster_info: dict
         """
         try:
             integrations = cluster_info['disable']['integrations']
@@ -203,21 +208,16 @@ class OCMMap(object):
         return False
 
     def get(self, cluster):
-        """Gets an OCM instance by cluster.
+        """
+        Gets an OCM instance by cluster.
 
-        Arguments:
-            cluster {string} -- cluster name
+        :param cluster: cluster name
 
-        Returns:
-            OCM -- OCM instance referenced by this cluster
+        :type cluster: string
         """
         ocm = self.clusters_map[cluster]
         return self.ocm_map.get(ocm, None)
 
     def clusters(self):
-        """Get list of cluster names initiated in the OCM map.
-
-        Returns:
-            list -- cluster names (string)
-        """
+        """Get list of cluster names initiated in the OCM map."""
         return [k for k, v in self.clusters_map.items() if v]

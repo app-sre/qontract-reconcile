@@ -33,13 +33,12 @@ class State(object):
         self.client = session.client('s3')
 
     def exists(self, key):
-        """checks if a key exists in the state
+        """
+        Checks if a key exists in the state.
 
-        Arguments:
-            key {string} -- key to check
+        :param key: key to check
 
-        Returns:
-            bool -- True if key exists in state, else False
+        :type key: string
         """
         try:
             self.client.head_object(
@@ -49,13 +48,12 @@ class State(object):
             return False
 
     def add(self, key):
-        """adds a key to the state and fails if the key already exists
+        """
+        Adds a key to the state and fails if the key already exists
 
-        Arguments:
-            key {string} -- key to add
+        :param key: key to add
 
-        Raises:
-            KeyError: key already exists in the state
+        :type key: string
         """
         if self.exists(key):
             raise KeyError(
