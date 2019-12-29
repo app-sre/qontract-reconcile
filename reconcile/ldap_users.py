@@ -1,7 +1,6 @@
 import sys
 import logging
 
-import utils.gql as gql
 import utils.threaded as threaded
 import utils.ldap_client as ldap_client
 import reconcile.queries as queries
@@ -10,22 +9,12 @@ from utils.gitlab_api import GitLabApi
 
 from collections import defaultdict
 
-QUERY = """
-{
-  users: users_v1 {
-    path
-    org_username
-  }
-}
-"""
-
 
 def init_users():
-    gqlapi = gql.get_api()
-    result = gqlapi.query(QUERY)['users']
+    users = queries.get_users()
 
     users = defaultdict(list)
-    for user in result:
+    for user in users:
         u = user['org_username']
         p = 'data' + user['path']
         users[u].append(p)
