@@ -59,7 +59,7 @@ def collect_to(to):
     aws_accounts = to.get('aws_accounts')
     if aws_accounts:
         for account in aws_accounts:
-            account_owners = service.get('accountOwners')
+            account_owners = account.get('accountOwners')
             if not account_owners:
                 continue
 
