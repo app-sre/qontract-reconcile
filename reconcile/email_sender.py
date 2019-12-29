@@ -24,37 +24,59 @@ def collect_to(to):
     """
     audience = set()
 
-    for alias in to.get('aliases') or []:
-        # gql = gql.get_api()
-        if alias == 'all-users':
+    aliases = to.get('aliases')
+    if aliases:
+        for alias in aliases:
+            # gql = gql.get_api()
+            if alias == 'all-users':
+                pass
+            elif alias == 'all-service-owners':
+                pass
+            else:
+                raise AttributeError(f"unknown alias: {alias}")
+
+    services = to.get('services')
+    if services:
+        for service in services:
+            service_owners = service.get('serviceOwners')
+            if not service_owners:
+                continue
+
+            for service_owner in service_owners:
+                audience.add(service_owner['email'])
+
+    clusters - to.get('clusters')
+    if clusters:
+        for cluster in clusters:
+            # TODO: implement this
             pass
-        elif alias == 'all-service-owners':
+
+    namespaces = to.get('namespaces')
+    if namespaces:
+        for namespace in namespaces:
+            # TODO: implement this
             pass
-        else:
-            raise AttributeError(f"unknown alias: {alias}")
 
-    for service in to.get('services') or []:
-        for service_owner in service.get('serviceOwners', []):
-            audience.add(service_owner['email'])
+    aws_accounts = to.get('aws_accounts')
+    if aws_accounts:
+        for account in aws_accounts:
+            # TODO: implement this
+            pass
 
-    for cluster in to.get('clusters') or []:
-        # TODO: implement this
-        pass
+    roles = to.get('roles')
+    if roles:
+        for role in roles:
+            users = role.get('users')
+            if not users:
+                continue
 
-    for namespace in to.get('namespaces') or []:
-        # TODO: implement this
-        pass
+            for user in users:
+                audience.add(user['org_username'])
 
-    for account in to.get('aws_accounts') or []:
-        # TODO: implement this
-        pass
-
-    for role in to.get('roles') or []:
-        for user in role.get('users') or []:
+    users = to.get('users')
+    if users:
+        for user in users:
             audience.add(user['org_username'])
-
-    for user in to.get('users') or []:
-        audience.add(user['org_username'])
 
     return audience
 
