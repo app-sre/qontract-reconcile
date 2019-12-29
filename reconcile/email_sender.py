@@ -58,9 +58,13 @@ def collect_to(to):
 
     aws_accounts = to.get('aws_accounts')
     if aws_accounts:
-        # TODO: implement this
         for account in aws_accounts:
-            pass
+            account_owners = account.get('accountOwners')
+            if not account_owners:
+                continue
+
+            for account_owner in account_owners:
+                audience.add(account_owner['email'])
 
     roles = to.get('roles')
     if roles:

@@ -41,7 +41,9 @@ APP_INTERFACE_EMAILS_QUERY = """
         name
       }
       aws_accounts {
-        name
+        accountOwners {
+          email
+        }
       }
       roles {
         users {
@@ -97,6 +99,10 @@ AWS_ACCOUNTS_QUERY = """
     name
     uid
     resourcesDefaultRegion
+    accountOwners {
+      name
+      email
+    }
     automationToken {
       path
       field
