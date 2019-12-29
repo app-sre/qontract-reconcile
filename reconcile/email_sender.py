@@ -28,7 +28,8 @@ def collect_to(to):
         # TODO: implement this
         for alias in aliases:
             if alias == 'all-users':
-                pass
+                users = queries.get_users()
+                to['users'] = users
             elif alias == 'all-service-owners':
                 pass
             else:

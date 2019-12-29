@@ -66,18 +66,6 @@ ROLES_QUERY = """
 }
 """
 
-USERS_QUERY = """
-{
-  users: users_v1 {
-    name
-    org_username
-    github_username
-    slack_username
-    pagerduty_name
-  }
-}
-"""
-
 
 def get_permissions():
     gqlapi = gql.get_api()
@@ -226,7 +214,7 @@ def get_raw_owners_content(owners_file, ssl_verify):
 def get_desired_state(slack_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
-    all_users = gqlapi.query(USERS_QUERY)['users']
+    all_users = queries.get_users()
 
     desired_state = []
     for r in roles:

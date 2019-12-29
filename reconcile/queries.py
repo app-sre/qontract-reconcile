@@ -283,3 +283,23 @@ def get_repos(server=''):
     repos = [c['url'] for c in code_components if c['url'].startswith(server)]
 
     return repos
+
+
+USERS_QUERY = """
+{
+  users: users_v1 {
+    path
+    name
+    org_username
+    github_username
+    slack_username
+    pagerduty_name
+  }
+}
+"""
+
+
+def get_users():
+  """ Returnes all Users. """
+  gqlapi = gql.get_api()
+  return gqlapi.query(USERS_QUERY)['users']
