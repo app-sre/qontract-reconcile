@@ -1,7 +1,6 @@
 import sys
 import logging
 
-# import utils.gql as gql
 import utils.smtp_client as smtp_client
 import reconcile.queries as queries
 
@@ -26,8 +25,8 @@ def collect_to(to):
 
     aliases = to.get('aliases')
     if aliases:
+        # TODO: implement this
         for alias in aliases:
-            # gql = gql.get_api()
             if alias == 'all-users':
                 pass
             elif alias == 'all-service-owners':
@@ -45,22 +44,22 @@ def collect_to(to):
             for service_owner in service_owners:
                 audience.add(service_owner['email'])
 
-    clusters - to.get('clusters')
+    clusters = to.get('clusters')
     if clusters:
+        # TODO: implement this
         for cluster in clusters:
-            # TODO: implement this
             pass
 
     namespaces = to.get('namespaces')
     if namespaces:
+        # TODO: implement this
         for namespace in namespaces:
-            # TODO: implement this
             pass
 
     aws_accounts = to.get('aws_accounts')
     if aws_accounts:
+        # TODO: implement this
         for account in aws_accounts:
-            # TODO: implement this
             pass
 
     roles = to.get('roles')
