@@ -110,9 +110,8 @@ def run(dry_run=False):
         logging.info(['send_email', email['name'], email['subject']])
 
         if not dry_run:
-            state.add(email['name'])
-
             names = collect_to(email['to'])
             subject = email['subject']
             body = email['body']
             smtp_client.send_mail(names, subject, body, settings=settings)
+            state.add(email['name'])
