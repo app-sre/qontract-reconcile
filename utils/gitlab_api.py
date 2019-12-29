@@ -215,8 +215,8 @@ class GitLabApi(object):
             return
 
         # add a new email to be picked up by email-sender
-        body = \
-"""Hello,
+        body = """
+Hello,
 
 This is an automated notification.
 
