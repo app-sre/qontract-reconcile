@@ -25,7 +25,6 @@ def collect_to(to):
 
     aliases = to.get('aliases')
     if aliases:
-        # TODO: implement this
         for alias in aliases:
             if alias == 'all-users':
                 users = queries.get_users()
