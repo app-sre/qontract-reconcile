@@ -68,7 +68,7 @@ def get_smtp_config(path, settings):
     return config
 
 
-def send_mail(name, subject, body, settings=None):
+def send_mail(names, subject, body, settings=None):
     global _client
     global _username
     global _mail_address
@@ -78,9 +78,14 @@ def send_mail(name, subject, body, settings=None):
 
     msg = MIMEMultipart()
     from_name = str(Header('App SRE team automation', 'utf-8'))
-    to = '{}@{}'.format(name, _mail_address)
     msg['From'] = formataddr((from_name, _username))
-    msg['To'] = to
+    to = set()
+    for name in names:
+        if '@' in name:
+            to.add(name)
+        else:
+            to.add(f"{name}@{_mail_address}")
+    msg['To'] = ', '.join(to)
     msg['Subject'] = subject
 
     # add in the message body
@@ -96,6 +101,6 @@ def send_mails(mails, settings=None):
     init_from_config(settings)
     try:
         for name, subject, body in mails:
-            send_mail(name, subject, body)
+            send_mail([name], subject, body)
     finally:
         teardown()
