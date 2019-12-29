@@ -249,6 +249,12 @@ NAMESPACES_QUERY = """
 """
 
 
+def get_namespaces():
+    """ Returns all Namespaces """
+    gqlapi = gql.get_api()
+    return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+
+
 APPS_QUERY = """
 {
   apps: apps_v1 {
