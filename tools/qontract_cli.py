@@ -8,6 +8,8 @@ import reconcile.queries as queries
 
 from tabulate import tabulate
 
+from utils.state import State
+from utils.environ import environ
 from reconcile.cli import config_file
 
 
@@ -137,3 +139,48 @@ def print_table(content, columns):
         table_data.append(row_data)
 
     print(tabulate(table_data, headers=headers))
+
+
+@root.group()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def state(ctx):
+    pass
+
+
+@state.command()
+@click.argument('integration', default='')
+@click.pass_context
+def ls(ctx, integration):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
+    state = State(integration, accounts, settings=settings)
+    keys = state.ls()
+    # if 'integration' is defined, the 0th token is empty
+    table_content = [
+        {'integration': k.split('/')[0] or integration,
+         'key': '/'.join(k.split('/')[1:])}
+        for k in keys]
+    print_output('table', table_content, ['integration', 'key'])
+
+
+@state.command()
+@click.argument('integration')
+@click.argument('key')
+@click.pass_context
+def add(ctx, integration, key):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
+    state = State(integration, accounts, settings=settings)
+    state.add(key)
+
+
+@state.command()
+@click.argument('integration')
+@click.argument('key')
+@click.pass_context
+def rm(ctx, integration, key):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
+    state = State(integration, accounts, settings=settings)
+    state.rm(key)
