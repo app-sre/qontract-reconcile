@@ -47,25 +47,37 @@ def settings(ctx):
 
 
 @get.command()
+@click.argument('name', default='')
 @click.pass_context
-def aws_accounts(ctx):
+def aws_accounts(ctx, name):
     accounts = queries.get_aws_accounts()
+    if name:
+        accounts = [a for a in accounts if a['name'] == name]
+
     columns = ['name', 'consoleUrl']
     print_output(ctx.obj['output'], accounts, columns)
 
 
 @get.command()
+@click.argument('name', default='')
 @click.pass_context
-def clusters(ctx):
+def clusters(ctx, name):
     clusters = queries.get_clusters()
+    if name:
+        clusters = [c for c in clusters if c['name'] == name]
+
     columns = ['name', 'consoleUrl', 'kibanaUrl']
     print_output(ctx.obj['output'], clusters, columns)
 
 
 @get.command()
+@click.argument('name', default='')
 @click.pass_context
-def namespaces(ctx):
+def namespaces(ctx, name):
     namespaces = queries.get_namespaces()
+    if name:
+        namespaces = [ns for ns in namespaces if ns['name'] == name]
+
     columns = ['name', 'cluster.name', 'app.name']
     print_output(ctx.obj['output'], namespaces, columns)
 
@@ -74,7 +86,7 @@ def namespaces(ctx):
 @click.pass_context
 def services(ctx):
     apps = queries.get_apps()
-    columns = []
+    columns = ['name']
     print_output(ctx.obj['output'], apps, columns)
 
 
@@ -82,14 +94,19 @@ def services(ctx):
 @click.pass_context
 def repos(ctx):
     repos = queries.get_repos()
-    columns = []
+    repos = [{'url': r} for r in repos]
+    columns = ['url']
     print_output(ctx.obj['output'], repos, columns)
 
 
 @get.command()
+@click.argument('org_username', default='')
 @click.pass_context
-def users(ctx):
+def users(ctx, org_username):
     users = queries.get_users()
+    if name:
+        users = [u for u in users if u['org_username'] == org_username]
+
     columns = ['org_username', 'github_username', 'name']
     print_output(ctx.obj['output'], users, columns)
 
