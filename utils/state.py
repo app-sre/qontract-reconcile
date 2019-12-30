@@ -27,6 +27,7 @@ class State(object):
         self.state_path = f"state/{integration}"
         self.bucket = os.environ['APP_INTERFACE_STATE_BUCKET']
         account = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+        accounts = [a for a in accounts if a['name'] == account]
         aws_api = AWSApi(1, accounts, settings=settings)
         session = aws_api.get_session(account)
 
