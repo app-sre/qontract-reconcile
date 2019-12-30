@@ -42,6 +42,8 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
 - `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
+- `email-sender`: Send email notifications to app-interface audience.
+- `service-dependencies`: Validate dependencies are defined for each service.
 
 ### e2e-tests
 
