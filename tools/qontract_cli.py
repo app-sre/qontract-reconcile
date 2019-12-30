@@ -104,7 +104,7 @@ def repos(ctx):
 @click.pass_context
 def users(ctx, org_username):
     users = queries.get_users()
-    if name:
+    if org_username:
         users = [u for u in users if u['org_username'] == org_username]
 
     columns = ['org_username', 'github_username', 'name']
