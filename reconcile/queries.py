@@ -98,6 +98,7 @@ AWS_ACCOUNTS_QUERY = """
     path
     name
     uid
+    consoleUrl
     resourcesDefaultRegion
     accountOwners {
       name
@@ -127,6 +128,8 @@ CLUSTERS_QUERY = """
   clusters: clusters_v1 {
     name
     serverUrl
+    consoleUrl
+    kibanaUrl
     managedGroups
     managedClusterRoles
     jumpHost {
@@ -177,6 +180,9 @@ NAMESPACES_QUERY = """
   namespaces: namespaces_v1 {
     name
     managedRoles
+    app {
+      name
+    }
     cluster {
       name
       serverUrl
