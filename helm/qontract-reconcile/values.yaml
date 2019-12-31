@@ -183,7 +183,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 25m
-  logs: true
 - name: email-sender
   resources:
     requests:
