@@ -43,6 +43,7 @@ class QuayMirror:
     """
 
     def __init__(self, dry_run=False):
+        self.dry_run = dry_run
         self.gqlapi = gql.get_api()
         self.settings = queries.get_app_interface_settings()
         self.skopeo_cli = skopeo.Skopeo(dry_run)
@@ -97,6 +98,12 @@ class QuayMirror:
                                                 'image_url': str(downstream)})
                         continue
 
+                    # Deep (slow) check only in non dry-run mode
+                    if self.dry_run:
+                        _LOG.debug('Image %s and mirror %s are in sync',
+                                   downstream, upstream)
+                        continue
+
                     if downstream == upstream:
                         _LOG.debug('Image %s and mirror %s are in sync',
                                    downstream, upstream)
@@ -106,6 +113,7 @@ class QuayMirror:
                                downstream, upstream)
                     sync_tasks[org].append({'mirror_url': str(upstream),
                                             'image_url': str(downstream)})
+
         return sync_tasks
 
     def _get_push_creds(self):
