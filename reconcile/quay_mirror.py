@@ -90,7 +90,7 @@ class QuayMirror:
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
-                    if upstream == downstream:
+                    if downstream == upstream:
                         _LOG.debug('Image %s and mirror %s are in sync',
                                    downstream, upstream)
                         continue
