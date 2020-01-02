@@ -75,7 +75,8 @@ class Skopeo:
         if self.dry_run and subcomand == 'copy':
             return ''
 
-        result = subprocess.run(cmd, capture_output=True)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
 
         for line in result.stdout.decode().splitlines():
             _LOG.debug(' %s', line)
