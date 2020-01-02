@@ -90,6 +90,13 @@ class QuayMirror:
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
+                    if tag not in image:
+                        _LOG.debug('Image %s and mirror %s are out off sync',
+                                   downstream, upstream)
+                        sync_tasks[org].append({'mirror_url': str(upstream),
+                                                'image_url': str(downstream)})
+                        continue
+
                     if downstream == upstream:
                         _LOG.debug('Image %s and mirror %s are in sync',
                                    downstream, upstream)
