@@ -29,14 +29,14 @@ class Image:
         if self.registry == 'docker.io':
             self.registry_config = {
                 'auth_api': 'https://auth.docker.io/token',
-                'registry_api': 'https://registry-1.docker.io/v2',
+                'registry_api': 'https://registry-1.docker.io',
                 'service': 'registry.docker.io'
             }
         else:
             # Works for quay.io. Not sure about private registry.
             self.registry_config = {
                 'auth_api': f'https://{self.registry}/v2/auth',
-                'registry_api': f'https://{self.registry}/v2',
+                'registry_api': f'https://{self.registry}',
                 'service': self.registry.split(':')[0]  # Removing the port
             }
 
@@ -103,15 +103,41 @@ class Image:
         """
         Goes to the internet to retrieve all the image tags.
         """
+        all_tags = []
         registry_url = self.registry_config['registry_api']
-        url = f'{registry_url}/{self.repository}/{self.image}/tags/list'
+
+        tags_per_page = 50
+
+        url = f'{registry_url}/v2/{self.repository}/{self.image}' \
+              f'/tags/list?n={tags_per_page}'
         headers = {
             'Authorization': f'Bearer {self._get_auth_token()}',
             'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
         }
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-        return response.json()['tags']
+        tags = response.json()['tags']
+
+        all_tags = tags
+
+        # Tags are paginated
+        while not len(tags) < tags_per_page:
+            link_header = response.headers.get('Link')
+            if link_header is None:
+                break
+
+            # Link is given between "<" and ">". Example:
+            # '<v2/app-sre/aws-cli/tags/list?next_page=KkOw&n=50>; rel="next"'
+            link = link_header.split('<', 1)[1].split('>', 1)[0]
+
+            url = f'{registry_url}/{link}'
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            tags = response.json()['tags']
+
+            all_tags.extend(tags)
+
+        return all_tags
 
     def get_manifest(self):
         """
