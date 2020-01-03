@@ -144,7 +144,7 @@ class Image:
         Goes to the internet to retrieve the image manifest.
         """
         registry_url = self.registry_config['registry_api']
-        url = (f'{registry_url}/{self.repository}/'
+        url = (f'{registry_url}/v2/{self.repository}/'
                f'{self.image}/manifests/{self.tag}')
         headers = {
             'Authorization': f'Bearer {self._get_auth_token()}',
