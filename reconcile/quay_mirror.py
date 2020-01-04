@@ -1,4 +1,7 @@
 import logging
+import os
+import tempfile
+import time
 
 from collections import defaultdict
 
@@ -80,6 +83,9 @@ class QuayMirror:
         return summary
 
     def process_sync_tasks(self):
+        eight_hours = 28800  # 60 * 60 * 8
+        is_deep_sync = self._is_deep_sync(interval=eight_hours)
+
         summary = self.process_repos_query()
 
         sync_tasks = defaultdict(list)
@@ -104,6 +110,12 @@ class QuayMirror:
                                    downstream, upstream)
                         continue
 
+                    # Deep (slow) check only from time to time
+                    if not is_deep_sync:
+                        _LOG.debug('Image %s and mirror %s are in sync',
+                                   downstream, upstream)
+                        continue
+
                     if downstream == upstream:
                         _LOG.debug('Image %s and mirror %s are in sync',
                                    downstream, upstream)
@@ -115,6 +127,29 @@ class QuayMirror:
                                             'image_url': str(downstream)})
 
         return sync_tasks
+
+    def _is_deep_sync(self, interval):
+        control_file_name = 'qontract-reconcile-quay-mirror.timestamp'
+        control_file_path = os.path.join(tempfile.gettempdir(),
+                                         control_file_name)
+        try:
+            with open(control_file_path, 'r') as file_obj:
+                last_deep_sync = float(file_obj.read())
+        except FileNotFoundError:
+            self._record_timestamp(control_file_path)
+            return True
+
+        next_deep_sync = last_deep_sync + interval
+        if time.time() >= next_deep_sync:
+            self._record_timestamp(control_file_path)
+            return True
+
+        return False
+
+    @staticmethod
+    def _record_timestamp(path):
+        with open(path, 'w') as file_object:
+            file_object.write(str(time.time()))
 
     def _get_push_creds(self):
         result = self.gqlapi.query(self.QUAY_ORG_CATALOG_QUERY)
