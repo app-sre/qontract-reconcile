@@ -48,6 +48,28 @@ class OCM(object):
         api = '/api/clusters_mgmt/v1/clusters'
         clusters = self._get_json(api)['items']
         self.cluster_ids = {c['name']: c['id'] for c in clusters}
+        self.clusters = {c['name']: self._get_cluster_ocm_spec(c)
+                         for c in clusters if c['managed']}
+
+    @staticmethod
+    def _get_cluster_ocm_spec(cluster):
+        ocm_spec = {
+            'spec': {
+                'provider': cluster['cloud_provider']['id'],
+                'region': cluster['region']['id'],
+                'major_version': \
+                    int(cluster['openshift_version'].split('.')[0]),
+                'multi_az': cluster['multi_az'],
+                'nodes': cluster['nodes']['compute'],
+                'instance_type': cluster['nodes']['compute_machine_type']['id'],
+            },
+            'network': {
+                'vpc': cluster['network']['machine_cidr'],
+                'service': cluster['network']['service_cidr'],
+                'pod': cluster['network']['pod_cidr']
+            }
+        }
+        return ocm_spec
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -221,3 +243,10 @@ class OCMMap(object):
     def clusters(self):
         """Get list of cluster names initiated in the OCM map."""
         return [k for k, v in self.clusters_map.items() if v]
+
+    def cluster_specs(self):
+        """Get dictionary of cluster names and specs in the OCM map."""
+        cluster_specs = {}
+        for v in self.ocm_map.values():
+            cluster_specs.update(v.clusters)
+        return cluster_specs

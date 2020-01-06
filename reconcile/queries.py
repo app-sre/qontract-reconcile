@@ -152,6 +152,19 @@ CLUSTERS_QUERY = """
         version
       }
     }
+    spec {
+      provider
+      region
+      major_version
+      multi_az
+      nodes
+      instance_type
+    }
+    network {
+      vpc
+      service
+      pod
+    }
     automationToken {
       path
       field
