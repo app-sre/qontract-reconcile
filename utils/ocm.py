@@ -57,11 +57,12 @@ class OCM(object):
             'spec': {
                 'provider': cluster['cloud_provider']['id'],
                 'region': cluster['region']['id'],
-                'major_version': \
+                'major_version':
                     int(cluster['openshift_version'].split('.')[0]),
                 'multi_az': cluster['multi_az'],
                 'nodes': cluster['nodes']['compute'],
-                'instance_type': cluster['nodes']['compute_machine_type']['id'],
+                'instance_type':
+                    cluster['nodes']['compute_machine_type']['id'],
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
