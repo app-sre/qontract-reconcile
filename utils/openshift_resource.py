@@ -223,6 +223,13 @@ class OpenshiftResource(object):
             if 'groupNames' in body:
                 body.pop('groupNames')
 
+        if body['kind'] == 'Service':
+            spec = body['spec']
+            if spec.get('sessionAffinity') == 'None':
+                spec.pop('sessionAffinity')
+            if spec.get('type') == 'ClusterIP':
+                spec.pop('clusterIP', None)
+
         # remove qontract specific params
         annotations.pop('qontract.integration', None)
         annotations.pop('qontract.integration_version', None)
