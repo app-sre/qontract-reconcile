@@ -14,6 +14,9 @@ SENTRY_PROJECTS_QUERY = """
     sentryProjects {
       team {
         name
+        instance {
+          consoleUrl
+        }
       }
       projects {
         name
@@ -315,6 +318,9 @@ def fetch_desired_state(gqlapi, sentry_instance):
       continue
 
     for sentry_project in sentry_projects:
+      if sentry_project['team']['instance']['consoleUrl'] != sentry_instance['consoleUrl']:
+        continue
+
       team = sentry_project['team']['name']
       team_projects = []
       for project_config in sentry_project['projects']:
