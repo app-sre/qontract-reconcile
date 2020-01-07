@@ -184,6 +184,12 @@ class OpenshiftResource(object):
 
         if body['kind'] == 'Role':
             for rule in body['rules']:
+                if 'resources' in rule:
+                    rule['resources'].sort()
+
+                if 'verbs' in rule:
+                    rule['verbs'].sort()
+
                 if 'attributeRestrictions' in rule and \
                         not rule['attributeRestrictions']:
                     rule.pop('attributeRestrictions')
