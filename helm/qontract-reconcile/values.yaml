@@ -210,3 +210,12 @@ integrations:
       cpu: 50m
   logs: true
   state: true
+- name: sentry-config
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 15m
+    limits:
+      memory: 200Mi
+      cpu: 25m
+  logs: true
