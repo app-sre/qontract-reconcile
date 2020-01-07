@@ -134,7 +134,7 @@ class SentryState:
           "resolveAge": "auto_resolve_age",
           "allowedDomains": "allowed_domains",
         }
-        for k, v in optional_fields:
+        for k, v in optional_fields.items():
           if k in p.keys():
             pdata[v] = p[k]
 
