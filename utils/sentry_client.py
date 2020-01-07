@@ -8,23 +8,19 @@ class SentryClient:
     self.host = host
     self.auth_token = token
 
-  def do_sentry_api_call(self, method, path, slugs, payload=None):
-    success_codes = {"get": 200, "post": 201, "delete": 204, "put": 200}
-    url = "%s/api/0/%s/" % (self.host, path)
+  def _do_sentry_api_call_(self, method, path, slugs, payload=None):
+    url = f"{self.host}/api/0/{path}/"
 
     if len(slugs) > 0:
-      url = "%s%s/" % (url, "/".join(slugs))
+      url = f"{url}{'/'.join(slugs)}/"
 
     headers = {"Authorization": "Bearer " + self.auth_token}
     call = getattr(requests, method, None)
     if call == None:
-      print ("invalid http method %s" % method)
-      return None
+      raise Exception(f"invalid http method {method}")
 
     response = call(url, headers=headers, json=payload)
-    if response.status_code != success_codes[method]:
-      print ("error: http %s returned %d trying to access %s" % (method, response.status_code, url))
-      return None
+    response.raise_for_status()
 
     if response.status_code != 204:
       return response.json()
@@ -32,37 +28,37 @@ class SentryClient:
 
   # Organization functions
   def get_organizations(self):
-    request = self.do_sentry_api_call("get", "organizations", [])
-    return request
+    response = self._do_sentry_api_call_("get", "organizations", [])
+    return response
 
   def get_organization(self, slug):
-    request = self.do_sentry_api_call("get", "organizations", [slug])
-    return request
+    response = self._do_sentry_api_call_("get", "organizations", [slug])
+    return response
 
 
   # Project functions
   def get_projects(self):
-    request = self.do_sentry_api_call("get", "projects", [])
-    return request
+    response = self._do_sentry_api_call_("get", "projects", [])
+    return response
 
   def get_project(self, slug):
-    request = self.do_sentry_api_call("get", "projects", [self.ORGANIZATION, slug])
-    return request
+    response = self._do_sentry_api_call_("get", "projects", [self.ORGANIZATION, slug])
+    return response
 
   def create_project(self, team_slug, name, slug=None):
     params = {"name": name}
     if slug != None:
       params["slug"] = slug
-    request = self.do_sentry_api_call("post", "teams", [self.ORGANIZATION, team_slug, "projects"], payload=params)
-    return request
+    response = self._do_sentry_api_call_("post", "teams", [self.ORGANIZATION, team_slug, "projects"], payload=params)
+    return response
 
   def delete_project(self, slug):
-    request = self.do_sentry_api_call("delete", "projects", [self.ORGANIZATION, slug])
-    return request
+    response = self._do_sentry_api_call_("delete", "projects", [self.ORGANIZATION, slug])
+    return response
 
   def get_project_key(self, slug):
-    request = self.do_sentry_api_call("get", "projects", [self.ORGANIZATION, slug, "keys"])
-    keys = {"dsn": request[0]["dsn"]["public"], "deprecated": request[0]["dsn"]["secret"]}
+    response = self._do_sentry_api_call_("get", "projects", [self.ORGANIZATION, slug, "keys"])
+    keys = {"dsn": response[0]["dsn"]["public"], "deprecated": response[0]["dsn"]["secret"]}
     return keys
 
   def update_project(self, slug, options):
@@ -82,36 +78,36 @@ class SentryClient:
     if "allowed_domains" in options.keys():
       params["allowedDomains"] = options["allowed_domains"]
 
-    request = self.do_sentry_api_call("put", "projects", [self.ORGANIZATION, slug], payload=params)
-    return request
+    response = self._do_sentry_api_call_("put", "projects", [self.ORGANIZATION, slug], payload=params)
+    return response
 
   # Team functions
   def get_teams(self):
-    request = self.do_sentry_api_call("get", "organizations", [self.ORGANIZATION, "teams"])
-    return request
+    response = self._do_sentry_api_call_("get", "organizations", [self.ORGANIZATION, "teams"])
+    return response
 
   def get_team_members(self, team_slug):
-    request = self.do_sentry_api_call("get", "teams", [self.ORGANIZATION, team_slug, "members"])
-    return request
+    response = self._do_sentry_api_call_("get", "teams", [self.ORGANIZATION, team_slug, "members"])
+    return response
 
   def create_team(self, slug):
     params = {"slug": slug}
-    request = self.do_sentry_api_call("post", "organizations", [self.ORGANIZATION, "teams"], payload=params)
-    return request
+    response = self._do_sentry_api_call_("post", "organizations", [self.ORGANIZATION, "teams"], payload=params)
+    return response
 
   def delete_team(self, slug):
-    request = self.do_sentry_api_call("delete", "teams", [self.ORGANIZATION, slug])
-    return request
+    response = self._do_sentry_api_call_("delete", "teams", [self.ORGANIZATION, slug])
+    return response
 
   def get_team_projects(self, slug):
-    request = self.do_sentry_api_call("get", "teams", [self.ORGANIZATION, slug, "projects"])
-    return request
+    response = self._do_sentry_api_call_("get", "teams", [self.ORGANIZATION, slug, "projects"])
+    return response
 
     
   # User/Member functions
   def get_users(self):
-    request = self.do_sentry_api_call("get", "organizations", [self.ORGANIZATION, "members"])
-    return request
+    response = self._do_sentry_api_call_("get", "organizations", [self.ORGANIZATION, "members"])
+    return response
 
   def get_user(self, email):
     users = self.get_users()
@@ -119,24 +115,24 @@ class SentryClient:
       if u["email"] == email:
         user = u
         break
-    request = self.do_sentry_api_call("get", "organizations", [self.ORGANIZATION, "members", user["id"]])
-    return request
+    response = self._do_sentry_api_call_("get", "organizations", [self.ORGANIZATION, "members", user["id"]])
+    return response
 
   def create_user(self, email, role, teams=[]):
     params = {"email": email, "role": role, "teams": teams}
-    request = self.do_sentry_api_call("post", "organizations", [self.ORGANIZATION, "members"], payload=params)
-    return request
+    response = self._do_sentry_api_call_("post", "organizations", [self.ORGANIZATION, "members"], payload=params)
+    return response
 
   def delete_user(self, email):
     user = self.get_user(email)
-    request = self.do_sentry_api_call("delete", "organizations", [self.ORGANIZATION, "members", user["id"]])
-    return request
+    response = self._do_sentry_api_call_("delete", "organizations", [self.ORGANIZATION, "members", user["id"]])
+    return response
 
   def set_user_teams(self, email, teams):
     user = self.get_user(email)
     params = {"teams": teams}
-    request = self.do_sentry_api_call("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
-    return request
+    response = self._do_sentry_api_call_("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
+    return response
 
   def remove_user_from_teams(self, email, teams):
     user = self.get_user(email)
@@ -145,11 +141,11 @@ class SentryClient:
       if t in user_teams:
         user_teams.remove(t)
     params = {"teams": user_teams}
-    request = self.do_sentry_api_call("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
-    return request
+    response = self._do_sentry_api_call_("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
+    return response
 
   def change_user_role(self, email, role):
     user = self.get_user(email)
     params = {"role": role}
-    request = self.do_sentry_api_call("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
-    return request
+    response = self._do_sentry_api_call_("put", "organizations", [self.ORGANIZATION, "members", user["id"]], payload=params)
+    return response
