@@ -48,6 +48,14 @@ class State(object):
         except ClientError:
             return False
 
+    def ls(self):
+        """
+        Returns a list of keys in the state
+        """
+        objects = self.client.list_objects(
+            Bucket=self.bucket, Prefix=self.state_path)['Contents']
+        return [o['Key'].replace(self.state_path, '') for o in objects]
+
     def add(self, key):
         """
         Adds a key to the state and fails if the key already exists
@@ -60,4 +68,18 @@ class State(object):
             raise KeyError(
                 f"[state] key {key} already exists in {self.state_path}")
         self.client.put_object(
+            Bucket=self.bucket, Key=f"{self.state_path}/{key}")
+
+    def rm(self, key):
+        """
+        Removes a key from the state and fails if the key does not exists
+
+        :param key: key to remove
+
+        :type key: string
+        """
+        if not self.exists(key):
+            raise KeyError(
+                f"[state] key {key} does not exists in {self.state_path}")
+        self.client.delete_object(
             Bucket=self.bucket, Key=f"{self.state_path}/{key}")

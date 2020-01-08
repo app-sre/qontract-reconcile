@@ -39,6 +39,7 @@ setup(
         "pyOpenSSL>=19.0.0,<20.0.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
         "terrascript>=0.6.1,<0.7.0",
+        "tabulate>=0.8.6,<0.9.0"
     ],
 
     test_suite="tests",
@@ -54,6 +55,7 @@ setup(
             'qontract-reconcile = reconcile.cli:integration',
             'e2e-tests = e2e_tests.cli:test',
             'app-interface-reporter = tools.app_interface_reporter:main',
+            'qontract-cli = tools.qontract_cli:root',
         ],
     },
 )
