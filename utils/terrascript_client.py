@@ -27,7 +27,9 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
                                aws_sqs_queue, aws_dynamodb_table,
-                               aws_ecr_repository)
+                               aws_ecr_repository, aws_s3_bucket_policy,
+                               aws_cloudfront_origin_access_identity,
+                               aws_cloudfront_distribution)
 
 
 class UnknownProviderError(Exception):
@@ -302,6 +304,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_dynamodb(resource, namespace_info)
         elif provider == 'ecr':
             self.populate_tf_resource_ecr(resource, namespace_info)
+        elif provider == 's3-cloudfront':
+            self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -435,18 +439,21 @@ class TerrascriptClient(object):
         values['bucket'] = identifier
         values['versioning'] = {'enabled': True}
         values['tags'] = common_values['tags']
-        values['acl'] = common_values['acl']
+        values['acl'] = common_values.get('acl') or 'private'
         values['server_side_encryption_configuration'] = \
             common_values.get('server_side_encryption_configuration')
         if common_values.get('lifecycle_rules'):
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
             values['lifecycle_rule'] = common_values['lifecycle_rules']
+        if common_values.get('cors_rules'):
+            # common_values['cors_rules'] is a list of cors_rules
+            values['cors_rule'] = common_values['cors_rules']
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
         endpoint = 's3.{}.amazonaws.com'.format(region)
@@ -498,6 +505,8 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+        return bucket_tf_resource
 
     def populate_tf_resource_elasticache(self, resource, namespace_info,
                                          existing_secrets):
@@ -617,12 +626,12 @@ class TerrascriptClient(object):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        uid = self.uids[account]
+        uid = self.uids.get(account)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         specs = common_values['specs']
         all_queues_per_spec = []
         for spec in specs:
@@ -715,12 +724,12 @@ class TerrascriptClient(object):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
-        uid = self.uids[account]
+        uid = self.uids.get(account)
 
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         specs = common_values['specs']
         all_tables = []
         for spec in specs:
@@ -813,7 +822,7 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[url]'
         output_value = '${' + ecr_tf_resource.fullname + '.repository_url}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions[account]
+        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
 
@@ -878,6 +887,98 @@ class TerrascriptClient(object):
         values['depends_on'] = [user_tf_resource]
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        bucket_tf_resource = \
+            self.populate_tf_resource_s3(resource, namespace_info)
+
+        tf_resources = []
+
+        # cloudfront origin access identity
+        values = {}
+        values['comment'] = f'{identifier}-cf-identity'
+        cf_oai_tf_resource = \
+            aws_cloudfront_origin_access_identity(identifier, **values)
+        tf_resources.append(cf_oai_tf_resource)
+
+        # bucket policy for cloudfront
+        values = {}
+        values['bucket'] = identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "Grant access to CloudFront Origin Identity",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "${" +
+                               cf_oai_tf_resource.fullname +
+                               ".s3_canonical_user_id}"
+                    },
+                    "Action": "s3:*Object",
+                    "Resource":
+                        [f"arn:aws:s3:::{identifier}/{enable_dir}/*"
+                         for enable_dir
+                         in common_values.get('get_object_enable_dirs', [])]
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [bucket_tf_resource]
+        bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
+        tf_resources.append(bucket_policy_tf_resource)
+
+        # cloud front distribution
+        values = common_values.get('distribution_config', {})
+        values['tags'] = common_values['tags']
+        values.setdefault(
+            'default_cache_behavior', {}).setdefault(
+                'target_origin_id', 'default')
+        origin = {
+            'domain_name':
+                '${' + bucket_tf_resource.fullname +
+                '.bucket_domain_name}',
+            'origin_id':
+                values['default_cache_behavior']['target_origin_id'],
+            's3_origin_config': {
+                'origin_access_identity':
+                    'origin-access-identity/cloudfront/' +
+                    '${' + cf_oai_tf_resource.fullname + '.id}'
+                }
+        }
+        values['origin'] = [origin]
+        cf_distribution_tf_resource = \
+            aws_cloudfront_distribution(identifier, **values)
+        tf_resources.append(cf_distribution_tf_resource)
+
+        # outputs
+        output_name = output_prefix + \
+            '[cloud_front_origin_access_identity_id]'
+        output_value = '${' + cf_oai_tf_resource.fullname + \
+            '.id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[s3_canonical_user_id]'
+        output_value = '${' + cf_oai_tf_resource.fullname + \
+            '.s3_canonical_user_id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[distribution_domain]'
+        output_value = '${' + cf_distribution_tf_resource.fullname + \
+            '.domain_name}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + \
+            '[origin_access_identity]'
+        output_value = 'origin-access-identity/cloudfront/' + \
+            '${' + cf_oai_tf_resource.fullname + '.id}'
+        tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
@@ -1014,6 +1115,7 @@ class TerrascriptClient(object):
                 raw_values['content'],
                 force_types=None
             )
+            values.pop('$schema', None)
         except anymarkup.AnyMarkupError:
             e_msg = "Could not parse data. Skipping resource: {}"
             raise FetchResourceError(e_msg.format(path))
