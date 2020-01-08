@@ -71,7 +71,15 @@ class SentryClient:
             "subjectPrefix": options["email_prefix"]
         }
 
-        for k, v in self.optional_project_fields().items():
+        try:
+            self.validate_project_options(options)
+        except Exception as e:
+            # If an option is set and invalid, raise exception rather than
+            # potentially destroying setting by trying to set invalid value
+            raise e
+
+        optional_fields = self.optional_project_fields()
+        for k, v in optional_fields.items():
             if v in options.keys():
                 params[k] = options[v]
 
@@ -88,6 +96,20 @@ class SentryClient:
             "allowedDomains": "allowed_domains",
         }
         return optional_fields
+
+    def validate_project_options(self, options):
+        # If the resolve age is not one of these then sentry will set to 0
+        valid_resolve_age = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 18, 21,
+                             24, 30, 36, 48, 72, 96, 120, 144, 168, 192, 216,
+                             240, 288, 312, 336, 360, 384, 408, 432, 456, 480,
+                             504, 528, 552, 576, 600, 624, 648, 672, 696, 720]
+
+        optional_fields = self.optional_project_fields()
+        resolve_age_field = optional_fields["resolveAge"]
+        if resolve_age_field in options.keys() and \
+           options[resolve_age_field] not in valid_resolve_age:
+            raise Exception(
+                f"invalid {resolve_age_field} {options[resolve_age_field]}")
 
     # Team functions
     def get_teams(self):

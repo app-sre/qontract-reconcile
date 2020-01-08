@@ -217,7 +217,13 @@ class SentryReconciler:
                     if not self.dry_run:
                         self.client.create_project(team, project_name)
                 logging.info(
-                    ["project_config", desired_project, self.client.host])
+                    ["update_project", desired_project, self.client.host])
+                try:
+                    self.client.validate_project_options(desired_project)
+                except Exception as e:
+                    logging.error(["update_project", str(e), self.client.host])
+                    continue
+
                 if not self.dry_run:
                     self.client.update_project(project_name, desired_project)
 
