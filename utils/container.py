@@ -45,7 +45,11 @@ class Image:
     @property
     def _tags(self):
         if self._cache_tags is None:
-            self._cache_tags = self.get_tags()
+            try:
+                self._cache_tags = self.get_tags()
+            except requests.exceptions.HTTPError:
+                self._cache_tags = []
+
         return self._cache_tags
 
     def __eq__(self, other):
