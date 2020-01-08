@@ -38,6 +38,7 @@ import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
+import reconcile.ocm_clusters
 import reconcile.email_sender
 import reconcile.service_dependencies
 
@@ -513,6 +514,14 @@ def gitlab_projects(ctx):
 @click.pass_context
 def ocm_groups(ctx, thread_pool_size):
     run_integration(reconcile.ocm_groups.run, ctx.obj['dry_run'],
+                    thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def ocm_clusters(ctx, thread_pool_size):
+    run_integration(reconcile.ocm_clusters.run, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
