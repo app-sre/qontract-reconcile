@@ -45,6 +45,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
 - `email-sender`: Send email notifications to app-interface audience.
 - `service-dependencies`: Validate dependencies are defined for each service.
+- `sentry-config`: Configure and enforce sentry instance configuration.
 
 ### e2e-tests
 

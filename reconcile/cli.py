@@ -41,6 +41,7 @@ import reconcile.ocm_groups
 import reconcile.ocm_clusters
 import reconcile.email_sender
 import reconcile.service_dependencies
+import reconcile.sentry_config
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -536,3 +537,9 @@ def email_sender(ctx):
 @click.pass_context
 def service_dependencies(ctx):
     run_integration(reconcile.service_dependencies.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def sentry_config(ctx):
+    run_integration(reconcile.sentry_config.run, ctx.obj['dry_run'])
