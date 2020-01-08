@@ -85,6 +85,13 @@ TF_NAMESPACES_QUERY = """
         identifier
         output_resource_name
       }
+      ... on NamespaceTerraformResourceS3CloudFront_v1 {
+        account
+        region
+        identifier
+        defaults
+        output_resource_name
+      }
     }
     cluster {
       name

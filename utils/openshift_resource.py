@@ -184,6 +184,12 @@ class OpenshiftResource(object):
 
         if body['kind'] == 'Role':
             for rule in body['rules']:
+                if 'resources' in rule:
+                    rule['resources'].sort()
+
+                if 'verbs' in rule:
+                    rule['verbs'].sort()
+
                 if 'attributeRestrictions' in rule and \
                         not rule['attributeRestrictions']:
                     rule.pop('attributeRestrictions')
@@ -216,6 +222,13 @@ class OpenshiftResource(object):
         if body['kind'] == 'ClusterRoleBinding':
             if 'groupNames' in body:
                 body.pop('groupNames')
+
+        if body['kind'] == 'Service':
+            spec = body['spec']
+            if spec.get('sessionAffinity') == 'None':
+                spec.pop('sessionAffinity')
+            if spec.get('type') == 'ClusterIP':
+                spec.pop('clusterIP', None)
 
         # remove qontract specific params
         annotations.pop('qontract.integration', None)

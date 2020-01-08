@@ -37,6 +37,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
+- `quay-mirror`: Mirrors external images into Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `terraform-resources`: Manage AWS Resources using Terraform.
@@ -53,6 +54,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### tools
 
 - `app-interface-reporter`: Creates service reports and submits PR to App-Interface.
+- `qontract-cli`: A cli tool for qontract (currently very good at getting information).
 
 ## Usage
 

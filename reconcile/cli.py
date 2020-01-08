@@ -17,6 +17,7 @@ import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
 import reconcile.quay_membership
+import reconcile.quay_mirror
 import reconcile.quay_repos
 import reconcile.ldap_users
 import reconcile.terraform_resources
@@ -428,6 +429,13 @@ def openshift_limitranges(ctx, thread_pool_size, internal, take_over):
 @click.pass_context
 def quay_membership(ctx):
     run_integration(reconcile.quay_membership.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+@binary(['skopeo'])
+def quay_mirror(ctx):
+    run_integration(reconcile.quay_mirror.run, ctx.obj['dry_run'])
 
 
 @integration.command()
