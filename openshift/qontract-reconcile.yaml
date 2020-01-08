@@ -113,7 +113,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -235,7 +235,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -357,7 +357,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -479,7 +479,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -601,7 +601,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -821,7 +821,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -943,7 +943,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1109,7 +1109,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1231,7 +1231,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1353,7 +1353,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1475,7 +1475,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1641,7 +1641,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1763,7 +1763,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -1885,7 +1885,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
@@ -2095,7 +2095,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
