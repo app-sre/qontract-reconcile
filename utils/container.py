@@ -40,13 +40,17 @@ class Image:
                 'service': self.registry.split(':')[0]  # Removing the port
             }
 
-        self._tags = None
+        self._cache_tags = None
 
     @property
-    def tags(self):
-        if self._tags is None:
-            self._tags = self._get_all_tags()
-        return self._tags
+    def _tags(self):
+        if self._cache_tags is None:
+            try:
+                self._cache_tags = self.get_tags()
+            except requests.exceptions.HTTPError:
+                self._cache_tags = []
+
+        return self._cache_tags
 
     def __eq__(self, other):
         # Two instances are considered equal if both of their
@@ -68,14 +72,14 @@ class Image:
         return Image(url=str(self), tag_override=str(item))
 
     def __iter__(self):
-        for tag in self.tags:
+        for tag in self._tags:
             yield tag
 
     def __len__(self):
-        return len(self.tags)
+        return len(self._tags)
 
     def __contains__(self, item):
-        return item in self.tags
+        return item in self._tags
 
     def __str__(self):
         return (f'{self.scheme}'
@@ -99,7 +103,7 @@ class Image:
         response.raise_for_status()
         return response.json()['token']
 
-    def _get_all_tags(self):
+    def get_tags(self):
         """
         Goes to the internet to retrieve all the image tags.
         """

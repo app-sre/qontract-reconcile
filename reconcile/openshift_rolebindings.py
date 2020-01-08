@@ -1,12 +1,12 @@
 import semver
 
 import utils.gql as gql
+import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceKeyExistsError)
 from utils.defer import defer
-from reconcile.queries import NAMESPACES_QUERY
 
 
 ROLES_QUERY = """
@@ -159,9 +159,8 @@ def fetch_desired_state(ri, oc_map):
 
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
-    gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
-                  in gqlapi.query(NAMESPACES_QUERY)['namespaces']
+                  in queries.get_namespaces()
                   if namespace_info.get('managedRoles')]
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
