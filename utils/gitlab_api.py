@@ -118,7 +118,8 @@ class GitLabApi(object):
 
         return False
 
-    def create_app_interface_reporter_mr(self, reports):
+    def create_app_interface_reporter_mr(self, reports, email_schema,
+                                         email_body, reports_path):
         labels = ['automerge']
         prefix = 'app-interface-reporter'
         target_branch = 'master'
@@ -144,6 +145,23 @@ class GitLabApi(object):
         ]
 
         self.create_commit(branch_name, commit_message, actions)
+
+        # add a new email to be picked up by email-sender
+        msg = 'add email notification'
+        email_path = f"{reports_path}/emails/{branch_name}.yml"
+        email = {
+            '$schema': email_schema,
+            'labels': {},
+            'name': branch_name,
+            'subject': commit_message,
+            'to': {
+                'aliases': ['all-service-owners']
+            },
+            'body': pss(email_body)
+        }
+        content = '---\n' + \
+            yaml.dump(email, Dumper=yaml.RoundTripDumper)
+        self.create_file(branch_name, email_path, msg, content)
 
         return self.create_mr(branch_name, target_branch,
                               commit_message, labels=labels)
