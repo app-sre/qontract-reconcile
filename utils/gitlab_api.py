@@ -1,3 +1,4 @@
+import os
 import logging
 import uuid
 import gitlab
@@ -5,6 +6,7 @@ import urllib3
 import ruamel.yaml as yaml
 
 from datetime import datetime
+from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 import utils.secret_reader as secret_reader
 
@@ -51,6 +53,20 @@ class GitLabApi(object):
             'commit_message': commit_message,
             'actions': actions
         })
+
+    def create_file(self, branch_name, file_path, commit_message, content):
+        data = {
+            'branch': branch_name,
+            'commit_message': commit_message,
+            'actions': [
+                {
+                    'action': 'create',
+                    'file_path': file_path,
+                    'content': content
+                }
+            ]
+        }
+        self.project.commits.create(data)
 
     def delete_file(self, branch_name, file_path, commit_message):
         data = {
@@ -179,6 +195,8 @@ class GitLabApi(object):
 
         self.create_branch(branch_name, target_branch)
 
+        # add key to deleteKeys list to be picked up by aws-iam-keys
+        msg = 'add key to deleteKeys'
         f = self.project.files.get(file_path=path, ref=target_branch)
         content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
         content.setdefault('deleteKeys', [])
@@ -186,7 +204,7 @@ class GitLabApi(object):
         new_content = '---\n' + \
             yaml.dump(content, Dumper=yaml.RoundTripDumper)
         try:
-            self.update_file(branch_name, path, title, new_content)
+            self.update_file(branch_name, path, msg, new_content)
         except gitlab.exceptions.GitlabCreateError as e:
             self.delete_branch(branch_name)
             if str(e) != "400: A file with this name doesn't exist":
@@ -195,6 +213,37 @@ class GitLabApi(object):
                 "File {} does not exist, not opening MR".format(path)
             )
             return
+
+        # add a new email to be picked up by email-sender
+        body = """Hello,
+
+This is an automated notification.
+
+An AWS access key leak was detected and is being mitigatd.
+Information:
+Account: {}
+Access key: {}
+
+Please consult relevant SOPs to verify that the account is secure.
+"""
+        msg = 'add email notification'
+        name = f"{account}-{key}"
+        email_path = f"{os.path.dirname(path)}/emails/{name}.yml"
+        ref = path[4:] if path.startswith('data') else path
+        email = {
+            # TODO: extract the schema value from utils
+            '$schema': '/app-interface/app-interface-email-1.yml',
+            'labels': {},
+            'name': name,
+            'subject': title,
+            'to': {
+                'aws_accounts': [{'$ref': ref}]
+            },
+            'body': pss(body.format(account, key))
+        }
+        content = '---\n' + \
+            yaml.dump(email, Dumper=yaml.RoundTripDumper)
+        self.create_file(branch_name, email_path, msg, content)
 
         return self.create_mr(branch_name, target_branch, title, labels=labels)
 

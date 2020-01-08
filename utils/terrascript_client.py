@@ -1115,6 +1115,7 @@ class TerrascriptClient(object):
                 raw_values['content'],
                 force_types=None
             )
+            values.pop('$schema', None)
         except anymarkup.AnyMarkupError:
             e_msg = "Could not parse data. Skipping resource: {}"
             raise FetchResourceError(e_msg.format(path))

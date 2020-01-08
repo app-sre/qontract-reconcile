@@ -22,6 +22,50 @@ def get_app_interface_settings():
     return None
 
 
+APP_INTERFACE_EMAILS_QUERY = """
+{
+  emails: app_interface_emails_v1 {
+    name
+    subject
+    to {
+      aliases
+      services {
+        serviceOwners {
+          email
+        }
+      }
+      clusters {
+        name
+      }
+      namespaces {
+        name
+      }
+      aws_accounts {
+        accountOwners {
+          email
+        }
+      }
+      roles {
+        users {
+          org_username
+        }
+      }
+      users {
+        org_username
+      }
+    }
+    body
+  }
+}
+"""
+
+
+def get_app_interface_emails():
+    """ Returns Email resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
+
+
 GITLAB_INSTANCES_QUERY = """
 {
   instances: gitlabinstance_v1 {
@@ -55,6 +99,10 @@ AWS_ACCOUNTS_QUERY = """
     name
     uid
     resourcesDefaultRegion
+    accountOwners {
+      name
+      email
+    }
     automationToken {
       path
       field
@@ -235,3 +283,23 @@ def get_repos(server=''):
     repos = [c['url'] for c in code_components if c['url'].startswith(server)]
 
     return repos
+
+
+USERS_QUERY = """
+{
+  users: users_v1 {
+    path
+    name
+    org_username
+    github_username
+    slack_username
+    pagerduty_name
+  }
+}
+"""
+
+
+def get_users():
+    """ Returnes all Users. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(USERS_QUERY)['users']

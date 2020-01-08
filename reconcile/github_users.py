@@ -1,7 +1,6 @@
 import re
 import logging
 
-import utils.gql as gql
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
 import reconcile.pull_request_gateway as prg
@@ -14,21 +13,6 @@ from github import Github
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from utils.retry import retry
-
-
-QUERY = """
-{
-  users: users_v1 {
-    org_username
-    github_username
-  }
-}
-"""
-
-
-def fetch_users():
-    gqlapi = gql.get_api()
-    return gqlapi.query(QUERY)['users']
 
 
 def init_github():
@@ -78,12 +62,12 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     subject = 'App-Interface compliance - GitHub profile'
     body = msg_template
 
-    smtp_client.send_mail(to, subject, body, settings=settings)
+    smtp_client.send_mail([to], subject, body, settings=settings)
 
 
 def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
-    users = fetch_users()
+    users = queries.get_users()
     g = init_github()
 
     results = threaded.run(get_user_company, users, thread_pool_size,
