@@ -7,6 +7,12 @@ APP_INTERFACE_SETTINGS_QUERY = """
     vault
     kubeBinary
     pullRequestGateway
+    dependencies {
+      type
+      services {
+        name
+      }
+    }
   }
 }
 """

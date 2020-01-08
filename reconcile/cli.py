@@ -39,6 +39,7 @@ import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
 import reconcile.email_sender
+import reconcile.service_dependencies
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -520,3 +521,9 @@ def ocm_groups(ctx, thread_pool_size):
 @click.pass_context
 def email_sender(ctx):
     run_integration(reconcile.email_sender.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def service_dependencies(ctx):
+    run_integration(reconcile.service_dependencies.run, ctx.obj['dry_run'])
