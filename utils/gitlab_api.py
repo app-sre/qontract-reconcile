@@ -148,7 +148,7 @@ class GitLabApi(object):
 
         # add a new email to be picked up by email-sender
         msg = 'add email notification'
-        email_path = f"{reports_path}/emails/{branch_name}.yml"
+        email_path = f"data/{reports_path}/emails/{branch_name}.yml"
         email = {
             '$schema': email_schema,
             'labels': {},
