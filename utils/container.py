@@ -2,6 +2,10 @@ import logging
 import re
 import requests
 
+from json.decoder import JSONDecodeError
+
+from utils.retry import retry
+
 
 _LOG = logging.getLogger(__name__)
 
@@ -143,6 +147,7 @@ class Image:
 
         return all_tags
 
+    @retry(exceptions=JSONDecodeError, max_attempts=3)
     def get_manifest(self):
         """
         Goes to the internet to retrieve the image manifest.
