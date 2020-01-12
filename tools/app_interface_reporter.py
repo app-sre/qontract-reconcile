@@ -99,7 +99,7 @@ class Report(object):
         return {
             '$schema': '/app-sre/report-1.yml',
             'labels': {'app': self.app['name']},
-            'name': self.app['name'],
+            'name': f"{self.app['name']}-{self.date}",
             'app': {'$ref': self.app['path']},
             'date': self.date,
             'contentFormatVersion': CONTENT_FORMAT_VERSION,

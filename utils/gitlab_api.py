@@ -127,6 +127,7 @@ class GitLabApi(object):
         now = datetime.now()
         ts = now.strftime("%Y%m%d%H%M%S")
         isodate = now.isoformat()
+        short_date = now.strftime('%Y-%m-%d')
 
         branch_name = 'app-interface-reporter-{}'.format(ts)
         commit_message = '[{}] reports for {}'.format(
@@ -153,7 +154,7 @@ class GitLabApi(object):
             '$schema': email_schema,
             'labels': {},
             'name': branch_name,
-            'subject': commit_message,
+            'subject': f"[{prefix}] reports for {short_date}",
             'to': {
                 'aliases': ['all-service-owners']
             },
