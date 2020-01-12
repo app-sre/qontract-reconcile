@@ -38,7 +38,7 @@ RUN python3 -m pip install -r requirements.txt
 RUN python3 setup.py install
 
 # required to run ssh on OpenShift
-ENV PROD_USER_ID=1000690000
+ENV PROD_USER_ID=1000640000
 RUN useradd -l -u ${PROD_USER_ID} reconcile
 ENV PROD_USER_ID_V3=1001450000
 RUN useradd -l -u ${PROD_USER_ID_V3} reconcile-v3
