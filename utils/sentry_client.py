@@ -66,10 +66,10 @@ class SentryClient:
         return keys
 
     def update_project(self, slug, options):
-        params = {
-            "platform": options["platform"],
-            "subjectPrefix": options["email_prefix"]
-        }
+        params = {}
+        required_fields = self.required_project_fields()
+        for k, v in required_fields.items():
+            params[k] = options[v]
 
         self.validate_project_options(options)
         optional_fields = self.optional_project_fields()
@@ -81,6 +81,13 @@ class SentryClient:
                                              [self.ORGANIZATION, slug],
                                              payload=params)
         return response
+
+    def required_project_fields(self):
+        required_fields = {
+            "platform": "platform",
+            "subjectPrefix": "email_prefix"
+        }
+        return required_fields
 
     def optional_project_fields(self):
         optional_fields = {

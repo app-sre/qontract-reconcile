@@ -187,13 +187,18 @@ class SentryReconciler:
                 if not self.dry_run:
                     self.client.create_user(user, "member", teams)
             else:
-                logging.info(["team_membership", user,
-                              ",".join(teams), self.client.host])
-                if not self.dry_run:
-                    self.client.set_user_teams(user, teams)
-                logging.info(["user_role", user, "member", self.client.host])
-                if not self.dry_run:
-                    self.client.change_user_role(user, "member")
+                fields = self._user_fields_need_updating_(user, teams)
+                if "teams" in fields:
+                    logging.info(["team_membership", user,
+                                  ",".join(teams), self.client.host])
+                    if not self.dry_run:
+                        self.client.set_user_teams(user, teams)
+
+                if "role" in fields:
+                    logging.info(
+                        ["user_role", user, "member", self.client.host])
+                    if not self.dry_run:
+                        self.client.change_user_role(user, "member")
 
         # Reconcile projects
         for projects in current.projects.values():
@@ -216,16 +221,62 @@ class SentryReconciler:
                         ["add_project", project_name, self.client.host])
                     if not self.dry_run:
                         self.client.create_project(team, project_name)
-                logging.info(
-                    ["update_project", desired_project, self.client.host])
-                try:
-                    self.client.validate_project_options(desired_project)
-                except ValueError as e:
-                    logging.error(["update_project", str(e), self.client.host])
-                    continue
+                    project_fields_to_update = desired_project
+                else:
+                    project_fields_to_update = \
+                        self._project_fields_need_updating_(project_name,
+                                                            desired_project)
 
-                if not self.dry_run:
-                    self.client.update_project(project_name, desired_project)
+                if len(project_fields_to_update) > 0:
+                    updates = {}
+                    for field in project_fields_to_update:
+                        updates[field] = desired_project[field]
+                    logging.info(
+                        ["update_project", updates, self.client.host])
+                    try:
+                        self.client.validate_project_options(updates)
+                    except ValueError as e:
+                        logging.error(
+                            ["update_project", str(e), self.client.host])
+                        continue
+
+                    if not self.dry_run:
+                        self.client.update_project(project_name, updates)
+
+    def _user_fields_need_updating_(self, email, teams):
+        fields_to_update = []
+
+        user = self.client.get_user(email)
+        if user['role'] != "member":
+            fields_to_update.append("role")
+
+        if not self._is_same_list_(teams, user['teams']):
+            fields_to_update.append("teams")
+
+        return fields_to_update
+
+    def _project_fields_need_updating_(self, project, options):
+        fields_to_update = []
+
+        project = self.client.get_project(project)
+        fields = {**self.client.required_project_fields(), **
+                  self.client.optional_project_fields()}
+        for k, v in fields.items():
+            if v in options:
+                if k not in project or project[k] != options[v]:
+                    fields_to_update.append(fields[k])
+
+        return fields_to_update
+
+    def _is_same_list_(self, expected, actual):
+        if len(expected) != len(actual):
+            return False
+
+        for item in expected:
+            if item not in actual:
+                return False
+
+        return True
 
 
 def project_in_project_list(project, list):
