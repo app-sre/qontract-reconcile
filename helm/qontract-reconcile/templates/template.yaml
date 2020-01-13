@@ -26,7 +26,7 @@ objects:
         {{- if $integration.logs }}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
