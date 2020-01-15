@@ -5,6 +5,8 @@ import utils.git_secrets as git_secrets
 import reconcile.aws_support_cases_sos as aws_sos
 import reconcile.queries as queries
 
+from github.GithubException import UnknownObjectException
+
 from utils.aws_api import AWSApi
 from reconcile.github_users import init_github
 
@@ -23,7 +25,11 @@ def get_all_repos_to_scan(repos):
         repo_name = r.replace('https://github.com/', '')
         repo = g.get_repo(repo_name)
         forks = repo.get_forks()
-        all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
+        try:
+            all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
+        except UnknownObjectException:
+            logging.info('not found {}'.format(r))
+
     return all_repos
 
 

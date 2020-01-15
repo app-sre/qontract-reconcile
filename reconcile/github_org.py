@@ -277,10 +277,10 @@ class RunnerAction(object):
                     gh_user = g.get_user(member)
                     gh_team.remove_membership(gh_user)
 
-                members = gh_team.get_members()
-                if len(list(members)) == 0:
-                    logging.info(["del_team", org, team])
-                    gh_team.delete()
+                # members = gh_team.get_members()
+                # if len(list(members)) == 0:
+                #     logging.info(["del_team", org, team])
+                #     gh_team.delete()
 
         return action
 
