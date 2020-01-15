@@ -1,3 +1,4 @@
+import sys
 import json
 import yaml
 import click
@@ -5,6 +6,7 @@ import click
 import utils.gql as gql
 import utils.config as config
 import reconcile.queries as queries
+import reconcile.openshift_resources as ocr
 
 from tabulate import tabulate
 
@@ -184,3 +186,31 @@ def rm(ctx, integration, key):
     accounts = queries.get_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.rm(key)
+
+
+@root.command()
+@click.argument('cluster')
+@click.argument('namespace')
+@click.argument('kind')
+@click.argument('name')
+@click.pass_context
+def template(ctx, cluster, namespace, kind, name):
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(ocr.NAMESPACES_QUERY)['namespaces']
+    namespace_info = [n for n in namespaces
+                      if n['cluster']['name'] == cluster
+                      and n['name'] == namespace]
+    if len(namespace_info) != 1:
+        print(f"{cluster}/{namespace} error")
+        sys.exit(1)
+
+    [namespace_info] = namespace_info
+    openshift_resources = namespace_info.get('openshiftResources')
+    for r in openshift_resources:
+        openshift_resource = ocr.fetch_openshift_resource(r, namespace_info)
+        if openshift_resource.kind.lower() != kind.lower():
+            continue
+        if openshift_resource.name != name:
+            continue
+        print_output('yaml', openshift_resource.body)
+        break
