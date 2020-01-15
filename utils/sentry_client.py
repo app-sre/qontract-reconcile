@@ -69,12 +69,13 @@ class SentryClient:
         params = {}
         required_fields = self.required_project_fields()
         for k, v in required_fields.items():
-            params[k] = options[v]
+            if v in options:
+                params[k] = options[v]
 
         self.validate_project_options(options)
         optional_fields = self.optional_project_fields()
         for k, v in optional_fields.items():
-            if v in options.keys():
+            if v in options:
                 params[k] = options[v]
 
         response = self._do_sentry_api_call_("put", "projects",
