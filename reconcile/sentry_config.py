@@ -243,6 +243,16 @@ class SentryReconciler:
                     if not self.dry_run:
                         self.client.update_project(project_name, updates)
 
+                # This will eventually become configruable, but for now delete
+                # all alerting rules from the project
+                rules = self.client.get_project_alert_rules(project_name)
+                for rule in rules:
+                    logging.info(["delete_project_alert_rule",
+                                  project_name, rule, self.client.host])
+                    if not self.dry_run:
+                        self.client.delete_project_alert_rule(
+                            project_name, rule)
+
     def _user_fields_need_updating_(self, email, teams):
         fields_to_update = []
 

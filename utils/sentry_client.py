@@ -1,4 +1,5 @@
 import requests
+import json
 
 
 class SentryClient:
@@ -22,8 +23,10 @@ class SentryClient:
         response = call(url, headers=headers, json=payload)
         response.raise_for_status()
 
-        if response.status_code != 204:
+        try:
             return response.json()
+        except json.decoder.JSONDecodeError:
+            return
 
     # Organization functions
     def get_organizations(self):
@@ -114,6 +117,17 @@ class SentryClient:
             # potentially destroying setting by trying to set invalid value
             raise ValueError(
                 f"invalid {resolve_age_field} {options[resolve_age_field]}")
+
+    def get_project_alert_rules(self, slug):
+        request = self._do_sentry_api_call_("get", "projects",
+                                            ["sentry", slug, "rules"])
+        return request
+
+    def delete_project_alert_rule(self, slug, rule):
+        request = self._do_sentry_api_call_("delete", "projects",
+                                            ["sentry", slug, "rules",
+                                             rule['id']])
+        return request
 
     # Team functions
     def get_teams(self):
