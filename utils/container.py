@@ -31,18 +31,10 @@ class Image:
             self.tag = tag_override
 
         if self.registry == 'docker.io':
-            self.registry_config = {
-                'auth_api': 'https://auth.docker.io/token',
-                'registry_api': 'https://registry-1.docker.io',
-                'service': 'registry.docker.io'
-            }
+            self.registry_api = 'https://registry-1.docker.io'
         else:
             # Works for quay.io. Not sure about private registry.
-            self.registry_config = {
-                'auth_api': f'https://{self.registry}/v2/auth',
-                'registry_api': f'https://{self.registry}',
-                'service': self.registry.split(':')[0]  # Removing the port
-            }
+            self.registry_api = f'https://{self.registry}'
 
         self._cache_tags = None
 
@@ -95,38 +87,58 @@ class Image:
     def __repr__(self):
         return f'{self.__class__.__name__}(url={self})'
 
-    def _get_auth_token(self):
+    @staticmethod
+    def _get_auth(realm, service, scope):
         """
         Goes to the internet to retrieve the auth token.
         """
-        auth_url = self.registry_config['auth_api']
-        service = self.registry_config['service']
-        url = (f'{auth_url}?service={service}&'
-               f'scope=repository:{self.repository}/{self.image}:pull')
+        url = f'{realm}?service={service}&scope={scope}'
         response = requests.get(url)
         response.raise_for_status()
-        return response.json()['token']
+        return f'Bearer {response.json()["token"]}'
+
+    def _request_get(self, url):
+        # Try first without 'Authorization' header
+        headers = {
+            'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
+        }
+        response = requests.get(url, headers=headers)
+
+        # Unauthorized
+        if response.status_code == 401:
+            # The auth endpoint must then be provided
+            auth_specs = response.headers.get('Www-Authenticate')
+            if auth_specs is None:
+                response.raise_for_status()
+
+            parsed_auth_specs = re.search('Bearer realm="(?P<realm>.*)",'
+                                          'service="(?P<service>.*)",'
+                                          'scope="(?P<scope>.*)"', auth_specs)
+            if parsed_auth_specs is None:
+                raise RuntimeError(f'Not able to parse "{auth_specs}"')
+
+            auth_specs_dict = parsed_auth_specs.groupdict()
+            realm = auth_specs_dict['realm']
+            service = auth_specs_dict['service']
+            scope = auth_specs_dict['scope']
+
+            # Try again, this time with the Authorization header
+            headers['Authorization'] = self._get_auth(realm, service, scope)
+            response = requests.get(url, headers=headers)
+
+        response.raise_for_status()
+        return response
 
     def get_tags(self):
         """
         Goes to the internet to retrieve all the image tags.
         """
-        all_tags = []
-        registry_url = self.registry_config['registry_api']
-
         tags_per_page = 50
-
-        url = f'{registry_url}/v2/{self.repository}/{self.image}' \
+        url = f'{self.registry_api}/v2/{self.repository}/{self.image}' \
               f'/tags/list?n={tags_per_page}'
-        headers = {
-            'Authorization': f'Bearer {self._get_auth_token()}',
-            'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
-        }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        tags = response.json()['tags']
+        response = self._request_get(url)
 
-        all_tags = tags
+        tags = all_tags = response.json()['tags']
 
         # Tags are paginated
         while not len(tags) < tags_per_page:
@@ -137,12 +149,10 @@ class Image:
             # Link is given between "<" and ">". Example:
             # '<v2/app-sre/aws-cli/tags/list?next_page=KkOw&n=50>; rel="next"'
             link = link_header.split('<', 1)[1].split('>', 1)[0]
+            url = f'{self.registry_api}/{link}'
+            response = self._request_get(url)
 
-            url = f'{registry_url}/{link}'
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
             tags = response.json()['tags']
-
             all_tags.extend(tags)
 
         return all_tags
@@ -152,15 +162,9 @@ class Image:
         """
         Goes to the internet to retrieve the image manifest.
         """
-        registry_url = self.registry_config['registry_api']
-        url = (f'{registry_url}/v2/{self.repository}/'
+        url = (f'{self.registry_api}/v2/{self.repository}/'
                f'{self.image}/manifests/{self.tag}')
-        headers = {
-            'Authorization': f'Bearer {self._get_auth_token()}',
-            'Accept': 'application/vnd.docker.distribution.manifest.v1+json'
-        }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        response = self._request_get(url)
         return response.json()
 
     @staticmethod
