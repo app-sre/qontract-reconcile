@@ -174,7 +174,7 @@ def run_integration(func, *args):
         sys.exit(1)
     except GqlApiError as e:
         if '409' in str(e):
-            logging.error(f'Data changed during execution. Details: {e}')
+            logging.error(f'Data changed during execution. This is fine.')
             # exit code to relect conflict
             # TODO: document this better
             sys.exit(3)
