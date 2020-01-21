@@ -37,11 +37,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 50m
-              memory: 400Mi
+              cpu: ${QR_AWS_GARBAGE_COLLECTOR_CPU_LIMIT}
+              memory: ${QR_AWS_GARBAGE_COLLECTOR_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_AWS_GARBAGE_COLLECTOR_CPU_REQUEST}
+              memory: ${QR_AWS_GARBAGE_COLLECTOR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -81,11 +81,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_AWS_IAM_KEYS_CPU_LIMIT}
+              memory: ${QR_AWS_IAM_KEYS_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 100Mi
+              cpu: ${QR_AWS_IAM_KEYS_CPU_REQUEST}
+              memory: ${QR_AWS_IAM_KEYS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -183,11 +183,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 80Mi
+              cpu: ${QR_GITHUB_CPU_LIMIT}
+              memory: ${QR_GITHUB_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 50Mi
+              cpu: ${QR_GITHUB_CPU_REQUEST}
+              memory: ${QR_GITHUB_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -305,11 +305,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 150Mi
+              cpu: ${QR_GITHUB_REPO_INVITES_CPU_LIMIT}
+              memory: ${QR_GITHUB_REPO_INVITES_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 50Mi
+              cpu: ${QR_GITHUB_REPO_INVITES_CPU_REQUEST}
+              memory: ${QR_GITHUB_REPO_INVITES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -427,11 +427,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 150Mi
+              cpu: ${QR_QUAY_MEMBERSHIP_CPU_LIMIT}
+              memory: ${QR_QUAY_MEMBERSHIP_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 50Mi
+              cpu: ${QR_QUAY_MEMBERSHIP_CPU_REQUEST}
+              memory: ${QR_QUAY_MEMBERSHIP_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -549,11 +549,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_QUAY_MIRROR_CPU_LIMIT}
+              memory: ${QR_QUAY_MIRROR_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 150Mi
+              cpu: ${QR_QUAY_MIRROR_CPU_REQUEST}
+              memory: ${QR_QUAY_MIRROR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -671,11 +671,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 150Mi
+              cpu: ${QR_QUAY_REPOS_CPU_LIMIT}
+              memory: ${QR_QUAY_REPOS_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 50Mi
+              cpu: ${QR_QUAY_REPOS_CPU_REQUEST}
+              memory: ${QR_QUAY_REPOS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -740,11 +740,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 400m
-              memory: 1000Mi
+              cpu: ${QR_GITHUB_SCANNER_CPU_LIMIT}
+              memory: ${QR_GITHUB_SCANNER_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 500Mi
+              cpu: ${QR_GITHUB_SCANNER_CPU_REQUEST}
+              memory: ${QR_GITHUB_SCANNER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -789,11 +789,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${QR_AWS_SUPPORT_CASE_SOS_CPU_LIMIT}
+              memory: ${QR_AWS_SUPPORT_CASE_SOS_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: ${QR_AWS_SUPPORT_CASE_SOS_CPU_REQUEST}
+              memory: ${QR_AWS_SUPPORT_CASE_SOS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -891,11 +891,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 40m
-              memory: 300Mi
+              cpu: ${QR_OPENSHIFT_USERS_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_USERS_MEMORY_LIMIT}
             requests:
-              cpu: 20m
-              memory: 200Mi
+              cpu: ${QR_OPENSHIFT_USERS_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_USERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1013,11 +1013,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 150m
-              memory: 300Mi
+              cpu: ${QR_OPENSHIFT_GROUPS_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_GROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: ${QR_OPENSHIFT_GROUPS_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_GROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1077,11 +1077,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${QR_OPENSHIFT_NAMESPACES_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_NAMESPACES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 300Mi
+              cpu: ${QR_OPENSHIFT_NAMESPACES_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_NAMESPACES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1179,11 +1179,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 150m
-              memory: 300Mi
+              cpu: ${QR_OPENSHIFT_CLUSTERROLEBINDINGS_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: ${QR_OPENSHIFT_CLUSTERROLEBINDINGS_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1301,11 +1301,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 400Mi
+              cpu: ${QR_OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${QR_OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1423,11 +1423,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${QR_OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: ${QR_OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1545,11 +1545,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${QR_OPENSHIFT_ACME_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_ACME_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 300Mi
+              cpu: ${QR_OPENSHIFT_ACME_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_ACME_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1609,11 +1609,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 150m
-              memory: 100Mi
+              cpu: ${QR_OPENSHIFT_LIMITRANGES_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_LIMITRANGES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${QR_OPENSHIFT_LIMITRANGES_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_LIMITRANGES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1711,11 +1711,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 1000m
-              memory: 800Mi
+              cpu: ${QR_OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${QR_OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 500Mi
+              cpu: ${QR_OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${QR_OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1833,11 +1833,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 400m
-              memory: 1000Mi
+              cpu: ${QR_TERRAFORM_RESOURCES_CPU_LIMIT}
+              memory: ${QR_TERRAFORM_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 800Mi
+              cpu: ${QR_TERRAFORM_RESOURCES_CPU_REQUEST}
+              memory: ${QR_TERRAFORM_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1955,11 +1955,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 400m
-              memory: 1500Mi
+              cpu: ${QR_TERRAFORM_USERS_CPU_LIMIT}
+              memory: ${QR_TERRAFORM_USERS_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 1000Mi
+              cpu: ${QR_TERRAFORM_USERS_CPU_REQUEST}
+              memory: ${QR_TERRAFORM_USERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2019,11 +2019,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_OCM_GROUPS_CPU_LIMIT}
+              memory: ${QR_OCM_GROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 100Mi
+              cpu: ${QR_OCM_GROUPS_CPU_REQUEST}
+              memory: ${QR_OCM_GROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2063,11 +2063,11 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_OCM_GROUPS_CPU_LIMIT}
+              memory: ${QR_OCM_GROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 100Mi
+              cpu: ${QR_OCM_GROUPS_CPU_REQUEST}
+              memory: ${QR_OCM_GROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2172,11 +2172,11 @@ objects:
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           resources:
             limits:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${QR_EMAIL_SENDER_CPU_LIMIT}
+              memory: ${QR_EMAIL_SENDER_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: ${QR_EMAIL_SENDER_CPU_REQUEST}
+              memory: ${QR_EMAIL_SENDER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2294,11 +2294,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
-              memory: 200Mi
+              cpu: ${QR_SENTRY_CONFIG_CPU_LIMIT}
+              memory: ${QR_SENTRY_CONFIG_MEMORY_LIMIT}
             requests:
-              cpu: 15m
-              memory: 100Mi
+              cpu: ${QR_SENTRY_CONFIG_CPU_REQUEST}
+              memory: ${QR_SENTRY_CONFIG_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2347,3 +2347,196 @@ parameters:
   value: "sd-app-sre-reconcile-stage"
 - name: SLACK_ICON_EMOJI
   value: ":bust_in_silhouette:"
+# Resource limits
+- name: QR_AWS_GARBAGE_COLLECTOR_CPU_LIMIT
+  value: 50m
+- name: QR_AWS_GARBAGE_COLLECTOR_MEMORY_LIMIT
+  value: 400Mi
+- name: QR_AWS_GARBAGE_COLLECTOR_CPU_REQUEST
+  value: 25m
+- name: QR_AWS_GARBAGE_COLLECTOR_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_AWS_IAM_KEYS_CPU_LIMIT
+  value: 25m
+- name: QR_AWS_IAM_KEYS_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_AWS_IAM_KEYS_CPU_REQUEST
+  value: 15m
+- name: QR_AWS_IAM_KEYS_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_AWS_SUPPORT_CASE_SOS_CPU_LIMIT
+  value: 50m
+- name: QR_AWS_SUPPORT_CASE_SOS_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_AWS_SUPPORT_CASE_SOS_CPU_REQUEST
+  value: 25m
+- name: QR_AWS_SUPPORT_CASE_SOS_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_EMAIL_SENDER_CPU_LIMIT
+  value: 50m
+- name: QR_EMAIL_SENDER_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_EMAIL_SENDER_CPU_REQUEST
+  value: 25m
+- name: QR_EMAIL_SENDER_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_GITHUB_CPU_LIMIT
+  value: 25m
+- name: QR_GITHUB_MEMORY_LIMIT
+  value: 80Mi
+- name: QR_GITHUB_CPU_REQUEST
+  value: 15m
+- name: QR_GITHUB_MEMORY_REQUEST
+  value: 50Mi
+- name: QR_GITHUB_REPO_INVITES_CPU_LIMIT
+  value: 25m
+- name: QR_GITHUB_REPO_INVITES_MEMORY_LIMIT
+  value: 150Mi
+- name: QR_GITHUB_REPO_INVITES_CPU_REQUEST
+  value: 15m
+- name: QR_GITHUB_REPO_INVITES_MEMORY_REQUEST
+  value: 50Mi
+- name: QR_GITHUB_SCANNER_CPU_LIMIT
+  value: 400m
+- name: QR_GITHUB_SCANNER_MEMORY_LIMIT
+  value: 1000Mi
+- name: QR_GITHUB_SCANNER_CPU_REQUEST
+  value: 200m
+- name: QR_GITHUB_SCANNER_MEMORY_REQUEST
+  value: 500Mi
+- name: QR_OCM_CLUSTERS_CPU_LIMIT
+  value: 25m
+- name: QR_OCM_CLUSTERS_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_OCM_CLUSTERS_CPU_REQUEST
+  value: 15m
+- name: QR_OCM_CLUSTERS_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_OCM_GROUPS_CPU_LIMIT
+  value: 25m
+- name: QR_OCM_GROUPS_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_OCM_GROUPS_CPU_REQUEST
+  value: 15m
+- name: QR_OCM_GROUPS_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_OPENSHIFT_ACME_CPU_LIMIT
+  value: 200m
+- name: QR_OPENSHIFT_ACME_MEMORY_LIMIT
+  value: 400Mi
+- name: QR_OPENSHIFT_ACME_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_ACME_MEMORY_REQUEST
+  value: 300Mi
+- name: QR_OPENSHIFT_CLUSTERROLEBINDINGS_CPU_LIMIT
+  value: 150m
+- name: QR_OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_LIMIT
+  value: 300Mi
+- name: QR_OPENSHIFT_CLUSTERROLEBINDINGS_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_OPENSHIFT_GROUPS_CPU_LIMIT
+  value: 150m
+- name: QR_OPENSHIFT_GROUPS_MEMORY_LIMIT
+  value: 300Mi
+- name: QR_OPENSHIFT_GROUPS_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_GROUPS_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_OPENSHIFT_LIMITRANGES_CPU_LIMIT
+  value: 150m
+- name: QR_OPENSHIFT_LIMITRANGES_MEMORY_LIMIT
+  value: 100Mi
+- name: QR_OPENSHIFT_LIMITRANGES_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_LIMITRANGES_MEMORY_REQUEST
+  value: 50Mi
+- name: QR_OPENSHIFT_NAMESPACES_CPU_LIMIT
+  value: 200m
+- name: QR_OPENSHIFT_NAMESPACES_MEMORY_LIMIT
+  value: 400Mi
+- name: QR_OPENSHIFT_NAMESPACES_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_NAMESPACES_MEMORY_REQUEST
+  value: 300Mi
+- name: QR_OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT
+  value: 200m
+- name: QR_OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT
+  value: 400Mi
+- name: QR_OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST
+  value: 100m
+- name: QR_OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_OPENSHIFT_ROLEBINDINGS_CPU_LIMIT
+  value: 300m
+- name: QR_OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT
+  value: 400Mi
+- name: QR_OPENSHIFT_ROLEBINDINGS_CPU_REQUEST
+  value: 200m
+- name: QR_OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_OPENSHIFT_RESOURCES_CPU_LIMIT
+  value: 1000m
+- name: QR_OPENSHIFT_RESOURCES_MEMORY_LIMIT
+  value: 800Mi
+- name: QR_OPENSHIFT_RESOURCES_CPU_REQUEST
+  value: 600m
+- name: QR_OPENSHIFT_RESOURCES_MEMORY_REQUEST
+  value: 500Mi
+- name: QR_OPENSHIFT_USERS_CPU_LIMIT
+  value: 40m
+- name: QR_OPENSHIFT_USERS_MEMORY_LIMIT
+  value: 300Mi
+- name: QR_OPENSHIFT_USERS_CPU_REQUEST
+  value: 20m
+- name: QR_OPENSHIFT_USERS_MEMORY_REQUEST
+  value: 200Mi
+- name: QR_QUAY_MEMBERSHIP_CPU_LIMIT
+  value: 25m
+- name: QR_QUAY_MEMBERSHIP_MEMORY_LIMIT
+  value: 150Mi
+- name: QR_QUAY_MEMBERSHIP_CPU_REQUEST
+  value: 15m
+- name: QR_QUAY_MEMBERSHIP_MEMORY_REQUEST
+  value: 50Mi
+- name: QR_QUAY_MIRROR_CPU_LIMIT
+  value: 25m
+- name: QR_QUAY_MIRROR_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_QUAY_MIRROR_CPU_REQUEST
+  value: 15m
+- name: QR_QUAY_MIRROR_MEMORY_REQUEST
+  value: 150Mi
+- name: QR_QUAY_REPOS_CPU_LIMIT
+  value: 25m
+- name: QR_QUAY_REPOS_MEMORY_LIMIT
+  value: 150Mi
+- name: QR_QUAY_REPOS_CPU_REQUEST
+  value: 15m
+- name: QR_QUAY_REPOS_MEMORY_REQUEST
+  value: 50Mi
+- name: QR_SENTRY_CONFIG_CPU_LIMIT
+  value: 25m
+- name: QR_SENTRY_CONFIG_MEMORY_LIMIT
+  value: 200Mi
+- name: QR_SENTRY_CONFIG_CPU_REQUEST
+  value: 15m
+- name: QR_SENTRY_CONFIG_MEMORY_REQUEST
+  value: 100Mi
+- name: QR_TERRAFORM_RESOURCES_CPU_LIMIT
+  value: 400m
+- name: QR_TERRAFORM_RESOURCES_MEMORY_LIMIT
+  value: 1000Mi
+- name: QR_TERRAFORM_RESOURCES_CPU_REQUEST
+  value: 200m
+- name: QR_TERRAFORM_RESOURCES_MEMORY_REQUEST
+  value: 800Mi
+- name: QR_TERRAFORM_USERS_CPU_LIMIT
+  value: 400m
+- name: QR_TERRAFORM_USERS_MEMORY_LIMIT
+  value: 1500Mi
+- name: QR_TERRAFORM_USERS_CPU_REQUEST
+  value: 200m
+- name: QR_TERRAFORM_USERS_MEMORY_REQUEST
+  value: 1000Mi
