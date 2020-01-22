@@ -33,7 +33,6 @@ class Image:
         if self.registry == 'docker.io':
             self.registry_api = 'https://registry-1.docker.io'
         else:
-            # Works for quay.io. Not sure about private registry.
             self.registry_api = f'https://{self.registry}'
 
         self._cache_tags = None
