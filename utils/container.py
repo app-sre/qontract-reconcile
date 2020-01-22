@@ -17,8 +17,10 @@ class Image:
     :param url: The image url. E.g. docker.io/fedora
     :param tag_override: (optional) A specific tag to use instead of
                          the tag provided in the url or the default one
+    :param username: (optional) The private registry username
+    :param password: (optional) The private registry password
     """
-    def __init__(self, url, tag_override=None):
+    def __init__(self, url, tag_override=None, username=None, password=None):
         image_data = self._parse_image_url(url)
         self.scheme = image_data['scheme']
         self.registry = image_data['registry']
@@ -29,6 +31,9 @@ class Image:
             self.tag = image_data['tag']
         else:
             self.tag = tag_override
+
+        self.username = username
+        self.password = password
 
         if self.registry == 'docker.io':
             self.registry_api = 'https://registry-1.docker.io'
@@ -93,8 +98,7 @@ class Image:
         except requests.exceptions.HTTPError:
             return False
 
-    @staticmethod
-    def _get_auth(www_auth):
+    def _get_auth(self, www_auth):
         """
         Generates the authorization string.
         """
@@ -104,7 +108,13 @@ class Image:
         for key, value in www_auth.items():
             url += f'{key}={value}&'
 
-        response = requests.get(url)
+        if all([self.username is not None,
+                self.password is not None]):
+            auth = (self.username, self.password)
+        else:
+            auth = None
+
+        response = requests.get(url, auth=auth)
         response.raise_for_status()
         data = response.json()["token"]
 
