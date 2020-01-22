@@ -1,8 +1,8 @@
+import json
 import logging
 import re
 import requests
 
-from json.decoder import JSONDecodeError
 
 from utils.retry import retry
 
@@ -98,6 +98,24 @@ class Image:
         except requests.exceptions.HTTPError:
             return False
 
+    @staticmethod
+    def _raise_for_status(response, error_msg=None):
+        """
+        Includes the error messages, important for a registry
+        """
+        if response.status_code < 400:
+            return None
+
+        msg = ''
+        if error_msg is not None:
+            msg += f'{error_msg}: '
+
+        msg += f'({response.status_code}) {response.reason}'
+        content = json.loads(response.content)
+        for error in content['errors']:
+            msg += f', {error["message"]}'
+        raise requests.exceptions.HTTPError(msg)
+
     def _get_auth(self, www_auth):
         """
         Generates the authorization string.
@@ -115,9 +133,10 @@ class Image:
             auth = None
 
         response = requests.get(url, auth=auth)
-        response.raise_for_status()
-        data = response.json()["token"]
+        self._raise_for_status(response, error_msg=f'unable to retrieve auth '
+                                                   f'token from {url}')
 
+        data = response.json()["token"]
         return f'{scheme} {data}'
 
     @staticmethod
@@ -145,14 +164,14 @@ class Image:
         if response.status_code == 401:
             auth_specs = response.headers.get('Www-Authenticate')
             if auth_specs is None:
-                response.raise_for_status()
+                self._raise_for_status(response)
             www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, this time with the Authorization header
             headers['Authorization'] = self._get_auth(www_auth)
             response = requests.get(url, headers=headers)
 
-        response.raise_for_status()
+        self._raise_for_status(response)
         return response
 
     def get_tags(self):
@@ -183,7 +202,7 @@ class Image:
 
         return all_tags
 
-    @retry(exceptions=JSONDecodeError, max_attempts=3)
+    @retry(exceptions=json.decoder.JSONDecodeError, max_attempts=3)
     def get_manifest(self):
         """
         Goes to the internet to retrieve the image manifest.
