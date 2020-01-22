@@ -98,8 +98,7 @@ class Image:
         except requests.exceptions.HTTPError:
             return False
 
-    @staticmethod
-    def _raise_for_status(response, error_msg=None):
+    def _raise_for_status(self, response, error_msg=None):
         """
         Includes the error messages, important for a registry
         """
@@ -114,6 +113,7 @@ class Image:
         content = json.loads(response.content)
         for error in content['errors']:
             msg += f', {error["message"]}'
+        _LOG.error('[%s, %s]', str(self), msg)
         raise requests.exceptions.HTTPError(msg)
 
     def _get_auth(self, www_auth):
