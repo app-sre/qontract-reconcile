@@ -94,14 +94,35 @@ class Image:
             return False
 
     @staticmethod
-    def _get_auth(realm, service, scope):
+    def _get_auth(www_auth):
         """
-        Goes to the internet to retrieve the auth token.
+        Generates the authorization string.
         """
-        url = f'{realm}?service={service}&scope={scope}'
+        scheme = www_auth.pop("scheme")
+
+        url = f'{www_auth.pop("realm")}?'
+        for key, value in www_auth.items():
+            url += f'{key}={value}&'
+
         response = requests.get(url)
         response.raise_for_status()
-        return f'Bearer {response.json()["token"]}'
+        data = response.json()["token"]
+
+        return f'{scheme} {data}'
+
+    @staticmethod
+    def _parse_www_auth(value):
+        www_authenticate = dict()
+        www_authenticate['scheme'], params = value.split(' ', 1)
+
+        # According to the RFC6750, the scheme MUST be followed by
+        # one or more auth-param values.
+        # This regex gets the extra auth-params and adds them to
+        # the www_authenticate dictionary
+        for item in re.finditer('(?P<key>[^ ,]+)="(?P<value>[^"]+)"', params):
+            www_authenticate[item.group('key')] = item.group('value')
+
+        return www_authenticate
 
     def _request_get(self, url):
         # Try first without 'Authorization' header
@@ -110,26 +131,15 @@ class Image:
         }
         response = requests.get(url, headers=headers)
 
-        # Unauthorized
+        # Unauthorized, meaning we have to acquire a token
         if response.status_code == 401:
-            # The auth endpoint must then be provided
             auth_specs = response.headers.get('Www-Authenticate')
             if auth_specs is None:
                 response.raise_for_status()
-
-            parsed_auth_specs = re.search('Bearer realm="(?P<realm>.*)",'
-                                          'service="(?P<service>.*)",'
-                                          'scope="(?P<scope>.*)"', auth_specs)
-            if parsed_auth_specs is None:
-                raise RuntimeError(f'Not able to parse "{auth_specs}"')
-
-            auth_specs_dict = parsed_auth_specs.groupdict()
-            realm = auth_specs_dict['realm']
-            service = auth_specs_dict['service']
-            scope = auth_specs_dict['scope']
+            www_auth = self._parse_www_auth(auth_specs)
 
             # Try again, this time with the Authorization header
-            headers['Authorization'] = self._get_auth(realm, service, scope)
+            headers['Authorization'] = self._get_auth(www_auth)
             response = requests.get(url, headers=headers)
 
         response.raise_for_status()
