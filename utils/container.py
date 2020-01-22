@@ -85,7 +85,7 @@ class Image:
                 f':{self.tag}')
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(url={self})'
+        return f"{self.__class__.__name__}(url='{self}')"
 
     @staticmethod
     def _get_auth(realm, service, scope):
