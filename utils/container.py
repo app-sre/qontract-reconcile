@@ -147,9 +147,9 @@ class Image:
                 break
 
             # Link is given between "<" and ">". Example:
-            # '<v2/app-sre/aws-cli/tags/list?next_page=KkOw&n=50>; rel="next"'
+            # '</v2/app-sre/aws-cli/tags/list?next_page=KkOw&n=50>; rel="next"'
             link = link_header.split('<', 1)[1].split('>', 1)[0]
-            url = f'{self.registry_api}/{link}'
+            url = f'{self.registry_api}{link}'
             response = self._request_get(url)
 
             tags = response.json()['tags']
