@@ -95,10 +95,10 @@ integrations:
 - name: openshift-groups
   resources:
     requests:
-      memory: 200Mi
+      memory: 300Mi
       cpu: 100m
     limits:
-      memory: 300Mi
+      memory: 400Mi
       cpu: 150m
   logs: true
 - name: openshift-namespaces

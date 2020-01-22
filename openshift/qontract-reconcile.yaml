@@ -1014,10 +1014,10 @@ objects:
           resources:
             limits:
               cpu: 150m
-              memory: 300Mi
+              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 200Mi
+              memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2224,7 +2224,7 @@ objects:
           runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
-          image: busybox
+          image: quay.io/app-sre/busybox
           resources:
             requests:
               memory: 10Mi
