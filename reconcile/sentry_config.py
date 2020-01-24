@@ -56,6 +56,12 @@ SENTRY_USERS_QUERY = """
         }
       }
     }
+    sentry_roles {
+      instance {
+        consoleUrl
+      }
+      role
+    }
   }
 }
 """
@@ -102,6 +108,8 @@ class SentryState:
     def __init__(self):
         # Map of user:teams[]
         self.users = {}
+        # Map of user:role
+        self.roles = {}
         # List of team names
         self.teams = []
         # Map of team:projects_config[]
@@ -152,6 +160,9 @@ class SentryState:
     def init_teams(self, teams):
         self.teams = teams
 
+    def init_roles(self, roles):
+        self.roles = roles
+
 
 class SentryReconciler:
     def __init__(self, client, dry_run):
@@ -179,26 +190,29 @@ class SentryReconciler:
                 if not self.dry_run:
                     self.client.delete_user(user)
 
-        for user in desired.users.keys():
-            teams = desired.users[user]
+        for user, teams in desired.users.items():
             if user not in current.users.keys():
                 logging.info(
                     ["add_user", user, ",".join(teams), self.client.host])
                 if not self.dry_run:
                     self.client.create_user(user, "member", teams)
             else:
-                fields = self._user_fields_need_updating_(user, teams)
-                if "teams" in fields:
+                if user in desired.roles:
+                    desired_role = desired.roles[user]
+                else:
+                    desired_role = "member"
+
+                if not self._is_same_list_(teams, current.users[user]):
                     logging.info(["team_membership", user,
                                   ",".join(teams), self.client.host])
                     if not self.dry_run:
                         self.client.set_user_teams(user, teams)
 
-                if "role" in fields:
+                if desired_role != current.roles[user]:
                     logging.info(
-                        ["user_role", user, "member", self.client.host])
+                        ["user_role", user, desired_role, self.client.host])
                     if not self.dry_run:
-                        self.client.change_user_role(user, "member")
+                        self.client.change_user_role(user, desired_role)
 
         # Reconcile projects
         for projects in current.projects.values():
@@ -252,18 +266,6 @@ class SentryReconciler:
                     if not self.dry_run:
                         self.client.delete_project_alert_rule(
                             project_name, rule)
-
-    def _user_fields_need_updating_(self, email, teams):
-        fields_to_update = []
-
-        user = self.client.get_user(email)
-        if user['role'] != "member":
-            fields_to_update.append("role")
-
-        if not self._is_same_list_(teams, user['teams']):
-            fields_to_update.append("teams")
-
-        return fields_to_update
 
     def _project_fields_need_updating_(self, project, options):
         fields_to_update = []
@@ -323,6 +325,7 @@ def fetch_current_state(client, ignore_users):
     # Retrieve the users and the teams they are part of
     sentry_users = client.get_users()
     users = {}
+    roles = {}
     for sentry_user in sentry_users:
         user_name = sentry_user['email']
         if user_name in ignore_users:
@@ -332,46 +335,70 @@ def fetch_current_state(client, ignore_users):
         for team in user['teams']:
             teams.append(team)
         users[user_name] = teams
+        roles[user_name] = user['role']
+    state.init_roles(roles)
     state.init_users(users)
     return state
 
 
-def fetch_desired_state(gqlapi, sentry_instance):
+def fetch_desired_state(gqlapi, sentry_instance, ghapi):
+    user_roles = {}
+
+    def process_user_role(user, role, sentryUrl):
+        if role['sentry_roles'] is not None:
+            for r in role['sentry_roles']:
+                if r['instance']['consoleUrl'] == sentryUrl and \
+                   r['role'] is not None:
+                    try:
+                        process_role(user, r['role'])
+                    except ValueError:
+                        logging.error(["desired_state", "multiple_roles",
+                                       user, sentryUrl])
+
+    def process_role(gh_user, sentryRole):
+        email = get_github_email(ghapi, user)
+        if email is not None:
+            if email in user_roles:
+                raise ValueError
+
+            user_roles[email] = sentryRole
+
     state = SentryState()
 
     # Query for users that should be in sentry
     team_members = {}
+    sentryUrl = sentry_instance['consoleUrl']
     result = gqlapi.query(SENTRY_USERS_QUERY)
-    github = init_github()
     for role in result['roles']:
+        # Users that should exist
+        members = []
+
+        def append_github_username_members(member):
+            email = get_github_email(ghapi, member)
+            if email is not None:
+                members.append(email)
+
+        for user in role['users']:
+            append_github_username_members(user)
+            process_user_role(user, role, sentryUrl)
+
+        for bot in role['bots']:
+            append_github_username_members(bot)
+            process_user_role(bot, role, sentryUrl)
+
         if role['sentry_teams'] is None:
             continue
 
         for team in role['sentry_teams']:
-            # Users that should exist
-            members = []
-
-            def append_github_username_members(member):
-                github_username = member.get('github_username')
-                if github_username:
-                    user_info = github.get_user(login=github_username)
-                    email = user_info.email
-                    if email is not None:
-                        members.append(email)
-
-            for user in role['users']:
-                append_github_username_members(user)
-
-            for bot in role['bots']:
-                append_github_username_members(bot)
-
             # Only add users if the team they are a part of is in the same
-            # senry instance we are querying for information
-            if team['instance']['consoleUrl'] == sentry_instance['consoleUrl']:
+            # sentry instance we are querying for information
+            if team['instance']['consoleUrl'] == sentryUrl:
                 if team['name'] not in team_members.keys():
                     team_members[team['name']] = members
                 else:
                     team_members[team['name']].extend(members)
+
+    state.init_roles(user_roles)
     state.init_users_from_desired_state(team_members)
 
     # Query for teams that should be in sentry
@@ -416,9 +443,27 @@ def fetch_desired_state(gqlapi, sentry_instance):
     return state
 
 
+# Cache of github_username:github_email
+github_email_cache = {}
+
+
+def get_github_email(gh, user):
+    github_username = user.get('github_username')
+    if github_username:
+        if github_username not in github_email_cache:
+            user_info = gh.get_user(login=github_username)
+            email = user_info.email
+            if email is not None:
+                github_email_cache[github_username] = email
+        else:
+            email = github_email_cache[github_username]
+        return email
+
+
 def run(dry_run=False):
     settings = queries.get_app_interface_settings()
     gqlapi = gql.get_api()
+    github = init_github()
 
     # Reconcile against all sentry instances
     result = gqlapi.query(SENTRY_INSTANCES_QUERY)
@@ -431,7 +476,7 @@ def run(dry_run=False):
         skip_user = secret_reader.read(
             instance['adminUser'], settings=settings)
         current_state = fetch_current_state(sentry_client, [skip_user])
-        desired_state = fetch_desired_state(gqlapi, instance)
+        desired_state = fetch_desired_state(gqlapi, instance, github)
 
         reconciler = SentryReconciler(sentry_client, dry_run)
         reconciler.reconcile(current_state, desired_state)
