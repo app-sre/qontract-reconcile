@@ -3,7 +3,7 @@ import reconcile.queries as queries
 import utils.gql as gql
 import utils.secret_reader as secret_reader
 
-from reconcile.github_users import init_github
+from utils.config import get_config
 from utils.sentry_client import SentryClient
 
 
@@ -38,10 +38,7 @@ SENTRY_USERS_QUERY = """
     name
     users {
       name
-      github_username
-    }
-    bots {
-      name
+      org_username
       github_username
     }
     sentry_teams {
@@ -342,36 +339,26 @@ def fetch_desired_state(gqlapi, sentry_instance):
     # Query for users that should be in sentry
     team_members = {}
     result = gqlapi.query(SENTRY_USERS_QUERY)
-    github = init_github()
+    mail_address = get_config()['smtp']['mail_address']
     for role in result['roles']:
         if role['sentry_teams'] is None:
             continue
 
         for team in role['sentry_teams']:
-            # Users that should exist
-            members = []
-
-            def append_github_username_members(member):
-                github_username = member.get('github_username')
-                if github_username:
-                    user_info = github.get_user(login=github_username)
-                    email = user_info.email
-                    if email is not None:
-                        members.append(email)
-
-            for user in role['users']:
-                append_github_username_members(user)
-
-            for bot in role['bots']:
-                append_github_username_members(bot)
-
             # Only add users if the team they are a part of is in the same
             # senry instance we are querying for information
-            if team['instance']['consoleUrl'] == sentry_instance['consoleUrl']:
-                if team['name'] not in team_members.keys():
-                    team_members[team['name']] = members
-                else:
-                    team_members[team['name']].extend(members)
+            if team['instance']['consoleUrl'] != sentry_instance['consoleUrl']:
+                continue
+
+            # Users that should exist
+            members = [f"{user.get('org_username')}@{mail_address}"
+                       for user in role['users']
+                       if user.get('github_username')]
+
+            if team['name'] not in team_members.keys():
+                team_members[team['name']] = members
+            else:
+                team_members[team['name']].extend(members)
     state.init_users_from_desired_state(team_members)
 
     # Query for teams that should be in sentry
