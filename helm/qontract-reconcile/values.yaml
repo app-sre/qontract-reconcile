@@ -105,19 +105,19 @@ integrations:
   resources:
     requests:
       memory: 300Mi
-      cpu: 100m
+      cpu: 250m
     limits:
       memory: 400Mi
-      cpu: 200m
+      cpu: 350m
   extraArgs: --external
 - name: openshift-clusterrolebindings
   resources:
     requests:
-      memory: 200Mi
-      cpu: 100m
-    limits:
       memory: 300Mi
       cpu: 150m
+    limits:
+      memory: 400Mi
+      cpu: 250m
   logs: true
 - name: openshift-rolebindings
   resources:

@@ -1077,10 +1077,10 @@ objects:
             value: ${SLEEP_DURATION_SECS}
           resources:
             limits:
-              cpu: 200m
+              cpu: 350m
               memory: 400Mi
             requests:
-              cpu: 100m
+              cpu: 250m
               memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1179,11 +1179,11 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
+              cpu: 250m
+              memory: 400Mi
+            requests:
               cpu: 150m
               memory: 300Mi
-            requests:
-              cpu: 100m
-              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
