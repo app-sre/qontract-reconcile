@@ -165,10 +165,15 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
     if not dry_run:
         annotated = resource.annotate()
-        oc_map.get(cluster).apply(namespace, annotated.toJSON())
+        oc = oc_map.get(cluster)
+        if not oc.project_exists(namespace):
+            msg = f"[{cluster}/{namespace}] namespace does not exist (yet)"
+            logging.warning(msg)
+            return
+
+        oc.apply(namespace, annotated.toJSON())
         if recycle_pods:
-            oc_map.get(cluster).recycle_pods(
-                namespace, resource_type, resource.name)
+            oc.recycle_pods(namespace, resource_type, resource.name)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
