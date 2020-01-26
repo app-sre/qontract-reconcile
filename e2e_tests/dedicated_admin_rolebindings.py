@@ -15,7 +15,7 @@ def run(defer=None):
     defer(lambda: oc_map.cleanup())
     pattern = \
         r'^(default|logging|' + \
-        '(openshift|kube-|ops-|dedicated-|management-|{}).*)$'.format(
+        '(openshift|kube-|ops-|dedicated-|management-|sre-app-check-|{}).*)$'.format(
             tb.E2E_NS_PFX
         )
     for cluster in oc_map.clusters():
