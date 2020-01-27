@@ -166,7 +166,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
     if not dry_run:
         annotated = resource.annotate()
         oc = oc_map.get(cluster)
-        if not oc.project_exists(namespace):
+        # skip if namespace does not exist (as it will soon)
+        # do not skip if this is a cluster scoped integration
+        if namespace != 'cluster' and not oc.project_exists(namespace):
             msg = f"[{cluster}/{namespace}] namespace does not exist (yet)"
             logging.warning(msg)
             return
