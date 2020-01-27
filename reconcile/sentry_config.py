@@ -191,17 +191,18 @@ class SentryReconciler:
                     self.client.delete_user(user)
 
         for user, teams in desired.users.items():
+            if user in desired.roles:
+                desired_role = desired.roles[user]
+            else:
+                desired_role = "member"
+
             if user not in current.users.keys():
                 logging.info(
-                    ["add_user", user, ",".join(teams), self.client.host])
+                    ["add_user", desired_role, user, ",".join(teams),
+                     self.client.host])
                 if not self.dry_run:
-                    self.client.create_user(user, "member", teams)
+                    self.client.create_user(user, desired_role, teams)
             else:
-                if user in desired.roles:
-                    desired_role = desired.roles[user]
-                else:
-                    desired_role = "member"
-
                 if not self._is_same_list_(teams, current.users[user]):
                     logging.info(["team_membership", user,
                                   ",".join(teams), self.client.host])
