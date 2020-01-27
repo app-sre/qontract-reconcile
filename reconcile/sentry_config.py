@@ -370,6 +370,9 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
     sentryUrl = sentry_instance['consoleUrl']
     result = gqlapi.query(SENTRY_USERS_QUERY)
     for role in result['roles']:
+        if role['sentry_teams'] is None:
+            continue
+
         # Users that should exist
         members = []
 
@@ -385,9 +388,6 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
         for bot in role['bots']:
             append_github_username_members(bot)
             process_user_role(bot, role, sentryUrl)
-
-        if role['sentry_teams'] is None:
-            continue
 
         for team in role['sentry_teams']:
             # Only add users if the team they are a part of is in the same
