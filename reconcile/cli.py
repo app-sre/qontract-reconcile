@@ -42,6 +42,7 @@ import reconcile.ocm_clusters
 import reconcile.email_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
+import reconcile.sql_query
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -543,3 +544,12 @@ def service_dependencies(ctx):
 @click.pass_context
 def sentry_config(ctx):
     run_integration(reconcile.sentry_config.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@enable_deletion(default=False)
+@click.pass_context
+def sql_query(ctx, enable_deletion):
+    run_integration(reconcile.sql_query.run, ctx.obj['dry_run'],
+                    enable_deletion)

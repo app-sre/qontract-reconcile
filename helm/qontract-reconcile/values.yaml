@@ -219,3 +219,13 @@ integrations:
       memory: 200Mi
       cpu: 25m
   logs: true
+- name: sql-query
+  resources:
+    requests:
+      memory: 60Mi
+      cpu: 25m
+    limits:
+      memory: 120Mi
+      cpu: 50m
+  logs: true
+  state: true
