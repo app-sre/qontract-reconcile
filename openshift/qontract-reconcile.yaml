@@ -2326,6 +2326,135 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile
+    name: qontract-reconcile-sql-query
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile
+      spec:
+        securityContext:
+          runAsUser: ${{USER_ID}}
+        initContainers:
+        - name: config
+          image: quay.io/app-sre/busybox
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type slack
+              webhook_url ${SLACK_WEBHOOK_URL}
+              channel ${SLACK_CHANNEL}
+              icon_emoji ${SLACK_ICON_EMOJI}
+              username sd-app-sre-bot
+              flush_interval 10s
+              message "\`\`\`[sql-query] %s\`\`\`"
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          env:
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: sql-query
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          resources:
+            limits:
+              cpu: 50m
+              memory: 120Mi
+            requests:
+              cpu: 25m
+              memory: 60Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: quay.io/app-sre/fluentd:latest
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 60Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile

@@ -357,3 +357,55 @@ def get_bots():
     """ Returnes all Bots. """
     gqlapi = gql.get_api()
     return gqlapi.query(BOTS_QUERY)['bots']
+
+
+APP_INTERFACE_SQL_QUERIES_QUERY = """
+{
+  sql_queries: app_interface_sql_queries_v1 {
+    name
+    namespace
+    {
+      name
+      managedTerraformResources
+      terraformResources
+      {
+        provider
+        ... on NamespaceTerraformResourceRDS_v1
+        {
+          identifier
+          output_resource_name
+          defaults
+        }
+      }
+      cluster
+      {
+        name
+        serverUrl
+        automationToken
+        {
+          path
+          field
+          format
+        }
+        internal
+      }
+    }
+    identifier
+    overrides
+    {
+      db_host
+      db_port
+      db_name
+      db_user
+      db_password
+    }
+    query
+  }
+}
+"""
+
+
+def get_app_interface_sql_queries():
+    """ Returns SqlQuery resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
