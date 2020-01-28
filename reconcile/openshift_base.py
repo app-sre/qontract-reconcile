@@ -11,13 +11,14 @@ from utils.openshift_resource import (OpenshiftResource as OR,
 
 class StateSpec(object):
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
-                 resource_names=None):
+                 resource_type_override=None, resource_names=None):
         self.type = type
         self.oc = oc
         self.cluster = cluster
         self.namespace = namespace
         self.resource = resource
         self.parent = parent
+        self.resource_type_override = resource_type_override
         self.resource_names = resource_names
 
 
@@ -55,6 +56,8 @@ def init_specs_to_fetch(ri, oc_map,
             namespace = namespace_info['name']
             managed_resource_names = \
                 namespace_info.get('managedResourceNames')
+            managed_resource_type_overrides = \
+                namespace_info.get('managedResourceTypeOverrides')
 
             # Initialize current state specs
             for resource_type in managed_types:
@@ -64,12 +67,22 @@ def init_specs_to_fetch(ri, oc_map,
                     [mrn['resourceNames'] for mrn in managed_resource_names
                      if mrn['resource'] == resource_type] \
                     if managed_resource_names else None
+                # Handle case of resource type override
+                resource_type_override = \
+                    [mnto['override'] for mnto
+                     in managed_resource_type_overrides
+                     if mnto['resource'] == resource_type] \
+                    if managed_resource_type_overrides else None
                 # If not None, there is a single element in the list
                 if resource_names:
                     [resource_names] = resource_names
-                c_spec = StateSpec("current", oc, cluster, namespace,
-                                   resource_type,
-                                   resource_names=resource_names)
+                if resource_type_override:
+                    [resource_type_override] = resource_type_override
+                c_spec = StateSpec(
+                    "current", oc, cluster, namespace,
+                    resource_type,
+                    resource_type_override=resource_type_override,
+                    resource_names=resource_names)
                 state_specs.append(c_spec)
 
             # Initialize desired state specs
