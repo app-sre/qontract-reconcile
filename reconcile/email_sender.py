@@ -102,14 +102,6 @@ def run(dry_run=False):
         sys.exit(1)
 
     emails_to_send = [e for e in emails if not state.exists(e['name'])]
-
-    # validate that there is only 1 mail to send
-    # this is a safety net in case state is lost
-    # the solution to such loss is to delete all emails from app-interface
-    if len(emails_to_send) > 1:
-        logging.error('can only send one email at a time.')
-        sys.exit(1)
-
     for email in emails_to_send:
         logging.info(['send_email', email['name'], email['subject']])
 
