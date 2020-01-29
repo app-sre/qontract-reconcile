@@ -19,6 +19,7 @@ QUERY = """
         path
         field
       }
+      deleteMethod
     }
     type
     config
