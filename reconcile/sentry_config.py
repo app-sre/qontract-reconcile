@@ -1,4 +1,5 @@
 import logging
+import requests
 import reconcile.queries as queries
 import utils.gql as gql
 import utils.secret_reader as secret_reader
@@ -258,9 +259,27 @@ class SentryReconciler:
                     if not self.dry_run:
                         self.client.update_project(project_name, updates)
 
-                # This will eventually become configruable, but for now delete
+                # This will eventually become configurable, but for now delete
                 # all alerting rules from the project
-                rules = self.client.get_project_alert_rules(project_name)
+                try:
+                    rules = self.client.get_project_alert_rules(project_name)
+                except requests.HTTPError:
+                    # Project doesn't exist so must be a create operation
+                    # in dry-run mode.  Use rule created by default for
+                    # new projects
+                    rules = [{'environment': None, 'actionMatch': 'all',
+                              'frequency': 30,
+                              'name': 'Send a notification for new issues',
+                              'conditions': [
+                                  {'id': 'sentry.rules.conditions.' +
+                                   'first_seen_event.FirstSeenEventCondition',
+                                   'name': 'An issue is first seen'}],
+                              'id': '1',
+                              'actions': [
+                                  {'id': 'sentry.rules.actions.' +
+                                   'notify_event.NotifyEventAction',
+                                   'name': 'Send a notification ' +
+                                   '(for all legacy integrations)'}]}]
                 for rule in rules:
                     logging.info(["delete_project_alert_rule",
                                   project_name, rule, self.client.host])
