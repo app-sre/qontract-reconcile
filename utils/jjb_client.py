@@ -31,9 +31,10 @@ class JJB(object):
     def collect_configs(self, configs):
         gqlapi = gql.get_api()
         instances = \
-            {c['instance']['name']: {'serverUrl': c['instance']['serverUrl'],
-                                     'token': c['instance']['token'],
-                                     'delete_method': c['instance']['deleteMethod']}
+            {c['instance']['name']: {
+                'serverUrl': c['instance']['serverUrl'],
+                'token': c['instance']['token'],
+                'delete_method': c['instance']['deleteMethod']}
              for c in configs}
 
         working_dirs = {}
