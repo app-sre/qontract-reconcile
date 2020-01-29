@@ -285,9 +285,10 @@ class JJB(object):
         admins = set()
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
-            for job in jobs:
+            for j in jobs:
                 try:
-                    admins_list = job['triggers'][0]['github-pull-request']['admin-list']
+                    admins_list = \
+                        j['triggers'][0]['github-pull-request']['admin-list']
                     admins.update(admins_list)
                 except (KeyError, TypeError):
                     # no admins, that's fine
