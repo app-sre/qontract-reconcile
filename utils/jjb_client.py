@@ -32,7 +32,8 @@ class JJB(object):
         gqlapi = gql.get_api()
         instances = \
             {c['instance']['name']: {'serverUrl': c['instance']['serverUrl'],
-                                     'token': c['instance']['token']}
+                                     'token': c['instance']['token'],
+                                     'delete_method': c['instance']['deleteMethod']}
              for c in configs}
 
         working_dirs = {}
@@ -74,7 +75,8 @@ class JJB(object):
                     f.write(config)
                     f.write('\n')
 
-        self.instances = instance_urls
+        self.instances = instances
+        self.instance_urls = instance_urls
         self.working_dirs = working_dirs
 
     def sort(self, configs):
@@ -189,7 +191,10 @@ class JJB(object):
 
             os.environ['PYTHONHTTPSVERIFY'] = self.python_https_verify
             cmd = ['jenkins-jobs', '--conf', ini_path,
-                   'update', config_path, '--delete-old']
+                   'update', config_path]
+            delete_method = self.instances[name]['delete_method']
+            if delete_method != 'manual':
+                cmd.append('--delete-old')
             subprocess.call(cmd)
 
     def get_jjb(self, args):
@@ -245,7 +250,7 @@ class JJB(object):
                     if 'https://github.com' in project_url_raw:
                         continue
                     job_url = \
-                        '{}/project/{}'.format(self.instances[name],
+                        '{}/project/{}'.format(self.instance_urls[name],
                                                job['name'])
                     project_url = \
                         project_url_raw.strip('/').replace('.git', '')
