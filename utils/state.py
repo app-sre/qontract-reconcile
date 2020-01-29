@@ -1,4 +1,5 @@
 import os
+import json
 
 from botocore.errorfactory import ClientError
 
@@ -56,19 +57,19 @@ class State(object):
             Bucket=self.bucket, Prefix=self.state_path)['Contents']
         return [o['Key'].replace(self.state_path, '') for o in objects]
 
-    def add(self, key):
+    def add(self, key, value=None):
         """
-        Adds a key to the state and fails if the key already exists
+        Adds a key/value to the state and fails if the key already exists
 
         :param key: key to add
+        :param value: (optional) value of the state, defaults to None
 
         :type key: string
         """
         if self.exists(key):
-            raise KeyError(
-                f"[state] key {key} already exists in {self.state_path}")
-        self.client.put_object(
-            Bucket=self.bucket, Key=f"{self.state_path}/{key}")
+            raise KeyError(f"[state] key {key} already "
+                           f"exists in {self.state_path}")
+        self[key] = value
 
     def rm(self, key):
         """
@@ -83,3 +84,38 @@ class State(object):
                 f"[state] key {key} does not exists in {self.state_path}")
         self.client.delete_object(
             Bucket=self.bucket, Key=f"{self.state_path}/{key}")
+
+    def get(self, key, *args):
+        """
+        Gets a key value from the state and return the default
+        value or raises and exception if the key does not exist.
+
+        "*args" is used to provide the default as the first argument.
+
+        :param key: key to get
+
+        :type key: string
+        """
+        try:
+            return self[key]
+        except KeyError:
+            if args:
+                return args[0]
+            raise
+
+    def __getitem__(self, item):
+        try:
+            response = self.client.get_object(Bucket=self.bucket,
+                                              Key=f"{self.state_path}/{item}")
+            return json.loads(response['Body'].read())
+        except ClientError as details:
+            if details.response['Error']['Code'] == 'NoSuchKey':
+                raise KeyError(item)
+            raise
+        except json.decoder.JSONDecodeError:
+            raise KeyError(item)
+
+    def __setitem__(self, key, value):
+        self.client.put_object(Bucket=self.bucket,
+                               Key=f"{self.state_path}/{key}",
+                               Body=json.dumps(value))
