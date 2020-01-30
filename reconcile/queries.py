@@ -399,6 +399,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
       db_user
       db_password
     }
+    output
     query
   }
 }
