@@ -270,16 +270,31 @@ class JJB(object):
         return job_webhooks_data
 
     def get_repos(self):
-        repos = []
+        repos = set()
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
             for job in jobs:
                 job_name = job['name']
                 try:
-                    repos.append(self.get_repo_url(job))
+                    repos.add(self.get_repo_url(job))
                 except KeyError:
                     logging.debug('missing github url: {}'.format(job_name))
         return repos
+
+    def get_admins(self):
+        admins = set()
+        for name, wd in self.working_dirs.items():
+            jobs = self.get_jobs(wd, name)
+            for j in jobs:
+                try:
+                    admins_list = \
+                        j['triggers'][0]['github-pull-request']['admin-list']
+                    admins.update(admins_list)
+                except (KeyError, TypeError):
+                    # no admins, that's fine
+                    pass
+
+        return admins
 
     @staticmethod
     def get_repo_url(job):

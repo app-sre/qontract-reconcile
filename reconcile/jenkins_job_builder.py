@@ -36,12 +36,21 @@ def init_jjb():
     return JJB(configs, ssl_verify=False, settings=settings)
 
 
-def validate_repos(jjb):
+def validate_repos_and_admins(jjb):
     jjb_repos = jjb.get_repos()
     app_int_repos = queries.get_repos()
     missing_repos = [r for r in jjb_repos if r not in app_int_repos]
-    for r in set(missing_repos):
+    for r in missing_repos:
         logging.error('repo is missing from codeComponents: {}'.format(r))
+    jjb_admins = jjb.get_admins()
+    app_int_users = queries.get_users()
+    app_int_bots = queries.get_bots()
+    github_usernames = \
+        [u.get('github_username') for u in app_int_users] + \
+        [b.get('github_username') for b in app_int_bots]
+    unknown_admins = [a for a in jjb_admins if a not in github_usernames]
+    for a in unknown_admins:
+        logging.warning('admin is missing from users: {}'.format(a))
     if missing_repos:
         sys.exit(1)
 
@@ -51,7 +60,7 @@ def run(dry_run=False, io_dir='throughput/', compare=True, defer=None):
     jjb = init_jjb()
     defer(lambda: jjb.cleanup())
     if compare:
-        validate_repos(jjb)
+        validate_repos_and_admins(jjb)
 
     if dry_run:
         jjb.test(io_dir, compare=compare)
