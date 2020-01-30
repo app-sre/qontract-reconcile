@@ -214,3 +214,13 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         print_output('yaml', openshift_resource.body)
         break
+
+
+@root.command()
+@click.argument('query')
+@click.option('--output', '-o', help='output type', default='json',
+              type=click.Choice(['json', 'yaml']))
+def query(output, query):
+    """Run a raw GraphQL query"""
+    gqlapi = gql.get_api()
+    print_output(output, gqlapi.query(query))
