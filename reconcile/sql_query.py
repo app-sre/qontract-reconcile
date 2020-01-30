@@ -14,9 +14,10 @@ from utils.openshift_resource import OpenshiftResource
 
 
 QONTRACT_INTEGRATION = 'sql-query'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 0, 0)
+QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
 
 JOB_TTL = 604800  # 7 days
+POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
 
 JOB_TEMPLATE = """
 apiVersion: batch/v1
@@ -32,12 +33,13 @@ spec:
       - name: {{ JOB_NAME }}
         image: quay.io/app-sre/{{ ENGINE }}:{{ENGINE_VERSION}}
         command:
-          - "{{ CMD }}"
+          - /bin/bash
         args:
-          - "{{ ENGINE }}://$(db.user):$(db.password)@\
-$(db.host):$(db.port)/$(db.name)"
-          - "--command"
-          - "{{ QUERY }}"
+          - "-c"
+          - "docker-entrypoint.sh \
+{{ CMD }} {{ ENGINE }}://$(db.user):$(db.password)@\
+$(db.host):$(db.port)/$(db.name) \
+--command '{{ QUERY }}'{{ OUTPUT_SUFFIX }}"
         env:
           {% for key, value in DB_CONN.items() %}
           {% if value is none %}
@@ -132,6 +134,13 @@ def collect_queries(query_name=None):
         # will be taken from the k8s secret on template rendering
         db_conn = {**db_conn_items, **overrides}
 
+        # Output can be:
+        # - stdout
+        # - filesystem
+        output = sql_query['output']
+        if output is None:
+            output = 'stdout'
+
         # Extracting the terraformResources information from the namespace
         # fo the given identifier
         tf_resource_info = get_tf_resource_info(namespace,
@@ -144,6 +153,7 @@ def collect_queries(query_name=None):
                 'namespace': namespace,
                 'identifier': sql_query['identifier'],
                 'db_conn': db_conn,
+                'output': output,
                 'query': sql_query['query'],
                 **tf_resource_info,
             }
@@ -169,6 +179,21 @@ def process_template(query):
     except KeyError:
         raise RuntimeError(f'Engine {engine} not supported')
 
+    output = query['output']
+    if output == 'stdout':
+        output_suffix = ';'
+    elif output == 'filesystem':
+        output_suffix = (' > /tmp/query-result.txt; '
+                         'echo Get the sql-query results with:; '
+                         'echo; '
+                         'echo oc rsh --shell=/bin/bash ${HOSTNAME} '
+                         'cat /tmp/query-result.txt; '
+                         'echo; '
+                         f'echo Sleeping {POD_TTL}s...;'
+                         f'sleep {POD_TTL}')
+    else:
+        raise RuntimeError(f'Output {output} not supported')
+
     template = jinja2.Template(JOB_TEMPLATE)
     job_yaml = template.render(JOB_NAME=query['name'],
                                QUERY=query['query'],
@@ -176,7 +201,8 @@ def process_template(query):
                                ENGINE=engine,
                                ENGINE_VERSION=query['engine_version'],
                                DB_CONN=query['db_conn'],
-                               CMD=cmd)
+                               CMD=cmd,
+                               OUTPUT_SUFFIX=output_suffix)
     return job_yaml
 
 
