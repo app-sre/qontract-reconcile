@@ -339,6 +339,7 @@ def get_users():
     gqlapi = gql.get_api()
     return gqlapi.query(USERS_QUERY)['users']
 
+
 BOTS_QUERY = """
 {
   bots: bots_v1 {
@@ -350,6 +351,7 @@ BOTS_QUERY = """
   }
 }
 """
+
 
 def get_bots():
     """ Returnes all Bots. """
