@@ -11,10 +11,10 @@ from collections import defaultdict
 
 
 def init_users():
-    users = queries.get_users()
+    app_int_users = queries.get_users()
 
     users = defaultdict(list)
-    for user in users:
+    for user in app_int_users:
         u = user['org_username']
         p = 'data' + user['path']
         users[u].append(p)
@@ -47,6 +47,7 @@ def validate_users_single_path(users):
 
 def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     users = init_users()
+    print(users)
     user_specs = threaded.run(init_user_spec, users, thread_pool_size)
     users_to_delete = [(username, paths) for username, delete, paths
                        in user_specs if delete]
