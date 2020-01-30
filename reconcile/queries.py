@@ -338,3 +338,20 @@ def get_users():
     """ Returnes all Users. """
     gqlapi = gql.get_api()
     return gqlapi.query(USERS_QUERY)['users']
+
+BOTS_QUERY = """
+{
+  bots: bots_v1 {
+    path
+    name
+    org_username
+    github_username
+    openshift_serviceaccount
+  }
+}
+"""
+
+def get_bots():
+    """ Returnes all Bots. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(BOTS_QUERY)['bots']

@@ -44,11 +44,14 @@ def validate_repos_and_admins(jjb):
         logging.error('repo is missing from codeComponents: {}'.format(r))
     jjb_admins = jjb.get_admins()
     app_int_users = queries.get_users()
-    unknown_admins = [a for a in jjb_admins if a not in
-                      [u['github_username'] for u in app_int_users]]
+    app_int_bots = queries.get_bots()
+    github_usernames = \
+        [u.get('github_username') for u in app_int_users] + \
+        [b.get('github_username') for b in app_int_bots]
+    unknown_admins = [a for a in jjb_admins if a not in github_usernames]
     for a in unknown_admins:
-        logging.error('admin is missing from users: {}'.format(a))
-    if missing_repos or unknown_admins:
+        logging.warning('admin is missing from users: {}'.format(a))
+    if missing_repos:
         sys.exit(1)
 
 
