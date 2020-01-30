@@ -222,10 +222,10 @@ integrations:
 - name: sql-query
   resources:
     requests:
-      memory: 60Mi
+      memory: 100Mi
       cpu: 25m
     limits:
-      memory: 120Mi
+      memory: 200Mi
       cpu: 50m
   logs: true
   state: true
