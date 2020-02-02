@@ -308,11 +308,10 @@ class JJB(object):
             all_jobs[name] = []
             jobs = self.get_jobs(wd, name)
             for job in jobs:
-                for job_type in job_types:
-                    if job_type not in job['name']:
-                        continue
-                    if 'test' in job['name']:
-                        continue
+                if not any(job_type in job['name'] for job_type in job_types):
+                    continue
+                if 'test' in job['name']:
+                    continue
                 all_jobs[name].append(job)
 
         return all_jobs
