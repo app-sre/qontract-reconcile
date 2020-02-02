@@ -25,18 +25,13 @@ def run(defer=None):
                     'api.openshift.com/id'
                     not in p['metadata'].get('labels', {})]
 
-        all_network_policies = \
-            oc.get_all('NetworkPolicy', all_namespaces=True)['items']
-        network_policies = [np for np in all_network_policies
-                            if np['metadata']['namespace'] in projects
-                            and np['metadata']['name'] in
-                            npt.get_expected_network_policy_names()]
-
         for project in projects:
             logging.info("[{}/{}] validating NetworkPolicies".format(
                 cluster, project))
+            network_policies = oc.get(project, 'NetworkPolicy')['items']
             project_nps = [np for np in network_policies
-                           if np['metadata']['namespace'] == project]
+                           if np['metadata']['name']
+                           in npt.get_expected_network_policy_names()]
             assert len(project_nps) == 2
             assert project_nps[0]['metadata']['name'] != \
                 project_nps[1]['metadata']['name']
