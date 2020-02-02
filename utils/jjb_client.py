@@ -301,15 +301,18 @@ class JJB(object):
         repo_url_raw = job['properties'][0]['github']['url']
         return repo_url_raw.strip('/').replace('.git', '')
 
-    def get_all_jobs(self, job_type=''):
+    def get_all_jobs(self, job_types=['']):
         all_jobs = {}
         for name, wd in self.working_dirs.items():
             logging.info(f'getting jobs from {name}')
             all_jobs[name] = []
             jobs = self.get_jobs(wd, name)
             for job in jobs:
-                if job_type not in job['name']:
-                    continue
+                for job_type in job_types:
+                    if job_type not in job['name']:
+                        continue
+                    if 'test' in job['name']:
+                        continue
                 all_jobs[name].append(job)
 
         return all_jobs

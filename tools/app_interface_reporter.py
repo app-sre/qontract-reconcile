@@ -350,8 +350,8 @@ def get_performance_parameters():
 def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     jjb = init_jjb()
-    saas_jobs = jjb.get_all_jobs(job_type='saas-deploy')
-    build_master_jobs = jjb.get_all_jobs(job_type='build-master')
+    saas_jobs = jjb.get_all_jobs(job_types=['saas-deploy', 'promote-to-prod'])
+    build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
