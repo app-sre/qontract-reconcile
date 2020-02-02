@@ -30,19 +30,15 @@ def run(defer=None):
                     'api.openshift.com/id'
                     not in p['metadata'].get('labels', {})]
 
-        all_rolebindings = \
-            oc.get_all('RoleBinding', all_namespaces=True)['items']
-        rolebindings = [rb for rb in all_rolebindings
-                        if rb['metadata']['namespace'] in projects
-                        and rb['groupNames'] ==
-                        dat.get_dedicated_admin_groups()
-                        and rb['roleRef']['name'] in dat.get_expected_roles()]
-
         for project in projects:
             logging.info("[{}/{}] validating RoleBindings".format(
                 cluster, project))
+            rolebindings = oc.get(project, 'RoleBinding')['items']
             project_rbs = [rb for rb in rolebindings
-                           if rb['metadata']['namespace'] == project]
+                           if rb.get('groupNames') ==
+                           dat.get_dedicated_admin_groups()
+                           or rb['roleRef']['name']
+                           in dat.get_expected_roles()]
             roles = {rb['roleRef']['name'] for rb in project_rbs}
             assert len(roles) == 2
             assert 'admin' in roles
