@@ -3,7 +3,8 @@ def get_dedicated_admin_groups():
 
 
 def get_expected_roles():
-    return ['admin', 'dedicated-project-admin', 'dedicated-admins-project']
+    return ['admin', 'dedicated-project-admin', 'dedicated-admins-project',
+            'ClusterRole/admin', 'ClusterRole/dedicated-admins-project']
 
 
 def get_expected_rolebindings():
