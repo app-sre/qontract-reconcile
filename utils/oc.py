@@ -167,6 +167,10 @@ class OC(object):
         cmd = ['adm', 'groups', 'remove-users', group, user]
         self._run(cmd)
 
+    def sa_get_token(self, namespace, name):
+        cmd = ['sa', '-n', namespace, 'get-token', name]
+        return self._run(cmd)
+
     @staticmethod
     def get_service_account_username(user):
         namespace = user.split('/')[0]

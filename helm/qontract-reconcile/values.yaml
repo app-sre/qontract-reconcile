@@ -164,6 +164,15 @@ integrations:
       cpu: 1000m
   extraArgs: --external
   logs: true
+- name: openshift-serviceaccount-tokens
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  extraArgs: --vault-output-path app-sre/integrations-output
 - name: terraform-resources
   resources:
     requests:

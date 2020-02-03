@@ -269,6 +269,32 @@ NAMESPACES_QUERY = """
         type
       }
     }
+    openshiftServiceAccountTokens {
+      namespace {
+        name
+        cluster {
+          name
+          serverUrl
+          jumpHost {
+              hostname
+              knownHosts
+              user
+              port
+              identity {
+                  path
+                  field
+                  format
+              }
+          }
+          automationToken {
+            path
+            field
+            format
+          }
+        }
+      }
+      serviceAccountName
+    }
   }
 }
 """
