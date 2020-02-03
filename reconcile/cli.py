@@ -16,6 +16,7 @@ import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
+import reconcile.openshift_serviceaccount_tokens
 import reconcile.quay_membership
 import reconcile.quay_mirror
 import reconcile.quay_repos
@@ -271,6 +272,19 @@ def openshift_groups(ctx, thread_pool_size, internal):
 def openshift_users(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
                     thread_pool_size, internal)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@vault_output_path
+@click.pass_context
+def openshift_serviceaccount_tokens(ctx, thread_pool_size, internal,
+                                    vault_output_path):
+    run_integration(reconcile.openshift_serviceaccount_tokens.run,
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    vault_output_path)
 
 
 @integration.command()
