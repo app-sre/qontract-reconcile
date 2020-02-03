@@ -1,12 +1,11 @@
 import semver
 import base64
 
-import utils.gql as gql
+import utils.vault_client as vault_client
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import (OpenshiftResource as OR,
-                                      ResourceKeyExistsError)
+from utils.openshift_resource import OpenshiftResource as OR
 from utils.defer import defer
 
 
@@ -88,5 +87,5 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(namespaces, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)
-    if vault_output_path:
+    if not dry_run and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
