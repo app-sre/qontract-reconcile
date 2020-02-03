@@ -329,7 +329,7 @@ class TerrascriptClient(object):
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_name = pg_values['name']
-            pg_identifier = pg_values.pop('identifier') or pg_name
+            pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
