@@ -33,12 +33,4 @@ def run(defer=None):
         for project in projects:
             logging.info("[{}/{}] validating RoleBindings".format(
                 cluster, project))
-            rolebindings = oc.get(project, 'RoleBinding')['items']
-            project_rbs = [rb for rb in rolebindings
-                           if rb.get('groupNames') ==
-                           dat.get_dedicated_admin_groups()
-                           or rb['roleRef']['name']
-                           in dat.get_expected_roles()]
-            roles = {rb['roleRef']['name'] for rb in project_rbs}
-            assert len(roles) == 2
-            assert 'admin' in roles
+            dat.test_project_admin_rolebindings(oc, project)
