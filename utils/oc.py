@@ -188,13 +188,13 @@ class OC(object):
         supported_kinds = ['Secret']
         if dep_kind not in supported_kinds:
             logging.debug(['skipping_pod_recycle_unsupported',
-                             namespace, dep_kind])
+                           namespace, dep_kind])
             return
 
         dep_annotations = dep_resource.body['metadata'].get('annotations', {})
         if dep_annotations.get('qontract.recycle') != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
-                             namespace, dep_kind])
+                           namespace, dep_kind])
             return
 
         dep_name = dep_resource.name
