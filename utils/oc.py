@@ -177,10 +177,17 @@ class OC(object):
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
 
-    def recycle_pods(self, namespace, dep_kind, dep_name):
+    def recycle_pods(self, dry_run, namespace, dep_kind, dep_name):
         """ recycles pods which are using the specified resources.
-        dep_kind: dependant resource type. currently only supports Secret.
+        dry_run: simulate pods recycle.
+        namespace: namespace in which dependant resource is applied.
+        dep_kind: dependant resource kind. currently only supports Secret.
         dep_name: name of the dependant resource. """
+
+        supported_kinds = ['Secret']
+        if dep_kind not in supported_kinds:
+            logging.debug('skipping_pod_recycle', namespace, dep_kind)
+            return
 
         pods = self.get(namespace, 'Pods')['items']
 
@@ -192,10 +199,11 @@ class OC(object):
 
         for pod in pods_to_recycle:
             logging.info(['recycle_pod', namespace, pod])
-            self.delete(namespace, 'Pod', pod)
-            logging.info(['validating_pods', namespace])
-            self.validate_pods_ready(
-                namespace, self.secret_used_in_pod, dep_name)
+            if not dry_run:
+                self.delete(namespace, 'Pod', pod)
+                logging.info(['validating_pods', namespace])
+                self.validate_pods_ready(
+                    namespace, self.secret_used_in_pod, dep_name)
 
     @staticmethod
     def secret_used_in_pod(secret_name, pod):
