@@ -176,9 +176,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
           recycle_pods):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
+    oc = oc_map.get(cluster)
     if not dry_run:
         annotated = resource.annotate()
-        oc = oc_map.get(cluster)
         # skip if namespace does not exist (as it will soon)
         # do not skip if this is a cluster scoped integration
         if namespace != 'cluster' and not oc.project_exists(namespace):
@@ -187,8 +187,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             return
 
         oc.apply(namespace, annotated.toJSON())
-        if recycle_pods:
-            oc.recycle_pods(namespace, resource_type, resource.name)
+
+    if recycle_pods:
+        oc.recycle_pods(dry_run, namespace, resource_type, resource.name)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,

@@ -496,7 +496,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     # only applicable for openshift-resources
     ob.check_unused_resource_types(ri)
 
-    ob.realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri,
+                    recycle_pods=False)
 
     if ri.has_error_registered():
         sys.exit(1)
