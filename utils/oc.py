@@ -177,18 +177,27 @@ class OC(object):
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
 
-    def recycle_pods(self, dry_run, namespace, dep_kind, dep_name):
+    def recycle_pods(self, dry_run, namespace, dep_kind, dep_resource):
         """ recycles pods which are using the specified resources.
+        will only act on Secrets containing the 'qontract.recycle' annotation.
         dry_run: simulate pods recycle.
         namespace: namespace in which dependant resource is applied.
         dep_kind: dependant resource kind. currently only supports Secret.
-        dep_name: name of the dependant resource. """
+        dep_resource: dependant resource. """
 
         supported_kinds = ['Secret']
         if dep_kind not in supported_kinds:
-            logging.debug('skipping_pod_recycle', namespace, dep_kind)
+            logging.debug(['skipping_pod_recycle_unsupported',
+                             namespace, dep_kind])
             return
 
+        dep_annotations = dep_resource.body['metadata'].get('annotations', {})
+        if dep_annotations.get('qontract.recycle') != 'true':
+            logging.debug(['skipping_pod_recycle_no_annotation',
+                             namespace, dep_kind])
+            return
+
+        dep_name = dep_resource.name
         pods = self.get(namespace, 'Pods')['items']
 
         if dep_kind == 'Secret':
