@@ -247,8 +247,7 @@ def run(dry_run=False, enable_deletion=False):
                              cluster=query['cluster'],
                              namespace=query['namespace']['name'],
                              resource_type='job',
-                             resource=job_resource,
-                             recycle_pods=False)
+                             resource=job_resource)
 
         if not dry_run:
             state[query_name] = time.time()

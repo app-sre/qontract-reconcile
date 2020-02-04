@@ -234,8 +234,7 @@ def run(dry_run=False, print_only=False,
 
     tf.populate_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri,
-                    enable_deletion=enable_deletion,
-                    recycle_pods=True)
+                    enable_deletion=enable_deletion)
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
     if vault_output_path:
