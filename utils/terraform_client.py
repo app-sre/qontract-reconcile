@@ -308,6 +308,9 @@ class TerraformClient(object):
             "type": "Opaque",
             "metadata": {
                 "name": name,
+                "annotations": {
+                    "qontract.recycle": "true"
+                }
             },
             "data": {}
         }
