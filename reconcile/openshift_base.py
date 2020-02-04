@@ -187,8 +187,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
         oc.apply(namespace, annotated.toJSON())
 
-    # TODO: uncomment this after secrets are applied for the first time
-    # oc.recycle_pods(dry_run, namespace, resource_type, resource)
+    oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
