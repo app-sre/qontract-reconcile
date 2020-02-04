@@ -172,8 +172,7 @@ def fetch_current_state(namespaces=None,
     return ri, oc_map
 
 
-def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
-          recycle_pods):
+def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
@@ -188,8 +187,8 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
         oc.apply(namespace, annotated.toJSON())
 
-    if recycle_pods:
-        oc.recycle_pods(dry_run, namespace, resource_type, resource.name)
+    # TODO: uncomment this after secrets are applied for the first time
+    # oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
@@ -219,7 +218,6 @@ def check_unused_resource_types(ri):
 
 def realize_data(dry_run, oc_map, ri,
                  enable_deletion=True,
-                 recycle_pods=False,
                  take_over=False):
     for cluster, namespace, resource_type, data in ri:
         # desired items
@@ -261,7 +259,7 @@ def realize_data(dry_run, oc_map, ri,
 
             try:
                 apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item, recycle_pods)
+                      resource_type, d_item)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {}".format(cluster, namespace, str(e))
