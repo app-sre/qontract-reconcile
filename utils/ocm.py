@@ -63,7 +63,8 @@ class OCM(object):
                 'nodes': cluster['nodes']['compute'],
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
-                'storage': int(cluster['storage_quota']['value'] / pow(1024, 3)),
+                'storage':
+                    int(cluster['storage_quota']['value'] / pow(1024, 3)),
                 'load_balancers': cluster['load_balancer_quota']
             },
             'network': {
