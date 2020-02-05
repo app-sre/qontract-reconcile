@@ -168,6 +168,8 @@ CLUSTERS_QUERY = """
       multi_az
       nodes
       instance_type
+      storage
+      load_balancers
     }
     network {
       vpc
