@@ -265,10 +265,8 @@ class TerrascriptClient(object):
             return err
 
     def populate_resources(self, namespaces, existing_secrets):
-        populate_specs = self.init_populate_specs(namespaces)
-        threaded.run(self.populate_tf_resources, populate_specs,
-                     self.thread_pool_size,
-                     existing_secrets=existing_secrets)
+        for spec in self.init_populate_specs(namespaces):
+            self.populate_tf_resources(spec, existing_secrets)
 
     def init_populate_specs(self, namespaces):
         populate_specs = []
