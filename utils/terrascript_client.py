@@ -917,8 +917,8 @@ class TerrascriptClient(object):
                     "Effect": "Allow",
                     "Principal": {
                         "CanonicalUser": "${" +
-                               cf_oai_tf_resource.fullname +
-                               ".s3_canonical_user_id}"
+                                         cf_oai_tf_resource.fullname +
+                                         ".s3_canonical_user_id}"
                     },
                     "Action": "s3:*Object",
                     "Resource":
