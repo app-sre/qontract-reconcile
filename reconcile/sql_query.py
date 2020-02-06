@@ -36,10 +36,10 @@ spec:
           - /bin/bash
         args:
           - "-c"
-          - "docker-entrypoint.sh \
+          - 'docker-entrypoint.sh \
 {{ CMD }} {{ ENGINE }}://$(db.user):$(db.password)@\
 $(db.host):$(db.port)/$(db.name) \
---command '{{ QUERY }}'{{ OUTPUT_SUFFIX }}"
+--command "{{ QUERY }}"{{ OUTPUT_SUFFIX }}'
         env:
           {% for key, value in DB_CONN.items() %}
           {% if value is none %}
@@ -154,7 +154,7 @@ def collect_queries(query_name=None):
                 'identifier': sql_query['identifier'],
                 'db_conn': db_conn,
                 'output': output,
-                'query': sql_query['query'],
+                'query': sql_query['query'].replace("'", "''"),
                 **tf_resource_info,
             }
         )
