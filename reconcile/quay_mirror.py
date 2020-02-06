@@ -7,6 +7,7 @@ from collections import defaultdict
 
 from reconcile import queries
 from utils.container import Image
+from utils.container import ImageComparisonError
 from utils import gql
 from utils import secret_reader
 from utils import skopeo
@@ -116,9 +117,13 @@ class QuayMirror:
                                    downstream, upstream)
                         continue
 
-                    if downstream == upstream:
-                        _LOG.debug('Image %s and mirror %s are in sync',
-                                   downstream, upstream)
+                    try:
+                        if downstream == upstream:
+                            _LOG.debug('Image %s and mirror %s are in sync',
+                                       downstream, upstream)
+                            continue
+                    except ImageComparisonError as details:
+                        _LOG.error('[%s]', details)
                         continue
 
                     _LOG.debug('Image %s and mirror %s are out of sync',

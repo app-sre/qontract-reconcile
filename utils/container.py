@@ -10,6 +10,18 @@ from utils.retry import retry
 _LOG = logging.getLogger(__name__)
 
 
+class ImageComparisonError(Exception):
+    """
+    Used when the comparison between images is not possible.
+    """
+
+
+class ImageManifestError(Exception):
+    """
+    Used when the image manifest can't be retrieved or parsed.
+    """
+
+
 class Image:
     """
     Represents a container image.
@@ -59,8 +71,8 @@ class Image:
         try:
             manifest = self.get_manifest()
             other_manifest = other.get_manifest()
-        except requests.exceptions.HTTPError:
-            return False
+        except ImageManifestError as details:
+            raise ImageComparisonError(details)
 
         if (manifest['history'][0]['v1Compatibility'] ==
                 other_manifest['history'][0]['v1Compatibility']):
@@ -209,8 +221,12 @@ class Image:
         """
         url = (f'{self.registry_api}/v2/{self.repository}/'
                f'{self.image}/manifests/{self.tag}')
-        response = self._request_get(url)
-        return response.json()
+        try:
+            response = self._request_get(url)
+            return response.json()
+        except (requests.exceptions.HTTPError,
+                json.decoder.JSONDecodeError):
+            raise ImageManifestError(f"{self} can't access image manifest")
 
     @staticmethod
     def _parse_image_url(image_url):
