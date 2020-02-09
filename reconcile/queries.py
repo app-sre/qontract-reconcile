@@ -438,3 +438,59 @@ def get_app_interface_sql_queries():
     """ Returns SqlQuery resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
+
+
+SAAS_FILES_QUERY = """
+{
+  saas_files: saas_files_v1 {
+    name
+    app {
+      name
+    }
+    managedResourceTypes
+    resourceTemplates {
+      url
+      path
+      hash_length
+      parameters
+      targets {
+        namespace {
+          name
+          cluster {
+            name
+            serverUrl
+            jumpHost {
+                hostname
+                knownHosts
+                user
+                port
+                identity {
+                    path
+                    field
+                    format
+                }
+            }
+            automationToken {
+              path
+              field
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        hash
+        parameters
+      }
+    }
+  }
+}
+"""
+
+
+def get_saas_files():
+    """ Returns SaasFile resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(SAAS_FILES_QUERY)['saas_files']
