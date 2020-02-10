@@ -44,6 +44,8 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
