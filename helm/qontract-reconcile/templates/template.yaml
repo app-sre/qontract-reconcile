@@ -44,8 +44,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -95,6 +93,8 @@ objects:
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           {{- if $integration.logs }}
           - name: LOG_FILE
             value: "${LOG_FILE}"

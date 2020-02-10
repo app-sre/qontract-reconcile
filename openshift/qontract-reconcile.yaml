@@ -35,6 +35,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 50m
@@ -79,6 +81,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 25m
@@ -131,8 +135,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -181,6 +183,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -255,8 +259,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -305,6 +307,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -379,8 +383,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -429,6 +431,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -503,8 +507,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -553,6 +555,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -627,8 +631,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -677,6 +679,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -743,6 +747,8 @@ objects:
             value: "--thread-pool-size 1"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -792,6 +798,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -849,8 +857,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -899,6 +905,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -973,8 +981,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1023,6 +1029,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1089,6 +1097,8 @@ objects:
             value: "--external"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 350m
@@ -1141,8 +1151,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1191,6 +1199,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1265,8 +1275,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1315,6 +1323,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1389,8 +1399,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1439,6 +1447,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1513,8 +1523,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1563,6 +1571,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1629,6 +1639,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 150m
@@ -1673,6 +1685,8 @@ objects:
             value: "--external"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 1000m
@@ -1717,6 +1731,8 @@ objects:
             value: "--vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 200m
@@ -1769,8 +1785,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1819,6 +1833,8 @@ objects:
             value: "--external --vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1893,8 +1909,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1943,6 +1957,8 @@ objects:
             value: "--io-dir /tmp/throughput/"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -2009,6 +2025,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 25m
@@ -2053,6 +2071,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           resources:
             limits:
               cpu: 25m
@@ -2105,8 +2125,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2155,6 +2173,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -2236,8 +2256,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2286,6 +2304,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -2360,8 +2380,6 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2410,6 +2428,8 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            value: ${GITHUB_API}
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
