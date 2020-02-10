@@ -1,3 +1,4 @@
+import os
 import requests
 
 from utils.retry import retry
@@ -11,7 +12,7 @@ class RawGithubApi(object):
     checking pending invitations
     """
 
-    BASE_URL = "https://api.github.com"
+    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
     BASE_HEADERS = {
         'Accept': 'application/vnd.github.v3+json,'
         'application/vnd.github.dazzler-preview+json'
