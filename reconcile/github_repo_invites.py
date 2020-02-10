@@ -30,6 +30,7 @@ def run(dry_run):
               'field': config['secret_field']}
     token = secret_reader.read(secret, settings=settings)
     g = utils.raw_github_api.RawGithubApi(token)
+    g.BASE_URL = os.environ['GITHUB_API']
 
     urls = []
     for app in result['apps_v1']:
