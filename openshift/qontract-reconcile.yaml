@@ -2442,3 +2442,5 @@ parameters:
   value: "sd-app-sre-reconcile-stage"
 - name: SLACK_ICON_EMOJI
   value: ":bust_in_silhouette:"
+- name: GITHUB_API
+  value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
