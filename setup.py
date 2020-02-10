@@ -24,7 +24,7 @@ setup(
         "requests>=2.21.0,<2.22.0",
         "hvac>=0.7.0,<0.8.0",
         "ldap3>=2.5.2,<2.6.0",
-        "anymarkup>=0.7.0,<0.8.0",
+        "anymarkup>=0.8.0,<0.9.0",
         "python-gitlab>=1.11.0,<1.12.0",
         "semver>=2.8.0,<2.9.0",
         "python-terraform>=0.10.0,<0.11.0",
@@ -39,7 +39,8 @@ setup(
         "pyOpenSSL>=19.0.0,<20.0.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
         "terrascript>=0.6.1,<0.7.0",
-        "tabulate>=0.8.6,<0.9.0"
+        "tabulate>=0.8.6,<0.9.0",
+        "manifest-bouncer>=0.1.0,<0.2.0"
     ],
 
     test_suite="tests",
