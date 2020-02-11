@@ -1774,7 +1774,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-saas-deploy
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--external"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API

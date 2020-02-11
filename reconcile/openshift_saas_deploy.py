@@ -15,19 +15,21 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def init_gh_gl():
+def init_gh_gl(internal):
     # use unauthenticated GitHub for now, through github-mirror
     BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
     gh = Github(base_url=BASE_URL)
-    instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, settings=settings)
+    gl = None
+    if internal:
+        instance = queries.get_gitlab_instance()
+        settings = queries.get_app_interface_settings()
+        gl = GitLabApi(instance, settings=settings)
     return gh, gl
 
 
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
-    gh, gl = init_gh_gl()
+    gh, gl = init_gh_gl(internal)
     saas_files = queries.get_saas_files()
     saasherder = SaasHerder(
         saas_files,
