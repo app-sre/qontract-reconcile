@@ -232,6 +232,15 @@ def realize_data(dry_run, oc_map, ri,
                     ).format(cluster, namespace, resource_type, name)
                     logging.info(msg)
 
+                # don't apply if resources match
+                elif d_item == c_item:
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present "
+                        "and matches desired, skipping."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.debug(msg)
+                    continue
+
                 # don't apply if sha256sum hashes match
                 elif c_item.sha256sum() == d_item.sha256sum():
                     if c_item.has_valid_sha256sum():
