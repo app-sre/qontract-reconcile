@@ -34,10 +34,11 @@ class OpenshiftResource(object):
     def obj_intersect_equal(self, obj1, obj2):
         if obj1.__class__ != obj2.__class__:
             return False
-        elif isinstance(obj1, dict):
+
+        if isinstance(obj1, dict):
             for obj1_k, obj1_v in obj1.items():
                 obj2_v = obj2.get(obj1_k, None)
-                if not obj2_v:
+                if obj2_v is None:
                     return False
                 if obj1_k == 'cpu':
                     equal = self.cpu_equal(obj1_v, obj2_v)
@@ -45,15 +46,16 @@ class OpenshiftResource(object):
                         return False
                 elif not self.obj_intersect_equal(obj1_v, obj2_v):
                     return False
-        elif isinstance(obj1, list):
+
+        if isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
             for i in range(len(obj1)):
                 if not self.obj_intersect_equal(obj1[i], obj2[i]):
                     return False
-        else:
-            if obj1 != obj2:
-                return False
+
+        if obj1 != obj2:
+            return False
 
         return True
 
