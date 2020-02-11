@@ -1,21 +1,26 @@
 import yaml
 import json
 
-from checks.registry_quay import CheckRegistryQuay
-
+from utils.oc import OC
 from utils.openshift_resource import OpenshiftResource as OR
 
 
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
-    def __init__(self, saas_files, github, gitlab=None, internal=None):
+    def __init__(self, saas_files,
+                 github=None,
+                 gitlab=None,
+                 integration=None,
+                 integration_version=None):
         self.saas_files = saas_files
         self.github = github
         self.gitlab = gitlab
+        self.integration = integration
+        self.integration_version = integration_version
         self._collect_namespaces()
 
-    def _collect_namespaces(self, saas_files):
+    def _collect_namespaces(self):
         # namespaces may appear more then once in the result
         namespaces = []
         for saas_file in self.saas_files:
@@ -38,7 +43,49 @@ class SaasHerder():
             parameters = json.loads(parameters)
         return parameters
 
-    def populate_desired_state(self, ri, oc_map):
+    def _get_file_contents(self, url, path, ref):
+        # TODO: take internal into consideration later
+        if 'github' in url:
+            repo_name = url.rstrip("/").replace('https://github.com/', '')
+            repo = self.github.get_repo(repo_name)
+            f = repo.get_contents(path, ref)
+            return f.decoded_content
+        elif 'gitlab' in url:
+            project = self.gitlab.get_project(url)
+            f = project.files.get(file_path=path, ref=ref)
+            return f.decode()
+
+    def _get_image_tag(self, url, ref, hash_length):
+        commit_sha = ''
+        if 'github' in url:
+            repo_name = url.rstrip("/").replace('https://github.com/', '')
+            repo = self.github.get_repo(repo_name)
+            commit = repo.get_commit(sha=ref)
+            commit_sha = commit.sha
+        elif 'gitlab' in url:
+            project = self.gitlab.get_project(url)
+            commits = project.commits.list(ref_name=ref)
+            commit_sha = commits[0].id
+        return commit_sha[:hash_length]
+
+    def _process_template(self, url, path, hash_length, target, parameters):
+        cluster = target['namespace']['cluster']['name']
+        namespace = target['namespace']['name']
+        target_hash = target['hash']
+        target_parameters = self._collect_parameters(target)
+        target_parameters.update(parameters)
+        content = self._get_file_contents(url, path, target_hash)
+        template = yaml.safe_load(content)
+        for template_parameter in template['parameters']:
+            if template_parameter['name'] == 'IMAGE_TAG':
+                # add IMAGE_TAG only if it is required
+                image_tag = self._get_image_tag(url, target_hash, hash_length)
+                target_parameters['IMAGE_TAG'] = image_tag
+        oc = OC('server', 'token')
+        resources = oc.process(template, target_parameters)
+        return cluster, namespace, resources
+
+    def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
@@ -50,20 +97,20 @@ class SaasHerder():
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
                 for target in rt['targets']:
-                    resources, cluster, namespace = \
-                        collect_resources(url, path, hash_length,
-                                        target, parameters,
-                                        gh, gl, oc_map)
+                    cluster, namespace, resources = \
+                        self._process_template(url, path, hash_length,
+                                               target, parameters)
                     # add desired resources
                     for resource in resources:
                         resource_kind = resource['kind']
                         if resource_kind not in managed_resource_types:
                             continue
                         resource_name = resource['metadata']['name']
-                        oc_resource = OR(resource,
-                                        QONTRACT_INTEGRATION,
-                                        QONTRACT_INTEGRATION_VERSION,
-                                        error_details=resource_name)
+                        oc_resource = OR(
+                            resource,
+                            self.integration,
+                            self.integration_version,
+                            error_details=resource_name)
                         ri.add_desired(
                             cluster,
                             namespace,
@@ -71,64 +118,3 @@ class SaasHerder():
                             resource_name,
                             oc_resource
                         )
-
-    def get_github_file_contents(url, path, ref, gh):
-        repo_name = url.rstrip("/").replace('https://github.com/', '')
-        repo = gh.get_repo(repo_name)
-        f = repo.get_contents(path, ref)
-        return f.decoded_content
-
-    def get_gitlab_file_contents(url, path, ReferenceError, gl):
-        project = gl.get_project(url)
-        f = project.files.get(file_path=path, ref=ref)
-        return f.decode()
-
-    def get_file_contents(url, path, ref, gh, gl):
-        if 'github' in url:
-            return get_github_file_contents(url, path, ref, gh)
-        elif 'gitlab' in url:
-            return get_gitlab_file_contents(url, path, ref, gl)
-
-
-    def get_github_commit(url, ref, gh):
-        repo_name = url.rstrip("/").replace('https://github.com/', '')
-        repo = gh.get_repo(repo_name)
-        commit = repo.get_commit(sha=ref)
-        return commit.sha
-
-
-    def get_gitlab_commit(url, ref, gl):
-        project = gl.get_project(url)
-        commits = project.commits.list(ref_name=ref)
-        return commits[0].id
-
-
-    def get_image_tag(url, ref, hash_length, gh, gl):
-        if 'github' in url:
-            commit = get_github_commit(url, ref, gh)
-        elif 'gitlab' in url:
-            commit = get_gitlab_commit(url, ref, gl)
-        return commit[:hash_length]
-
-
-
-
-    def collect_resources(url, path, hash_length, target, parameters):
-        namespace_info = target['namespace']
-        namespace_name = namespace_info['name']
-        cluster_info = namespace_info['cluster']
-        cluster_name = cluster_info['name']
-        target_hash = target['hash']
-        # take internal into consideration later
-        content = get_file_contents(url, path, target_hash, gh, gl)
-        template = yaml.safe_load(content)
-        # collect parameters
-        target_parameters = collect_parameters(target)
-        target_parameters.update(parameters)
-        # add IMAGE_TAG
-        image_tag = get_image_tag(url, target_hash, hash_length, gh, gl)
-        target_parameters['IMAGE_TAG'] = image_tag
-        # process template
-        oc = oc_map.get(cluster_name)
-        resources = oc.process(template, target_parameters)
-        return resources, cluster_name, namespace_name
