@@ -1,3 +1,4 @@
+import os
 import semver
 
 import reconcile.queries as queries
@@ -15,8 +16,9 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def init_gh_gl():
-    # use unauthenticated GitHub for now
-    gh = Github()
+    # use unauthenticated GitHub for now, through github-mirror
+    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
+    gh = Github(base_url=BASE_URL)
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
