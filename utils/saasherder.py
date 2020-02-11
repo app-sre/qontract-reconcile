@@ -18,7 +18,7 @@ class SaasHerder():
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
-        self._collect_namespaces()
+        self.namespaces = self._collect_namespaces()
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
@@ -34,7 +34,7 @@ class SaasHerder():
                     # add it to each namespace in the current saas_file
                     namespace['managedResourceTypes'] = managed_resource_types
                     namespaces.append(namespace)
-        self.namespaces = namespaces
+        return namespaces
 
     @staticmethod
     def _collect_parameters(container):
