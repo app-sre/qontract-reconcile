@@ -35,6 +35,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
+- `openshift-saas-deploy`: Manage OpenShift resources defined in Saas files (SaasHerder).
 - `openshift-serviceaccount-tokens`: Use OpenShift ServiceAccount tokens across namespaces/clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
