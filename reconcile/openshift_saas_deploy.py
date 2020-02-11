@@ -1,0 +1,47 @@
+import os
+import semver
+
+import reconcile.queries as queries
+import reconcile.openshift_base as ob
+
+from github import Github
+
+from utils.gitlab_api import GitLabApi
+from utils.saasherder import SaasHerder
+from utils.defer import defer
+
+
+QONTRACT_INTEGRATION = 'openshift-saas-deploy'
+QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+
+
+def init_gh_gl():
+    # use unauthenticated GitHub for now, through github-mirror
+    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
+    gh = Github(base_url=BASE_URL)
+    instance = queries.get_gitlab_instance()
+    settings = queries.get_app_interface_settings()
+    gl = GitLabApi(instance, settings=settings)
+    return gh, gl
+
+
+@defer
+def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+    gh, gl = init_gh_gl()
+    saas_files = queries.get_saas_files()
+    saasherder = SaasHerder(
+        saas_files,
+        github=gh,
+        gitlab=gl,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION)
+    ri, oc_map = ob.fetch_current_state(
+        namespaces=saasherder.namespaces,
+        thread_pool_size=thread_pool_size,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        internal=internal)
+    defer(lambda: oc_map.cleanup())
+    saasherder.populate_desired_state(ri)
+    ob.realize_data(dry_run, oc_map, ri,
+                    enable_deletion=False)

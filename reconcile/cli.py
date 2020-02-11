@@ -17,6 +17,7 @@ import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
 import reconcile.openshift_serviceaccount_tokens
+import reconcile.openshift_saas_deploy
 import reconcile.quay_membership
 import reconcile.quay_mirror
 import reconcile.quay_repos
@@ -398,6 +399,16 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_resources.run,
+                    ctx.obj['dry_run'], thread_pool_size, internal)
+
+
+@integration.command()
+@threaded(default=20)
+@binary(['oc', 'ssh'])
+@internal()
+@click.pass_context
+def openshift_saas_deploy(ctx, thread_pool_size, internal):
+    run_integration(reconcile.openshift_saas_deploy.run,
                     ctx.obj['dry_run'], thread_pool_size, internal)
 
 
