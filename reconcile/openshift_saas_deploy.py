@@ -1,10 +1,10 @@
-import logging
 import semver
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
-from reconcile.github_users import init_github
+from github import Github
+
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
 from utils.defer import defer
@@ -15,7 +15,8 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def init_gh_gl():
-    gh = init_github()
+    # use unauthenticated GitHub for now
+    gh = Github()
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
