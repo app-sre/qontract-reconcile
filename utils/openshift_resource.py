@@ -28,6 +28,48 @@ class OpenshiftResource(object):
         self.error_details = error_details
         self.verify_valid_k8s_object()
 
+    def __eq__(self, other):
+        return self.obj_intersect_equal(self.body, other.body)
+
+    def obj_intersect_equal(self, obj1, obj2):
+        if obj1.__class__ != obj2.__class__:
+            return False
+        elif isinstance(obj1, dict):
+            for obj1_k, obj1_v in obj1.items():
+                obj2_v = obj2.get(obj1_k, None)
+                if not obj2_v:
+                    return False
+                if obj1_k == 'cpu':
+                    equal = self.cpu_equal(obj1_v, obj2_v)
+                    if not equal:
+                        return False
+                elif not self.obj_intersect_equal(obj1_v, obj2_v):
+                    return False
+        elif isinstance(obj1, list):
+            if len(obj1) != len(obj2):
+                return False
+            for i in range(len(obj1)):
+                if not self.obj_intersect_equal(obj1[i], obj2[i]):
+                    return False
+        else:
+            if obj1 != obj2:
+                return False
+
+        return True
+
+    @staticmethod
+    def cpu_equal(val1, val2):
+        # normalize both to string
+        try:
+            val1 = f"{int(float(val1) * 1000)}m"
+        except Exception:
+            pass
+        try:
+            val2 = f"{int(float(val2) * 1000)}m"
+        except Exception:
+            pass
+        return val1 == val2
+
     @property
     def name(self):
         return self.body['metadata']['name']
