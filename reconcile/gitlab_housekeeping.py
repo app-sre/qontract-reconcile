@@ -77,12 +77,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit):
-    HOLD_LABELS = [
-        'blocked/devtools-bot-access',
-        'do-not-merge/hold',
-        'awaiting-approval',
-        'stale'
-    ]
+    REBASE_LABELS = ['lgtm', 'automerge']
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for mr in reversed(mrs):
@@ -90,15 +85,19 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
             continue
         if mr.work_in_progress:
             continue
-        labels = mr.attributes.get('labels')
-        hold_rebase = any(l in HOLD_LABELS for l in labels)
-        if hold_rebase:
-            continue
 
         target_branch = mr.target_branch
         head = gl.project.commits.list(ref_name=target_branch)[0].id
         result = gl.project.repository_compare(mr.sha, head)
         if len(result['commits']) == 0:  # rebased
+            continue
+
+        labels = mr.attributes.get('labels')
+        if not labels:
+            continue
+
+        good_to_rebase = all(l in REBASE_LABELS for l in labels)
+        if not good_to_rebase:
             continue
 
         logging.info(['rebase', gl.project.name, mr.iid])
@@ -166,5 +165,5 @@ def run(gitlab_project_id, dry_run=False, days_interval=15,
                        'issue')
     handle_stale_items(dry_run, gl, days_interval, enable_closing,
                        'merge-request')
-    rebase_merge_requests(dry_run, gl, limit)
     merge_merge_requests(dry_run, gl, limit)
+    rebase_merge_requests(dry_run, gl, limit)
