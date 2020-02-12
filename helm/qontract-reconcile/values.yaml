@@ -64,10 +64,10 @@ integrations:
   resources:
     requests:
       memory: 50Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 150Mi
-      cpu: 25m
+      cpu: 200m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
