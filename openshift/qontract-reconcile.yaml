@@ -756,10 +756,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 150Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
