@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 
@@ -15,11 +16,14 @@ from requests.exceptions import ReadTimeout
 from utils.retry import retry
 
 
+GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
+
+
 def init_github():
     config = get_config()
     github_config = config['github']
     token = github_config['app-sre']['token']
-    return Github(token)
+    return Github(token, base_url=GH_BASE_URL)
 
 
 @retry(exceptions=(GithubException, ReadTimeout))

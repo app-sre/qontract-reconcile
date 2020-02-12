@@ -1,4 +1,5 @@
 import logging
+import os
 from github import Github
 from github.GithubObject import NotSet
 
@@ -12,6 +13,9 @@ from utils.raw_github_api import RawGithubApi
 from utils.retry import retry
 from utils.oc import OC_Map
 from utils.defer import defer
+
+
+GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 
 ORGS_QUERY = """
 {
@@ -212,8 +216,8 @@ class GHApiStore(object):
         for org_name, org_config in config['github'].items():
             token = org_config['token']
             managed_teams = org_config.get('managed_teams', None)
-            self._orgs[org_name] = \
-                (Github(token), RawGithubApi(token), managed_teams)
+            self._orgs[org_name] = (Github(token, base_url=GH_BASE_URL),
+                                    RawGithubApi(token), managed_teams)
 
     def orgs(self):
         return self._orgs.keys()
