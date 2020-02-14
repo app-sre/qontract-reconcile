@@ -33,7 +33,7 @@ class OC(object):
     def __init__(self, server, token, jh=None, settings=None):
         oc_base_cmd = [
             'oc',
-            '--config', '/dev/null',
+            '--kubeconfig', '/dev/null',
             '--server', server,
             '--token', token
         ]
