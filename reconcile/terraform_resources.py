@@ -136,11 +136,11 @@ def populate_oc_resources(spec, ri):
                 openshift_resource
             )
     except StatusCodeError as e:
-        msg = 'cluster: {}, '
+        msg = 'cluster: {},'
         msg += 'namespace: {},'
         msg += 'resource: {}.'
-        msg = msg.format(spec.cluster, spec.namespace, spec.resource)
-        msg += " Exception: {}".format(str(e))
+        msg += "exception: {}"
+        msg = msg.format(spec.cluster, spec.namespace, spec.resource, str(e))
         logging.error(msg)
 
 
