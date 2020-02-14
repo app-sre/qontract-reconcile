@@ -187,7 +187,12 @@ def run_integration(func, *args):
 
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+    format = '[%(asctime)s] [%(levelname)s] '
+    format += '[%(filename)s:%(funcName)s:%(lineno)d] '
+    format += '- %(message)s'
+    logging.basicConfig(format=format,
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=level)
 
 
 @click.group()

@@ -14,6 +14,7 @@ import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
 from utils.oc import OC_Map
+from utils.oc import StatusCodeError
 from utils.defer import defer
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ConstructResourceError,
@@ -460,15 +461,28 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
 
 
 def fetch_states(spec, ri):
-    if spec.type == "current":
-        fetch_current_state(spec.oc, ri, spec.cluster,
-                            spec.namespace, spec.resource,
-                            spec.resource_type_override,
-                            spec.resource_names)
-    if spec.type == "desired":
-        fetch_desired_state(spec.oc, ri, spec.cluster,
-                            spec.namespace, spec.resource,
-                            spec.parent)
+    try:
+
+        if spec.type == "current":
+            fetch_current_state(spec.oc, ri, spec.cluster,
+                                spec.namespace, spec.resource,
+                                spec.resource_type_override,
+                                spec.resource_names)
+        if spec.type == "desired":
+            fetch_desired_state(spec.oc, ri, spec.cluster,
+                                spec.namespace, spec.resource,
+                                spec.parent)
+
+    except StatusCodeError as e:
+        msg = 'cluster: {},'
+        msg += 'namespace: {},'
+        msg += 'resource_names: {},'
+        msg += 'exception: {}'
+        msg = msg.format(spec.cluster,
+                         spec.namespace,
+                         spec.resource_names,
+                         str(e))
+        logging.error(msg)
 
 
 def fetch_data(namespaces, thread_pool_size, internal):
