@@ -7,6 +7,7 @@ import reconcile.queries as queries
 
 from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
+from utils.oc import StatusCodeError
 from utils.defer import defer
 
 QUERY = """
@@ -67,9 +68,20 @@ def get_desired_state(internal):
 def check_ns_exists(spec, oc_map):
     cluster = spec['cluster']
     namespace = spec['namespace']
-    create = not oc_map.get(cluster).project_exists(namespace)
 
-    return spec, create
+    try:
+        create = not oc_map.get(cluster).project_exists(namespace)
+        return spec, create
+    except StatusCodeError as e:
+        msg = 'cluster: {},'
+        msg += 'namespace: {},'
+        msg += 'exception: {}'
+        msg = msg.format(cluster,
+                         namespace,
+                         str(e))
+        logging.error(msg)
+
+    return spec, None
 
 
 def create_new_project(spec, oc_map):
