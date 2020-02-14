@@ -138,8 +138,8 @@ def populate_oc_resources(spec, ri):
     except StatusCodeError as e:
         msg = 'cluster: {},'
         msg += 'namespace: {},'
-        msg += 'resource: {}'
-        msg += ' exception: {}'
+        msg += 'resource: {},'
+        msg += 'exception: {}'
         msg = msg.format(spec.cluster, spec.namespace, spec.resource, str(e))
         logging.error(msg)
 
