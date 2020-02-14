@@ -136,15 +136,12 @@ def populate_oc_resources(spec, ri):
                 openshift_resource
             )
     except StatusCodeError as e:
-        logging.error("[populate_oc_resources] :"+str(e))
-        if "You must be logged in to the server (Unauthorized)" in str(e):
-            msg = 'Unauthorized access for '
-            msg += 'cluster: {}, '
-            msg += 'namespace: {},'
-            msg += 'resource: {}.'
-            msg = msg.format(spec.cluster, spec.namespace, spec.resource)
-            msg += " Exception: {}".format(str(e))
-            logging.error(msg)
+        msg = 'cluster: {}, '
+        msg += 'namespace: {},'
+        msg += 'resource: {}.'
+        msg = msg.format(spec.cluster, spec.namespace, spec.resource)
+        msg += " Exception: {}".format(str(e))
+        logging.error(msg)
 
 
 def fetch_current_state(namespaces, thread_pool_size, internal):
