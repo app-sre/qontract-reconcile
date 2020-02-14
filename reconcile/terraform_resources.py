@@ -1,6 +1,7 @@
 import sys
 import shutil
 import semver
+import logging
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -14,6 +15,7 @@ from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.defer import defer
 from reconcile.aws_iam_keys import run as disable_keys
+from utils.oc import StatusCodeError
 
 TF_NAMESPACES_QUERY = """
 {
@@ -115,18 +117,31 @@ QONTRACT_TF_PREFIX = 'qrtf'
 def populate_oc_resources(spec, ri):
     if spec.oc is None:
         return
-    for item in spec.oc.get_items(spec.resource,
-                                  namespace=spec.namespace):
-        openshift_resource = OR(item,
-                                QONTRACT_INTEGRATION,
-                                QONTRACT_INTEGRATION_VERSION)
-        ri.add_current(
-            spec.cluster,
-            spec.namespace,
-            spec.resource,
-            openshift_resource.name,
-            openshift_resource
-        )
+
+    logging.debug("[populate_oc_resources] cluster: " + spec.cluster
+                  + " namespace: " + spec.namespace
+                  + " resource: " + spec.resource)
+
+    try:
+        for item in spec.oc.get_items(spec.resource,
+                                      namespace=spec.namespace):
+            openshift_resource = OR(item,
+                                    QONTRACT_INTEGRATION,
+                                    QONTRACT_INTEGRATION_VERSION)
+            ri.add_current(
+                spec.cluster,
+                spec.namespace,
+                spec.resource,
+                openshift_resource.name,
+                openshift_resource
+            )
+    except StatusCodeError as e:
+        msg = 'cluster: {},'
+        msg += 'namespace: {},'
+        msg += 'resource: {},'
+        msg += 'exception: {}'
+        msg = msg.format(spec.cluster, spec.namespace, spec.resource, str(e))
+        logging.error(msg)
 
 
 def fetch_current_state(namespaces, thread_pool_size, internal):

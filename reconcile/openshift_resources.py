@@ -26,7 +26,7 @@ from threading import Lock
 
 """
 +-----------------------+-------------------------+-------------+
-|   Current \ Desired   |         Present         | Not Present |
+|   Current / Desired   |         Present         | Not Present |
 +=======================+=========================+=============+
 | Present               | Apply if sha256sum      | Delete      |
 | (with annotations)    | is different or if      |             |
