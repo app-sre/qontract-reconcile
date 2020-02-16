@@ -2,6 +2,7 @@ import yaml
 import json
 
 from utils.oc import OC
+from utils.skopeo import Skopeo
 from utils.openshift_resource import OpenshiftResource as OR
 
 
@@ -85,6 +86,23 @@ class SaasHerder():
         resources = oc.process(template, target_parameters)
         return cluster, namespace, resources
 
+    def _collect_images(self, resources):
+        images = set()
+        for resource in resources:
+            try:
+                for c in resource["spec"]["template"]["spec"]["containers"]:
+                    images.add(c["image"])
+            except KeyError:
+                pass
+
+        return images
+
+    def _check_images(self, resources):
+        skopeo = Skopeo()
+        images = self._collect_images(resources)
+        for image in images:
+            skopeo.inspect(image)
+
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
             managed_resource_types = saas_file['managedResourceTypes']
@@ -100,6 +118,8 @@ class SaasHerder():
                     cluster, namespace, resources = \
                         self._process_template(url, path, hash_length,
                                                target, parameters)
+                    # check images
+                    self._check_images(resources)
                     # add desired resources
                     for resource in resources:
                         resource_kind = resource['kind']
