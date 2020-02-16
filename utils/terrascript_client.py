@@ -916,9 +916,9 @@ class TerrascriptClient(object):
                     "Sid": "Grant access to CloudFront Origin Identity",
                     "Effect": "Allow",
                     "Principal": {
-                        "CanonicalUser": "${" +
-                                         cf_oai_tf_resource.fullname +
-                                         ".s3_canonical_user_id}"
+                        "AWS": "${" +
+                               cf_oai_tf_resource.fullname +
+                               ".iam_arn}"
                     },
                     "Action": "s3:*Object",
                     "Resource":
