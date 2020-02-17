@@ -129,7 +129,8 @@ def populate_current_state(spec, ri, integration, integration_version):
     if spec.oc is None:
         return
     for item in spec.oc.get_items(spec.resource,
-                                  namespace=spec.namespace):
+                                  namespace=spec.namespace,
+                                  resource_names=spec.resource_names):
         openshift_resource = OR(item,
                                 integration,
                                 integration_version)

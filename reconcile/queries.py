@@ -245,6 +245,10 @@ NAMESPACES_QUERY = """
         version
       }
     }
+    managedResourceNames {
+      resource
+      resourceNames
+    }
     limitRanges {
       name
       limits {
