@@ -920,7 +920,7 @@ class TerrascriptClient(object):
                                cf_oai_tf_resource.fullname +
                                ".iam_arn}"
                     },
-                    "Action": "s3:*Object",
+                    "Action": "s3:GetObject",
                     "Resource":
                         [f"arn:aws:s3:::{identifier}/{enable_dir}/*"
                          for enable_dir
