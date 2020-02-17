@@ -208,7 +208,7 @@ class SentryClient:
 
     def set_user_teams(self, email, teams):
         user_list = self.get_user(email)
-        if len(user_list) > 0:
+        if len(user_list) > 1:
             raise ValueError("set_user_teams will only work for 1 user per "
                              f"e-mail. E-mail {email} has {len(user_list)} "
                              "accounts")
@@ -221,7 +221,7 @@ class SentryClient:
 
     def remove_user_from_teams(self, email, teams):
         user_list = self.get_user(email)
-        if len(user_list) > 0:
+        if len(user_list) > 1:
             raise ValueError("remove_user_from_teams will only work for 1 "
                              f"user per e-mail. E-mail {email} has "
                              f"{len(user_list)} accounts")
@@ -238,7 +238,7 @@ class SentryClient:
 
     def change_user_role(self, email, role):
         user_list = self.get_user(email)
-        if len(user_list) > 0:
+        if len(user_list) > 1:
             raise ValueError("change_user_role will only work for 1 user per "
                              f"e-mail. E-mail {email} has {len(user_list)} "
                              "accounts")
