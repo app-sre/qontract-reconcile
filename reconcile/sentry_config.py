@@ -115,9 +115,12 @@ class SentryState:
         self.teams = []
         # Map of team:projects_config[]
         self.projects = {}
+        # List of duplicate sentry user objects that should be deleted
+        self.dup_users = []
 
-    def init_users(self, users):
+    def init_users(self, users, dups=[]):
         self.users = users
+        self.dup_users = dups
 
     def init_users_from_desired_state(self, users):
         # Input is in the form of team:members[]
@@ -183,6 +186,13 @@ class SentryReconciler:
                 logging.info(["create_team", team, self.client.host])
                 if not self.dry_run:
                     self.client.create_team(team)
+
+        # Delete duplicate user accounts
+        for user in current.dup_users:
+            logging.info(["delete_duplicate_user", user['email'],
+                          user['id'], self.client.host])
+            if not self.dry_run:
+                self.client.delete_user_by_id(user['id'])
 
         # Reconcile users
         for user in current.users.keys():
@@ -346,19 +356,38 @@ def fetch_current_state(client, ignore_users):
     sentry_users = client.get_users()
     users = {}
     roles = {}
+    dup_users = []
     for sentry_user in sentry_users:
         user_name = sentry_user['email']
         if user_name in ignore_users:
             continue
-        user = client.get_user(user_name)
+        user, dups = find_active_account(client.get_user(user_name))
+        if len(dups) > 0:
+            for d in dups:
+                if d not in dup_users:
+                    dup_users.append(d)
         teams = []
         for team in user['teams']:
             teams.append(team)
         users[user_name] = teams
         roles[user_name] = user['role']
     state.init_roles(roles)
-    state.init_users(users)
+    state.init_users(users, dups=dup_users)
     return state
+
+
+def find_active_account(users):
+    dups = []
+
+    if len(users) == 1:
+        return users[0], dups
+
+    for u in users:
+        if u['pending'] is True:
+            dups.append(u)
+        else:
+            user = u
+    return user, dups
 
 
 def fetch_desired_state(gqlapi, sentry_instance, ghapi):

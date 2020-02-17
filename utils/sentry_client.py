@@ -18,7 +18,7 @@ class SentryClient:
         headers = {"Authorization": "Bearer " + self.auth_token}
         call = getattr(requests, method, None)
         if call is None:
-            raise Exception(f"invalid http method {method}")
+            raise ValueError(f"invalid http method {method}")
 
         response = call(url, headers=headers, json=payload)
         response.raise_for_status()
@@ -168,13 +168,18 @@ class SentryClient:
 
     def get_user(self, email):
         users = self.get_users()
+        user_list = []
         for u in users:
             if u["email"] == email:
-                user = u
-                break
-        response = self._do_sentry_api_call_("get", "organizations",
+                user_list.append(u)
+
+        response = []
+        for user in user_list:
+            resp = self._do_sentry_api_call_("get", "organizations",
                                              [self.ORGANIZATION, "members",
-                                              user["id"]])
+                                                 user["id"]])
+            if resp is not None:
+                response.append(resp)
         return response
 
     def create_user(self, email, role, teams=[]):
@@ -185,14 +190,29 @@ class SentryClient:
         return response
 
     def delete_user(self, email):
-        user = self.get_user(email)
+        user_list = self.get_user(email)
+        resp = []
+        for user in user_list:
+            response = self._do_sentry_api_call_("delete", "organizations",
+                                                 [self.ORGANIZATION, "members",
+                                                  user["id"]])
+            if response is not None and len(response) > 0:
+                resp.append(response)
+        return resp
+
+    def delete_user_by_id(self, id):
         response = self._do_sentry_api_call_("delete", "organizations",
                                              [self.ORGANIZATION, "members",
-                                              user["id"]])
+                                              id])
         return response
 
     def set_user_teams(self, email, teams):
-        user = self.get_user(email)
+        user_list = self.get_user(email)
+        if len(user_list) > 0:
+            raise ValueError("set_user_teams will only work for 1 user per "
+                             f"e-mail. E-mail {email} has {len(user_list)} "
+                             "accounts")
+        user = user_list[0]
         params = {"teams": teams}
         response = self._do_sentry_api_call_("put", "organizations",
                                              [self.ORGANIZATION, "members",
@@ -200,7 +220,12 @@ class SentryClient:
         return response
 
     def remove_user_from_teams(self, email, teams):
-        user = self.get_user(email)
+        user_list = self.get_user(email)
+        if len(user_list) > 0:
+            raise ValueError("remove_user_from_teams will only work for 1 "
+                             f"user per e-mail. E-mail {email} has "
+                             f"{len(user_list)} accounts")
+        user = user_list[0]
         user_teams = user["teams"]
         for t in teams:
             if t in user_teams:
@@ -212,7 +237,12 @@ class SentryClient:
         return response
 
     def change_user_role(self, email, role):
-        user = self.get_user(email)
+        user_list = self.get_user(email)
+        if len(user_list) > 0:
+            raise ValueError("change_user_role will only work for 1 user per "
+                             f"e-mail. E-mail {email} has {len(user_list)} "
+                             "accounts")
+        user = user_list[0]
         params = {"role": role}
         response = self._do_sentry_api_call_("put", "organizations",
                                              [self.ORGANIZATION, "members",
