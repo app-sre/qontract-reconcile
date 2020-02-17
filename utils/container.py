@@ -107,7 +107,7 @@ class Image:
         try:
             self.get_manifest()
             return True
-        except requests.exceptions.HTTPError:
+        except ImageManifestError:
             return False
 
     def _raise_for_status(self, response, error_msg=None):
