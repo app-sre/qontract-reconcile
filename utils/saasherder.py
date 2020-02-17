@@ -2,7 +2,7 @@ import yaml
 import json
 
 from utils.oc import OC
-from utils.skopeo import Skopeo
+from utils.container import Image
 from utils.openshift_resource import OpenshiftResource as OR
 
 
@@ -98,10 +98,9 @@ class SaasHerder():
         return images
 
     def _check_images(self, resources):
-        skopeo = Skopeo()
         images = self._collect_images(resources)
         for image in images:
-            skopeo.inspect(image)
+            bool(Image(image))
 
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
