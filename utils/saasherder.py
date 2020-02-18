@@ -1,5 +1,6 @@
 import yaml
 import json
+import logging
 
 from utils.oc import OC
 from utils.container import Image
@@ -100,7 +101,8 @@ class SaasHerder():
     def _check_images(self, resources):
         images = self._collect_images(resources)
         for image in images:
-            bool(Image(image))
+            if not bool(Image(image)):
+                logging.error(f"Image does not exist: {image}")
 
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
