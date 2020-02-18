@@ -126,7 +126,7 @@ class SentryState:
         # Input is in the form of team:members[]
         for team in users.keys():
             for user in users[team]:
-                if team not in self.users.keys():
+                if user not in self.users.keys():
                     self.users[user] = [team]
                 else:
                     self.users[user].append(team)
