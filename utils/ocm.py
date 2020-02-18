@@ -1,7 +1,8 @@
 import requests
 
+from sretoolbox.utils import retry
+
 import utils.secret_reader as secret_reader
-from utils.retry import retry
 
 
 class OCM(object):

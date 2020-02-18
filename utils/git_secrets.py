@@ -4,13 +4,12 @@ import shutil
 import logging
 import requests
 
-import utils.git as git
-
-from utils.defer import defer
-from utils.retry import retry
-
-from os import path
 from subprocess import PIPE, Popen
+
+from sretoolbox.utils.retry import retry
+
+from utils import git
+from utils.defer import defer
 
 
 @defer
@@ -70,7 +69,7 @@ def get_leaked_keys(repo_wd, suspected_files, existing_keys):
     for s in suspected_files:
         commit, file_relative_path = s[0], s[1]
         git.checkout(commit, repo_wd)
-        file_path = path.join(repo_wd, file_relative_path)
+        file_path = os.path.join(repo_wd, file_relative_path)
         with open(file_path, 'r') as f:
             content = f.read()
         leaked_keys = [key for key in existing_keys if key in content]

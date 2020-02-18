@@ -2,8 +2,9 @@ import yaml
 import json
 import logging
 
+from sretoolbox.container import Image
+
 from utils.oc import OC
-from utils.container import Image
 from utils.openshift_resource import OpenshiftResource as OR
 
 
