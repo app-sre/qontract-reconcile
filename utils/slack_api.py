@@ -1,10 +1,9 @@
 import time
 
-import utils.secret_reader as secret_reader
-
-from utils.retry import retry
-
 from slackclient import SlackClient
+from sretoolbox.utils.retry import retry
+
+import utils.secret_reader as secret_reader
 
 
 class UsergroupNotFoundException(Exception):

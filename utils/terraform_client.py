@@ -4,13 +4,13 @@ import logging
 import json
 import os
 
-import utils.threaded as threaded
-
-from utils.openshift_resource import OpenshiftResource as OR
-from utils.retry import retry
+from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
-from threading import Lock
+from sretoolbox.utils.retry import retry
+
+from utils import threaded
+from utils.openshift_resource import OpenshiftResource as OR
 
 
 class TerraformClient(object):

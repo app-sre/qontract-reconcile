@@ -2,6 +2,7 @@ import logging
 import os
 from github import Github
 from github.GithubObject import NotSet
+from sretoolbox.utils import retry
 
 import utils.gql as gql
 import utils.secret_reader as secret_reader
@@ -10,7 +11,6 @@ import reconcile.queries as queries
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.raw_github_api import RawGithubApi
-from utils.retry import retry
 from utils.oc import OC_Map
 from utils.defer import defer
 

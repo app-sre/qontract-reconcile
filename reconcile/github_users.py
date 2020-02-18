@@ -13,8 +13,7 @@ from reconcile.ldap_users import init_users as init_users_and_paths
 from github import Github
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
-from utils.retry import retry
-
+from sretoolbox.utils import retry
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 

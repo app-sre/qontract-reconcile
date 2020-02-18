@@ -2,10 +2,10 @@ import logging
 import anymarkup
 import requests
 
-import utils.gql as gql
-import reconcile.queries as queries
+from sretoolbox.utils.retry import retry
 
-from utils.retry import retry
+from reconcile import queries
+from utils import gql
 from utils.slack_api import SlackApi
 from utils.pagerduty_api import PagerDutyApi
 

@@ -16,12 +16,12 @@ setup(
     packages=find_packages(exclude=('tests',)),
 
     install_requires=[
+        "sretoolbox~=0.1",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
         "jsonpath-rw>=1.4.0,<1.5.0",
         "PyGithub>=1.40,<1.41",
-        "requests>=2.21.0,<2.22.0",
         "hvac>=0.7.0,<0.8.0",
         "ldap3>=2.5.2,<2.6.0",
         "anymarkup>=0.7.0,<0.8.0",

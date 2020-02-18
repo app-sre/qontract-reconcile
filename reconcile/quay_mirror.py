@@ -5,9 +5,10 @@ import time
 
 from collections import defaultdict
 
+from sretoolbox.container import Image
+from sretoolbox.container.image import ImageComparisonError
+
 from reconcile import queries
-from utils.container import Image
-from utils.container import ImageComparisonError
 from utils import gql
 from utils import secret_reader
 from utils import skopeo

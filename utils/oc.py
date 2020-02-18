@@ -1,12 +1,12 @@
 import json
 import logging
 
-import utils.secret_reader as secret_reader
-
 from subprocess import Popen, PIPE
 
+from sretoolbox.utils.retry import retry
+
+from utils import secret_reader
 from utils.jump_host import JumpHostSSH
-from utils.retry import retry
 
 
 class StatusCodeError(Exception):
