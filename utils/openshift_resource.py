@@ -159,6 +159,16 @@ class OpenshiftResource(object):
         now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
         annotations['qontract.update'] = now
 
+        # create labels if not present
+        body['metadata'].setdefault('labels', {})
+        labels = body['metadata']['labels']
+
+        # add qontract labels
+        labels['qontract.service'] = self.name
+
+        # add affinity rules
+        body['spec'] = self._add_affinity_()
+
         return OpenshiftResource(body, self.integration,
                                  self.integration_version)
 
@@ -170,6 +180,60 @@ class OpenshiftResource(object):
 
     def toJSON(self):
         return self.serialize(self.body)
+
+    def _add_affinity_(self):
+        # find the podspec based upon object type
+        if self.kind.lower() == 'pod':
+            body = self.body['spec']
+        elif self.kind.lower() == 'deployment' or \
+             self.kind.lower() == 'replicationcontroller':
+            body = self.body['spec']['template']['spec']
+        else:
+            # type doesn't support affinity or isn't supported
+            body = None
+
+        if body != None:
+            body['affinity'] = self._add_az_affinity_(body)
+        else:
+            body = self.body
+
+        return body
+
+
+    def _add_az_affinity_(self, podSpec):
+        spec = copy.deepcopy(podSpec)
+
+        # create affinity struct if not present
+        spec.setdefault('affinity', {})
+        affinity = spec['affinity']
+
+        # create podAntiAffinity struct if not present
+        affinity.setdefault('podAntiAffinity', {})
+        paa = affinity['podAntiAffinity']
+
+        # create preferredDuringSchedulingIgnoredDuringExecution array
+        # if not present
+        paa.setdefault('preferredDuringSchedulingIgnoredDuringExecution', [])
+        pdside = paa['preferredDuringSchedulingIgnoredDuringExecution']
+
+        az_afinity_rule = {
+            'weight': 100,
+            'podAffinityTerm': {
+                'labelSelector':{
+                    'matchExpressions': [
+                        {
+                            'key': 'qontract.service',
+                            'operator': 'in',
+                            'values': [self.name]
+                        }
+                    ]
+                },
+                'topologyKey': 'failure-domain.beta.kubernetes.io/zone'
+            }
+        }
+
+        pdside.append(az_afinity_rule)
+        return spec
 
     @staticmethod
     def canonicalize(body):
