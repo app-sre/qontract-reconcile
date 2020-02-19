@@ -6,7 +6,7 @@ import requests
 
 from subprocess import PIPE, Popen
 
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 from utils import git
 from utils.defer import defer

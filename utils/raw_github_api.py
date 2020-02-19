@@ -1,7 +1,7 @@
 import os
 import requests
 
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 
 class RawGithubApi(object):

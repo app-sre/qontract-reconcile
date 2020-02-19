@@ -2,7 +2,7 @@ import logging
 import anymarkup
 import requests
 
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 from reconcile import queries
 from utils import gql

@@ -1,4 +1,4 @@
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 
 import utils.vault_client as vault_client
