@@ -101,7 +101,7 @@ class SaasHerder():
     def _check_images(self, resources):
         images = self._collect_images(resources)
         for image in images:
-            if not bool(Image(image)):
+            if not Image(image):
                 logging.error(f"Image does not exist: {image}")
 
     def populate_desired_state(self, ri):
