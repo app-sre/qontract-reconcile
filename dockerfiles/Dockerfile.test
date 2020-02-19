@@ -1,12 +1,12 @@
-FROM centos/python-36-centos7
-
-USER root
+FROM centos:7
 
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 
-RUN python -m pip install --upgrade pip && \
-    python -m pip install tox
+RUN yum install -y epel-release && \
+    yum install -y python36 python36-pip git && \
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install tox
 
 COPY . /package
 WORKDIR /package
