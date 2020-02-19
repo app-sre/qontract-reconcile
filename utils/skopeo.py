@@ -43,7 +43,27 @@ class Skopeo:
         self._run_skopeo('copy', src_image, dst_image,
                          src_creds=src_creds, dest_creds=dest_creds)
 
-    def _run_skopeo(self, subcomand, *args, src_creds=None, dest_creds=None):
+    def inspect(self, image, creds=None):
+        """
+        Runs the skopeo "inspect" sub-command.
+
+        The skopeo "inspect" returns low-level information about the image.
+        This implementation only checks that the command was successful,
+        meaning that the image exists.
+
+        :param image: The image to be inspected.
+        :type image: str
+        :param creds: (optional) The source repository
+                      credentials in the format
+                      "username:password".
+        :type creds: str
+        """
+        self._run_skopeo('inspect', f"docker://{image}", creds=creds)
+
+    def _run_skopeo(self, subcomand, *args,
+                    src_creds=None,
+                    dest_creds=None,
+                    creds=None):
         """
         Helper to streamline the execution of skopeo commands
 
@@ -68,12 +88,14 @@ class Skopeo:
             cmd.append(f'--src-creds={src_creds}')
         if dest_creds is not None:
             cmd.append(f'--dest-creds={dest_creds}')
+        if creds is not None:
+            cmd.append(f'--creds={creds}')
         cmd.extend(args)
 
-        _LOG.info([subcomand, *args])
-
-        if self.dry_run and subcomand == 'copy':
-            return ''
+        if subcomand == 'copy':
+            _LOG.info([subcomand, *args])
+            if self.dry_run:
+                return ''
 
         result = subprocess.run(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
