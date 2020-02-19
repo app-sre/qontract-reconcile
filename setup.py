@@ -36,7 +36,7 @@ setup(
         "slackclient~=1.3",
         "sretoolbox~=0.1",
         "tabulate~=0.8",
-        "terrascript~=0.6.1",
+        "terrascript~=0.6",
         "toml~=0.10",
         "urllib3~=1.21",
     ],
