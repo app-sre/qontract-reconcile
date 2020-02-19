@@ -32,7 +32,9 @@ COPY reconcile reconcile
 COPY tools tools
 COPY utils utils
 COPY setup.py .
+COPY requirements.txt .
 
+RUN python3 -m pip install -r requirements.txt
 RUN python3 setup.py install
 
 # required to run ssh on OpenShift
