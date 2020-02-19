@@ -3,7 +3,7 @@ import logging
 
 from subprocess import Popen, PIPE
 
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 from utils import secret_reader
 from utils.jump_host import JumpHostSSH

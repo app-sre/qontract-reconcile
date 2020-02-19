@@ -7,7 +7,7 @@ import os
 from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 from utils import threaded
 from utils.openshift_resource import OpenshiftResource as OR

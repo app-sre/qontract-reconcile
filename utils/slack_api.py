@@ -1,7 +1,7 @@
 import time
 
 from slackclient import SlackClient
-from sretoolbox.utils.retry import retry
+from sretoolbox.utils import retry
 
 import utils.secret_reader as secret_reader
 
