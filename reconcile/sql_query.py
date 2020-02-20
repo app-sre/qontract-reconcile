@@ -39,6 +39,9 @@ spec:
           - 'docker-entrypoint.sh \
 {{ CMD }} {{ ENGINE }}://$(db.user):$(db.password)@\
 $(db.host):$(db.port)/$(db.name) \
+{% if ENGINE == 'postgres' %}
+--command "SET statement_timeout = 30000;"\
+{% endif %}
 --command "{{ QUERY }}"{{ OUTPUT_SUFFIX }}'
         env:
           {% for key, value in DB_CONN.items() %}
