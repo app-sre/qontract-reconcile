@@ -120,15 +120,35 @@ class SentryClient:
                 f"invalid {resolve_age_field} {options[resolve_age_field]}")
 
     def get_project_alert_rules(self, slug):
-        request = self._do_sentry_api_call_("get", "projects",
-                                            ["sentry", slug, "rules"])
-        return request
+        response = self._do_sentry_api_call_("get", "projects",
+                                             [self.ORGANIZATION, slug,
+                                              "rules"])
+        return response
 
     def delete_project_alert_rule(self, slug, rule):
-        request = self._do_sentry_api_call_("delete", "projects",
-                                            ["sentry", slug, "rules",
-                                             rule['id']])
-        return request
+        response = self._do_sentry_api_call_("delete", "projects",
+                                             [self.ORGANIZATION, slug, "rules",
+                                              rule['id']])
+        return response
+
+    def get_project_owner(self, slug):
+        teams = self._do_sentry_api_call_("get", "projects",
+                                          [self.ORGANIZATION, slug, "teams"])
+        if len(teams) < 1:
+            return ""
+        return teams[0]["slug"]
+
+    def update_project_owner(self, project_slug, team_slug):
+        params = {
+            "organization_slug": self.ORGANIZATION,
+            "project_slug": project_slug,
+            "team_slug": team_slug
+        }
+        response = self._do_sentry_api_call_("post", "projects",
+                                             [self.ORGANIZATION, project_slug,
+                                              "teams", team_slug],
+                                             payload=params)
+        return response
 
     # Team functions
     def get_teams(self):

@@ -138,7 +138,7 @@ class SentryState:
                 # TODO: Retrieve project and store relevant config
                 p = client.get_project(project)
                 pdata = {
-                    "name": p['name'],
+                    "name": p['slug'],
                     "email_prefix": p['subjectPrefix'],
                     "platform": p['platform']
                 }
@@ -297,6 +297,17 @@ class SentryReconciler:
                         self.client.delete_project_alert_rule(
                             project_name, rule)
 
+                # Verify project ownership.  It is possible the project
+                # changed team ownership so need to make sure the project
+                # is associated with the correct team
+                project_owner = self.client.get_project_owner(project_name)
+                if project_owner != team:
+                    logging.info(["update_project_owner", project_name, team,
+                                  self.client.host])
+                    if not self.dry_run:
+                        self.client.update_project_owner(
+                            project_name, team)
+
     def _project_fields_need_updating_(self, project, options):
         fields_to_update = []
 
@@ -321,8 +332,8 @@ class SentryReconciler:
         return True
 
 
-def project_in_project_list(project, list):
-    for projects in list:
+def project_in_project_list(project, project_list):
+    for projects in project_list:
         for p in projects:
             if p['name'] == project['name']:
                 return True
@@ -458,7 +469,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
             if team in teams:
                 logging.error(["team_exists", team])
                 continue
-            teams.append(team["name"])
+            teams.append(_to_slug_(team['name']))
     state.init_teams(teams)
 
     # Query for projects that should be in sentry
@@ -475,7 +486,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
                sentry_instance['consoleUrl']:
                 continue
 
-            team = sentry_project['team']['name']
+            team = _to_slug_(sentry_project['team']['name'])
             team_projects = []
             for project_config in sentry_project['projects']:
                 if project_in_project_list(project_config, projects.values()):
@@ -485,11 +496,19 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
                 config = {}
                 for field in project_config.keys():
                     if project_config[field] is not None:
-                        config[field] = project_config[field]
+                        if field == "name":
+                            slug = _to_slug_(project_config[field])
+                            config[field] = slug
+                        else:
+                            config[field] = project_config[field]
                 team_projects.append(config)
             projects[team] = team_projects
     state.init_projects(projects)
     return state
+
+
+def _to_slug_(name):
+    return name.replace(' ', '-').lower()
 
 
 # Cache of github_username:github_email
