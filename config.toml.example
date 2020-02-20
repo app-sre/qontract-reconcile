@@ -15,16 +15,6 @@ server = "https://vaultserver"
 role_id = "<role_id>"
 secret_id = "<secret_id>"
 
-[github]
-# This section is required by `qontract-reconcile github`.
-
-# one sub-section per managed GitHub organization with the API token:
-[github.<orgname>]
-token = "<token>"
-
-[github.<another_orgname>]
-token = "<another_token>"
-
 [ldap]
 # This section is required by `qontract-reconcile ldap-users`
 
@@ -40,21 +30,3 @@ base_dn = "ou=users,dc=example,dc=com"
 secret_path = 'secrets/path/to/smtp/creds'
 # (mandatory) mail address to send mails to
 mail_address = 'example.com'
-
-[app-interface]
-# This section is required by `qontract-reconcile ldap-users`
-
-# (mandatory) gitlab server url
-server = "https://gitlab.example.com"
-# (mandatory) gitlab private auth token
-token = "..."
-# (mandatory) app-interface gitlab project id
-project_id = "12345"
-
-[terraform]
-# This section is required by `qontract-reconcile terraform-resources`
-
-# one sub-section per managed AWS account
-[terraform.<accountname>]
-# (mandatory) path to terraform profile secrets in vault
-secrets_path = 'secrets/path/to/terraform/profile'
