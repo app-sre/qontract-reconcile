@@ -300,12 +300,29 @@ class SentryReconciler:
                 # Verify project ownership.  It is possible the project
                 # changed team ownership so need to make sure the project
                 # is associated with the correct team
-                project_owner = self.client.get_project_owner(project_name)
+                project_owners = self.client.get_project_owners(project_name)
+                project_owner = ""
+                if len(project_owners) > 1:
+                    # Delete all teams who are not supposed to be owners of
+                    # the project
+                    for owner in project_owners:
+                        if owner['slug'] == team:
+                            project_owner = team
+                            continue
+
+                        logging.info(["delete_project_owner", project_name,
+                                      owner['slug'], self.client.host])
+                        if not self.dry_run:
+                            self.client.delete_project_owner(
+                                project_name, owner['slug'])
+                else:
+                    project_owner = project_owners[0]['slug']
+
                 if project_owner != team:
-                    logging.info(["update_project_owner", project_name, team,
+                    logging.info(["add_project_owner", project_name, team,
                                   self.client.host])
                     if not self.dry_run:
-                        self.client.update_project_owner(
+                        self.client.add_project_owner(
                             project_name, team)
 
     def _project_fields_need_updating_(self, project, options):
