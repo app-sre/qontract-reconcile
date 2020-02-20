@@ -131,23 +131,30 @@ class SentryClient:
                                               rule['id']])
         return response
 
-    def get_project_owner(self, slug):
+    def get_project_owners(self, slug):
         teams = self._do_sentry_api_call_("get", "projects",
                                           [self.ORGANIZATION, slug, "teams"])
-        if len(teams) < 1:
-            return ""
-        return teams[0]["slug"]
+        return teams
 
-    def update_project_owner(self, project_slug, team_slug):
+    def add_project_owner(self, project_slug, team_slug):
+        response = self._update_project_owner_("post", project_slug, team_slug)
+        return response
+
+    def delete_project_owner(self, project_slug, team_slug):
+        response = self._update_project_owner_("delete", project_slug,
+                                               team_slug)
+        return response
+
+    def _update_project_owner_(self, method, pslug, tslug):
         params = {
             "organization_slug": self.ORGANIZATION,
-            "project_slug": project_slug,
-            "team_slug": team_slug
+            "project_slug": pslug,
+            "team_slug": tslug
         }
-        response = self._do_sentry_api_call_("post", "projects",
-                                             [self.ORGANIZATION, project_slug,
-                                              "teams", team_slug],
-                                             payload=params)
+
+        response = self._do_sentry_api_call_(method, "projects",
+                                             [self.ORGANIZATION, pslug,
+                                              "teams", tslug], payload=params)
         return response
 
     # Team functions
