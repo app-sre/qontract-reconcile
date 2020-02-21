@@ -17,8 +17,8 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 def init_gh_gl(internal):
     # use unauthenticated GitHub for now, through github-mirror
-    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
-    gh = Github(base_url=BASE_URL)
+    base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
+    gh = Github(base_url=base_url)
     gl = None
     if internal:
         instance = queries.get_gitlab_instance()
