@@ -325,6 +325,11 @@ APPS_QUERY = """
       url
       resource
     }
+    owner_roles {
+      users {
+        org_username
+      }
+    }
   }
 }
 """

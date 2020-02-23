@@ -18,6 +18,7 @@ import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
 import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
+import reconcile.owner_approvals
 import reconcile.quay_membership
 import reconcile.quay_mirror
 import reconcile.quay_repos
@@ -415,6 +416,17 @@ def openshift_resources(ctx, thread_pool_size, internal):
 def openshift_saas_deploy(ctx, thread_pool_size, internal):
     run_integration(reconcile.openshift_saas_deploy.run,
                     ctx.obj['dry_run'], thread_pool_size, internal)
+
+
+@integration.command()
+@throughput
+@click.option('--compare/--no-compare',
+              default=True,
+              help='compare between current and desired state.')
+@click.pass_context
+def owner_approvals(ctx, io_dir, compare):
+    run_integration(reconcile.owner_approvals.run, ctx.obj['dry_run'],
+                    io_dir, compare)
 
 
 @integration.command()
