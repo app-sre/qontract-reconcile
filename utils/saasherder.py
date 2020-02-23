@@ -12,10 +12,10 @@ class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
     def __init__(self, saas_files,
-                 github=None,
-                 gitlab=None,
-                 integration=None,
-                 integration_version=None):
+                 github,
+                 gitlab,
+                 integration,
+                 integration_version):
         self.saas_files = saas_files
         self.github = github
         self.gitlab = gitlab
