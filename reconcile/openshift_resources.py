@@ -502,15 +502,15 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     oc_map, ri = fetch_data(namespaces, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
-    if ri.has_error_registered():
-        sys.exit(1)
 
     # check for unused resources types
     # listed under `managedResourceTypes`
     # only applicable for openshift-resources
     ob.check_unused_resource_types(ri)
 
-    ob.realize_data(dry_run, oc_map, ri)
+    enable_deletion = False if ri.has_error_registered() else True
+    ob.realize_data(dry_run, oc_map, ri,
+                    enable_deletion=enable_deletion)
 
     if ri.has_error_registered():
         sys.exit(1)
