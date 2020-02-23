@@ -47,14 +47,14 @@ class OpenshiftResource(object):
                 elif not self.obj_intersect_equal(obj1_v, obj2_v):
                     return False
 
-        if isinstance(obj1, list):
+        elif isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
             for i in range(len(obj1)):
                 if not self.obj_intersect_equal(obj1[i], obj2[i]):
                     return False
 
-        if obj1 != obj2:
+        elif obj1 != obj2:
             return False
 
         return True
