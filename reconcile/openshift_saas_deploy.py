@@ -6,6 +6,8 @@ import reconcile.openshift_base as ob
 
 from github import Github
 
+from reconcile.github_org import get_config
+
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
 from utils.defer import defer
@@ -16,9 +18,11 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def init_gh_gl(internal):
-    # use unauthenticated GitHub for now, through github-mirror
-    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
-    gh = Github(base_url=BASE_URL)
+    base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
+    config = get_config()
+    github_config = config['github']
+    token = github_config['app-sre']['token']
+    gh = Github(token, base_url=base_url)
     gl = None
     if internal:
         instance = queries.get_gitlab_instance()
