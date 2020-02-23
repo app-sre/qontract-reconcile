@@ -47,14 +47,14 @@ class OpenshiftResource(object):
                 elif not self.obj_intersect_equal(obj1_v, obj2_v):
                     return False
 
-        if isinstance(obj1, list):
+        elif isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
             for i in range(len(obj1)):
                 if not self.obj_intersect_equal(obj1[i], obj2[i]):
                     return False
 
-        if obj1 != obj2:
+        elif obj1 != obj2:
             return False
 
         return True
@@ -91,8 +91,8 @@ class OpenshiftResource(object):
 
         r = '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
         if self.kind not in \
-                ['Role', 'RoleBinding', 'ClusterRoleBinding'] and \
-                not re.search(r'^{}$'.format(r), self.name):
+                ['Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding'] \
+                and not re.search(r'^{}$'.format(r), self.name):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                 f"metadata.name: Invalid value: \"{self.name}\": " + \
                 f"a DNS-1123 subdomain must consist of lower case " + \
