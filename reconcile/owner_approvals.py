@@ -1,7 +1,9 @@
 import os
 import json
+import copy
 
 import reconcile.queries as queries
+from utils.gitlab_api import GitLabApi
 
 
 QONTRACT_INTEGRATION = 'owner-approvals'
@@ -42,6 +44,7 @@ def collect_state():
     state = []
     saas_files = queries.get_saas_files()
     for sf in saas_files:
+        path = sf['path']
         app = sf['app']['name']
         resource_templates = sf['resourceTemplates']
         for rt in resource_templates:
@@ -51,6 +54,7 @@ def collect_state():
                 cluster = target['namespace']['cluster']['name']
                 target_hash = target['hash']
                 state.append({
+                    'path': path,
                     'app': app,
                     'name': rt_name,
                     'cluster': cluster,
@@ -79,13 +83,79 @@ def read_baseline_from_file(io_dir):
     return baseline
 
 
-def run(dry_run=False, io_dir='throughput/', compare=True):
+def init_gitlab(gitlab_project_id):
+    instance = queries.get_gitlab_instance()
+    settings = queries.get_app_interface_settings()
+    return GitLabApi(instance, project_id=gitlab_project_id,
+                     settings=settings)
+
+
+def valid_diff(current_state, desired_state):
+    """ checks that current_state and desired_state
+    are different only in 'hash' between entries """
+    current_state_copy = copy.deepcopy(current_state)
+    for c in current_state_copy:
+        c.pop('hash')
+    desired_state_copy = copy.deepcopy(desired_state)
+    for d in desired_state_copy:
+        d.pop('hash')
+    return current_state_copy == desired_state_copy
+
+
+def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
+        io_dir='throughput/', compare=True):
     if not compare:
         # baseline is the current state and the owners.
         # this should be queried from the production endpoint
         # to prevent privlige escalation and to compare the states
         baseline = collect_baseline()
         write_baseline_to_file(io_dir, baseline)
+        return
 
+    gl = init_gitlab(gitlab_project_id)
     baseline = read_baseline_from_file(io_dir)
-    print(json.dumps(baseline))
+    owners = baseline['owners']
+    current_state = baseline['state']
+    desired_state = collect_state()
+
+    if desired_state == current_state:
+        gl.remove_label_from_merge_request(
+            gitlab_merge_request_id, 'approved')
+        return
+    if not valid_diff(current_state, desired_state):
+        gl.remove_label_from_merge_request(
+            gitlab_merge_request_id, 'approved')
+        return
+
+
+    comments = gl.get_merge_request_comments(gitlab_merge_request_id)
+    lgtm_users = [c['username'] for c in comments
+                  for l in c['body'].split('\n')
+                  if l == '/lgtm']
+    if len(lgtm_users) == 0:
+        gl.remove_label_from_merge_request(
+            gitlab_merge_request_id, 'approved')
+        return
+
+    changed_paths = \
+        gl.get_merge_request_changed_paths(gitlab_merge_request_id)
+    diffs = [s for s in desired_state if s not in current_state]
+    for diff in diffs:
+        # check for a lgtm by an owner of this app
+        app = diff['app']
+        if not any(lgtm_user in owners[app] for lgtm_user in lgtm_users):
+            gl.remove_label_from_merge_request(
+                gitlab_merge_request_id, 'approved')
+            return
+        # this diff is approved - remove it from changed_paths
+        path = diff['path']
+        changed_paths = [c for c in changed_paths if not c.endswith(path)]
+
+    # if there are still entries in this list - they are not approved
+    if len(changed_paths) != 0:
+        gl.remove_label_from_merge_request(
+            gitlab_merge_request_id, 'approved')
+        return
+
+    # add 'approved' label to merge request!
+    gl.add_label_to_merge_request(gitlab_merge_request_id, 'approved')

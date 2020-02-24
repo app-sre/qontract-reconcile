@@ -420,13 +420,17 @@ def openshift_saas_deploy(ctx, thread_pool_size, internal):
 
 @integration.command()
 @throughput
+@click.argument('gitlab-project-id')
+@click.argument('gitlab-merge-request-id')
 @click.option('--compare/--no-compare',
               default=True,
               help='compare between current and desired state.')
 @click.pass_context
-def owner_approvals(ctx, io_dir, compare):
-    run_integration(reconcile.owner_approvals.run, ctx.obj['dry_run'],
-                    io_dir, compare)
+def owner_approvals(ctx, gitlab_project_id, gitlab_merge_request_id,
+                    io_dir, compare):
+    run_integration(reconcile.owner_approvals.run,
+                    gitlab_project_id, gitlab_merge_request_id,
+                    ctx.obj['dry_run'], io_dir, compare)
 
 
 @integration.command()

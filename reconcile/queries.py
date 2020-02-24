@@ -452,6 +452,7 @@ def get_app_interface_sql_queries():
 SAAS_FILES_QUERY = """
 {
   saas_files: saas_files_v1 {
+    path
     name
     app {
       name
