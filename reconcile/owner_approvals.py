@@ -127,11 +127,10 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
             gitlab_merge_request_id, 'approved')
         return
 
-
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
     lgtm_users = [c['username'] for c in comments
-                  for l in c['body'].split('\n')
-                  if l == '/lgtm']
+                  for line in c['body'].split('\n')
+                  if line == '/lgtm']
     if len(lgtm_users) == 0:
         gl.remove_label_from_merge_request(
             gitlab_merge_request_id, 'approved')
