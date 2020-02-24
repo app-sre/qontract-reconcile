@@ -12,10 +12,10 @@ class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
     def __init__(self, saas_files,
-                 github=None,
-                 gitlab=None,
-                 integration=None,
-                 integration_version=None):
+                 github,
+                 gitlab,
+                 integration,
+                 integration_version):
         self.saas_files = saas_files
         self.github = github
         self.gitlab = gitlab
@@ -88,22 +88,24 @@ class SaasHerder():
         resources = oc.process(template, target_parameters)
         return cluster, namespace, resources
 
-    def _collect_images(self, resources):
+    def _collect_images(self, resource):
         images = set()
-        for resource in resources:
-            try:
-                for c in resource["spec"]["template"]["spec"]["containers"]:
-                    images.add(c["image"])
-            except KeyError:
-                pass
+        try:
+            for c in resource["spec"]["template"]["spec"]["containers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
 
         return images
 
-    def _check_images(self, resources):
-        images = self._collect_images(resources)
+    def _check_images(self, resource):
+        error = False
+        images = self._collect_images(resource)
         for image in images:
             if not Image(image):
+                error = True
                 logging.error(f"Image does not exist: {image}")
+        return error
 
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
@@ -120,12 +122,15 @@ class SaasHerder():
                     cluster, namespace, resources = \
                         self._process_template(url, path, hash_length,
                                                target, parameters)
-                    # check images
-                    self._check_images(resources)
                     # add desired resources
                     for resource in resources:
                         resource_kind = resource['kind']
                         if resource_kind not in managed_resource_types:
+                            continue
+                        # check images
+                        image_error = self._check_images(resource)
+                        if image_error:
+                            ri.register_error()
                             continue
                         resource_name = resource['metadata']['name']
                         oc_resource = OR(
