@@ -253,6 +253,34 @@ class SentryReconciler:
                         self._project_fields_need_updating_(project_name,
                                                             desired_project)
 
+                    # Verify project ownership.  It is possible the project
+                    # changed team ownership so need to make sure the project
+                    # is associated with the correct team
+                    owners = self.client.get_project_owners(project_name)
+                    project_owner = ""
+                    if len(owners) > 1:
+                        # Delete all teams who are not supposed to be owners of
+                        # the project
+                        for owner in owners:
+                            if owner['slug'] == team:
+                                project_owner = team
+                                continue
+
+                            logging.info(["delete_project_owner", project_name,
+                                          owner['slug'], self.client.host])
+                            if not self.dry_run:
+                                self.client.delete_project_owner(
+                                    project_name, owner['slug'])
+                    else:
+                        project_owner = owners[0]['slug']
+
+                    if project_owner != team:
+                        logging.info(["add_project_owner", project_name, team,
+                                      self.client.host])
+                        if not self.dry_run:
+                            self.client.add_project_owner(
+                                project_name, team)
+
                 if len(project_fields_to_update) > 0:
                     updates = {}
                     for field in project_fields_to_update:
@@ -296,34 +324,6 @@ class SentryReconciler:
                     if not self.dry_run:
                         self.client.delete_project_alert_rule(
                             project_name, rule)
-
-                # Verify project ownership.  It is possible the project
-                # changed team ownership so need to make sure the project
-                # is associated with the correct team
-                project_owners = self.client.get_project_owners(project_name)
-                project_owner = ""
-                if len(project_owners) > 1:
-                    # Delete all teams who are not supposed to be owners of
-                    # the project
-                    for owner in project_owners:
-                        if owner['slug'] == team:
-                            project_owner = team
-                            continue
-
-                        logging.info(["delete_project_owner", project_name,
-                                      owner['slug'], self.client.host])
-                        if not self.dry_run:
-                            self.client.delete_project_owner(
-                                project_name, owner['slug'])
-                else:
-                    project_owner = project_owners[0]['slug']
-
-                if project_owner != team:
-                    logging.info(["add_project_owner", project_name, team,
-                                  self.client.host])
-                    if not self.dry_run:
-                        self.client.add_project_owner(
-                            project_name, team)
 
     def _project_fields_need_updating_(self, project, options):
         fields_to_update = []
