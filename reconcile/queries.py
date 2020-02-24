@@ -458,6 +458,7 @@ SAAS_FILES_QUERY = """
     }
     managedResourceTypes
     resourceTemplates {
+      name
       url
       path
       hash_length
