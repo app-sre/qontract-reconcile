@@ -107,7 +107,7 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     if not compare:
         # baseline is the current state and the owners.
         # this should be queried from the production endpoint
-        # to prevent privlige escalation and to compare the states
+        # to prevent privilege escalation and to compare the states
         baseline = collect_baseline()
         write_baseline_to_file(io_dir, baseline)
         return
