@@ -462,7 +462,6 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
 
 def fetch_states(spec, ri):
     try:
-
         if spec.type == "current":
             fetch_current_state(spec.oc, ri, spec.cluster,
                                 spec.namespace, spec.resource,
@@ -474,6 +473,7 @@ def fetch_states(spec, ri):
                                 spec.parent)
 
     except StatusCodeError as e:
+        ri.register_error()
         msg = 'cluster: {},'
         msg += 'namespace: {},'
         msg += 'resource_names: {},'
