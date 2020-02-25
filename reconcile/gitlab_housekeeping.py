@@ -77,7 +77,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit):
-    REBASE_LABELS = ['lgtm', 'automerge']
+    REBASE_LABELS = ['lgtm', 'automerge', 'approved']
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for mr in reversed(mrs):
@@ -110,7 +110,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
 
 
 def merge_merge_requests(dry_run, gl, merge_limit):
-    MERGE_LABELS = ['lgtm', 'automerge']
+    MERGE_LABELS = ['lgtm', 'automerge', 'approved']
 
     mrs = gl.get_merge_requests(state='opened')
     merges = 0

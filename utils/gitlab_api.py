@@ -395,6 +395,41 @@ Please consult relevant SOPs to verify that the account is secure.
     def get_merge_requests(self, state):
         return self.get_items(self.project.mergerequests.list, state=state)
 
+    def get_merge_request_changed_paths(self, mr_id):
+        merge_request = self.project.mergerequests.get(mr_id)
+        changes = merge_request.changes()['changes']
+        changed_paths = set()
+        for change in changes:
+            old_path = change['old_path']
+            new_path = change['new_path']
+            changed_paths.add(old_path)
+            changed_paths.add(new_path)
+        return list(changed_paths)
+
+    def get_merge_request_comments(self, mr_id):
+        comments = []
+        merge_request = self.project.mergerequests.get(mr_id)
+        for note in merge_request.notes.list():
+            if note.system:
+                continue
+            username = note.author['username']
+            body = note.body
+            comments.append({'username': username, 'body': body})
+        return comments
+
+    def add_label_to_merge_request(self, mr_id, label):
+        merge_request = self.project.mergerequests.get(mr_id)
+        labels = merge_request.attributes.get('labels')
+        labels.append(label)
+        self.update_labels(merge_request, 'merge-request', labels)
+
+    def remove_label_from_merge_request(self, mr_id, label):
+        merge_request = self.project.mergerequests.get(mr_id)
+        labels = merge_request.attributes.get('labels')
+        if label in labels:
+            labels.remove(label)
+        self.update_labels(merge_request, 'merge-request', labels)
+
     @staticmethod
     def get_items(method, **kwargs):
         all_items = []

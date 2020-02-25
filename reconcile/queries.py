@@ -325,6 +325,11 @@ APPS_QUERY = """
       url
       resource
     }
+    owner_roles {
+      users {
+        org_username
+      }
+    }
   }
 }
 """
@@ -447,12 +452,14 @@ def get_app_interface_sql_queries():
 SAAS_FILES_QUERY = """
 {
   saas_files: saas_files_v1 {
+    path
     name
     app {
       name
     }
     managedResourceTypes
     resourceTemplates {
+      name
       url
       path
       hash_length
