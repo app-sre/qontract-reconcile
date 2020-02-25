@@ -49,6 +49,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `email-sender`: Send email notifications to app-interface audience.
 - `service-dependencies`: Validate dependencies are defined for each service.
 - `sentry-config`: Configure and enforce sentry instance configuration.
+- `owner-approvals`: Adds an `approved` label on merge requests based on approver schema.
 
 ### e2e-tests
 
