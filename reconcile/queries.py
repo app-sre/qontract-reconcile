@@ -244,6 +244,7 @@ NAMESPACES_QUERY = """
         path
         version
       }
+      acmeSecrets
     }
     managedResourceNames {
       resource

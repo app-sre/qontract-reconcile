@@ -2,7 +2,7 @@ ACME_DEPLOYMENT = """
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: %(deployment_name)s
+  name: {{ deployment_name }}
   labels:
     app: openshift-acme
 spec:
@@ -36,7 +36,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: metadata.namespace
-        image: %(image)s
+        image: {{ image }}
         imagePullPolicy: Always
         name: openshift-acme
         ports:
@@ -59,8 +59,8 @@ spec:
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
-      serviceAccount: %(serviceaccount_name)s
-      serviceAccountName: %(serviceaccount_name)s
+      serviceAccount: {{ serviceaccount_name }}
+      serviceAccountName: {{ serviceaccount_name }}
       terminationGracePeriodSeconds: 30
       volumes:
       - name: podinfo
@@ -77,16 +77,16 @@ ACME_SERVICEACCOUNT = """
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: %(serviceaccount_name)s
+  name: {{ serviceaccount_name }}
   labels:
     app: openshift-acme
 """
 
 ACME_ROLE = """
-apiVersion: %(role_api_version)s
+apiVersion: {{ role_api_version }}
 kind: Role
 metadata:
-  name: %(role_name)s
+  name: {{ role_name }}
   labels:
     app: openshift-acme
 rules:
@@ -127,6 +127,12 @@ rules:
   - ""
   resources:
   - secrets
+  {% if acme_secrets %}
+  resourceNames:
+  {% for acme_secret in acme_secrets %}
+  - {{ acme_secret }}
+  {% endfor %}
+  {% endif %}
   verbs:
   - create
   - delete
@@ -138,16 +144,16 @@ rules:
 """
 
 ACME_ROLEBINDING = """
-apiVersion: %(rolebinding_api_version)s
+apiVersion: {{ rolebinding_api_version }}
 groupNames: null
 kind: RoleBinding
 metadata:
-  name: %(rolebinding_name)s
+  name: {{ rolebinding_name }}
 roleRef:
   kind: Role
-  name: %(role_name)s
-  namespace: %(namespace_name)s
+  name: {{ role_name }}
+  namespace: {{ namespace_name }}
 subjects:
 - kind: ServiceAccount
-  name: %(serviceaccount_name)s
+  name: {{ serviceaccount_name }}
 """
