@@ -458,6 +458,9 @@ SAAS_FILES_QUERY = """
       name
       url
       path
+      image_authentication {
+        path
+      }
       hash_length
       parameters
       targets {

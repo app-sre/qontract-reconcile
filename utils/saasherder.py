@@ -4,6 +4,8 @@ import logging
 
 from sretoolbox.container import Image
 
+import utils.secret_reader as secret_reader
+
 from utils.oc import OC
 from utils.openshift_resource import OpenshiftResource as OR
 
@@ -15,12 +17,14 @@ class SaasHerder():
                  github,
                  gitlab,
                  integration,
-                 integration_version):
+                 integration_version,
+                 settings):
         self.saas_files = saas_files
         self.github = github
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
+        self.settings = settings
         self.namespaces = self._collect_namespaces()
 
     def _collect_namespaces(self):
@@ -97,11 +101,18 @@ class SaasHerder():
 
         return images
 
-    def _check_images(self, resource):
+    def _check_images(self, resource, auth):
         error = False
         images = self._collect_images(resource)
+        if auth:
+            creds = secret_reader.read_all(auth, settings=self.settings)
+            username = creds['user']
+            password = creds['token']
+        else:
+            username = None
+            password = None
         for image in images:
-            if not Image(image):
+            if not Image(image, username=username, password=password):
                 error = True
                 logging.error(f"Image does not exist: {image}")
         return error
@@ -114,6 +125,7 @@ class SaasHerder():
             for rt in resource_templates:
                 url = rt['url']
                 path = rt['path']
+                auth = rt['image_authentication']
                 hash_length = rt['hash_length']
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
@@ -127,7 +139,7 @@ class SaasHerder():
                         if resource_kind not in managed_resource_types:
                             continue
                         # check images
-                        image_error = self._check_images(resource)
+                        image_error = self._check_images(resource, auth)
                         if image_error:
                             ri.register_error()
                             continue

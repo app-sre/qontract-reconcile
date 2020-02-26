@@ -33,12 +33,14 @@ def init_gh_gl():
 def run(dry_run=False, thread_pool_size=10, defer=None):
     gh, gl = init_gh_gl()
     saas_files = queries.get_saas_files()
+    settings = queries.get_app_interface_settings()
     saasherder = SaasHerder(
         saas_files,
         github=gh,
         gitlab=gl,
         integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION)
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        settings=settings)
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
         thread_pool_size=thread_pool_size,
