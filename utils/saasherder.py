@@ -47,7 +47,6 @@ class SaasHerder():
         return parameters
 
     def _get_file_contents(self, url, path, ref):
-        # TODO: take internal into consideration later
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = self.github.get_repo(repo_name)
