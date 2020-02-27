@@ -436,7 +436,8 @@ class TerrascriptClient(object):
         # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
         values = {}
         values['bucket'] = identifier
-        values['versioning'] = common_values.get('versioning') or False
+        versioning = common_values.get('versioning') or False
+        values['versioning'] = {"enabled": versioning}
         values['tags'] = common_values['tags']
         values['acl'] = common_values.get('acl') or 'private'
         values['server_side_encryption_configuration'] = \
