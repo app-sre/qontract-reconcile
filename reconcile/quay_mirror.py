@@ -7,11 +7,11 @@ from collections import defaultdict
 
 from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError
+from sretoolbox.container import Skopeo
 
 from reconcile import queries
 from utils import gql
 from utils import secret_reader
-from utils import skopeo
 
 
 _LOG = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class QuayMirror:
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
         self.settings = queries.get_app_interface_settings()
-        self.skopeo_cli = skopeo.Skopeo(dry_run)
+        self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()
 
     def run(self):
