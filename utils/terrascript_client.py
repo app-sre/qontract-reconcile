@@ -460,9 +460,11 @@ class TerrascriptClient(object):
         if common_values.get('cors_rules'):
             # common_values['cors_rules'] is a list of cors_rules
             values['cors_rule'] = common_values['cors_rules']
-        if common_values.get('replication_configurations'):
+        deps = []
+        replication_configs = common_values.get('replication_configurations')
+        if replication_configs:
             rc_configs = []
-            for config in common_values['replication_configurations']:
+            for config in replication_configs:
                 rc_values = {}
 
                 # iam roles
@@ -484,8 +486,8 @@ class TerrascriptClient(object):
                     ]
                 }
                 rc_values['assume_role_policy'] = role
-                tf_resource = aws_iam_role(id, **rc_values)
-                tf_resources.append(tf_resource)
+                role_resource = aws_iam_role(id, **rc_values)
+                tf_resources.append(role_resource)
 
                 # iam policy
                 # Terraform resource reference:
@@ -529,18 +531,22 @@ class TerrascriptClient(object):
                     ]
                 }
                 rc_values['policy'] = policy
-                tf_resource = aws_iam_policy(id, **rc_values)
-                tf_resources.append(tf_resource)
+                policy_resource = aws_iam_policy(id, **rc_values)
+                tf_resources.append(policy_resource)
 
                 # iam role policy attachment
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy_attachment.html
                 rc_values.clear()
+                rc_values['depends_on'] = [role_resource, policy_resource]
                 rc_values['role'] = "${aws_iam_role." + id + ".name}"
                 rc_values['policy_arn'] = "${aws_iam_policy." + id + ".arn}"
                 tf_resource = aws_iam_role_policy_attachment(id, **rc_values)
                 tf_resources.append(tf_resource)
 
+                # Define the replication configuration.  Use a unique role for
+                # each replication configuration for easy cleanup/modification
+                deps.append(role_resource)
                 rc_values.clear()
                 rc_values['role'] = "${aws_iam_role." + id + ".arn}"
                 rc_values['rules'] = {
@@ -556,6 +562,8 @@ class TerrascriptClient(object):
                 }
                 rc_configs.append(rc_values)
             values['replication_configuration'] = rc_configs
+        if len(deps) > 0:
+            values['depends_on'] = deps
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
