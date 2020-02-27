@@ -8,6 +8,7 @@ from collections import defaultdict
 from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError
 from sretoolbox.container import Skopeo
+from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
 from utils import gql
@@ -58,9 +59,12 @@ class QuayMirror:
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
-                self.skopeo_cli.copy(src_image=item['mirror_url'],
-                                     dst_image=item['image_url'],
-                                     dest_creds=self.push_creds[org])
+                try:
+                    self.skopeo_cli.copy(src_image=item['mirror_url'],
+                                         dst_image=item['image_url'],
+                                         dest_creds=self.push_creds[org])
+                except SkopeoCmdError as details:
+                    _LOG.error('[%s]', details)
 
     def process_repos_query(self):
         result = self.gqlapi.query(self.QUAY_REPOS_QUERY)
