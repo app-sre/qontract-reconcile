@@ -500,3 +500,11 @@ Please consult relevant SOPs to verify that the account is secure.
             'merge_requests_events': int(trigger == 'mr'),
         }
         p.hooks.create(hook)
+
+    def get_repository_tree(self, ref='master'):
+        """
+        Wrapper around Gitlab.repository_tree() with pagination disabled.
+        """
+        return self.project.repository_tree(ref=ref,
+                                            recursive=True,
+                                            all=True)
