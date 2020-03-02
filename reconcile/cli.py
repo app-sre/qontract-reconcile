@@ -35,6 +35,7 @@ import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_members
+import reconcile.gitlab_owners
 import reconcile.gitlab_pr_submitter
 import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
@@ -598,3 +599,10 @@ def sentry_config(ctx):
 def sql_query(ctx, enable_deletion):
     run_integration(reconcile.sql_query.run, ctx.obj['dry_run'],
                     enable_deletion)
+
+
+@integration.command()
+@click.pass_context
+def gitlab_owners(ctx):
+    run_integration(reconcile.gitlab_owners.run,
+                    ctx.obj['dry_run'])

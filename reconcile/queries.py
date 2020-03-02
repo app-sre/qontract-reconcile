@@ -325,6 +325,7 @@ APPS_QUERY = """
     codeComponents {
       url
       resource
+      gitlabOwners
     }
   }
 }
@@ -351,6 +352,23 @@ def get_repos(server=''):
     repos = [c['url'] for c in code_components if c['url'].startswith(server)]
 
     return repos
+
+
+def get_repos_gitlab_owner(server=''):
+    """ Returns all repos defined under codeComponents that have gitlabOwner
+    enabled.
+    Optional arguments:
+    server: url of the server to return. for example: https://github.com
+    """
+    gqlapi = gql.get_api()
+    apps = gqlapi.query(APPS_QUERY)['apps']
+    code_components_lists = [a['codeComponents'] for a in apps
+                             if a['codeComponents'] is not None]
+    code_components = [item for sublist in code_components_lists
+                       for item in sublist]
+    return [c['url'] for c in code_components
+            if c['url'].startswith(server) and
+            c['gitlabOwners']]
 
 
 USERS_QUERY = """
