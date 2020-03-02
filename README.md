@@ -19,6 +19,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `github`: Configures the teams and members in a GitHub org.
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-members` : Manage GitLab group members.
+- `gitlab-owners`: Adds an `approved` label on gitlab merge requests based on OWNERS files schema.
 - `gitlab-permissions`: Manage permissions on GitLab projects.
 - `gitlab-projects`: Create GitLab projects.
 - `jenkins-job-builder`: Manage Jenkins jobs configurations using jenkins-jobs
