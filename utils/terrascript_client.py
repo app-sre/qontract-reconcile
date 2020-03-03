@@ -202,10 +202,11 @@ class TerrascriptClient(object):
                                 user_name)
                         logging.warning(msg)
                         continue
-                    if not gpg_key_valid(user_public_gpg_key):
+                    ok, error_message = gpg_key_valid(user_public_gpg_key)
+                    if not ok:
                         msg = \
-                            'user {} has an invalid public gpg key.'.format(
-                                user_name)
+                            'invalid public gpg key for user {}: {}'.format(
+                                user_name, error_message)
                         logging.error(msg)
                         error = True
                         return error

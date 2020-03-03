@@ -56,7 +56,7 @@ def setup(print_only, thread_pool_size):
                      settings=settings)
     err = ts.populate_users(tf_roles)
     if err:
-        return None, err
+        return None
 
     working_dirs = ts.dump(print_only)
 
@@ -104,6 +104,9 @@ def run(dry_run=False, print_only=False,
     working_dirs = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
+    if working_dirs is None:
+        err = True
+        cleanup_and_exit(status=err)
 
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
