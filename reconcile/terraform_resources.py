@@ -28,6 +28,7 @@ TF_NAMESPACES_QUERY = """
         account
         identifier
         defaults
+        availability_zone
         parameter_group
         overrides
         output_resource_name
