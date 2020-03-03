@@ -326,11 +326,6 @@ APPS_QUERY = """
       url
       resource
     }
-    owner_roles {
-      users {
-        org_username
-      }
-    }
   }
 }
 """
@@ -463,6 +458,9 @@ SAAS_FILES_QUERY = """
       name
       url
       path
+      image_authentication {
+        path
+      }
       hash_length
       parameters
       targets {
@@ -495,6 +493,11 @@ SAAS_FILES_QUERY = """
         }
         hash
         parameters
+      }
+    }
+    roles {
+      users {
+        org_username
       }
     }
   }

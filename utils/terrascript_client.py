@@ -23,6 +23,7 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile, aws_iam_policy,
+                               aws_iam_role, aws_iam_role_policy_attachment,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
@@ -435,7 +436,8 @@ class TerrascriptClient(object):
         # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
         values = {}
         values['bucket'] = identifier
-        values['versioning'] = {'enabled': True}
+        versioning = common_values.get('versioning') or True
+        values['versioning'] = {"enabled": versioning}
         values['tags'] = common_values['tags']
         values['acl'] = common_values.get('acl') or 'private'
         values['server_side_encryption_configuration'] = \
@@ -443,9 +445,126 @@ class TerrascriptClient(object):
         if common_values.get('lifecycle_rules'):
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
             values['lifecycle_rule'] = common_values['lifecycle_rules']
+        sc = common_values.get('storage_class')
+        if sc:
+            rule = {
+                "id": sc + "_storage_class",
+                "enabled": "true",
+                "transition": {
+                    "storage_class": sc
+                }
+            }
+            if values.get('lifecycle_rule'):
+                values['lifecycle_rule'].append(rule)
+            else:
+                values['lifecycle_rule'] = rule
         if common_values.get('cors_rules'):
             # common_values['cors_rules'] is a list of cors_rules
             values['cors_rule'] = common_values['cors_rules']
+        deps = []
+        replication_configs = common_values.get('replication_configurations')
+        if replication_configs:
+            rc_configs = []
+            for config in replication_configs:
+                rc_values = {}
+
+                # iam roles
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/d/iam_role.html
+                id = f"{identifier}_{config['rule_name']}"
+                rc_values['name'] = config['rule_name'] + "_iam_role"
+                role = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {
+                                "Service": "s3.amazonaws.com"
+                            },
+                            "Effect": "Allow",
+                            "Sid": ""
+                        }
+                    ]
+                }
+                rc_values['assume_role_policy'] = role
+                role_resource = aws_iam_role(id, **rc_values)
+                tf_resources.append(role_resource)
+
+                # iam policy
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/r/iam_policy.html
+                rc_values.clear()
+                rc_values['name'] = config['rule_name'] + '_iam_policy'
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "s3:GetReplicationConfiguration",
+                                "s3:ListBucket"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": [
+                                "${aws_s3_bucket." + identifier + ".arn}"
+                            ]
+                        },
+                        {
+                            "Action": [
+                                "s3:GetObjectVersion",
+                                "s3:GetObjectVersionAcl"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": [
+                                "${aws_s3_bucket." + identifier + ".arn}/*"
+                            ]
+                        },
+                        {
+                            "Action": [
+                                "s3:ReplicateObject",
+                                "s3:ReplicateDelete"
+                            ],
+                            "Effect": "Allow",
+                            "Resource":
+                                "${aws_s3_bucket." +
+                                config['destination_bucket_identifier'] +
+                                ".arn}/*"
+                        }
+                    ]
+                }
+                rc_values['policy'] = policy
+                policy_resource = aws_iam_policy(id, **rc_values)
+                tf_resources.append(policy_resource)
+
+                # iam role policy attachment
+                # Terraform resource reference:
+                # https://www.terraform.io/docs/providers/aws/r/iam_policy_attachment.html
+                rc_values.clear()
+                rc_values['depends_on'] = [role_resource, policy_resource]
+                rc_values['role'] = "${aws_iam_role." + id + ".name}"
+                rc_values['policy_arn'] = "${aws_iam_policy." + id + ".arn}"
+                tf_resource = aws_iam_role_policy_attachment(id, **rc_values)
+                tf_resources.append(tf_resource)
+
+                # Define the replication configuration.  Use a unique role for
+                # each replication configuration for easy cleanup/modification
+                deps.append(role_resource)
+                rc_values.clear()
+                rc_values['role'] = "${aws_iam_role." + id + ".arn}"
+                rc_values['rules'] = {
+                    'id': config['rule_name'],
+                    'status': config['status'],
+                    'destination': {
+                        'bucket':
+                            "${aws_s3_bucket." +
+                            config['destination_bucket_identifier'] + ".arn}",
+                        'storage_class': config.get('storage_class') or
+                        "standard"
+                    }
+                }
+                rc_configs.append(rc_values)
+            values['replication_configuration'] = rc_configs
+        if len(deps) > 0:
+            values['depends_on'] = deps
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
@@ -864,18 +983,18 @@ class TerrascriptClient(object):
                     "Sid": "ManageRepositoryContents",
                     "Effect": "Allow",
                     "Action": [
-                            "ecr:GetAuthorizationToken",
-                            "ecr:BatchCheckLayerAvailability",
-                            "ecr:GetDownloadUrlForLayer",
-                            "ecr:GetRepositoryPolicy",
-                            "ecr:DescribeRepositories",
-                            "ecr:ListImages",
-                            "ecr:DescribeImages",
-                            "ecr:BatchGetImage",
-                            "ecr:InitiateLayerUpload",
-                            "ecr:UploadLayerPart",
-                            "ecr:CompleteLayerUpload",
-                            "ecr:PutImage"
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:GetRepositoryPolicy",
+                        "ecr:DescribeRepositories",
+                        "ecr:ListImages",
+                        "ecr:DescribeImages",
+                        "ecr:BatchGetImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                        "ecr:PutImage"
                     ],
                     "Resource": "${" + ecr_tf_resource.fullname + ".arn}"
                 }
@@ -949,7 +1068,7 @@ class TerrascriptClient(object):
                 'origin_access_identity':
                     'origin-access-identity/cloudfront/' +
                     '${' + cf_oai_tf_resource.fullname + '.id}'
-                }
+                    }
         }
         values['origin'] = [origin]
         cf_distribution_tf_resource = \

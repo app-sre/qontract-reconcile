@@ -411,11 +411,10 @@ def openshift_resources(ctx, thread_pool_size, internal):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
-@internal()
 @click.pass_context
-def openshift_saas_deploy(ctx, thread_pool_size, internal):
+def openshift_saas_deploy(ctx, thread_pool_size):
     run_integration(reconcile.openshift_saas_deploy.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()

@@ -16,7 +16,7 @@ setup(
     packages=find_packages(exclude=('tests',)),
 
     install_requires=[
-        "sretoolbox~=0.1",
+        "sretoolbox~=0.2",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",

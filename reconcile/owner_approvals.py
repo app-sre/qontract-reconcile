@@ -18,11 +18,11 @@ def get_baseline_file_path(io_dir):
 
 def collect_owners():
     owners = {}
-    apps = queries.get_apps()
-    for app in apps:
-        app_name = app['name']
-        owners[app_name] = set()
-        owner_roles = app.get('owner_roles')
+    saas_files = queries.get_saas_files()
+    for saas_file in saas_files:
+        saas_file_name = saas_file['name']
+        owners[saas_file_name] = set()
+        owner_roles = saas_file.get('roles')
         if not owner_roles:
             continue
         for owner_role in owner_roles:
@@ -31,7 +31,7 @@ def collect_owners():
                 continue
             for owner_user in owner_users:
                 owner_username = owner_user['org_username']
-                owners[app_name].add(owner_username)
+                owners[saas_file_name].add(owner_username)
 
     # make owners suitable for json dump
     for k in owners:
@@ -43,20 +43,20 @@ def collect_owners():
 def collect_state():
     state = []
     saas_files = queries.get_saas_files()
-    for sf in saas_files:
-        path = sf['path']
-        app = sf['app']['name']
-        resource_templates = sf['resourceTemplates']
-        for rt in resource_templates:
-            rt_name = rt['name']
-            for target in rt['targets']:
+    for saas_file in saas_files:
+        saas_file_path = saas_file['path']
+        saas_file_name = saas_file['name']
+        resource_templates = saas_file['resourceTemplates']
+        for resource_template in resource_templates:
+            resource_template_name = resource_template['name']
+            for target in resource_template['targets']:
                 namespace = target['namespace']['name']
                 cluster = target['namespace']['cluster']['name']
                 target_hash = target['hash']
                 state.append({
-                    'path': path,
-                    'app': app,
-                    'name': rt_name,
+                    'saas_file_path': saas_file_path,
+                    'saas_file_name': saas_file_name,
+                    'resource_template_name': resource_template_name,
                     'cluster': cluster,
                     'namespace': namespace,
                     'hash': target_hash
@@ -141,14 +141,16 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     diffs = [s for s in desired_state if s not in current_state]
     for diff in diffs:
         # check for a lgtm by an owner of this app
-        app = diff['app']
-        if not any(lgtm_user in owners[app] for lgtm_user in lgtm_users):
+        saas_file_name = diff['saas_file_name']
+        if not any(lgtm_user in owners[saas_file_name]
+                   for lgtm_user in lgtm_users):
             gl.remove_label_from_merge_request(
                 gitlab_merge_request_id, 'approved')
             return
         # this diff is approved - remove it from changed_paths
-        path = diff['path']
-        changed_paths = [c for c in changed_paths if not c.endswith(path)]
+        saas_file_path = diff['saas_file_path']
+        changed_paths = [c for c in changed_paths
+                         if not c.endswith(saas_file_path)]
 
     # if there are still entries in this list - they are not approved
     if len(changed_paths) != 0:

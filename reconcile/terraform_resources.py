@@ -212,7 +212,7 @@ def write_outputs_to_vault(vault_path, ri):
     for cluster, namespace, _, data in ri:
         for name, d_item in data['desired'].items():
             secret_path = \
-              f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
+                f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
             secret = {'path': secret_path, 'data': d_item.body['data']}
             vault_client.write(secret)
 

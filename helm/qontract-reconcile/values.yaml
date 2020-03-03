@@ -183,15 +183,6 @@ integrations:
       memory: 400Mi
       cpu: 200m
   extraArgs: --vault-output-path app-sre/integrations-output
-- name: openshift-saas-deploy
-  resources:
-    requests:
-      memory: 500Mi
-      cpu: 600m
-    limits:
-      memory: 800Mi
-      cpu: 1000m
-  extraArgs: --external
 - name: terraform-resources
   resources:
     requests:
