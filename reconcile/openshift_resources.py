@@ -462,7 +462,6 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
 
 def fetch_states(spec, ri):
     try:
-
         if spec.type == "current":
             fetch_current_state(spec.oc, ri, spec.cluster,
                                 spec.namespace, spec.resource,
@@ -474,6 +473,7 @@ def fetch_states(spec, ri):
                                 spec.parent)
 
     except StatusCodeError as e:
+        ri.register_error()
         msg = 'cluster: {},'
         msg += 'namespace: {},'
         msg += 'resource_names: {},'
@@ -502,15 +502,15 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
     oc_map, ri = fetch_data(namespaces, thread_pool_size, internal)
     defer(lambda: oc_map.cleanup())
-    if ri.has_error_registered():
-        sys.exit(1)
 
     # check for unused resources types
     # listed under `managedResourceTypes`
     # only applicable for openshift-resources
     ob.check_unused_resource_types(ri)
 
-    ob.realize_data(dry_run, oc_map, ri)
+    enable_deletion = False if ri.has_error_registered() else True
+    ob.realize_data(dry_run, oc_map, ri,
+                    enable_deletion=enable_deletion)
 
     if ri.has_error_registered():
         sys.exit(1)
