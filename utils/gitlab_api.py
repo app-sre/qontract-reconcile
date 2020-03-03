@@ -16,6 +16,18 @@ import utils.secret_reader as secret_reader
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+class MRState:
+    """
+    Data class to help users selecting the correct Merge Request state.
+    """
+    # Values taken from https://docs.gitlab.com/ee/api/merge_requests.html
+    OPENED = 'opened'
+    CLOSED = 'closed'
+    LOCKED = 'locked'
+    MERGED = 'merged'
+    ALL = 'all'
+
+
 class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True,
                  settings=None):
