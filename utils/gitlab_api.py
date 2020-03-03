@@ -11,7 +11,7 @@ from ruamel.yaml.scalarstring import PreservedScalarString as pss
 import utils.secret_reader as secret_reader
 
 
-# The following line will supress
+# The following line will suppress
 # `InsecureRequestWarning: Unverified HTTPS request is being made`
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
