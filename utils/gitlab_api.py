@@ -5,6 +5,8 @@ import gitlab
 import urllib3
 import ruamel.yaml as yaml
 
+from urllib.parse import urlparse
+
 from datetime import datetime
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
@@ -30,7 +32,7 @@ class MRState:
 
 class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True,
-                 settings=None):
+                 settings=None, project_url=None):
         self.server = instance['url']
         token = secret_reader.read(instance['token'], settings=settings)
         ssl_verify = instance['sslVerify']
@@ -40,7 +42,14 @@ class GitLabApi(object):
                                 ssl_verify=ssl_verify)
         self.gl.auth()
         self.user = self.gl.user
-        if project_id is not None:
+        if project_id is None:
+            # When project_id is not provide, we try to get the project
+            # using the project_url
+            if project_url is not None:
+                parsed_project_url = urlparse(project_url)
+                name_with_namespace = parsed_project_url.path.strip('/')
+                self.project = self.gl.projects.get(name_with_namespace)
+        else:
             self.project = self.gl.projects.get(project_id)
 
     def create_branch(self, new_branch, source_branch):
