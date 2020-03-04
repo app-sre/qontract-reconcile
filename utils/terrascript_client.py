@@ -348,6 +348,12 @@ class TerrascriptClient(object):
         az = values.get('availability_zone')
         if az is not None:
             values['availabliliy_zone'] = az
+            # To get the provider we should use, we find the region by
+            # removing the last character from the availability zone.
+            # Availability zone is defined like us-east-1a, us-east-1b,
+            # etc.  We cut off the last character from the availability
+            # zone to get the region, and use that as an alias in the
+            # provider definition
             values['provider'] = 'aws.' + az[:-1]
 
         # rds instance
