@@ -417,6 +417,10 @@ Please consult relevant SOPs to verify that the account is secure.
             comments.append({'username': username, 'body': body})
         return comments
 
+    def get_merge_request_labels(self, mr_id):
+        merge_request = self.project.mergerequests.get(mr_id)
+        return merge_request.labels
+
     def add_label_to_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
         labels = merge_request.attributes.get('labels')
