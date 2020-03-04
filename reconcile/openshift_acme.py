@@ -1,6 +1,5 @@
 import semver
 
-import jinja2
 import anymarkup
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
@@ -22,8 +21,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
 
 def process_template(template, values):
     try:
-        template = jinja2.Template(template)
-        manifest = template.render(values)
+        manifest = template % values
         return OR(anymarkup.parse(manifest, force_types=None),
                   QONTRACT_INTEGRATION,
                   QONTRACT_INTEGRATION_VERSION)
@@ -69,6 +67,12 @@ def construct_resources(namespaces):
             })
         )
         namespace["resources"].append(
+            process_template(ACME_ROLE, {
+                'role_name': role_name,
+                'role_api_version': rbac_api_version
+            })
+        )
+        namespace["resources"].append(
             process_template(ACME_ROLEBINDING, {
                 'role_name': role_name,
                 'rolebinding_name': rolebinding_name,
@@ -77,17 +81,6 @@ def construct_resources(namespaces):
                 'namespace_name': namespace_name
             })
         )
-
-        # we may have limited access to secrets in the namespace
-        role_values = {
-           'role_name': role_name,
-           'role_api_version': rbac_api_version
-        }
-        secret_names = acme.get("acmeSecrets", [])
-        if secret_names:
-            role_values['acme_secrets'] = secret_names
-
-        namespace["resources"].append(process_template(ACME_ROLE, role_values))
 
         # If acme-account Secret is defined, add it to the namespace
         acme_account_secret = acme.get("accountSecret", {})
