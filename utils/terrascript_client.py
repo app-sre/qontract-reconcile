@@ -359,6 +359,17 @@ class TerrascriptClient(object):
                                            output_resource_name)
         values['password'] = password
 
+        az = values.get('availability_zone')
+        if az is not None:
+            values['availabliliy_zone'] = az
+            # To get the provider we should use, we find the region by
+            # removing the last character from the availability zone.
+            # Availability zone is defined like us-east-1a, us-east-1b,
+            # etc.  We cut off the last character from the availability
+            # zone to get the region, and use that as an alias in the
+            # provider definition
+            values['provider'] = 'aws.' + az[:-1]
+
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
         tf_resource = aws_db_instance(identifier, **values)
@@ -1179,6 +1190,7 @@ class TerrascriptClient(object):
         policies = resource.get('policies', None)
         user_policy = resource.get('user_policy', None)
         region = resource.get('region', None)
+        az = resource.get('availability_zone', None)
         queues = resource.get('queues', None)
         specs = resource.get('specs', None)
         parameter_group = resource.get('parameter_group', None)
@@ -1192,6 +1204,7 @@ class TerrascriptClient(object):
         values['policies'] = policies
         values['user_policy'] = user_policy
         values['region'] = region
+        values['availability_zone'] = az
         values['queues'] = queues
         values['specs'] = specs
         values['parameter_group'] = parameter_group
