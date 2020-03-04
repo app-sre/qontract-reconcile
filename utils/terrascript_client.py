@@ -54,6 +54,17 @@ class TerrascriptClient(object):
         for name, config in self.configs.items():
             # Ref: https://github.com/mjuenema/python-terrascript#example
             ts = Terrascript()
+            supported_regions = config['supportedDeploymentRegions']
+            if supported_regions is not None:
+                for region in supported_regions:
+                    ts += provider('aws',
+                                   access_key=config['aws_access_key_id'],
+                                   secret_key=config['aws_secret_access_key'],
+                                   version=config['aws_provider_version'],
+                                   region=region,
+                                   alias=region)
+
+            # Add default region, which will always be region in the secret
             ts += provider('aws',
                            access_key=config['aws_access_key_id'],
                            secret_key=config['aws_secret_access_key'],
@@ -96,6 +107,8 @@ class TerrascriptClient(object):
         account_name = account['name']
         automation_token = account['automationToken']
         secret = secret_reader.read_all(automation_token, settings)
+        secret['supportedDeploymentRegions'] = \
+            account['supportedDeploymentRegions']
         return (account_name, secret)
 
     def get_tf_iam_group(self, group_name):
@@ -566,12 +579,15 @@ class TerrascriptClient(object):
             values['replication_configuration'] = rc_configs
         if len(deps) > 0:
             values['depends_on'] = deps
+        region = common_values['region'] or self.default_regions.get(account)
+        if 'supportedDeploymentRegions' in account:
+            values['provider'] = 'aws.' + region
+        values['region'] = region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
         output_value = '${' + bucket_tf_resource.fullname + '.bucket}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
         endpoint = 's3.{}.amazonaws.com'.format(region)
@@ -766,6 +782,8 @@ class TerrascriptClient(object):
                 values = {}
                 values['name'] = queue
                 values['tags'] = common_values['tags']
+                if 'supportedDeploymentRegions' in account:
+                    values['provider'] = 'aws.' + region
                 values.update(defaults)
                 queue_tf_resource = aws_sqs_queue(queue, **values)
                 tf_resources.append(queue_tf_resource)
@@ -867,6 +885,8 @@ class TerrascriptClient(object):
                 values['tags'] = common_values['tags']
                 values.update(defaults)
                 values['attribute'] = attributes
+                if 'supportedDeploymentRegions' in account:
+                    values['provider'] = 'aws.' + region
                 table_tf_resource = aws_dynamodb_table(table, **values)
                 tf_resources.append(table_tf_resource)
                 output_name = '{}[{}]'.format(output_prefix, table_key)
@@ -935,12 +955,14 @@ class TerrascriptClient(object):
         values['name'] = identifier
         values['tags'] = common_values['tags']
 
+        region = common_values['region'] or self.default_regions.get(account)
+        if 'supportedDeploymentRegions' in account:
+            values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
         output_name = output_prefix + '[url]'
         output_value = '${' + ecr_tf_resource.fullname + '.repository_url}'
         tf_resources.append(output(output_name, value=output_value))
-        region = common_values['region'] or self.default_regions.get(account)
         output_name = output_prefix + '[aws_region]'
         tf_resources.append(output(output_name, value=region))
 

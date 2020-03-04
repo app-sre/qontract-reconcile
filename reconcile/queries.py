@@ -106,6 +106,7 @@ AWS_ACCOUNTS_QUERY = """
     uid
     consoleUrl
     resourcesDefaultRegion
+    supportedDeploymentRegions
     accountOwners {
       name
       email
