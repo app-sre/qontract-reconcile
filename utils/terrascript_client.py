@@ -361,7 +361,7 @@ class TerrascriptClient(object):
 
         az = values.get('availability_zone')
         if az is not None:
-            values['availabliliy_zone'] = az
+            values['availability_zone'] = az
             # To get the provider we should use, we find the region by
             # removing the last character from the availability zone.
             # Availability zone is defined like us-east-1a, us-east-1b,
