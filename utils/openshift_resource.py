@@ -264,9 +264,20 @@ class OpenshiftResource(object):
                 body['apiVersion'] = 'authorization.openshift.io/v1'
 
         if body['kind'] == 'ClusterRoleBinding':
+            # TODO: remove this once we have no 3.11 clusters
+            if body['apiVersion'] == 'authorization.openshift.io/v1':
+                body['apiVersion'] = 'rbac.authorization.k8s.io/v1'
+            if 'userNames' in body:
+                body.pop('userNames')
+            if 'roleRef' in body:
+                roleRef = body['roleRef']
+                if 'apiGroup' in roleRef and \
+                        roleRef['apiGroup'] in body['apiVersion']:
+                    roleRef.pop('apiGroup')
+                if 'kind' in roleRef:
+                    roleRef.pop('kind')
             if 'groupNames' in body:
                 body.pop('groupNames')
-
         if body['kind'] == 'Service':
             spec = body['spec']
             if spec.get('sessionAffinity') == 'None':

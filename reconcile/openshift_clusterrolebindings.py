@@ -37,14 +37,16 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 def construct_user_oc_resource(role, user):
     name = f"{role}-{user}"
+    # Note: In OpenShift 4.x this resource is in rbac.authorization.k8s.io/v1
     body = {
-        "apiVersion": "authorization.openshift.io/v1",
+        "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "ClusterRoleBinding",
         "metadata": {
             "name": name
         },
         "roleRef": {
-            "name": role
+            "name": role,
+            "kind": "ClusterRole"
         },
         "subjects": [
             {"kind": "User",
@@ -57,14 +59,16 @@ def construct_user_oc_resource(role, user):
 
 def construct_sa_oc_resource(role, namespace, sa_name):
     name = f"{role}-{namespace}-{sa_name}"
+    # Note: In OpenShift 4.x this resource is in rbac.authorization.k8s.io/v1
     body = {
-        "apiVersion": "authorization.openshift.io/v1",
+        "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "ClusterRoleBinding",
         "metadata": {
             "name": name
         },
         "roleRef": {
-            "name": role
+            "name": role,
+            "kind": "ClusterRole"
         },
         "subjects": [
             {"kind": "ServiceAccount",
