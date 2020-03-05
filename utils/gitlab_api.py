@@ -435,7 +435,10 @@ Please consult relevant SOPs to verify that the account is secure.
                 continue
             username = note.author['username']
             body = note.body
-            comments.append({'username': username, 'body': body})
+            created_at = note.created_at
+            comments.append({'username': username,
+                             'body': body,
+                             'created_at': created_at})
         return comments
 
     def get_merge_request_labels(self, mr_id):
