@@ -171,6 +171,17 @@ def send_mails(**kwargs):
     return f
 
 
+def enable_rebase(**kwargs):
+    def f(function):
+        opt = '--enable-rebase/--no-enable-rebase'
+        msg = 'enable the merge request rebase action.'
+        function = click.option(opt,
+                                default=kwargs.get('default', True),
+                                help=msg)(function)
+        return function
+    return f
+
+
 def run_integration(func, *args):
     try:
         func(*args)
@@ -354,12 +365,13 @@ def gitlab_permissions(ctx, thread_pool_size):
               default=1,
               help='max number of rebases/merges to perform.')
 @enable_deletion(default=False)
+@enable_rebase(default=True)
 @click.pass_context
 def gitlab_housekeeping(ctx, gitlab_project_id, days_interval,
-                        enable_deletion, limit):
+                        enable_deletion, limit, enable_rebase):
     run_integration(reconcile.gitlab_housekeeping.run, gitlab_project_id,
                     ctx.obj['dry_run'], days_interval, enable_deletion,
-                    limit)
+                    limit, enable_rebase)
 
 
 @integration.command()
