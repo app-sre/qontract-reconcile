@@ -1,89 +1,18 @@
-import base64
 import json
 import logging
-import pathlib
 
 from dateutil import parser as dateparser
-
-from ruamel import yaml
 
 from reconcile import queries
 from utils.gitlab_api import GitLabApi
 from utils.gitlab_api import MRState
-
+from utils.repo_owners import RepoOwners
 
 QONTRACT_INTEGRATION = 'gitlab-owners'
 
 APPROVAL_LABEL = 'approved'
 
 _LOG = logging.getLogger(__name__)
-
-
-class ProjectOwners:
-    """
-    Abstracts the owners of a project with per-path granularity.
-    """
-
-    def __init__(self, gitlab_client):
-        self._gitlab = gitlab_client
-        self._owners_map = self._get_owners_map()
-
-    def get_all_owners(self, path):
-        """
-        Gets all the owners of a given path, no matter in which
-        level of the filesystem tree the owner was specified.
-        """
-        path_owners = set()
-        for owned_path, owners in self._owners_map.items():
-            if path.startswith(owned_path):
-                path_owners.update(owners)
-        if not path_owners:
-            raise KeyError(f'No owners for path {path!r}')
-        # Returns a sorted list of unique owners
-        return sorted(path_owners)
-
-    def get_closest_owners(self, path):
-        """
-        Gets all closest owners of a given path, no matter in which
-        level of the filesystem tree the owner was specified.
-        """
-        candidates = []
-
-        for owned_path in self._owners_map:
-            if path.startswith(owned_path):
-                candidates.append(owned_path)
-
-        if not candidates:
-            raise KeyError(f'No owners for path {path!r}')
-
-        # The longest owned_path is the chosen
-        elected = max(candidates, key=lambda x: len(x))
-        # Returns a sorted list of unique owners
-        return sorted(set(self._owners_map[elected]))
-
-    def _get_owners_map(self):
-        """
-        Maps all the OWNERS files content to their respective
-        owned directory.
-        """
-        owners_map = dict()
-        repo_tree = self._gitlab.get_repository_tree(ref='master')
-        for item in repo_tree:
-            if item['name'] != 'OWNERS':
-                continue
-            if item['type'] != 'blob':
-                continue
-            file_info = self._gitlab.project.repository_blob(item['id'])
-            content = base64.b64decode(file_info['content']).decode()
-            owners_path = str(pathlib.Path(item['path']).parent)
-            try:
-                approvers = yaml.safe_load(content)['approvers']
-            except KeyError:
-                _LOG.debug(f'Not able to load the approvers from '
-                           f'"{item["path"]}"')
-                continue
-            owners_map[owners_path] = approvers
-        return owners_map
 
 
 class OwnerNotFoundError(Exception):
@@ -115,10 +44,9 @@ class MRApproval:
         paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
         for path in paths:
             try:
-                change_owners_map[path] = \
-                    {
-                        'owners': self.owners.get_all_owners(path),
-                        'closest_owners': self.owners.get_closest_owners(path)
+                change_owners_map[path] = {
+                    'owners': self.owners.get_path_owners(path),
+                    'close_owners': self.owners.get_path_close_owners(path)
                     }
             except KeyError as exception:
                 raise OwnerNotFoundError(exception)
@@ -168,7 +96,7 @@ class MRApproval:
             # a report message
             if not change_approved:
                 report[change_path] = (f'one of '
-                                       f'{change_owners["closest_owners"]} '
+                                       f'{change_owners["close_owners"]} '
                                        f'needs to approve the change')
 
         # Empty report means that all changes are approved
@@ -220,11 +148,8 @@ def run(dry_run=False):
     repos = queries.get_repos_gitlab_owner(server=instance['url'])
 
     for repo in repos:
-
-        gitlab_cli = GitLabApi(instance, project_url=repo,
-                               settings=settings)
-
-        project_owners = ProjectOwners(gitlab_client=gitlab_cli)
+        gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+        project_owners = RepoOwners(git_cli=gitlab_cli)
 
         for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
             mr_approval = MRApproval(gitlab_client=gitlab_cli,
