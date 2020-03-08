@@ -43,6 +43,7 @@ import reconcile.aws_iam_keys
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
 import reconcile.ocm_clusters
+import reconcile.ocm_aws_infrastructure_access
 import reconcile.email_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
@@ -583,6 +584,13 @@ def ocm_groups(ctx, thread_pool_size):
 def ocm_clusters(ctx, thread_pool_size):
     run_integration(reconcile.ocm_clusters.run, ctx.obj['dry_run'],
                     thread_pool_size)
+
+
+@integration.command()
+@click.pass_context
+def ocm_aws_infrastructure_access(ctx):
+    run_integration(reconcile.ocm_aws_infrastructure_access.run,
+                    ctx.obj['dry_run'])
 
 
 @integration.command()
