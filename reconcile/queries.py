@@ -325,6 +325,7 @@ APPS_QUERY = """
     codeComponents {
       url
       resource
+      gitlabRepoOwners
     }
   }
 }
@@ -367,7 +368,7 @@ def get_repos_gitlab_owner(server=''):
                        for item in sublist]
     return [c['url'] for c in code_components
             if c['url'].startswith(server) and
-            c['gitlabOwners']]
+            c['gitlabRepoOwners']]
 
 
 USERS_QUERY = """
