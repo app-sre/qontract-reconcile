@@ -536,3 +536,12 @@ Please consult relevant SOPs to verify that the account is secure.
         return self.project.repository_tree(ref=ref,
                                             recursive=True,
                                             all=True)
+
+    def get_file(self, path, ref='master'):
+        """
+        Wrapper around Gitlab.files.get() with exception handling.
+        """
+        try:
+            return self.project.files.get(file_path=path, ref=ref)
+        except gitlab.exceptions.GitlabGetError:
+            return None
