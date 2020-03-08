@@ -219,6 +219,14 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 25m
+- name: ocm-aws-infrastructure-access
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 50m
+    limits:
+      memory: 300Mi
+      cpu: 100m
 - name: email-sender
   resources:
     requests:
