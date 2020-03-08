@@ -22,6 +22,16 @@ class RepoOwners:
             self._owners_map = self._get_owners_map()
         return self._owners_map
 
+    def get_owners(self):
+        """
+        Gets all the owners of the repository.
+        Returns a sorted list of unique owners.
+        """
+        repo_owners = set()
+        for owners in self.owners_map.values():
+            repo_owners.update(owners)
+        return sorted(repo_owners)
+
     def get_path_owners(self, path):
         """
         Gets all the owners of a given path, no matter in which
