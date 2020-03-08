@@ -325,7 +325,6 @@ APPS_QUERY = """
     codeComponents {
       url
       resource
-      gitlabOwners
     }
   }
 }
