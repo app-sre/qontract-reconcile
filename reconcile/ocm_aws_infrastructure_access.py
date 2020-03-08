@@ -43,9 +43,9 @@ def fetch_desired_state():
             aws_account = aws_group['account']
             aws_account_uid = aws_account['uid']
             users = [user['org_username']
-                    for role in aws_group['roles']
-                    for user in role['users']]
-            
+                     for role in aws_group['roles']
+                     for user in role['users']]
+
             for user in users:
                 item = {
                     'cluster': cluster,
@@ -59,12 +59,12 @@ def fetch_desired_state():
             if tf_user:
                 item = {
                     'cluster': cluster,
-                    'user_arn': 
+                    'user_arn':
                         f"arn:aws:iam::{aws_account_uid}:user/{tf_user}",
                     'access_level': 'network-mgmt'
                 }
                 desired_state.append(item)
-        
+
     return desired_state
 
 
