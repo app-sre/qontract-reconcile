@@ -83,7 +83,26 @@ class RepoOwners:
                                                 ref=self._ref)
             approvers = yaml.safe_load(raw_owners.decode())['approvers']
 
+            # Approver might be an alias. Let's resolve them.
+            resolved_approvers = []
+            for approver in approvers:
+                if approver in aliases:
+                    resolved_approvers.extend(aliases[approver])
+                else:
+                    resolved_approvers.append(approver)
+
             # The OWNERS file basedir is the owners_map key
             owners_path = str(pathlib.Path(item['path']).parent)
-            owners_map[owners_path] = approvers
+            owners_map[owners_path] = resolved_approvers
         return owners_map
+
+    def _get_aliases(self):
+        """
+        Retrieves the approvers aliases from the OWNERS_ALIASES file.
+        """
+        aliases = dict()
+        raw_aliases = self._git_cli.get_file(path='OWNERS_ALIASES',
+                                             ref=self._ref)
+        if raw_aliases is not None:
+            aliases = yaml.safe_load(raw_aliases.decode())['aliases']
+        return aliases
