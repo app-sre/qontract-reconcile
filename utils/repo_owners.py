@@ -28,6 +28,10 @@ class RepoOwners:
         Returns a sorted list of unique owners.
         """
         repo_owners = set()
+
+        if '.' in self.owners_map:
+            repo_owners.update(self.owners_map['.'])
+
         for owners in self.owners_map.values():
             repo_owners.update(owners)
         return sorted(repo_owners)
@@ -39,6 +43,10 @@ class RepoOwners:
         Returns a sorted list of unique owners.
         """
         path_owners = set()
+
+        if '.' in self.owners_map:
+            path_owners.update(self.owners_map['.'])
+
         for owned_path, owners in self.owners_map.items():
             if path.startswith(owned_path):
                 path_owners.update(owners)
@@ -52,18 +60,21 @@ class RepoOwners:
         level of the filesystem tree the owner was specified.
         Returns a sorted list of unique owners.
         """
-        candidates = []
+        candidates = set()
+
+        if '.' in self.owners_map:
+            candidates.add('.')
 
         for owned_path in self.owners_map:
             if path.startswith(owned_path):
-                candidates.append(owned_path)
+                candidates.add(owned_path)
 
         if not candidates:
             raise KeyError(f'No owners for path {path!r}')
 
         # The longest owned_path is the chosen
         elected = max(candidates, key=lambda x: len(x))
-        return sorted(set(self._owners_map[elected]))
+        return sorted(self.owners_map[elected])
 
     def _get_owners_map(self):
         """
