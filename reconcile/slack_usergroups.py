@@ -60,6 +60,8 @@ ROLES_QUERY = """
         gitlab_owners
         channels
         description
+        github_owners_aliases
+        gitlab_owners_aliases
       }
     }
   }
@@ -159,33 +161,55 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
     return all_slack_usernames
 
 
-def get_slack_usernames_from_github_owners(github_owners, users, usergroup):
+def get_slack_usernames_from_github_owners(github_owners,
+                                           github_owners_aliases, users,
+                                           usergroup):
     return get_slack_usernames_from_owners(
-        github_owners, users, usergroup, 'github_username',
-        missing_user_log_method=logging.debug)
+        github_owners, github_owners_aliases, users, usergroup,
+        'github_username', missing_user_log_method=logging.debug)
 
 
-def get_slack_usernames_from_gitlab_owners(gitlab_owners, users, usergroup):
+def get_slack_usernames_from_gitlab_owners(gitlab_owners,
+                                           gitlab_owners_aliases, users,
+                                           usergroup):
     return get_slack_usernames_from_owners(
-        gitlab_owners, users, usergroup, 'org_username', ssl_verify=False)
+        gitlab_owners, gitlab_owners_aliases, users, usergroup,
+        'org_username', ssl_verify=False)
 
 
-def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
-                                    user_key, ssl_verify=True,
+def get_slack_usernames_from_owners(owners_raw_urls, owners_aliases_raw_url,
+                                    users, usergroup, user_key,
+                                    ssl_verify=True,
                                     missing_user_log_method=logging.warning):
     all_slack_usernames = []
     all_username_keys = [u[user_key] for u in users]
-    for owners_file in owners_raw_url or []:
-        r = get_raw_owners_content(owners_file, ssl_verify=ssl_verify)
+
+    owners_aliases = {}
+    if owners_aliases_raw_url:
+        r = get_raw_owners_content(owners_aliases_raw_url,
+                                   ssl_verify=ssl_verify)
         try:
-            content = anymarkup.parse(
-                r.content,
-                force_types=None
-            )
-            owners = [u for l in content.values() for u in l]
+            content = anymarkup.parse(r.content, force_types=None)
+            owners_aliases = content['aliases']
+        except (anymarkup.AnyMarkupError, KeyError):
+            msg = "Could not parse data. Skipping owners_aliases file: {}"
+            logging.warning(msg.format(owners_aliases_raw_url))
+
+    for owners_raw_url in owners_raw_urls or []:
+        r = get_raw_owners_content(owners_raw_url, ssl_verify=ssl_verify)
+        try:
+            content = anymarkup.parse(r.content, force_types=None)
+            owners = set()
+            for value in content.values():
+                for user in value:
+                    if user in owners_aliases:
+                        for alias_user in owners_aliases[user]:
+                            owners.add(alias_user)
+                    else:
+                        owners.add(user)
         except (anymarkup.AnyMarkupError, KeyError):
             msg = "Could not parse data. Skipping owners file: {}"
-            logging.warning(msg.format(owners_file))
+            logging.warning(msg.format(owners_raw_url))
             continue
 
         if not owners:
@@ -207,8 +231,8 @@ def get_slack_usernames_from_owners(owners_raw_url, users, usergroup,
 
 
 @retry()
-def get_raw_owners_content(owners_file, ssl_verify):
-    return requests.get(owners_file, verify=ssl_verify)
+def get_raw_owners_content(owners_raw_url, ssl_verify):
+    return requests.get(owners_raw_url, verify=ssl_verify)
 
 
 def get_desired_state(slack_map):
@@ -248,14 +272,14 @@ def get_desired_state(slack_map):
                                                    all_users, usergroup)
             user_names.extend(slack_usernames_pagerduty)
 
-            slack_usernames_github = \
-                get_slack_usernames_from_github_owners(p['github_owners'],
-                                                       all_users, usergroup)
+            slack_usernames_github = get_slack_usernames_from_github_owners(
+                    p['github_owners'], p['github_owners_aliases'],
+                    all_users, usergroup)
             user_names.extend(slack_usernames_github)
 
-            slack_usernames_gitlab = \
-                get_slack_usernames_from_gitlab_owners(p['gitlab_owners'],
-                                                       all_users, usergroup)
+            slack_usernames_gitlab = get_slack_usernames_from_gitlab_owners(
+                    p['gitlab_owners'], p['gitlab_owners_aliases'],
+                    all_users, usergroup)
             user_names.extend(slack_usernames_gitlab)
 
             users = slack.get_users_by_names(user_names)
