@@ -144,6 +144,27 @@ class OCM(object):
         role_grants = self._get_json(api)['items']
         return [(r['user_arn'], r['role']['id']) for r in role_grants]
 
+    def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
+                                                            tf_account_id,
+                                                            tf_user):
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'aws_infrastructure_access_role_grants'
+        role_grants = self._get_json(api)['items']
+        user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
+        for rg in role_grants:
+            if rg['user_arn'] != user_arn:
+                continue
+            if rg['role']['id'] != 'network-mgmt':
+                continue
+            console_url = rg['console_url']
+            # split out only the url arguments
+            account_and_role = console_url.split('?')[1]
+            account, role = account_and_role.split('&')
+            role_account_id = account.replace('account=', '')
+            role_name = role.replace('roleName=', '')
+            return f"arn:aws:iam::{role_account_id}:role/{role_name}"
+
     def add_user_to_aws_infrastructure_access_role_grants(self, cluster,
                                                           user_arn,
                                                           access_level):
