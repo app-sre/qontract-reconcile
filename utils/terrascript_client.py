@@ -389,7 +389,9 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[db.name]'
         output_value = values['name']
         tf_resources.append(output(output_name, value=output_value))
-        if 'username' in values:
+        # only set db user/password if not a replica or creation from snapshot
+        if 'snapshot_identifier' not in values and \
+           'replicate_source_db' not in values:
             # db.user
             output_name = output_prefix + '[db.user]'
             output_value = values['username']
