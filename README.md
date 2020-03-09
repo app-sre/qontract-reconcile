@@ -47,6 +47,8 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
 - `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
+- `ocm-clusters`: Manages (currently: validates only) clusters desired state with current state in OCM.
+- `ocm-aws-infrastructure-access`: Grants AWS infrastructure access to members in AWS groups via OCM.
 - `email-sender`: Send email notifications to app-interface audience.
 - `service-dependencies`: Validate dependencies are defined for each service.
 - `sentry-config`: Configure and enforce sentry instance configuration.

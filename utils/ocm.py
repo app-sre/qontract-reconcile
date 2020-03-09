@@ -130,6 +130,65 @@ class OCM(object):
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
+    def get_aws_infrastructure_access_role_grants(self, cluster):
+        """Returns a list of AWS users (ARN, access level)
+        who have AWS infrastructure access in a cluster.
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'aws_infrastructure_access_role_grants'
+        role_grants = self._get_json(api)['items']
+        return [(r['user_arn'], r['role']['id']) for r in role_grants]
+
+    def add_user_to_aws_infrastructure_access_role_grants(self, cluster,
+                                                          user_arn,
+                                                          access_level):
+        """
+        Adds a user to AWS infrastructure access in a cluster.
+
+        :param cluster: cluster name
+        :param user_arn: user ARN
+        :param access_level: access level (read-only or network-mgmt)
+
+        :type cluster: string
+        :type user_arn: string
+        :type access_level: string
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'aws_infrastructure_access_role_grants'
+        self._post(api, {'user_arn': user_arn, 'role': {'id': access_level}})
+
+    def del_user_from_aws_infrastructure_access_role_grants(self, cluster,
+                                                            user_arn,
+                                                            access_level):
+        """
+        Deletes a user from AWS infrastructure access in a cluster.
+
+        :param cluster: cluster name
+        :param user_arn: user ARN
+        :param access_level: access level (read-only or network-mgmt)
+
+        :type cluster: string
+        :type user_arn: string
+        :type access_level: string
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+              f'aws_infrastructure_access_role_grants'
+        role_grants = self._get_json(api)['items']
+        for rg in role_grants:
+            if rg['user_arn'] != user_arn:
+                continue
+            if rg['role']['id'] != access_level:
+                continue
+            aws_infrastructure_access_role_grant_id = rg['id']
+            self._delete(f"{api}/{aws_infrastructure_access_role_grant_id}")
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)

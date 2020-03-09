@@ -162,6 +162,20 @@ CLUSTERS_QUERY = """
         version
       }
     }
+    awsInfrastructureAccess {
+      awsGroup {
+        account {
+          uid
+          terraformUsername
+        }
+        roles {
+          users {
+            org_username
+          }
+        }
+      }
+      accessLevel
+    }
     spec {
       provider
       region
