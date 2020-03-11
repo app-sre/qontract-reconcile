@@ -43,13 +43,15 @@ class MRApproval:
         change_owners_map = dict()
         paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
         for path in paths:
-            try:
-                change_owners_map[path] = {
-                    'owners': self.owners.get_path_owners(path),
-                    'close_owners': self.owners.get_path_close_owners(path)
-                    }
-            except KeyError as exception:
-                raise OwnerNotFoundError(exception)
+            path_owners = self.owners.get_path_owners(path)
+            if not path_owners:
+                raise OwnerNotFoundError(f'No owners for path {path!r}')
+
+            change_owners_map[path] = {
+                'owners': path_owners,
+                'close_owners': self.owners.get_path_close_owners(path)
+                }
+
         return change_owners_map
 
     def get_lgtms(self):

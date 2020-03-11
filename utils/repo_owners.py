@@ -50,11 +50,13 @@ class RepoOwners:
         for owned_path, owners in self.owners_map.items():
             if path.startswith(owned_path):
                 path_owners.update(owners)
-        if not path_owners:
-            raise KeyError(f'No owners for path {path!r}')
-        return sorted(path_owners)
 
     def get_path_close_owners(self, path):
+        if path_owners:
+            return sorted(path_owners)
+
+        return []
+
         """
         Gets all closest owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
@@ -69,12 +71,12 @@ class RepoOwners:
             if path.startswith(owned_path):
                 candidates.add(owned_path)
 
-        if not candidates:
-            raise KeyError(f'No owners for path {path!r}')
+        if candidates:
+            # The longest owned_path is the chosen
+            elected = max(candidates, key=lambda x: len(x))
+            return sorted(self.owners_map[elected])
 
-        # The longest owned_path is the chosen
-        elected = max(candidates, key=lambda x: len(x))
-        return sorted(self.owners_map[elected])
+        return []
 
     def _get_owners_map(self):
         """
