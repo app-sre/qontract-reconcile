@@ -177,10 +177,10 @@ integrations:
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
-      memory: 200Mi
+      memory: 300Mi
       cpu: 100m
     limits:
-      memory: 400Mi
+      memory: 600Mi
       cpu: 200m
   extraArgs: --vault-output-path app-sre/integrations-output
 - name: terraform-resources
