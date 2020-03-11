@@ -49,7 +49,7 @@ class MRApproval:
 
             change_owners_map[path] = {
                 'owners': path_owners,
-                'close_owners': self.owners.get_path_close_owners(path)
+                'closest_owners': self.owners.get_path_closest_owners(path)
                 }
 
         return change_owners_map
@@ -98,7 +98,7 @@ class MRApproval:
             # a report message
             if not change_approved:
                 report[change_path] = (f'one of '
-                                       f'{change_owners["close_owners"]} '
+                                       f'{change_owners["closest_owners"]} '
                                        f'needs to approve the change')
 
         # Empty report means that all changes are approved
