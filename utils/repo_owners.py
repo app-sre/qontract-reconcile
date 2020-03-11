@@ -25,7 +25,9 @@ class RepoOwners:
     def get_owners(self):
         """
         Gets all the owners of the repository.
-        Returns a sorted list of unique owners.
+
+        :return: the repository owners
+        :rtype: list
         """
         repo_owners = set()
 
@@ -40,7 +42,12 @@ class RepoOwners:
         """
         Gets all the owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
-        Returns a sorted list of unique owners.
+
+        :param path: the path to look up owners for
+        :type path: str
+
+        :return: the path owners
+        :rtype: list
         """
         path_owners = set()
 
@@ -61,6 +68,12 @@ class RepoOwners:
         Gets all closest owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
         Returns a sorted list of unique owners.
+
+        :param path: the path to look up owners for
+        :type path: str
+
+        :return: the path closest owners
+        :rtype: list
         """
         candidates = set()
 
@@ -82,6 +95,9 @@ class RepoOwners:
         """
         Maps all the OWNERS files content to their respective
         owned directory.
+
+        :return: owners list per path basis
+        :rtype: dict
         """
         owners_map = dict()
         aliases = self._get_aliases()
@@ -112,6 +128,9 @@ class RepoOwners:
     def _get_aliases(self):
         """
         Retrieves the approvers aliases from the OWNERS_ALIASES file.
+
+        :return: owners list per alias basis
+        :rtype: dict
         """
         aliases = dict()
         raw_aliases = self._git_cli.get_file(path='OWNERS_ALIASES',
