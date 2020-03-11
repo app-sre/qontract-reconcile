@@ -18,6 +18,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `github-users`: Validate compliance of GitHub user profiles.
 - `github`: Configures the teams and members in a GitHub org.
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
+- `gitlab-fork-compliance`: Ensures that forks of App Interface are compliant.
 - `gitlab-members` : Manage GitLab group members.
 - `gitlab-owners`: Adds an `approved` label on gitlab merge requests based on OWNERS files schema.
 - `gitlab-permissions`: Manage permissions on GitLab projects.

@@ -413,6 +413,9 @@ Please consult relevant SOPs to verify that the account is secure.
     def get_issues(self, state):
         return self.get_items(self.project.issues.list, state=state)
 
+    def get_merge_request(self, mr_id):
+        return self.project.mergerequests.get(mr_id)
+
     def get_merge_requests(self, state):
         return self.get_items(self.project.mergerequests.list, state=state)
 

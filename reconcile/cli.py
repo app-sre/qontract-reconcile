@@ -34,6 +34,7 @@ import reconcile.jira_watcher
 import reconcile.slack_usergroups
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
+import reconcile.gitlab_fork_compliance
 import reconcile.gitlab_members
 import reconcile.gitlab_owners
 import reconcile.gitlab_pr_submitter
@@ -655,3 +656,15 @@ def sql_query(ctx, enable_deletion):
 def gitlab_owners(ctx):
     run_integration(reconcile.gitlab_owners.run,
                     ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@click.argument('gitlab-merge-request-id')
+@click.argument('gitlab-maintainers-group')
+@click.pass_context
+def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
+                           gitlab_maintainers_group):
+    run_integration(reconcile.gitlab_fork_compliance.run,
+                    gitlab_project_id, gitlab_merge_request_id,
+                    gitlab_maintainers_group, ctx.obj['dry_run'])
