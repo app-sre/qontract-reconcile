@@ -38,6 +38,19 @@ class RepoOwners:
             repo_owners.update(owners)
         return sorted(repo_owners)
 
+    def get_root_owners(self):
+        """
+        Gets all the owners defined in the repository root.
+
+        :return: the repository root owners
+        :rtype: list
+        """
+
+        if '.' in self.owners_map:
+            return sorted(set(self.owners_map['.']))
+
+        return []
+
     def get_path_owners(self, path):
         """
         Gets all the owners of a given path, no matter in which
