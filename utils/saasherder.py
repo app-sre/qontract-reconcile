@@ -48,6 +48,12 @@ class SaasHerder():
         parameters = container.get('parameters') or {}
         if isinstance(parameters, str):
             parameters = json.loads(parameters)
+        # adjust Python's True/False
+        for k, v in parameters.items():
+            if v is True:
+                parameters[k] = 'true'
+            if v is False:
+                parameters[k] = 'false'
         return parameters
 
     def _get_file_contents(self, url, path, ref):
