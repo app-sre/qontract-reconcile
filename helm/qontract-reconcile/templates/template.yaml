@@ -21,8 +21,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: {{ "${{USER_ID}}" }}
         {{- if $integration.logs }}
         initContainers:
         - name: config
@@ -164,8 +162,6 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
-- name: USER_ID
-  value: "1000720000"
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL
