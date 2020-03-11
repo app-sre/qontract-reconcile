@@ -117,7 +117,8 @@ def add_desired_state(namespaces, ri, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        use_jump_host=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
                   if namespace_info.get('openshiftAcme')]
@@ -135,7 +136,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
             'RoleBinding',
             'ServiceAccount',
             'Secret'],
-        internal=internal)
+        internal=internal,
+        use_jump_host=use_jump_host)
     add_desired_state(namespaces, ri, oc_map)
 
     defer(lambda: oc_map.cleanup())

@@ -116,6 +116,16 @@ def internal(**kwargs):
     return f
 
 
+def use_jump_host(**kwargs):
+    def f(function):
+        help_msg = 'use jump host if defined.'
+        function = click.option('--use-jump-host/--no-use-jump-host',
+                                help=help_msg,
+                                default=True)(function)
+        return function
+    return f
+
+
 def terraform(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the terraform config file.',
@@ -258,53 +268,60 @@ def github_scanner(ctx, gitlab_project_id, thread_pool_size):
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_clusterrolebindings(ctx, thread_pool_size, internal):
+def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
+                                  use_jump_host):
     run_integration(reconcile.openshift_clusterrolebindings.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size, internal):
+def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_rolebindings.run, ctx.obj['dry_run'],
-                    thread_pool_size, internal)
+                    thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_groups(ctx, thread_pool_size, internal):
+def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
-                    thread_pool_size, internal)
+                    thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_users(ctx, thread_pool_size, internal):
+def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
-                    thread_pool_size, internal)
+                    thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @vault_output_path
 @click.pass_context
 def openshift_serviceaccount_tokens(ctx, thread_pool_size, internal,
-                                    vault_output_path):
+                                    use_jump_host, vault_output_path):
     run_integration(reconcile.openshift_serviceaccount_tokens.run,
                     ctx.obj['dry_run'], thread_pool_size, internal,
-                    vault_output_path)
+                    use_jump_host, vault_output_path)
 
 
 @integration.command()
@@ -416,10 +433,12 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @threaded(default=20)
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_resources(ctx, thread_pool_size, internal):
+def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_resources.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
@@ -450,30 +469,36 @@ def owner_approvals(ctx, gitlab_project_id, gitlab_merge_request_id,
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_namespaces(ctx, thread_pool_size, internal):
+def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_namespaces.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_network_policies(ctx, thread_pool_size, internal):
+def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_network_policies.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_acme(ctx, thread_pool_size, internal):
+def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_acme.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
@@ -481,10 +506,13 @@ def openshift_acme(ctx, thread_pool_size, internal):
 @take_over()
 @binary(['oc', 'ssh'])
 @internal()
+@use_jump_host()
 @click.pass_context
-def openshift_limitranges(ctx, thread_pool_size, internal, take_over):
+def openshift_limitranges(ctx, thread_pool_size, internal,
+                          use_jump_host, take_over):
     run_integration(reconcile.openshift_limitranges.run,
-                    ctx.obj['dry_run'], thread_pool_size, internal, take_over)
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host, take_over)
 
 
 @integration.command()
@@ -522,18 +550,19 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
 @threaded(default=20)
 @binary(['terraform', 'oc'])
 @internal()
+@use_jump_host()
 @enable_deletion(default=False)
 @click.option('--light/--full',
               default=False,
               help='run without executing terraform plan and apply.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
-                        io_dir, thread_pool_size, internal, light,
-                        vault_output_path):
+                        io_dir, thread_pool_size, internal, use_jump_host,
+                        light, vault_output_path):
     run_integration(reconcile.terraform_resources.run,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, io_dir, thread_pool_size,
-                    internal, light, vault_output_path)
+                    internal, use_jump_host, light, vault_output_path)
 
 
 @integration.command()

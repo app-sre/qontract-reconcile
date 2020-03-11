@@ -74,13 +74,14 @@ def create_groups_list(clusters, oc_map):
     return groups_list
 
 
-def fetch_current_state(thread_pool_size, internal):
+def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is None]
     current_state = []
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal)
+                    settings=settings, internal=internal,
+                    use_jump_host=use_jump_host)
 
     groups_list = create_groups_list(clusters, oc_map)
     results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
@@ -217,8 +218,10 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
-    oc_map, current_state = fetch_current_state(thread_pool_size, internal)
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        use_jump_host=True, defer=None):
+    oc_map, current_state = \
+        fetch_current_state(thread_pool_size, internal, use_jump_host)
     defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state(oc_map)
 

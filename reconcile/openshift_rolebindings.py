@@ -158,7 +158,8 @@ def fetch_desired_state(ri, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        use_jump_host=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
                   if namespace_info.get('managedRoles')]
@@ -168,7 +169,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=['RoleBinding'],
-        internal=internal)
+        internal=internal,
+        use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)
