@@ -51,12 +51,12 @@ class RepoOwners:
             if path.startswith(owned_path):
                 path_owners.update(owners)
 
-    def get_path_close_owners(self, path):
         if path_owners:
             return sorted(path_owners)
 
         return []
 
+    def get_path_closest_owners(self, path):
         """
         Gets all closest owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
