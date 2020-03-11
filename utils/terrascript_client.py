@@ -350,13 +350,16 @@ class TerrascriptClient(object):
             values['depends_on'] = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
-        try:
-            password = \
-                existing_secrets[account][output_prefix]['db.password']
-        except KeyError:
-            password = \
-                self.determine_db_password(namespace_info,
-                                           output_resource_name)
+        if self._db_needs_auth_(values):
+            try:
+                password = \
+                    existing_secrets[account][output_prefix]['db.password']
+            except KeyError:
+                password = \
+                    self.determine_db_password(namespace_info,
+                                               output_resource_name)
+        else:
+            password = ""
         values['password'] = password
 
         az = values.get('availability_zone')
@@ -390,8 +393,7 @@ class TerrascriptClient(object):
         output_value = values['name']
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
-        if 'snapshot_identifier' not in values and \
-           'replicate_source_db' not in values:
+        if self._db_needs_auth_(values):
             # db.user
             output_name = output_prefix + '[db.user]'
             output_value = values['username']
@@ -403,6 +405,13 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def _db_needs_auth_(config):
+        if 'snapshot_identifier' not in config and \
+           'replicate_source_db' not in config:
+            return True
+        return False
 
     @staticmethod
     def validate_db_name(name):
