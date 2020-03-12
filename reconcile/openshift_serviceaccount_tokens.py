@@ -67,7 +67,7 @@ def write_outputs_to_vault(vault_path, ri):
 
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
-        vault_output_path='', defer=None):
+        use_jump_host=True, vault_output_path='', defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
                   if namespace_info.get('openshiftServiceAccountTokens')]
@@ -83,7 +83,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=['Secret'],
-        internal=internal)
+        internal=internal,
+        use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(namespaces, ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)

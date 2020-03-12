@@ -102,6 +102,7 @@ integrations:
     limits:
       memory: 300Mi
       cpu: 40m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-groups
   resources:
@@ -111,6 +112,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 150m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-namespaces
   resources:
@@ -120,7 +122,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 350m
-  extraArgs: --external
+  extraArgs: --external --no-use-jump-host
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -129,6 +131,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 250m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-rolebindings
   resources:
@@ -138,6 +141,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 300m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-network-policies
   resources:
@@ -147,6 +151,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-acme
   resources:
@@ -156,6 +161,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  extraArgs: --no-use-jump-host
   logs: true
 - name: openshift-limitranges
   resources:
@@ -165,6 +171,7 @@ integrations:
     limits:
       memory: 100Mi
       cpu: 150m
+  extraArgs: --no-use-jump-host
 - name: openshift-resources
   resources:
     requests:
@@ -173,7 +180,7 @@ integrations:
     limits:
       memory: 800Mi
       cpu: 1000m
-  extraArgs: --external
+  extraArgs: --external --no-use-jump-host
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -182,7 +189,7 @@ integrations:
     limits:
       memory: 600Mi
       cpu: 200m
-  extraArgs: --vault-output-path app-sre/integrations-output
+  extraArgs: --no-use-jump-host --vault-output-path app-sre/integrations-output
 - name: terraform-resources
   resources:
     requests:
@@ -191,7 +198,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 400m
-  extraArgs: --external --vault-output-path app-sre/integrations-output
+  extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs: true
 - name: terraform-users
   resources:

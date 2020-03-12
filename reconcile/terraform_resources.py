@@ -146,11 +146,12 @@ def populate_oc_resources(spec, ri):
         logging.error(msg)
 
 
-def fetch_current_state(namespaces, thread_pool_size, internal):
+def fetch_current_state(namespaces, thread_pool_size, internal, use_jump_host):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal)
+                    settings=settings, internal=internal,
+                    use_jump_host=use_jump_host)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,
@@ -175,14 +176,15 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(print_only, thread_pool_size, internal):
+def setup(print_only, thread_pool_size, internal, use_jump_host):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size, internal)
+    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size,
+                                     internal, use_jump_host)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
                                          oc_map=oc_map,
@@ -221,9 +223,10 @@ def write_outputs_to_vault(vault_path, ri):
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, internal=None, light=False,
-        vault_output_path='', defer=None):
-    ri, oc_map, tf = setup(print_only, thread_pool_size, internal)
+        thread_pool_size=10, internal=None, use_jump_host=True,
+        light=False, vault_output_path='', defer=None):
+    ri, oc_map, tf = \
+        setup(print_only, thread_pool_size, internal, use_jump_host)
     defer(lambda: oc_map.cleanup())
     if print_only:
         cleanup_and_exit()

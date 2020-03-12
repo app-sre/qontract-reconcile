@@ -149,14 +149,16 @@ def fetch_current_state(namespaces=None,
                         integration=None,
                         integration_version=None,
                         override_managed_types=None,
-                        internal=None):
+                        internal=None,
+                        use_jump_host=True):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces,
                     clusters=clusters,
                     integration=integration,
                     settings=settings,
-                    internal=internal)
+                    internal=internal,
+                    use_jump_host=use_jump_host)
     state_specs = \
         init_specs_to_fetch(
             ri,

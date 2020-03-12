@@ -311,12 +311,13 @@ class OC_Map(object):
     """
     def __init__(self, clusters=None, namespaces=None,
                  integration='', e2e_test='', settings=None,
-                 internal=None):
+                 internal=None, use_jump_host=True):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
         self.settings = settings
         self.internal = internal
+        self.use_jump_host = use_jump_host
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -350,7 +351,10 @@ class OC_Map(object):
         else:
             server_url = cluster_info['serverUrl']
             token = secret_reader.read(automation_token, self.settings)
-            jump_host = cluster_info.get('jumpHost')
+            if self.use_jump_host:
+                jump_host = cluster_info.get('jumpHost')
+            else:
+                jump_host = None
             self.oc_map[cluster] = OC(server_url, token, jump_host,
                                       settings=self.settings)
 

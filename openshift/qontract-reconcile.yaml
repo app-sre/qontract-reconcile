@@ -21,8 +21,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -67,8 +65,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -113,8 +109,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -237,8 +231,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -361,8 +353,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -485,8 +475,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -609,8 +597,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -733,8 +719,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -784,8 +768,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -835,8 +817,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -886,8 +866,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -953,7 +931,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-users
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1010,8 +988,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1077,7 +1053,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-groups
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1134,8 +1110,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -1145,7 +1119,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-namespaces
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--external"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1180,8 +1154,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1247,7 +1219,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-clusterrolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1304,8 +1276,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1371,7 +1341,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1428,8 +1398,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1495,7 +1463,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-network-policies
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1552,8 +1520,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1619,7 +1585,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-acme
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1676,8 +1642,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -1687,7 +1651,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-limitranges
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1722,8 +1686,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -1733,7 +1695,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-resources
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--external"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1768,8 +1730,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -1779,7 +1739,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-serviceaccount-tokens
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--vault-output-path app-sre/integrations-output"
+            value: "--no-use-jump-host --vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1814,8 +1774,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -1881,7 +1839,7 @@ objects:
           - name: INTEGRATION_NAME
             value: terraform-resources
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--external --vault-output-path app-sre/integrations-output"
+            value: "--external --no-use-jump-host --vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1938,8 +1896,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -2062,8 +2018,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2108,8 +2062,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2154,8 +2106,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2200,8 +2150,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -2331,8 +2279,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -2455,8 +2401,6 @@ objects:
         labels:
           app: qontract-reconcile
       spec:
-        securityContext:
-          runAsUser: ${{USER_ID}}
         initContainers:
         - name: config
           image: quay.io/app-sre/busybox
@@ -2584,7 +2528,7 @@ parameters:
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
 - name: USER_ID
-  value: "1000720000"
+  value: dummy
 - name: LOG_FILE
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL

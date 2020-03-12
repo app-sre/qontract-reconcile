@@ -55,13 +55,14 @@ def get_cluster_users(cluster, oc_map):
     return [{"cluster": cluster, "user": user} for user in users or []]
 
 
-def fetch_current_state(thread_pool_size, internal):
+def fetch_current_state(thread_pool_size, internal, use_jump_host):
     gqlapi = gql.get_api()
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
     clusters = [c for c in clusters if c.get('ocm') is None]
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal)
+                    settings=settings, internal=internal,
+                    use_jump_host=use_jump_host)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]
@@ -125,8 +126,10 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None, defer=None):
-    oc_map, current_state = fetch_current_state(thread_pool_size, internal)
+def run(dry_run=False, thread_pool_size=10, internal=None,
+        use_jump_host=True, defer=None):
+    oc_map, current_state = \
+        fetch_current_state(thread_pool_size, internal, use_jump_host)
     defer(lambda: oc_map.cleanup())
     desired_state = fetch_desired_state(oc_map)
 

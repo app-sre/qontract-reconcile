@@ -83,7 +83,7 @@ def add_desired_state(namespaces, ri, oc_map):
 
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
-        take_over=True, defer=None):
+        use_jump_host=True, take_over=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
                   if namespace_info.get('limitRanges')]
@@ -100,7 +100,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         override_managed_types=['LimitRange'],
-        internal=internal)
+        internal=internal,
+        use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri, oc_map)
