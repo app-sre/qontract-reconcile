@@ -279,6 +279,15 @@ class TerrascriptClient(object):
         if err:
             return err
 
+    def populate_additional_providers(self, accounts):
+        for account in accounts:
+            continue
+
+    def populate_vpc_peerings(self, desired_state):
+        for item in desired_state:
+            requester = item['requester']
+            accepter = item['accepter']
+
     def populate_resources(self, namespaces, existing_secrets):
         for spec in self.init_populate_specs(namespaces):
             self.populate_tf_resources(spec, existing_secrets)

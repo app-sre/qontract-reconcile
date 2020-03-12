@@ -66,4 +66,6 @@ def run(dry_run=False, print_only=False,
                      thread_pool_size,
                      accounts,
                      settings=settings)
+    ts.populate_additional_providers(participating_accounts)
+    ts.populate_vpc_peerings(desired_state)
     print(ts.dump())
