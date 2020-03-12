@@ -662,9 +662,8 @@ def gitlab_owners(ctx):
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.argument('gitlab-maintainers-group')
-@click.pass_context
-def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
+def gitlab_fork_compliance(gitlab_project_id, gitlab_merge_request_id,
                            gitlab_maintainers_group):
     run_integration(reconcile.gitlab_fork_compliance.run,
                     gitlab_project_id, gitlab_merge_request_id,
-                    gitlab_maintainers_group, ctx.obj['dry_run'])
+                    gitlab_maintainers_group)

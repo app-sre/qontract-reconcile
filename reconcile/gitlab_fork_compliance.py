@@ -31,11 +31,10 @@ class GitlabForkCompliance:
     ERR_NOT_A_MEMBER = 0x0002
     ERR_NOT_A_MAINTAINER = 0x0004
 
-    def __init__(self, project_id, mr_id, maintainers_group, dry_run=False):
+    def __init__(self, project_id, mr_id, maintainers_group):
         self.exit_code = self.OK
 
         self.maintainers_group = maintainers_group
-        self.dry_run = dry_run
 
         self.instance = queries.get_gitlab_instance()
         self.settings = queries.get_app_interface_settings()
@@ -63,16 +62,15 @@ class GitlabForkCompliance:
             if member in self.src.project.members.list():
                 continue
             LOG.info([f'adding {member.username} as maintainer'])
-            if not self.dry_run:
-                user_payload = {'user_id': member.id,
-                                'access_level': MAINTAINER_ACCESS}
-                member = self.src.project.members.create(user_payload)
-                member.save()
+            user_payload = {'user_id': member.id,
+                            'access_level': MAINTAINER_ACCESS}
+            member = self.src.project.members.create(user_payload)
+            member.save()
 
         # Last but not least, we remove the blocked label, in case
         # it is set
         mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)
-        if not self.dry_run and BLOCKED_LABEL in mr_labels:
+        if BLOCKED_LABEL in mr_labels:
             self.gl_cli.remove_label_from_merge_request(self.mr.iid,
                                                         BLOCKED_LABEL)
 
@@ -104,15 +102,14 @@ class GitlabForkCompliance:
 
     def handle_error(self, log_msg, mr_msg):
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
-        if not self.dry_run:
-            self.gl_cli.add_label_to_merge_request(self.mr.iid,
-                                                   BLOCKED_LABEL)
-            comment = mr_msg.format(user=self.mr.author['username'],
-                                    bot=self.gl_cli.user.username,
-                                    project_name=self.gl_cli.project.name)
-            self.mr.notes.create({'body': comment})
+        self.gl_cli.add_label_to_merge_request(self.mr.iid,
+                                               BLOCKED_LABEL)
+        comment = mr_msg.format(user=self.mr.author['username'],
+                                bot=self.gl_cli.user.username,
+                                project_name=self.gl_cli.project.name)
+        self.mr.notes.create({'body': comment})
 
 
-def run(project_id, mr_id, maintainers_group, dry_run=False):
-    gfc = GitlabForkCompliance(project_id, mr_id, maintainers_group, dry_run)
+def run(project_id, mr_id, maintainers_group):
+    gfc = GitlabForkCompliance(project_id, mr_id, maintainers_group)
     gfc.run()
