@@ -7,15 +7,14 @@ from utils.terraform_client import TerraformClient as Terraform
 from utils.ocm import OCMMap
 
 
-QONTRACT_INTEGRATION = 'terraform-vpc-peerings'
+QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def fetch_desired_state():
+def fetch_desired_state(settings):
     desired_state = []
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
     for cluster_info in clusters:
@@ -53,5 +52,18 @@ def fetch_desired_state():
 
 def run(dry_run=False, print_only=False,
         enable_deletion=False, thread_pool_size=10):
-    desired_state = fetch_desired_state()
-    print(desired_state)
+    settings = queries.get_app_interface_settings()
+    desired_state = fetch_desired_state(settings)
+    participating_accounts = \
+        [item['accepter']['account'] for item in desired_state]
+    participating_account_names = \
+        [a['name'] for a in participating_accounts]
+    accounts = [a for a in queries.get_aws_accounts()
+                if a['name'] in participating_account_names]
+    
+    ts = Terrascript(QONTRACT_INTEGRATION,
+                     "",
+                     thread_pool_size,
+                     accounts,
+                     settings=settings)
+    print(ts.dump())
