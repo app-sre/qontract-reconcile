@@ -23,6 +23,7 @@ objects:
       spec:
         {{- if $integration.logs }}
         initContainers:
+        {{- if $integration.logs.slack }}
         - name: config
           image: quay.io/app-sre/busybox
           resources:
@@ -79,6 +80,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         {{- end }}
+        {{- end }}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -123,6 +125,7 @@ objects:
         {{- if $integration.logs }}
           - name: logs
             mountPath: /fluentd/log/
+        {{- if $integration.logs.slack }}
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
           resources:
@@ -138,6 +141,7 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         {{- end }}
+        {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -145,8 +149,10 @@ objects:
         {{- if $integration.logs }}
         - name: logs
           emptyDir: {}
+        {{- if $integration.logs.slack }}
         - name: fluentd-config
           emptyDir: {}
+        {{- end }}
         {{- end }}
 {{- end }}
 parameters:

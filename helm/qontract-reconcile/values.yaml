@@ -23,7 +23,8 @@ integrations:
     limits:
       memory: 80Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: github-repo-invites
   resources:
     requests:
@@ -32,7 +33,8 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: quay-membership
   resources:
     requests:
@@ -41,7 +43,8 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: quay-mirror
   resources:
     requests:
@@ -50,7 +53,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: quay-repos
   resources:
     requests:
@@ -59,7 +63,8 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: github-users
   resources:
     requests:
@@ -103,7 +108,8 @@ integrations:
       memory: 300Mi
       cpu: 40m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-groups
   resources:
     requests:
@@ -113,7 +119,8 @@ integrations:
       memory: 400Mi
       cpu: 150m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -132,7 +139,8 @@ integrations:
       memory: 400Mi
       cpu: 250m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-rolebindings
   resources:
     requests:
@@ -142,7 +150,8 @@ integrations:
       memory: 400Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -152,7 +161,8 @@ integrations:
       memory: 400Mi
       cpu: 200m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-acme
   resources:
     requests:
@@ -162,7 +172,8 @@ integrations:
       memory: 400Mi
       cpu: 200m
   extraArgs: --no-use-jump-host
-  logs: true
+  logs:
+    slack: true
 - name: openshift-limitranges
   resources:
     requests:
@@ -199,7 +210,8 @@ integrations:
       memory: 1000Mi
       cpu: 400m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
-  logs: true
+  logs:
+    slack: true
 - name: terraform-users
   resources:
     requests:
@@ -209,7 +221,8 @@ integrations:
       memory: 1500Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
-  logs: true
+  logs:
+    slack: true
 - name: ocm-groups
   resources:
     requests:
@@ -242,7 +255,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 50m
-  logs: true
+  logs:
+    slack: true
   state: true
 - name: sentry-config
   resources:
@@ -252,7 +266,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 25m
-  logs: true
+  logs:
+    slack: true
 - name: sql-query
   resources:
     requests:
@@ -261,5 +276,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 50m
-  logs: true
+  logs:
+    slack: true
   state: true
