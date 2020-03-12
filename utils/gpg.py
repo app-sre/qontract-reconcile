@@ -1,9 +1,14 @@
 import base64
+import tempfile
+import shutil
 
 from subprocess import PIPE, Popen, STDOUT
 
+from utils.defer import defer
 
-def gpg_key_valid(public_gpg_key):
+
+@defer
+def gpg_key_valid(public_gpg_key, defer=None):
     stripped_public_gpg_key = public_gpg_key.rstrip()
     if ' ' in stripped_public_gpg_key:
         msg = 'key has spaces in it'
@@ -20,7 +25,9 @@ def gpg_key_valid(public_gpg_key):
         msg = 'could not perform base64 decode of key'
         return False, msg
 
-    proc = Popen(['gpg', '--no-options'],
+    gnupg_home_dir = tempfile.mkdtemp()
+    defer(lambda: shutil.rmtree(gnupg_home_dir))
+    proc = Popen(['gpg', '--homedir', gnupg_home_dir],
                  stdin=PIPE,
                  stdout=PIPE,
                  stderr=STDOUT)
