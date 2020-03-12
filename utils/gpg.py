@@ -20,7 +20,7 @@ def gpg_key_valid(public_gpg_key):
         msg = 'could not perform base64 decode of key'
         return False, msg
 
-    proc = Popen(['gpg'], stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    proc = Popen(['gpg', '--no-options'], stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     out = proc.communicate(public_gpg_key_dec)
     if proc.returncode != 0:
         return False, out
