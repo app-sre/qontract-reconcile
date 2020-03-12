@@ -198,7 +198,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 400m
-  extraArgs: --external --no-use-jump-host--vault-output-path app-sre/integrations-output
+  extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs: true
 - name: terraform-users
   resources:
