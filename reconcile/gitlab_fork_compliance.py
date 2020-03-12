@@ -18,9 +18,9 @@ MSG_BRANCH = ('@{user}, this Merge Request is using the "master" '
               'source branch. Please submit a new Merge Request from another '
               'branch.')
 
-MSG_ACCESS = ('@{user}, the user [{bot}](/{bot}) is not a Maintainer in '
+MSG_ACCESS = ('@{user}, the user @{bot} is not a Maintainer in '
               'your fork of {project_name}. '
-              '!!Please add the {bot} user to your fork as a Maintainer '
+              'Please add the @{bot} user to your fork as a Maintainer '
               'and retest by commenting "[test]" on the Merge Request.')
 
 
