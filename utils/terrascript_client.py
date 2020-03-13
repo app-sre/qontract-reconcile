@@ -488,7 +488,7 @@ class TerrascriptClient(object):
                 "id": sc + "_storage_class",
                 "enabled": "true",
                 "transition": {
-                    "storage_class": sc
+                    "storage_class": sc.upper()
                 }
             }
             if values.get('lifecycle_rule'):
@@ -523,7 +523,8 @@ class TerrascriptClient(object):
                         }
                     ]
                 }
-                rc_values['assume_role_policy'] = role
+                rc_values['assume_role_policy'] = json.dumps(
+                    role, sort_keys=True)
                 role_resource = aws_iam_role(id, **rc_values)
                 tf_resources.append(role_resource)
 
@@ -568,7 +569,7 @@ class TerrascriptClient(object):
                         }
                     ]
                 }
-                rc_values['policy'] = policy
+                rc_values['policy'] = json.dumps(policy, sort_keys=True)
                 policy_resource = aws_iam_policy(id, **rc_values)
                 tf_resources.append(policy_resource)
 
@@ -585,17 +586,18 @@ class TerrascriptClient(object):
                 # Define the replication configuration.  Use a unique role for
                 # each replication configuration for easy cleanup/modification
                 deps.append(role_resource)
+                status = config['status']
+                sc = config.get('storage_class') or "standard"
                 rc_values.clear()
                 rc_values['role'] = "${aws_iam_role." + id + ".arn}"
                 rc_values['rules'] = {
                     'id': config['rule_name'],
-                    'status': config['status'],
+                    'status': status.capitalize(),
                     'destination': {
                         'bucket':
                             "${aws_s3_bucket." +
                             config['destination_bucket_identifier'] + ".arn}",
-                        'storage_class': config.get('storage_class') or
-                        "standard"
+                        'storage_class': sc.upper()
                     }
                 }
                 rc_configs.append(rc_values)
@@ -1114,7 +1116,7 @@ class TerrascriptClient(object):
                 'origin_access_identity':
                     'origin-access-identity/cloudfront/' +
                     '${' + cf_oai_tf_resource.fullname + '.id}'
-                    }
+                }
         }
         values['origin'] = [origin]
         cf_distribution_tf_resource = \
