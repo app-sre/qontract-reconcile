@@ -104,6 +104,95 @@ def repos(ctx):
 
 
 @get.command()
+@click.argument('org_username')
+@click.pass_context
+def roles(ctx, org_username):
+    users = queries.get_roles()
+    users = [u for u in users if u['org_username'] == org_username]
+
+    if len(users) == 0:
+        print("User not found")
+        return
+
+    user = users[0]
+
+    roles = []
+
+    def add(d):
+        for i, r in enumerate(roles):
+            if all(d[k] == r[k] for k in ("type", "name", "resource")):
+                roles.insert(i + 1, {
+                    "type": "",
+                    "name": "",
+                    "resource": "",
+                    "ref": d["ref"]
+                })
+                return
+
+        roles.append(d)
+
+    for role in user["roles"]:
+        role_name = role["path"]
+
+        for p in role.get("permissions") or []:
+            r_name = p["service"]
+
+            if "org" in p or "team" in p:
+                r_name = r_name.split("-")[0]
+
+            if "org" in p:
+                r_name += "/" + p["org"]
+
+            if "team" in p:
+                r_name += "/" + p["team"]
+
+            add({
+                "type": "permission",
+                "name": p["name"],
+                "resource": r_name,
+                "ref": role_name
+            })
+
+        for aws in role.get("aws_groups") or []:
+            for policy in aws["policies"]:
+                add({
+                    "type": "aws",
+                    "name": policy,
+                    "resource": aws["account"]["name"],
+                    "ref": aws["path"]
+                })
+
+        for a in role.get("access") or []:
+            if a["cluster"]:
+                cluster_name = a["cluster"]["name"]
+                add({
+                    "type": "cluster",
+                    "name": a["clusterRole"],
+                    "resource": cluster_name,
+                    "ref": role_name
+                })
+            elif a["namespace"]:
+                ns_name = a["namespace"]["name"]
+                add({
+                    "type": "namespace",
+                    "name": a["role"],
+                    "resource": ns_name,
+                    "ref": role_name
+                })
+
+        for s in role.get("owned_saas_files") or []:
+            add({
+                "type": "saas_file",
+                "name": "owner",
+                "resource": s["name"],
+                "ref": role_name
+            })
+
+    columns = ['type', 'name', 'resource', 'ref']
+    print_output(ctx.obj['output'], roles, columns)
+
+
+@get.command()
 @click.argument('org_username', default='')
 @click.pass_context
 def users(ctx, org_username):
