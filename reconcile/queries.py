@@ -399,6 +399,58 @@ USERS_QUERY = """
 """
 
 
+ROLES_QUERY = """
+{
+  users: users_v1 {
+    name
+    org_username
+    labels
+    roles {
+      name
+      path
+      permissions {
+        name
+        path
+        service
+        ... on PermissionGithubOrgTeam_v1 {
+          org
+          team
+        }
+        ... on PermissionQuayOrgTeam_v1 {
+          org
+          team
+        }
+      } access {
+        cluster {
+          name
+          path
+        }
+        clusterRole
+        namespace {
+          name
+        }
+        role
+      } aws_groups {
+        name
+        path
+        account {
+          name
+        }
+        policies
+      } owned_saas_files {
+        name
+      }
+    }
+  }
+}
+"""
+
+
+def get_roles():
+    gqlapi = gql.get_api()
+    return gqlapi.query(ROLES_QUERY)['users']
+
+
 def get_users():
     """ Returnes all Users. """
     gqlapi = gql.get_api()
