@@ -1,6 +1,8 @@
 import requests
 import json
 
+from sretoolbox.utils import retry
+
 
 class SentryClient:
     ORGANIZATION = "sentry"
@@ -9,6 +11,7 @@ class SentryClient:
         self.host = host
         self.auth_token = token
 
+    @retry()
     def _do_sentry_api_call_(self, method, path, slugs, payload=None):
         url = f"{self.host}/api/0/{path}/"
 
