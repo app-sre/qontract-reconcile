@@ -281,7 +281,19 @@ class TerrascriptClient(object):
 
     def populate_additional_providers(self, accounts):
         for account in accounts:
-            continue
+            account_name = account['name']
+            assume_role = account['assume_role']
+            # arn:aws:iam::12345:role/role-1 --> 12345
+            alias = assume_role.split(':')[4]
+            ts = self.tss[account_name]
+            config = self.configs[account_name]
+            ts += provider('aws',
+                           access_key=config['aws_access_key_id'],
+                           secret_key=config['aws_secret_access_key'],
+                           version=config['aws_provider_version'],
+                           region=config['region'],
+                           alias=alias,
+                           assume_role={'role_arn': assume_role})
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
