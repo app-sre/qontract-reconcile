@@ -68,7 +68,7 @@ def run(dry_run=False, print_only=False,
         [a['name'] for a in participating_accounts]
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
-    
+
     ts = Terrascript(QONTRACT_INTEGRATION,
                      "",
                      thread_pool_size,
