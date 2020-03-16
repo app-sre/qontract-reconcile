@@ -1,3 +1,4 @@
+import sys
 import semver
 
 import reconcile.queries as queries
@@ -5,6 +6,7 @@ import reconcile.queries as queries
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
 from utils.ocm import OCMMap
+from utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
@@ -55,8 +57,9 @@ def fetch_desired_state(settings):
     return desired_state
 
 
+@defer
 def run(dry_run=False, print_only=False,
-        enable_deletion=False, thread_pool_size=10):
+        enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     desired_state = fetch_desired_state(settings)
     participating_accounts = \
@@ -73,4 +76,27 @@ def run(dry_run=False, print_only=False,
                      settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)
-    print(ts.dump())
+    working_dirs = ts.dump()
+
+    tf = Terraform(QONTRACT_INTEGRATION,
+                   QONTRACT_INTEGRATION_VERSION,
+                   "",
+                   working_dirs,
+                   thread_pool_size)
+    defer(lambda: tf.cleanup())
+
+    if tf is None:
+        sys.exit(1)
+
+    deletions_detected, err = tf.plan(enable_deletion)
+    if err:
+        sys.exit(1)
+    if deletions_detected and not enable_deletion:
+        sys.exit(1)
+
+    if dry_run:
+        return
+
+    err = tf.apply()
+    if err:
+        sys.exit(1)
