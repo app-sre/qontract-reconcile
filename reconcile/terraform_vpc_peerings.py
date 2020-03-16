@@ -33,18 +33,23 @@ def fetch_desired_state(settings):
             accepter['vpc_id'] = peer_vpc['id']
             accepter['cidr_block'] = peer_vpc['cidr_block']
             accepter['region'] = peer_vpc['region']
-            accepter['account'] = peer_vpc['account']
+            account = {}
+            account = peer_vpc['account']
             # assume_role is the role to assume to provision the
             # peering connection request, through the accepter AWS account.
             # this may change in the future -
             # in case we add support for peerings between clusters.
-            accepter['account']['assume_role'] = \
+            account['assume_role'] = \
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
                     cluster,
                     peer_vpc['account']['uid'],
                     peer_vpc['account']['terraformUsername']
                 )
-            item = {'requester': requester, 'accepter': accepter}
+            item = {
+                'requester': requester,
+                'accepter': accepter,
+                'account': account
+            }
             desired_state.append(item)
 
     return desired_state
@@ -55,7 +60,7 @@ def run(dry_run=False, print_only=False,
     settings = queries.get_app_interface_settings()
     desired_state = fetch_desired_state(settings)
     participating_accounts = \
-        [item['accepter']['account'] for item in desired_state]
+        [item['account'] for item in desired_state]
     participating_account_names = \
         [a['name'] for a in participating_accounts]
     accounts = [a for a in queries.get_aws_accounts()
