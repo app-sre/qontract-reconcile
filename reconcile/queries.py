@@ -340,6 +340,10 @@ APPS_QUERY = """
       url
       resource
       gitlabRepoOwners
+      gitlabHousekeeping {
+        enabled
+        rebase
+      }
     }
   }
 }
@@ -352,17 +356,22 @@ def get_apps():
     return gqlapi.query(APPS_QUERY)['apps']
 
 
+def get_code_components():
+    """ Returns code components from all apps. """
+    apps = get_apps()
+    code_components_lists = [a['codeComponents'] for a in apps
+                             if a['codeComponents'] is not None]
+    code_components = [item for sublist in code_components_lists
+                       for item in sublist]
+    return code_components
+
+
 def get_repos(server=''):
     """ Returns all repos defined under codeComponents
     Optional arguments:
     server: url of the server to return. for example: https://github.com
     """
-    gqlapi = gql.get_api()
-    apps = gqlapi.query(APPS_QUERY)['apps']
-    code_components_lists = [a['codeComponents'] for a in apps
-                             if a['codeComponents'] is not None]
-    code_components = [item for sublist in code_components_lists
-                       for item in sublist]
+    code_components = get_code_components()
     repos = [c['url'] for c in code_components if c['url'].startswith(server)]
 
     return repos
@@ -374,15 +383,25 @@ def get_repos_gitlab_owner(server=''):
     Optional arguments:
     server: url of the server to return. for example: https://github.com
     """
-    gqlapi = gql.get_api()
-    apps = gqlapi.query(APPS_QUERY)['apps']
-    code_components_lists = [a['codeComponents'] for a in apps
-                             if a['codeComponents'] is not None]
-    code_components = [item for sublist in code_components_lists
-                       for item in sublist]
+    code_components = get_code_components()
     return [c['url'] for c in code_components
             if c['url'].startswith(server) and
             c['gitlabRepoOwners']]
+
+
+def get_repos_gitlab_housekeeping(server=''):
+    """ Returns all repos defined under codeComponents that have
+    gitlabHousekeeping enabled.
+    Optional arguments:
+    server: url of the server to return. for example: https://github.com
+    """
+    code_components = get_code_components()
+    return [{'url': c['url'],
+             'enable_rebase': c['gitlabHousekeeping']['rebase']}
+            for c in code_components
+            if c['url'].startswith(server) and
+            c['gitlabHousekeeping'] and
+            c['gitlabHousekeeping']['enabled']]
 
 
 USERS_QUERY = """

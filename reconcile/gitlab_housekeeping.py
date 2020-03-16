@@ -156,15 +156,19 @@ def merge_merge_requests(dry_run, gl, merge_limit):
             merges += 1
 
 
-def run(gitlab_project_id, dry_run=False, days_interval=15,
-        enable_closing=False, limit=1, enable_rebase=True):
+def run(dry_run=False, days_interval=15,
+        enable_closing=False, limit=1):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, project_id=gitlab_project_id, settings=settings)
-    handle_stale_items(dry_run, gl, days_interval, enable_closing,
-                       'issue')
-    handle_stale_items(dry_run, gl, days_interval, enable_closing,
-                       'merge-request')
-    merge_merge_requests(dry_run, gl, limit)
-    if enable_rebase:
-        rebase_merge_requests(dry_run, gl, limit)
+    repos = queries.get_repos_gitlab_housekeeping(server=instance['url'])
+
+    for repo in repos:
+        project_url = repo['url']
+        gl = GitLabApi(instance, project_url=project_url, settings=settings)
+        handle_stale_items(dry_run, gl, days_interval, enable_closing,
+                           'issue')
+        handle_stale_items(dry_run, gl, days_interval, enable_closing,
+                           'merge-request')
+        merge_merge_requests(dry_run, gl, limit)
+        if repo['enable_rebase']:
+            rebase_merge_requests(dry_run, gl, limit)
