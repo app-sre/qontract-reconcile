@@ -388,6 +388,7 @@ def get_repos_gitlab_owner(server=''):
             if c['url'].startswith(server) and
             c['gitlabRepoOwners']]
 
+
 def get_repos_gitlab_housekeeping(server=''):
     """ Returns all repos defined under codeComponents that have
     gitlabHousekeeping enabled.
