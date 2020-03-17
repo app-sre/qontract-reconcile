@@ -1,26 +1,27 @@
+import os
 import yaml
 import json
 import logging
 
+from github import Github
 from sretoolbox.container import Image
 
 import utils.secret_reader as secret_reader
 
 from utils.oc import OC
 from utils.openshift_resource import OpenshiftResource as OR
+from reconcile.github_org import get_config
 
 
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
     def __init__(self, saas_files,
-                 github,
                  gitlab,
                  integration,
                  integration_version,
                  settings):
         self.saas_files = saas_files
-        self.github = github
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
@@ -123,8 +124,22 @@ class SaasHerder():
                 logging.error(f"Image does not exist: {image}")
         return error
 
+    def _initiate_github(self, saas_file):
+        auth = saas_file.get('authentication') or {}
+        auth_code = auth.get('code') or {}
+        if auth_code:
+            token = secret_reader.read(auth_code, settings=self.settings)
+        else:
+            config = get_config()
+            github_config = config['github']
+            token = github_config['app-sre']['token']
+
+        base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
+        return Github(token, base_url=base_url)
+
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
+            self.github = self._initiate_github(saas_file)
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
             # iterate over resource templates (multiple per saas_file)

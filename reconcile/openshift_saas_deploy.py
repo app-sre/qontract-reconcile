@@ -31,12 +31,13 @@ def init_gh_gl():
 
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
-    gh, gl = init_gh_gl()
-    saas_files = queries.get_saas_files()
+    instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
+    gl = GitLabApi(instance, settings=settings)
+
+    saas_files = queries.get_saas_files()
     saasherder = SaasHerder(
         saas_files,
-        github=gh,
         gitlab=gl,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,

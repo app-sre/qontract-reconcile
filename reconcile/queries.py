@@ -557,6 +557,16 @@ SAAS_FILES_QUERY = """
       name
     }
     managedResourceTypes
+    authentication {
+      code {
+        path
+        field
+      }
+      image {
+        path
+        field
+      }
+    }
     resourceTemplates {
       name
       url
