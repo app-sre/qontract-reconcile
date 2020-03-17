@@ -484,11 +484,18 @@ class TerrascriptClient(object):
             values['lifecycle_rule'] = common_values['lifecycle_rules']
         sc = common_values.get('storage_class')
         if sc:
+            sc = sc.upper()
+            days = "0"
+            if sc.endswith("_IA"):
+                # Infrequent Access storage class has minimum 30 days
+                # before transition
+                days = "30"
             rule = {
                 "id": sc + "_storage_class",
                 "enabled": "true",
                 "transition": {
-                    "storage_class": sc.upper()
+                    "days": days,
+                    "storage_class": sc
                 }
             }
             if values.get('lifecycle_rule'):
@@ -605,7 +612,7 @@ class TerrascriptClient(object):
         if len(deps) > 0:
             values['depends_on'] = deps
         region = common_values['region'] or self.default_regions.get(account)
-        if 'supportedDeploymentRegions' in account:
+        if self.configs[account]['supportedDeploymentRegions'] is not None:
             values['provider'] = 'aws.' + region
         values['region'] = region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
@@ -807,7 +814,8 @@ class TerrascriptClient(object):
                 values = {}
                 values['name'] = queue
                 values['tags'] = common_values['tags']
-                if 'supportedDeploymentRegions' in account:
+                if self.configs[account]['supportedDeploymentRegions'] \
+                        is not None:
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
                 queue_tf_resource = aws_sqs_queue(queue, **values)
@@ -910,7 +918,8 @@ class TerrascriptClient(object):
                 values['tags'] = common_values['tags']
                 values.update(defaults)
                 values['attribute'] = attributes
-                if 'supportedDeploymentRegions' in account:
+                if self.configs[account]['supportedDeploymentRegions'] \
+                        is not None:
                     values['provider'] = 'aws.' + region
                 table_tf_resource = aws_dynamodb_table(table, **values)
                 tf_resources.append(table_tf_resource)
@@ -981,7 +990,7 @@ class TerrascriptClient(object):
         values['tags'] = common_values['tags']
 
         region = common_values['region'] or self.default_regions.get(account)
-        if 'supportedDeploymentRegions' in account:
+        if self.configs[account]['supportedDeploymentRegions'] is not None:
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
@@ -1097,6 +1106,9 @@ class TerrascriptClient(object):
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
         values['depends_on'] = [bucket_tf_resource]
+        region = common_values['region'] or self.default_regions.get(account)
+        if self.configs[account]['supportedDeploymentRegions'] is not None:
+            values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
         tf_resources.append(bucket_policy_tf_resource)
 
@@ -1208,6 +1220,7 @@ class TerrascriptClient(object):
         queues = resource.get('queues', None)
         specs = resource.get('specs', None)
         parameter_group = resource.get('parameter_group', None)
+        sc = resource.get('storage_class', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1222,6 +1235,7 @@ class TerrascriptClient(object):
         values['queues'] = queues
         values['specs'] = specs
         values['parameter_group'] = parameter_group
+        values['storage_class'] = sc
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
