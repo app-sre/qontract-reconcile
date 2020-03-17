@@ -32,7 +32,7 @@ def fetch_desired_state(settings):
         for peer_vpc in peer_connections:
             # accepter is the peered AWS account
             accepter = {}
-            accepter['vpc_id'] = peer_vpc['id']
+            accepter['vpc_id'] = peer_vpc['vpc_id']
             accepter['cidr_block'] = peer_vpc['cidr_block']
             accepter['region'] = peer_vpc['region']
             account = {}

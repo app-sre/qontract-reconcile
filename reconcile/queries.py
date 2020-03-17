@@ -199,7 +199,7 @@ CLUSTERS_QUERY = """
           uid
           terraformUsername
         }
-        id
+        vpc_id
         cidr_block
         region
       }
