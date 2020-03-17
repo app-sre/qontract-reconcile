@@ -40,6 +40,7 @@ TF_NAMESPACES_QUERY = """
         defaults
         overrides
         output_resource_name
+        storage_class
       }
       ... on NamespaceTerraformResourceElastiCache_v1 {
         account
@@ -94,6 +95,7 @@ TF_NAMESPACES_QUERY = """
         identifier
         defaults
         output_resource_name
+        storage_class
       }
     }
     cluster {
