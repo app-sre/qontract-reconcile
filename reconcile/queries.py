@@ -557,13 +557,19 @@ SAAS_FILES_QUERY = """
       name
     }
     managedResourceTypes
+    authentication {
+      code {
+        path
+        field
+      }
+      image {
+        path
+      }
+    }
     resourceTemplates {
       name
       url
       path
-      image_authentication {
-        path
-      }
       hash_length
       parameters
       targets {

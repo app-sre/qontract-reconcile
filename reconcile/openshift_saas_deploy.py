@@ -1,12 +1,7 @@
-import os
 import semver
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
-
-from github import Github
-
-from reconcile.github_org import get_config
 
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
@@ -17,26 +12,15 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def init_gh_gl():
-    base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
-    config = get_config()
-    github_config = config['github']
-    token = github_config['app-sre']['token']
-    gh = Github(token, base_url=base_url)
+@defer
+def run(dry_run=False, thread_pool_size=10, defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
-    return gh, gl
 
-
-@defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
-    gh, gl = init_gh_gl()
     saas_files = queries.get_saas_files()
-    settings = queries.get_app_interface_settings()
     saasherder = SaasHerder(
         saas_files,
-        github=gh,
         gitlab=gl,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,

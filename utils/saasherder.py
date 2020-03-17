@@ -1,26 +1,27 @@
+import os
 import yaml
 import json
 import logging
 
+from github import Github
 from sretoolbox.container import Image
 
 import utils.secret_reader as secret_reader
 
 from utils.oc import OC
 from utils.openshift_resource import OpenshiftResource as OR
+from reconcile.github_org import get_config
 
 
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
     def __init__(self, saas_files,
-                 github,
                  gitlab,
                  integration,
                  integration_version,
                  settings):
         self.saas_files = saas_files
-        self.github = github
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
@@ -107,13 +108,12 @@ class SaasHerder():
 
         return images
 
-    def _check_images(self, resource, auth):
+    def _check_images(self, resource):
         error = False
         images = self._collect_images(resource)
-        if auth:
-            creds = secret_reader.read_all(auth, settings=self.settings)
-            username = creds['user']
-            password = creds['token']
+        if self.image_auth:
+            username = self.image_auth['user']
+            password = self.image_auth['token']
         else:
             username = None
             password = None
@@ -123,15 +123,39 @@ class SaasHerder():
                 logging.error(f"Image does not exist: {image}")
         return error
 
+    def _initiate_github(self, saas_file):
+        auth = saas_file.get('authentication') or {}
+        auth_code = auth.get('code') or {}
+        if auth_code:
+            token = secret_reader.read(auth_code, settings=self.settings)
+        else:
+            config = get_config()
+            github_config = config['github']
+            token = github_config['app-sre']['token']
+
+        base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
+        return Github(token, base_url=base_url)
+
+    def _initiate_image_auth(self, saas_file):
+        auth = saas_file.get('authentication') or {}
+        auth_image = auth.get('image') or {}
+        if auth_image:
+            creds = \
+                secret_reader.read_all(auth_image, settings=self.settings)
+        else:
+            creds = None
+        return creds
+
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
+            self.github = self._initiate_github(saas_file)
+            self.image_auth = self._initiate_image_auth(saas_file)
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
             # iterate over resource templates (multiple per saas_file)
             for rt in resource_templates:
                 url = rt['url']
                 path = rt['path']
-                auth = rt['image_authentication']
                 hash_length = rt['hash_length']
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
@@ -145,7 +169,7 @@ class SaasHerder():
                         if resource_kind not in managed_resource_types:
                             continue
                         # check images
-                        image_error = self._check_images(resource, auth)
+                        image_error = self._check_images(resource)
                         if image_error:
                             ri.register_error()
                             continue
