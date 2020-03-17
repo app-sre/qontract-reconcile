@@ -1,12 +1,7 @@
-import os
 import semver
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
-
-from github import Github
-
-from reconcile.github_org import get_config
 
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
