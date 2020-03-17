@@ -76,7 +76,10 @@ def run(dry_run=False, print_only=False,
                      settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)
-    working_dirs = ts.dump()
+    working_dirs = ts.dump(print_only=print_only)
+
+    if print_only:
+        sys.exit()
 
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
