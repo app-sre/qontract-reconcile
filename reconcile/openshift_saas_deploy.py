@@ -17,18 +17,6 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def init_gh_gl():
-    base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
-    config = get_config()
-    github_config = config['github']
-    token = github_config['app-sre']['token']
-    gh = Github(token, base_url=base_url)
-    instance = queries.get_gitlab_instance()
-    settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, settings=settings)
-    return gh, gl
-
-
 @defer
 def run(dry_run=False, thread_pool_size=10, defer=None):
     instance = queries.get_gitlab_instance()

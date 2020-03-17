@@ -564,16 +564,12 @@ SAAS_FILES_QUERY = """
       }
       image {
         path
-        field
       }
     }
     resourceTemplates {
       name
       url
       path
-      image_authentication {
-        path
-      }
       hash_length
       parameters
       targets {

@@ -108,13 +108,12 @@ class SaasHerder():
 
         return images
 
-    def _check_images(self, resource, auth):
+    def _check_images(self, resource):
         error = False
         images = self._collect_images(resource)
-        if auth:
-            creds = secret_reader.read_all(auth, settings=self.settings)
-            username = creds['user']
-            password = creds['token']
+        if self.image_auth:
+            username = self.image_auth['user']
+            password = self.image_auth['token']
         else:
             username = None
             password = None
@@ -137,16 +136,26 @@ class SaasHerder():
         base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
         return Github(token, base_url=base_url)
 
+    def _initiate_image_auth(self, saas_file):
+        auth = saas_file.get('authentication') or {}
+        auth_image = auth.get('image') or {}
+        if auth_image:
+            creds = \
+                secret_reader.read_all(auth_image, settings=self.settings)
+        else:
+            creds = None
+        return creds
+
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
             self.github = self._initiate_github(saas_file)
+            self.image_auth = self._initiate_image_auth(saas_file)
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
             # iterate over resource templates (multiple per saas_file)
             for rt in resource_templates:
                 url = rt['url']
                 path = rt['path']
-                auth = rt['image_authentication']
                 hash_length = rt['hash_length']
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
@@ -160,7 +169,7 @@ class SaasHerder():
                         if resource_kind not in managed_resource_types:
                             continue
                         # check images
-                        image_error = self._check_images(resource, auth)
+                        image_error = self._check_images(resource)
                         if image_error:
                             ri.register_error()
                             continue
