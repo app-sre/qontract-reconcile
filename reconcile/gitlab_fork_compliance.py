@@ -58,16 +58,15 @@ class GitlabForkCompliance:
         # who are not
         group = self.gl_cli.gl.groups.get(self.maintainers_group)
         maintainers = group.members.list()
-        project_members = self.src.project.members.all(all=True)
+        project_maintainers = self.gl_cli.get_project_maintainers()
         for member in maintainers:
-            if member in project_members:
+            if member.username in project_maintainers:
                 continue
             LOG.info([f'adding {member.username} as maintainer'])
             user_payload = {'user_id': member.id,
                             'access_level': MAINTAINER_ACCESS}
             member = self.src.project.members.create(user_payload)
             member.save()
-
         # Last but not least, we remove the blocked label, in case
         # it is set
         mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)

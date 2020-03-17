@@ -287,8 +287,11 @@ Please consult relevant SOPs to verify that the account is secure.
 
         return self.create_mr(branch_name, target_branch, title, labels=labels)
 
-    def get_project_maintainers(self, repo_url):
-        project = self.get_project(repo_url)
+    def get_project_maintainers(self, repo_url=None):
+        if repo_url is None:
+            project = self.project
+        else:
+            project = self.get_project(repo_url)
         if project is None:
             return None
         members = project.members.all(all=True)
