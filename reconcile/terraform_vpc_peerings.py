@@ -83,10 +83,11 @@ def run(dry_run=False, print_only=False,
                    "",
                    working_dirs,
                    thread_pool_size)
-    defer(lambda: tf.cleanup())
 
     if tf is None:
         sys.exit(1)
+
+    defer(lambda: tf.cleanup())
 
     deletions_detected, err = tf.plan(enable_deletion)
     if err:
