@@ -58,8 +58,9 @@ class GitlabForkCompliance:
         # who are not
         group = self.gl_cli.gl.groups.get(self.maintainers_group)
         maintainers = group.members.list()
+        project_members = self.src.project.members.all(all=True)
         for member in maintainers:
-            if member in self.src.project.members.list():
+            if member in project_members:
                 continue
             LOG.info([f'adding {member.username} as maintainer'])
             user_payload = {'user_id': member.id,
