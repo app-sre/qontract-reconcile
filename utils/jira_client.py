@@ -10,20 +10,18 @@ class JiraClient(object):
         self.project = jira_board['name']
         self.server = jira_board['serverUrl']
         token = jira_board['token']
-        oauth = self.get_oauth_secret(token, settings)
-        self.jira = JIRA(self.server, oauth=oauth)
+        basic_auth = self.get_basic_auth(token, settings)
+        self.jira = JIRA(self.server, basic_auth=basic_auth)
 
-    def get_oauth_secret(self, token, settings):
-        required_keys = ['access_token', 'access_token_secret',
-                         'consumer_key', 'key_cert']
+    def get_basic_auth(self, token, settings):
+        required_keys = ['username', 'password']
         secret = secret_reader.read_all(token, settings)
-        oauth = {k: v for k, v in secret.items() if k in required_keys}
-        ok = all(elem in oauth.keys() for elem in required_keys)
+        ok = all(elem in secret.keys() for elem in required_keys)
         if not ok:
             raise KeyError(
                 '[{}] secret is missing required keys'.format(self.project))
 
-        return oauth
+        return (secret['username'], secret['password'])
 
     def get_issues(self):
         block_size = 100

@@ -100,6 +100,7 @@ def init_slack(jira_board):
     settings = queries.get_app_interface_settings()
     slack = SlackApi(slack_info['token'],
                      settings=settings,
+                     init_usergroups=False,
                      channel=channel,
                      icon_emoji=icon_emoji,
                      username=username)
