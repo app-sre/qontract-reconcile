@@ -316,7 +316,12 @@ class TerrascriptClient(object):
                 'peer_vpc_id': accepter['vpc_id'],
                 'peer_region': accepter['region'],
                 'peer_owner_id': account['uid'],
-                'auto_accept': False
+                'auto_accept': False,
+                'tags': {
+                    'managed_by_integration': self.integration,
+                    # <accepter account uid>-<accepter account vpc id>
+                    'Name': f"{account['uid']}-{accepter['vpc_id']}"
+                }
             }
             tf_resource = aws_vpc_peering_connection(identifier, **values)
             self.add_resource(account_name, tf_resource)
@@ -325,7 +330,12 @@ class TerrascriptClient(object):
             values = {
                 'vpc_peering_connection_id':
                     '${aws_vpc_peering_connection.' + identifier + '.id}',
-                'auto_accept': True
+                'auto_accept': True,
+                'tags': {
+                    'managed_by_integration': self.integration,
+                    # <requester account uid>-<requester account vpc id>
+                    'Name': f"{alias}-{requester['vpc_id']}"
+                }
             }
             tf_resource = \
                 aws_vpc_peering_connection_accepter(identifier, **values)
