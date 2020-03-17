@@ -18,6 +18,7 @@ class SlackApi(object):
         self.sc = SlackClient(slack_token)
         self.results = {}
         self.chat_kwargs = chat_kwargs
+        self.initiate_usergroups()
 
     def chat_post_message(self, text):
         self.sc.api_call(
@@ -44,13 +45,16 @@ class SlackApi(object):
         return usergroup['id']
 
     @retry()
-    def get_usergroup(self, handle):
+    def initiate_usergroups(self):
         result = self.sc.api_call(
             "usergroups.list",
         )
         if not result['ok']:
             raise Exception(result['error'])
-        usergroup = [g for g in result['usergroups'] if g['handle'] == handle]
+        self.usergroups = result['usergroups']
+
+    def get_usergroup(self, handle):
+        usergroup = [g for g in self.usergroups if g['handle'] == handle]
         if len(usergroup) != 1:
             raise UsergroupNotFoundException(handle)
         [usergroup] = usergroup
