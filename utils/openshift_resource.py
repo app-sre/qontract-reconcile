@@ -44,6 +44,10 @@ class OpenshiftResource(object):
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
                         return False
+                elif obj1_k == 'apiVersion':
+                    valid = self.api_version_mutation(obj1_v, obj2_v)
+                    if not valid:
+                        return False
                 elif not self.obj_intersect_equal(obj1_v, obj2_v):
                     return False
 
@@ -70,6 +74,16 @@ class OpenshiftResource(object):
             val2 = f"{int(float(val2) * 1000)}m"
         except Exception:
             pass
+        return val1 == val2
+
+    @staticmethod
+    def api_version_mutation(val1, val2):
+        # required temporarily, pending response on
+        # https://redhat.service-now.com/surl.do?n=INC1224482
+        if val1 == 'apps/v1' and val2 == 'extensions/v1beta1':
+            return True
+        if val1 == 'extensions/v1beta1' and val2 == 'apps/v1':
+            return True
         return val1 == val2
 
     @property
