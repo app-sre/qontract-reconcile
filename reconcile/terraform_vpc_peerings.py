@@ -24,18 +24,19 @@ def fetch_desired_state(settings):
         ocm = ocm_map.get(cluster)
         peering_info = cluster_info['peering']
         # requester is the cluster's AWS account
-        requester = {}
-        requester['vpc_id'] = peering_info['vpc_id']
-        requester['cidr_block'] = cluster_info['network']['vpc']
-        requester['region'] = cluster_info['spec']['region']
+        requester = {
+            'vpc_id': peering_info['vpc_id'],
+            'cidr_block': cluster_info['network']['vpc'],
+            'region': cluster_info['spec']['region']
+        }
         peer_connections = peering_info['connections']
         for peer_vpc in peer_connections:
             # accepter is the peered AWS account
-            accepter = {}
-            accepter['vpc_id'] = peer_vpc['vpc_id']
-            accepter['cidr_block'] = peer_vpc['cidr_block']
-            accepter['region'] = peer_vpc['region']
-            account = {}
+            accepter = {
+                'vpc_id': peer_vpc['vpc_id'],
+                'cidr_block': peer_vpc['cidr_block'],
+                'region': peer_vpc['region']
+            }
             account = peer_vpc['account']
             # assume_role is the role to assume to provision the
             # peering connection request, through the accepter AWS account.
