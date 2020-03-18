@@ -221,6 +221,14 @@ integrations:
   extraArgs: --io-dir /tmp/throughput/
   logs:
     slack: true
+- name: terraform-vpc-peerings
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
 - name: ocm-groups
   resources:
     requests:
