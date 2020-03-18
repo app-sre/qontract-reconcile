@@ -7,6 +7,6 @@ def change_files_ownership(directory):
     gid = stat_info.st_gid
     for root, dirs, files in os.walk(directory):
         for d in dirs:
-            os.chown(path.join(root, d), uid, gid)
+            os.chown(os.path.join(root, d), uid, gid)
         for f in files:
-            os.chown(path.join(root, f), uid, gid)
+            os.chown(os.path.join(root, f), uid, gid)
