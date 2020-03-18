@@ -50,7 +50,8 @@ class OCM(object):
         clusters = self._get_json(api)['items']
         self.cluster_ids = {c['name']: c['id'] for c in clusters}
         self.clusters = {c['name']: self._get_cluster_ocm_spec(c)
-                         for c in clusters if c['managed']}
+                         for c in clusters if c['managed']
+                         and c['state'] == 'ready'}
 
     @staticmethod
     def _get_cluster_ocm_spec(cluster):
