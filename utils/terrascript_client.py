@@ -299,6 +299,7 @@ class TerrascriptClient(object):
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
+            connection_name = item['connection_name']
             requester = item['requester']
             accepter = item['accepter']
             account = item['account']
@@ -320,7 +321,7 @@ class TerrascriptClient(object):
                 'tags': {
                     'managed_by_integration': self.integration,
                     # <accepter account uid>-<accepter account vpc id>
-                    'Name': f"{account['uid']}-{accepter['vpc_id']}"
+                    'Name': connection_name
                 }
             }
             tf_resource = aws_vpc_peering_connection(identifier, **values)
@@ -334,7 +335,7 @@ class TerrascriptClient(object):
                 'tags': {
                     'managed_by_integration': self.integration,
                     # <requester account uid>-<requester account vpc id>
-                    'Name': f"{alias}-{requester['vpc_id']}"
+                    'Name': connection_name
                 }
             }
             tf_resource = \

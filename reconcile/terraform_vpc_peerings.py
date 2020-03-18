@@ -30,7 +30,9 @@ def fetch_desired_state(settings):
             'region': cluster_info['spec']['region']
         }
         peer_connections = peering_info['connections']
-        for peer_vpc in peer_connections:
+        for peer_connection in peer_connections:
+            connection_name = peer_connection['name']
+            peer_vpc = peer_connection['vpc']
             # accepter is the peered AWS account
             accepter = {
                 'vpc_id': peer_vpc['vpc_id'],
@@ -49,6 +51,7 @@ def fetch_desired_state(settings):
                     peer_vpc['account']['terraformUsername']
                 )
             item = {
+                'connection_name': connection_name,
                 'requester': requester,
                 'accepter': accepter,
                 'account': account
