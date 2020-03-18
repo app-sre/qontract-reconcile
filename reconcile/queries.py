@@ -194,14 +194,17 @@ CLUSTERS_QUERY = """
     peering {
       vpc_id
       connections {
-        account {
-          name
-          uid
-          terraformUsername
+        name
+        vpc {
+          account {
+            name
+            uid
+            terraformUsername
+          }
+          vpc_id
+          cidr_block
+          region
         }
-        vpc_id
-        cidr_block
-        region
       }
     }
     automationToken {
