@@ -107,7 +107,12 @@ class OC(object):
 
     def process(self, template, parameters={}):
         parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
-        cmd = ['process', '--local', '-f', '-'] + parameters_to_process
+        cmd = [
+            'process',
+            '--local',
+            '--ignore-unknown-parameters',
+            '-f', '-'
+        ] + parameters_to_process
         result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)['items']
 

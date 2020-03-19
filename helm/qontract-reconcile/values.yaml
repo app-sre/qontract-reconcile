@@ -193,10 +193,10 @@ integrations:
 - name: openshift-resources
   resources:
     requests:
-      memory: 500Mi
+      memory: 800Mi
       cpu: 600m
     limits:
-      memory: 800Mi
+      memory: 1200Mi
       cpu: 1000m
   extraArgs: --external --no-use-jump-host
 - name: openshift-serviceaccount-tokens
@@ -230,6 +230,14 @@ integrations:
   extraArgs: --io-dir /tmp/throughput/
   logs:
     slack: true
+- name: terraform-vpc-peerings
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
 - name: ocm-groups
   resources:
     requests:

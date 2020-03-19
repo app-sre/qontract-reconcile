@@ -7,8 +7,10 @@ import filecmp
 import subprocess
 import difflib
 import xml.etree.ElementTree as et
+
 import utils.secret_reader as secret_reader
 import utils.gql as gql
+import utils.throughput as throughput
 
 from os import path
 from contextlib import contextmanager
@@ -117,20 +119,10 @@ class JJB(object):
                     '-o', output_dir,
                     '--config-xml']
             self.execute(args)
-            self.change_files_ownership(io_dir)
+            throughput.change_files_ownership(io_dir)
 
         if compare:
             self.print_diffs(io_dir)
-
-    def change_files_ownership(self, io_dir):
-        stat_info = os.stat(io_dir)
-        uid = stat_info.st_uid
-        gid = stat_info.st_gid
-        for root, dirs, files in os.walk(io_dir):
-            for d in dirs:
-                os.chown(path.join(root, d), uid, gid)
-            for f in files:
-                os.chown(path.join(root, f), uid, gid)
 
     def print_diffs(self, io_dir):
         current_path = path.join(io_dir, 'jjb', 'current')

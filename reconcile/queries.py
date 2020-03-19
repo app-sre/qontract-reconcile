@@ -191,6 +191,22 @@ CLUSTERS_QUERY = """
       service
       pod
     }
+    peering {
+      vpc_id
+      connections {
+        name
+        vpc {
+          account {
+            name
+            uid
+            terraformUsername
+          }
+          vpc_id
+          cidr_block
+          region
+        }
+      }
+    }
     automationToken {
       path
       field

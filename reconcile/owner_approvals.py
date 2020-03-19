@@ -3,6 +3,8 @@ import json
 import copy
 
 import reconcile.queries as queries
+import utils.throughput as throughput
+
 from utils.gitlab_api import GitLabApi
 
 
@@ -74,6 +76,7 @@ def write_baseline_to_file(io_dir, baseline):
     file_path = get_baseline_file_path(io_dir)
     with open(file_path, 'w') as f:
         f.write(json.dumps(baseline))
+    throughput.change_files_ownership(io_dir)
 
 
 def read_baseline_from_file(io_dir):

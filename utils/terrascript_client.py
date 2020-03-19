@@ -30,7 +30,9 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_sqs_queue, aws_dynamodb_table,
                                aws_ecr_repository, aws_s3_bucket_policy,
                                aws_cloudfront_origin_access_identity,
-                               aws_cloudfront_distribution)
+                               aws_cloudfront_distribution,
+                               aws_vpc_peering_connection,
+                               aws_vpc_peering_connection_accepter)
 
 
 class UnknownProviderError(Exception):
@@ -278,6 +280,67 @@ class TerrascriptClient(object):
         err = self.populate_iam_users(roles)
         if err:
             return err
+
+    def populate_additional_providers(self, accounts):
+        for account in accounts:
+            account_name = account['name']
+            assume_role = account['assume_role']
+            # arn:aws:iam::12345:role/role-1 --> 12345
+            alias = assume_role.split(':')[4]
+            ts = self.tss[account_name]
+            config = self.configs[account_name]
+            ts += provider('aws',
+                           access_key=config['aws_access_key_id'],
+                           secret_key=config['aws_secret_access_key'],
+                           version=config['aws_provider_version'],
+                           region=config['region'],
+                           alias=alias,
+                           assume_role={'role_arn': assume_role})
+
+    def populate_vpc_peerings(self, desired_state):
+        for item in desired_state:
+            connection_name = item['connection_name']
+            requester = item['requester']
+            accepter = item['accepter']
+            account = item['account']
+            account_name = account['name']
+            # arn:aws:iam::12345:role/role-1 --> 12345
+            alias = account['assume_role'].split(':')[4]
+
+            # Requester's side of the connection - the cluster's account
+            identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
+            values = {
+                # adding the alias to the provider will add this resource
+                # to the cluster's AWS account
+                'provider': 'aws.' + alias,
+                'vpc_id': requester['vpc_id'],
+                'peer_vpc_id': accepter['vpc_id'],
+                'peer_region': accepter['region'],
+                'peer_owner_id': account['uid'],
+                'auto_accept': False,
+                'tags': {
+                    'managed_by_integration': self.integration,
+                    # <accepter account uid>-<accepter account vpc id>
+                    'Name': connection_name
+                }
+            }
+            tf_resource = aws_vpc_peering_connection(identifier, **values)
+            self.add_resource(account_name, tf_resource)
+
+            # Accepter's side of the connection.
+            values = {
+                'vpc_peering_connection_id':
+                    '${aws_vpc_peering_connection.' + identifier + '.id}',
+                'auto_accept': True,
+                'tags': {
+                    'managed_by_integration': self.integration,
+                    # <requester account uid>-<requester account vpc id>
+                    'Name': connection_name
+                }
+            }
+            tf_resource = \
+                aws_vpc_peering_connection_accepter(identifier, **values)
+            self.add_resource(account_name, tf_resource)
 
     def populate_resources(self, namespaces, existing_secrets):
         for spec in self.init_populate_specs(namespaces):
