@@ -2,6 +2,9 @@ import time
 import requests
 import hvac
 import base64
+
+from sretoolbox.utils import retry
+
 from utils.config import get_config
 
 _client = None
@@ -54,6 +57,7 @@ def init_from_config():
     return init(server, role_id, secret_id)
 
 
+@retry()
 def read(secret):
     """Returns a value of a key in a Vault secret.
 
@@ -94,6 +98,7 @@ def write(secret):
         _write_v2(secret_path, data)
 
 
+@retry()
 def read_all(secret):
     """Returns a dictionary of keys and values in a Vault secret.
 
