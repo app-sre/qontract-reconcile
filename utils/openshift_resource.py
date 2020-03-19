@@ -39,7 +39,8 @@ class OpenshiftResource(object):
             for obj1_k, obj1_v in obj1.items():
                 obj2_v = obj2.get(obj1_k, None)
                 if obj2_v is None:
-                    return False
+                    if obj1_v is not None:
+                        return False
                 if obj1_k == 'cpu':
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
