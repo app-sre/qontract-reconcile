@@ -469,6 +469,15 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def _multiregion_account_(self, name):
+        if name not in self.configs:
+            return False
+
+        if self.configs[name]['supportedDeploymentRegions'] is not None:
+            return True
+
+        return False
+
     @staticmethod
     def _db_needs_auth_(config):
         if 'snapshot_identifier' not in config and \
@@ -675,7 +684,7 @@ class TerrascriptClient(object):
         if len(deps) > 0:
             values['depends_on'] = deps
         region = common_values['region'] or self.default_regions.get(account)
-        if self.configs[account]['supportedDeploymentRegions'] is not None:
+        if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         values['region'] = region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
@@ -877,8 +886,7 @@ class TerrascriptClient(object):
                 values = {}
                 values['name'] = queue
                 values['tags'] = common_values['tags']
-                if self.configs[account]['supportedDeploymentRegions'] \
-                        is not None:
+                if self._multiregion_account_(account):
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
                 queue_tf_resource = aws_sqs_queue(queue, **values)
@@ -981,8 +989,7 @@ class TerrascriptClient(object):
                 values['tags'] = common_values['tags']
                 values.update(defaults)
                 values['attribute'] = attributes
-                if self.configs[account]['supportedDeploymentRegions'] \
-                        is not None:
+                if self._multiregion_account_(account):
                     values['provider'] = 'aws.' + region
                 table_tf_resource = aws_dynamodb_table(table, **values)
                 tf_resources.append(table_tf_resource)
@@ -1053,7 +1060,7 @@ class TerrascriptClient(object):
         values['tags'] = common_values['tags']
 
         region = common_values['region'] or self.default_regions.get(account)
-        if self.configs[account]['supportedDeploymentRegions'] is not None:
+        if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
@@ -1170,7 +1177,7 @@ class TerrascriptClient(object):
         values['policy'] = json.dumps(policy, sort_keys=True)
         values['depends_on'] = [bucket_tf_resource]
         region = common_values['region'] or self.default_regions.get(account)
-        if self.configs[account]['supportedDeploymentRegions'] is not None:
+        if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
         tf_resources.append(bucket_policy_tf_resource)
