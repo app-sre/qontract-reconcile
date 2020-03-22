@@ -338,6 +338,8 @@ class TerrascriptClient(object):
                     'Name': connection_name
                 }
             }
+            if self._multiregion_account_(account_name):
+                values['provider'] = 'aws.' + accepter['region']
             tf_resource = \
                 aws_vpc_peering_connection_accepter(identifier, **values)
             self.add_resource(account_name, tf_resource)
