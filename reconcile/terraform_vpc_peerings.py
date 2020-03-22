@@ -50,6 +50,8 @@ def fetch_desired_state(settings):
                     peer_vpc['account']['uid'],
                     peer_vpc['account']['terraformUsername']
                 )
+            # assume_region is the region in which the requester resides
+            account['assume_region'] = requester['region']
             item = {
                 'connection_name': connection_name,
                 'requester': requester,
