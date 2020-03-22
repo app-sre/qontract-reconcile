@@ -1973,50 +1973,6 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile
-    name: qontract-reconcile-terraform-vpc-peerings
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: qontract-reconcile
-    template:
-      metadata:
-        labels:
-          app: qontract-reconcile
-      spec:
-        containers:
-        - name: int
-          image: ${IMAGE}:${IMAGE_TAG}
-          env:
-          - name: DRY_RUN
-            value: ${DRY_RUN}
-          - name: INTEGRATION_NAME
-            value: terraform-vpc-peerings
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
-          - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
-          - name: GITHUB_API
-            value: ${GITHUB_API}
-          resources:
-            limits:
-              cpu: 400m
-              memory: 1000Mi
-            requests:
-              cpu: 200m
-              memory: 600Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
-        volumes:
-        - name: qontract-reconcile-toml
-          secret:
-            secretName: qontract-reconcile-toml
-- apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    labels:
-      app: qontract-reconcile
     name: qontract-reconcile-ocm-groups
   spec:
     replicas: 1
