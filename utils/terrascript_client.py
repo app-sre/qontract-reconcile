@@ -293,7 +293,7 @@ class TerrascriptClient(object):
                            access_key=config['aws_access_key_id'],
                            secret_key=config['aws_secret_access_key'],
                            version=config['aws_provider_version'],
-                           region=config['region'],
+                           region=account['assume_region'],
                            alias=alias,
                            assume_role={'role_arn': assume_role})
 
