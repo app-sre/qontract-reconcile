@@ -1251,7 +1251,9 @@ class TerrascriptClient(object):
         values = {
             'name': identifier,
             'tags': common_values['tags'],
-            'retention_in_days': self._get_retention_in_days(common_values)
+            'retention_in_days':
+                self._get_retention_in_days(
+                    common_values, account, identifier)
         }
 
         region = common_values['region'] or self.default_regions.get(account)
@@ -1285,17 +1287,18 @@ class TerrascriptClient(object):
 
         # iam user policy for log group
         policy = {
-            "Version":"2012-10-17",
-            "Statement":[
+            "Version": "2012-10-17",
+            "Statement": [
                 {
-                "Action": [
-                    "logs:CreateLogStream",
-                    "logs:DescribeLogStreams",
-                    "logs:PutLogEvents",
-                    "logs:GetLogEvents"
-                ],
-                "Effect": "Allow",
-                "Resource": "${" + log_group_tf_resource.fullname + ".arn}:*"
+                    "Action": [
+                        "logs:CreateLogStream",
+                        "logs:DescribeLogStreams",
+                        "logs:PutLogEvents",
+                        "logs:GetLogEvents"
+                    ],
+                    "Effect": "Allow",
+                    "Resource":
+                        "${" + log_group_tf_resource.fullname + ".arn}:*"
                 }
             ]
         }
@@ -1312,7 +1315,7 @@ class TerrascriptClient(object):
             self.add_resource(account, tf_resource)
 
     @staticmethod
-    def _get_retention_in_days(values):
+    def _get_retention_in_days(values, account, identifier):
         default_retention_in_days = 14
         allowed_retention_in_days = \
             [1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
