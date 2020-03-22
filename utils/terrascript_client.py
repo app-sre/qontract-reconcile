@@ -32,7 +32,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudfront_origin_access_identity,
                                aws_cloudfront_distribution,
                                aws_vpc_peering_connection,
-                               aws_vpc_peering_connection_accepter)
+                               aws_vpc_peering_connection_accepter,
+                               aws_cloudwatch_log_group)
 
 
 class UnknownProviderError(Exception):
@@ -384,6 +385,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_ecr(resource, namespace_info)
         elif provider == 's3-cloudfront':
             self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
+        elif provider == 'cloudwatch':
+            self.populate_tf_resource_cloudwatch(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -1232,6 +1235,100 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_cloudwatch(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        # ecr repository
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/
+        # cloudwatch_log_group.html
+        values = {
+            'name': identifier,
+            'tags': common_values['tags'],
+            'retention_in_days': self._get_retention_in_days(common_values)
+        }
+
+        region = common_values['region'] or self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+        log_group_tf_resource = aws_cloudwatch_log_group(identifier, **values)
+        tf_resources.append(log_group_tf_resource)
+        output_name = output_prefix + '[log_group_name]'
+        output_value = '${' + log_group_tf_resource.fullname + '.name}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '[aws_region]'
+        tf_resources.append(output(output_name, value=region))
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for log group
+        values = {
+            'name': identifier,
+            'tags': common_values['tags'],
+            'depends_on': [log_group_tf_resource]
+        }
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy for log group
+        policy = {
+            "Version":"2012-10-17",
+            "Statement":[
+                {
+                "Action": [
+                    "logs:CreateLogStream",
+                    "logs:DescribeLogStreams",
+                    "logs:PutLogEvents",
+                    "logs:GetLogEvents"
+                ],
+                "Effect": "Allow",
+                "Resource": "${" + log_group_tf_resource.fullname + ".arn}:*"
+                }
+            ]
+        }
+        values = {
+            'user': identifier,
+            'name': identifier,
+            'policy': json.dumps(policy, sort_keys=True),
+            'depends_on': [user_tf_resource]
+        }
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def _get_retention_in_days(values):
+        default_retention_in_days = 14
+        allowed_retention_in_days = \
+            [1, 3, 5, 7, 14, 30, 60, 90, 120, 150,
+             180, 365, 400, 545, 731, 1827, 3653]
+
+        retention_in_days = \
+            values.get('retention_in_days') or default_retention_in_days
+        if retention_in_days not in allowed_retention_in_days:
+            logging.warning(
+                f"[{account}] log group {identifier} " +
+                f"retention_in_days '{retention_in_days}' " +
+                f"must be one of {allowed_retention_in_days}. " +
+                f"defaulting to '{default_retention_in_days}'.")
+
+        return retention_in_days
+
     @staticmethod
     def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
         tf_resources = []
@@ -1293,6 +1390,7 @@ class TerrascriptClient(object):
         specs = resource.get('specs', None)
         parameter_group = resource.get('parameter_group', None)
         sc = resource.get('storage_class', None)
+        retention_in_days = resource.get('retention_in_days', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1308,6 +1406,7 @@ class TerrascriptClient(object):
         values['specs'] = specs
         values['parameter_group'] = parameter_group
         values['storage_class'] = sc
+        values['retention_in_days'] = retention_in_days
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
