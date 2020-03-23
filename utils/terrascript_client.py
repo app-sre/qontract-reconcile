@@ -1291,10 +1291,8 @@ class TerrascriptClient(object):
             "Statement": [
                 {
                     "Action": [
-                        "logs:CreateLogStream",
-                        "logs:DescribeLogStreams",
-                        "logs:PutLogEvents",
-                        "logs:GetLogEvents"
+                        "logs:CreateLogStream"
+                        "logs:PutLogEvents"
                     ],
                     "Effect": "Allow",
                     "Resource":
@@ -1324,7 +1322,7 @@ class TerrascriptClient(object):
         retention_in_days = \
             values.get('retention_in_days') or default_retention_in_days
         if retention_in_days not in allowed_retention_in_days:
-            logging.warning(
+            logging.error(
                 f"[{account}] log group {identifier} " +
                 f"retention_in_days '{retention_in_days}' " +
                 f"must be one of {allowed_retention_in_days}. " +
