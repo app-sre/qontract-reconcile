@@ -166,7 +166,8 @@ class SaasHerder():
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
                 for target in rt['targets']:
-                    cluster, namespace = self._get_cluster_and_namespace(target)
+                    cluster, namespace = \
+                        self._get_cluster_and_namespace(target)
                     resources = self._process_template(url, path, hash_length,
                                                        target, parameters)
                     # add desired resources
