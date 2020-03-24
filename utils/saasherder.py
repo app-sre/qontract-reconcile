@@ -262,5 +262,5 @@ class SaasHerder():
                             channel = slack.chat_kwargs['channel']
                             logging.info(['slack_notify', channel, msg])
                             if not dry_run:
-                                state[state_key] = current_commit_sha
+                                state[state_key] = desired_commit_sha
                                 slack.chat_post_message(msg)
