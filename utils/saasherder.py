@@ -202,11 +202,11 @@ class SaasHerder():
         channel = slack_info.get('channel') or default_channel
 
         slack = SlackApi(token,
-                        settings=self.settings,
-                        init_usergroups=False,
-                        channel=channel,
-                        icon_emoji=icon_emoji,
-                        username=username)
+                         settings=self.settings,
+                         init_usergroups=False,
+                         channel=channel,
+                         icon_emoji=icon_emoji,
+                         username=username)
         return slack
 
     @staticmethod
@@ -217,7 +217,6 @@ class SaasHerder():
             return 'FAILED'
 
         return 'SUCCESS'
-
 
     def slack_notify(self, dry_run, aws_accounts, ri):
         result = self._get_deployment_result(dry_run, ri)
@@ -231,7 +230,6 @@ class SaasHerder():
             saas_file_name = saas_file['name']
             for resource_template in saas_file['resourceTemplates']:
                 url = resource_template['url']
-                path = resource_template['path']
                 hash_length = resource_template['hash_length']
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
