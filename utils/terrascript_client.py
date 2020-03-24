@@ -562,7 +562,7 @@ class TerrascriptClient(object):
         sc = common_values.get('storage_class')
         if sc:
             sc = sc.upper()
-            days = "0"
+            days = "1"
             if sc.endswith("_IA"):
                 # Infrequent Access storage class has minimum 30 days
                 # before transition
@@ -571,6 +571,10 @@ class TerrascriptClient(object):
                 "id": sc + "_storage_class",
                 "enabled": "true",
                 "transition": {
+                    "days": days,
+                    "storage_class": sc
+                },
+                "noncurrent_version_transition": {
                     "days": days,
                     "storage_class": sc
                 }
