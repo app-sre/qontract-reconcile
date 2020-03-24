@@ -572,6 +572,21 @@ SAAS_FILES_QUERY = """
     app {
       name
     }
+    slack {
+      workspace {
+        name
+        saasDeploy {
+          token {
+            path
+            field
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+    }
     managedResourceTypes
     authentication {
       code {

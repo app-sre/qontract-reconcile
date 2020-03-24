@@ -16,6 +16,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 def run(dry_run=False, thread_pool_size=10, defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
+    aws_accounts = queries.get_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
 
     saas_files = queries.get_saas_files()
@@ -35,3 +36,4 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     enable_deletion = False if ri.has_error_registered() else True
     ob.realize_data(dry_run, oc_map, ri,
                     enable_deletion=enable_deletion)
+    saasherder.slack_notify(dry_run, aws_accounts, ri)
