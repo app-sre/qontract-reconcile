@@ -234,6 +234,8 @@ class SaasHerder():
                 hash_length = resource_template['hash_length']
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
+                    if not target.get('notify'):
+                        continue
                     cluster, namespace = \
                         self._get_cluster_and_namespace(target)
                     target_hash = target['hash']
@@ -251,7 +253,7 @@ class SaasHerder():
                         slack_info = saas_file.get('slack')
                         if slack_info:
                             slack = self._init_slack(slack_info)
-                            msg_format = "[{}] {} deploment to {}/{}: {}"
+                            msg_format = "[{}] {} deployment to {}/{}: {}"
                             msg = msg_format.format(
                                 saas_file_name,
                                 resource_template_name,
