@@ -1291,7 +1291,7 @@ class TerrascriptClient(object):
             "Statement": [
                 {
                     "Action": [
-                        "logs:CreateLogStream"
+                        "logs:CreateLogStream",
                         "logs:PutLogEvents"
                     ],
                     "Effect": "Allow",
