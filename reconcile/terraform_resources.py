@@ -281,6 +281,6 @@ def run(dry_run=False, print_only=False,
         msg += ' Exception: {}'
         msg = msg.format(str(e))
         logging.error(msg)
-        cleanup_and_exit(tf, True)
+        sys.exit(1)
 
     cleanup_and_exit(tf)
