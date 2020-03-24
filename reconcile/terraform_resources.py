@@ -97,6 +97,13 @@ TF_NAMESPACES_QUERY = """
         output_resource_name
         storage_class
       }
+      ... on NamespaceTerraformResourceCloudWatch_v1 {
+        account
+        region
+        identifier
+        defaults
+        output_resource_name
+      }
     }
     cluster {
       name
@@ -227,39 +234,53 @@ def run(dry_run=False, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='', defer=None):
-    ri, oc_map, tf = \
-        setup(print_only, thread_pool_size, internal, use_jump_host)
-    defer(lambda: oc_map.cleanup())
-    if print_only:
-        cleanup_and_exit()
-    if tf is None:
-        err = True
-        cleanup_and_exit(tf, err)
 
-    if not light:
-        deletions_detected, err = tf.plan(enable_deletion)
-        if err:
-            cleanup_and_exit(tf, err)
-        if deletions_detected:
-            if enable_deletion:
-                tf.dump_deleted_users(io_dir)
-            else:
-                cleanup_and_exit(tf, deletions_detected)
+    try:
+        ri, oc_map, tf = \
+            setup(print_only, thread_pool_size, internal, use_jump_host)
 
-    if dry_run:
-        cleanup_and_exit(tf)
+        defer(lambda: oc_map.cleanup())
 
-    if not light:
-        err = tf.apply()
-        if err:
+        if print_only:
+            cleanup_and_exit()
+        if tf is None:
+            err = True
             cleanup_and_exit(tf, err)
 
-    tf.populate_desired_state(ri, oc_map)
-    ob.realize_data(dry_run, oc_map, ri,
-                    enable_deletion=enable_deletion)
-    disable_keys(dry_run, thread_pool_size,
-                 disable_service_account_keys=True)
-    if vault_output_path:
-        write_outputs_to_vault(vault_output_path, ri)
+        if not light:
+            deletions_detected, err = tf.plan(enable_deletion)
+            if err:
+                cleanup_and_exit(tf, err)
+            if deletions_detected:
+                if enable_deletion:
+                    tf.dump_deleted_users(io_dir)
+                else:
+                    cleanup_and_exit(tf, deletions_detected)
+
+        if dry_run:
+            cleanup_and_exit(tf)
+
+        if not light:
+            err = tf.apply()
+            if err:
+                cleanup_and_exit(tf, err)
+
+        tf.populate_desired_state(ri, oc_map)
+
+        ob.realize_data(dry_run, oc_map, ri,
+                        enable_deletion=enable_deletion)
+
+        disable_keys(dry_run, thread_pool_size,
+                     disable_service_account_keys=True)
+
+        if vault_output_path:
+            write_outputs_to_vault(vault_output_path, ri)
+
+    except Exception as e:
+        msg = 'There was problem running terraform resource reconcile.'
+        msg += ' Exception: {}'
+        msg = msg.format(str(e))
+        logging.error(msg)
+        cleanup_and_exit(tf, True)
 
     cleanup_and_exit(tf)
