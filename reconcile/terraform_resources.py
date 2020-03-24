@@ -97,6 +97,13 @@ TF_NAMESPACES_QUERY = """
         output_resource_name
         storage_class
       }
+      ... on NamespaceTerraformResourceCloudWatch_v1 {
+        account
+        region
+        identifier
+        defaults
+        output_resource_name
+      }
     }
     cluster {
       name
