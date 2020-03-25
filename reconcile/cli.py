@@ -444,6 +444,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def openshift_saas_deploy(ctx, thread_pool_size):
     run_integration(reconcile.openshift_saas_deploy.run,

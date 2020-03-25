@@ -9,6 +9,8 @@ from sretoolbox.container import Image
 import utils.secret_reader as secret_reader
 
 from utils.oc import OC
+from utils.state import State
+from utils.slack_api import SlackApi
 from utils.openshift_resource import OpenshiftResource as OR
 from reconcile.github_org import get_config
 
@@ -68,7 +70,7 @@ class SaasHerder():
             f = project.files.get(file_path=path, ref=ref)
             return f.decode()
 
-    def _get_image_tag(self, url, ref, hash_length):
+    def _get_commit_sha(self, url, ref, hash_length):
         commit_sha = ''
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
@@ -81,9 +83,13 @@ class SaasHerder():
             commit_sha = commits[0].id
         return commit_sha[:hash_length]
 
-    def _process_template(self, url, path, hash_length, target, parameters):
+    @staticmethod
+    def _get_cluster_and_namespace(target):
         cluster = target['namespace']['cluster']['name']
         namespace = target['namespace']['name']
+        return cluster, namespace
+
+    def _process_template(self, url, path, hash_length, target, parameters):
         target_hash = target['hash']
         target_parameters = self._collect_parameters(target)
         target_parameters.update(parameters)
@@ -92,11 +98,11 @@ class SaasHerder():
         for template_parameter in template['parameters']:
             if template_parameter['name'] == 'IMAGE_TAG':
                 # add IMAGE_TAG only if it is required
-                image_tag = self._get_image_tag(url, target_hash, hash_length)
+                image_tag = self._get_commit_sha(url, target_hash, hash_length)
                 target_parameters['IMAGE_TAG'] = image_tag
         oc = OC('server', 'token')
         resources = oc.process(template, target_parameters)
-        return cluster, namespace, resources
+        return resources
 
     def _collect_images(self, resource):
         images = set()
@@ -160,9 +166,10 @@ class SaasHerder():
                 parameters = self._collect_parameters(rt)
                 # iterate over targets (each target is a namespace)
                 for target in rt['targets']:
-                    cluster, namespace, resources = \
-                        self._process_template(url, path, hash_length,
-                                               target, parameters)
+                    cluster, namespace = \
+                        self._get_cluster_and_namespace(target)
+                    resources = self._process_template(url, path, hash_length,
+                                                       target, parameters)
                     # add desired resources
                     for resource in resources:
                         resource_kind = resource['kind']
@@ -186,3 +193,76 @@ class SaasHerder():
                             resource_name,
                             oc_resource
                         )
+
+    def _init_slack(self, slack_info):
+        saas_deploy_config = slack_info['workspace']['saasDeploy']
+        token = saas_deploy_config['token']
+        default_channel = saas_deploy_config['channel']
+        icon_emoji = saas_deploy_config['icon_emoji']
+        username = saas_deploy_config['username']
+        channel = slack_info.get('channel') or default_channel
+
+        slack = SlackApi(token,
+                         settings=self.settings,
+                         init_usergroups=False,
+                         channel=channel,
+                         icon_emoji=icon_emoji,
+                         username=username)
+        return slack
+
+    @staticmethod
+    def _get_deployment_result(dry_run, ri):
+        if dry_run:
+            return 'TBD'
+        if ri.has_error_registered():
+            return 'FAILED'
+
+        return 'SUCCESS'
+
+    def slack_notify(self, dry_run, aws_accounts, ri):
+        result = self._get_deployment_result(dry_run, ri)
+        state = State(
+            integration=self.integration,
+            accounts=aws_accounts,
+            settings=self.settings
+        )
+        for saas_file in self.saas_files:
+            self.github = self._initiate_github(saas_file)
+            saas_file_name = saas_file['name']
+            for resource_template in saas_file['resourceTemplates']:
+                url = resource_template['url']
+                hash_length = resource_template['hash_length']
+                resource_template_name = resource_template['name']
+                for target in resource_template['targets']:
+                    if not target.get('notify'):
+                        continue
+                    cluster, namespace = \
+                        self._get_cluster_and_namespace(target)
+                    target_hash = target['hash']
+                    desired_commit_sha = \
+                        self._get_commit_sha(url, target_hash, hash_length)
+                    state_key_format = "{}/{}/{}/{}"
+                    state_key = state_key_format.format(
+                        saas_file_name,
+                        resource_template_name,
+                        cluster,
+                        namespace
+                    )
+                    current_commit_sha = state.get(state_key, None)
+                    if current_commit_sha != desired_commit_sha:
+                        slack_info = saas_file.get('slack')
+                        if slack_info:
+                            slack = self._init_slack(slack_info)
+                            msg_format = "[{}] {} deployment to {}/{}: {}"
+                            msg = msg_format.format(
+                                saas_file_name,
+                                resource_template_name,
+                                cluster,
+                                namespace,
+                                result
+                            )
+                            channel = slack.chat_kwargs['channel']
+                            logging.info(['slack_notify', channel, msg])
+                            if not dry_run:
+                                state[state_key] = desired_commit_sha
+                                slack.chat_post_message(msg)
