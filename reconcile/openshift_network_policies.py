@@ -1,3 +1,4 @@
+import sys
 import logging
 import semver
 
@@ -108,18 +109,29 @@ def fetch_desired_state(namespaces, ri, oc_map):
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    gqlapi = gql.get_api()
-    namespaces = [namespace_info for namespace_info
-                  in gqlapi.query(NAMESPACES_QUERY)['namespaces']
-                  if namespace_info.get('networkPoliciesAllow')]
-    ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
-        thread_pool_size=thread_pool_size,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=['NetworkPolicy'],
-        internal=internal,
-        use_jump_host=use_jump_host)
-    defer(lambda: oc_map.cleanup())
-    fetch_desired_state(namespaces, ri, oc_map)
-    ob.realize_data(dry_run, oc_map, ri)
+
+    try:
+        gqlapi = gql.get_api()
+        namespaces = [
+            namespace_info for namespace_info
+            in gqlapi.query(NAMESPACES_QUERY)['namespaces']
+            if namespace_info.get('networkPoliciesAllow')
+            ]
+        ri, oc_map = ob.fetch_current_state(
+            namespaces=namespaces,
+            thread_pool_size=thread_pool_size,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            override_managed_types=['NetworkPolicy'],
+            internal=internal,
+            use_jump_host=use_jump_host)
+        defer(lambda: oc_map.cleanup())
+        fetch_desired_state(namespaces, ri, oc_map)
+        ob.realize_data(dry_run, oc_map, ri)
+
+    except Exception as e:
+        msg = 'There was problem running openshift network policies reconcile.'
+        msg += ' Exception: {}'
+        msg = msg.format(str(e))
+        logging.error(msg)
+        sys.exit(1)

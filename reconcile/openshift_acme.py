@@ -1,3 +1,5 @@
+import sys
+import logging
 import semver
 
 import anymarkup
@@ -119,27 +121,38 @@ def add_desired_state(namespaces, ri, oc_map):
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    namespaces = [namespace_info for namespace_info
-                  in queries.get_namespaces()
-                  if namespace_info.get('openshiftAcme')]
 
-    namespaces = construct_resources(namespaces)
+    try:
+        namespaces = [
+            namespace_info for namespace_info
+            in queries.get_namespaces()
+            if namespace_info.get('openshiftAcme')
+            ]
 
-    ri, oc_map = ob.fetch_current_state(
-        namespaces=namespaces,
-        thread_pool_size=thread_pool_size,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=[
-            'Deployment',
-            'Role',
-            'RoleBinding',
-            'ServiceAccount',
-            'Secret'],
-        internal=internal,
-        use_jump_host=use_jump_host)
-    add_desired_state(namespaces, ri, oc_map)
+        namespaces = construct_resources(namespaces)
 
-    defer(lambda: oc_map.cleanup())
+        ri, oc_map = ob.fetch_current_state(
+            namespaces=namespaces,
+            thread_pool_size=thread_pool_size,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            override_managed_types=[
+                'Deployment',
+                'Role',
+                'RoleBinding',
+                'ServiceAccount',
+                'Secret'],
+            internal=internal,
+            use_jump_host=use_jump_host)
+        add_desired_state(namespaces, ri, oc_map)
 
-    ob.realize_data(dry_run, oc_map, ri)
+        defer(lambda: oc_map.cleanup())
+
+        ob.realize_data(dry_run, oc_map, ri)
+
+    except Exception as e:
+        msg = 'There was problem running openshift acme reconcile.'
+        msg += ' Exception: {}'
+        msg = msg.format(str(e))
+        logging.error(msg)
+        sys.exit(1)
