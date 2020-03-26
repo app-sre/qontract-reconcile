@@ -21,7 +21,7 @@ MSG_BRANCH = ('@{user}, this Merge Request is using the "master" '
 MSG_ACCESS = ('@{user}, the user @{bot} is not a Maintainer in '
               'your fork of {project_name}. '
               'Please add the @{bot} user to your fork as a Maintainer '
-              'and retest by commenting "[test]" on the Merge Request.')
+              'and retest by commenting "/retest" on the Merge Request.')
 
 
 class GitlabForkCompliance:
@@ -58,7 +58,7 @@ class GitlabForkCompliance:
         # who are not
         group = self.gl_cli.gl.groups.get(self.maintainers_group)
         maintainers = group.members.list()
-        project_maintainers = self.gl_cli.get_project_maintainers()
+        project_maintainers = self.src.get_project_maintainers()
         for member in maintainers:
             if member.username in project_maintainers:
                 continue
