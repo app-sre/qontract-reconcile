@@ -1430,7 +1430,6 @@ class TerrascriptClient(object):
         specs = resource.get('specs', None)
         parameter_group = resource.get('parameter_group', None)
         sc = resource.get('storage_class', None)
-        retention_in_days = resource.get('retention_in_days', None)
         enhanced_monitoring = resource.get('enhanced_monitoring', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
@@ -1447,7 +1446,6 @@ class TerrascriptClient(object):
         values['specs'] = specs
         values['parameter_group'] = parameter_group
         values['storage_class'] = sc
-        values['retention_in_days'] = retention_in_days
         values['enhanced_monitoring'] = enhanced_monitoring
 
         output_prefix = '{}-{}'.format(identifier, provider)
