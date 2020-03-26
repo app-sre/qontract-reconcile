@@ -418,6 +418,41 @@ class TerrascriptClient(object):
             values['depends_on'] = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
+        enhanced_monitoring = values.pop('enhanced_monitoring')
+        if enhanced_monitoring:
+            assume_role_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Principal": {
+                            "Service": "monitoring.rds.amazonaws.com"
+                        },
+                        "Effect": "Allow"
+                    }
+                ]
+            }
+            em_identifier = f"{identifier}-enhanced-monitoring"
+            em_values = {
+                'name': em_identifier,
+                'assume_role_policy':
+                    json.dumps(assume_role_policy, sort_keys=True)
+            }
+            role_tf_resource = aws_iam_role(em_identifier, **em_values)
+            tf_resources.append(role_tf_resource)
+
+            em_values = {
+                'role':
+                    "${" + role_tf_resource.fullname + ".name}",
+                'policy_arn':
+                    "arn:aws:iam::aws:policy/service-role/" +
+                    "AmazonRDSEnhancedMonitoringRole",
+                'depends_on': [role_tf_resource]
+            }
+            tf_resource = \
+                aws_iam_role_policy_attachment(em_identifier, **em_values)
+            tf_resources.append(tf_resource)
+
         if self._db_needs_auth_(values):
             try:
                 password = \
@@ -1396,6 +1431,7 @@ class TerrascriptClient(object):
         parameter_group = resource.get('parameter_group', None)
         sc = resource.get('storage_class', None)
         retention_in_days = resource.get('retention_in_days', None)
+        enhanced_monitoring = resource.get('enhanced_monitoring', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1412,6 +1448,7 @@ class TerrascriptClient(object):
         values['parameter_group'] = parameter_group
         values['storage_class'] = sc
         values['retention_in_days'] = retention_in_days
+        values['enhanced_monitoring'] = enhanced_monitoring
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
