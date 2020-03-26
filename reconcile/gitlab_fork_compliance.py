@@ -58,7 +58,7 @@ class GitlabForkCompliance:
         # who are not
         group = self.gl_cli.gl.groups.get(self.maintainers_group)
         maintainers = group.members.list()
-        project_maintainers = self.gl_cli.get_project_maintainers()
+        project_maintainers = self.src.get_project_maintainers()
         for member in maintainers:
             if member.username in project_maintainers:
                 continue
