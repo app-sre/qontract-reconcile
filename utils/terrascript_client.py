@@ -453,6 +453,8 @@ class TerrascriptClient(object):
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(tf_resource)
 
+            values['monitoring_role_arn'] = "${" + role_tf_resource.fullname + ".arn}"
+
         if self._db_needs_auth_(values):
             try:
                 password = \
