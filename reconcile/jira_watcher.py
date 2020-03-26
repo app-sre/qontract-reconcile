@@ -112,7 +112,7 @@ def act(dry_run, jira_board, diffs):
     if not dry_run and diffs:
         slack = init_slack(jira_board)
 
-    for diff in diffs:
+    for diff in reverse(diffs):
         logging.info(diff)
         if not dry_run:
             slack.chat_post_message(diff)
