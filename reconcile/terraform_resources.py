@@ -32,6 +32,7 @@ TF_NAMESPACES_QUERY = """
         parameter_group
         overrides
         output_resource_name
+        enhanced_monitoring
       }
       ... on NamespaceTerraformResourceS3_v1 {
         account
