@@ -406,12 +406,27 @@ class TerrascriptClient(object):
                 f"[{account}] RDS name must begin with a letter " +
                 f"and contain only alphanumeric characters: {values['name']}")
 
+        az = values.get('availability_zone')
+        provider = ''
+        if az is not None and self._multiregion_account_(account):
+            values['availability_zone'] = az
+            # To get the provider we should use, we find the region by
+            # removing the last character from the availability zone.
+            # Availability zone is defined like us-east-1a, us-east-1b,
+            # etc.  We cut off the last character from the availability
+            # zone to get the region, and use that as an alias in the
+            # provider definition
+            provider = 'aws.' + az[:-1]
+            values['provider'] = provider
+
         parameter_group = values.pop('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_name = pg_values['name']
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
+            if self._multiregion_account_(account) and len(provider) > 0:
+                pg_values['provider'] = provider
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
@@ -467,17 +482,6 @@ class TerrascriptClient(object):
         else:
             password = ""
         values['password'] = password
-
-        az = values.get('availability_zone')
-        if az is not None:
-            values['availability_zone'] = az
-            # To get the provider we should use, we find the region by
-            # removing the last character from the availability zone.
-            # Availability zone is defined like us-east-1a, us-east-1b,
-            # etc.  We cut off the last character from the availability
-            # zone to get the region, and use that as an alias in the
-            # provider definition
-            values['provider'] = 'aws.' + az[:-1]
 
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
