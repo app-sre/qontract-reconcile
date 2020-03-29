@@ -8,8 +8,9 @@ class JiraClient(object):
 
     def __init__(self, jira_board, settings=None):
         self.project = jira_board['name']
-        self.server = jira_board['serverUrl']
-        token = jira_board['token']
+        jira_server = jira_board['server']
+        self.server = jira_server['serverUrl']
+        token = jira_server['token']
         basic_auth = self.get_basic_auth(token, settings)
         self.jira = JIRA(self.server, basic_auth=basic_auth)
 

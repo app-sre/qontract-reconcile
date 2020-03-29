@@ -14,9 +14,11 @@ QUERY = """
   jira_boards: jira_boards_v1 {
     path
     name
-    serverUrl
-    token {
-      path
+    server {
+      serverUrl
+      token {
+        path
+      }
     }
     slack {
       token {
