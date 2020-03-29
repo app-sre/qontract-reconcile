@@ -433,6 +433,7 @@ def get_repos_gitlab_jira(server=''):
             if c['url'].startswith(server)
             and c.get('jira')]
 
+
 USERS_QUERY = """
 {
   users: users_v1 {
