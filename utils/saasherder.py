@@ -195,7 +195,11 @@ class SaasHerder():
                         )
 
     def _init_slack(self, slack_info):
-        saas_deploy_config = slack_info['workspace']['saasDeploy']
+        slack_integrations = slack_info['workspace']['integrations']
+        saas_deploy_config = \
+            [i for i in slack_integrations if i['name'] == self.integration]
+        [saas_deploy_config] = saas_deploy_config
+
         token = saas_deploy_config['token']
         default_channel = saas_deploy_config['channel']
         icon_emoji = saas_deploy_config['icon_emoji']

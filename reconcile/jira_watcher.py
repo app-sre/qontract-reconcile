@@ -21,13 +21,20 @@ QUERY = """
       }
     }
     slack {
-      token {
-        path
-        field
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+          }
+          channel
+          icon_emoji
+          username
+        }
       }
       channel
-      icon_emoji
-      username
     }
   }
 }
@@ -94,13 +101,20 @@ def calculate_diff(server, current_state, previous_state):
 
 
 def init_slack(jira_board):
-    slack_info = jira_board['slack']
-    channel = slack_info['channel']
-    icon_emoji = \
-        ':{}:'.format(slack_info.get('icon_emoji', 'jira'))
-    username = slack_info.get('username', 'Jira')
     settings = queries.get_app_interface_settings()
-    slack = SlackApi(slack_info['token'],
+    slack_info = jira_board['slack']
+    slack_integrations = slack_info['workspace']['integrations']
+    jira_config = \
+        [i for i in slack_integrations if i['name'] == QONTRACT_INTEGRATION]
+    [jira_config] = jira_config
+
+    token = jira_config['token']
+    default_channel = jira_config['channel']
+    icon_emoji = jira_config['icon_emoji']
+    username = jira_config['username']
+    channel = slack_info.get('channel') or default_channel
+
+    slack = SlackApi(token,
                      settings=settings,
                      init_usergroups=False,
                      channel=channel,
