@@ -575,7 +575,8 @@ SAAS_FILES_QUERY = """
     slack {
       workspace {
         name
-        saasDeploy {
+        integrations {
+          name
           token {
             path
             field
