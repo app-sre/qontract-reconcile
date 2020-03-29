@@ -360,6 +360,12 @@ APPS_QUERY = """
         enabled
         rebase
       }
+      jira {
+        serverUrl
+        token {
+          path
+        }
+      }
     }
   }
 }
@@ -418,6 +424,14 @@ def get_repos_gitlab_housekeeping(server=''):
             if c['url'].startswith(server) and
             c['gitlabHousekeeping'] and
             c['gitlabHousekeeping']['enabled']]
+
+
+def get_repos_gitlab_jira(server=''):
+    code_components = get_code_components()
+    return [{'url': c['url'], 'jira': c['jira']}
+            for c in code_components
+            if c['url'].startswith(server)
+            and c.get('jira')]
 
 
 USERS_QUERY = """

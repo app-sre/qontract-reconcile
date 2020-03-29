@@ -33,6 +33,7 @@ import reconcile.jenkins_job_builder
 import reconcile.jenkins_webhooks
 import reconcile.jira_watcher
 import reconcile.slack_usergroups
+import reconcile.gitlab_integrations
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
 import reconcile.gitlab_fork_compliance
@@ -366,6 +367,12 @@ def jira_watcher(ctx, io_dir):
 @click.pass_context
 def slack_usergroups(ctx):
     run_integration(reconcile.slack_usergroups.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def gitlab_integrations(ctx):
+    run_integration(reconcile.gitlab_integrations.run, ctx.obj['dry_run'])
 
 
 @integration.command()
