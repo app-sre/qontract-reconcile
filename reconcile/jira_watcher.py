@@ -108,7 +108,7 @@ def init_slack(jira_board):
         [i for i in slack_integrations if i['name'] == QONTRACT_INTEGRATION]
     [jira_config] = jira_config
 
-    token = saas_deploy_config['token']
+    token = jira_config['token']
     default_channel = jira_config['channel']
     icon_emoji = jira_config['icon_emoji']
     username = jira_config['username']
