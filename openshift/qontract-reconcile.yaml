@@ -129,6 +129,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -153,13 +162,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[github] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[github] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -195,6 +213,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -251,6 +285,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -275,13 +318,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[github-repo-invites] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[github-repo-invites] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -317,6 +369,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -373,6 +441,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -397,13 +474,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[quay-membership] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[quay-membership] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -439,6 +525,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -539,6 +641,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -563,13 +674,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[quay-repos] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[quay-repos] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -605,6 +725,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -852,6 +988,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -876,13 +1021,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-users] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-users] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -918,6 +1072,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -974,6 +1144,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -998,13 +1177,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-groups] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-groups] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1040,6 +1228,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1140,6 +1344,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1164,13 +1377,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-clusterrolebindings] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-clusterrolebindings] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1206,6 +1428,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1262,6 +1500,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1286,13 +1533,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-rolebindings] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-rolebindings] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1328,6 +1584,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1384,6 +1656,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1408,13 +1689,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-network-policies] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-network-policies] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1450,6 +1740,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1506,6 +1812,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1530,13 +1845,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[openshift-acme] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-acme] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1572,6 +1896,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1760,6 +2100,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1784,13 +2133,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[terraform-resources] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[terraform-resources] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1826,6 +2184,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -1882,6 +2256,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -1906,13 +2289,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[terraform-users] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[terraform-users] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -1948,6 +2340,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -2180,6 +2588,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2204,13 +2621,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[email-sender] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[email-sender] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -2253,6 +2679,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -2309,6 +2751,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2333,13 +2784,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[sentry-config] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[sentry-config] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -2375,6 +2835,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -2431,6 +2907,15 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          - name: LOG_STREAM_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -2455,13 +2940,22 @@ objects:
             </filter>
 
             <match integration>
-              @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL}
-              icon_emoji ${SLACK_ICON_EMOJI}
-              username sd-app-sre-bot
-              flush_interval 10s
-              message "\`\`\`[sql-query] %s\`\`\`"
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[sql-query] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ${LOG_STREAM_NAME}
+                auto_create_stream true
+              </store>
             </match>
             EOF
           volumeMounts:
@@ -2504,6 +2998,22 @@ objects:
             mountPath: /fluentd/log/
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -2547,3 +3057,5 @@ parameters:
   value: ":bust_in_silhouette:"
 - name: GITHUB_API
   value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
+- name: CLOUDWATCH_SECRET
+  value: app-interface-cloudwatch
