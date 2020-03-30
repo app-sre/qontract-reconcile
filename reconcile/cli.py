@@ -56,6 +56,12 @@ from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
+from logging.handlers import SysLogHandler
+
+
+format = '[%(asctime)s] [%(levelname)s] '
+format += '[%(filename)s:%(funcName)s:%(lineno)d] '
+format += '- %(message)s'
 
 
 def config_file(function):
@@ -214,12 +220,26 @@ def run_integration(func, *args):
 
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
-    format = '[%(asctime)s] [%(levelname)s] '
-    format += '[%(filename)s:%(funcName)s:%(lineno)d] '
-    format += '- %(message)s'
     logging.basicConfig(format=format,
                         datefmt='%Y-%m-%d %H:%M:%S',
                         level=level)
+
+
+def init_syslog(log_level):
+    if 'syslog' in config.get_config():
+        conf = config.get_config()['syslog']
+        syslog_server = conf['server']
+        syslog_port = int(conf['port'])
+    else:
+        syslog_server = 'localhost'
+        syslog_port = 5014
+
+    syslog = SysLogHandler(address=(syslog_server, syslog_port))
+    formatter = logging.Formatter(format, datefmt='%Y-%m-%d %H:%M:%S')
+    syslog.setFormatter(formatter)
+    syslog.setLevel(log_level)
+    logger = logging.getLogger()
+    logger.addHandler(syslog)
 
 
 @click.group()
@@ -232,6 +252,7 @@ def integration(ctx, configfile, dry_run, log_level):
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
+    init_syslog(log_level)
     gql.init_from_config()
     ctx.obj['dry_run'] = dry_run
 

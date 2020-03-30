@@ -22,8 +22,8 @@ objects:
           app: qontract-reconcile
       spec:
         {{- if $integration.logs }}
-        initContainers:
         {{- if $integration.logs.slack }}
+        initContainers:
         - name: config
           image: quay.io/app-sre/busybox
           resources:
@@ -123,9 +123,9 @@ objects:
           - name: qontract-reconcile-toml
             mountPath: /config
         {{- if $integration.logs }}
+        {{- if $integration.logs.slack }}
           - name: logs
             mountPath: /fluentd/log/
-        {{- if $integration.logs.slack }}
         - name: fluentd
           image: quay.io/app-sre/fluentd:latest
           resources:
@@ -141,15 +141,72 @@ objects:
           - name: fluentd-config
             mountPath: /fluentd/etc/
         {{- end }}
+        {{- if $integration.logs.cloudwatch }}
+        - name: syslog-cloudwatch-bridge
+          image: quay.io/app-sre/syslog-cloudwatch-bridge:latest
+          ports:
+            - containerPort: ${SYSLOG_PORT}
+              protocol: UDP
+              name: syslog-udp-port
+            - containerPort: ${SYSLOG_PORT}
+              protocol: TCP
+              name: syslog-tcp-port
+          env:
+            - name: PORT
+              value: ${SYSLOG_PORT}
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: ${CLOUDWATCH_SECRET}
+                  key: aws_region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ${CLOUDWATCH_SECRET}
+                  key: aws_access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ${CLOUDWATCH_SECRET}
+                  key: aws_secret_access_key
+            - name: LOG_GROUP_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: ${CLOUDWATCH_SECRET}
+                  key: log_group_name
+            - name: LOG_STREAM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            requests:
+              memory: 100Mi
+              cpu: 100m
+            limits:
+              memory: 200Mi
+              cpu: 200m
+          readinessProbe:
+            tcpSocket:
+              port: ${SYSLOG_PORT}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: ${SYSLOG_PORT}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+        {{- end }}
         {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
         {{- if $integration.logs }}
+        {{- if $integration.logs.slack }}
         - name: logs
           emptyDir: {}
-        {{- if $integration.logs.slack }}
         - name: fluentd-config
           emptyDir: {}
         {{- end }}
@@ -178,3 +235,7 @@ parameters:
   value: ":bust_in_silhouette:"
 - name: GITHUB_API
   value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
+- name: SYSLOG_PORT
+  value: 5014
+- name: CLOUDWATCH_SECRET
+  value: app-interface-cloudwatch
