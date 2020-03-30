@@ -25,6 +25,7 @@ integrations:
       cpu: 25m
   logs:
     slack: true
+    cloudwatch: true
 - name: github-repo-invites
   resources:
     requests:
@@ -35,6 +36,7 @@ integrations:
       cpu: 25m
   logs:
     slack: true
+    cloudwatch: true
 - name: quay-membership
   resources:
     requests:
@@ -45,6 +47,7 @@ integrations:
       cpu: 25m
   logs:
     slack: true
+    cloudwatch: true
 - name: quay-mirror
   resources:
     requests:
@@ -63,6 +66,7 @@ integrations:
       cpu: 25m
   logs:
     slack: true
+    cloudwatch: true
 - name: github-users
   resources:
     requests:
@@ -117,6 +121,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-groups
   resources:
     requests:
@@ -128,6 +133,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -148,6 +154,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-rolebindings
   resources:
     requests:
@@ -159,6 +166,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -170,6 +178,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-acme
   resources:
     requests:
@@ -181,6 +190,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
+    cloudwatch: true
 - name: openshift-limitranges
   resources:
     requests:
@@ -219,6 +229,7 @@ integrations:
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
+    cloudwatch: true
 - name: terraform-users
   resources:
     requests:
@@ -230,6 +241,7 @@ integrations:
   extraArgs: --io-dir /tmp/throughput/
   logs:
     slack: true
+    cloudwatch: true
 - name: terraform-vpc-peerings
   resources:
     requests:
@@ -272,6 +284,7 @@ integrations:
       cpu: 50m
   logs:
     slack: true
+    cloudwatch: true
   state: true
 - name: sentry-config
   resources:
@@ -283,6 +296,7 @@ integrations:
       cpu: 25m
   logs:
     slack: true
+    cloudwatch: true
 - name: sql-query
   resources:
     requests:
@@ -293,4 +307,5 @@ integrations:
       cpu: 50m
   logs:
     slack: true
+    cloudwatch: true
   state: true
