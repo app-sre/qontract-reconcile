@@ -48,6 +48,7 @@ TF_NAMESPACES_QUERY = """
         identifier
         defaults
         parameter_group
+        region
         overrides
         output_resource_name
       }

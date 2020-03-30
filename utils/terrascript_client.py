@@ -808,11 +808,19 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        region = values.pop('region', self.default_regions.get(account))
+        provider = ''
+        if region is not None and self._multiregion_account_(account):
+            provider = 'aws.' + region
+            values['provider'] = provider
+
         parameter_group = values['parameter_group']
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
             pg_values['parameter'] = pg_values.pop('parameters')
+            if self._multiregion_account_(account) and len(provider) > 0:
+                pg_values['provider'] = provider
             pg_tf_resource = \
                 aws_elasticache_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
