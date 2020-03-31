@@ -1345,12 +1345,18 @@ class TerrascriptClient(object):
             "Statement": [
                 {
                     "Action": [
+                        "logs:DescribeLogStreams"
                         "logs:CreateLogStream",
                         "logs:PutLogEvents"
                     ],
                     "Effect": "Allow",
                     "Resource":
                         "${" + log_group_tf_resource.fullname + ".arn}:*"
+                },
+                {
+                    "Action": ["logs:DescribeLogGroups"],
+                    "Effect": "Allow",
+                    "Resource": "*"
                 }
             ]
         }
