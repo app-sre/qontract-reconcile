@@ -34,11 +34,11 @@ class SlackApi(object):
         usergroup_id = usergroup['id']
         description = usergroup['description']
 
-        users_ids = self.get_usergroup_users(usergroup_id)
-        users = self.get_users_by_ids(users_ids)
+        user_ids = usergroup['users']
+        users = self.get_users_by_ids(user_ids)
 
-        channels_ids = usergroup['prefs']['channels']
-        channels = self.get_channels_by_ids(channels_ids)
+        channel_ids = usergroup['prefs']['channels']
+        channels = self.get_channels_by_ids(channel_ids)
 
         return users, channels, description
 
@@ -50,6 +50,7 @@ class SlackApi(object):
     def initiate_usergroups(self):
         result = self.sc.api_call(
             "usergroups.list",
+            include_users=True
         )
         if not result['ok']:
             raise Exception(result['error'])
@@ -70,13 +71,6 @@ class SlackApi(object):
             channels=channels,
             description=description,
         )
-
-    def get_usergroup_users(self, id):
-        result = self.sc.api_call(
-            "usergroups.users.list",
-            usergroup=id,
-        )
-        return result['users']
 
     def update_usergroup_users(self, id, users_list):
         users = ','.join(users_list)
