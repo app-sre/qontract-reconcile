@@ -31,7 +31,6 @@ class SlackApi(object):
 
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
-        usergroup_id = usergroup['id']
         description = usergroup['description']
 
         user_ids = usergroup['users']
