@@ -95,11 +95,14 @@ class SaasHerder():
         target_parameters.update(parameters)
         content = self._get_file_contents(url, path, target_hash)
         template = yaml.safe_load(content)
-        for template_parameter in template['parameters']:
-            if template_parameter['name'] == 'IMAGE_TAG':
-                # add IMAGE_TAG only if it is required
-                image_tag = self._get_commit_sha(url, target_hash, hash_length)
-                target_parameters['IMAGE_TAG'] = image_tag
+        if "IMAGE_TAG" not in target_parameters:
+            for template_parameter in template['parameters']:
+                if template_parameter['name'] == 'IMAGE_TAG':
+                    # add IMAGE_TAG only if it is required
+                    image_tag = self._get_commit_sha(url,
+                                                     target_hash,
+                                                     hash_length)
+                    target_parameters['IMAGE_TAG'] = image_tag
         oc = OC('server', 'token')
         resources = oc.process(template, target_parameters)
         return resources
