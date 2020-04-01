@@ -602,18 +602,26 @@ class TerrascriptClient(object):
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
             values['lifecycle_rule'] = common_values['lifecycle_rules']
         if versioning:
-            days = common_values.get('expire_noncurrent_version_days') or 30
-            rule = {
-                "id": "expire_noncurrent_versions",
-                "enabled": "true",
-                "noncurrent_version_expiration": {
-                    "days": days
+            lrs = values.get('lifecycle_rule', [])
+            expiration_rule = False
+            for lr in lrs:
+                if "noncurrent_version_expiration" in lr:
+                    expiration_rule = True
+                    break
+            if not expiration_rule:
+                # Add a default noncurrent object expiration rule if
+                # if one isn't already set
+                rule = {
+                    "id": "expire_noncurrent_versions",
+                    "enabled": "true",
+                    "noncurrent_version_expiration": {
+                        "days": 30
+                    }
                 }
-            }
-            if values.get('lifecycle_rule'):
-                values['lifecycle_rule'].append(rule)
-            else:
-                values['lifecycle_rule'] = rule
+                if len(lrs) > 0:
+                    lrs.append(rule)
+                else:
+                    lrs = rule
         sc = common_values.get('storage_class')
         if sc:
             sc = sc.upper()
