@@ -52,10 +52,10 @@ integrations:
   resources:
     requests:
       memory: 150Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
 - name: quay-repos
   resources:
     requests:
@@ -91,10 +91,10 @@ integrations:
   resources:
     requests:
       memory: 500Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 1000Mi
-      cpu: 400m
+      cpu: 500m
   extraArgs: --thread-pool-size 1
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
@@ -138,10 +138,10 @@ integrations:
   resources:
     requests:
       memory: 300Mi
-      cpu: 250m
+      cpu: 400m
     limits:
       memory: 400Mi
-      cpu: 350m
+      cpu: 500m
   extraArgs: --external --no-use-jump-host
 - name: openshift-clusterrolebindings
   resources:
@@ -159,10 +159,10 @@ integrations:
   resources:
     requests:
       memory: 200Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 400Mi
-      cpu: 300m
+      cpu: 500m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -222,10 +222,10 @@ integrations:
   resources:
     requests:
       memory: 800Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 1000Mi
-      cpu: 400m
+      cpu: 500m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
