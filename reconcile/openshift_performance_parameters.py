@@ -117,7 +117,7 @@ def fetch_desired_state(performance_parameters, ri):
 
         try:
             errors = check_data_consistency(pp)
-            if len(errors) > 0:
+            if errors:
                 logging.error(
                     f"Data inconsistent for {pp['name']}. "
                     f"Errors detected: {errors}")
@@ -149,7 +149,7 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         for pp in performance_parameters
         if pp['namespace']['cluster']['observabilityNamespace'] is not None]
 
-    if len(observability_namespaces) == 0:
+    if not observability_namespaces:
         logging.error('No observability namespace matching')
         return
 
