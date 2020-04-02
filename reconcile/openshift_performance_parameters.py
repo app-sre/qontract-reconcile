@@ -31,7 +31,11 @@ def generate_resource(template_file, values):
     tpl.globals['labels_to_selectors'] = labels_to_selectors
     tpl.globals['build_rules_aoa'] = build_rules_aoa
     tpl.globals['load_json'] = json.loads
-    return OR(jsonnet.generate_object(tpl.render(values)),
+
+    rendered = tpl.render(values)
+    jsonnet_resource = jsonnet.generate_object(rendered)
+
+    return OR(jsonnet_resource,
               QONTRACT_INTEGRATION,
               QONTRACT_INTEGRATION_VERSION)
 
