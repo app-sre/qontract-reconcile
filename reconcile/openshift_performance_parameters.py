@@ -1,3 +1,4 @@
+import sys
 import json
 import semver
 import logging
@@ -112,6 +113,7 @@ def build_template_params(pp):
 def fetch_desired_state(performance_parameters, ri):
     for pp in performance_parameters:
         if pp['namespace']['cluster']['observabilityNamespace'] is None:
+            ri.register_error()
             logging.error(f"No observability namespace for {pp['name']}")
             continue
 
@@ -126,6 +128,7 @@ def fetch_desired_state(performance_parameters, ri):
             params = build_template_params(pp)
             rules_resource = generate_resource(SLO_RULES, params)
         except Exception as e:
+            ri.register_error()
             logging.error(f"Error building resource for {pp['name']}: {e}")
             logging.debug(traceback.format_exc())
             continue
@@ -164,3 +167,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(performance_parameters, ri)
     ob.realize_data(dry_run, oc_map, ri)
+
+    if ri.has_error_registered():
+        sys.exit(1)
