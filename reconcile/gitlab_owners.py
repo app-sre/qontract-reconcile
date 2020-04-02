@@ -43,15 +43,20 @@ class MRApproval:
         change_owners_map = dict()
         paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
         for path in paths:
-            path_owners = self.owners.get_path_owners(path)
-            if not path_owners:
+            owners = self.owners.get_path_owners(path)
+            path_approvers = owners['approvers']
+            path_reviewers = owners['reviewers']
+            if not path_approvers:
                 raise OwnerNotFoundError(f'No owners for path {path!r}')
 
-            change_owners_map[path] = {
-                'owners': path_owners,
-                'closest_owners': self.owners.get_path_closest_owners(path)
-                }
+            closest_owners = self.owners.get_path_closest_owners(path)
+            closest_approvers = closest_owners['approvers']
+            closest_reviewers = closest_owners['reviewers']
 
+            change_owners_map[path] = {'approvers': path_approvers,
+                                       'reviewers': path_reviewers,
+                                       'closest_approvers': closest_approvers,
+                                       'closest_reviewers': closest_reviewers}
         return change_owners_map
 
     def get_lgtms(self):
@@ -89,22 +94,30 @@ class MRApproval:
         report = {}
         lgtms = self.get_lgtms()
 
+        approval_status['approved'] = True
         for change_path, change_owners in change_owners_map.items():
             change_approved = False
-            for owner in change_owners['owners']:
-                if owner in lgtms:
+            for approver in change_owners['approvers']:
+                if approver in lgtms:
                     change_approved = True
+
             # Each change that was not yet approved will generate
             # a report message
             if not change_approved:
-                report[change_path] = (f'one of '
-                                       f'{change_owners["closest_owners"]} '
-                                       f'needs to approve the change')
+                approval_status['approved'] = False
+                report[change_path] = {}
 
-        # Empty report means that all changes are approved
-        if not report:
-            approval_status['approved'] = True
-            return approval_status
+                approvers = change_owners['closest_approvers']
+                report[change_path]['approvers'] = approvers
+
+            change_reviewed = False
+            for reviewer in change_owners['reviewers']:
+                if reviewer in lgtms:
+                    change_reviewed = True
+
+            if not change_reviewed:
+                reviewers = change_owners['closest_reviewers']
+                report[change_path]['reviewers'] = reviewers
 
         # Since we have a report, let's check if that report was already
         # used for a comment
@@ -186,6 +199,7 @@ def run(dry_run=False):
                 _LOG.info([f'Project:{gitlab_cli.project.id} '
                            f'Merge Request:{mr.iid} '
                            f'- publishing approval report'])
+
                 if not dry_run:
                     gitlab_cli.remove_label_from_merge_request(mr.iid,
                                                                APPROVAL_LABEL)
