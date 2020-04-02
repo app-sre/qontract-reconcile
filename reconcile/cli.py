@@ -16,7 +16,7 @@ import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
-import reconcile.openshift_prometheusrules
+import reconcile.openshift_performance_parameters
 import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
 import reconcile.owner_approvals
@@ -530,8 +530,9 @@ def openshift_limitranges(ctx, thread_pool_size, internal,
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_prometheusrules(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_prometheusrules.run,
+def openshift_performance_parameters(ctx, thread_pool_size, internal,
+                                     use_jump_host):
+    run_integration(reconcile.openshift_performance_parameters.run,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
