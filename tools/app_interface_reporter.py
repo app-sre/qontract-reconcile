@@ -458,6 +458,12 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
 
 
             Having problems? Ping us on #sd-app-sre on Slack!
+
+
+            You are receiving this message because you are a member
+            of app-interface or subscribed to a mailing list specified
+            as owning a service being run by the App SRE team:
+            https://gitlab.cee.redhat.com/service/app-interface
             """
         gw = prg.init(gitlab_project_id=gitlab_project_id,
                       override_pr_gateway_type='gitlab')
