@@ -727,7 +727,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
         }
       }
     }
-    sloRules {
+    SLIRecordingRules {
       name
       kind
       metric
@@ -738,7 +738,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
     volume {
       name
       threshold
-      rule
+      rules
       additionalLabels
     }
     availability {
@@ -752,16 +752,16 @@ PERFORMANCE_PARAMETERS_QUERY = """
     latency {
       name
       threshold
-      rule
+      rules
       additionalLabels
     }
     errors {
       name
       target
-      rule
+      rules
       additionalLabels
     }
-    rawRecording {
+    rawRecordingRules {
       record
       expr
       labels
@@ -773,4 +773,5 @@ PERFORMANCE_PARAMETERS_QUERY = """
 def get_performance_parameters():
     """ Returns performance parameters resources defined in app-interface """
     gqlapi = gql.get_api()
-    return gqlapi.query(PERFORMANCE_PARAMETERS)['performance_parameters_v1']
+    return gqlapi.query(
+        PERFORMANCE_PARAMETERS_QUERY)['performance_parameters_v1']

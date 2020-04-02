@@ -3,7 +3,6 @@ import semver
 import logging
 import traceback
 
-import utils.gql as gql
 import utils.jsonnet as jsonnet
 import utils.template as template
 import reconcile.openshift_base as ob
@@ -40,41 +39,42 @@ def check_data_consistency(pp):
     errors = []
 
     # check that rule names are unique
-    # we'll also use slo_rules in slos validation
-    slo_rules = set([r['name'] for r in pp['sloRules']])
-    if len(slo_rules) != len(pp['sloRules']):
-        errors.append('sloRules names are not unique')
+    # we'll also use sli_rules in slis validation
+    sli_rules = set([r['name'] for r in pp['SLIRecordingRules']])
+    if len(sli_rules) != len(pp['SLIRecordingRules']):
+        errors.append('SLIRecordingRules names are not unique')
 
     # percentile is mandatory for latency rates
-    for rule in [r for r in pp['sloRules'] if r['kind'] == 'latency_rate']:
+    for rule in [r for r in pp['SLIRecordingRules']
+                 if r['kind'] == 'latency_rate']:
         if 'percentile' not in rule:
-            errors.append('percentile missing in %s slo rule' % rule['name'])
+            errors.append('percentile missing in %s sli rule' % rule['name'])
 
-    # volume, latency, errors => check that rules exist in slo_recordings
+    # volume, latency, errors => check that rules exist in sli_recordings
     # we'll also use it for the availability validation
-    slos = {}
+    slis = {}
     for category in ['volume', 'latency', 'errors']:
-        slos[category] = set([s['name'] for s in pp[category]])
+        slis[category] = set([s['name'] for s in pp[category]])
 
-        if len(slos[category]) != len(pp[category]):
-            errors.append('slo names are not unique for %s' % category)
+        if len(slis[category]) != len(pp[category]):
+            errors.append('sli names are not unique for %s' % category)
 
         for slx in pp[category]:
-            if slx['rule'] not in slo_rules:
-                errors.append('Unknown slo rule %s' % slx['rule'])
+            if slx['rules'] not in sli_rules:
+                errors.append('Unknown sli rule %s' % slx['rules'])
 
-    # check availability names are unique and slo rules exist
+    # check availability names are unique and sli rules exist
     availability_rule_names = set()
     for slx in pp['availability']:
         availability_rule_names.add(slx['name'])
         for c in ['latency', 'errors']:
             for rule_name in slx['rules'][category]:
-                if rule_name not in slos[category]:
+                if rule_name not in slis[category]:
                     errors.append('Unknown %s rule %s' % (category,
                                                           rule_name))
 
     if len(availability_rule_names) != len(pp[category]):
-        errors.append('slo names are not unique for %s' % category)
+        errors.append('sli names are not unique for %s' % category)
 
     return errors
 
@@ -82,13 +82,13 @@ def check_data_consistency(pp):
 # Build params to pass to the template
 def build_template_params(pp):
     params = {}
-    params['http_rates'] = []     # sloRules of http_rate type
-    params['latency_rates'] = []  # sloRules of latency_rate type
+    params['http_rates'] = []     # SLIRecordingRules of http_rate type
+    params['latency_rates'] = []  # SLIRecordingRules of latency_rate type
     params['all_rules'] = []      # contains the name of each rule.
 
     # We have checked that rule names are unique by category, but not as whole
     # we will add a suffix to each rule to make sure they're unique
-    for r in pp['sloRules']:
+    for r in pp['SLIRecordingRules']:
         if r['kind'] == 'http_rate':
             params['http_rates'].append(r)
             params['all_rules'].extend(
@@ -146,7 +146,6 @@ def fetch_desired_state(performance_parameters, ri):
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    gqlapi = gql.get_api()
     performance_parameters = queries.get_performance_parameters()
     observability_namespaces = [
         pp['namespace']['cluster']['observabilityNamespace']
