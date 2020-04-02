@@ -117,17 +117,19 @@ def fetch_desired_state(performance_parameters, ri):
             logging.error(f"No observability namespace for {pp['name']}")
             continue
 
-        try:
-            errors = check_data_consistency(pp)
-            if errors:
-                logging.error(
-                    f"Data inconsistent for {pp['name']}. "
-                    f"Errors detected: {errors}")
-                continue
+        errors = check_data_consistency(pp)
+        if errors:
+            ri.register_error()
+            logging.error(
+                f"Data inconsistent for {pp['name']}. "
+                f"Errors detected: {errors}")
+            continue
 
-            params = build_template_params(pp)
+        params = build_template_params(pp)
+
+        try:
             rules_resource = generate_resource(SLO_RULES, params)
-        except Exception as e:
+        except jsonnet.JsonnetError as e:
             ri.register_error()
             logging.error(f"Error building resource for {pp['name']}: {e}")
             logging.debug(traceback.format_exc())
@@ -154,7 +156,7 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
 
     if not observability_namespaces:
         logging.error('No observability namespace matching')
-        return
+        sys.exit(1)
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=observability_namespaces,
