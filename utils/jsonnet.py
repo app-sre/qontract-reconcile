@@ -20,12 +20,12 @@ def generate_object(jsonnet_string):
         os.write(fd, jsonnet_string.encode())
         os.close(fd)
     except Exception as e:
-        raise JsonnetError("Error building jsonnet file: %s" % e)
+        raise JsonnetError(f'Error building jsonnet file: {e}')
 
     try:
         jsonnet_bundler_dir = os.environ['JSONNET_BUNDLER_DIR']
     except KeyError as e:
-        raise JsonnetError("JSONNET_BUNDLER_DIR not set")
+        raise JsonnetError('JSONNET_BUNDLER_DIR not set')
 
     cmd = ['jsonnet', '-J', jsonnet_bundler_dir, path]
     status = run(cmd, stdout=PIPE, stderr=PIPE)

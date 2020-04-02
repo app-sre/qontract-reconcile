@@ -17,11 +17,11 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def labels_to_selectors(labels):
-    return ", ".join(['\'%s="%s"\'' % (k, v) for k, v in labels.items()])
+    return ", ".join([f'\'{k}="{v}"\'' for k, v in labels.items()])
 
 
 def build_rules_aoa(rules, category):
-    return " + ".join(['[%s__%s.rules]' % (r, category) for r in rules])
+    return " + ".join([f'[{r}__{category}.rules]' for r in rules])
 
 
 def generate_resource(template_file, values):
@@ -48,7 +48,7 @@ def check_data_consistency(pp):
     for rule in [r for r in pp['SLIRecordingRules']
                  if r['kind'] == 'latency_rate']:
         if 'percentile' not in rule:
-            errors.append('percentile missing in %s sli rule' % rule['name'])
+            errors.append(f"percentile missing in {rule['name']} sli rule")
 
     # volume, latency, errors => check that rules exist in sli_recordings
     # we'll also use it for the availability validation
@@ -57,11 +57,11 @@ def check_data_consistency(pp):
         slis[category] = set([s['name'] for s in pp[category]])
 
         if len(slis[category]) != len(pp[category]):
-            errors.append('sli names are not unique for %s' % category)
+            errors.append(f'sli names are not unique for {category}')
 
         for slx in pp[category]:
             if slx['rules'] not in sli_rules:
-                errors.append('Unknown sli rule %s' % slx['rules'])
+                errors.append(f"Unknown sli rule {slx['rules']}")
 
     # check availability names are unique and sli rules exist
     availability_rule_names = set()
@@ -70,11 +70,10 @@ def check_data_consistency(pp):
         for c in ['latency', 'errors']:
             for rule_name in slx['rules'][category]:
                 if rule_name not in slis[category]:
-                    errors.append('Unknown %s rule %s' % (category,
-                                                          rule_name))
+                    errors.append(f'Unknown {category} rule {rule_name}')
 
     if len(availability_rule_names) != len(pp[category]):
-        errors.append('sli names are not unique for %s' % category)
+        errors.append(f'sli names are not unique for {category}')
 
     return errors
 
@@ -91,16 +90,15 @@ def build_template_params(pp):
     for r in pp['SLIRecordingRules']:
         if r['kind'] == 'http_rate':
             params['http_rates'].append(r)
-            params['all_rules'].extend(
-                ['%s__http_rates.rateRules' % r['name'],
-                 '%s__http_rates.errorRateRules' % r['name']])
+            params['all_rules'].extend([
+                f"{r['name']}__http_rates.rateRules",
+                f"{r['name']}__http_rates.errorRateRules"])
         else:
             params['latency_rates'].append(r)
-            params['all_rules'].append('%s__latency_rates.rules' % r['name'])
+            params['all_rules'].append(f"{r['name']}__latency_rates.rules")
 
     for c in ['volume', 'latency', 'errors', 'availability']:
-        params['all_rules'].extend(['%s__%s.rules' % (r['name'], c)
-                                    for r in pp[c]])
+        params['all_rules'].extend([f"{r['name']}__{c}.rules" for r in pp[c]])
         params[c] = pp[c]
 
     params['labels'] = pp['labels']
@@ -114,22 +112,21 @@ def build_template_params(pp):
 def fetch_desired_state(performance_parameters, ri):
     for pp in performance_parameters:
         if pp['namespace']['cluster']['observabilityNamespace'] is None:
-            logging.error('No observability namespace for %s' % pp['name'])
+            logging.error(f"No observability namespace for {pp['name']}")
             continue
 
         try:
             errors = check_data_consistency(pp)
             if len(errors) > 0:
                 logging.error(
-                    'Data inconsistent for %s. Errors detected: %s' % (
-                        pp['name'], errors))
+                    f"Data inconsistent for {pp['name']}. "
+                    f"Errors detected: {errors}")
                 continue
 
             params = build_template_params(pp)
             rules_resource = generate_resource(SLO_RULES, params)
         except Exception as e:
-            logging.error('Error building resource for %s: %s' % (
-                pp['name'], e))
+            logging.error(f"Error building resource for {pp['name']}: {e}")
             logging.debug(traceback.format_exc())
             continue
 
