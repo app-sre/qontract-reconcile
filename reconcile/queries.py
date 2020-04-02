@@ -770,6 +770,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
 }
 """
 
+
 def get_performance_parameters():
     """ Returns performance parameters resources defined in app-interface """
     gqlapi = gql.get_api()
