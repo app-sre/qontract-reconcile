@@ -593,10 +593,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 150Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -891,10 +891,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 400m
+              cpu: 500m
               memory: 1000Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 500Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1296,10 +1296,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 350m
+              cpu: 500m
               memory: 400Mi
             requests:
-              cpu: 250m
+              cpu: 400m
               memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1572,10 +1572,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 300m
+              cpu: 500m
               memory: 400Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2172,10 +2172,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 400m
+              cpu: 500m
               memory: 1000Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
