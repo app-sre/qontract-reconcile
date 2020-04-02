@@ -4,118 +4,15 @@ import logging
 import traceback
 
 import utils.gql as gql
-import reconcile.openshift_base as ob
 import utils.jsonnet as jsonnet
 import utils.template as template
+import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
 from utils.defer import defer
 from utils.openshift_resource import (OpenshiftResource as OR)
 
 SLO_RULES = 'slo-rules.jsonnet.j2'
-
-PERFORMANCE_PARAMETERS_QUERY = """
-{
-  performance_parameters_v1 {
-    labels
-    name
-    component
-    prometheusLabels
-    namespace {
-      name
-      cluster {
-        observabilityNamespace {
-          name
-          cluster {
-            name
-            serverUrl
-            jumpHost {
-              hostname
-              knownHosts
-              user
-              port
-              identity {
-                path
-                field
-                format
-              }
-            }
-            automationToken {
-              path
-              field
-              format
-            }
-            disable {
-              integrations
-            }
-          }
-        }
-        name
-        serverUrl
-        jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-            path
-            field
-            format
-          }
-        }
-        automationToken {
-          path
-          field
-          format
-        }
-        internal
-        disable {
-          integrations
-        }
-      }
-    }
-    sloRules {
-      name
-      kind
-      metric
-      percentile
-      selectors
-      httpStatusLabel
-    }
-    volume {
-      name
-      threshold
-      rule
-      additionalLabels
-    }
-    availability {
-      name
-      additionalLabels
-      rules {
-        latency
-        errors
-      }
-    }
-    latency {
-      name
-      threshold
-      rule
-      additionalLabels
-    }
-    errors {
-      name
-      target
-      rule
-      additionalLabels
-    }
-    rawRecording {
-      record
-      expr
-      labels
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = 'openshift-prometheusrules'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
@@ -215,7 +112,7 @@ def build_template_params(pp):
 
 
 def fetch_desired_state(performance_parameters, ri):
-    for pp in performance_parameters['performance_parameters_v1']:
+    for pp in performance_parameters:
         if pp['namespace']['cluster']['observabilityNamespace'] is None:
             logging.error('No observability namespace for %s' % pp['name'])
             continue
@@ -250,10 +147,10 @@ def fetch_desired_state(performance_parameters, ri):
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     gqlapi = gql.get_api()
-    performance_parameters = gqlapi.query(PERFORMANCE_PARAMETERS_QUERY)
+    performance_parameters = queries.get_performance_parameters()
     observability_namespaces = [
         pp['namespace']['cluster']['observabilityNamespace']
-        for pp in performance_parameters['performance_parameters_v1']
+        for pp in performance_parameters
         if pp['namespace']['cluster']['observabilityNamespace'] is not None]
 
     if len(observability_namespaces) == 0:

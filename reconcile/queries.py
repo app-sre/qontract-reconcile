@@ -665,3 +665,112 @@ def get_saas_files():
     """ Returns SaasFile resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(SAAS_FILES_QUERY)['saas_files']
+
+
+PERFORMANCE_PARAMETERS_QUERY = """
+{
+  performance_parameters_v1 {
+    labels
+    name
+    component
+    prometheusLabels
+    namespace {
+      name
+      cluster {
+        observabilityNamespace {
+          name
+          cluster {
+            name
+            serverUrl
+            jumpHost {
+              hostname
+              knownHosts
+              user
+              port
+              identity {
+                path
+                field
+                format
+              }
+            }
+            automationToken {
+              path
+              field
+              format
+            }
+            disable {
+              integrations
+            }
+          }
+        }
+        name
+        serverUrl
+        jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+            path
+            field
+            format
+          }
+        }
+        automationToken {
+          path
+          field
+          format
+        }
+        internal
+        disable {
+          integrations
+        }
+      }
+    }
+    sloRules {
+      name
+      kind
+      metric
+      percentile
+      selectors
+      httpStatusLabel
+    }
+    volume {
+      name
+      threshold
+      rule
+      additionalLabels
+    }
+    availability {
+      name
+      additionalLabels
+      rules {
+        latency
+        errors
+      }
+    }
+    latency {
+      name
+      threshold
+      rule
+      additionalLabels
+    }
+    errors {
+      name
+      target
+      rule
+      additionalLabels
+    }
+    rawRecording {
+      record
+      expr
+      labels
+    }
+  }
+}
+"""
+
+def get_performance_parameters():
+    """ Returns performance parameters resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(PERFORMANCE_PARAMETERS)['performance_parameters_v1']
