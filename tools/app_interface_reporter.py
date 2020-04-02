@@ -74,7 +74,8 @@ class Report(object):
         self.report_sections = {}
 
         # valet
-        self.add_report_section('valet', self.slo_section())
+        # Pending https://issues.redhat.com/browse/APPSRE-1674
+        # self.add_report_section('valet', self.slo_section())
 
         # promotions
         self.add_report_section(
