@@ -212,7 +212,7 @@ def act(diff, oc_map):
     elif action == "del_user_from_group":
         oc.del_user_from_group(group, user)
     elif action == "delete_group":
-        oc.delete_group(group)
+        logging.debug('skipping group deletion')
     else:
         raise Exception("invalid action: {}".format(action))
 
