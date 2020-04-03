@@ -29,7 +29,7 @@ ENV LANG=en_US.utf8
 ENV TF_VERSION=0.11.14
 ENV JJB_VERSION=2.10.1
 ENV GIT_SECRETS_VERSION=1.3.0
-ENV JSONNET_BUNDLER_DIR=/opt/jsonnet-bundler/vendor
+ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
 RUN yum install -y centos-release-openshift-origin && \
     yum install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm && \
@@ -51,8 +51,8 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     rm -rf git-secrets*
 
 COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
-RUN mkdir -p ${JSONNET_BUNDLER_DIR}
-COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_BUNDLER_DIR}
+RUN mkdir -p ${JSONNET_VENDOR_DIR}
+COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}
 
 WORKDIR /reconcile
 
