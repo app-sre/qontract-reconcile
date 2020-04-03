@@ -3,8 +3,7 @@ FROM centos:7 AS jsonnet-builder
 ENV GOPATH=/go
 ENV JSONNET_VERSION=v0.15.0
 ENV JSONNET_BUNDLER_VERSION=v0.3.1
-# TODO: Change to latest version
-ENV VALET_LIBSONNET_VERSION=2e6d9f08be93dc35e93b9cb33343426c10e83fb2
+ENV VALET_LIBSONNET_VERSION=53a7cff0da2ebf27b0093c80f65e8fcb85c2efea
 
 RUN yum install -y epel-release git make gcc-c++
 
@@ -19,10 +18,9 @@ RUN yum install -y go && \
     chmod -R 777 /go && \
     GO111MODULE=on go get github.com/jsonnet-bundler/jsonnet-bundler/cmd/jb@${JSONNET_BUNDLER_VERSION}
 
-# TODO: Move valet-libsonnet to app-sre org
 WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
-    /go/bin/jb install https://github.com/rporres/valet-libsonnet@${VALET_LIBSONNET_VERSION}
+    /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
 FROM centos:7
 
