@@ -29,6 +29,9 @@ class QuayApi(object):
             self.API_URL, self.organization, self.team)
 
         r = requests.get(url, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
+
         body = r.json()
 
         # Using a set because members may be repeated
