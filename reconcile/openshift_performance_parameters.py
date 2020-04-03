@@ -13,7 +13,7 @@ from utils.defer import defer
 from utils.openshift_resource import (OpenshiftResource as OR)
 
 SLO_RULES = 'slo-rules.jsonnet.j2'
-QONTRACT_INTEGRATION = 'openshift-prometheusrules'
+QONTRACT_INTEGRATION = 'openshift-performance-parameters'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
