@@ -51,8 +51,8 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     rm -rf git-secrets*
 
 COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
-RUN mkdir -p ${JSONNET_VENDOR_DIR}
 COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}
+RUN find ${JSONNET_VENDOR_DIR} -type d -exec chmod 0755 {} \;
 
 WORKDIR /reconcile
 
