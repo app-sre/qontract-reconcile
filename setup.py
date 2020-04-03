@@ -1,5 +1,6 @@
 from setuptools import find_packages
 from setuptools import setup
+from glob import glob
 
 
 setup(
@@ -14,6 +15,8 @@ setup(
                 "state as defined in the app-interface DB.",
 
     packages=find_packages(exclude=('tests',)),
+
+    data_files=[('templates', glob('templates/*.j2'))],
 
     install_requires=[
         "sretoolbox~=0.2",
