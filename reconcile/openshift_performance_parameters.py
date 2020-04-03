@@ -159,7 +159,7 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         if pp['namespace']['cluster']['observabilityNamespace'] is not None]
 
     if not observability_namespaces:
-        logging.error('No observability namespace matching')
+        logging.error('No observability namespaces found')
         sys.exit(1)
 
     ri, oc_map = ob.fetch_current_state(
