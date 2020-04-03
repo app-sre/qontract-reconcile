@@ -36,7 +36,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-limitranges`: Manages OpenShift LimitRange objects.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
-- `openshift-prometheusrules`: Manages Prometheus Rules.
+- `openshift-performance-parameters`: Manages Performance Parameters files from services.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-saas-deploy`: Manage OpenShift resources defined in Saas files (SaasHerder).
