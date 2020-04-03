@@ -33,7 +33,7 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudfront_distribution,
                                aws_vpc_peering_connection,
                                aws_vpc_peering_connection_accepter,
-                               aws_cloudwatch_log_group)
+                               aws_cloudwatch_log_group, aws_kms_key)
 
 
 class UnknownProviderError(Exception):
@@ -387,6 +387,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
         elif provider == 'cloudwatch':
             self.populate_tf_resource_cloudwatch(resource, namespace_info)
+        elif provider == 'kms':
+            self.populate_tf_resource_kms(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -1392,6 +1394,35 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_kms(self, resource, namespace_info):
+        account, identifier, values, output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+        values.pop('identifier', None)
+
+        # kms customer master key
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/kms_key.html
+
+        # provide a default description if not provided
+        if 'description' not in values:
+            values['description'] = 'app-interface created KMS key'
+
+        uppercase = ['key_usage']
+        for key in uppercase:
+            if key in values:
+                values[key] = values[key].upper()
+        region = values.pop(
+            'region', None) or self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+
+        tf_resource = aws_kms_key(identifier, **values)
+        self.add_resource(account, tf_resource)
 
     @staticmethod
     def _get_retention_in_days(values, account, identifier):
