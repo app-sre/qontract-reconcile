@@ -50,8 +50,9 @@ def check_data_consistency(pp):
         errors.append('SLIRecordingRules names are not unique')
 
     # percentile is mandatory for latency rates
-    for rule in [r for r in pp['SLIRecordingRules']
-                 if r['kind'] == 'latency_rate']:
+    latency_sli_rules = [r for r in pp['SLIRecordingRules']
+                         if r['kind'] == 'latency_rate']
+    for rule in latency_sli_rules:
         if 'percentile' not in rule:
             errors.append(f"percentile missing in {rule['name']} sli rule")
 
