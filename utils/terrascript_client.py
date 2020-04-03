@@ -347,11 +347,13 @@ class TerrascriptClient(object):
             self.add_resource(account_name, tf_resource)
 
     def populate_resources(self, namespaces, existing_secrets):
-        for spec in self.init_populate_specs(namespaces):
-            self.populate_tf_resources(spec, existing_secrets)
+        self.init_populate_specs(namespaces)
+        for specs in self.account_resources.values():
+            for spec in specs:
+                self.populate_tf_resources(spec, existing_secrets)
 
     def init_populate_specs(self, namespaces):
-        populate_specs = []
+        self.account_resources = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
             tf_resources = namespace_info.get('terraformResources')
@@ -360,8 +362,10 @@ class TerrascriptClient(object):
             for resource in tf_resources:
                 populate_spec = {'resource': resource,
                                  'namespace_info': namespace_info}
-                populate_specs.append(populate_spec)
-        return populate_specs
+                account = resource['account']
+                if account not in self.account_resources:
+                    self.account_resources[account] = []
+                self.account_resources[account].append(populate_spec)
 
     def populate_tf_resources(self, populate_spec, existing_secrets):
         resource = populate_spec['resource']
@@ -413,13 +417,9 @@ class TerrascriptClient(object):
         provider = ''
         if az is not None and self._multiregion_account_(account):
             values['availability_zone'] = az
-            # To get the provider we should use, we find the region by
-            # removing the last character from the availability zone.
-            # Availability zone is defined like us-east-1a, us-east-1b,
-            # etc.  We cut off the last character from the availability
-            # zone to get the region, and use that as an alias in the
-            # provider definition
-            provider = 'aws.' + az[:-1]
+            # To get the provider we should use, we get the region
+            # and use that as an alias in the provider definition
+            provider = 'aws.' + self._region_from_availability_zone_(az)
             values['provider'] = provider
 
         parameter_group = values.pop('parameter_group')
@@ -492,6 +492,80 @@ class TerrascriptClient(object):
             password = ""
         values['password'] = password
 
+        region = self._region_from_availability_zone_(
+            az) or self.default_regions.get(account)
+        replica_source = values.pop('replica_source', None)
+        if replica_source:
+            if 'replicate_source_db' in values:
+                raise ValueError(
+                    f"only one of replicate_source_db or replica_source " +
+                    "can be defined")
+            source_info = self._find_resource_(account, replica_source, 'rds')
+            if source_info:
+                values['backup_retention_period'] = 0
+                replica_az = source_info.get('availability_zone', None)
+                if replica_az and len(replica_az) > 1:
+                    replica_region = self._region_from_availability_zone_(
+                        replica_az)
+                else:
+                    replica_region = self.default_regions.get(account)
+                _, _, source_values, _, _ = self.init_values(
+                    source_info['resource'], source_info['namespace_info'])
+                if replica_region == region:
+                    # replica is in the same region as source
+                    values['replicate_source_db'] = replica_source
+                    # Should only be set for read replica if source is in
+                    # another region
+                    values.pop('db_subnet_group_name', None)
+                else:
+                    # replica is in different region from source
+                    values['replicate_source_db'] = "${aws_db_instance." + \
+                        replica_source + ".arn}"
+
+                    # db_subnet_group_name must be defined for a source db
+                    # in a different region
+                    if 'db_subnet_group_name' not in values:
+                        raise ValueError(
+                            f"db_subnet_group_name must be defined if " +
+                            "read replica source in different region")
+
+                    # storage_encrypted is ignored for cross-region replicas
+                    encrypt = values.get('storage_encrypted', None)
+                    if encrypt and 'kms_key_id' not in values:
+                        raise ValueError(
+                            f"storage_encrypted ignored for cross-region " +
+                            "read replica.  Set kms_key_id")
+
+                # Read Replicas shouldn't set these values as they come from
+                # the source db
+                remove_params = ['allocated_storage',
+                                 'engine', 'password', 'username']
+                for param in remove_params:
+                    values.pop(param, None)
+
+                # Source RDS must have these parameters set
+                source_brp = source_values.get('backup_retention_period', 0)
+                if source_brp <= 0:
+                    raise ValueError(
+                        f"can not use {replica_source} as replica_source " +
+                        "because backup_retention_period must be greater " +
+                        "than 0")
+            else:
+                raise FetchResourceError(
+                    f"source {replica_source} for read replica " +
+                    f"{identifier} not found")
+
+        kms_key_id = values.pop('kms_key_id', None)
+        if kms_key_id:
+            if not kms_key_id.startswith("arn:", 0):
+                kms_key = self._find_resource_(account, kms_key_id, 'kms')
+                if kms_key:
+                    res = kms_key['resource']
+                    values['kms_key_id'] = "${aws_kms_key." + \
+                        res['identifier'] + ".arn}"
+                else:
+                    raise ValueError(f"failed to find kms key {kms_key_id}")
+
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
         tf_resource = aws_db_instance(identifier, **values)
@@ -534,10 +608,31 @@ class TerrascriptClient(object):
 
         return False
 
+    def _find_resource_(self, account, source, provider):
+        if account not in self.account_resources:
+            return None
+
+        for res in self.account_resources[account]:
+            r = res['resource']
+            if r['identifier'] == source and r['provider'] == provider:
+                return res
+        return None
+
+    @staticmethod
+    def _region_from_availability_zone_(az):
+        # Find the region by removing the last character from the
+        # availability zone. Availability zone is defined like
+        # us-east-1a, us-east-1b, etc.  If there is no availability
+        # zone, return emmpty string
+        if az and len(az) > 1:
+            return az[:-1]
+        return None
+
     @staticmethod
     def _db_needs_auth_(config):
         if 'snapshot_identifier' not in config and \
-           'replicate_source_db' not in config:
+           'replicate_source_db' not in config and \
+           'replica_source' not in config:
             return True
         return False
 
@@ -1528,6 +1623,7 @@ class TerrascriptClient(object):
         parameter_group = resource.get('parameter_group', None)
         sc = resource.get('storage_class', None)
         enhanced_monitoring = resource.get('enhanced_monitoring', None)
+        replica_source = resource.get('replica_source', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1544,6 +1640,7 @@ class TerrascriptClient(object):
         values['parameter_group'] = parameter_group
         values['storage_class'] = sc
         values['enhanced_monitoring'] = enhanced_monitoring
+        values['replica_source'] = replica_source
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
