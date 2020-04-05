@@ -1,3 +1,4 @@
+import sys
 import semver
 
 import reconcile.queries as queries
