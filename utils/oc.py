@@ -31,6 +31,7 @@ class PodNotReadyError(Exception):
 
 class OC(object):
     def __init__(self, server, token, jh=None, settings=None):
+        self.server = server
         oc_base_cmd = [
             'oc',
             '--kubeconfig', '/dev/null',
@@ -283,8 +284,9 @@ class OC(object):
         allow_not_found = kwargs.get('allow_not_found')
 
         if code != 0:
-            if not (allow_not_found and 'NotFound' in err.decode('utf-8')):
-                raise StatusCodeError(err)
+            err = err.decode('utf-8')
+            if not (allow_not_found and 'NotFound' in err):
+                raise StatusCodeError(f"[{self.server}] {err}")
 
         if not out:
             if allow_not_found:
