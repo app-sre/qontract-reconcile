@@ -37,3 +37,6 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     ob.realize_data(dry_run, oc_map, ri,
                     enable_deletion=enable_deletion)
     saasherder.slack_notify(dry_run, aws_accounts, ri)
+
+    if ri.has_error_registered():
+        sys.exit(1)
