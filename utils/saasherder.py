@@ -8,7 +8,7 @@ from sretoolbox.container import Image
 
 import utils.secret_reader as secret_reader
 
-from utils.oc import OC
+from utils.oc import OC, StatusCodeError
 from utils.state import State
 from utils.slack_api import SlackApi
 from utils.openshift_resource import OpenshiftResource as OR
@@ -104,7 +104,11 @@ class SaasHerder():
                                                      hash_length)
                     target_parameters['IMAGE_TAG'] = image_tag
         oc = OC('server', 'token')
-        resources = oc.process(template, target_parameters)
+        try:
+            resources = oc.process(template, target_parameters)
+        except StatusCodeError as e:
+            resources = None
+            logging.error(f"error processing template: {str(e)}")
         return resources
 
     def _collect_images(self, resource):
@@ -127,9 +131,16 @@ class SaasHerder():
             username = None
             password = None
         for image in images:
-            if not Image(image, username=username, password=password):
+            try:
+                valid = Image(image, username=username, password=password)
+                if not valid:
+                    error = True
+                    logging.error(f"Image does not exist: {image}")
+                    continue
+            except Exception:
                 error = True
-                logging.error(f"Image does not exist: {image}")
+                logging.error(f"Image is invalid: {image}")
+                continue
         return error
 
     def _initiate_github(self, saas_file):
@@ -173,6 +184,9 @@ class SaasHerder():
                         self._get_cluster_and_namespace(target)
                     resources = self._process_template(url, path, hash_length,
                                                        target, parameters)
+                    if resources is None:
+                        ri.register_error()
+                        continue
                     # add desired resources
                     for resource in resources:
                         resource_kind = resource['kind']
