@@ -106,6 +106,14 @@ TF_NAMESPACES_QUERY = """
         defaults
         output_resource_name
       }
+      ... on NamespaceTerraformResourceKMS_v1 {
+        account
+        region
+        identifier
+        defaults
+        overrides
+        output_resource_name
+      }
     }
     cluster {
       name
