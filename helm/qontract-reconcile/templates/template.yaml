@@ -50,10 +50,6 @@ objects:
               secretKeyRef:
                 name: ${CLOUDWATCH_SECRET}
                 key: log_group_name
-          - name: LOG_STREAM_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
           {{- end }}
           command: ["/bin/sh", "-c"]
           args:
@@ -95,7 +91,7 @@ objects:
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
-                log_stream_name ${LOG_STREAM_NAME}
+                log_stream_name {{ $integration.name }}
                 auto_create_stream true
               </store>
               {{- end }}
