@@ -14,7 +14,8 @@ from utils.defer import defer
 from utils.openshift_acme import (ACME_DEPLOYMENT,
                                   ACME_ROLE,
                                   ACME_ROLEBINDING,
-                                  ACME_SERVICEACCOUNT)
+                                  ACME_SERVICEACCOUNT,
+                                  ACME_CONFIGMAP)
 
 
 QONTRACT_INTEGRATION = 'openshift-acme'
@@ -82,6 +83,9 @@ def construct_resources(namespaces):
                 'serviceaccount_name': serviceaccount_name,
                 'namespace_name': namespace_name
             })
+        )
+        namespace["resources"].append(
+            process_template(ACME_CONFIGMAP, {})
         )
 
         # If acme-account Secret is defined, add it to the namespace

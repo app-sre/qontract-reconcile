@@ -1,76 +1,31 @@
 ACME_DEPLOYMENT = """
-apiVersion: extensions/v1beta1
 kind: Deployment
+apiVersion: apps/v1
 metadata:
   name: %(deployment_name)s
   labels:
     app: openshift-acme
 spec:
-  progressDeadlineSeconds: 600
-  replicas: 1
-  revisionHistoryLimit: 10
+  replicas: 2
   selector:
     matchLabels:
       app: openshift-acme
   strategy:
-    type: Recreate
+    type: RollingUpdate
   template:
     metadata:
-      creationTimestamp: null
       labels:
         app: openshift-acme
     spec:
       containers:
-      - env:
-        - name: OPENSHIFT_ACME_EXPOSER_IP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.podIP
-        - name: OPENSHIFT_ACME_ACMEURL
-          value: 'https://acme-v01.api.letsencrypt.org/directory'
-        - name: OPENSHIFT_ACME_LOGLEVEL
-          value: '4'
-        - name: OPENSHIFT_ACME_NAMESPACE
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.namespace
-        image: %(image)s
+      - image: %(image)s
         imagePullPolicy: Always
         name: openshift-acme
-        ports:
-        - containerPort: 5000
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 50m
-            memory: 100Mi
-          requests:
-            cpu: 5m
-            memory: 50Mi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /dapi
-          name: podinfo
-          readOnly: true
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      schedulerName: default-scheduler
-      securityContext: {}
-      serviceAccount: %(serviceaccount_name)s
+        args:
+        - --exposer-image=quay.io/tnozicka/openshift-acme:exposer
+        - --loglevel=4
+        - --namespace=acme-controller
       serviceAccountName: %(serviceaccount_name)s
-      terminationGracePeriodSeconds: 30
-      volumes:
-      - name: podinfo
-        downwardAPI:
-          defaultMode: 420
-          items:
-          - path: labels
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.labels
 """
 
 ACME_SERVICEACCOUNT = """
@@ -102,6 +57,7 @@ rules:
   - patch
   - update
   - watch
+  - deletecollection
 
 - apiGroups:
   - "route.openshift.io"
@@ -113,7 +69,9 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - services
+  - secrets
   verbs:
   - create
   - delete
@@ -124,9 +82,9 @@ rules:
   - watch
 
 - apiGroups:
-  - ""
+  - "apps"
   resources:
-  - secrets
+  - replicasets
   verbs:
   - create
   - delete
@@ -150,4 +108,18 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: %(serviceaccount_name)s
+"""
+
+ACME_CONFIGMAP = """
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: letsencrypt-live
+  annotations:
+    "acme.openshift.io/priority": "100"
+  labels:
+    managed-by: "openshift-acme"
+    type: "CertIssuer"
+data:
+  "cert-issuer.types.acme.openshift.io": '{"type":"ACME","acmeCertIssuer":{"directoryUrl":"https://acme-v02.api.letsencrypt.org/directory"}}'
 """
