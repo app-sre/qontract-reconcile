@@ -1422,7 +1422,15 @@ class TerrascriptClient(object):
             values['provider'] = 'aws.' + region
 
         tf_resource = aws_kms_key(identifier, **values)
-        self.add_resource(account, tf_resource)
+        tf_resources.append(tf_resource)
+
+        # key_id
+        output_name = output_prefix + '[key_id]'
+        output_value = '${' + tf_resource.fullname + '.key_id}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
 
     @staticmethod
     def _get_retention_in_days(values, account, identifier):
