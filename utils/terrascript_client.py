@@ -1434,6 +1434,8 @@ class TerrascriptClient(object):
         alias_values['name'] = "alias/" + identifier
         alias_values['target_key_id'] = "${aws_kms_key." + identifier + \
                                         ".key_id}"
+        if self._multiregion_account_(account):
+            alias_values['provider'] = 'aws.' + region
         tf_resource = aws_kms_alias(identifier, **alias_values)
         tf_resources.append(tf_resource)
 
