@@ -33,7 +33,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudfront_distribution,
                                aws_vpc_peering_connection,
                                aws_vpc_peering_connection_accepter,
-                               aws_cloudwatch_log_group, aws_kms_key)
+                               aws_cloudwatch_log_group, aws_kms_key,
+                               aws_kms_alias)
 
 
 class UnknownProviderError(Exception):
@@ -1428,6 +1429,13 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[key_id]'
         output_value = '${' + tf_resource.fullname + '.key_id}'
         tf_resources.append(output(output_name, value=output_value))
+
+        alias_values = {}
+        alias_values['name'] = "alias/" + identifier
+        alias_values['target_key_id'] = "${aws_kms_key." + identifier + \
+                                        ".key_id}"
+        tf_resource = aws_kms_alias(identifier, **alias_values)
+        tf_resources.append(tf_resource)
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
