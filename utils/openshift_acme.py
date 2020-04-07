@@ -6,7 +6,7 @@ metadata:
   labels:
     app: openshift-acme
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: openshift-acme
@@ -21,6 +21,13 @@ spec:
       - image: %(image)s
         imagePullPolicy: Always
         name: openshift-acme
+        resources:
+          limits:	
+            cpu: 50m	
+            memory: 100Mi	
+          requests:	
+            cpu: 5m	
+            memory: 50Mi
         args:
         - --exposer-image=quay.io/tnozicka/openshift-acme:exposer
         - --loglevel=4
