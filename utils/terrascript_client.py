@@ -425,7 +425,12 @@ class TerrascriptClient(object):
         parameter_group = values.pop('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
-            pg_name = pg_values['name']
+            # Parameter group name is not required by terraform.
+            # However, our integration has it marked as required.
+            # If user does not provide a name, we will use the rds identifier
+            # as the name. This will allow us to reuse parameter group config
+            # for multiple RDS instances.
+            pg_name = pg_values.get('name', values['identifier'])
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
             if self._multiregion_account_(account) and len(provider) > 0:
