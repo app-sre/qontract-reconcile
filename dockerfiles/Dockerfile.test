@@ -4,9 +4,14 @@ ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 
 RUN yum install -y epel-release && \
-    yum install -y python36 python36-pip git && \
+    yum install -y python36 python36-pip git make && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
+
+RUN curl -L https://get.helm.sh/helm-canary-linux-amd64.tar.gz |tar xvz && \
+    mv linux-amd64/helm /usr/bin/helm3 && \
+    chmod +x /usr/bin/helm3 && \
+    rm -rf linux-amd64
 
 COPY . /package
 WORKDIR /package
