@@ -757,7 +757,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
     }
     errors {
       name
-      target
+      threshold
       rules
       additionalLabels
     }
@@ -765,6 +765,18 @@ PERFORMANCE_PARAMETERS_QUERY = """
       record
       expr
       labels
+    }
+    rawAlerting {
+      alert
+      expr
+      for
+      labels
+      annotations {
+        message
+        runbook
+        dashboard
+        link_url
+      }
     }
   }
 }
