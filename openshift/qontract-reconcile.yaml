@@ -9,17 +9,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-aws-garbage-collector
     name: qontract-reconcile-aws-garbage-collector
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-aws-garbage-collector
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-aws-garbage-collector
       spec:
         containers:
         - name: int
@@ -53,17 +53,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-aws-iam-keys
     name: qontract-reconcile-aws-iam-keys
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-aws-iam-keys
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-aws-iam-keys
       spec:
         containers:
         - name: int
@@ -97,17 +97,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-github
     name: qontract-reconcile-github
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-github
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-github
       spec:
         initContainers:
         - name: config
@@ -249,17 +249,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-github-repo-invites
     name: qontract-reconcile-github-repo-invites
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-github-repo-invites
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-github-repo-invites
       spec:
         initContainers:
         - name: config
@@ -401,17 +401,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-quay-membership
     name: qontract-reconcile-quay-membership
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-quay-membership
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-quay-membership
       spec:
         initContainers:
         - name: config
@@ -553,17 +553,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-quay-mirror
     name: qontract-reconcile-quay-mirror
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-quay-mirror
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-quay-mirror
       spec:
         containers:
         - name: int
@@ -597,17 +597,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-quay-repos
     name: qontract-reconcile-quay-repos
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-quay-repos
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-quay-repos
       spec:
         initContainers:
         - name: config
@@ -749,17 +749,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-github-users
     name: qontract-reconcile-github-users
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-github-users
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-github-users
       spec:
         containers:
         - name: int
@@ -798,17 +798,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-jira-watcher
     name: qontract-reconcile-jira-watcher
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-jira-watcher
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-jira-watcher
       spec:
         containers:
         - name: int
@@ -842,17 +842,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-github-scanner
     name: qontract-reconcile-github-scanner
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-github-scanner
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-github-scanner
       spec:
         containers:
         - name: int
@@ -891,17 +891,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-aws-support-cases-sos
     name: qontract-reconcile-aws-support-cases-sos
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-aws-support-cases-sos
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-aws-support-cases-sos
       spec:
         containers:
         - name: int
@@ -940,17 +940,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-users
     name: qontract-reconcile-openshift-users
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-users
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-users
       spec:
         initContainers:
         - name: config
@@ -1092,17 +1092,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-groups
     name: qontract-reconcile-openshift-groups
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-groups
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-groups
       spec:
         initContainers:
         - name: config
@@ -1244,17 +1244,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-namespaces
     name: qontract-reconcile-openshift-namespaces
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-namespaces
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-namespaces
       spec:
         containers:
         - name: int
@@ -1288,17 +1288,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-clusterrolebindings
     name: qontract-reconcile-openshift-clusterrolebindings
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-clusterrolebindings
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-clusterrolebindings
       spec:
         initContainers:
         - name: config
@@ -1440,17 +1440,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-rolebindings
     name: qontract-reconcile-openshift-rolebindings
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-rolebindings
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-rolebindings
       spec:
         initContainers:
         - name: config
@@ -1592,17 +1592,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-network-policies
     name: qontract-reconcile-openshift-network-policies
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-network-policies
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-network-policies
       spec:
         initContainers:
         - name: config
@@ -1744,17 +1744,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-acme
     name: qontract-reconcile-openshift-acme
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-acme
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-acme
       spec:
         initContainers:
         - name: config
@@ -1896,17 +1896,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-limitranges
     name: qontract-reconcile-openshift-limitranges
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-limitranges
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-limitranges
       spec:
         containers:
         - name: int
@@ -1940,17 +1940,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-resources
     name: qontract-reconcile-openshift-resources
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-resources
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-resources
       spec:
         containers:
         - name: int
@@ -1984,17 +1984,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-serviceaccount-tokens
     name: qontract-reconcile-openshift-serviceaccount-tokens
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-serviceaccount-tokens
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-serviceaccount-tokens
       spec:
         containers:
         - name: int
@@ -2028,17 +2028,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-terraform-resources
     name: qontract-reconcile-terraform-resources
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-terraform-resources
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-terraform-resources
       spec:
         initContainers:
         - name: config
@@ -2180,17 +2180,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-terraform-users
     name: qontract-reconcile-terraform-users
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-terraform-users
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-terraform-users
       spec:
         initContainers:
         - name: config
@@ -2332,17 +2332,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-terraform-vpc-peerings
     name: qontract-reconcile-terraform-vpc-peerings
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-terraform-vpc-peerings
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-terraform-vpc-peerings
       spec:
         containers:
         - name: int
@@ -2376,17 +2376,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-ocm-groups
     name: qontract-reconcile-ocm-groups
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-ocm-groups
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-ocm-groups
       spec:
         containers:
         - name: int
@@ -2420,17 +2420,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-ocm-clusters
     name: qontract-reconcile-ocm-clusters
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-ocm-clusters
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-ocm-clusters
       spec:
         containers:
         - name: int
@@ -2464,17 +2464,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-ocm-aws-infrastructure-access
     name: qontract-reconcile-ocm-aws-infrastructure-access
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-ocm-aws-infrastructure-access
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-ocm-aws-infrastructure-access
       spec:
         containers:
         - name: int
@@ -2508,17 +2508,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-email-sender
     name: qontract-reconcile-email-sender
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-email-sender
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-email-sender
       spec:
         initContainers:
         - name: config
@@ -2667,17 +2667,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-sentry-config
     name: qontract-reconcile-sentry-config
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-sentry-config
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-sentry-config
       spec:
         initContainers:
         - name: config
@@ -2819,17 +2819,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-sql-query
     name: qontract-reconcile-sql-query
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-sql-query
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-sql-query
       spec:
         initContainers:
         - name: config
@@ -2978,17 +2978,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-openshift-performance-parameters
     name: qontract-reconcile-openshift-performance-parameters
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-openshift-performance-parameters
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-openshift-performance-parameters
       spec:
         initContainers:
         - name: config
