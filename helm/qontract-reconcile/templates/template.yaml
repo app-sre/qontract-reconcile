@@ -9,17 +9,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile
+      app: qontract-reconcile-{{ $integration.name }}
     name: qontract-reconcile-{{ $integration.name }}
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile
+        app: qontract-reconcile-{{ $integration.name }}
     template:
       metadata:
         labels:
-          app: qontract-reconcile
+          app: qontract-reconcile-{{ $integration.name }}
       spec:
         {{- if $integration.logs }}
         initContainers:
