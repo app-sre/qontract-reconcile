@@ -432,6 +432,7 @@ class TerrascriptClient(object):
             # for multiple RDS instances.
             pg_name = pg_values.get('name', values['identifier'] + "-pg")
             pg_identifier = pg_values.pop('identifier', None) or pg_name
+            pg_values['name'] = pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
