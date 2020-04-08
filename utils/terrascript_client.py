@@ -430,7 +430,7 @@ class TerrascriptClient(object):
             # If user does not provide a name, we will use the rds identifier
             # as the name. This will allow us to reuse parameter group config
             # for multiple RDS instances.
-            pg_name = pg_values.get('name', values['identifier'])
+            pg_name = pg_values.get('name', values['identifier'] + "-pg")
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
             if self._multiregion_account_(account) and len(provider) > 0:
