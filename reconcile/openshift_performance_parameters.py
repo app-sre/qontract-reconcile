@@ -31,6 +31,7 @@ def generate_resource(template_file, values):
     tpl.globals['labels_to_selectors'] = labels_to_selectors
     tpl.globals['build_rules_aoa'] = build_rules_aoa
     tpl.globals['load_json'] = json.loads
+    tpl.globals['dump_json'] = json.dumps
 
     rendered = tpl.render(values)
     jsonnet_resource = jsonnet.generate_object(rendered)
@@ -84,6 +85,10 @@ def check_data_consistency(pp):
     return errors
 
 
+def decode_json_labels(raw):
+    return [{**r, 'labels': json.loads(r['labels'])} for r in raw]
+
+
 # Build params to pass to the template
 def build_template_params(pp):
     params = {}
@@ -111,6 +116,13 @@ def build_template_params(pp):
     params['component'] = pp['component']
     params['namespace'] = pp['namespace']['name']
     params['prometheus_labels'] = pp['prometheusLabels']
+    params['raw'] = []
+
+    if pp['rawRecordingRules']:
+        params['raw'].extend(decode_json_labels(pp['rawRecordingRules']))
+
+    if pp['rawAlerting']:
+        params['raw'].extend(decode_json_labels(pp['rawAlerting']))
 
     return params
 
