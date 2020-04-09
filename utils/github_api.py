@@ -11,23 +11,36 @@ GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 
 
 class GithubApi:
-    def __init__(self, instance, project_url, settings):
-        parsed_project_url = urlparse(project_url)
-        name_with_namespace = parsed_project_url.path.strip('/')
+    """
+    Github client implementing the common interfaces used in
+    the qontract-reconcile integrations.
+
+    :param instance: the Github instance and provided
+                     by the app-interface
+    :param repo_url: the Github repository URL
+    :param settings: the app-interface settings
+    :type instance: dict
+    :type repo_url: str
+    :type settings: dict
+    """
+
+    def __init__(self, instance, repo_url, settings):
+        parsed_repo_url = urlparse(repo_url)
+        repo = parsed_repo_url.path.strip('/')
         token = secret_reader.read(instance['token'], settings=settings)
         git_cli = github.Github(token, base_url=GH_BASE_URL)
-        self.project = git_cli.get_repo(name_with_namespace)
+        self.repo = git_cli.get_repo(repo)
 
-    def get_repository_tree(self, ref):
+    def get_repository_tree(self, ref='master'):
         tree_items = []
-        for item in self.project.get_git_tree(sha=ref, recursive=True).tree:
+        for item in self.repo.get_git_tree(sha=ref, recursive=True).tree:
             tree_item = {'path': item.path,
                          'name': Path(item.path).name}
             tree_items.append(tree_item)
         return tree_items
 
-    def get_file(self, path, ref):
+    def get_file(self, path, ref='master'):
         try:
-            return self.project.get_file_contents(path, ref).decoded_content
+            return self.repo.get_file_contents(path, ref).decoded_content
         except github.UnknownObjectException:
             return None
