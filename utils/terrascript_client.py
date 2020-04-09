@@ -632,7 +632,7 @@ class TerrascriptClient(object):
     def _db_needs_auth_(config):
         if 'snapshot_identifier' not in config and \
            'replicate_source_db' not in config and \
-           'replica_source' not in config:
+           config.get('replica_source', None) is None:
             return True
         return False
 
