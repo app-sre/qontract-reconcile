@@ -422,6 +422,7 @@ class TerrascriptClient(object):
             provider = 'aws.' + self._region_from_availability_zone_(az)
             values['provider'] = provider
 
+        deps = []
         parameter_group = values.pop('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
@@ -439,7 +440,7 @@ class TerrascriptClient(object):
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            values['depends_on'] = [pg_tf_resource]
+            deps = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
         enhanced_monitoring = values.pop('enhanced_monitoring')
@@ -503,6 +504,8 @@ class TerrascriptClient(object):
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
+                deps.append("aws_db_instance." +
+                            source_info['resource']['identifier'])
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone_(
@@ -563,8 +566,12 @@ class TerrascriptClient(object):
                     res = kms_key['resource']
                     values['kms_key_id'] = "${aws_kms_key." + \
                         res['identifier'] + ".arn}"
+                    deps.append("aws_kms_key." + res['identifier'])
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
+
+        if len(deps) > 0:
+            values['depends_on'] = deps
 
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
