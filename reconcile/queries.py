@@ -98,6 +98,28 @@ def get_gitlab_instance():
     return gqlapi.query(GITLAB_INSTANCES_QUERY)['instances'][0]
 
 
+GITHUB_INSTANCE_QUERY = """
+{
+  instances: githuborg_v1 {
+    url
+    token {
+      path
+      field
+    }
+  }
+}
+"""
+
+
+def get_github_instance():
+    """ Returns a single Github instance """
+    gqlapi = gql.get_api()
+    instances = gqlapi.query(GITHUB_INSTANCE_QUERY)['instances']
+    for instance in instances:
+        if instance['url'] == "https://github.com/app-sre":
+            return instance
+
+
 AWS_ACCOUNTS_QUERY = """
 {
   accounts: awsaccounts_v1 {
