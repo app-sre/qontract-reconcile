@@ -33,6 +33,7 @@ TF_NAMESPACES_QUERY = """
         overrides
         output_resource_name
         enhanced_monitoring
+        replica_source
       }
       ... on NamespaceTerraformResourceS3_v1 {
         account
@@ -89,6 +90,7 @@ TF_NAMESPACES_QUERY = """
       ... on NamespaceTerraformResourceECR_v1 {
         account
         identifier
+        region
         output_resource_name
       }
       ... on NamespaceTerraformResourceS3CloudFront_v1 {
