@@ -5,7 +5,7 @@ metadata:
   name: qontract-reconcile
 objects:
 {{- range $i, $integration := .Values.integrations }}
-- apiVersion: extensions/v1beta1
+- apiVersion: apps/v1
   kind: Deployment
   metadata:
     labels:
