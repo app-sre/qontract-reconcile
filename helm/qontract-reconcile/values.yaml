@@ -11,18 +11,18 @@ integrations:
   resources:
     requests:
       memory: 100Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
 - name: github
   resources:
     requests:
       memory: 50Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 80Mi
-      cpu: 25m
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -30,10 +30,10 @@ integrations:
   resources:
     requests:
       memory: 50Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 150Mi
-      cpu: 25m
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -41,10 +41,10 @@ integrations:
   resources:
     requests:
       memory: 50Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 150Mi
-      cpu: 25m
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -52,18 +52,18 @@ integrations:
   resources:
     requests:
       memory: 150Mi
-      cpu: 100m
+      cpu: 200m
     limits:
       memory: 200Mi
-      cpu: 200m
+      cpu: 300m
 - name: quay-repos
   resources:
     requests:
       memory: 50Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 150Mi
-      cpu: 25m
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -71,10 +71,10 @@ integrations:
   resources:
     requests:
       memory: 50Mi
-      cpu: 100m
+      cpu: 200m
     limits:
       memory: 150Mi
-      cpu: 200m
+      cpu: 300m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
@@ -82,19 +82,19 @@ integrations:
   resources:
     requests:
       memory: 80Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
   extraArgs: --io-dir /tmp/throughput/
 - name: github-scanner
   resources:
     requests:
       memory: 500Mi
-      cpu: 400m
+      cpu: 600m
     limits:
       memory: 1000Mi
-      cpu: 500m
+      cpu: 800m
   extraArgs: --thread-pool-size 1
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
@@ -103,10 +103,10 @@ integrations:
   resources:
     requests:
       memory: 100Mi
-      cpu: 25m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 50m
+      cpu: 200m
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
@@ -114,10 +114,10 @@ integrations:
   resources:
     requests:
       memory: 200Mi
-      cpu: 20m
+      cpu: 100m
     limits:
       memory: 300Mi
-      cpu: 40m
+      cpu: 200m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -126,10 +126,10 @@ integrations:
   resources:
     requests:
       memory: 300Mi
-      cpu: 100m
+      cpu: 200m
     limits:
       memory: 400Mi
-      cpu: 150m
+      cpu: 300m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -159,10 +159,10 @@ integrations:
   resources:
     requests:
       memory: 200Mi
-      cpu: 400m
+      cpu: 600m
     limits:
       memory: 400Mi
-      cpu: 500m
+      cpu: 800m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -183,10 +183,10 @@ integrations:
   resources:
     requests:
       memory: 300Mi
-      cpu: 100m
+      cpu: 200m
     limits:
       memory: 400Mi
-      cpu: 200m
+      cpu: 300m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -195,19 +195,19 @@ integrations:
   resources:
     requests:
       memory: 50Mi
-      cpu: 100m
+      cpu: 200m
     limits:
       memory: 100Mi
-      cpu: 150m
+      cpu: 300m
   extraArgs: --no-use-jump-host
 - name: openshift-resources
   resources:
     requests:
       memory: 800Mi
-      cpu: 600m
+      cpu: 900m
     limits:
       memory: 1200Mi
-      cpu: 1000m
+      cpu: 1200m
   extraArgs: --external --no-use-jump-host
 - name: openshift-serviceaccount-tokens
   resources:
@@ -222,10 +222,10 @@ integrations:
   resources:
     requests:
       memory: 800Mi
-      cpu: 400m
+      cpu: 900m
     limits:
       memory: 1000Mi
-      cpu: 500m
+      cpu: 1200m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
@@ -246,26 +246,26 @@ integrations:
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 1000Mi
-      cpu: 400m
+      cpu: 500m
 - name: ocm-groups
   resources:
     requests:
       memory: 100Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
 - name: ocm-clusters
   resources:
     requests:
       memory: 100Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
 - name: ocm-aws-infrastructure-access
   resources:
     requests:
@@ -290,10 +290,10 @@ integrations:
   resources:
     requests:
       memory: 100Mi
-      cpu: 15m
+      cpu: 100m
     limits:
       memory: 200Mi
-      cpu: 25m
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -301,10 +301,10 @@ integrations:
   resources:
     requests:
       memory: 100Mi
-      cpu: 25m
+      cpu: 200m
     limits:
       memory: 200Mi
-      cpu: 50m
+      cpu: 300m
   logs:
     slack: true
     cloudwatch: true

@@ -81,10 +81,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -197,10 +197,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 80Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -349,10 +349,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 150Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -501,10 +501,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 150Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -581,10 +581,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 200m
+              cpu: 300m
               memory: 200Mi
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 150Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -697,10 +697,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 150Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -782,10 +782,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 200m
+              cpu: 300m
               memory: 150Mi
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -826,10 +826,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 80Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -875,10 +875,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 500m
+              cpu: 800m
               memory: 1000Mi
             requests:
-              cpu: 400m
+              cpu: 600m
               memory: 500Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -924,10 +924,10 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 50m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 25m
+              cpu: 100m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1040,10 +1040,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 40m
+              cpu: 200m
               memory: 300Mi
             requests:
-              cpu: 20m
+              cpu: 100m
               memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1192,10 +1192,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 150m
+              cpu: 300m
               memory: 400Mi
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1540,10 +1540,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 500m
+              cpu: 800m
               memory: 400Mi
             requests:
-              cpu: 400m
+              cpu: 600m
               memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1844,10 +1844,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 200m
+              cpu: 300m
               memory: 400Mi
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 300Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1924,10 +1924,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 150m
+              cpu: 300m
               memory: 100Mi
             requests:
-              cpu: 100m
+              cpu: 200m
               memory: 50Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -1968,10 +1968,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 1000m
+              cpu: 1200m
               memory: 1200Mi
             requests:
-              cpu: 600m
+              cpu: 900m
               memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2128,10 +2128,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 500m
+              cpu: 1200m
               memory: 1000Mi
             requests:
-              cpu: 400m
+              cpu: 900m
               memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2360,10 +2360,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 400m
+              cpu: 500m
               memory: 1000Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 600Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2404,10 +2404,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2448,10 +2448,10 @@ objects:
             value: ${GITHUB_API}
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2767,10 +2767,10 @@ objects:
             value: "${LOG_FILE}"
           resources:
             limits:
-              cpu: 25m
+              cpu: 200m
               memory: 200Mi
             requests:
-              cpu: 15m
+              cpu: 100m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2926,10 +2926,10 @@ objects:
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           resources:
             limits:
-              cpu: 50m
+              cpu: 300m
               memory: 200Mi
             requests:
-              cpu: 25m
+              cpu: 200m
               memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
