@@ -77,6 +77,18 @@ def clusters(ctx, name):
 @get.command()
 @click.argument('name', default='')
 @click.pass_context
+def clusters_network(ctx, name):
+    clusters = queries.get_clusters()
+    if name:
+        clusters = [c for c in clusters if c['name'] == name]
+
+    columns = ['name', 'network.vpc', 'network.service', 'network.pod']
+    print_output(ctx.obj['output'], clusters, columns)
+
+
+@get.command()
+@click.argument('name', default='')
+@click.pass_context
 def namespaces(ctx, name):
     namespaces = queries.get_namespaces()
     if name:
@@ -225,7 +237,9 @@ def print_table(content, columns):
             # cell = item['cluster']['name']
             cell = item
             for token in column.split('.'):
-                cell = cell[token]
+                cell = cell.get(token) or {}
+            if cell == {}:
+                cell = ''
             row_data.append(cell)
         table_data.append(row_data)
 
