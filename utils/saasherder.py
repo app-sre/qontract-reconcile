@@ -141,6 +141,13 @@ class SaasHerder():
             try:
                 valid = Image(image, username=username, password=password)
                 if not valid:
+                    # check image again without auth, just in case
+                    # only check again if image_auth is defined
+                    # otherwise, we have done that already
+                    if self.image_auth:
+                        valid = Image(image)
+
+                if not valid:
                     error = True
                     logging.error(
                         f"{error_prefix} Image does not exist: {image}")
