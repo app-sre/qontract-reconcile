@@ -64,11 +64,12 @@ class SaasHerder():
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = self.github.get_repo(repo_name)
             f = repo.get_contents(path, ref)
-            return f.decoded_content
+            return f.decoded_content, f.html_url
         elif 'gitlab' in url:
             project = self.gitlab.get_project(url)
             f = project.files.get(file_path=path, ref=ref)
-            return f.decode()
+            html_url = os.path.join(url, 'blob', ref, path)
+            return f.decode(), html_url
 
     def _get_commit_sha(self, url, ref, hash_length):
         commit_sha = ''
@@ -89,11 +90,12 @@ class SaasHerder():
         namespace = target['namespace']['name']
         return cluster, namespace
 
-    def _process_template(self, url, path, hash_length, target, parameters):
+    def _process_template(self, saas_file_name, resource_template_name,
+                          url, path, hash_length, target, parameters):
         target_hash = target['hash']
         target_parameters = self._collect_parameters(target)
         target_parameters.update(parameters)
-        content = self._get_file_contents(url, path, target_hash)
+        content, html_url = self._get_file_contents(url, path, target_hash)
         template = yaml.safe_load(content)
         if "IMAGE_TAG" not in target_parameters:
             for template_parameter in template['parameters']:
@@ -108,8 +110,10 @@ class SaasHerder():
             resources = oc.process(template, target_parameters)
         except StatusCodeError as e:
             resources = None
-            logging.error(f"error processing template: {str(e)}")
-        return resources
+            logging.error(
+                f"[{saas_file_name}/{resource_template_name}] {html_url}: " +
+                f"error processing template: {str(e)}")
+        return resources, html_url
 
     def _collect_images(self, resource):
         images = set()
@@ -121,7 +125,10 @@ class SaasHerder():
 
         return images
 
-    def _check_images(self, resource):
+    def _check_images(self, saas_file_name, resource_template_name,
+                      html_url, resource):
+        error_prefix = \
+            f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         error = False
         images = self._collect_images(resource)
         if self.image_auth:
@@ -135,11 +142,12 @@ class SaasHerder():
                 valid = Image(image, username=username, password=password)
                 if not valid:
                     error = True
-                    logging.error(f"Image does not exist: {image}")
+                    logging.error(
+                        f"{error_prefix} Image does not exist: {image}")
                     continue
             except Exception:
                 error = True
-                logging.error(f"Image is invalid: {image}")
+                logging.error(f"{error_prefix} Image is invalid: {image}")
                 continue
         return error
 
@@ -168,12 +176,14 @@ class SaasHerder():
 
     def populate_desired_state(self, ri):
         for saas_file in self.saas_files:
+            saas_file_name = saas_file['name']
             self.github = self._initiate_github(saas_file)
             self.image_auth = self._initiate_image_auth(saas_file)
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
             # iterate over resource templates (multiple per saas_file)
             for rt in resource_templates:
+                rt_name = rt['name']
                 url = rt['url']
                 path = rt['path']
                 hash_length = rt['hash_length']
@@ -182,8 +192,11 @@ class SaasHerder():
                 for target in rt['targets']:
                     cluster, namespace = \
                         self._get_cluster_and_namespace(target)
-                    resources = self._process_template(url, path, hash_length,
-                                                       target, parameters)
+                    resources, html_url = \
+                        self._process_template(saas_file_name,
+                                               rt_name,
+                                               url, path, hash_length,
+                                               target, parameters)
                     if resources is None:
                         ri.register_error()
                         continue
@@ -193,7 +206,10 @@ class SaasHerder():
                         if resource_kind not in managed_resource_types:
                             continue
                         # check images
-                        image_error = self._check_images(resource)
+                        image_error = self._check_images(saas_file_name,
+                                                         rt_name,
+                                                         html_url,
+                                                         resource)
                         if image_error:
                             ri.register_error()
                             continue
