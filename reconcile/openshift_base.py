@@ -273,7 +273,8 @@ def realize_data(dry_run, oc_map, ri,
                       resource_type, d_item)
             except StatusCodeError as e:
                 ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+                msg = "[{}/{}] {} (error details: {})".format(
+                    cluster, namespace, str(e), d_item.error_details)
                 logging.error(msg)
 
         # current items
