@@ -192,7 +192,9 @@ class OpenshiftResource(object):
 
         # create annotations if not present
         body['metadata'].setdefault('annotations', {})
-        annotations = body['metadata']['annotations'] or {}
+        if body['metadata']['annotations'] is None:
+            body['metadata']['annotations'] = {}
+        annotations = body['metadata']['annotations']
 
         # remove openshift specific params
         body['metadata'].pop('creationTimestamp', None)
