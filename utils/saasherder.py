@@ -218,7 +218,7 @@ class SaasHerder():
                             resource,
                             self.integration,
                             self.integration_version,
-                            error_details=resource_name)
+                            error_details=html_url)
                         ri.add_desired(
                             cluster,
                             namespace,
