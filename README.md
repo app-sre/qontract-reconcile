@@ -83,7 +83,7 @@ qontract-reconcile --config config.toml <subcommand>
 
 ## OpenShift usage
 
-OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml).
+OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.
 
 ## Installation
 
