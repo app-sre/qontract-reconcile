@@ -164,6 +164,9 @@ class OpenshiftResource(object):
 
         # create annotations if not present
         body['metadata'].setdefault('annotations', {})
+        if body['metadata']['annotations'] is None:
+            body['metadata']['annotations'] = {}
+
         annotations = body['metadata']['annotations']
 
         # add qontract annotations
