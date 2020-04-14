@@ -6,4 +6,4 @@ data:
   key1: val1
 metadata:
   name: app-interface
-  annotations: {}
+  annotations: null
