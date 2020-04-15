@@ -237,9 +237,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
             if not dry_run:
                 act(diff, oc_map)
 
-    except Exception as e:
-        msg = 'There was problem running openshift groups reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
+    except Exception:
+        logging.exception('Exception reconciling openshift groups.')
         sys.exit(1)

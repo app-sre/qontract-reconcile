@@ -150,9 +150,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
 
         ob.realize_data(dry_run, oc_map, ri)
 
-    except Exception as e:
-        msg = 'There was problem running openshift acme reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
+    except Exception:
+        logging.exception('Exception reconciling openshift acme')
         sys.exit(1)

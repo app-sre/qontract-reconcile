@@ -288,11 +288,8 @@ def run(dry_run=False, print_only=False,
         if vault_output_path:
             write_outputs_to_vault(vault_output_path, ri)
 
-    except Exception as e:
-        msg = 'There was problem running terraform resource reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
+    except Exception:
+        logging.exception('Exception reconciling terraform resource')
         sys.exit(1)
 
     cleanup_and_exit(tf)
