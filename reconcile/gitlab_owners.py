@@ -101,12 +101,11 @@ class MRApproval:
                 if approver in lgtms:
                     change_approved = True
 
+            report[change_path] = {}
             # Each change that was not yet approved will generate
             # a report message
             if not change_approved:
                 approval_status['approved'] = False
-                report[change_path] = {}
-
                 approvers = change_owners['closest_approvers']
                 report[change_path]['approvers'] = approvers
 
