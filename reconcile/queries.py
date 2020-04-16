@@ -443,6 +443,7 @@ USERS_QUERY = """
     github_username
     slack_username
     pagerduty_name
+    public_gpg_key
   }
 }
 """

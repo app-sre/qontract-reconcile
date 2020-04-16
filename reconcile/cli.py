@@ -52,6 +52,7 @@ import reconcile.email_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
 import reconcile.sql_query
+import reconcile.user_validator
 
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
@@ -563,6 +564,12 @@ def quay_repos(ctx):
 def ldap_users(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.ldap_users.run, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size)
+
+
+@integration.command()
+@click.pass_context
+def user_validator(ctx):
+    run_integration(reconcile.user_validator.run, ctx.obj['dry_run'])
 
 
 @integration.command()
