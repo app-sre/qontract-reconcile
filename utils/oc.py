@@ -223,6 +223,9 @@ class OC(object):
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod)
             kind = owner['kind']
+            if kind == 'ReplicationController':
+                # need to act on the pod for replication controllers
+                owner = pod
             recyclables.setdefault(kind, [])
             exists = False
             for obj in recyclables[kind]:
@@ -233,7 +236,8 @@ class OC(object):
             if not exists:
                 recyclables[kind].append(owner)
 
-        supported_recyclables = ['Pod', 'Deployment', 'DeploymentConfig']
+        supported_recyclables = ['ReplicationController', 'Deployment',
+                                 'DeploymentConfig']
         for kind, objs in recyclables.items():
             for obj in objs:
                 if kind not in supported_recyclables:
@@ -243,7 +247,7 @@ class OC(object):
                 if not dry_run:
                     now = datetime.now()
                     recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
-                    if kind == 'Pod':
+                    if kind == 'ReplicationController':
                         self.delete(namespace, 'Pod', name)
                         logging.info(['validating_pods', namespace])
                         self.validate_pods_ready(
