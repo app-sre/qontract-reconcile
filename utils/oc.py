@@ -2,6 +2,7 @@ import json
 import logging
 
 from subprocess import Popen, PIPE
+from datetime import datetime
 
 from sretoolbox.utils import retry
 
@@ -213,18 +214,56 @@ class OC(object):
         pods = self.get(namespace, 'Pods')['items']
 
         if dep_kind == 'Secret':
-            pods_to_recycle = [pod['metadata']['name'] for pod in pods
+            pods_to_recycle = [pod for pod in pods
                                if self.secret_used_in_pod(dep_name, pod)]
         else:
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
+        recyclables = {}
         for pod in pods_to_recycle:
-            logging.info(['recycle_pod', namespace, pod])
-            if not dry_run:
-                self.delete(namespace, 'Pod', pod)
-                logging.info(['validating_pods', namespace])
-                self.validate_pods_ready(
-                    namespace, self.secret_used_in_pod, dep_name)
+            owner = self.get_obj_root_owner(namespace, pod)
+            kind = owner['kind']
+            recyclables.setdefault(kind, [])
+            exists = False
+            for obj in recyclables[kind]:
+                owner_name = owner['metadata']['name']
+                if obj['metadata']['name'] == owner_name:
+                    exists = True
+                    break
+            if not exists:
+                recyclables[kind].append(owner)
+
+        supported_recyclables = ['Pod', 'Deployment', 'DeploymentConfig']
+        for kind, objs in recyclables.items():
+            for obj in objs:
+                if kind not in supported_recyclables:
+                    continue
+                name = obj['metadata']['name']
+                logging.info([f'recycle_{kind.lower()}', namespace, name])
+                if not dry_run:
+                    now = datetime.now()
+                    recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+                    if kind == 'Pod':
+                        self.delete(namespace, 'Pod', name)
+                        logging.info(['validating_pods', namespace])
+                        self.validate_pods_ready(
+                            namespace, self.secret_used_in_pod, dep_name,
+                            recycle_time)
+                    elif kind == 'Deployment' or kind == "DeploymentConfig":
+                        # honor update strategy by setting annotations to force
+                        # a new rollout
+                        spec = obj.body['spec']['template']['spec']
+                        spec['metadata']['annotations']['recycle.time'] = \
+                            recycle_time
+                        self.apply(namespace, obj.toJSON())
+
+    def get_obj_root_owner(self, ns, obj):
+        refs = obj['metadata'].get('ownerReferences', [])
+        for r in refs:
+            if r['controller']:
+                controller_obj = self.get(ns, r['kind'], r['name'])
+                return self.get_obj_root_owner(ns, controller_obj)
+        return obj
 
     @staticmethod
     def secret_used_in_pod(secret_name, pod):
@@ -253,7 +292,7 @@ class OC(object):
         return False
 
     @retry(exceptions=PodNotReadyError, max_attempts=20)
-    def validate_pods_ready(self, namespace, filter_method, dep_name):
+    def validate_pods_ready(self, namespace, filter_method, dep_name, rtime):
         pods = self.get(namespace, 'Pods')['items']
         pods_to_validate = [pod for pod in pods
                             if filter_method(dep_name, pod)]
@@ -261,6 +300,9 @@ class OC(object):
             for status in pod['status']['containerStatuses']:
                 if not status['ready']:
                     raise PodNotReadyError(pod['metadata']['name'])
+                else:
+                    pod['metadata']['annotations']['recycle.time'] = rtime
+                    self.apply(namespace, pod.toJSON())
 
     @retry(exceptions=(StatusCodeError, NoOutputError))
     def _run(self, cmd, **kwargs):
@@ -316,6 +358,7 @@ class OC_Map(object):
     In case a cluster does not have an automation token
     the OC client will be initiated to False.
     """
+
     def __init__(self, clusters=None, namespaces=None,
                  integration='', e2e_test='', settings=None,
                  internal=None, use_jump_host=True):
