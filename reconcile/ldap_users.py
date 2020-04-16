@@ -34,17 +34,6 @@ def init_user_spec(user):
     return (username, delete, paths)
 
 
-def validate_users_single_path(users):
-    ok = True
-    users_with_multiple_paths = [(user['username'], user['paths']) for user
-                                 in users if len(user['paths']) > 1]
-    for u, p in users_with_multiple_paths:
-        logging.error('user {} has multiple user files: {}'.format(u, p))
-        ok = False
-
-    return ok
-
-
 def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
     users = init_users()
     user_specs = threaded.run(init_user_spec, users, thread_pool_size)
@@ -62,6 +51,3 @@ def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
 
         if not dry_run:
             gl.create_delete_user_mr(username, paths)
-
-    if not validate_users_single_path(users):
-        sys.exit(1)
