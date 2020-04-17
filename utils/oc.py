@@ -221,6 +221,9 @@ class OC(object):
 
         recyclables = {}
         for pod in pods_to_recycle:
+            if pod['status']['phase'] == 'Succeeded':
+                # don't try to recycle a pod that completed successfully
+                continue
             owner = self.get_obj_root_owner(namespace, pod)
             kind = owner['kind']
             if kind == 'ReplicationController':
