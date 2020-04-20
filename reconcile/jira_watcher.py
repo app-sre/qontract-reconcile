@@ -47,7 +47,9 @@ def fetch_current_state(jira_board):
     settings = queries.get_app_interface_settings()
     jira = JiraClient(jira_board, settings=settings)
     issues = jira.get_issues()
-    return jira, {issue.key: issue.fields.status.name for issue in issues}
+    return jira, {issue.key: {'status': issue.fields.status.name,
+                              'summary': issue.fields.summary}
+                  for issue in issues}
 
 
 def get_project_file_path(io_dir, project):
@@ -68,33 +70,36 @@ def fetch_previous_state(io_dir, project):
         return None
 
 
-def format_message(server, key, event,
+def format_message(server, key, data, event,
                    previous_state=None, current_state=None):
+    summary = data['summary']
     info = \
-        ': {} -> {}'.format(previous_state, current_state) \
+        ': {} -> {}'.format(previous_state['status'],
+                            current_state['status']) \
         if previous_state and current_state else ''
     url = '{}/browse/{}'.format(server, key) if event != 'deleted' else key
-    return '{} {}{}'.format(url, event, info)
+    return '{} ({}) {}{}'.format(url, summary, event, info)
 
 
 def calculate_diff(server, current_state, previous_state):
     messages = []
-    new_issues = [format_message(server, key, 'created')
-                  for key in current_state
+    new_issues = [format_message(server, key, data, 'created')
+                  for key, data in current_state.items()
                   if key not in previous_state]
     messages.extend(new_issues)
 
-    deleted_issues = [format_message(server, key, 'deleted')
-                      for key in previous_state
+    deleted_issues = [format_message(server, key, data, 'deleted')
+                      for key, data in previous_state.items()
                       if key not in current_state]
     messages.extend(deleted_issues)
 
     updated_issues = \
-        [format_message(server, key, 'status change',
+        [format_message(server, key, data, 'status change',
                         previous_state[key],
                         current_state[key])
-         for key, status in current_state.items()
-         if key in previous_state and status != previous_state[key]]
+         for key, data in current_state.items()
+         if key in previous_state
+         and data['status'] != previous_state[key]['status']]
     messages.extend(updated_issues)
 
     return messages
