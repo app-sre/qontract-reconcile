@@ -7,6 +7,7 @@ import utils.gql as gql
 import reconcile.github_org
 import reconcile.github_users
 import reconcile.github_scanner
+import reconcile.github_validator
 import reconcile.openshift_acme
 import reconcile.openshift_clusterrolebindings
 import reconcile.openshift_rolebindings
@@ -267,6 +268,12 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.github_scanner.run, ctx.obj['dry_run'],
                     gitlab_project_id, thread_pool_size)
+
+
+@integration.command()
+@click.pass_context
+def github_validator(ctx):
+    run_integration(reconcile.github_validator.run, ctx.obj['dry_run'])
 
 
 @integration.command()
