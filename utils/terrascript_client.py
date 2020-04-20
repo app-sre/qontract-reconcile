@@ -379,7 +379,7 @@ class TerrascriptClient(object):
         elif provider == 'elasticache':
             self.populate_tf_resource_elasticache(resource, namespace_info,
                                                   existing_secrets)
-        elif provider == 'service-account':
+        elif provider == 'aws-iam-service-account':
             self.populate_tf_resource_service_account(resource,
                                                       namespace_info)
         elif provider == 'sqs':
