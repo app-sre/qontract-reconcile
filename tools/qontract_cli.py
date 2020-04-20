@@ -5,6 +5,7 @@ import click
 
 import utils.gql as gql
 import utils.config as config
+import utils.secret_reader as secret_reader
 import reconcile.queries as queries
 import reconcile.openshift_resources as ocr
 
@@ -84,6 +85,23 @@ def clusters_network(ctx, name):
 
     columns = ['name', 'network.vpc', 'network.service', 'network.pod']
     print_output(ctx.obj['output'], clusters, columns)
+
+
+@get.command()
+@click.argument('cluster_name')
+@click.pass_context
+def bot_login(ctx, cluster_name):
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c['name'] == cluster_name]
+    if len(clusters) == 0:
+        print(f"{cluster_name} not found.")
+        sys.exit(1)
+
+    cluster = clusters[0]
+    settings = queries.get_app_interface_settings()
+    server = cluster['serverUrl']
+    token = secret_reader.read(cluster['automationToken'], settings=settings)
+    print(f"oc login --server {server} --token {token}")
 
 
 @get.command()
