@@ -41,6 +41,6 @@ class GithubApi:
 
     def get_file(self, path, ref='master'):
         try:
-            return self.repo.get_file_contents(path, ref).decoded_content
+            return self.repo.get_contents(path, ref).decoded_content
         except github.UnknownObjectException:
             return None
