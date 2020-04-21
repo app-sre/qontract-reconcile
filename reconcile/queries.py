@@ -780,7 +780,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
     }
     volume {
       name
-      threshold
+      target
       rules
       additionalLabels
     }
@@ -800,7 +800,7 @@ PERFORMANCE_PARAMETERS_QUERY = """
     }
     errors {
       name
-      threshold
+      target
       rules
       additionalLabels
     }
