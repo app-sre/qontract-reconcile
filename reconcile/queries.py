@@ -120,6 +120,26 @@ def get_github_instance():
             return instance
 
 
+GITHUB_ORGS_QUERY = """
+{
+  orgs: githuborg_v1 {
+    name
+    two_factor_authentication
+    token {
+      path
+      field
+    }
+  }
+}
+"""
+
+
+def get_github_orgs():
+    """ Returns all GitHub orgs """
+    gqlapi = gql.get_api()
+    return gqlapi.query(GITHUB_ORGS_QUERY)['orgs']
+
+
 AWS_ACCOUNTS_QUERY = """
 {
   accounts: awsaccounts_v1 {
