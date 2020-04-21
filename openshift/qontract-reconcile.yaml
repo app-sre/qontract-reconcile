@@ -34,7 +34,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 50m
@@ -78,7 +81,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 200m
@@ -192,7 +198,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -344,7 +353,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -496,7 +508,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -578,7 +593,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 300m
@@ -692,7 +710,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -774,7 +795,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -823,7 +847,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 200m
@@ -867,7 +894,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -916,7 +946,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -1035,7 +1068,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1187,7 +1223,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1269,7 +1308,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 500m
@@ -1383,7 +1425,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1535,7 +1580,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1687,7 +1735,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1839,7 +1890,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -1921,7 +1975,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 300m
@@ -1965,7 +2022,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 1200m
@@ -2009,7 +2069,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 200m
@@ -2123,7 +2186,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -2275,7 +2341,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -2357,7 +2426,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 500m
@@ -2401,7 +2473,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 200m
@@ -2445,7 +2520,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 200m
@@ -2489,7 +2567,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           resources:
             limits:
               cpu: 100m
@@ -2603,7 +2684,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -2762,7 +2846,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
@@ -2914,7 +3001,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -3073,7 +3163,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
           resources:
