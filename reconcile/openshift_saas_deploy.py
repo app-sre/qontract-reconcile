@@ -23,6 +23,7 @@ def run(dry_run=False, thread_pool_size=10, defer=None):
     saas_files = queries.get_saas_files()
     saasherder = SaasHerder(
         saas_files,
+        thread_pool_size=thread_pool_size,
         gitlab=gl,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
