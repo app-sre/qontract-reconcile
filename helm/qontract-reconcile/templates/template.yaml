@@ -114,7 +114,10 @@ objects:
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
-            value: ${GITHUB_API}
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
           {{- if $integration.logs }}
           - name: LOG_FILE
             value: "${LOG_FILE}"
