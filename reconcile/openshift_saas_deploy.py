@@ -14,13 +14,14 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, thread_pool_size=10,
+        saas_file_name='', env_name='', defer=None):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     aws_accounts = queries.get_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
 
-    saas_files = queries.get_saas_files()
+    saas_files = queries.get_saas_files(saas_file_name, env_name)
     saasherder = SaasHerder(
         saas_files,
         thread_pool_size=thread_pool_size,
