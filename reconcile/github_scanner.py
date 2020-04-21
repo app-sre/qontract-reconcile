@@ -23,12 +23,12 @@ def get_all_repos_to_scan(repos):
     for r in repos:
         logging.debug('getting forks: {}'.format(r))
         repo_name = r.replace('https://github.com/', '')
-        repo = g.get_repo(repo_name)
-        forks = repo.get_forks()
         try:
+            repo = g.get_repo(repo_name)
+            forks = repo.get_forks()
             all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
         except UnknownObjectException:
-            logging.info('not found {}'.format(r))
+            logging.error('not found {}'.format(r))
 
     return all_repos
 
