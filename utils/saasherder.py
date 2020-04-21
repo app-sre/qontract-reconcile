@@ -95,7 +95,15 @@ class SaasHerder():
         target_hash = target['hash']
         target_parameters = self._collect_parameters(target)
         target_parameters.update(parameters)
-        content, html_url = self._get_file_contents(url, path, target_hash)
+
+        try:
+            content, html_url = self._get_file_contents(url, path, target_hash)
+        except Exception as e:
+            logging.error(
+                f"[{url}/{path}:{target_hash}]" +
+                f"error fetching template: {str(e)}")
+            return None, None
+
         template = yaml.safe_load(content)
         if "IMAGE_TAG" not in target_parameters:
             for template_parameter in template['parameters']:
