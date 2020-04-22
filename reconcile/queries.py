@@ -385,6 +385,52 @@ def get_namespaces():
     return gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
 
+PRODUCTS_QUERY = """
+{
+  products: products_v1 {
+    path
+    name
+    description
+  }
+}
+"""
+
+
+def get_products():
+    """ Returns all Products """
+    gqlapi = gql.get_api()
+    return gqlapi.query(PRODUCTS_QUERY)['products']
+
+
+ENVIRONMENTS_QUERY = """
+{
+  environments: environments_v1 {
+    path
+    name
+    description
+    product {
+      name
+    }
+    namespaces {
+      name
+      app {
+        name
+      }
+      cluster {
+        name
+      }
+    }
+  }
+}
+"""
+
+
+def get_environments():
+    """ Returns all Products """
+    gqlapi = gql.get_api()
+    return gqlapi.query(ENVIRONMENTS_QUERY)['environments']
+
+
 APPS_QUERY = """
 {
   apps: apps_v1 {
