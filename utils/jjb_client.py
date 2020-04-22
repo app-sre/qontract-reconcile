@@ -127,8 +127,6 @@ class JJB(object):
     def print_diffs(self, io_dir):
         current_path = path.join(io_dir, 'jjb', 'current')
         current_files = self.get_files(current_path)
-        if not current_files:
-            raise FetchResourceError('current state not found for compare')
         desired_path = path.join(io_dir, 'jjb', 'desired')
         desired_files = self.get_files(desired_path)
 
