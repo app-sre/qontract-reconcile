@@ -714,6 +714,9 @@ SAAS_FILES_QUERY = """
       targets {
         namespace {
           name
+          environment {
+            name
+          }
           cluster {
             name
             serverUrl
@@ -754,10 +757,29 @@ SAAS_FILES_QUERY = """
 """
 
 
-def get_saas_files():
+def get_saas_files(saas_file_name='', env_name=''):
     """ Returns SaasFile resources defined in app-interface """
     gqlapi = gql.get_api()
-    return gqlapi.query(SAAS_FILES_QUERY)['saas_files']
+    saas_files = gqlapi.query(SAAS_FILES_QUERY)['saas_files']
+
+    if not (saas_file_name or env_name):
+        return saas_files
+
+    for saas_file in saas_files[:]:
+        if saas_file_name:
+            if saas_file['name'] != saas_file_name:
+                saas_files.remove(saas_file)
+                continue
+        if env_name:
+            for rt in saas_file['resourceTemplates']:
+                targets = rt['targets']
+                for target in targets[:]:
+                    namespace = target['namespace']
+                    environment = namespace['environment']
+                    if environment['name'] != env_name:
+                        targets.remove(target)
+
+    return saas_files
 
 
 PERFORMANCE_PARAMETERS_QUERY = """
