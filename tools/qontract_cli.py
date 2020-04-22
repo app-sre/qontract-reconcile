@@ -43,6 +43,13 @@ def get(ctx, output):
     ctx.obj['output'] = output
 
 
+@root.group()
+@output
+@click.pass_context
+def describe(ctx, output):
+    ctx.obj['output'] = output
+
+
 @get.command()
 @click.pass_context
 def settings(ctx):
@@ -112,6 +119,56 @@ def namespaces(ctx, name):
     if name:
         namespaces = [ns for ns in namespaces if ns['name'] == name]
 
+    columns = ['name', 'cluster.name', 'app.name']
+    print_output(ctx.obj['output'], namespaces, columns)
+
+
+@get.command()
+@click.pass_context
+def products(ctx):
+    products = queries.get_products()
+    columns = ['name', 'description']
+    print_output(ctx.obj['output'], products, columns)
+
+
+@describe.command()
+@click.argument('name')
+@click.pass_context
+def product(ctx, name):
+    products = queries.get_products()
+    products = [p for p in products
+                if p['name'].lower() == name.lower()]
+    if len(products) != 1:
+        print(f"{name} error")
+        sys.exit(1)
+
+    product = products[0]
+    environments = product['environments']
+    columns = ['name', 'description']
+    print_output(ctx.obj['output'], environments, columns)
+
+
+@get.command()
+@click.pass_context
+def environments(ctx):
+    environments = queries.get_environments()
+    columns = ['name', 'description', 'product.name']
+    print_output(ctx.obj['output'], environments, columns)
+
+
+@describe.command()
+@click.argument('name')
+@click.pass_context
+def environment(ctx, name):
+    environments = queries.get_environments()
+    environments = [e for e in environments
+                    if e['name'].lower() == name.lower()]
+    if len(environments) != 1:
+        print(f"{name} error")
+        sys.exit(1)
+
+    environment = environments[0]
+    namespaces = environment['namespaces']
     columns = ['name', 'cluster.name', 'app.name']
     print_output(ctx.obj['output'], namespaces, columns)
 
