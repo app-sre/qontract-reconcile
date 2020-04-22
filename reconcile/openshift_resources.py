@@ -516,4 +516,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
                     enable_deletion=enable_deletion)
 
     if ri.has_error_registered():
+        msg = "Dave, this conversation can serve no purpose anymore. Goodbye."
+        logging.error(msg)
         sys.exit(1)
