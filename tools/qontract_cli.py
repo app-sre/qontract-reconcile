@@ -131,6 +131,23 @@ def products(ctx):
     print_output(ctx.obj['output'], products, columns)
 
 
+@describe.command()
+@click.argument('name')
+@click.pass_context
+def product(ctx, name):
+    products = queries.get_products()
+    products = [p for p in products
+                if p['name'].lower() == name.lower()]
+    if len(products) != 1:
+        print(f"{name} error")
+        sys.exit(1)
+
+    product = products[0]
+    environments = product['environments']
+    columns = ['name', 'description']
+    print_output(ctx.obj['output'], environments, columns)
+
+
 @get.command()
 @click.pass_context
 def environments(ctx):

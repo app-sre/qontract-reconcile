@@ -391,6 +391,10 @@ PRODUCTS_QUERY = """
     path
     name
     description
+    environments {
+      name
+      description
+    }
   }
 }
 """
