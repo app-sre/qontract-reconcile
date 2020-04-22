@@ -762,6 +762,9 @@ def get_saas_files(saas_file_name='', env_name=''):
     gqlapi = gql.get_api()
     saas_files = gqlapi.query(SAAS_FILES_QUERY)['saas_files']
 
+    if not (saas_file_name or env_name):
+        return saas_files
+
     for saas_file in saas_files[:]:
         if saas_file_name:
             if saas_file['name'] != saas_file_name:
