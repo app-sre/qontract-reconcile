@@ -36,9 +36,7 @@ def run(dry_run=False, thread_pool_size=10,
         integration_version=QONTRACT_INTEGRATION_VERSION)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
-    enable_deletion = False if ri.has_error_registered() else True
-    ob.realize_data(dry_run, oc_map, ri,
-                    enable_deletion=enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri)
     saasherder.slack_notify(dry_run, aws_accounts, ri)
 
     if ri.has_error_registered():

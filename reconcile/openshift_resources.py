@@ -511,9 +511,7 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
     # only applicable for openshift-resources
     ob.check_unused_resource_types(ri)
 
-    enable_deletion = False if ri.has_error_registered() else True
-    ob.realize_data(dry_run, oc_map, ri,
-                    enable_deletion=enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri)
 
     if ri.has_error_registered():
         sys.exit(1)
