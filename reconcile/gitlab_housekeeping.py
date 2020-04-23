@@ -8,6 +8,11 @@ import reconcile.queries as queries
 from utils.gitlab_api import GitLabApi
 
 
+MERGE_LABELS = ['lgtm', 'automerge', 'approved']
+HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access',
+               'do-not-merge/hold', 'do-not-merge/pending-review']
+
+
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
     LABEL = 'stale'
@@ -76,8 +81,12 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.remove_label(item, item_type, LABEL)
 
 
+def is_good_to_merge(labels):
+    return any(l in MERGE_LABELS for l in labels) and \
+        not any(l in HOLD_LABELS for l in labels)
+
+
 def rebase_merge_requests(dry_run, gl, rebase_limit):
-    REBASE_LABELS = ['lgtm', 'automerge', 'approved']
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for mr in reversed(mrs):
@@ -96,7 +105,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
         if not labels:
             continue
 
-        good_to_rebase = all(l in REBASE_LABELS for l in labels)
+        good_to_rebase = is_good_to_merge(labels)
         if not good_to_rebase:
             continue
 
@@ -110,8 +119,6 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
 
 
 def merge_merge_requests(dry_run, gl, merge_limit):
-    MERGE_LABELS = ['lgtm', 'automerge', 'approved']
-
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for mr in reversed(mrs):
@@ -130,7 +137,7 @@ def merge_merge_requests(dry_run, gl, merge_limit):
         if not labels:
             continue
 
-        good_to_merge = all(l in MERGE_LABELS for l in labels)
+        good_to_merge = is_good_to_merge(labels)
         if not good_to_merge:
             continue
 
