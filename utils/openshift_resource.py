@@ -70,15 +70,15 @@ class OpenshiftResource(object):
 
     @staticmethod
     def ignorable_field(val):
-        ignorable_fields = \
-            ['kubectl.kubernetes.io/last-applied-configuration',
-             'creationTimestamp',
-             'resourceVersion',
-             'generation',
-             'selfLink',
-             'uid',
-             'status',
-             'fieldRef'
+        ignorable_fields = [
+            'kubectl.kubernetes.io/last-applied-configuration',
+            'creationTimestamp',
+            'resourceVersion',
+            'generation',
+            'selfLink',
+            'uid',
+            'status',
+            'fieldRef'
         ]
         if val in ignorable_fields:
             return True
