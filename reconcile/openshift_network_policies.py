@@ -129,6 +129,9 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         fetch_desired_state(namespaces, ri, oc_map)
         ob.realize_data(dry_run, oc_map, ri)
 
+        if ri.has_error_registered():
+            sys.exit(1)
+
     except Exception as e:
         msg = 'There was problem running openshift network policies reconcile.'
         msg += ' Exception: {}'

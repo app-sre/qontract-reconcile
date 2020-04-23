@@ -195,15 +195,11 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
            enable_deletion):
-    # this section is only relevant for the terraform integrations
-    if not enable_deletion:
-        logging.error(['delete', cluster, namespace, resource_type, name])
-        logging.error('\'delete\' action is not enabled. ' +
-                      'Please run the integration manually ' +
-                      'with the \'--enable-deletion\' flag.')
-        return
-
     logging.info(['delete', cluster, namespace, resource_type, name])
+
+    if not enable_deletion:
+        logging.error('\'delete\' action is disabled due to previous errors.')
+        return
 
     if not dry_run:
         oc_map.get(cluster).delete(namespace, resource_type, name)
@@ -219,8 +215,9 @@ def check_unused_resource_types(ri):
 
 
 def realize_data(dry_run, oc_map, ri,
-                 enable_deletion=True,
                  take_over=False):
+    enable_deletion = False if ri.has_error_registered() else True
+
     for cluster, namespace, resource_type, data in ri:
         # desired items
         for name, d_item in data['desired'].items():

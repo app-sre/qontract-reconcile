@@ -1,3 +1,4 @@
+import sys
 import semver
 
 import utils.gql as gql
@@ -175,3 +176,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri)
+
+    if ri.has_error_registered():
+        sys.exit(1)

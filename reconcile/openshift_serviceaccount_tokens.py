@@ -1,3 +1,4 @@
+import sys
 import semver
 import base64
 
@@ -90,3 +91,6 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
     ob.realize_data(dry_run, oc_map, ri)
     if not dry_run and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
+
+    if ri.has_error_registered():
+        sys.exit(1)
