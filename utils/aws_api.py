@@ -334,20 +334,13 @@ class AWSApi(object):
 
         return ''
 
-    def delete_resources_without_owner(self, dry_run, enable_deletion):
-        warning_message = '\'delete\' action is not enabled. ' + \
-                          'Please run the integration manually ' + \
-                          'with the \'--enable-deletion\' flag.'
-
+    def delete_resources_without_owner(self, dry_run):
         for account, s in self.sessions.items():
             for rt in self.resource_types:
                 for r in self.resources[account].get(rt + '_no_owner', []):
                     logging.info(['delete_resource', account, rt, r])
                     if not dry_run:
-                        if enable_deletion:
-                            self.delete_resource(s, rt, r)
-                        else:
-                            logging.warning(warning_message)
+                        self.delete_resource(s, rt, r)
 
     def delete_resource(self, session, resource_type, resource_name):
         if resource_type == 's3':

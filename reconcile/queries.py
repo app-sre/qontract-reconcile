@@ -157,6 +157,7 @@ AWS_ACCOUNTS_QUERY = """
       path
       field
     }
+    garbageCollection
     disable {
       integrations
     }
