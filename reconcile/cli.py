@@ -420,11 +420,10 @@ def gitlab_pr_submitter(ctx, gitlab_project_id):
 @integration.command()
 @throughput
 @threaded()
-@enable_deletion(default=False)
 @click.pass_context
-def aws_garbage_collector(ctx, thread_pool_size, enable_deletion, io_dir):
+def aws_garbage_collector(ctx, thread_pool_size, io_dir):
     run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
-                    thread_pool_size, enable_deletion, io_dir)
+                    thread_pool_size, io_dir)
 
 
 @integration.command()
