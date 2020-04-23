@@ -259,10 +259,11 @@ class OC(object):
                     elif kind == 'Deployment' or kind == "DeploymentConfig":
                         # honor update strategy by setting annotations to force
                         # a new rollout
-                        spec = obj.body['spec']['template']['spec']
-                        spec['metadata']['annotations']['recycle.time'] = \
-                            recycle_time
-                        self.apply(namespace, obj.toJSON())
+                        a = obj['spec']['template']['metadata'].get(
+                            'annotations', {})
+                        a['recycle.time'] = recycle_time
+                        obj['spec']['template']['metadata']['annotations'] = a
+                        self.apply(namespace, json.dumps(obj, sort_keys=True))
 
     def get_obj_root_owner(self, ns, obj):
         refs = obj['metadata'].get('ownerReferences', [])
