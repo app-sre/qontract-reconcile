@@ -42,7 +42,8 @@ def run(dry_run=False, thread_pool_size=10,
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
     ob.realize_data(dry_run, oc_map, ri)
-    saasherder.slack_notify(dry_run, aws_accounts, ri)
+    if not dry_run:
+        saasherder.slack_notify(aws_accounts, ri)
 
     if ri.has_error_registered():
         sys.exit(1)
