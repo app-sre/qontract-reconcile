@@ -212,7 +212,11 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
             content,
             force_types=None
         )
-        resource['body'].pop('$schema')
+        resource['body'].pop('$schema', None)
+    except TypeError:
+        e_msg = "could not pop $schema from resource['body']. \
+                 Skipping resource: {}"
+        raise FetchResourceError(e_msg.format(path))
     except anymarkup.AnyMarkupError:
         e_msg = "Could not parse data. Skipping resource: {}"
         raise FetchResourceError(e_msg.format(path))
