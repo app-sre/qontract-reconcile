@@ -119,7 +119,7 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
   logs:
-    slack: true
+    slack: false
     cloudwatch: true
 - name: openshift-users
   resources:
