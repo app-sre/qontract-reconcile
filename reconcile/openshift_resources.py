@@ -214,12 +214,12 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
         )
         resource['body'].pop('$schema', None)
     except TypeError:
-        e_msg = "could not pop $schema from resource['body']. \
-                 Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(path))
+        body_type = type(resource['body']).__name__
+        e_msg = f"invalid resource type {body_type} found in path: {path}"
+        raise FetchResourceError(e_msg)
     except anymarkup.AnyMarkupError:
-        e_msg = "Could not parse data. Skipping resource: {}"
-        raise FetchResourceError(e_msg.format(path))
+        e_msg = f"Could not parse data. Skipping resource: {path}"
+        raise FetchResourceError(e_msg)
 
     if validate_json:
         files = resource['body']['data']
@@ -227,8 +227,8 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
             try:
                 json.loads(file_content)
             except ValueError:
-                raise FetchResourceError(
-                    'invalid json in {} under {}'.format(path, file_name))
+                e_msg = f"invalid json in {path} under {file_name}"
+                raise FetchResourceError(e_msg)
 
     try:
         return OR(resource['body'],
