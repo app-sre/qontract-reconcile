@@ -10,7 +10,6 @@ from utils.openshift_resource import OpenshiftResource as OR
 from utils.defer import defer
 
 
-
 QONTRACT_INTEGRATION = 'openshift-resourcequotas'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
