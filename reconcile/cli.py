@@ -547,7 +547,7 @@ def openshift_limitranges(ctx, thread_pool_size, internal,
 @use_jump_host()
 @click.pass_context
 def openshift_resourcequotas(ctx, thread_pool_size, internal,
-                          use_jump_host, take_over):
+                             use_jump_host, take_over):
     run_integration(reconcile.openshift_resourcequotas.run,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, take_over)
