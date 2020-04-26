@@ -13,6 +13,7 @@ import reconcile.openshift_clusterrolebindings
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
 import reconcile.openshift_limitranges
+import reconcile.openshift_resourcequotas
 import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_namespaces
@@ -534,6 +535,20 @@ def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
 def openshift_limitranges(ctx, thread_pool_size, internal,
                           use_jump_host, take_over):
     run_integration(reconcile.openshift_limitranges.run,
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host, take_over)
+
+
+@integration.command()
+@threaded()
+@take_over()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_resourcequotas(ctx, thread_pool_size, internal,
+                          use_jump_host, take_over):
+    run_integration(reconcile.openshift_resourcequotas.run,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, take_over)
 
