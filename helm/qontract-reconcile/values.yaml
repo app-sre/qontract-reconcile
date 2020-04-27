@@ -7,6 +7,9 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 50m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: aws-iam-keys
   resources:
     requests:
@@ -15,6 +18,9 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: github
   resources:
     requests:
@@ -56,6 +62,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 300m
+  logs:
+    cloudwatch: true
 - name: quay-repos
   resources:
     requests:
@@ -110,6 +118,9 @@ integrations:
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
+  logs:
+    slack: false
+    cloudwatch: true
 - name: openshift-users
   resources:
     requests:
@@ -143,6 +154,9 @@ integrations:
       memory: 400Mi
       cpu: 500m
   extraArgs: --external --no-use-jump-host
+  logs:
+    slack: true
+    cloudwatch: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -200,6 +214,21 @@ integrations:
       memory: 100Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+    cloudwatch: true
+- name: openshift-resourcequotas
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 200m
+    limits:
+      memory: 100Mi
+      cpu: 300m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+    cloudwatch: true
 - name: openshift-resources
   resources:
     requests:
@@ -209,6 +238,8 @@ integrations:
       memory: 1200Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
+  logs:
+    cloudwatch: true
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -218,6 +249,9 @@ integrations:
       memory: 600Mi
       cpu: 200m
   extraArgs: --no-use-jump-host --vault-output-path app-sre/integrations-output
+  logs:
+    slack: true
+    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:
@@ -250,6 +284,9 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 500m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: ocm-groups
   resources:
     requests:
@@ -258,6 +295,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+  logs:
+    cloudwatch: true
 - name: ocm-clusters
   resources:
     requests:
@@ -266,6 +305,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+  logs:
+    slack: true
 - name: ocm-aws-infrastructure-access
   resources:
     requests:
@@ -274,6 +315,8 @@ integrations:
     limits:
       memory: 300Mi
       cpu: 100m
+  logs:
+    slack: true
 - name: email-sender
   resources:
     requests:

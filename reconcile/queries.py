@@ -349,6 +349,22 @@ NAMESPACES_QUERY = """
         type
       }
     }
+    quota {
+      quotas {
+        name
+        resources {
+          limits {
+            cpu
+            memory
+          }
+          requests {
+            cpu
+            memory
+          }
+        }
+        scopes
+      }
+    }
     openshiftServiceAccountTokens {
       namespace {
         name
