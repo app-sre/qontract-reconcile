@@ -306,16 +306,14 @@ class SaasHerder():
         return slack
 
     @staticmethod
-    def _get_deployment_result(dry_run, ri):
-        if dry_run:
-            return 'TBD'
+    def _get_deployment_result(ri):
         if ri.has_error_registered():
             return 'FAILED'
 
         return 'SUCCESS'
 
-    def slack_notify(self, dry_run, aws_accounts, ri):
-        result = self._get_deployment_result(dry_run, ri)
+    def slack_notify(self, aws_accounts, ri):
+        result = self._get_deployment_result(ri)
         state = State(
             integration=self.integration,
             accounts=aws_accounts,
@@ -364,6 +362,5 @@ class SaasHerder():
                             )
                             channel = slack.chat_kwargs['channel']
                             logging.info(['slack_notify', channel, msg])
-                            if not dry_run:
-                                state[state_key] = desired_commit_sha
-                                slack.chat_post_message(msg)
+                            state[state_key] = desired_commit_sha
+                            slack.chat_post_message(msg)

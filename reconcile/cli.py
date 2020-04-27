@@ -462,10 +462,10 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
 @binary(['oc', 'ssh'])
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.option('--saas-file-name',
-              default='',
+              default=None,
               help='saas-file to act on.')
 @click.option('--env-name',
-              default='',
+              default=None,
               help='environment to deploy to.')
 @click.pass_context
 def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):

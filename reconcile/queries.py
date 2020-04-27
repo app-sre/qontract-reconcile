@@ -774,13 +774,15 @@ SAAS_FILES_QUERY = """
 """
 
 
-def get_saas_files(saas_file_name='', env_name=''):
+def get_saas_files(saas_file_name=None, env_name=None):
     """ Returns SaasFile resources defined in app-interface """
     gqlapi = gql.get_api()
     saas_files = gqlapi.query(SAAS_FILES_QUERY)['saas_files']
 
-    if not (saas_file_name or env_name):
+    if saas_file_name is None and env_name is None:
         return saas_files
+    if saas_file_name == '' or env_name == '':
+        return []
 
     for saas_file in saas_files[:]:
         if saas_file_name:
@@ -788,13 +790,16 @@ def get_saas_files(saas_file_name='', env_name=''):
                 saas_files.remove(saas_file)
                 continue
         if env_name:
-            for rt in saas_file['resourceTemplates']:
+            resource_templates = saas_file['resourceTemplates']
+            for rt in resource_templates[:]:
                 targets = rt['targets']
                 for target in targets[:]:
                     namespace = target['namespace']
                     environment = namespace['environment']
                     if environment['name'] != env_name:
                         targets.remove(target)
+                if not targets:
+                    resource_templates.remove(rt)
 
     return saas_files
 
