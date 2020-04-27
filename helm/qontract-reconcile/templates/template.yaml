@@ -24,7 +24,8 @@ objects:
         {{- if $integration.logs }}
         initContainers:
         - name: config
-          image: quay.io/app-sre/busybox
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
           resources:
             requests:
               memory: 10Mi
@@ -149,7 +150,8 @@ objects:
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
-          image: quay.io/app-sre/fluentd:latest
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
           {{- if $integration.logs.cloudwatch }}
           env:
           - name: AWS_REGION
@@ -197,6 +199,18 @@ parameters:
   value: quay.io/app-sre/qontract-reconcile
 - name: IMAGE_TAG
   value: latest
+- name: BUSYBOX_IMAGE
+  value: quay.io/app-sre/busybox
+- name: BUSYBOX_IMAGE_TAG
+  value: latest
+- name: BUSYBOX_IMAGE_PULL_POLICY
+  value: Always
+- name: FLUENTD_IMAGE
+  value: quay.io/app-sre/fluentd
+- name: FLUENTD_IMAGE_TAG
+  value: latest
+- name: FLUENTD_IMAGE_PULL_POLICY
+  value: Always
 - name: DRY_RUN
   value: --dry-run
 - name: SLEEP_DURATION_SECS

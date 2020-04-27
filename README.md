@@ -35,6 +35,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-clusterrolebindings`: Configures ClusterRolebindings in OpenShift clusters.
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-limitranges`: Manages OpenShift LimitRange objects.
+- `openshift-resourcequotas`: Manages OpenShift ResourceQuota objects.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
 - `openshift-performance-parameters`: Manages Performance Parameters files from services.

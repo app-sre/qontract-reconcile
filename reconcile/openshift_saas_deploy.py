@@ -1,5 +1,6 @@
 import sys
 import semver
+import logging
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
@@ -15,13 +16,17 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 @defer
 def run(dry_run=False, thread_pool_size=10,
-        saas_file_name='', env_name='', defer=None):
+        saas_file_name=None, env_name=None, defer=None):
+    saas_files = queries.get_saas_files(saas_file_name, env_name)
+    if not saas_files:
+        logging.error('no saas files found')
+        sys.exit(1)
+
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     aws_accounts = queries.get_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
 
-    saas_files = queries.get_saas_files(saas_file_name, env_name)
     saasherder = SaasHerder(
         saas_files,
         thread_pool_size=thread_pool_size,
@@ -37,7 +42,8 @@ def run(dry_run=False, thread_pool_size=10,
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
     ob.realize_data(dry_run, oc_map, ri)
-    saasherder.slack_notify(dry_run, aws_accounts, ri)
+    if not dry_run:
+        saasherder.slack_notify(aws_accounts, ri)
 
     if ri.has_error_registered():
         sys.exit(1)
