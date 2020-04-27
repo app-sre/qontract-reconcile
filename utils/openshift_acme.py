@@ -151,3 +151,18 @@ subjects:
 - kind: ServiceAccount
   name: %(serviceaccount_name)s
 """
+
+ACME_NETWORKPOLICY = """
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: %(networkpolicy_name)s
+spec:
+  podSelector:
+    matchLabels:
+      app: openshift-acme
+  ingress:
+  - {}
+  policyTypes:
+  - Ingress
+"""

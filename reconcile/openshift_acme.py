@@ -14,7 +14,8 @@ from utils.defer import defer
 from utils.openshift_acme import (ACME_DEPLOYMENT,
                                   ACME_ROLE,
                                   ACME_ROLEBINDING,
-                                  ACME_SERVICEACCOUNT)
+                                  ACME_SERVICEACCOUNT,
+                                  ACME_NETWORKPOLICY)
 
 
 QONTRACT_INTEGRATION = 'openshift-acme'
@@ -53,6 +54,8 @@ def construct_resources(namespaces):
             acme_overrides.get('roleName') or default_name
         rbac_api_version = \
             acme_overrides.get('rbacApiVersion') or default_rbac_api_version
+        networkpolicy_name = \
+            acme_overrides.get('networkPolicyName') or default_name
 
         # Create the resources and append them to the namespace
         namespace["resources"] = []
@@ -81,6 +84,11 @@ def construct_resources(namespaces):
                 'rolebinding_api_version': rbac_api_version,
                 'serviceaccount_name': serviceaccount_name,
                 'namespace_name': namespace_name
+            })
+        )
+        namespace["resources"].append(
+            process_template(ACME_NETWORKPOLICY, {
+                'networkpolicy_name': networkpolicy_name
             })
         )
 
