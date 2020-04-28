@@ -220,12 +220,13 @@ class OC(object):
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
         recyclables = {}
+        supported_recyclables = ['ReplicationController', 'Deployment',
+                                 'DeploymentConfig']
         for pod in pods_to_recycle:
-            if pod['status']['phase'] == 'Succeeded':
-                # don't try to recycle a pod that completed successfully
-                continue
             owner = self.get_obj_root_owner(namespace, pod)
             kind = owner['kind']
+            if kind not in supported_recyclables:
+                continue
             if kind == 'ReplicationController':
                 # need to act on the pod for replication controllers
                 owner = pod
@@ -239,12 +240,8 @@ class OC(object):
             if not exists:
                 recyclables[kind].append(owner)
 
-        supported_recyclables = ['ReplicationController', 'Deployment',
-                                 'DeploymentConfig']
         for kind, objs in recyclables.items():
             for obj in objs:
-                if kind not in supported_recyclables:
-                    continue
                 name = obj['metadata']['name']
                 logging.info([f'recycle_{kind.lower()}', namespace, name])
                 if not dry_run:
