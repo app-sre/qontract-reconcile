@@ -39,9 +39,13 @@ class OpenshiftResource(object):
             for obj1_k, obj1_v in obj1.items():
                 obj2_v = obj2.get(obj1_k, None)
                 if obj2_v is None:
-                    if obj1_v is not None:
+                    if obj1_v not in [None, '']:
                         return False
-                if obj1_k == 'cpu':
+                if self.ignorable_field(obj1_k):
+                    pass
+                elif self.ignorable_key_value_pair(obj1_k, obj1_v):
+                    pass
+                elif obj1_k == 'cpu':
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
                         return False
@@ -63,6 +67,33 @@ class OpenshiftResource(object):
             return False
 
         return True
+
+    @staticmethod
+    def ignorable_field(val):
+        ignorable_fields = [
+            'kubectl.kubernetes.io/last-applied-configuration',
+            'creationTimestamp',
+            'resourceVersion',
+            'generation',
+            'selfLink',
+            'uid',
+            'status',
+            'fieldRef'
+        ]
+        if val in ignorable_fields:
+            return True
+        return False
+
+    @staticmethod
+    def ignorable_key_value_pair(key, val):
+        ignorable_key_value_pair = {
+            'annotations': None,
+            'divisor': '0'
+        }
+        if key in ignorable_key_value_pair and \
+                ignorable_key_value_pair[key] == val:
+            return True
+        return False
 
     @staticmethod
     def cpu_equal(val1, val2):

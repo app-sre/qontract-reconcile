@@ -217,6 +217,18 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: openshift-resourcequotas
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 200m
+    limits:
+      memory: 100Mi
+      cpu: 300m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+    cloudwatch: true
 - name: openshift-resources
   resources:
     requests:
