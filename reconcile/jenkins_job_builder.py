@@ -1,4 +1,5 @@
 import sys
+import json
 import logging
 
 import utils.gql as gql
@@ -29,10 +30,74 @@ QUERY = """
 """
 
 
-def init_jjb():
-    gqlapi = gql.get_api()
-    configs = gqlapi.query(QUERY)['jenkins_configs']
+def collect_saas_file_configs():
+    # collect a list of jobs per saas file per environment.
+    # each saas_file_config should have the structure described
+    # in the above query.
+    # to make things understandable, each variable used to form
+    # the structure will be called `jc_<variable>` (jenkins config).
+    saas_file_configs = []
+    saas_files = queries.get_saas_files()
     settings = queries.get_app_interface_settings()
+    job_template_name = settings['saasDeployJobTemplate']
+    for saas_file in saas_files:
+        saas_file_name = saas_file['name']
+        jc_instance = saas_file['instance']
+        for resource_template in saas_file['resourceTemplates']:
+            for target in resource_template['targets']:
+                namespace = target['namespace']
+                env_name = namespace['environment']['name']
+                app_name = namespace['app']['name']
+                
+                jc_name = f"{job_template_name}-{saas_file_name}-{env_name}"
+                existing_configs = \
+                    [c for c in saas_file_configs if c['name'] == jc_name]
+                if existing_configs:
+                    continue
+
+                # each config is a list with a single item
+                # with the following structure:
+                # project:
+                #   name: 'openshift-saas-deploy-{saas_file_name}-{env_name}'
+                #   saas_file_name: '{saas_file_name}'
+                #   env_name: '{env_name}'
+                #   app_name: '{app_name}'
+                #   jobs:
+                #   - 'openshift-saas-deploy':
+                #       display_name: display name of the job
+                jc_config = json.dumps([{
+                    'project': {
+                        'name': jc_name,
+                        'saas_file_name': saas_file_name,
+                        'env_name': env_name,
+                        'app_name': app_name,
+                        'jobs': [{
+                            job_template_name: {
+                                'display_name': jc_name
+                            }
+                        }]
+                    }
+                }])
+                saas_file_configs.append({
+                    'name': jc_name,
+                    'instance': jc_instance,
+                    'type': 'jobs',
+                    'config': jc_config
+                })
+
+    return saas_file_configs, settings
+
+
+def collect_configs():
+    gqlapi = gql.get_api()
+    raw_jjb_configs = gqlapi.query(QUERY)['jenkins_configs']
+    saas_file_configs, settings = collect_saas_file_configs()
+    configs = raw_jjb_configs + saas_file_configs
+
+    return configs, settings
+
+def init_jjb():
+    configs, settings = collect_configs()
     return JJB(configs, ssl_verify=False, settings=settings)
 
 

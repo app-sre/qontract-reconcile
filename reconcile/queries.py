@@ -7,6 +7,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     vault
     kubeBinary
     pullRequestGateway
+    saasDeployJobTemplate
     dependencies {
       type
       services {
@@ -696,6 +697,15 @@ SAAS_FILES_QUERY = """
     app {
       name
     }
+    instance {
+      name
+      serverUrl
+      token {
+        path
+        field
+      }
+      deleteMethod
+    }
     slack {
       workspace {
         name
@@ -732,6 +742,9 @@ SAAS_FILES_QUERY = """
         namespace {
           name
           environment {
+            name
+          }
+          app {
             name
           }
           cluster {
