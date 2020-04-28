@@ -48,7 +48,7 @@ def collect_saas_file_configs():
                 namespace = target['namespace']
                 env_name = namespace['environment']['name']
                 app_name = namespace['app']['name']
-                
+
                 jc_name = f"{job_template_name}-{saas_file_name}-{env_name}"
                 existing_configs = \
                     [c for c in saas_file_configs if c['name'] == jc_name]
@@ -95,6 +95,7 @@ def collect_configs():
     configs = raw_jjb_configs + saas_file_configs
 
     return configs, settings
+
 
 def init_jjb():
     configs, settings = collect_configs()
