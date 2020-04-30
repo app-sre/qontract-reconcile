@@ -127,18 +127,21 @@ def namespaces(ctx, name):
 @click.pass_context
 def acme_accounts(ctx):
     namespaces = queries.get_namespaces()
-    acme_secrets = [ns['openshiftAcme']['accountSecret']['path']
-                    for ns in namespaces
-                    if ns.get('openshiftAcme')]
-
     acme_usage = {}
-    for acme_secret in acme_secrets:
-        acme_usage.setdefault(acme_secret, 0)
-        acme_usage[acme_secret] += 1
+    for namespace_info in namespaces:
+        if namespace_info.get('openshiftAcme') is None:
+            continue
+        namespace_name = namespace_info['name']
+        cluster_name = namespace_info['cluster']['name']
+        acme_secret = \
+            namespace_info['openshiftAcme']['accountSecret']['path']
+        acme_usage.setdefault(acme_secret, [])
+        acme_usage[acme_secret].append(f"{cluster_name}/{namespace_name}")
 
-    usage = [{'path': k, 'usage': v} for k, v in acme_usage.items()]
+    usage = [{'path': k, 'usage': len(v), 'namespaces': ', '.join(v)}
+             for k, v in acme_usage.items()]
 
-    columns = ['path', 'usage']
+    columns = ['path', 'usage', 'namespaces']
     print_output(ctx.obj['output'], usage, columns)
 
 
