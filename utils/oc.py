@@ -220,16 +220,12 @@ class OC(object):
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
         recyclables = {}
-        supported_recyclables = ['ReplicationController', 'Deployment',
-                                 'DeploymentConfig']
+        supported_recyclables = ['Deployment', 'DeploymentConfig']
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod)
             kind = owner['kind']
             if kind not in supported_recyclables:
                 continue
-            if kind == 'ReplicationController':
-                # need to act on the pod for replication controllers
-                owner = pod
             recyclables.setdefault(kind, [])
             exists = False
             for obj in recyclables[kind]:
@@ -247,20 +243,14 @@ class OC(object):
                 if not dry_run:
                     now = datetime.now()
                     recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
-                    if kind == 'ReplicationController':
-                        self.delete(namespace, 'Pod', name)
-                        logging.info(['validating_pods', namespace])
-                        self.validate_pods_ready(
-                            namespace, self.secret_used_in_pod, dep_name,
-                            recycle_time)
-                    elif kind == 'Deployment' or kind == "DeploymentConfig":
-                        # honor update strategy by setting annotations to force
-                        # a new rollout
-                        a = obj['spec']['template']['metadata'].get(
-                            'annotations', {})
-                        a['recycle.time'] = recycle_time
-                        obj['spec']['template']['metadata']['annotations'] = a
-                        self.apply(namespace, json.dumps(obj, sort_keys=True))
+
+                    # honor update strategy by setting annotations to force
+                    # a new rollout
+                    a = obj['spec']['template']['metadata'].get(
+                        'annotations', {})
+                    a['recycle.time'] = recycle_time
+                    obj['spec']['template']['metadata']['annotations'] = a
+                    self.apply(namespace, json.dumps(obj, sort_keys=True))
 
     def get_obj_root_owner(self, ns, obj):
         refs = obj['metadata'].get('ownerReferences', [])
@@ -295,19 +285,6 @@ class OC(object):
                 except KeyError:
                     continue
         return False
-
-    @retry(exceptions=PodNotReadyError, max_attempts=20)
-    def validate_pods_ready(self, namespace, filter_method, dep_name, rtime):
-        pods = self.get(namespace, 'Pods')['items']
-        pods_to_validate = [pod for pod in pods
-                            if filter_method(dep_name, pod)]
-        for pod in pods_to_validate:
-            for status in pod['status']['containerStatuses']:
-                if not status['ready']:
-                    raise PodNotReadyError(pod['metadata']['name'])
-                else:
-                    pod['metadata']['annotations']['recycle.time'] = rtime
-                    self.apply(namespace, pod.toJSON())
 
     @retry(exceptions=(StatusCodeError, NoOutputError))
     def _run(self, cmd, **kwargs):
