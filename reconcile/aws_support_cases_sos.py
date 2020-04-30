@@ -54,6 +54,8 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
     aws_support_cases = aws.get_support_cases()
     keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
     keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
-                      if ktd['key'] not in deleted_keys[ktd['account']]
+                      if deleted_keys.get(ktd['account']) is not None
+                      and existing_keys.get(ktd['account']) is not None
+                      and ktd['key'] not in deleted_keys[ktd['account']]
                       and ktd['key'] in existing_keys[ktd['account']]]
     act(dry_run, gitlab_project_id, accounts, keys_to_delete)
