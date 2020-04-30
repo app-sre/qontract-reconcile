@@ -125,6 +125,25 @@ def namespaces(ctx, name):
 
 @get.command()
 @click.pass_context
+def acme_accounts(ctx):
+    namespaces = queries.get_namespaces()
+    acme_secrets = [ns['openshiftAcme']['accountSecret']['path']
+                    for ns in namespaces
+                    if ns.get('openshiftAcme')]
+
+    acme_usage = {}
+    for acme_secret in acme_secrets:
+        acme_usage.setdefault(acme_secret, 0)
+        acme_usage[acme_secret] += 1
+
+    usage = [{'path': k, 'usage': v} for k, v in acme_usage.items()]
+
+    columns = ['path', 'usage']
+    print_output(ctx.obj['output'], usage, columns)
+
+
+@get.command()
+@click.pass_context
 def products(ctx):
     products = queries.get_products()
     columns = ['name', 'description']
