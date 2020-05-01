@@ -125,10 +125,17 @@ class JJB(object):
             self.print_diffs(io_dir)
 
     def print_diffs(self, io_dir):
+        compare_err_str = ('unable to find current state data for compare.  '
+                           'If running in dry-run mode, first run with the '
+                           '--no-compare option and use a config that points '
+                           'to unmodified source.  Then run again without '
+                           '--no-compare and use a config that points to '
+                           'a modified source'
+                           )
         current_path = path.join(io_dir, 'jjb', 'current')
         current_files = self.get_files(current_path)
         if not current_files:
-            raise FetchResourceError('current state not found for compare')
+            raise FetchResourceError(compare_err_str)
         desired_path = path.join(io_dir, 'jjb', 'desired')
         desired_files = self.get_files(desired_path)
 
