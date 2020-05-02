@@ -302,7 +302,7 @@ class JJB(object):
             all_jobs[name] = []
             jobs = self.get_jobs(wd, name)
             for job in jobs:
-                if not any(job_type in job['name'] for job_type in job_types):
+                if not any(job['name'].startswith(job_type) for job_type in job_types):
                     continue
                 if 'test' in job['name']:
                     continue
