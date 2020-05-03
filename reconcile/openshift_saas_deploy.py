@@ -17,6 +17,9 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 @defer
 def run(dry_run=False, thread_pool_size=10,
         saas_file_name=None, env_name=None, defer=None):
+    # if saas_file_name and env_name are defined, the integration
+    # is being called from multiple running instances
+    multiple_callers = saas_file_name and env_name
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error('no saas files found')
@@ -44,7 +47,8 @@ def run(dry_run=False, thread_pool_size=10,
         integration_version=QONTRACT_INTEGRATION_VERSION)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
-    ob.realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri,
+                    mutilple_callers=multiple_callers)
     if not dry_run:
         saasherder.slack_notify(aws_accounts, ri)
 
