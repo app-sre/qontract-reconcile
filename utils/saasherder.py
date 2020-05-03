@@ -25,6 +25,9 @@ class SaasHerder():
                  integration,
                  integration_version,
                  settings):
+        self._validate_saas_files(saas_files)
+        if not self.valid:
+            return
         self.saas_files = saas_files
         self.thread_pool_size = thread_pool_size
         self.gitlab = gitlab
@@ -32,6 +35,25 @@ class SaasHerder():
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+
+    def _validate_saas_files(self, saas_files):
+        self.valid = True
+        saas_file_name_path_map = {}
+        for saas_file in saas_files:
+            saas_file_name = saas_file['name']
+            saas_file_path = saas_file['path']
+            saas_file_name_path_map.setdefault(saas_file_name, [])
+            saas_file_name_path_map[saas_file_name].append(saas_file_path)
+
+        duplicates = {saas_file_name: saas_file_paths
+                      for saas_file_name, saas_file_paths
+                      in saas_file_name_path_map.items()
+                      if len(saas_file_paths) > 1}
+        if duplicates:
+            self.valid = False
+            msg = 'saas file name {} is not unique: {}'
+            for saas_file_name, saas_file_paths in duplicates.items():
+                logging.error(msg.format(saas_file_name, saas_file_paths))
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result

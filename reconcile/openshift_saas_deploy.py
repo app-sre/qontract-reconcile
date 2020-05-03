@@ -34,6 +34,9 @@ def run(dry_run=False, thread_pool_size=10,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings)
+    if not saasherder.valid:
+        sys.exit(1)
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
         thread_pool_size=thread_pool_size,
