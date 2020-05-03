@@ -298,6 +298,7 @@ class SaasHerder():
                         resource,
                         self.integration,
                         self.integration_version,
+                        caller_name=saas_file_name,
                         error_details=html_url)
                     ri.add_desired(
                         cluster,
