@@ -17,6 +17,7 @@ class JenkinsApi(object):
         self.password = config['jenkins']['password']
         self.ssl_verify = ssl_verify
         self.should_restart = False
+        self.settings = settings
 
     def get_all_roles(self):
         url = "{}/role-strategy/strategy/getAllRoles".format(self.url)
@@ -116,6 +117,16 @@ class JenkinsApi(object):
         res.raise_for_status()
         return [b['result'] for b in res.json()['builds']
                 if time_limit < self.timestamp_seconds(b['timestamp'])]
+
+    def trigger_job(self, job_name):
+        url = f"{self.url}/job/{job_name}/build"
+        res = requests.post(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
 
     @staticmethod
     def timestamp_seconds(timestamp):
