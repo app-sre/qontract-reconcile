@@ -24,7 +24,6 @@ def run(dry_run=False, thread_pool_size=10,
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    aws_accounts = queries.get_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
 
     saasherder = SaasHerder(
@@ -48,8 +47,6 @@ def run(dry_run=False, thread_pool_size=10,
     # is being called from multiple running instances
     ob.realize_data(dry_run, oc_map, ri,
                     caller=saas_file_name)
-    if not dry_run:
-        saasherder.slack_notify(aws_accounts, ri)
 
     if ri.has_error_registered():
         sys.exit(1)
