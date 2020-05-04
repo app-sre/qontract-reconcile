@@ -24,7 +24,12 @@ def run(dry_run=False, thread_pool_size=10,
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    gl = GitLabApi(instance, settings=settings)
+    try:
+        gl = GitLabApi(instance, settings=settings)
+    except Exception:
+        # allow execution without access to gitlab
+        # as long as there are no access attempts.
+        gl = None
 
     saasherder = SaasHerder(
         saas_files,
