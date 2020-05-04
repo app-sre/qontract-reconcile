@@ -10,8 +10,6 @@ import utils.threaded as threaded
 import utils.secret_reader as secret_reader
 
 from utils.oc import OC, StatusCodeError
-from utils.state import State
-from utils.slack_api import SlackApi
 from utils.openshift_resource import OpenshiftResource as OR
 from reconcile.github_org import get_config
 
@@ -26,12 +24,34 @@ class SaasHerder():
                  integration_version,
                  settings):
         self.saas_files = saas_files
+        self._validate_saas_files()
+        if not self.valid:
+            return
         self.thread_pool_size = thread_pool_size
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+
+    def _validate_saas_files(self):
+        self.valid = True
+        saas_file_name_path_map = {}
+        for saas_file in self.saas_files:
+            saas_file_name = saas_file['name']
+            saas_file_path = saas_file['path']
+            saas_file_name_path_map.setdefault(saas_file_name, [])
+            saas_file_name_path_map[saas_file_name].append(saas_file_path)
+
+        duplicates = {saas_file_name: saas_file_paths
+                      for saas_file_name, saas_file_paths
+                      in saas_file_name_path_map.items()
+                      if len(saas_file_paths) > 1}
+        if duplicates:
+            self.valid = False
+            msg = 'saas file name {} is not unique: {}'
+            for saas_file_name, saas_file_paths in duplicates.items():
+                logging.error(msg.format(saas_file_name, saas_file_paths))
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
@@ -73,6 +93,8 @@ class SaasHerder():
             f = repo.get_contents(path, ref)
             return f.decoded_content, f.html_url
         elif 'gitlab' in url:
+            if not self.gitlab:
+                raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             f = project.files.get(file_path=path, ref=ref)
             html_url = os.path.join(url, 'blob', ref, path)
@@ -90,6 +112,8 @@ class SaasHerder():
             commit = repo.get_commit(sha=ref)
             commit_sha = commit.sha
         elif 'gitlab' in url:
+            if not self.gitlab:
+                raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
             commit_sha = commits[0].id
@@ -111,7 +135,10 @@ class SaasHerder():
         parameters = options['parameters']
         github = options['github']
         target_hash = target['hash']
+        environment = target['namespace']['environment']
+        environment_parameters = self._collect_parameters(environment)
         target_parameters = self._collect_parameters(target)
+        target_parameters.update(environment_parameters)
         target_parameters.update(parameters)
 
         try:
@@ -228,6 +255,7 @@ class SaasHerder():
         image_auth = self._initiate_image_auth(saas_file)
         managed_resource_types = saas_file['managedResourceTypes']
         resource_templates = saas_file['resourceTemplates']
+        saas_file_parameters = self._collect_parameters(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in resource_templates:
             rt_name = rt['name']
@@ -235,6 +263,7 @@ class SaasHerder():
             path = rt['path']
             hash_length = rt['hash_length']
             parameters = self._collect_parameters(rt)
+            parameters.update(saas_file_parameters)
             # iterate over targets (each target is a namespace)
             for target in rt['targets']:
                 cluster, namespace = \
@@ -276,6 +305,7 @@ class SaasHerder():
                         resource,
                         self.integration,
                         self.integration_version,
+                        caller_name=saas_file_name,
                         error_details=html_url)
                     ri.add_desired(
                         cluster,
@@ -284,83 +314,3 @@ class SaasHerder():
                         resource_name,
                         oc_resource
                     )
-
-    def _init_slack(self, slack_info):
-        slack_integrations = slack_info['workspace']['integrations']
-        saas_deploy_config = \
-            [i for i in slack_integrations if i['name'] == self.integration]
-        [saas_deploy_config] = saas_deploy_config
-
-        token = saas_deploy_config['token']
-        default_channel = saas_deploy_config['channel']
-        icon_emoji = saas_deploy_config['icon_emoji']
-        username = saas_deploy_config['username']
-        channel = slack_info.get('channel') or default_channel
-
-        slack = SlackApi(token,
-                         settings=self.settings,
-                         init_usergroups=False,
-                         channel=channel,
-                         icon_emoji=icon_emoji,
-                         username=username)
-        return slack
-
-    @staticmethod
-    def _get_deployment_result(ri):
-        if ri.has_error_registered():
-            return 'FAILED'
-
-        return 'SUCCESS'
-
-    def slack_notify(self, aws_accounts, ri):
-        result = self._get_deployment_result(ri)
-        state = State(
-            integration=self.integration,
-            accounts=aws_accounts,
-            settings=self.settings
-        )
-        for saas_file in self.saas_files:
-            github = self._initiate_github(saas_file)
-            saas_file_name = saas_file['name']
-            for resource_template in saas_file['resourceTemplates']:
-                url = resource_template['url']
-                hash_length = resource_template['hash_length']
-                resource_template_name = resource_template['name']
-                for target in resource_template['targets']:
-                    if not target.get('notify'):
-                        continue
-                    cluster, namespace = \
-                        self._get_cluster_and_namespace(target)
-                    target_hash = target['hash']
-                    get_commit_sha_options = {
-                        'url': url,
-                        'ref': target_hash,
-                        'hash_length': hash_length,
-                        'github': github
-                    }
-                    desired_commit_sha = \
-                        self._get_commit_sha(get_commit_sha_options)
-                    state_key_format = "{}/{}/{}/{}"
-                    state_key = state_key_format.format(
-                        saas_file_name,
-                        resource_template_name,
-                        cluster,
-                        namespace
-                    )
-                    current_commit_sha = state.get(state_key, None)
-                    if current_commit_sha != desired_commit_sha:
-                        slack_info = saas_file.get('slack')
-                        if slack_info:
-                            slack = self._init_slack(slack_info)
-                            msg_format = "[{}] {} deployment to {}/{}: {}"
-                            msg = msg_format.format(
-                                saas_file_name,
-                                resource_template_name,
-                                cluster,
-                                namespace,
-                                result
-                            )
-                            channel = slack.chat_kwargs['channel']
-                            logging.info(['slack_notify', channel, msg])
-                            state[state_key] = desired_commit_sha
-                            slack.chat_post_message(msg)

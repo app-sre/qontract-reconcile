@@ -21,11 +21,12 @@ class ConstructResourceError(Exception):
 
 class OpenshiftResource(object):
     def __init__(self, body, integration, integration_version,
-                 error_details=''):
+                 error_details='', caller_name=None):
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
         self.error_details = error_details
+        self.caller_name = caller_name
         self.verify_valid_k8s_object()
 
     def __eq__(self, other):
@@ -126,6 +127,14 @@ class OpenshiftResource(object):
     def kind(self):
         return self.body['kind']
 
+    @property
+    def caller(self):
+        try:
+            return self.caller_name or \
+                self.body['annotations']['qontract.caller_name']
+        except KeyError:
+            return None
+
     def verify_valid_k8s_object(self):
         try:
             self.name
@@ -207,6 +216,8 @@ class OpenshiftResource(object):
         annotations['qontract.sha256sum'] = sha256sum
         now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
         annotations['qontract.update'] = now
+        if self.caller_name:
+            annotations['qontract.caller_name'] = self.caller_name
 
         return OpenshiftResource(body, self.integration,
                                  self.integration_version)

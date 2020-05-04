@@ -215,7 +215,8 @@ def check_unused_resource_types(ri):
 
 
 def realize_data(dry_run, oc_map, ri,
-                 take_over=False):
+                 take_over=False,
+                 caller=None):
     enable_deletion = False if ri.has_error_registered() else True
 
     for cluster, namespace, resource_type, data in ri:
@@ -280,9 +281,12 @@ def realize_data(dry_run, oc_map, ri,
             if d_item is not None:
                 continue
 
-            if not c_item.has_qontract_annotations():
-                if not take_over:
+            if c_item.has_qontract_annotations():
+                if caller and c_item.caller != caller:
                     continue
+            elif not take_over:
+                continue
+
             try:
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)

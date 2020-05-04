@@ -24,8 +24,12 @@ def run(dry_run=False, thread_pool_size=10,
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    aws_accounts = queries.get_aws_accounts()
-    gl = GitLabApi(instance, settings=settings)
+    try:
+        gl = GitLabApi(instance, settings=settings)
+    except Exception:
+        # allow execution without access to gitlab
+        # as long as there are no access attempts.
+        gl = None
 
     saasherder = SaasHerder(
         saas_files,
@@ -34,6 +38,9 @@ def run(dry_run=False, thread_pool_size=10,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings)
+    if not saasherder.valid:
+        sys.exit(1)
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
         thread_pool_size=thread_pool_size,
@@ -41,9 +48,10 @@ def run(dry_run=False, thread_pool_size=10,
         integration_version=QONTRACT_INTEGRATION_VERSION)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
-    ob.realize_data(dry_run, oc_map, ri)
-    if not dry_run:
-        saasherder.slack_notify(aws_accounts, ri)
+    # if saas_file_name is defined, the integration
+    # is being called from multiple running instances
+    ob.realize_data(dry_run, oc_map, ri,
+                    caller=saas_file_name)
 
     if ri.has_error_registered():
         sys.exit(1)

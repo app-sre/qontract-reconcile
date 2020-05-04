@@ -43,6 +43,10 @@ def collect_saas_file_configs():
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         jc_instance = saas_file['instance']
+        # currently ignoring the actual Slack workspace
+        # as that is configured in Jenkins.
+        # revisit this if we support more then a single Slack workspace.
+        slack_channel = saas_file['slack']['channel']
         for resource_template in saas_file['resourceTemplates']:
             for target in resource_template['targets']:
                 namespace = target['namespace']
@@ -62,6 +66,7 @@ def collect_saas_file_configs():
                 #   saas_file_name: '{saas_file_name}'
                 #   env_name: '{env_name}'
                 #   app_name: '{app_name}'
+                #   slack_channel: '{slack_channel}'
                 #   jobs:
                 #   - 'openshift-saas-deploy':
                 #       display_name: display name of the job
@@ -71,6 +76,7 @@ def collect_saas_file_configs():
                         'saas_file_name': saas_file_name,
                         'env_name': env_name,
                         'app_name': app_name,
+                        'slack_channel': slack_channel,
                         'jobs': [{
                             job_template_name: {
                                 'display_name': jc_name
