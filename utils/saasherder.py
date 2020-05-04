@@ -93,6 +93,8 @@ class SaasHerder():
             f = repo.get_contents(path, ref)
             return f.decoded_content, f.html_url
         elif 'gitlab' in url:
+            if not self.gitlab:
+                raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             f = project.files.get(file_path=path, ref=ref)
             html_url = os.path.join(url, 'blob', ref, path)
@@ -110,6 +112,8 @@ class SaasHerder():
             commit = repo.get_commit(sha=ref)
             commit_sha = commit.sha
         elif 'gitlab' in url:
+            if not self.gitlab:
+                raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
             commit_sha = commits[0].id
