@@ -17,7 +17,8 @@ from reconcile.exceptions import FetchResourceError
 from utils.elasticsearch_exceptions \
   import (ElasticSearchResourceNameInvalidError,
           ElasticSearchResourceMissingSubnetIdError,
-          ElasticSearchResourceVersionInvalidError)
+          ElasticSearchResourceVersionInvalidError,
+          ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output
@@ -1746,12 +1747,12 @@ class TerrascriptClient(object):
                            1.5]
 
     @staticmethod
-    def get_elasticsearch_service_role_tf_resource(identifier):
+    def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
           'aws_service_name': "es.amazonaws.com"
         }
-        return aws_iam_service_linked_role(identifier, **service_role)
+        return aws_iam_service_linked_role('elasticsearch', **service_role)
 
     @staticmethod
     def is_elasticsearch_domain_name_valid(name):
@@ -1850,8 +1851,9 @@ class TerrascriptClient(object):
                 get("zone_awareness_config", {})
             availability_zone_count = \
                 zone_awareness_config.get('availability_zone_count', 3)
-            es_values["cluster_config"]['availability_zone_count'] = \
-                availability_zone_count
+            es_values["cluster_config"]['zone_awareness_config'] = {
+                'availability_zone_count': availability_zone_count
+            }
 
         snapshot_options = values.get('snapshot_options', {})
         automated_snapshot_start_hour = \
@@ -1870,6 +1872,18 @@ class TerrascriptClient(object):
                 f"[{account}] No subnet ids provided for Elasticsearch" +
                 f" resource {values['identifier']}")
 
+        if not zone_awareness_enabled and len(subnet_ids) > 1:
+            raise ElasticSearchResourceZoneAwareSubnetInvalidError(
+                f"[{account}] Multiple subnet ids are provided but " +
+                f" zone_awareness_enabled is set to false for"
+                f" resource {values['identifier']}")
+
+        if availability_zone_count != len(subnet_ids):
+            raise ElasticSearchResourceZoneAwareSubnetInvalidError(
+                f"[{account}] Subnet ids count does not match " +
+                f" availability_zone_count for"
+                f" resource {values['identifier']}")
+
         es_values["vpc_options"] = {
             'subnet_ids': subnet_ids
         }
@@ -1878,7 +1892,7 @@ class TerrascriptClient(object):
             es_values["vpc_options"]['security_group_ids'] = security_group_ids
 
         svc_role_tf_resource = \
-            self.get_elasticsearch_service_role_tf_resource(identifier)
+            self.get_elasticsearch_service_role_tf_resource()
 
         es_values['depends_on'] = [svc_role_tf_resource]
         tf_resources.append(svc_role_tf_resource)
