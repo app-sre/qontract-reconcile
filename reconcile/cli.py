@@ -460,7 +460,6 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
-@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.option('--saas-file-name',
               default=None,
               help='saas-file to act on.')

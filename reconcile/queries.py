@@ -773,7 +773,6 @@ SAAS_FILES_QUERY = """
           }
         }
         hash
-        notify
         parameters
       }
     }
