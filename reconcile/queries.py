@@ -732,6 +732,7 @@ SAAS_FILES_QUERY = """
         path
       }
     }
+    parameters
     resourceTemplates {
       name
       url
@@ -743,6 +744,7 @@ SAAS_FILES_QUERY = """
           name
           environment {
             name
+            parameters
           }
           app {
             name

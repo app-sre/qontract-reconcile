@@ -135,7 +135,10 @@ class SaasHerder():
         parameters = options['parameters']
         github = options['github']
         target_hash = target['hash']
+        environment = target['namespace']['environment']
+        environment_parameters = self._collect_parameters(environment)
         target_parameters = self._collect_parameters(target)
+        target_parameters.update(environment_parameters)
         target_parameters.update(parameters)
 
         try:
@@ -252,6 +255,7 @@ class SaasHerder():
         image_auth = self._initiate_image_auth(saas_file)
         managed_resource_types = saas_file['managedResourceTypes']
         resource_templates = saas_file['resourceTemplates']
+        saas_file_parameters = self._collect_parameters(saas_file)
         # iterate over resource templates (multiple per saas_file)
         for rt in resource_templates:
             rt_name = rt['name']
@@ -259,6 +263,7 @@ class SaasHerder():
             path = rt['path']
             hash_length = rt['hash_length']
             parameters = self._collect_parameters(rt)
+            parameters.update(saas_file_parameters)
             # iterate over targets (each target is a namespace)
             for target in rt['targets']:
                 cluster, namespace = \
