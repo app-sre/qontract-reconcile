@@ -17,3 +17,10 @@ class ElasticSearchResourceVersionInvalidError(Exception):
         super(ElasticSearchResourceVersionInvalidError, self).__init__(
             str(msg)
         )
+
+
+class ElasticSearchResourceZoneAwareSubnetInvalidError(Exception):
+    def __init__(self, msg):
+        super(ElasticSearchResourceVersionInvalidError, self).__init__(
+            str(msg)
+        )
