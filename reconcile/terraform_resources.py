@@ -116,6 +116,12 @@ TF_NAMESPACES_QUERY = """
         overrides
         output_resource_name
       }
+      ... on NamespaceTerraformResourceElasticSearch_v1 {
+        account
+        identifier
+        defaults
+        output_resource_name
+      }
     }
     cluster {
       name

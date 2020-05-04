@@ -14,6 +14,10 @@ import utils.secret_reader as secret_reader
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
 from reconcile.exceptions import FetchResourceError
+from utils.elasticsearch_exceptions \
+  import (ElasticSearchResourceNameInvalidError,
+          ElasticSearchResourceMissingSubnetIdError,
+          ElasticSearchResourceVersionInvalidError)
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output
@@ -34,7 +38,9 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_vpc_peering_connection,
                                aws_vpc_peering_connection_accepter,
                                aws_cloudwatch_log_group, aws_kms_key,
-                               aws_kms_alias)
+                               aws_kms_alias,
+                               aws_elasticsearch_domain,
+                               aws_iam_service_linked_role)
 
 
 class UnknownProviderError(Exception):
@@ -394,6 +400,9 @@ class TerrascriptClient(object):
             self.populate_tf_resource_cloudwatch(resource, namespace_info)
         elif provider == 'kms':
             self.populate_tf_resource_kms(resource, namespace_info)
+        elif provider == 'elasticsearch':
+            self.populate_tf_resource_elasticsearch(resource, namespace_info,
+                                                    existing_secrets)
         else:
             raise UnknownProviderError(provider)
 
@@ -1726,3 +1735,182 @@ class TerrascriptClient(object):
         cluster = namespace_info['cluster']['name']
         namespace = namespace_info['name']
         return cluster, namespace
+
+    @staticmethod
+    def validate_elasticsearch_version(version):
+        """ Validate ElasticSearch version. """
+        return version in [7.4, 7.1,
+                           6.8, 6.7, 6.5, 6.4, 6.3, 6.2, 6.0,
+                           5.6, 5.5, 5.3, 5.1,
+                           2.3,
+                           1.5]
+
+    @staticmethod
+    def get_elasticsearch_service_role_tf_resource(identifier):
+        """ Service role for ElasticSearch. """
+        service_role = {
+          'aws_service_name': "es.amazonaws.com"
+        }
+        return aws_iam_service_linked_role(identifier, **service_role)
+
+    @staticmethod
+    def is_elasticsearch_domain_name_valid(name):
+        """ Handle for Error creating Elasticsearch:
+        InvalidParameterValue: Elasticsearch domain name must start with a
+        lowercase letter and must be between 3 and 28 characters. Valid
+        characters are a-z (lowercase only), 0-9, and - (hyphen). """
+        if len(name) < 3 or len(name) > 28:
+            return False
+        pattern = r'^[a-z][a-z0-9-]+$'
+        return re.search(pattern, name)
+
+    def populate_tf_resource_elasticsearch(self, resource, namespace_info,
+                                           existing_secrets):
+
+        account, identifier, values, output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        if not self.is_elasticsearch_domain_name_valid(values['identifier']):
+            raise ElasticSearchResourceNameInvalidError(
+                f"[{account}] ElasticSearch domain name must must start with" +
+                f" a lowercase letter and must be between 3 and 28 " +
+                f"characters. Valid characters are a-z (lowercase only), 0-9" +
+                f", and - (hyphen). " +
+                f"{values['identifier']}")
+
+        elasticsearch_version = values.get('elasticsearch_version', 7.4)
+        if not self.validate_elasticsearch_version(elasticsearch_version):
+            raise ElasticSearchResourceVersionInvalidError(
+                f"[{account}] Invalid ElasticSearch version" +
+                f" {values['elasticsearch_version']} provided" +
+                f" for resource {values['identifier']}.")
+
+        es_values = {}
+        es_values["domain_name"] = identifier
+        es_values["elasticsearch_version"] = elasticsearch_version
+        ebs_options = values.get('ebs_options', {})
+
+        es_values["ebs_options"] = {
+            "ebs_enabled": ebs_options.get('ebs_enabled', True),
+            "volume_size": ebs_options.get('volume_size', '100')
+        }
+
+        es_values["encrypt_at_rest"] = {
+            "enabled": values.get('encrypt_at_rest', {}).get('enabled', True)
+        }
+
+        node_to_node_encryption = values.get('node_to_node_encryption', {})
+
+        es_values["node_to_node_encryption"] = {
+            "enabled": node_to_node_encryption.get("enabled", True)
+        }
+
+        domain_endpoint_options = values.get('domain_endpoint_options', {})
+        tls_security_policy = \
+            domain_endpoint_options.get("tls_security_policy",
+                                        'Policy-Min-TLS-1-0-2019-07')
+        enforce_https = domain_endpoint_options.get("enforce_https", True)
+        es_values["domain_endpoint_options"] = {
+            "enforce_https": enforce_https,
+            "tls_security_policy": tls_security_policy
+        }
+
+        cluster_config = values.get('cluster_config', {})
+        dedicated_master_enabled = cluster_config.\
+            get("dedicated_master_enabled", True)
+        dedicated_master_type = cluster_config.\
+            get("dedicated_master_type", 't2.small.elasticsearch')
+        dedicated_master_count = cluster_config.\
+            get("dedicated_master_count", 3)
+        zone_awareness_enabled = cluster_config.\
+            get("zone_awareness_enabled", True)
+
+        es_values["cluster_config"] = {
+            "instance_type": cluster_config.get("instance_type",
+                                                't2.small.elasticsearch'),
+            "instance_count": cluster_config.get("instance_count", 3),
+            "zone_awareness_enabled": zone_awareness_enabled
+        }
+
+        if dedicated_master_enabled:
+            es_values["cluster_config"]["dedicated_master_enabled"] = \
+                dedicated_master_enabled
+            es_values["cluster_config"]["dedicated_master_type"] = \
+                dedicated_master_type
+            es_values["cluster_config"]["dedicated_master_count"] = \
+                dedicated_master_count
+
+        if zone_awareness_enabled:
+            zone_awareness_config = cluster_config.\
+                get("zone_awareness_config", {})
+            availability_zone_count = \
+                zone_awareness_config.get('availability_zone_count', 3)
+            es_values["cluster_config"]['availability_zone_count'] = \
+                availability_zone_count
+
+        snapshot_options = values.get('snapshot_options', {})
+        automated_snapshot_start_hour = \
+            snapshot_options.get("automated_snapshot_start_hour", 23)
+
+        es_values["snapshot_options"] = {
+            "automated_snapshot_start_hour": automated_snapshot_start_hour
+        }
+
+        vpc_options = values.get('vpc_options', {})
+        security_group_ids = vpc_options.get('security_group_ids', None)
+        subnet_ids = vpc_options.get('subnet_ids', None)
+
+        if subnet_ids is None:
+            raise ElasticSearchResourceMissingSubnetIdError(
+                f"[{account}] No subnet ids provided for Elasticsearch" +
+                f" resource {values['identifier']}")
+
+        es_values["vpc_options"] = {
+            'subnet_ids': subnet_ids
+        }
+
+        if security_group_ids is not None:
+            es_values["vpc_options"]['security_group_ids'] = security_group_ids
+
+        svc_role_tf_resource = \
+            self.get_elasticsearch_service_role_tf_resource(identifier)
+
+        es_values['depends_on'] = [svc_role_tf_resource]
+        tf_resources.append(svc_role_tf_resource)
+
+        es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
+        tf_resources.append(es_tf_resource)
+
+        # Setup outputs
+        output_name = output_prefix + '[arn]'
+        output_value = '${' + es_tf_resource.fullname + '.arn}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        output_name = output_prefix + '[domain_id]'
+        output_value = '${' + es_tf_resource.fullname + '.domain_id}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        output_name = output_prefix + '[domain_name]'
+        output_value = '${' + es_tf_resource.fullname + '.domain_name}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        output_name = output_prefix + '[endpoint]'
+        output_value = '${' + es_tf_resource.fullname + '.endpoint}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        output_name = output_prefix + '[kibana_endpoint]'
+        output_value = '${' + es_tf_resource.fullname + '.kibana_endpoint}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        output_name = output_prefix + '[vpc_id]'
+        output_value = '${' + es_tf_resource.fullname + \
+            '.vpc_options.0.vpc_id}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
