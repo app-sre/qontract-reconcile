@@ -302,9 +302,13 @@ class JJB(object):
             all_jobs[name] = []
             jobs = self.get_jobs(wd, name)
             for job in jobs:
-                if not any(job_type in job['name'] for job_type in job_types):
+                job_name = job['name']
+                if not any(job_type in job_name for job_type in job_types):
                     continue
-                if 'test' in job['name']:
+                if 'test' in job_name:
+                    continue
+                # temporarily ignore openshift-saas-deploy jobs
+                if job_name.startswith('openshift-saas-deploy'):
                     continue
                 all_jobs[name].append(job)
 
