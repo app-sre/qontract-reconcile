@@ -46,7 +46,7 @@ local {{ l.name + '__latency' }} = slo.latencySLO({
 {%- for e in errors %}
 local {{ e.name + '__errors' }} = slo.errorsSLO({
   rules: {{ e.rules + '__http_rates.errorRateRules' }},
-  threshold: '{{ e.target }}',
+  threshold: '{{ (e.target|int) / 100 }}',
   {%- if e.additional_labels %}
   labels: {{ labels_to_selectors(e.additional_labels) }},
   {%- endif %}
