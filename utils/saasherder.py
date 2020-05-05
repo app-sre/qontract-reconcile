@@ -5,6 +5,7 @@ import logging
 
 from github import Github
 from sretoolbox.container import Image
+from sretoolbox.utils import retry
 
 import utils.threaded as threaded
 import utils.secret_reader as secret_reader
@@ -82,6 +83,7 @@ class SaasHerder():
                 parameters[k] = 'false'
         return parameters
 
+    @retry()
     def _get_file_contents(self, options):
         url = options['url']
         path = options['path']
