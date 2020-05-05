@@ -54,6 +54,12 @@ class OpenshiftResource(object):
                     valid = self.api_version_mutation(obj1_v, obj2_v)
                     if not valid:
                         return False
+                elif obj1_k == 'imagePullSecrets':
+                    # remove default pull secrets added by k8s
+                    obj2_v_clean = [s for s in obj2_v
+                                    if '-dockercfg-' not in s['name']]
+                    if not self.obj_intersect_equal(obj1_v, obj2_v_clean):
+                        return False
                 elif not self.obj_intersect_equal(obj1_v, obj2_v):
                     return False
 
@@ -65,6 +71,7 @@ class OpenshiftResource(object):
                     return False
 
         elif obj1 != obj2:
+            print('here7')
             return False
 
         return True
