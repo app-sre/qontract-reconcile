@@ -225,9 +225,10 @@ class SaasHerder():
         if auth_code:
             token = secret_reader.read(auth_code, settings=self.settings)
         else:
-            config = get_config()
-            github_config = config['github']
-            token = github_config['app-sre']['token']
+            # use the app-sre token by default
+            default_org_name = 'app-sre'
+            config = get_config(desired_org_name=default_org_name)
+            token = config['github'][default_org_name]['token']
 
         base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
         return Github(token, base_url=base_url)
