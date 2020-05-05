@@ -312,18 +312,6 @@ CLUSTERS_QUERY = """
         }
         cluster {
           name
-          ocm {
-            name
-            url
-            accessTokenClientId
-            accessTokenUrl
-            offlineToken {
-              path
-              field
-              format
-              version
-            }
-          }
           spec {
             region
           }
