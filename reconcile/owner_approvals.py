@@ -54,14 +54,14 @@ def collect_state():
             for target in resource_template['targets']:
                 namespace = target['namespace']['name']
                 cluster = target['namespace']['cluster']['name']
-                target_hash = target['hash']
+                target_ref = target['ref']
                 state.append({
                     'saas_file_path': saas_file_path,
                     'saas_file_name': saas_file_name,
                     'resource_template_name': resource_template_name,
                     'cluster': cluster,
                     'namespace': namespace,
-                    'hash': target_hash
+                    'ref': target_ref
                 })
     return state
 
@@ -95,13 +95,13 @@ def init_gitlab(gitlab_project_id):
 
 def valid_diff(current_state, desired_state):
     """ checks that current_state and desired_state
-    are different only in 'hash' between entries """
+    are different only in 'ref' between entries """
     current_state_copy = copy.deepcopy(current_state)
     for c in current_state_copy:
-        c.pop('hash')
+        c.pop('ref')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
-        d.pop('hash')
+        d.pop('ref')
     return current_state_copy == desired_state_copy
 
 
