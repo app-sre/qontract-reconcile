@@ -76,7 +76,7 @@ CLUSTERS_QUERY = """
 """
 
 
-def get_config():
+def get_config(desired_org_name=None):
     gqlapi = gql.get_api()
     orgs = gqlapi.query(ORGS_QUERY)['orgs']
     settings = queries.get_app_interface_settings()
@@ -84,6 +84,8 @@ def get_config():
     config = {'github': {}}
     for org in orgs:
         org_name = org['name']
+        if desired_org_name and org_name != desired_org_name:
+            continue
         token = secret_reader.read(org['token'], settings=settings)
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
