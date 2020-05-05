@@ -8,6 +8,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     kubeBinary
     pullRequestGateway
     saasDeployJobTemplate
+    hashLength
     dependencies {
       type
       services {
@@ -774,7 +775,7 @@ SAAS_FILES_QUERY = """
             }
           }
         }
-        hash
+        ref
         parameters
       }
     }
