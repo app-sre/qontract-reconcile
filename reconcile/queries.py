@@ -310,6 +310,35 @@ CLUSTERS_QUERY = """
           cidr_block
           region
         }
+        cluster {
+          name
+          ocm {
+            name
+            url
+            accessTokenClientId
+            accessTokenUrl
+            offlineToken {
+              path
+              field
+              format
+              version
+            }
+          }
+          spec {
+            region
+          }
+          network {
+            vpc
+          }
+          peering {
+            vpc_id
+          }
+        }
+        usingAccount {
+          name
+          uid
+          terraformUsername
+        }
       }
     }
     automationToken {

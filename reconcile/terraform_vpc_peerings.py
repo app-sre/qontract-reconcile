@@ -20,6 +20,7 @@ def fetch_desired_state(settings):
                 if c.get('peering') is not None]
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
+
     for cluster_info in clusters:
         cluster = cluster_info['name']
         ocm = ocm_map.get(cluster)
@@ -32,34 +33,71 @@ def fetch_desired_state(settings):
         }
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
-            connection_name = peer_connection['name']
-            peer_vpc = peer_connection['vpc']
-            # accepter is the peered AWS account
-            accepter = {
-                'vpc_id': peer_vpc['vpc_id'],
-                'cidr_block': peer_vpc['cidr_block'],
-                'region': peer_vpc['region']
-            }
-            account = peer_vpc['account']
-            # assume_role is the role to assume to provision the
-            # peering connection request, through the accepter AWS account.
-            # this may change in the future -
-            # in case we add support for peerings between clusters.
-            account['assume_role'] = \
-                ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster,
-                    peer_vpc['account']['uid'],
-                    peer_vpc['account']['terraformUsername']
-                )
-            # assume_region is the region in which the requester resides
-            account['assume_region'] = requester['region']
-            item = {
-                'connection_name': connection_name,
-                'requester': requester,
-                'accepter': accepter,
-                'account': account
-            }
-            desired_state.append(item)
+            # Failsafe in case both a vpc and a cluster is specified for a peering connection
+            if peer_connection['vpc'] and peer_connection['cluster']:
+                msg = f"cannot set vpc and cluster at the same time" \
+                      f"for a peering connection (cluster: {cluster})"
+                raise Exception(msg)
+            # Peer the cluster with a standalone AWS VPC
+            elif peer_connection['vpc']:
+                connection_name = peer_connection['name']
+                peer_vpc = peer_connection['vpc']
+                # accepter is the peered AWS account
+                accepter = {
+                    'vpc_id': peer_vpc['vpc_id'],
+                    'cidr_block': peer_vpc['cidr_block'],
+                    'region': peer_vpc['region']
+                }
+                account = peer_vpc['account']
+                # assume_role is the role to assume to provision the
+                # peering connection request, through the accepter AWS account.
+                # this may change in the future -
+                # in case we add support for peerings between clusters.
+                account['assume_role'] = \
+                    ocm.get_aws_infrastructure_access_terraform_assume_role(
+                        cluster,
+                        peer_vpc['account']['uid'],
+                        peer_vpc['account']['terraformUsername']
+                    )
+                # assume_region is the region in which the requester resides
+                account['assume_region'] = requester['region']
+                item = {
+                    'connection_name': connection_name,
+                    'requester': requester,
+                    'accepter': accepter,
+                    'account': account
+                }
+                desired_state.append(item)
+            # Peer the cluster with another cluster (v4, ocm)
+            elif peer_connection['cluster']:
+                connection_name = peer_connection['name']
+                # peer cluster VPC info
+                peer_vpc_id = peer_connection['cluster']['peering']['vpc_id']
+                peer_vpc_cidr = peer_connection['cluster']['network']['vpc']
+                peer_region = peer_connection['cluster']['spec']['region']
+                # aws account used accepting the peering
+                peering_account = peer_connection['usingAccount']
+                # accepter is the target AWS account VPC
+                accepter = {
+                    'vpc_id': peer_vpc_id,
+                    'cidr_block': peer_vpc_cidr,
+                    'region': peer_region,
+                }
+                peer_ocm = ocm_map.get(peer_connection['cluster']['name'])
+                peering_account['assume_role'] = \
+                    peer_ocm.get_aws_infrastructure_access_terraform_assume_role(
+                        peer_connection['cluster']['name'],
+                        peering_account['uid'],
+                        peering_account['terraformUsername']
+                    )
+                peering_account['assume_region'] = peer_region
+                item = {
+                    'connection_name': connection_name,
+                    'requester': requester,
+                    'accepter': accepter,
+                    'account': peering_account
+                }
+                desired_state.append(item)
 
     return desired_state
 
