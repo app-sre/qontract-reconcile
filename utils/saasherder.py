@@ -136,7 +136,7 @@ class SaasHerder():
         target = options['target']
         parameters = options['parameters']
         github = options['github']
-        target_hash = target['hash']
+        target_ref = target['ref']
         environment = target['namespace']['environment']
         environment_parameters = self._collect_parameters(environment)
         target_parameters = self._collect_parameters(target)
@@ -147,14 +147,14 @@ class SaasHerder():
             get_file_contents_options = {
                 'url': url,
                 'path': path,
-                'ref': target_hash,
+                'ref': target_ref,
                 'github': github
             }
             content, html_url = \
                 self._get_file_contents(get_file_contents_options)
         except Exception as e:
             logging.error(
-                f"[{url}/{path}:{target_hash}] " +
+                f"[{url}/{path}:{target_ref}] " +
                 f"error fetching template: {str(e)}")
             return None, None
 
@@ -165,7 +165,7 @@ class SaasHerder():
                     # add IMAGE_TAG only if it is required
                     get_commit_sha_options = {
                         'url': url,
-                        'ref': target_hash,
+                        'ref': target_ref,
                         'hash_length': hash_length,
                         'github': github
                     }
@@ -264,7 +264,7 @@ class SaasHerder():
             rt_name = rt['name']
             url = rt['url']
             path = rt['path']
-            hash_length = rt['hash_length']
+            hash_length = rt.get('hash_length') or self.settings['hashLength']
             parameters = self._collect_parameters(rt)
             parameters.update(saas_file_parameters)
             # iterate over targets (each target is a namespace)
