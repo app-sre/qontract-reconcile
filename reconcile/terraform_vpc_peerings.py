@@ -33,7 +33,8 @@ def fetch_desired_state(settings):
         }
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
-            # Failsafe in case both a vpc and a cluster is specified for a peering connection
+            # VPC and Cluster cannot be specified at the same time
+            # for a VPC connection
             if peer_connection['vpc'] and peer_connection['cluster']:
                 msg = f"cannot set vpc and cluster at the same time" \
                       f"for a peering connection (cluster: {cluster})"
@@ -83,9 +84,9 @@ def fetch_desired_state(settings):
                     'cidr_block': peer_vpc_cidr,
                     'region': peer_region,
                 }
-                peer_ocm = ocm_map.get(peer_connection['cluster']['name'])
+                p_ocm = ocm_map.get(peer_connection['cluster']['name'])
                 peering_account['assume_role'] = \
-                    peer_ocm.get_aws_infrastructure_access_terraform_assume_role(
+                    p_ocm.get_aws_infrastructure_access_terraform_assume_role(
                         peer_connection['cluster']['name'],
                         peering_account['uid'],
                         peering_account['terraformUsername']
