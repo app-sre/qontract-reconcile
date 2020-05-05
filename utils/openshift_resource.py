@@ -71,7 +71,6 @@ class OpenshiftResource(object):
                     return False
 
         elif obj1 != obj2:
-            print('here7')
             return False
 
         return True
