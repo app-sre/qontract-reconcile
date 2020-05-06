@@ -30,11 +30,8 @@ QUERY = """
 """
 
 
-def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings,
-                                       upstream=''):
+def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
     job_template_name = settings['saasDeployJobTemplate']
-    if upstream:
-        job_template_name += '-with-upstream'
     return f"{job_template_name}-{saas_file_name}-{env_name}"
 
 
@@ -59,11 +56,9 @@ def collect_saas_file_configs():
                 namespace = target['namespace']
                 env_name = namespace['environment']['name']
                 upstream = target.get('upstream', '')
-                job_template_name = get_openshift_saas_deploy_job_name(
-                    saas_file_name,
-                    env_name,
-                    settings,
-                    upstream=upstream)
+                job_template_name = settings['saasDeployJobTemplate']
+                if upstream:
+                    job_template_name += '-with-upstream'
                 app_name = namespace['app']['name']
                 jc_name = get_openshift_saas_deploy_job_name(
                     saas_file_name, env_name, settings)
