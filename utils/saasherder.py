@@ -364,9 +364,11 @@ class SaasHerder():
                 if ref == desired_commit_sha:
                     continue
                 namespace = target['namespace']
-                ns_name = namespace['name']
+                cluster_name = namespace['cluster']['name']
+                namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
-                key = f"{saas_file_name}/{rt_name}/{ns_name}/{env_name}/{ref}"
+                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+                    f"{namespace_name}/{env_name}/{ref}"
                 current_commit_sha = self.state.get(key, None)
                 # skip if there is no change in commit sha
                 if current_commit_sha == desired_commit_sha:
@@ -386,7 +388,8 @@ class SaasHerder():
                     'env_name': env_name,
                     'instance_name': instace_name,
                     'rt_name': rt_name,
-                    'namespace_name': ns_name,
+                    'cluster_name': cluster_name,
+                    'namespace_name': namespace_name,
                     'ref': ref,
                     'commit_sha': desired_commit_sha
                 }
@@ -398,10 +401,12 @@ class SaasHerder():
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
-        ns_name = job_spec['namespace_name']
+        cluster_name = job_spec['cluster_name']
+        namespace_name = job_spec['namespace_name']
         ref = job_spec['ref']
         commit_sha = job_spec['commit_sha']
-        key = f"{saas_file_name}/{rt_name}/{ns_name}/{env_name}/{ref}"
+        key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+            f"{namespace_name}/{env_name}/{ref}"
         self.state.add(key, value=commit_sha, force=True)
 
     def get_configs_diff(self):
@@ -418,9 +423,11 @@ class SaasHerder():
             rt_name = rt['name']
             for desired_target_config in rt['targets']:
                 namespace = desired_target_config['namespace']
+                cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
-                key = f"{saas_file_name}/{rt_name}/{namespace_name}/{env_name}"
+                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+                    f"{namespace_name}/{env_name}"
                 current_target_config = self.state.get(key, None)
                 # skip if there is no change in target configuration
                 if current_target_config == desired_target_config:
@@ -430,6 +437,7 @@ class SaasHerder():
                     'env_name': env_name,
                     'instance_name': instace_name,
                     'rt_name': rt_name,
+                    'cluster_name': cluster_name,
                     'namespace_name': namespace_name,
                     'target_config': desired_target_config
                 }
@@ -441,7 +449,9 @@ class SaasHerder():
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
+        cluster_name = job_spec['cluster_name']
         namespace_name = job_spec['namespace_name']
         target_config = job_spec['target_config']
-        key = f"{saas_file_name}/{rt_name}/{namespace_name}/{env_name}"
+        key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+            f"{namespace_name}/{env_name}"
         self.state.add(key, value=target_config, force=True)
