@@ -10,7 +10,7 @@ from utils.saasherder import SaasHerder
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 
 
-QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-moving-commits'
+QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-configs'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
@@ -37,7 +37,9 @@ def run(dry_run=False, thread_pool_size=10):
     if not saasherder.valid:
         sys.exit(1)
 
-    trigger_specs = saasherder.get_moving_commits_diff(dry_run)
+
+
+    trigger_specs = saasherder.get_configs_diff()
     already_triggered = []
     for job_spec in trigger_specs:
         saas_file_name = job_spec['saas_file_name']
@@ -50,13 +52,14 @@ def run(dry_run=False, thread_pool_size=10):
             if dry_run:
                 already_triggered.append(job_name)
 
+
         if not dry_run:
             jenkins = jenkins_map[instance_name]
             try:
                 if job_name not in already_triggered:
                     jenkins.trigger_job(job_name)
                     already_triggered.append(job_name)
-                saasherder.update_moving_commit(job_spec)
+                saasherder.update_config(job_spec)
             except Exception:
                 logging.error(
                     f"could not trigger job {job_name} in {instance_name}.")
