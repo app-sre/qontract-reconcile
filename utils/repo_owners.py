@@ -119,10 +119,14 @@ class RepoOwners:
         :rtype: dict
         """
         owners_map = dict()
-        aliases = self._get_aliases()
+        aliases = None
 
         repo_tree = self._git_cli.get_repository_tree(ref='master')
         for item in repo_tree:
+            if item['path'] == 'OWNERS_ALIASES':
+                aliases = self._get_aliases()
+                continue
+
             if item['name'] != 'OWNERS':
                 continue
 
@@ -135,7 +139,7 @@ class RepoOwners:
             # Approver might be an alias. Let's resolve them.
             resolved_approvers = set()
             for approver in approvers:
-                if approver in aliases:
+                if aliases is not None and approver in aliases:
                     resolved_approvers.update(aliases[approver])
                 else:
                     resolved_approvers.add(approver)
@@ -145,7 +149,7 @@ class RepoOwners:
             # Reviewer might be an alias. Let's resolve them.
             resolved_reviewers = set()
             for reviewer in reviewers:
-                if reviewer in aliases:
+                if aliases is not None and reviewer in aliases:
                     resolved_reviewers.update(aliases[reviewer])
                 else:
                     resolved_reviewers.add(reviewer)
