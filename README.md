@@ -43,6 +43,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-saas-deploy`: Manage OpenShift resources defined in Saas files (SaasHerder).
 - `openshift-saas-deploy-trigger-moving-commits`: Trigger jobs in Jenkins when a commit changed for a ref.
+- `openshift-saas-deploy-trigger-configs`: Trigger jobs in Jenkins when configuration changed.
 - `openshift-serviceaccount-tokens`: Use OpenShift ServiceAccount tokens across namespaces/clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `quay-membership`: Configures the teams and members in Quay.
