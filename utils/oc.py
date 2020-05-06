@@ -310,7 +310,8 @@ class OC(object):
         if code != 0:
             err = err.decode('utf-8')
             if not (allow_not_found and 'NotFound' in err):
-                raise StatusCodeError(f"[{self.server}] {err}")
+                raise StatusCodeError(f"[{self.server}]: CMD: {cmd} \
+                                      ERROR: {err}")
 
         if not out:
             if allow_not_found:
