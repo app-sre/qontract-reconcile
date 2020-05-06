@@ -91,6 +91,9 @@ class MRApproval:
             # auto-approve the MR
             return approval_status
 
+        if not change_owners_map:
+            return approval_status
+
         report = {}
         lgtms = self.get_lgtms()
 
