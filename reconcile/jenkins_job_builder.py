@@ -30,8 +30,11 @@ QUERY = """
 """
 
 
-def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
+def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings,
+                                       upstream=''):
     job_template_name = settings['saasDeployJobTemplate']
+    if upstream:
+        job_template_name += '-with-upstream'
     return f"{job_template_name}-{saas_file_name}-{env_name}"
 
 
@@ -44,7 +47,6 @@ def collect_saas_file_configs():
     saas_file_configs = []
     saas_files = queries.get_saas_files()
     settings = queries.get_app_interface_settings()
-    job_template_name = settings['saasDeployJobTemplate']
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         jc_instance = saas_file['instance']
@@ -56,9 +58,15 @@ def collect_saas_file_configs():
             for target in resource_template['targets']:
                 namespace = target['namespace']
                 env_name = namespace['environment']['name']
+                upstream = target.get('upstream', '')
+                job_template_name = get_openshift_saas_deploy_job_name(
+                    saas_file_name,
+                    env_name,
+                    settings,
+                    upstream=upstream)
                 app_name = namespace['app']['name']
                 jc_name = get_openshift_saas_deploy_job_name(
-                    saas_file_name, env_name)
+                    saas_file_name, env_name, settings)
                 existing_configs = \
                     [c for c in saas_file_configs if c['name'] == jc_name]
                 if existing_configs:
@@ -82,6 +90,7 @@ def collect_saas_file_configs():
                         'env_name': env_name,
                         'app_name': app_name,
                         'slack_channel': slack_channel,
+                        'upstream': upstream,
                         'jobs': [{
                             job_template_name: {
                                 'display_name': jc_name
