@@ -331,6 +331,11 @@ class OpenshiftResource(object):
             if body['apiVersion'] == 'rbac.authorization.k8s.io/v1':
                 body['apiVersion'] = 'authorization.openshift.io/v1'
 
+        if body['kind'] == 'Role':
+            # TODO: remove this once we have no 3.11 clusters
+            if body['apiVersion'] == 'authorization.openshift.io/v1':
+                body['apiVersion'] = 'rbac.authorization.k8s.io/v1'
+
         if body['kind'] == 'ClusterRoleBinding':
             # TODO: remove this once we have no 3.11 clusters
             if body['apiVersion'] == 'authorization.openshift.io/v1':
