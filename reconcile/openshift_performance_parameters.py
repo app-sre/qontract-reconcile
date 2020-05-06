@@ -112,8 +112,8 @@ def build_template_params(pp):
         params['all_rules'].extend([f"{r['name']}__{c}.rules" for r in pp[c]])
         params[c] = pp[c]
 
-    params['labels'] = pp['labels']
-    params['component'] = pp['component']
+    params['labels'] = {**json.loads(pp['labels']),
+                        'component': pp['component']}
     params['namespace'] = pp['namespace']['name']
     params['prometheus_labels'] = pp['prometheusLabels']
     params['raw'] = []
