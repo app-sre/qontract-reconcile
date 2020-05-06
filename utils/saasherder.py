@@ -12,6 +12,7 @@ import utils.secret_reader as secret_reader
 
 from utils.oc import OC, StatusCodeError
 from utils.openshift_resource import OpenshiftResource as OR
+from utils.state import State
 from reconcile.github_org import get_config
 
 
@@ -23,7 +24,8 @@ class SaasHerder():
                  gitlab,
                  integration,
                  integration_version,
-                 settings):
+                 settings,
+                 accounts=None):
         self.saas_files = saas_files
         self._validate_saas_files()
         if not self.valid:
@@ -34,6 +36,8 @@ class SaasHerder():
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+        if accounts:
+            self._initiate_state(accounts)
 
     def _validate_saas_files(self):
         self.valid = True
@@ -70,6 +74,13 @@ class SaasHerder():
                     namespaces.append(namespace)
         return namespaces
 
+    def _initiate_state(self, accounts):
+        self.state = State(
+            integration=self.integration,
+            accounts=accounts,
+            settings=self.settings
+        )
+
     @staticmethod
     def _collect_parameters(container):
         parameters = container.get('parameters') or {}
@@ -105,8 +116,8 @@ class SaasHerder():
     def _get_commit_sha(self, options):
         url = options['url']
         ref = options['ref']
-        hash_length = options['hash_length']
         github = options['github']
+        hash_length = options.get('hash_length')
         commit_sha = ''
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
@@ -119,7 +130,11 @@ class SaasHerder():
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
             commit_sha = commits[0].id
-        return commit_sha[:hash_length]
+
+        if hash_length:
+            return commit_sha[:hash_length]
+
+        return commit_sha
 
     @staticmethod
     def _get_cluster_and_namespace(target):
@@ -317,3 +332,74 @@ class SaasHerder():
                         resource_name,
                         oc_resource
                     )
+
+    def get_moving_commits_diff(self, dry_run):
+        results = threaded.run(self.get_moving_commits_diff_saas_file,
+                               self.saas_files,
+                               self.thread_pool_size,
+                               dry_run=dry_run)
+        return [item for sublist in results for item in sublist]
+
+    def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
+        saas_file_name = saas_file['name']
+        instace_name = saas_file['instance']['name']
+        github = self._initiate_github(saas_file)
+        trigger_specs = []
+        for rt in saas_file['resourceTemplates']:
+            rt_name = rt['name']
+            url = rt['url']
+            for target in rt['targets']:
+                # don't trigger if there is a linked upstream job
+                if target.get('upstream'):
+                    continue
+                ref = target['ref']
+                get_commit_sha_options = {
+                    'url': url,
+                    'ref': ref,
+                    'github': github
+                }
+                desired_commit_sha = \
+                    self._get_commit_sha(get_commit_sha_options)
+                # don't trigger on refs which are commit shas
+                if ref == desired_commit_sha:
+                    continue
+                namespace = target['namespace']
+                namespace_name = namespace['name']
+                key = f"{saas_file_name}/{rt_name}/{namespace_name}/{ref}"
+                current_commit_sha = self.state.get(key, None)
+                # skip if there is no change in commit sha
+                if current_commit_sha == desired_commit_sha:
+                    continue
+                # don't trigger if this is the first time
+                # this target is being deployed.
+                # that will be taken care of by
+                # openshift-saas-deploy-trigger-configs
+                if current_commit_sha is None:
+                    # store the value to take over from now on
+                    if not dry_run:
+                        self.state.add(key, value=desired_commit_sha)
+                    continue
+                # we finally found something we want to trigger on!
+                env_name = namespace['environment']['name']
+                job_spec = {
+                    'saas_file_name': saas_file_name,
+                    'env_name': env_name,
+                    'instance_name': instace_name,
+                    'rt_name': rt_name,
+                    'namespace_name': namespace_name,
+                    'ref': ref,
+                    'commit_sha': desired_commit_sha
+                }
+                trigger_specs.append(job_spec)
+
+        return trigger_specs
+
+    def update_moving_commit(self, job_spec):
+        saas_file_name = job_spec['saas_file_name']
+        env_name = job_spec['env_name']
+        rt_name = job_spec['rt_name']
+        namespace_name = job_spec['namespace_name']
+        ref = job_spec['ref']
+        commit_sha = job_spec['commit_sha']
+        key = f"{saas_file_name}/{rt_name}/{namespace_name}/{ref}"
+        self.state.add(key, value=commit_sha, force=True)
