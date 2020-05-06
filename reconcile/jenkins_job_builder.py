@@ -30,6 +30,11 @@ QUERY = """
 """
 
 
+def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
+    job_template_name = settings['saasDeployJobTemplate']
+    return f"{job_template_name}-{saas_file_name}-{env_name}"
+
+
 def collect_saas_file_configs():
     # collect a list of jobs per saas file per environment.
     # each saas_file_config should have the structure described
@@ -52,8 +57,8 @@ def collect_saas_file_configs():
                 namespace = target['namespace']
                 env_name = namespace['environment']['name']
                 app_name = namespace['app']['name']
-
-                jc_name = f"{job_template_name}-{saas_file_name}-{env_name}"
+                jc_name = get_openshift_saas_deploy_job_name(
+                    saas_file_name, env_name)
                 existing_configs = \
                     [c for c in saas_file_configs if c['name'] == jc_name]
                 if existing_configs:

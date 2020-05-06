@@ -57,7 +57,7 @@ class State(object):
             Bucket=self.bucket, Prefix=self.state_path)['Contents']
         return [o['Key'].replace(self.state_path, '') for o in objects]
 
-    def add(self, key, value=None):
+    def add(self, key, value=None, force=False):
         """
         Adds a key/value to the state and fails if the key already exists
 
@@ -66,7 +66,7 @@ class State(object):
 
         :type key: string
         """
-        if self.exists(key):
+        if self.exists(key) and not force:
             raise KeyError(f"[state] key {key} already "
                            f"exists in {self.state_path}")
         self[key] = value

@@ -777,6 +777,7 @@ SAAS_FILES_QUERY = """
         }
         ref
         parameters
+        upstream
       }
     }
     roles {

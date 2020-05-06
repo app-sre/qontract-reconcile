@@ -21,6 +21,7 @@ import reconcile.openshift_network_policies
 import reconcile.openshift_performance_parameters
 import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
+import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.owner_approvals
 import reconcile.quay_membership
 import reconcile.quay_mirror
@@ -471,6 +472,16 @@ def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
     run_integration(reconcile.openshift_saas_deploy.run,
                     ctx.obj['dry_run'], thread_pool_size,
                     saas_file_name, env_name)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@threaded()
+@click.pass_context
+def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size):
+    run_integration(
+        reconcile.openshift_saas_deploy_trigger_moving_commits.run,
+        ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()

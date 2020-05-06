@@ -370,11 +370,35 @@ def ls(ctx, integration):
 @click.argument('integration')
 @click.argument('key')
 @click.pass_context
+def get(ctx, integration, key):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
+    state = State(integration, accounts, settings=settings)
+    value = state.get(key)
+    print(value)
+
+
+@state.command()
+@click.argument('integration')
+@click.argument('key')
+@click.pass_context
 def add(ctx, integration, key):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.add(key)
+
+
+@state.command()
+@click.argument('integration')
+@click.argument('key')
+@click.argument('value')
+@click.pass_context
+def set(ctx, integration, key, value):
+    settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
+    state = State(integration, accounts, settings=settings)
+    state.add(key, value=value, force=True)
 
 
 @state.command()
