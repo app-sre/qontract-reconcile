@@ -3,7 +3,6 @@ import semver
 import logging
 
 import reconcile.queries as queries
-import reconcile.openshift_base as ob
 import reconcile.jenkins_plugins as jenkins_base
 
 from utils.gitlab_api import GitLabApi

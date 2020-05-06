@@ -396,7 +396,6 @@ class SaasHerder():
 
     def update_moving_commit(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
-        env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
         namespace_name = job_spec['namespace_name']
         ref = job_spec['ref']
