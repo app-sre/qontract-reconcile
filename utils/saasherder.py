@@ -413,7 +413,6 @@ class SaasHerder():
     def get_configs_diff_saas_file(self, saas_file):
         saas_file_name = saas_file['name']
         instace_name = saas_file['instance']['name']
-        github = self._initiate_github(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']

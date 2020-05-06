@@ -37,8 +37,6 @@ def run(dry_run=False, thread_pool_size=10):
     if not saasherder.valid:
         sys.exit(1)
 
-
-
     trigger_specs = saasherder.get_configs_diff()
     already_triggered = []
     for job_spec in trigger_specs:
@@ -51,7 +49,6 @@ def run(dry_run=False, thread_pool_size=10):
             logging.info(['trigger_job', instance_name, job_name])
             if dry_run:
                 already_triggered.append(job_name)
-
 
         if not dry_run:
             jenkins = jenkins_map[instance_name]
