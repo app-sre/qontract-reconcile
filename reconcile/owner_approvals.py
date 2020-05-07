@@ -137,9 +137,6 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     if len(lgtm_users) == 0:
         gl.remove_label_from_merge_request(
             gitlab_merge_request_id, 'approved')
-        msg = f"Needs approval from one of: {owners[saas_file_name]}. " + \
-            "`/lgtm` to approve."
-        gl.add_merge_request_comment(gitlab_merge_request_id, msg)
         return
 
     changed_paths = \
