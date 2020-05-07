@@ -123,7 +123,7 @@ class RepoOwners:
 
         repo_tree = self._git_cli.get_repository_tree(ref='master')
         for item in repo_tree:
-            if item['path'] == 'OWNERS_ALIASES':
+            if item['name'] == 'OWNERS_ALIASES':
                 aliases = self._get_aliases()
                 continue
 
