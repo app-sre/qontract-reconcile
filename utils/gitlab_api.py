@@ -447,6 +447,10 @@ Please consult relevant SOPs to verify that the account is secure.
                              'created_at': created_at})
         return comments
 
+    def add_merge_request_comment(self, mr_id, comment):
+        merge_request = self.project.mergerequests.get(mr_id)
+        merge_request.notes.create({'body': comment})
+
     def get_merge_request_labels(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.labels
