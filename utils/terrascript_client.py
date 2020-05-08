@@ -420,8 +420,10 @@ class TerrascriptClient(object):
         # only validate names which are not emtpy
         if values['name'] and not self.validate_db_name(values['name']):
             raise FetchResourceError(
-                f"[{account}] RDS name must begin with a letter " +
-                f"and contain only alphanumeric characters: {values['name']}")
+                f"[{account}] RDS name must contain 1 to 63 letters, " +
+                f"numbers, or underscores. RDS name must begin with a " +
+                f"letter. Subsequent characters can be letters, " +
+                f"underscores, or digits (0-9): {values['name']}")
 
         az = values.get('availability_zone')
         provider = ''
@@ -658,8 +660,8 @@ class TerrascriptClient(object):
         """ Handle for Error creating DB Instance:
         InvalidParameterValue: DBName must begin with a letter
         and contain only alphanumeric characters. """
-        pattern = r'^[a-zA-Z][a-zA-Z0-9]+$'
-        return re.search(pattern, name)
+        pattern = r'^[a-zA-Z][a-zA-Z0-9_]+$'
+        return re.search(pattern, name) and len(name) < 64
 
     def determine_db_password(self, namespace_info, output_resource_name,
                               secret_key='db.password'):
