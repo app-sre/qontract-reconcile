@@ -218,12 +218,12 @@ class SaasHerder():
         except KeyError:
             pass
         # init containers
-        try:
-            template = resource["spec"]["template"]
-            for c in template["spec"]["initContainers"]:
-                images.add(c["image"])
-        except KeyError:
-            pass
+        # try:
+        #     template = resource["spec"]["template"]
+        #     for c in template["spec"]["initContainers"]:
+        #         images.add(c["image"])
+        # except KeyError:
+        #     pass
         # CronJob
         try:
             template = resource["spec"]["jobTemplate"]["spec"]["template"]
