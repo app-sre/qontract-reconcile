@@ -48,6 +48,13 @@ class SaasHerder():
             saas_file_name_path_map.setdefault(saas_file_name, [])
             saas_file_name_path_map[saas_file_name].append(saas_file_path)
 
+            saas_file_owners = [u['org_username']
+                                for r in saas_file['roles']
+                                for u in r['users']]
+            if not saas_file_owners:
+                msg = 'saas file {} has no owners: {}'
+                logging.warning(msg.format(saas_file_name, saas_file_path))
+
         duplicates = {saas_file_name: saas_file_paths
                       for saas_file_name, saas_file_paths
                       in saas_file_name_path_map.items()
