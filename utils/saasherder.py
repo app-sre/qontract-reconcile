@@ -90,8 +90,10 @@ class SaasHerder():
         for k, v in parameters.items():
             if v is True:
                 parameters[k] = 'true'
-            if v is False:
+            elif v is False:
                 parameters[k] = 'false'
+            elif any([isinstance(v, t) for t in [dict, list, tuple]]):
+                parameters[k] = json.dumps(v)
         return parameters
 
     @retry()
@@ -201,9 +203,30 @@ class SaasHerder():
 
     def _collect_images(self, resource):
         images = set()
+        # resources with pod templates
         try:
-            for c in resource["spec"]["template"]["spec"]["containers"]:
+            template = resource["spec"]["template"]
+            for c in template["spec"]["containers"]:
                 images.add(c["image"])
+        except KeyError:
+            pass
+        # init containers
+        try:
+            template = resource["spec"]["template"]
+            for c in template["spec"]["initContainers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
+        # CronJob
+        try:
+            template = resource["spec"]["jobTemplate"]["spec"]["template"]
+            for c in template["spec"]["containers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
+        # CatalogSource templates
+        try:
+            images.add(resource["spec"]["image"])
         except KeyError:
             pass
 
