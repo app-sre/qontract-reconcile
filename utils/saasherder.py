@@ -155,8 +155,11 @@ class SaasHerder():
         environment = target['namespace']['environment']
         environment_parameters = self._collect_parameters(environment)
         target_parameters = self._collect_parameters(target)
-        target_parameters.update(environment_parameters)
-        target_parameters.update(parameters)
+
+        consolidated_parameters = {}
+        consolidated_parameters.update(environment_parameters)
+        consolidated_parameters.update(parameters)
+        consolidated_parameters.update(target_parameters)
 
         try:
             get_file_contents_options = {
@@ -174,7 +177,7 @@ class SaasHerder():
             return None, None
 
         template = yaml.safe_load(content)
-        if "IMAGE_TAG" not in target_parameters:
+        if "IMAGE_TAG" not in consolidated_parameters:
             for template_parameter in template['parameters']:
                 if template_parameter['name'] == 'IMAGE_TAG':
                     # add IMAGE_TAG only if it is required
@@ -185,10 +188,10 @@ class SaasHerder():
                         'github': github
                     }
                     image_tag = self._get_commit_sha(get_commit_sha_options)
-                    target_parameters['IMAGE_TAG'] = image_tag
+                    consolidated_parameters['IMAGE_TAG'] = image_tag
         oc = OC('server', 'token')
         try:
-            resources = oc.process(template, target_parameters)
+            resources = oc.process(template, consolidated_parameters)
         except StatusCodeError as e:
             resources = None
             logging.error(
@@ -281,7 +284,11 @@ class SaasHerder():
             path = rt['path']
             hash_length = rt.get('hash_length') or self.settings['hashLength']
             parameters = self._collect_parameters(rt)
-            parameters.update(saas_file_parameters)
+
+            consolidated_parameters = {}
+            consolidated_parameters.update(saas_file_parameters)
+            consolidated_parameters.update(parameters)
+
             # iterate over targets (each target is a namespace)
             for target in rt['targets']:
                 cluster, namespace = \
@@ -293,7 +300,7 @@ class SaasHerder():
                     'path': path,
                     'hash_length': hash_length,
                     'target': target,
-                    'parameters': parameters,
+                    'parameters': consolidated_parameters,
                     'github': github
                 }
                 resources, html_url = \
