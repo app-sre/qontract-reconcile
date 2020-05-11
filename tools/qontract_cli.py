@@ -457,7 +457,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
         return
     saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
     if not saas_files:
-        logging.error('no saas files found')
+        print('no saas files found')
         sys.exit(1)
     for saas_file in saas_files:
         print('# saas file: ' + saas_file['name'])
