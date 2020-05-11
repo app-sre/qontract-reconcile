@@ -245,6 +245,7 @@ class SaasHerder():
         html_url = options['html_url']
         resource = options['resource']
         image_auth = options['image_auth']
+        image_patterns = options['image_patterns']
         error_prefix = \
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         error = False
@@ -256,6 +257,11 @@ class SaasHerder():
             username = None
             password = None
         for image in images:
+            if image_patterns and \
+                    not any(image.startswith(p) for p in image_patterns):
+                error = True
+                logging.error(
+                    f"{error_prefix} Image is not in imagePatterns: {image}")
             try:
                 valid = Image(image, username=username, password=password)
                 if not valid:
@@ -305,6 +311,7 @@ class SaasHerder():
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
         managed_resource_types = saas_file['managedResourceTypes']
+        image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
         # iterate over resource templates (multiple per saas_file)
@@ -349,7 +356,8 @@ class SaasHerder():
                         'resource_template_name': rt_name,
                         'html_url': html_url,
                         'resource': resource,
-                        'image_auth': image_auth
+                        'image_auth': image_auth,
+                        'image_patterns': image_patterns
                     }
                     image_error = self._check_images(check_images_options)
                     if image_error:

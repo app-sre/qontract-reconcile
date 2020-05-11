@@ -724,6 +724,7 @@ SAAS_FILES_QUERY = """
       channel
     }
     managedResourceTypes
+    imagePatterns
     authentication {
       code {
         path
