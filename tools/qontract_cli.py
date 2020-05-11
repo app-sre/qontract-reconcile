@@ -441,6 +441,57 @@ def template(ctx, cluster, namespace, kind, name):
 
 
 @root.command()
+@click.option('--app-name',
+              default=None,
+              help='app to act on.')
+@click.option('--saas-file-name',
+              default=None,
+              help='saas-file to act on.')
+@click.option('--env-name',
+              default=None,
+              help='environment to use for parameters.')
+@click.pass_context
+def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
+    if env_name in [None, '']:
+        print('env-name must be defined')
+        return
+    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
+    if not saas_files:
+        logging.error('no saas files found')
+        sys.exit(1)
+    for saas_file in saas_files:
+        print('# saas file: ' + saas_file['name'])
+        saas_file_parameters = json.loads(saas_file.get('parameters') or '{}')
+        for rt in saas_file['resourceTemplates']:
+            print('## resource template: ' + rt['name'])
+            url = rt['url']
+            path = rt['path']
+            rt_parameters = json.loads(rt.get('parameters') or '{}')
+            for target in rt['targets']:
+                target_parameters = json.loads(target.get('parameters') or '{}')
+                environment = target['namespace']['environment']
+                if environment['name'] != env_name:
+                    continue
+                ref = target['ref']
+                environment_parameters = json.loads(environment.get('parameters') or '{}')
+                parameters = {}
+                parameters.update(environment_parameters)
+                parameters.update(saas_file_parameters)
+                parameters.update(rt_parameters)
+                parameters.update(target_parameters)
+                parameters_cmd = ''
+                for k, v in parameters.items():
+                    parameters_cmd += f" -p {k}={v}"
+                raw_url = url.replace('github.com', 'raw.githubusercontent.com')
+                if 'gitlab' in raw_url:
+                    raw_url += '/raw'
+                raw_url += '/' + ref
+                raw_url += path
+                cmd = f"oc process --local --ignore-unknown-parameters {parameters_cmd} -f {raw_url}"
+                print(cmd)
+
+
+@root.command()
 @click.argument('query')
 @click.option('--output', '-o', help='output type', default='json',
               type=click.Choice(['json', 'yaml']))
