@@ -461,19 +461,23 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
         sys.exit(1)
     for saas_file in saas_files:
         print('# saas file: ' + saas_file['name'])
-        saas_file_parameters = json.loads(saas_file.get('parameters') or '{}')
+        saas_file_parameters = \
+            json.loads(saas_file.get('parameters') or '{}')
         for rt in saas_file['resourceTemplates']:
             print('## resource template: ' + rt['name'])
             url = rt['url']
             path = rt['path']
-            rt_parameters = json.loads(rt.get('parameters') or '{}')
+            rt_parameters = \
+                json.loads(rt.get('parameters') or '{}')
             for target in rt['targets']:
-                target_parameters = json.loads(target.get('parameters') or '{}')
+                target_parameters = \
+                    json.loads(target.get('parameters') or '{}')
                 environment = target['namespace']['environment']
                 if environment['name'] != env_name:
                     continue
                 ref = target['ref']
-                environment_parameters = json.loads(environment.get('parameters') or '{}')
+                environment_parameters = \
+                    json.loads(environment.get('parameters') or '{}')
                 parameters = {}
                 parameters.update(environment_parameters)
                 parameters.update(saas_file_parameters)
@@ -482,12 +486,14 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 parameters_cmd = ''
                 for k, v in parameters.items():
                     parameters_cmd += f" -p {k}={v}"
-                raw_url = url.replace('github.com', 'raw.githubusercontent.com')
+                raw_url = \
+                    url.replace('github.com', 'raw.githubusercontent.com')
                 if 'gitlab' in raw_url:
                     raw_url += '/raw'
                 raw_url += '/' + ref
                 raw_url += path
-                cmd = f"oc process --local --ignore-unknown-parameters {parameters_cmd} -f {raw_url}"
+                cmd = "oc process --local --ignore-unknown-parameters" + \
+                    f"{parameters_cmd} -f {raw_url}"
                 print(cmd)
 
 
