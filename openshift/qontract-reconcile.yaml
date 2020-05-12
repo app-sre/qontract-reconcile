@@ -4066,6 +4066,13 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           resources:
             limits:
               cpu: 50m
