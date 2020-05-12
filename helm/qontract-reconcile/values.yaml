@@ -328,6 +328,7 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+  state: true
 - name: requests-sender
   resources:
     requests:
