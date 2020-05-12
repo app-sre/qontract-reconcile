@@ -460,11 +460,9 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
         print('no saas files found')
         sys.exit(1)
     for saas_file in saas_files:
-        print('# saas file: ' + saas_file['name'])
         saas_file_parameters = \
             json.loads(saas_file.get('parameters') or '{}')
         for rt in saas_file['resourceTemplates']:
-            print('## resource template: ' + rt['name'])
             url = rt['url']
             path = rt['path']
             rt_parameters = \
@@ -472,7 +470,9 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
             for target in rt['targets']:
                 target_parameters = \
                     json.loads(target.get('parameters') or '{}')
-                environment = target['namespace']['environment']
+                namespace = target['namespace']
+                namespace_name = namespace['name']
+                environment = namespace['environment']
                 if environment['name'] != env_name:
                     continue
                 ref = target['ref']
@@ -485,7 +485,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 parameters.update(target_parameters)
                 parameters_cmd = ''
                 for k, v in parameters.items():
-                    parameters_cmd += f" -p {k}={v}"
+                    parameters_cmd += f" -p {k}=\"{v}\""
                 raw_url = \
                     url.replace('github.com', 'raw.githubusercontent.com')
                 if 'gitlab' in raw_url:
@@ -493,7 +493,8 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 raw_url += '/' + ref
                 raw_url += path
                 cmd = "oc process --local --ignore-unknown-parameters" + \
-                    f"{parameters_cmd} -f {raw_url}"
+                    f"{parameters_cmd} -f {raw_url}" + \
+                    f" | oc apply -n {namespace_name} -f - --dry-run"
                 print(cmd)
 
 
