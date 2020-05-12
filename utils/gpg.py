@@ -43,3 +43,32 @@ def gpg_key_valid(public_gpg_key, defer=None):
         return False, msg
 
     return True, ''
+
+
+@defer
+def gpg_encrypt(content, recepient, public_gpg_key, defer=None):
+    public_gpg_key_dec = base64.b64decode(public_gpg_key)
+
+    gnupg_home_dir = tempfile.mkdtemp()
+    defer(lambda: shutil.rmtree(gnupg_home_dir))
+    # import public gpg key
+    proc = Popen(['gpg', '--homedir', gnupg_home_dir,
+                  '--import'],
+                 stdin=PIPE,
+                 stdout=PIPE,
+                 stderr=STDOUT)
+    out = proc.communicate(public_gpg_key_dec)
+    if proc.returncode != 0:
+        return None
+    # encrypt content
+    proc = Popen(['gpg', '--homedir', gnupg_home_dir,
+                  '--trust-model', 'always',
+                  '--encrypt', '--armor', '-r', recepient],
+                 stdin=PIPE,
+                 stdout=PIPE,
+                 stderr=STDOUT)
+    out = proc.communicate(content.encode())
+    if proc.returncode != 0:
+        return None
+
+    return out[0].decode('utf-8')

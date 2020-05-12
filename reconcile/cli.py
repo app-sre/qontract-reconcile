@@ -53,6 +53,7 @@ import reconcile.ocm_groups
 import reconcile.ocm_clusters
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.email_sender
+import reconcile.requests_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
 import reconcile.sql_query
@@ -718,6 +719,13 @@ def ocm_aws_infrastructure_access(ctx):
 @click.pass_context
 def email_sender(ctx):
     run_integration(reconcile.email_sender.run, ctx.obj['dry_run'])
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def requests_sender(ctx):
+    run_integration(reconcile.requests_sender.run, ctx.obj['dry_run'])
 
 
 @integration.command()
