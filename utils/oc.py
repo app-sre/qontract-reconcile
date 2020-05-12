@@ -198,7 +198,7 @@ class OC(object):
         dep_kind: dependant resource kind. currently only supports Secret.
         dep_resource: dependant resource. """
 
-        supported_kinds = ['Secret']
+        supported_kinds = ['Secret', 'ConfigMap']
         if dep_kind not in supported_kinds:
             logging.debug(['skipping_pod_recycle_unsupported',
                            namespace, dep_kind])
@@ -216,6 +216,9 @@ class OC(object):
         if dep_kind == 'Secret':
             pods_to_recycle = [pod for pod in pods
                                if self.secret_used_in_pod(dep_name, pod)]
+        elif dep_kind == 'ConfigMap':
+            pods_to_recycle = [pod for pod in pods
+                               if self.configmap_used_in_pod(dep_name, pod)]
         else:
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
@@ -261,12 +264,12 @@ class OC(object):
         return obj
 
     @staticmethod
-    def secret_used_in_pod(secret_name, pod):
+    def secret_used_in_pod(name, pod):
         volumes = pod['spec']['volumes']
         for v in volumes:
-            secret = v.get('secret', {})
+            volume_item = v.get('secret', {})
             try:
-                if secret['secretName'] == secret_name:
+                if volume_item['secretName'] == name:
                     return True
             except KeyError:
                 continue
@@ -274,13 +277,39 @@ class OC(object):
         for c in containers:
             for e in c.get('envFrom', []):
                 try:
-                    if e['secretRef']['name'] == secret_name:
+                    if e['secretRef']['name'] == name:
                         return True
                 except KeyError:
                     continue
             for e in c.get('env', []):
                 try:
-                    if e['valueFrom']['secretKeyRef']['name'] == secret_name:
+                    if e['valueFrom']['secretKeyRef']['name'] == name:
+                        return True
+                except KeyError:
+                    continue
+        return False
+
+    @staticmethod
+    def configmap_used_in_pod(name, pod):
+        volumes = pod['spec']['volumes']
+        for v in volumes:
+            volume_item = v.get('configMap', {})
+            try:
+                if volume_item['name'] == name:
+                    return True
+            except KeyError:
+                continue
+        containers = pod['spec']['containers']
+        for c in containers:
+            for e in c.get('envFrom', []):
+                try:
+                    if e['configMapRef']['name'] == name:
+                        return True
+                except KeyError:
+                    continue
+            for e in c.get('env', []):
+                try:
+                    if e['valueFrom']['configMapKeyRef']['name'] == name:
                         return True
                 except KeyError:
                     continue
