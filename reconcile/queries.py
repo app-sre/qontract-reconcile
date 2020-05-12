@@ -15,6 +15,13 @@ APP_INTERFACE_SETTINGS_QUERY = """
         name
       }
     }
+    credentials {
+      name
+      secret {
+        path
+        field
+      }
+    }
   }
 }
 """
@@ -72,6 +79,27 @@ def get_app_interface_emails():
     """ Returns Email resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
+
+
+CREDENTIALS_REQUESTS_QUERY = """
+{
+  credentials_requests: credentials_requests_v1 {
+    name
+    description
+    user {
+      org_username
+      public_gpg_key
+    }
+    credentials
+  }
+}
+"""
+
+
+def get_credentials_requests():
+    """ Returns Credentials Requests resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)['credentials_requests']
 
 
 GITLAB_INSTANCES_QUERY = """
