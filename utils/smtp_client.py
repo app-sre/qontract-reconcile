@@ -104,3 +104,13 @@ def send_mails(mails, settings=None):
             send_mail([name], subject, body)
     finally:
         teardown()
+
+
+def get_recepient(org_username, settings):
+    global _client
+    global _mail_address
+
+    if _client is None:
+        init_from_config(settings)
+
+    return f"{org_username}@{_mail_address}"

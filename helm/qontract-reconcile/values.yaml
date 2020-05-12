@@ -328,6 +328,17 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: requests-sender
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 25m
+    limits:
+      memory: 200Mi
+      cpu: 50m
+  logs:
+    slack: true
+    cloudwatch: true
   state: true
 - name: sentry-config
   resources:
