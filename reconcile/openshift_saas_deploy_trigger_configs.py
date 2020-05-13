@@ -54,7 +54,7 @@ def run(dry_run=False, thread_pool_size=10):
             jenkins = jenkins_map[instance_name]
             try:
                 if job_name not in already_triggered:
-                    jenkins.trigger_job(job_name)
+                    # jenkins.trigger_job(job_name)
                     already_triggered.append(job_name)
                 saasherder.update_config(job_spec)
             except Exception:

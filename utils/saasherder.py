@@ -462,15 +462,22 @@ class SaasHerder():
 
     def get_configs_diff_saas_file(self, saas_file):
         saas_file_name = saas_file['name']
+        saas_file_parameters = saas_file.get('parameters')
         instace_name = saas_file['instance']['name']
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
+            rt_parameters = rt.get('parameters')
             for desired_target_config in rt['targets']:
                 namespace = desired_target_config['namespace']
                 cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
+                # add parent parameters to target config
+                desired_target_config['saas_file_parameters'] = \
+                    saas_file_parameters
+                desired_target_config['rt_parameters'] = rt_parameters
+                # get current target config from state
                 key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
                     f"{namespace_name}/{env_name}"
                 current_target_config = self.state.get(key, None)
