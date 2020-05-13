@@ -505,7 +505,7 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
               help='compare between current and desired state.')
 @click.pass_context
 def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
-                    io_dir, compare):
+                     io_dir, compare):
     run_integration(reconcile.saas_file_owners.run,
                     gitlab_project_id, gitlab_merge_request_id,
                     ctx.obj['dry_run'], io_dir, compare)
