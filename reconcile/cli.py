@@ -23,7 +23,7 @@ import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
 import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_configs
-import reconcile.owner_approvals
+import reconcile.saas_file_owners
 import reconcile.quay_membership
 import reconcile.quay_mirror
 import reconcile.quay_repos
@@ -504,9 +504,9 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
               default=True,
               help='compare between current and desired state.')
 @click.pass_context
-def owner_approvals(ctx, gitlab_project_id, gitlab_merge_request_id,
-                    io_dir, compare):
-    run_integration(reconcile.owner_approvals.run,
+def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
+                     io_dir, compare):
+    run_integration(reconcile.saas_file_owners.run,
                     gitlab_project_id, gitlab_merge_request_id,
                     ctx.obj['dry_run'], io_dir, compare)
 

@@ -8,7 +8,7 @@ import utils.throughput as throughput
 from utils.gitlab_api import GitLabApi
 
 
-QONTRACT_INTEGRATION = 'owner-approvals'
+QONTRACT_INTEGRATION = 'saas-file-owners'
 
 
 def get_baseline_file_path(io_dir):
