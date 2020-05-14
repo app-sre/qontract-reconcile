@@ -42,7 +42,8 @@ setup(
         "pyOpenSSL>=19.0.0,<20.0.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
         "terrascript>=0.6.1,<0.7.0",
-        "tabulate>=0.8.6,<0.9.0"
+        "tabulate>=0.8.6,<0.9.0",
+        "UnleashClient>=3.4.2,<3.5.0"
     ],
 
     test_suite="tests",
