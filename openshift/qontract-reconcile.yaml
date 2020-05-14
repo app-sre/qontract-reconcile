@@ -111,6 +111,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 50m
@@ -268,6 +278,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -425,6 +445,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -582,6 +612,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -739,6 +779,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -878,6 +928,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -1035,6 +1095,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -1119,6 +1189,16 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -1171,6 +1251,16 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -1218,6 +1308,16 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -1325,6 +1425,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -1487,6 +1597,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -1644,6 +1764,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -1801,6 +1931,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 500m
@@ -1958,6 +2098,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 250m
@@ -2115,6 +2265,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 800m
@@ -2272,6 +2432,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -2429,6 +2599,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -2586,6 +2766,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -2743,6 +2933,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -2882,6 +3082,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 1200m
@@ -3039,6 +3249,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -3196,6 +3416,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 1200m
@@ -3353,6 +3583,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 400m
@@ -3510,6 +3750,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 500m
@@ -3649,6 +3899,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -3795,6 +4055,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -3925,6 +4195,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 100m
@@ -4073,6 +4353,16 @@ objects:
                 key: aws.s3.bucket
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 50m
@@ -4237,6 +4527,16 @@ objects:
                 key: aws.s3.bucket
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 50m
@@ -4394,6 +4694,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m
@@ -4558,6 +4868,16 @@ objects:
                 key: aws.s3.bucket
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 300m
@@ -4715,6 +5035,16 @@ objects:
                 key: GITHUB_API
           - name: LOG_FILE
             value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
               cpu: 200m

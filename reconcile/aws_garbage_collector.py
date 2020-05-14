@@ -2,6 +2,8 @@ import reconcile.queries as queries
 
 from utils.aws_api import AWSApi
 
+QONTRACT_INTEGRATION = 'aws-garbage-collector'
+
 
 def run(dry_run=False, thread_pool_size=10, io_dir='throughput/'):
     accounts = [a for a in queries.get_aws_accounts()

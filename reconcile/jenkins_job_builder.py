@@ -29,6 +29,8 @@ QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'jenkins-job-builder'
+
 
 def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
     job_template_name = settings['saasDeployJobTemplate']

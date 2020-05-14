@@ -17,6 +17,8 @@ from sretoolbox.utils import retry
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 
+QONTRACT_INTEGRATION = 'github-users'
+
 
 def init_github():
     config = get_config()

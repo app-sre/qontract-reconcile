@@ -20,6 +20,8 @@ REPOS_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'github-repo-invites'
+
 
 def run(dry_run):
     gqlapi = gql.get_api()

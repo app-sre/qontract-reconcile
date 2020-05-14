@@ -39,6 +39,8 @@ BOTS_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'gitlab-members'
+
 
 def get_current_state(instance, gl):
     return {g: gl.get_group_members(g)

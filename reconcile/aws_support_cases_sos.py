@@ -5,6 +5,8 @@ import reconcile.pull_request_gateway as prg
 
 from utils.aws_api import AWSApi
 
+QONTRACT_INTEGRATION = 'aws-support-cases-sos'
+
 
 def get_deleted_keys(accounts):
     return {account['name']: account['deleteKeys']

@@ -7,6 +7,8 @@ import reconcile.queries as queries
 
 from github import Github
 
+QONTRACT_INTEGRATION = 'github-validator'
+
 
 def run(dry_run=False):
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')

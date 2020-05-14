@@ -19,6 +19,8 @@ INSTANCES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'jenkins-plugins'
+
 
 def get_jenkins_map(plugins_only=False):
     gqlapi = gql.get_api()

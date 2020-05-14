@@ -1,6 +1,9 @@
+import os
 import sys
 import logging
 import click
+
+from UnleashClient import UnleashClient
 
 import utils.config as config
 import utils.gql as gql
@@ -63,6 +66,7 @@ from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
+from utils.defer import defer
 
 
 def config_file(function):
@@ -203,9 +207,44 @@ def enable_rebase(**kwargs):
     return f
 
 
-def run_integration(func, *args):
+def get_feature_toggle_default(feature_name: str, context: dict) -> bool:
+    return True
+
+
+@defer
+def get_feature_toggle_state(integration_name, defer=None):
+    api_url = os.environ.get('UNLEASH_API_URL')
+    client_access_token = os.environ.get('UNLEASH_CLIENT_ACCESS_TOKEN')
+    if not (api_url and client_access_token):
+        return True
+
+    # hide INFO logging from UnleashClient
+    logger = logging.getLogger()
+    default_logging = logger.level
+    logger.setLevel(logging.ERROR)
+    defer(lambda: logger.setLevel(default_logging))
+
+    headers = {'Authorization': f'Bearer {client_access_token}'}
+    client = UnleashClient(url=api_url,
+                           app_name='qontract-reconcile',
+                           custom_headers=headers)
+    client.initialize_client()
+    defer(lambda: client.destroy())
+
+    state = client.is_enabled(integration_name,
+                              fallback_function=get_feature_toggle_default)
+    return state
+
+
+def run_integration(func_container, *args):
+    integration_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+    unleash_feature_state = get_feature_toggle_state(integration_name)
+    if not unleash_feature_state:
+        logging.info('Integration toggle is disabled, skipping integration.')
+        sys.exit(0)
+
     try:
-        func(*args)
+        func_container.run(*args)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(1)
@@ -246,7 +285,7 @@ def integration(ctx, configfile, dry_run, log_level):
 @integration.command()
 @click.pass_context
 def github(ctx):
-    run_integration(reconcile.github_org.run, ctx.obj['dry_run'])
+    run_integration(reconcile.github_org, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -258,7 +297,7 @@ def github(ctx):
 @click.pass_context
 def github_users(ctx, gitlab_project_id, thread_pool_size,
                  enable_deletion, send_mails):
-    run_integration(reconcile.github_users.run, ctx.obj['dry_run'],
+    run_integration(reconcile.github_users, ctx.obj['dry_run'],
                     gitlab_project_id, thread_pool_size,
                     enable_deletion, send_mails)
 
@@ -270,14 +309,14 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 @binary(['git', 'git-secrets'])
 @click.pass_context
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.github_scanner.run, ctx.obj['dry_run'],
+    run_integration(reconcile.github_scanner, ctx.obj['dry_run'],
                     gitlab_project_id, thread_pool_size)
 
 
 @integration.command()
 @click.pass_context
 def github_validator(ctx):
-    run_integration(reconcile.github_validator.run, ctx.obj['dry_run'])
+    run_integration(reconcile.github_validator, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -288,7 +327,7 @@ def github_validator(ctx):
 @click.pass_context
 def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
                                   use_jump_host):
-    run_integration(reconcile.openshift_clusterrolebindings.run,
+    run_integration(reconcile.openshift_clusterrolebindings,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -300,7 +339,7 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
 @use_jump_host()
 @click.pass_context
 def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_rolebindings.run, ctx.obj['dry_run'],
+    run_integration(reconcile.openshift_rolebindings, ctx.obj['dry_run'],
                     thread_pool_size, internal, use_jump_host)
 
 
@@ -311,7 +350,7 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
 @use_jump_host()
 @click.pass_context
 def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_groups.run, ctx.obj['dry_run'],
+    run_integration(reconcile.openshift_groups, ctx.obj['dry_run'],
                     thread_pool_size, internal, use_jump_host)
 
 
@@ -322,7 +361,7 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
 @use_jump_host()
 @click.pass_context
 def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_users.run, ctx.obj['dry_run'],
+    run_integration(reconcile.openshift_users, ctx.obj['dry_run'],
                     thread_pool_size, internal, use_jump_host)
 
 
@@ -335,7 +374,7 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 @click.pass_context
 def openshift_serviceaccount_tokens(ctx, thread_pool_size, internal,
                                     use_jump_host, vault_output_path):
-    run_integration(reconcile.openshift_serviceaccount_tokens.run,
+    run_integration(reconcile.openshift_serviceaccount_tokens,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, vault_output_path)
 
@@ -343,13 +382,13 @@ def openshift_serviceaccount_tokens(ctx, thread_pool_size, internal,
 @integration.command()
 @click.pass_context
 def jenkins_roles(ctx):
-    run_integration(reconcile.jenkins_roles.run, ctx.obj['dry_run'])
+    run_integration(reconcile.jenkins_roles, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def jenkins_plugins(ctx):
-    run_integration(reconcile.jenkins_plugins.run, ctx.obj['dry_run'])
+    run_integration(reconcile.jenkins_plugins, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -359,40 +398,40 @@ def jenkins_plugins(ctx):
               help='compare between current and desired state.')
 @click.pass_context
 def jenkins_job_builder(ctx, io_dir, compare):
-    run_integration(reconcile.jenkins_job_builder.run, ctx.obj['dry_run'],
+    run_integration(reconcile.jenkins_job_builder, ctx.obj['dry_run'],
                     io_dir, compare)
 
 
 @integration.command()
 @click.pass_context
 def jenkins_webhooks(ctx):
-    run_integration(reconcile.jenkins_webhooks.run, ctx.obj['dry_run'])
+    run_integration(reconcile.jenkins_webhooks, ctx.obj['dry_run'])
 
 
 @integration.command()
 @throughput
 @click.pass_context
 def jira_watcher(ctx, io_dir):
-    run_integration(reconcile.jira_watcher.run, ctx.obj['dry_run'], io_dir)
+    run_integration(reconcile.jira_watcher, ctx.obj['dry_run'], io_dir)
 
 
 @integration.command()
 @click.pass_context
 def slack_usergroups(ctx):
-    run_integration(reconcile.slack_usergroups.run, ctx.obj['dry_run'])
+    run_integration(reconcile.slack_usergroups, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def gitlab_integrations(ctx):
-    run_integration(reconcile.gitlab_integrations.run, ctx.obj['dry_run'])
+    run_integration(reconcile.gitlab_integrations, ctx.obj['dry_run'])
 
 
 @integration.command()
 @threaded()
 @click.pass_context
 def gitlab_permissions(ctx, thread_pool_size):
-    run_integration(reconcile.gitlab_permissions.run, ctx.obj['dry_run'],
+    run_integration(reconcile.gitlab_permissions, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
@@ -407,7 +446,7 @@ def gitlab_permissions(ctx, thread_pool_size):
 @click.pass_context
 def gitlab_housekeeping(ctx, days_interval,
                         enable_deletion, limit):
-    run_integration(reconcile.gitlab_housekeeping.run,
+    run_integration(reconcile.gitlab_housekeeping,
                     ctx.obj['dry_run'], days_interval, enable_deletion,
                     limit)
 
@@ -417,7 +456,7 @@ def gitlab_housekeeping(ctx, days_interval,
 @click.argument('gitlab-project-id')
 @click.pass_context
 def gitlab_pr_submitter(ctx, gitlab_project_id):
-    run_integration(reconcile.gitlab_pr_submitter.run, gitlab_project_id,
+    run_integration(reconcile.gitlab_pr_submitter, gitlab_project_id,
                     ctx.obj['dry_run'])
 
 
@@ -426,7 +465,7 @@ def gitlab_pr_submitter(ctx, gitlab_project_id):
 @threaded()
 @click.pass_context
 def aws_garbage_collector(ctx, thread_pool_size, io_dir):
-    run_integration(reconcile.aws_garbage_collector.run, ctx.obj['dry_run'],
+    run_integration(reconcile.aws_garbage_collector, ctx.obj['dry_run'],
                     thread_pool_size, io_dir)
 
 
@@ -434,7 +473,7 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
 @threaded()
 @click.pass_context
 def aws_iam_keys(ctx, thread_pool_size):
-    run_integration(reconcile.aws_iam_keys.run, ctx.obj['dry_run'],
+    run_integration(reconcile.aws_iam_keys, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
@@ -444,7 +483,7 @@ def aws_iam_keys(ctx, thread_pool_size):
 @threaded()
 @click.pass_context
 def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.aws_support_cases_sos.run, ctx.obj['dry_run'],
+    run_integration(reconcile.aws_support_cases_sos, ctx.obj['dry_run'],
                     gitlab_project_id, thread_pool_size)
 
 
@@ -455,7 +494,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @use_jump_host()
 @click.pass_context
 def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_resources.run,
+    run_integration(reconcile.openshift_resources,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -471,7 +510,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
               help='environment to deploy to.')
 @click.pass_context
 def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
-    run_integration(reconcile.openshift_saas_deploy.run,
+    run_integration(reconcile.openshift_saas_deploy,
                     ctx.obj['dry_run'], thread_pool_size,
                     saas_file_name, env_name)
 
@@ -482,7 +521,7 @@ def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
 @click.pass_context
 def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size):
     run_integration(
-        reconcile.openshift_saas_deploy_trigger_moving_commits.run,
+        reconcile.openshift_saas_deploy_trigger_moving_commits,
         ctx.obj['dry_run'], thread_pool_size)
 
 
@@ -492,7 +531,7 @@ def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size):
 @click.pass_context
 def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
     run_integration(
-        reconcile.openshift_saas_deploy_trigger_configs.run,
+        reconcile.openshift_saas_deploy_trigger_configs,
         ctx.obj['dry_run'], thread_pool_size)
 
 
@@ -506,7 +545,7 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
 @click.pass_context
 def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
                      io_dir, compare):
-    run_integration(reconcile.saas_file_owners.run,
+    run_integration(reconcile.saas_file_owners,
                     gitlab_project_id, gitlab_merge_request_id,
                     ctx.obj['dry_run'], io_dir, compare)
 
@@ -518,7 +557,7 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
 @use_jump_host()
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_namespaces.run,
+    run_integration(reconcile.openshift_namespaces,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -530,7 +569,7 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
 @use_jump_host()
 @click.pass_context
 def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_network_policies.run,
+    run_integration(reconcile.openshift_network_policies,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -542,7 +581,7 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
 @use_jump_host()
 @click.pass_context
 def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_acme.run,
+    run_integration(reconcile.openshift_acme,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -556,7 +595,7 @@ def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
 @click.pass_context
 def openshift_limitranges(ctx, thread_pool_size, internal,
                           use_jump_host, take_over):
-    run_integration(reconcile.openshift_limitranges.run,
+    run_integration(reconcile.openshift_limitranges,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, take_over)
 
@@ -570,7 +609,7 @@ def openshift_limitranges(ctx, thread_pool_size, internal,
 @click.pass_context
 def openshift_resourcequotas(ctx, thread_pool_size, internal,
                              use_jump_host, take_over):
-    run_integration(reconcile.openshift_resourcequotas.run,
+    run_integration(reconcile.openshift_resourcequotas,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, take_over)
 
@@ -583,7 +622,7 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal,
 @click.pass_context
 def openshift_performance_parameters(ctx, thread_pool_size, internal,
                                      use_jump_host):
-    run_integration(reconcile.openshift_performance_parameters.run,
+    run_integration(reconcile.openshift_performance_parameters,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host)
 
@@ -591,20 +630,20 @@ def openshift_performance_parameters(ctx, thread_pool_size, internal,
 @integration.command()
 @click.pass_context
 def quay_membership(ctx):
-    run_integration(reconcile.quay_membership.run, ctx.obj['dry_run'])
+    run_integration(reconcile.quay_membership, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 @binary(['skopeo'])
 def quay_mirror(ctx):
-    run_integration(reconcile.quay_mirror.run, ctx.obj['dry_run'])
+    run_integration(reconcile.quay_mirror, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def quay_repos(ctx):
-    run_integration(reconcile.quay_repos.run, ctx.obj['dry_run'])
+    run_integration(reconcile.quay_repos, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -612,14 +651,14 @@ def quay_repos(ctx):
 @threaded()
 @click.pass_context
 def ldap_users(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.ldap_users.run, gitlab_project_id,
+    run_integration(reconcile.ldap_users, gitlab_project_id,
                     ctx.obj['dry_run'], thread_pool_size)
 
 
 @integration.command()
 @click.pass_context
 def user_validator(ctx):
-    run_integration(reconcile.user_validator.run, ctx.obj['dry_run'])
+    run_integration(reconcile.user_validator, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -638,7 +677,7 @@ def user_validator(ctx):
 def terraform_resources(ctx, print_only, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
                         light, vault_output_path):
-    run_integration(reconcile.terraform_resources.run,
+    run_integration(reconcile.terraform_resources,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path)
@@ -654,7 +693,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,
                     thread_pool_size, send_mails):
-    run_integration(reconcile.terraform_users.run,
+    run_integration(reconcile.terraform_users,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, io_dir,
                     thread_pool_size, send_mails)
@@ -668,7 +707,7 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 @click.pass_context
 def terraform_vpc_peerings(ctx, print_only, enable_deletion,
                            thread_pool_size):
-    run_integration(reconcile.terraform_vpc_peerings.run,
+    run_integration(reconcile.terraform_vpc_peerings,
                     ctx.obj['dry_run'], print_only,
                     enable_deletion, thread_pool_size)
 
@@ -676,26 +715,26 @@ def terraform_vpc_peerings(ctx, print_only, enable_deletion,
 @integration.command()
 @click.pass_context
 def github_repo_invites(ctx):
-    run_integration(reconcile.github_repo_invites.run, ctx.obj['dry_run'])
+    run_integration(reconcile.github_repo_invites, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def gitlab_members(ctx):
-    run_integration(reconcile.gitlab_members.run, ctx.obj['dry_run'])
+    run_integration(reconcile.gitlab_members, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def gitlab_projects(ctx):
-    run_integration(reconcile.gitlab_projects.run, ctx.obj['dry_run'])
+    run_integration(reconcile.gitlab_projects, ctx.obj['dry_run'])
 
 
 @integration.command()
 @threaded()
 @click.pass_context
 def ocm_groups(ctx, thread_pool_size):
-    run_integration(reconcile.ocm_groups.run, ctx.obj['dry_run'],
+    run_integration(reconcile.ocm_groups, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
@@ -703,14 +742,14 @@ def ocm_groups(ctx, thread_pool_size):
 @threaded()
 @click.pass_context
 def ocm_clusters(ctx, thread_pool_size):
-    run_integration(reconcile.ocm_clusters.run, ctx.obj['dry_run'],
+    run_integration(reconcile.ocm_clusters, ctx.obj['dry_run'],
                     thread_pool_size)
 
 
 @integration.command()
 @click.pass_context
 def ocm_aws_infrastructure_access(ctx):
-    run_integration(reconcile.ocm_aws_infrastructure_access.run,
+    run_integration(reconcile.ocm_aws_infrastructure_access,
                     ctx.obj['dry_run'])
 
 
@@ -718,26 +757,26 @@ def ocm_aws_infrastructure_access(ctx):
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def email_sender(ctx):
-    run_integration(reconcile.email_sender.run, ctx.obj['dry_run'])
+    run_integration(reconcile.email_sender, ctx.obj['dry_run'])
 
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def requests_sender(ctx):
-    run_integration(reconcile.requests_sender.run, ctx.obj['dry_run'])
+    run_integration(reconcile.requests_sender, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def service_dependencies(ctx):
-    run_integration(reconcile.service_dependencies.run, ctx.obj['dry_run'])
+    run_integration(reconcile.service_dependencies, ctx.obj['dry_run'])
 
 
 @integration.command()
 @click.pass_context
 def sentry_config(ctx):
-    run_integration(reconcile.sentry_config.run, ctx.obj['dry_run'])
+    run_integration(reconcile.sentry_config, ctx.obj['dry_run'])
 
 
 @integration.command()
@@ -745,14 +784,14 @@ def sentry_config(ctx):
 @enable_deletion(default=False)
 @click.pass_context
 def sql_query(ctx, enable_deletion):
-    run_integration(reconcile.sql_query.run, ctx.obj['dry_run'],
+    run_integration(reconcile.sql_query, ctx.obj['dry_run'],
                     enable_deletion)
 
 
 @integration.command()
 @click.pass_context
 def gitlab_owners(ctx):
-    run_integration(reconcile.gitlab_owners.run,
+    run_integration(reconcile.gitlab_owners,
                     ctx.obj['dry_run'])
 
 
@@ -762,6 +801,6 @@ def gitlab_owners(ctx):
 @click.argument('gitlab-maintainers-group')
 def gitlab_fork_compliance(gitlab_project_id, gitlab_merge_request_id,
                            gitlab_maintainers_group):
-    run_integration(reconcile.gitlab_fork_compliance.run,
+    run_integration(reconcile.gitlab_fork_compliance,
                     gitlab_project_id, gitlab_merge_request_id,
                     gitlab_maintainers_group)

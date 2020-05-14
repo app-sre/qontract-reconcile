@@ -12,6 +12,8 @@ MERGE_LABELS = ['lgtm', 'automerge', 'approved']
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
+QONTRACT_INTEGRATION = 'gitlab-housekeeping'
+
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'

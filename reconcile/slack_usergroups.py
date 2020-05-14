@@ -66,6 +66,8 @@ ROLES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'slack-usergroups'
+
 
 class GitApi:
     def __new__(cls, url, *args, **kwargs):

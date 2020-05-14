@@ -75,6 +75,8 @@ CLUSTERS_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'github'
+
 
 def get_config(desired_org_name=None):
     gqlapi = gql.get_api()

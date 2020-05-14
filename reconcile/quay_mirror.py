@@ -17,6 +17,8 @@ from utils import secret_reader
 
 _LOG = logging.getLogger(__name__)
 
+QONTRACT_INTEGRATION = 'quay-mirror'
+
 
 class QuayMirror:
 

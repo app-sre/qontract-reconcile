@@ -39,6 +39,8 @@ QUAY_REPOS_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'quay-repos'
+
 
 def fetch_current_state(quay_api_store):
     state = AggregatedList()
