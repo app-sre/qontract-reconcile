@@ -1,9 +1,6 @@
-import os
 import sys
 import logging
 import click
-
-from UnleashClient import UnleashClient
 
 import utils.config as config
 import utils.gql as gql
@@ -66,7 +63,7 @@ from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
-from utils.defer import defer
+from utils.unleash import get_feature_toggle_state
 
 
 def config_file(function):
@@ -205,35 +202,6 @@ def enable_rebase(**kwargs):
                                 help=msg)(function)
         return function
     return f
-
-
-def get_feature_toggle_default(feature_name: str, context: dict) -> bool:
-    return True
-
-
-@defer
-def get_feature_toggle_state(integration_name, defer=None):
-    api_url = os.environ.get('UNLEASH_API_URL')
-    client_access_token = os.environ.get('UNLEASH_CLIENT_ACCESS_TOKEN')
-    if not (api_url and client_access_token):
-        return True
-
-    # hide INFO logging from UnleashClient
-    logger = logging.getLogger()
-    default_logging = logger.level
-    logger.setLevel(logging.ERROR)
-    defer(lambda: logger.setLevel(default_logging))
-
-    headers = {'Authorization': f'Bearer {client_access_token}'}
-    client = UnleashClient(url=api_url,
-                           app_name='qontract-reconcile',
-                           custom_headers=headers)
-    client.initialize_client()
-    defer(lambda: client.destroy())
-
-    state = client.is_enabled(integration_name,
-                              fallback_function=get_feature_toggle_default)
-    return state
 
 
 def run_integration(func_container, *args):
