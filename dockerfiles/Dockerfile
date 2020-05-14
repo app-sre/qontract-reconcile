@@ -35,7 +35,7 @@ RUN yum install -y centos-release-openshift-origin && \
     yum install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm && \
     yum install -y epel-release && \
     yum install -y skopeo && \
-    yum install -y python36 python36-pip origin-clients openssh-clients openssl git unzip gcc && \
+    yum install -y python36 python36-pip origin-clients openssh-clients openssl git unzip gcc gcc-c++ python36-devel && \
     python3 -m pip install --upgrade pip setuptools && \
     python3 -m pip install jenkins-job-builder==${JJB_VERSION} && \
     yum clean all

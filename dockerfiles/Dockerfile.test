@@ -4,7 +4,7 @@ ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 
 RUN yum install -y epel-release && \
-    yum install -y python36 python36-pip git make gcc && \
+    yum install -y python36 python36-pip git make gcc gcc-c++ python36-devel && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
 
