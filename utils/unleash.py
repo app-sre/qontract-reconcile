@@ -8,7 +8,7 @@ from UnleashClient import UnleashClient
 from utils.defer import defer
 
 
-def get_feature_toggle_default(feature_name: str, context: dict) -> bool:
+def get_feature_toggle_default(feature_name, context):
     return True
 
 
