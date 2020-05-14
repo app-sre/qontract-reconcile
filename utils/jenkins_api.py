@@ -127,16 +127,19 @@ class JenkinsApi(object):
                 auth=(self.user, self.password)
             )
             body = res.json()
-            headers = {body['crumbRequestField']: body['crumb']}
+            kwargs = {
+                'headers': {body['crumbRequestField']: body['crumb']},
+                'cookies': res.cookies
+            }
         except Exception:
-            headers = {}
+            kwargs = {}
 
         url = f"{self.url}/job/{job_name}/build"
         res = requests.post(
             url,
             verify=self.ssl_verify,
             auth=(self.user, self.password),
-            headers=headers
+            **kwargs
         )
 
         res.raise_for_status()
