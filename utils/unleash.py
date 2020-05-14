@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 import shutil
 
 from UnleashClient import UnleashClient
