@@ -132,6 +132,16 @@ objects:
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           {{- end }}
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
