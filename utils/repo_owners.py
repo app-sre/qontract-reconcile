@@ -130,6 +130,11 @@ class RepoOwners:
             raw_owners = self._git_cli.get_file(path=item['path'],
                                                 ref=self._ref)
             owners = yaml.safe_load(raw_owners.decode())
+
+            if owners is None:
+                # Non-parsable OWNERS file
+                continue
+
             approvers = owners.get('approvers', set())
 
             # Approver might be an alias. Let's resolve them.
@@ -163,12 +168,16 @@ class RepoOwners:
         :return: owners list per alias basis
         :rtype: dict
         """
-        aliases = dict()
         raw_aliases = self._git_cli.get_file(path='OWNERS_ALIASES',
                                              ref=self._ref)
-        if raw_aliases is not None:
-            aliases = yaml.safe_load(raw_aliases.decode())['aliases']
-        return aliases
+        if raw_aliases is None:
+            return {}
+
+        aliases = yaml.safe_load(raw_aliases.decode())
+        if aliases is None:
+            return {}
+
+        return aliases['aliases']
 
     @staticmethod
     def _set_to_sorted_list(owners):
