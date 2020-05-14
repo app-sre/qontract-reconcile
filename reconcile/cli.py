@@ -232,13 +232,13 @@ def get_feature_toggle_state(integration_name, defer=None):
     defer(lambda: client.destroy())
 
     state = client.is_enabled(integration_name,
-                              fallback_function=get_feature_toggle_true)
+                              fallback_function=get_feature_toggle_default)
     return state
 
 
 def run_integration(func_container, *args):
     integration_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
-    unleash_feature_state = get_feature_toggle_default(integration_name)
+    unleash_feature_state = get_feature_toggle_state(integration_name)
     if not unleash_feature_state:
         logging.info('Integration toggle is disabled, skipping integration.')
         sys.exit(0)
