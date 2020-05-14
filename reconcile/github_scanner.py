@@ -10,6 +10,8 @@ from github.GithubException import UnknownObjectException
 from utils.aws_api import AWSApi
 from reconcile.github_users import init_github
 
+QONTRACT_INTEGRATION = 'github-scanner'
+
 
 def strip_repo_url(repo_url):
     return repo_url.rstrip('/').replace('.git', '')

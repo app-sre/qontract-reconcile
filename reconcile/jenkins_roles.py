@@ -47,6 +47,8 @@ ROLES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'jenkins-roles'
+
 
 def get_jenkins_map():
     gqlapi = gql.get_api()

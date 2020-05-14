@@ -104,6 +104,8 @@ SENTRY_INSTANCES_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'sentry-config'
+
 
 class SentryState:
     def __init__(self):

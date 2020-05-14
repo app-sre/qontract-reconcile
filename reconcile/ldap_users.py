@@ -8,6 +8,8 @@ from utils.gitlab_api import GitLabApi
 
 from collections import defaultdict
 
+QONTRACT_INTEGRATION = 'ldap-users'
+
 
 def init_users():
     app_int_users = queries.get_users()

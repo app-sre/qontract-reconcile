@@ -5,6 +5,8 @@ import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
 
+QONTRACT_INTEGRATION = 'gitlab-projects'
+
 
 def run(dry_run=False):
     instance = queries.get_gitlab_instance()

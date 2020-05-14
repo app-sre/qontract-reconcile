@@ -7,6 +7,8 @@ from utils.defer import defer
 from utils.aws_api import AWSApi
 from utils.terrascript_client import TerrascriptClient as Terrascript
 
+QONTRACT_INTEGRATION = 'aws-iam-keys'
+
 
 def get_keys_to_delete(accounts):
     return {account['name']: account['deleteKeys']

@@ -47,6 +47,7 @@ QUAY_ORG_QUERY = """
 }
 """
 
+QONTRACT_INTEGRATION = 'quay-membership'
 
 def fetch_current_state(quay_api_store):
     state = AggregatedList()

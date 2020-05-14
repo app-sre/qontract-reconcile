@@ -5,6 +5,8 @@ import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
 
+QONTRACT_INTEGRATION = 'gitlab-permissions'
+
 
 def get_members_to_add(repo, gl, app_sre):
     maintainers = gl.get_project_maintainers(repo)
