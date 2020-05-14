@@ -119,11 +119,27 @@ class JenkinsApi(object):
                 if time_limit < self.timestamp_seconds(b['timestamp'])]
 
     def trigger_job(self, job_name):
+        try:
+            crumb_url = f"{self.url}/crumbIssuer/api/json"
+            res = requests.get(
+                crumb_url,
+                verify=self.ssl_verify,
+                auth=(self.user, self.password)
+            )
+            body = res.json()
+            kwargs = {
+                'headers': {body['crumbRequestField']: body['crumb']},
+                'cookies': res.cookies
+            }
+        except Exception:
+            kwargs = {}
+
         url = f"{self.url}/job/{job_name}/build"
         res = requests.post(
             url,
             verify=self.ssl_verify,
-            auth=(self.user, self.password)
+            auth=(self.user, self.password),
+            **kwargs
         )
 
         res.raise_for_status()

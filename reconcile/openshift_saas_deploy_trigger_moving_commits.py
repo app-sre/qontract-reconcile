@@ -39,6 +39,7 @@ def run(dry_run=False, thread_pool_size=10):
 
     trigger_specs = saasherder.get_moving_commits_diff(dry_run)
     already_triggered = []
+    error = False
     for job_spec in trigger_specs:
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
@@ -58,5 +59,9 @@ def run(dry_run=False, thread_pool_size=10):
                     already_triggered.append(job_name)
                 saasherder.update_moving_commit(job_spec)
             except Exception:
+                error = True
                 logging.error(
                     f"could not trigger job {job_name} in {instance_name}.")
+
+    if error:
+        sys.exit(1)
