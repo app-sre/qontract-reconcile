@@ -1,9 +1,6 @@
-import os
 import sys
 import logging
 import click
-
-from UnleashClient import UnleashClient
 
 import utils.config as config
 import utils.gql as gql
@@ -66,6 +63,7 @@ from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
+from utils.unleash import get_feature_toggle_state
 
 
 def config_file(function):
