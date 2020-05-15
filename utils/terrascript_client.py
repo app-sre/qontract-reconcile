@@ -456,7 +456,20 @@ class TerrascriptClient(object):
             values['parameter_group_name'] = pg_name
 
         enhanced_monitoring = values.pop('enhanced_monitoring')
+
+        # monitoring interval should only be set if enhanced monitoring
+        # is true
+        if (
+            not enhanced_monitoring and
+            values.get('monitoring_interval', None)
+        ):
+            values.pop('monitoring_interval')
+
         if enhanced_monitoring:
+            # Set monitoring interval to 60s if it is not set.
+            values['monitoring_interval'] = \
+                values.get('monitoring_interval', 60)
+
             assume_role_policy = {
                 "Version": "2012-10-17",
                 "Statement": [
