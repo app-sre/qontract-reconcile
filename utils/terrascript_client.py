@@ -417,8 +417,11 @@ class TerrascriptClient(object):
                                  output_prefix, output_resource_name)
 
         # we want to allow an empty name, so we
-        # only validate names which are not emtpy
-        if values['name'] and not self.validate_db_name(values['name']):
+        # only validate names which are not empty
+        if (
+            values.get('name', None) and
+            not self.validate_db_name(values['name'])
+        ):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, " +
                 f"numbers, or underscores. RDS name must begin with a " +
@@ -615,7 +618,7 @@ class TerrascriptClient(object):
         tf_resources.append(output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + '[db.name]'
-        output_value = values['name']
+        output_value = values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
