@@ -118,6 +118,8 @@ def valid_diff(current_state, desired_state):
 
 
 def check_if_lgtm(owners, comments):
+    if not owners:
+        return False
     approved = False
     lgtm_comment = False
     sorted_comments = sorted(comments, key=lambda k: k['created_at'])
@@ -174,7 +176,7 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     for diff in diffs:
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
-        saas_file_owners = owners[saas_file_name]
+        saas_file_owners = owners.get(saas_file_name)
         valid_lgtm = check_if_lgtm(saas_file_owners, comments)
         if not valid_lgtm:
             gl.remove_label_from_merge_request(
