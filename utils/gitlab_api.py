@@ -468,6 +468,10 @@ Please consult relevant SOPs to verify that the account is secure.
             labels.remove(label)
         self.update_labels(merge_request, 'merge-request', labels)
 
+    def add_comment_to_merge_request(self, mr_id, body):
+        merge_request = self.project.mergerequests.get(mr_id)
+        merge_request.notes.create({'body': body})
+
     @staticmethod
     def get_items(method, **kwargs):
         all_items = []

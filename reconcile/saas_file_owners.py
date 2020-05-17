@@ -48,20 +48,30 @@ def collect_state():
     for saas_file in saas_files:
         saas_file_path = saas_file['path']
         saas_file_name = saas_file['name']
+        saas_file_parameters = json.loads(saas_file.get('parameters') or '{}')
         resource_templates = saas_file['resourceTemplates']
         for resource_template in resource_templates:
             resource_template_name = resource_template['name']
+            resource_template_parameters = \
+                json.loads(resource_template.get('parameters') or '{}')
             for target in resource_template['targets']:
                 namespace = target['namespace']['name']
                 cluster = target['namespace']['cluster']['name']
                 target_ref = target['ref']
+                target_parameters = \
+                    json.loads(target.get('parameters') or '{}')
+                parameters = {}
+                parameters.update(saas_file_parameters)
+                parameters.update(resource_template_parameters)
+                parameters.update(target_parameters)
                 state.append({
                     'saas_file_path': saas_file_path,
                     'saas_file_name': saas_file_name,
                     'resource_template_name': resource_template_name,
                     'cluster': cluster,
                     'namespace': namespace,
-                    'ref': target_ref
+                    'ref': target_ref,
+                    'parameters': parameters
                 })
     return state
 
@@ -95,14 +105,39 @@ def init_gitlab(gitlab_project_id):
 
 def valid_diff(current_state, desired_state):
     """ checks that current_state and desired_state
-    are different only in 'ref' between entries """
+    are different only in 'ref' or 'parameters' between entries """
     current_state_copy = copy.deepcopy(current_state)
     for c in current_state_copy:
         c.pop('ref')
+        c.pop('parameters')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
+        d.pop('parameters')
     return current_state_copy == desired_state_copy
+
+
+def check_if_lgtm(owners, comments):
+    approved = False
+    lgtm_comment = False
+    sorted_comments = sorted(comments, key=lambda k: k['created_at'])
+    for comment in sorted_comments:
+        commenter = comment['username']
+        if commenter not in owners:
+            continue
+        for line in comment['body'].split('\n'):
+            if line == '/lgtm':
+                lgtm_comment = True
+                approved = True
+            if line == '/lgtm cancel':
+                lgtm_comment = False
+                approved = False
+            if line == '/hold':
+                approved = False
+            if line == '/hold cancel' and lgtm_comment:
+                approved = True
+
+    return approved
 
 
 def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
@@ -131,29 +166,32 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
         return
 
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
-    lgtm_users = [c['username'] for c in comments
-                  for line in c['body'].split('\n')
-                  if line == '/lgtm']
-    if len(lgtm_users) == 0:
-        gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, 'approved')
-        return
 
     changed_paths = \
         gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     diffs = [s for s in desired_state if s not in current_state]
+    comment_lines = {}
     for diff in diffs:
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
-        if not any(lgtm_user in owners[saas_file_name]
-                   for lgtm_user in lgtm_users):
+        saas_file_owners = owners[saas_file_name]
+        valid_lgtm = check_if_lgtm(saas_file_owners, comments)
+        if not valid_lgtm:
             gl.remove_label_from_merge_request(
                 gitlab_merge_request_id, 'approved')
-            return
+            comment_line_body = \
+                f"- changes to saas file '{saas_file_name}' " + \
+                f"require approval (`/lgtm`) from one of: {saas_file_owners}."
+            comment_lines[saas_file_name] = comment_line_body
+            continue
+
         # this diff is approved - remove it from changed_paths
         saas_file_path = diff['saas_file_path']
         changed_paths = [c for c in changed_paths
                          if not c.endswith(saas_file_path)]
+
+    comment_body = '\n'.join(comment_lines.values())
+    gl.add_comment_to_merge_request(gitlab_merge_request_id, comment_body)
 
     # if there are still entries in this list - they are not approved
     if len(changed_paths) != 0:
