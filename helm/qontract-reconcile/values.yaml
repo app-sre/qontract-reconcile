@@ -32,6 +32,17 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: github-owners
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 100m
+    limits:
+      memory: 80Mi
+      cpu: 200m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: github-repo-invites
   resources:
     requests:

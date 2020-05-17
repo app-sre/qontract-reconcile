@@ -5,6 +5,7 @@ import click
 import utils.config as config
 import utils.gql as gql
 import reconcile.github_org
+import reconcile.github_owners
 import reconcile.github_users
 import reconcile.github_scanner
 import reconcile.github_validator
@@ -255,6 +256,12 @@ def integration(ctx, configfile, dry_run, log_level):
 @click.pass_context
 def github(ctx):
     run_integration(reconcile.github_org, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def github_owners(ctx):
+    run_integration(reconcile.github_owners, ctx.obj['dry_run'])
 
 
 @integration.command()
