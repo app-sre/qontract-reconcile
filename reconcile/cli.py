@@ -36,6 +36,7 @@ import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.jenkins_job_builder
 import reconcile.jenkins_webhooks
+import reconcile.jenkins_webhooks_cleaner
 import reconcile.jira_watcher
 import reconcile.slack_usergroups
 import reconcile.gitlab_integrations
@@ -374,6 +375,12 @@ def jenkins_job_builder(ctx, io_dir, compare):
 @click.pass_context
 def jenkins_webhooks(ctx):
     run_integration(reconcile.jenkins_webhooks, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+def jenkins_webhooks_cleaner(ctx):
+    run_integration(reconcile.jenkins_webhooks_cleaner, ctx.obj['dry_run'])
 
 
 @integration.command()

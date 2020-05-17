@@ -102,6 +102,38 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)['credentials_requests']
 
 
+JENKINS_INSTANCES_QUERY = """
+{
+  instances: jenkins_instances_v1 {
+    name
+    serverUrl
+    token {
+      path
+      field
+    }
+    previousUrls
+    plugins
+  }
+}
+"""
+
+
+def get_jenkins_instances():
+    """ Returns a list of Jenkins instances """
+    gqlapi = gql.get_api()
+    return gqlapi.query(JENKINS_INSTANCES_QUERY)['instances']
+
+
+def get_jenkins_instances_previous_urls():
+    instances = get_jenkins_instances()
+    all_previous_urls = []
+    for instance in instances:
+        previous_urls = instance.get('previousUrls')
+        if previous_urls:
+            all_previous_urls.extend(previous_urls)
+    return all_previous_urls
+
+
 GITLAB_INSTANCES_QUERY = """
 {
   instances: gitlabinstance_v1 {
