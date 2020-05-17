@@ -29,7 +29,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `jenkins-roles`: Manage Jenkins roles association via REST API.
 - `jenkins-webhooks`: Manage web hooks to Jenkins jobs.
-- `jenkins-webhooks-cleanup`: Remove webhooks to previous Jenkins instances.
+- `jenkins-webhooks-cleaner`: Remove webhooks to previous Jenkins instances.
 - `jira-watcher`: Watch for changes in Jira boards and notify on Slack.
 - `ldap-users`: Removes users which are not found in LDAP search.
 - `openshift-acme`: Manages openshift-acme deployments (https://github.com/tnozicka/openshift-acme)
