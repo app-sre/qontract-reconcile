@@ -1915,6 +1915,8 @@ class TerrascriptClient(object):
         es_values['depends_on'] = [svc_role_tf_resource]
         tf_resources.append(svc_role_tf_resource)
 
+        es_values['access_policies'] = values.get('access_policies', None)
+
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
 
