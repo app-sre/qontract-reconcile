@@ -1923,7 +1923,8 @@ class TerrascriptClient(object):
                     "Principal": {
                         "AWS": "*"
                     },
-                    "Action": "es:*"
+                    "Action": "es:*",
+                    "Resource": "*"
                 }
             ]
         }
