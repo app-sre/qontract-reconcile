@@ -1,5 +1,6 @@
-import sys
+import logging
 import semver
+import sys
 
 import reconcile.queries as queries
 
@@ -68,6 +69,13 @@ def run(dry_run=False, print_only=False,
         enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     desired_state = fetch_desired_state(settings)
+
+    # check there are no repeated vpc connection names
+    connection_names = [c['connection_name'] for c in desired_state]
+    if len(set(connection_names)) != len(connection_names):
+        logging.error("duplicated vpc connection names found")
+        sys.exit(1)
+
     participating_accounts = \
         [item['account'] for item in desired_state]
     participating_account_names = \
