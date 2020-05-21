@@ -306,9 +306,9 @@ CLUSTERS_QUERY = """
           vpc {
             name
             account {
-            	name
-            	uid
-            	terraformUsername
+              name
+              uid
+              terraformUsername
             }
             vpc_id
             cidr_block
