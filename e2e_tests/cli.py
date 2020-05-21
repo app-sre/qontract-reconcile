@@ -10,6 +10,7 @@ import e2e_tests.default_network_policies
 import e2e_tests.default_project_labels
 
 from utils.aggregated_list import RunnerException
+from reconcile.cli import threaded
 
 
 def run_test(func, *args):
@@ -45,24 +46,28 @@ def test(ctx, configfile, log_level):
 
 
 @test.command()
+@threaded()
 @click.pass_context
-def create_namespace(ctx):
-    run_test(e2e_tests.create_namespace.run)
+def create_namespace(ctx, thread_pool_size):
+    run_test(e2e_tests.create_namespace.run, thread_pool_size)
 
 
 @test.command()
+@threaded()
 @click.pass_context
-def dedicated_admin_rolebindings(ctx):
-    run_test(e2e_tests.dedicated_admin_rolebindings.run)
+def dedicated_admin_rolebindings(ctx, thread_pool_size):
+    run_test(e2e_tests.dedicated_admin_rolebindings.run, thread_pool_size)
 
 
 @test.command()
+@threaded()
 @click.pass_context
-def default_network_policies(ctx):
-    run_test(e2e_tests.default_network_policies.run)
+def default_network_policies(ctx, thread_pool_size):
+    run_test(e2e_tests.default_network_policies.run, thread_pool_size)
 
 
 @test.command()
+@threaded()
 @click.pass_context
-def default_project_labels(ctx):
-    run_test(e2e_tests.default_project_labels.run)
+def default_project_labels(ctx, thread_pool_size):
+    run_test(e2e_tests.default_project_labels.run, thread_pool_size)
