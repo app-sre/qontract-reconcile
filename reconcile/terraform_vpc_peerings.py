@@ -15,8 +15,12 @@ QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def ensure_matching_cluster_peering(from_cluster, peering, to_cluster,
-                                  desired_provider):
+def ensure_matching_peering(from_cluster, peering, to_cluster,
+                            desired_provider):
+    """
+    Ensures there is a matching peering with the desired provider type
+    going from the destination (to) cluster back to this one (from)
+    """
     peering_info = to_cluster['peering']
     peer_connections = peering_info['connections']
     for peer_connection in peer_connections:
@@ -30,6 +34,7 @@ def ensure_matching_cluster_peering(from_cluster, peering, to_cluster,
           f"for cluster {from_cluster['name']} doesn't have a matching " \
           f"peering type {desired_provider} from cluster {to_cluster['name']}"
     return False, msg
+
 
 def build_desired_state_cluster(clusters, ocm_map):
     """
@@ -53,8 +58,11 @@ def build_desired_state_cluster(clusters, ocm_map):
             if not peer_connection['provider'] == 'cluster-vpc-requester':
                 continue
 
-            # Ensure we have a matching peering connection set as cluster-vpc-accepter from the peer cluster
-            found, msg = ensure_matching_cluster_peering(cluster_info, peer_connection, peer_connection['cluster'], 'cluster-vpc-accepter')
+            # Ensure we have a matching peering connection
+            found, msg = ensure_matching_peering(cluster_info,
+                                                 peer_connection,
+                                                 peer_connection['cluster'],
+                                                 'cluster-vpc-accepter')
             if not found:
                 return None, msg
 
@@ -77,11 +85,15 @@ def build_desired_state_cluster(clusters, ocm_map):
                     awsAccount = {
                         'name': awsAccess['awsGroup']['account']['name'],
                         'uid': awsAccess['awsGroup']['account']['uid'],
-                        'terraformUsername': awsAccess['awsGroup']['account']['terraformUsername'],
+                        'terraformUsername': (awsAccess['awsGroup']
+                                                       ['account']
+                                                       ['terraformUsername']),
                     }
             if not awsAccount:
-                return None, "could not find an AWS account with the 'network-mgmt' access level on the cluster"
-            
+                msg = "could not find an AWS account with the " \
+                      "'network-mgmt' access level on the cluster"
+                return None, msg
+
             # find role to use for aws access
             awsAccount['assume_role'] = \
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
@@ -100,6 +112,7 @@ def build_desired_state_cluster(clusters, ocm_map):
             desired_state.append(item)
 
     return desired_state, None
+
 
 def build_desired_state_vpc(clusters, ocm_map):
     """
@@ -151,6 +164,7 @@ def build_desired_state_vpc(clusters, ocm_map):
             }
             desired_state.append(item)
     return desired_state, None
+
 
 @defer
 def run(dry_run=False, print_only=False,
