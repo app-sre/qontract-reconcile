@@ -37,4 +37,3 @@ def run(thread_pool_size=10, defer=None):
     threaded.run(test_cluster, oc_map.clusters(), thread_pool_size,
                  oc_map=oc_map,
                  ns_under_test=ns_under_test)
-        
