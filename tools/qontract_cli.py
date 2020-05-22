@@ -1,7 +1,9 @@
-import sys
 import json
-import yaml
+import sys
+
 import click
+import requests
+import yaml
 
 import utils.gql as gql
 import utils.config as config
@@ -506,3 +508,26 @@ def query(output, query):
     """Run a raw GraphQL query"""
     gqlapi = gql.get_api()
     print_output(output, gqlapi.query(query))
+
+
+@root.command()
+@click.argument('cluster')
+@click.argument('query')
+def promquery(cluster, query):
+    """Run a PromQL query"""
+
+    config_data = config.get_config()
+    auth = {
+        'path': config_data['promql-auth']['secret_path'],
+        'field': 'token'
+    }
+    settings = queries.get_app_interface_settings()
+    prom_auth_creds = secret_reader.read(auth, settings)
+    prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
+
+    url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
+
+    response = requests.get(url, params={'query': query}, auth=prom_auth)
+    response.raise_for_status()
+
+    print(json.dumps(response.json(), indent=4))
