@@ -89,6 +89,7 @@ def fetch_desired_state(namespaces, ri, oc_map):
             source_namespace = source_namespace_info['name']
             source_cluster = source_namespace_info['cluster']['name']
             if cluster != source_cluster:
+                ri.register_error()
                 msg = (
                     "[{}/{}] Network Policy from cluster '{}' not allowed."
                 ).format(cluster, namespace, source_cluster)
