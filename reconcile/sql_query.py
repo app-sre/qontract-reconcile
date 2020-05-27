@@ -40,7 +40,7 @@ spec:
           - /bin/bash
         args:
           - "-c"
-          - 'docker-entrypoint.sh \
+          - 'time docker-entrypoint.sh \
 {{ CMD }} {{ ENGINE }}://$(db.user):$(db.password)@\
 $(db.host):$(db.port)/$(db.name) \
 --command "{{ QUERY }}"{{ OUTPUT_SUFFIX }}'
