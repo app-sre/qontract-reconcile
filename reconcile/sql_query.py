@@ -1,3 +1,4 @@
+import logging
 import semver
 import time
 
@@ -9,12 +10,15 @@ from reconcile import queries
 
 from utils import gql
 from utils.oc import OC_Map
+from utils.oc import StatusCodeError
 from utils.state import State
 from utils.openshift_resource import OpenshiftResource
 
 
 QONTRACT_INTEGRATION = 'sql-query'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
+
+LOG = logging.getLogger(__name__)
 
 JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
@@ -269,13 +273,18 @@ def run(dry_run=False, enable_deletion=False):
                         settings=queries.get_app_interface_settings(),
                         internal=None)
 
-        openshift_base.delete(dry_run=dry_run,
-                              oc_map=oc_map,
-                              cluster=query['cluster'],
-                              namespace=query['namespace']['name'],
-                              resource_type='job',
-                              name=query['name'],
-                              enable_deletion=enable_deletion)
+        try:
+            openshift_base.delete(dry_run=dry_run,
+                                  oc_map=oc_map,
+                                  cluster=query['cluster'],
+                                  namespace=query['namespace']['name'],
+                                  resource_type='job',
+                                  name=query['name'],
+                                  enable_deletion=enable_deletion)
+        except StatusCodeError:
+            LOG.exception("Error removing ['%s' '%s' 'job' '%s']",
+                          query['cluster'], query['namespace']['name'],
+                          query['name'])
 
         if not dry_run:
             state[candidate['name']] = 'DONE'
