@@ -14,33 +14,12 @@ QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def ensure_matching_peering(from_cluster, peering, to_cluster,
-                            desired_provider):
-    """
-    Ensures there is a matching peering with the desired provider type
-    going from the destination (to) cluster back to this one (from)
-    """
-    peering_info = to_cluster['peering']
-    peer_connections = peering_info['connections']
-    for peer_connection in peer_connections:
-            if not peer_connection['provider'] == desired_provider:
-                continue
-            if not peer_connection['cluster']:
-                continue
-            if from_cluster['name'] == peer_connection['cluster']['name']:
-                return True, ""
-    msg = f"peering {peering['name']} of type {peering['provider']} " \
-          f"for cluster {from_cluster['name']} doesn't have a matching " \
-          f"peering type {desired_provider} from cluster {to_cluster['name']}"
-    return False, msg
-
-
-def build_desired_state_cluster(clusters, ocm_map):
-    """
-    Fetch state for VPC peerings between two clusters
-    """
+def fetch_desired_state(settings):
     desired_state = []
-
+    clusters = [c for c in queries.get_clusters()
+                if c.get('peering') is not None]
+    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                     settings=settings)
     for cluster_info in clusters:
         cluster = cluster_info['name']
         ocm = ocm_map.get(cluster)
@@ -53,91 +32,6 @@ def build_desired_state_cluster(clusters, ocm_map):
         }
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
-            # We only care about cluster-vpc-requester peering providers
-            if not peer_connection['provider'] == 'cluster-vpc-requester':
-                continue
-
-            # Ensure we have a matching peering connection
-            found, msg = ensure_matching_peering(cluster_info,
-                                                 peer_connection,
-                                                 peer_connection['cluster'],
-                                                 'cluster-vpc-accepter')
-            if not found:
-                return None, msg
-
-            connection_name = peer_connection['name']
-            # peer cluster VPC info
-            peer_vpc_id = peer_connection['cluster']['peering']['vpc_id']
-            peer_vpc_cidr = peer_connection['cluster']['network']['vpc']
-            peer_region = peer_connection['cluster']['spec']['region']
-            # accepter is the target AWS account VPC
-            accepter = {
-                'vpc_id': peer_vpc_id,
-                'cidr_block': peer_vpc_cidr,
-                'region': peer_region,
-            }
-
-            # Find an aws account with the "network-mgmt" access level
-            awsAccount = None
-            for awsAccess in cluster_info['awsInfrastructureAccess']:
-                if awsAccess.get('accessLevel', "") == "network-mgmt":
-                    awsAccount = {
-                        'name': awsAccess['awsGroup']['account']['name'],
-                        'uid': awsAccess['awsGroup']['account']['uid'],
-                        'terraformUsername': (awsAccess['awsGroup']
-                                                       ['account']
-                                                       ['terraformUsername']),
-                    }
-            if not awsAccount:
-                msg = "could not find an AWS account with the " \
-                      "'network-mgmt' access level on the cluster"
-                return None, msg
-
-            # find role to use for aws access
-            awsAccount['assume_role'] = \
-                ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster,
-                    awsAccount['uid'],
-                    awsAccount['terraformUsername']
-                )
-            if not awsAccount['assume_role']:
-                msg = f"could not find a terraform AWS role for {cluster}"
-                return None, msg
-
-            awsAccount['assume_region'] = peer_region
-            item = {
-                'connection_name': connection_name,
-                'requester': requester,
-                'accepter': accepter,
-                'account': awsAccount
-            }
-
-            desired_state.append(item)
-
-    return desired_state, None
-
-
-def build_desired_state_vpc(clusters, ocm_map):
-    """
-    Fetch state for VPC peerings between a cluster and a VPC (account)
-    """
-    desired_state = []
-
-    for cluster_info in clusters:
-        cluster = cluster_info['name']
-        ocm = ocm_map.get(cluster)
-        peering_info = cluster_info['peering']
-        # requester is the cluster's AWS account
-        requester = {
-            'vpc_id': peering_info['vpc_id'],
-            'cidr_block': cluster_info['network']['vpc'],
-            'region': cluster_info['spec']['region']
-        }
-        peer_connections = peering_info['connections']
-        for peer_connection in peer_connections:
-            # We only care about account-vpc peering providers
-            if not peer_connection['provider'] == 'account-vpc':
-                continue
             connection_name = peer_connection['name']
             peer_vpc = peer_connection['vpc']
             # accepter is the peered AWS account
@@ -166,39 +60,24 @@ def build_desired_state_vpc(clusters, ocm_map):
                 'account': account
             }
             desired_state.append(item)
-    return desired_state, None
+
+    return desired_state
 
 
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
-    clusters = [c for c in queries.get_clusters()
-                if c.get('peering') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
-
-    # Fetch desired state for cluster-to-vpc(account) VPCs
-    desired_state_vpc, err = build_desired_state_vpc(clusters, ocm_map)
-    if err:
-        logging.error(err)
-        sys.exit(1)
-
-    # Fetch desired state for cluster-to-cluster VPCs
-    desired_state_cluster, err = build_desired_state_cluster(clusters, ocm_map)
-    if err:
-        logging.error(err)
-        sys.exit(1)
-
-    desired_state = desired_state_vpc + desired_state_cluster
+    desired_state = fetch_desired_state(settings)
 
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]
     if len(set(connection_names)) != len(connection_names):
-        logging.error("duplicate vpc connection names found")
+        logging.error("duplicated vpc connection names found")
         sys.exit(1)
 
-    participating_accounts = [item['account'] for item in desired_state]
+    participating_accounts = \
+        [item['account'] for item in desired_state]
     participating_account_names = \
         [a['name'] for a in participating_accounts]
     accounts = [a for a in queries.get_aws_accounts()
