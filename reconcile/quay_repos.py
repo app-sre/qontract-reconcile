@@ -12,6 +12,7 @@ QUAY_ORG_CATALOG_QUERY = """
 {
   quay_orgs: quay_orgs_v1 {
     name
+    serverUrl
     automationToken {
       path
       field
@@ -188,9 +189,10 @@ def get_quay_api_store():
 
     for org_data in result['quay_orgs']:
         name = org_data['name']
+        server_url = org_data.get('serverUrl')
         token = secret_reader.read(org_data['automationToken'],
                                    settings=settings)
-        store[name] = QuayApi(token, name)
+        store[name] = QuayApi(token, name,base_url=server_url)
 
     return store
 
