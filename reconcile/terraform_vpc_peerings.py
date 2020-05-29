@@ -100,6 +100,10 @@ def build_desired_state_cluster(clusters, ocm_map):
                     awsAccount['uid'],
                     awsAccount['terraformUsername']
                 )
+            if not awsAccount['assume_role']:
+                msg = f"could not find a terraform AWS role for {cluster}"
+                return None, msg
+            
             awsAccount['assume_region'] = peer_region
             item = {
                 'connection_name': connection_name,
