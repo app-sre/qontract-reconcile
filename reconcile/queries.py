@@ -270,7 +270,6 @@ CLUSTERS_QUERY = """
     awsInfrastructureAccess {
       awsGroup {
         account {
-          name
           uid
           terraformUsername
         }
@@ -301,64 +300,15 @@ CLUSTERS_QUERY = """
       vpc_id
       connections {
         name
-        provider
-        ... on ClusterPeeringConnectionAccount_v1 {
-          vpc {
+        vpc {
+          account {
             name
-            account {
-              name
-              uid
-              terraformUsername
-            }
-            vpc_id
-            cidr_block
-            region
+            uid
+            terraformUsername
           }
-        }
-        ... on ClusterPeeringConnectionClusterRequester_v1 {
-          cluster {
-            name
-            network {
-              vpc
-            }
-            spec {
-              region
-            }
-            peering {
-              vpc_id
-              connections {
-                name
-                provider
-                ... on ClusterPeeringConnectionClusterAccepter_v1 {
-                  name
-                  cluster {
-                    name
-                    spec {
-                      region
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        ... on ClusterPeeringConnectionClusterAccepter_v1 {
-          cluster {
-            name
-            peering {
-              vpc_id
-              connections {
-                name
-                provider
-                ... on ClusterPeeringConnectionClusterRequester_v1 {
-                  name
-                  cluster {
-                    name
-                  }
-                }
-              }
-            }
-          }
+          vpc_id
+          cidr_block
+          region
         }
       }
     }
