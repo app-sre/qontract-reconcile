@@ -192,7 +192,7 @@ def get_quay_api_store():
         server_url = org_data.get('serverUrl')
         token = secret_reader.read(org_data['automationToken'],
                                    settings=settings)
-        store[name] = QuayApi(token, name,base_url=server_url)
+        store[name] = QuayApi(token, name, base_url=server_url)
 
     return store
 
