@@ -40,6 +40,7 @@ class QuayMirror:
         quayRepos {
           org {
             name
+            serverUrl
           }
           items {
             name
@@ -81,12 +82,14 @@ class QuayMirror:
 
             for quay_repo in quay_repos:
                 org = quay_repo['org']['name']
+                server_url = quay_repo['org'].get('serverUrl') or 'quay.io'
                 for item in quay_repo['items']:
                     if item['mirror'] is None:
                         continue
 
                     summary[org].append({'name': item["name"],
-                                         'mirror': item['mirror']})
+                                         'mirror': item['mirror'],
+                                         'server_url': server_url})
 
         return summary
 
@@ -99,7 +102,7 @@ class QuayMirror:
         sync_tasks = defaultdict(list)
         for org, data in summary.items():
             for item in data:
-                image = Image(f'quay.io/{org}/{item["name"]}')
+                image = Image(f'{item["server_url"]}/{org}/{item["name"]}')
                 image_mirror = Image(item['mirror'])
 
                 for tag in image_mirror:

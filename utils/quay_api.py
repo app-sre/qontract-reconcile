@@ -11,12 +11,14 @@ class QuayApi(object):
     API_URL = 'https://quay.io/api/v1'
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, team=None):
+    def __init__(self, token, organization, team=None, base_url=None):
         self.token = token
         self.organization = organization
         self.team = team
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
         self.team_members = None
+        if base_url:
+            self.API_URL = f"https://{base_url}/api/v1"
 
     def list_team_members(self, **kwargs):
         if self.team is None:
