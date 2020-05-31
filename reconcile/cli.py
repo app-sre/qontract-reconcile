@@ -17,6 +17,8 @@ import reconcile.openshift_limitranges
 import reconcile.openshift_resourcequotas
 import reconcile.openshift_users
 import reconcile.openshift_resources
+import reconcile.openshift_vault_secrets
+import reconcile.openshift_routes
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
 import reconcile.openshift_performance_parameters
@@ -594,6 +596,32 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal,
     run_integration(reconcile.openshift_resourcequotas,
                     ctx.obj['dry_run'], thread_pool_size, internal,
                     use_jump_host, take_over)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_vault_secrets(ctx, thread_pool_size, internal,
+                            use_jump_host):
+    run_integration(reconcile.openshift_vault_secrets,
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_routes(ctx, thread_pool_size, internal,
+                     use_jump_host):
+    run_integration(reconcile.openshift_routes,
+                    ctx.obj['dry_run'], thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
