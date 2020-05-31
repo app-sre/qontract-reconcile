@@ -14,6 +14,7 @@ QUAY_ORG_CATALOG_QUERY = """
   quay_orgs: quay_orgs_v1 {
     name
     managedTeams
+    serverUrl
     automationToken {
       path
       field
@@ -148,13 +149,15 @@ def get_quay_api_store():
 
     for org_data in result['quay_orgs']:
         name = org_data['name']
+        server_url = org_data.get('serverUrl')
         token = secret_reader.read(org_data['automationToken'],
                                    settings=settings)
         managed_teams = org_data.get('managedTeams')
 
         store[name] = {}
         for team in managed_teams:
-            store[name][team] = QuayApi(token, name, team)
+            store[name][team] = QuayApi(token, name, team,
+                                        base_url=server_url)
 
     return store
 
