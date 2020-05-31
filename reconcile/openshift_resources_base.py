@@ -505,7 +505,6 @@ def conicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
         openshift_resources = namespace_info.get('openshiftResources')
-        managed_resource_types = namespace_info.get('managedResourceTypes')
         if openshift_resources:
             for resource in openshift_resources[:]:
                 if resource['provider'] not in providers:
