@@ -5,7 +5,7 @@ import semver
 import anymarkup
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
-import reconcile.openshift_resources as openshift_resources
+import reconcile.openshift_resources_base as orb
 
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.openshift_resource import ConstructResourceError
@@ -88,7 +88,7 @@ def construct_resources(namespaces):
         acme_account_secret = acme.get("accountSecret", {})
         if acme_account_secret:
             namespace["resources"].append(
-                openshift_resources.fetch_provider_vault_secret(
+                orb.fetch_provider_vault_secret(
                     acme_account_secret['path'],
                     acme_account_secret['version'],
                     'acme-account',
