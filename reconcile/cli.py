@@ -28,6 +28,7 @@ import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.saas_file_owners
 import reconcile.quay_membership
+import reconcile.gcr_mirror
 import reconcile.quay_mirror
 import reconcile.quay_repos
 import reconcile.ldap_users
@@ -650,6 +651,13 @@ def openshift_performance_parameters(ctx, thread_pool_size, internal,
 @click.pass_context
 def quay_membership(ctx):
     run_integration(reconcile.quay_membership, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.pass_context
+@binary(['skopeo'])
+def gcr_mirror(ctx):
+    run_integration(reconcile.gcr_mirror, ctx.obj['dry_run'])
 
 
 @integration.command()
