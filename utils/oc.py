@@ -258,7 +258,7 @@ class OC(object):
     def get_obj_root_owner(self, ns, obj):
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
-            if r['controller']:
+            if r.get('controller'):
                 controller_obj = self.get(ns, r['kind'], r['name'])
                 return self.get_obj_root_owner(ns, controller_obj)
         return obj
