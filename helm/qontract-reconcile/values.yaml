@@ -251,18 +251,6 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     cloudwatch: true
-- name: openshift-serviceaccount-tokens
-  resources:
-    requests:
-      memory: 300Mi
-      cpu: 100m
-    limits:
-      memory: 600Mi
-      cpu: 200m
-  extraArgs: --no-use-jump-host --vault-output-path app-sre/integrations-output
-  logs:
-    slack: true
-    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:
