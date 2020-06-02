@@ -242,8 +242,8 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
 def fetch_provider_vault_secret(
         path, version, name,
         labels, annotations, type,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION):
+        integration,
+        integration_version):
     # get the fields from vault
     raw_data = vault_client.read_all({'path': path, 'version': version})
 
@@ -367,9 +367,11 @@ def fetch_openshift_resource(resource, parent):
         rt = resource['type']
         type = 'Opaque' if rt is None else rt
         try:
-            openshift_resource = \
-                fetch_provider_vault_secret(path, version, name,
-                                            labels, annotations, type)
+            openshift_resource = fetch_provider_vault_secret(
+                path, version, name,
+                labels, annotations, type,
+                integration=QONTRACT_INTEGRATION,
+                integration_version=QONTRACT_INTEGRATION_VERSION)
         except vault_client.SecretVersionNotFound as e:
             raise FetchVaultSecretError(e)
     elif provider == 'route':
