@@ -75,6 +75,16 @@ integrations:
       cpu: 300m
   logs:
     cloudwatch: true
+- name: gcr-mirror
+  resources:
+    requests:
+      memory: 150Mi
+      cpu: 200m
+    limits:
+      memory: 200Mi
+      cpu: 300m
+  logs:
+    cloudwatch: true
 - name: quay-repos
   resources:
     requests:
