@@ -9,10 +9,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 3)
 
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    providers = ['resource', 'resource-template', 'vault-secret', 'route']
-    # remove the above line and un-comment the next one when activating
-    # openshift-vault-secrets and openshift-routes
-    # providers = ['resource', 'resource-template']
+    providers = ['resource', 'resource-template']
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
