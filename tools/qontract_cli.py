@@ -9,7 +9,7 @@ import utils.gql as gql
 import utils.config as config
 import utils.secret_reader as secret_reader
 import reconcile.queries as queries
-import reconcile.openshift_resources as ocr
+import reconcile.openshift_resources_base as orb
 
 from tabulate import tabulate
 
@@ -422,7 +422,7 @@ def rm(ctx, integration, key):
 @click.pass_context
 def template(ctx, cluster, namespace, kind, name):
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(ocr.NAMESPACES_QUERY)['namespaces']
+    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)['namespaces']
     namespace_info = [n for n in namespaces
                       if n['cluster']['name'] == cluster
                       and n['name'] == namespace]
@@ -433,7 +433,7 @@ def template(ctx, cluster, namespace, kind, name):
     [namespace_info] = namespace_info
     openshift_resources = namespace_info.get('openshiftResources')
     for r in openshift_resources:
-        openshift_resource = ocr.fetch_openshift_resource(r, namespace_info)
+        openshift_resource = orb.fetch_openshift_resource(r, namespace_info)
         if openshift_resource.kind.lower() != kind.lower():
             continue
         if openshift_resource.name != name:
