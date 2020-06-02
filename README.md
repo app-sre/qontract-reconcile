@@ -43,11 +43,13 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-performance-parameters`: Manages Performance Parameters files from services.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
+- `openshift-routes`: Manages OpenShift Routes.
 - `openshift-saas-deploy`: Manage OpenShift resources defined in Saas files (SaasHerder).
 - `openshift-saas-deploy-trigger-moving-commits`: Trigger jobs in Jenkins when a commit changed for a ref.
 - `openshift-saas-deploy-trigger-configs`: Trigger jobs in Jenkins when configuration changed.
 - `openshift-serviceaccount-tokens`: Use OpenShift ServiceAccount tokens across namespaces/clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
+- `openshift-vault-secrets`: Manages OpenShift Secrets from Vault.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-mirror`: Mirrors external images into Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
