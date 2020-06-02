@@ -251,6 +251,29 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     cloudwatch: true
+    slack: true
+- name: openshift-vault-secrets
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 900m
+    limits:
+      memory: 1200Mi
+      cpu: 1200m
+  extraArgs: --external --no-use-jump-host
+  logs:
+    cloudwatch: true
+- name: openshift-routes
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 300m
+  extraArgs: --no-use-jump-host
+  logs:
+    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:
