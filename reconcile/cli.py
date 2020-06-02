@@ -250,7 +250,7 @@ def integration(ctx, configfile, dry_run, log_level):
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
-    gql.init_from_config()
+    gql.init_from_config(cache_resources=True)
     ctx.obj['dry_run'] = dry_run
 
 

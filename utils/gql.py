@@ -21,9 +21,12 @@ class GqlGetResourceError(Exception):
 
 
 class GqlApi(object):
-    def __init__(self, url, token=None):
+    _resource_cache = None
+
+    def __init__(self, url, token=None, cache_resources=False):
         self.url = url
         self.token = token
+        self.cache_resources = cache_resources
 
         self.client = GraphQLClient(self.url)
 
@@ -54,6 +57,17 @@ class GqlApi(object):
         return result['data']
 
     def get_resource(self, path):
+        if self.cache_resources:
+            try:
+                resource = self.get_resource_cache()[path]
+            except KeyError:
+                raise GqlGetResourceError(path, 'Resource not found.')
+        else:
+            resource = self._do_get_resource(path)
+
+        return resource
+
+    def _do_get_resource(self, path):
         query = """
         query Resource($path: String) {
             resources: resources_v1 (path: $path) {
@@ -69,21 +83,26 @@ class GqlApi(object):
         except GqlApiError as e:
             if '409' in str(e):
                 raise e
-            raise GqlGetResourceError(
-                path,
-                'Resource not found.')
+            raise GqlGetResourceError(path, 'Resource not found.')
 
         if len(resources) != 1:
-            raise GqlGetResourceError(
-                path,
-                'Expecting one and only one resource.')
+            raise GqlGetResourceError(path,
+                                      'Expecting one and only one resource.')
 
         return resources[0]
 
+    def get_resource_cache(self):
+        if not self._resource_cache:
+            data = self.query("{ resources_v1 { path content sha256sum }}")
+            resources = data['resources_v1']
+            self._resource_cache = {r['path']: r for r in resources}
 
-def init(url, token=None):
+        return self._resource_cache
+
+
+def init(url, token=None, cache_resources=False):
     global _gqlapi
-    _gqlapi = GqlApi(url, token)
+    _gqlapi = GqlApi(url, token, cache_resources)
     return _gqlapi
 
 
@@ -96,7 +115,7 @@ def get_sha_url(server, token=None):
     return f'{gql_sha_endpoint}/{sha}'
 
 
-def init_from_config(sha_url=True):
+def init_from_config(sha_url=True, cache_resources=False):
     config = get_config()
 
     server = config['graphql']['server']
@@ -104,7 +123,7 @@ def init_from_config(sha_url=True):
     if sha_url:
         server = get_sha_url(server, token)
 
-    return init(server, token)
+    return init(server, token, cache_resources)
 
 
 def get_api():
