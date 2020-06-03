@@ -398,3 +398,14 @@ integrations:
     slack: true
     cloudwatch: true
   extraArgs: --no-use-jump-host
+cronjobs:
+- name: aws-ecr-image-pull-secrets
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 200m
+    limits:
+      memory: 200Mi
+      cpu: 300m
+  cron: '0 */6 * * *'
+  extraArgs: --vault-output-path app-sre/integrations-output

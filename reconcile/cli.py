@@ -52,6 +52,7 @@ import reconcile.gitlab_pr_submitter
 import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
+import reconcile.aws_ecr_image_pull_secrets
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
 import reconcile.ocm_clusters
@@ -459,6 +460,14 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
 def aws_iam_keys(ctx, thread_pool_size):
     run_integration(reconcile.aws_iam_keys, ctx.obj['dry_run'],
                     thread_pool_size)
+
+
+@integration.command()
+@vault_output_path
+@click.pass_context
+def aws_ecr_image_pull_secrets(ctx, vault_output_path):
+    run_integration(reconcile.aws_ecr_image_pull_secrets, ctx.obj['dry_run'],
+                    vault_output_path)
 
 
 @integration.command()

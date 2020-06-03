@@ -224,6 +224,9 @@ AWS_ACCOUNTS_QUERY = """
       integrations
     }
     deleteKeys
+    ecrs {
+      region
+    }
   }
 }
 """

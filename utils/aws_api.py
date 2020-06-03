@@ -536,3 +536,12 @@ class AWSApi(object):
                 logging.error(msg.format(account, str(e)))
 
         return all_support_cases
+
+    def get_ecr_auth_tokens(self):
+        auth_tokens = {}
+        for account, s in self.sessions.items():
+            ecr = s.client('ecr')
+            token = ecr.get_authorization_token()
+            auth_tokens[account] = token
+
+        return auth_tokens

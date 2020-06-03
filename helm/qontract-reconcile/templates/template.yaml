@@ -204,6 +204,55 @@ objects:
           emptyDir: {}
         {{- end }}
 {{- end }}
+{{- range $i, $integration := .Values.cronjobs }}
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-{{ $integration.name }}
+    name: qontract-reconcile-{{ $integration.name }}
+  spec:
+    schedule: "{{ $integration.cron }}"
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: {{ $integration.name }}
+              - name: INTEGRATION_EXTRA_ARGS
+                value: "{{ $integration.extraArgs }}"
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+{{ toYaml $integration.resources | indent 16 }}
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+{{- end }}
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
