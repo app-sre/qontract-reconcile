@@ -12,6 +12,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 
 - `aws-garbage-collector`: Delete orphan AWS resources.
 - `aws-iam-keys`: Delete IAM access keys by access key ID.
+- `aws-ecr-image-pull-secrets`: Generate AWS ECR image pull secrets and store them in Vault.
 - `aws-support-cases-sos`: Scan AWS support cases for reports of leaked keys and remove them (only submits PR)
 - `github-repo-invites`: Accept GitHub repository invitations for known repositories.
 - `github-scanner`: Scan GitHub repositories for leaked keys and remove them (only submits PR).
