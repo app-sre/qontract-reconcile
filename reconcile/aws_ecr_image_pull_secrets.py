@@ -34,7 +34,7 @@ def construct_dockercfg_secret_data(data):
         }
     }
 
-    return {'.dockercfg': enc_dec(json.dumps(data))}
+    return {'.dockerconfigjson': enc_dec(json.dumps(data))}
 
 
 def construct_basic_auth_secret_data(data):
