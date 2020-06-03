@@ -28,7 +28,7 @@ def construct_dockercfg_secret_data(data):
             server: {
                 'username': 'AWS',
                 'password': password,
-                'email': '',
+                'email': 'sd-app-sre@redhat.com',
                 'auth': token
             }
         }
