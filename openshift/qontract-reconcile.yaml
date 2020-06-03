@@ -5428,6 +5428,8 @@ objects:
             - name: int
               image: ${IMAGE}:${IMAGE_TAG}
               env:
+              - name: RUN_ONCE
+                value: 'true'
               - name: DRY_RUN
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
