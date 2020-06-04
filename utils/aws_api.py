@@ -19,10 +19,13 @@ class InvalidResourceTypeError(Exception):
 class AWSApi(object):
     """Wrapper around AWS SDK"""
 
-    def __init__(self, thread_pool_size, accounts, settings=None):
+    def __init__(self, thread_pool_size, accounts, settings=None,
+                 init_ecr_auth_tokens=False):
         self.thread_pool_size = thread_pool_size
         self.settings = settings
         self.init_sessions_and_resources(accounts)
+        if init_ecr_auth_tokens:
+            self.init_ecr_auth_tokens(accounts)
         self.init_users()
         self._lock = Lock()
         self.resource_types = \
@@ -537,11 +540,31 @@ class AWSApi(object):
 
         return all_support_cases
 
-    def get_ecr_auth_tokens(self):
-        auth_tokens = {}
-        for account, s in self.sessions.items():
-            ecr = s.client('ecr')
-            token = ecr.get_authorization_token()
-            auth_tokens[account] = token
+    def init_ecr_auth_tokens(self, accounts):
+        accounts_with_ecr = [a for a in accounts if a.get('ecrs')]
+        if not accounts_with_ecr:
+            return
 
-        return auth_tokens
+        auth_tokens = {}
+        results = threaded.run(self.get_tf_secrets, accounts_with_ecr,
+                               self.thread_pool_size)
+        account_secrets = {account: secret for account, secret in results}
+        for account in accounts_with_ecr:
+            account_name = account['name']
+            account_secret = account_secrets[account_name]
+            access_key = account_secret['aws_access_key_id']
+            secret_key = account_secret['aws_secret_access_key']
+
+            ecrs = account['ecrs']
+            for ecr in ecrs:
+                region_name = ecr['region']
+                session = boto3.Session(
+                    aws_access_key_id=access_key,
+                    aws_secret_access_key=secret_key,
+                    region_name=region_name,
+                )
+                client = session.client('ecr')
+                token = client.get_authorization_token()
+                auth_tokens[f"{account_name}/{region_name}"] = token
+
+        self.auth_tokens = auth_tokens
