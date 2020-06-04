@@ -193,7 +193,8 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
                          if not c.endswith(saas_file_path)]
 
     comment_body = '\n'.join(comment_lines.values())
-    gl.add_comment_to_merge_request(gitlab_merge_request_id, comment_body)
+    if comment_body:
+        gl.add_comment_to_merge_request(gitlab_merge_request_id, comment_body)
 
     # if there are still entries in this list - they are not approved
     if len(changed_paths) != 0:
