@@ -1949,11 +1949,13 @@ class TerrascriptClient(object):
         tf_resources.append(output(output_name, value=output_value))
 
         output_name = output_prefix + '[endpoint]'
-        output_value = '${' + es_tf_resource.fullname + '.endpoint}'
+        output_value = 'https://' + \
+            '${' + es_tf_resource.fullname + '.endpoint}'
         tf_resources.append(output(output_name, value=output_value))
 
         output_name = output_prefix + '[kibana_endpoint]'
-        output_value = '${' + es_tf_resource.fullname + '.kibana_endpoint}'
+        output_value = 'https://' + \
+            '${' + es_tf_resource.fullname + '.kibana_endpoint}'
         tf_resources.append(output(output_name, value=output_value))
 
         output_name = output_prefix + '[vpc_id]'
