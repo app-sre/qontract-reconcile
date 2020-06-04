@@ -119,23 +119,31 @@ class RepoOwners:
         :rtype: dict
         """
         owners_map = dict()
-        aliases = self._get_aliases()
 
         repo_tree = self._git_cli.get_repository_tree(ref='master')
-        for item in repo_tree:
-            if item['name'] != 'OWNERS':
-                continue
 
-            # Loading the list of approvers
-            raw_owners = self._git_cli.get_file(path=item['path'],
+        aliases = None
+        owner_files = list()
+        for item in repo_tree:
+            if item['path'] == 'OWNERS_ALIASES':
+                aliases = self._get_aliases()
+            elif item['name'] == 'OWNERS':
+                owner_files.append(item)
+
+        for owner_file in owner_files:
+            raw_owners = self._git_cli.get_file(path=owner_file['path'],
                                                 ref=self._ref)
             owners = yaml.safe_load(raw_owners.decode())
+            if owners is None:
+                # Non-parsable OWNERS file
+                continue
+
             approvers = owners.get('approvers', set())
 
             # Approver might be an alias. Let's resolve them.
             resolved_approvers = set()
             for approver in approvers:
-                if approver in aliases:
+                if aliases is not None and approver in aliases:
                     resolved_approvers.update(aliases[approver])
                 else:
                     resolved_approvers.add(approver)
@@ -145,13 +153,13 @@ class RepoOwners:
             # Reviewer might be an alias. Let's resolve them.
             resolved_reviewers = set()
             for reviewer in reviewers:
-                if reviewer in aliases:
+                if aliases is not None and reviewer in aliases:
                     resolved_reviewers.update(aliases[reviewer])
                 else:
                     resolved_reviewers.add(reviewer)
 
-            # The OWNERS file basedir is the owners_map key
-            owners_path = str(pathlib.Path(item['path']).parent)
+            # The OWNERS file basedir is the owners_map dictionary key
+            owners_path = str(pathlib.Path(owner_file['path']).parent)
             owners_map[owners_path] = {'approvers': resolved_approvers,
                                        'reviewers': resolved_reviewers}
         return owners_map
@@ -163,12 +171,16 @@ class RepoOwners:
         :return: owners list per alias basis
         :rtype: dict
         """
-        aliases = dict()
         raw_aliases = self._git_cli.get_file(path='OWNERS_ALIASES',
                                              ref=self._ref)
-        if raw_aliases is not None:
-            aliases = yaml.safe_load(raw_aliases.decode())['aliases']
-        return aliases
+        if raw_aliases is None:
+            return {}
+
+        aliases = yaml.safe_load(raw_aliases.decode())
+        if aliases is None:
+            return {}
+
+        return aliases['aliases']
 
     @staticmethod
     def _set_to_sorted_list(owners):
