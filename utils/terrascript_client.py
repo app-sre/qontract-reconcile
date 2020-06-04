@@ -1505,6 +1505,7 @@ class TerrascriptClient(object):
             "Statement": [
                 {
                     "Action": [
+                        "logs:CreateLogGroup",
                         "logs:DescribeLogStreams",
                         "logs:CreateLogStream",
                         "logs:PutLogEvents"
