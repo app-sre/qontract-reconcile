@@ -41,7 +41,8 @@ def construct_basic_auth_secret_data(data):
     auth_data = data['authorizationData'][0]
     token = auth_data['authorizationToken']
     password = get_password(token)
-    return {'user': enc_dec('AWS'), 'token': enc_dec(password)}
+    url = enc_dec(auth_data['proxyEndpoint'].replace('https://', ''))
+    return {'user': enc_dec('AWS'), 'token': enc_dec(password), 'url': url}
 
 
 def write_output_to_vault(dry_run, vault_path, account, secret_data, name):
