@@ -4554,7 +4554,7 @@ objects:
           - name: INTEGRATION_NAME
             value: ocm-github-idp
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--vault-input-path app-sre/ci-int/github-oauth"
+            value: "--vault-input-path app-sre/integrations-input"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
