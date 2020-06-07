@@ -237,6 +237,7 @@ class GitLabApi(object):
 
         # add key to deleteKeys list to be picked up by aws-iam-keys
         msg = 'add key to deleteKeys'
+        path = path.lstrip('/')
         f = self.project.files.get(file_path=path, ref=target_branch)
         content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
         content.setdefault('deleteKeys', [])
@@ -556,6 +557,7 @@ Please consult relevant SOPs to verify that the account is secure.
         Wrapper around Gitlab.files.get() with exception handling.
         """
         try:
+            path = path.lstrip('/')
             return self.project.files.get(file_path=path, ref=ref)
         except gitlab.exceptions.GitlabGetError:
             return None
