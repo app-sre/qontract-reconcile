@@ -211,6 +211,60 @@ class OCM(object):
             aws_infrastructure_access_role_grant_id = rg['id']
             self._delete(f"{api}/{aws_infrastructure_access_role_grant_id}")
 
+    def get_github_idp_teams(self, cluster):
+        """Returns a list of details of GitHub IDP providers
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        result_idps = []
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
+        idps = self._get_json(api)['items']
+        for idp in idps:
+            if idp['type'] != 'GithubIdentityProvider':
+                continue
+            if idp['mapping_method'] != 'claim':
+                continue
+            idp_name = idp['name']
+            idp_github = idp['github']
+
+            item = {
+                'cluster': cluster,
+                'name': idp_name,
+                'client_id': idp_github['client_id'],
+                'teams': idp_github.get('teams')
+            }
+            result_idps.append(item)
+        return result_idps
+
+    def create_github_idp_teams(self, spec):
+        """Creates a new GitHub IDP
+
+        :param cluster: cluster name
+        :param spec: required information for idp creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster = spec['cluster']
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
+        payload = {
+            'type': 'GithubIdentityProvider',
+            'mapping_method': 'claim',
+            'name': spec['name'],
+            'github': {
+                'client_id': spec['client_id'],
+                'client_secret': spec['client_secret'],
+                'teams': spec['teams']
+            }
+        }
+        self._post(api, payload)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
