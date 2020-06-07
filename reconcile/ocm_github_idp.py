@@ -85,7 +85,8 @@ def run(dry_run=False, vault_input_path=''):
                 if c.get('ocm') is not None
                 and c.get('auth') is not None]
     ocm_map, current_state = fetch_current_state(clusters, settings)
-    desired_state, error = fetch_desired_state(clusters, vault_input_path, settings)
+    desired_state, error = \
+        fetch_desired_state(clusters, vault_input_path, settings)
     if error:
         sys.exit(1)
     act(dry_run, ocm_map, current_state, desired_state)
