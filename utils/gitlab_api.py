@@ -559,3 +559,17 @@ Please consult relevant SOPs to verify that the account is secure.
             return self.project.files.get(file_path=path, ref=ref)
         except gitlab.exceptions.GitlabGetError:
             return None
+
+    def initiate_saas_bundle_repo(self, repo_url):
+        project = self.get_project(repo_url)
+        if project is None:
+            return
+        self.project = project
+        self.create_file(
+            'master',
+            'README.md',
+            'Initial commit',
+            'Use the staging or the production branches.'
+        )
+        self.create_branch('staging', 'master')
+        self.create_branch('production', 'master')

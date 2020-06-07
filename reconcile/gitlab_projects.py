@@ -11,7 +11,10 @@ QONTRACT_INTEGRATION = 'gitlab-projects'
 def run(dry_run=False):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    app_int_repos = queries.get_repos()
+    code_components = queries.get_code_components()
+    app_int_repos = [c['url'] for c in code_components]
+    saas_bundle_repos = [c['url'] for c in code_components
+                         if c['resource'] == 'bundle']
     gl = GitLabApi(instance, settings=settings)
 
     project_requests = instance['projectRequests'] or []
@@ -32,5 +35,9 @@ def run(dry_run=False):
             logging.info(['create_project', group, p])
             if not dry_run:
                 gl.create_project(group_id, p)
+            if project_url in saas_bundle_repos:
+                logging.info(['initiate_saas_bundle_repo', group, p])
+                if not dry_run:
+                    gl.initiate_saas_bundle_repo(project_url)
 
     sys.exit(error)
