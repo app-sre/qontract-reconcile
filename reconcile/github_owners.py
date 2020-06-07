@@ -6,6 +6,7 @@ from github import Github
 import utils.gql as gql
 
 from reconcile.github_org import get_config
+from utils.raw_github_api import RawGithubApi
 
 
 ROLES_QUERY = """
@@ -68,9 +69,12 @@ def run(dry_run=True):
         config = get_config(desired_org_name=github_org_name)
         token = config['github'][github_org_name]['token']
         gh = Github(token, base_url=base_url)
+        raw_gh = RawGithubApi(token)
         gh_org = gh.get_organization(github_org_name)
         gh_org_members = gh_org.get_members(role='admin')
         current_github_usernames = [m.login for m in gh_org_members]
+        invitations = raw_gh.org_invitations(github_org_name)
+        current_github_usernames.extend(invitations)
         for github_username in desired_github_usernames:
             if github_username not in current_github_usernames:
                 logging.info(['add_owner', github_org_name, github_username])
