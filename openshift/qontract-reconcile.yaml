@@ -9,173 +9,6 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile-aws-garbage-collector
-    name: qontract-reconcile-aws-garbage-collector
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: qontract-reconcile-aws-garbage-collector
-    template:
-      metadata:
-        labels:
-          app: qontract-reconcile-aws-garbage-collector
-      spec:
-        initContainers:
-        - name: config
-          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
-          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
-          resources:
-            requests:
-              memory: 10Mi
-              cpu: 15m
-            limits:
-              memory: 20Mi
-              cpu: 25m
-          env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
-          - name: LOG_GROUP_NAME
-            valueFrom:
-              secretKeyRef:
-                name: ${CLOUDWATCH_SECRET}
-                key: log_group_name
-          command: ["/bin/sh", "-c"]
-          args:
-          - |
-            # generate fluent.conf
-            cat > /fluentd/etc/fluent.conf <<EOF
-            <source>
-              @type tail
-              path /fluentd/log/integration.log
-              pos_file /fluentd/log/integration.log.pos
-              tag integration
-              <parse>
-                @type none
-              </parse>
-            </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <match integration>
-              @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[aws-garbage-collector] %s\`\`\`"
-              </store>
-              <store>
-                @type cloudwatch_logs
-                log_group_name ${LOG_GROUP_NAME}
-                log_stream_name aws-garbage-collector
-                auto_create_stream true
-              </store>
-            </match>
-            EOF
-          volumeMounts:
-          - name: fluentd-config
-            mountPath: /fluentd/etc/
-        containers:
-        - name: int
-          image: ${IMAGE}:${IMAGE_TAG}
-          env:
-          - name: DRY_RUN
-            value: ${DRY_RUN}
-          - name: INTEGRATION_NAME
-            value: aws-garbage-collector
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
-          - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
-          - name: GITHUB_API
-            valueFrom:
-              configMapKeyRef:
-                name: app-interface
-                key: GITHUB_API
-          - name: LOG_FILE
-            value: "${LOG_FILE}"
-          - name: UNLEASH_API_URL
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: API_URL
-          - name: UNLEASH_CLIENT_ACCESS_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: CLIENT_ACCESS_TOKEN
-          resources:
-            limits:
-              cpu: 50m
-              memory: 400Mi
-            requests:
-              cpu: 25m
-              memory: 200Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
-          - name: logs
-            mountPath: /fluentd/log/
-        - name: fluentd
-          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
-          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
-          env:
-          - name: AWS_REGION
-            valueFrom:
-              secretKeyRef:
-                name: ${CLOUDWATCH_SECRET}
-                key: aws_region
-          - name: AWS_ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: ${CLOUDWATCH_SECRET}
-                key: aws_access_key_id
-          - name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: ${CLOUDWATCH_SECRET}
-                key: aws_secret_access_key
-          resources:
-            requests:
-              memory: 30Mi
-              cpu: 15m
-            limits:
-              memory: 120Mi
-              cpu: 25m
-          volumeMounts:
-          - name: logs
-            mountPath: /fluentd/log/
-          - name: fluentd-config
-            mountPath: /fluentd/etc/
-        volumes:
-        - name: qontract-reconcile-toml
-          secret:
-            secretName: qontract-reconcile-toml
-        - name: logs
-          emptyDir: {}
-        - name: fluentd-config
-          emptyDir: {}
-- apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    labels:
       app: qontract-reconcile-aws-iam-keys
     name: qontract-reconcile-aws-iam-keys
   spec:
@@ -1472,68 +1305,6 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
-- apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    labels:
-      app: qontract-reconcile-github-users
-    name: qontract-reconcile-github-users
-  spec:
-    replicas: 1
-    selector:
-      matchLabels:
-        app: qontract-reconcile-github-users
-    template:
-      metadata:
-        labels:
-          app: qontract-reconcile-github-users
-      spec:
-        containers:
-        - name: int
-          image: ${IMAGE}:${IMAGE_TAG}
-          env:
-          - name: DRY_RUN
-            value: ${DRY_RUN}
-          - name: INTEGRATION_NAME
-            value: github-users
-          - name: INTEGRATION_EXTRA_ARGS
-            value: ""
-          - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
-          - name: GITHUB_API
-            valueFrom:
-              configMapKeyRef:
-                name: app-interface
-                key: GITHUB_API
-          - name: UNLEASH_API_URL
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: API_URL
-          - name: UNLEASH_CLIENT_ACCESS_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: CLIENT_ACCESS_TOKEN
-          - name: gitlab_pr_submitter_queue_url
-            valueFrom:
-              secretKeyRef:
-                name: ${APP_INTERFACE_SQS_SECRET_NAME}
-                key: gitlab_pr_submitter_queue_url
-          resources:
-            limits:
-              cpu: 300m
-              memory: 150Mi
-            requests:
-              cpu: 200m
-              memory: 50Mi
-          volumeMounts:
-          - name: qontract-reconcile-toml
-            mountPath: /config
-        volumes:
-        - name: qontract-reconcile-toml
-          secret:
-            secretName: qontract-reconcile-toml
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -5610,6 +5381,119 @@ objects:
                 requests:
                   cpu: 200m
                   memory: 100Mi
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-aws-garbage-collector
+    name: qontract-reconcile-aws-garbage-collector
+  spec:
+    schedule: "0 0 * * 0"
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: aws-garbage-collector
+              - name: INTEGRATION_EXTRA_ARGS
+                value: ""
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: 50m
+                  memory: 400Mi
+                requests:
+                  cpu: 25m
+                  memory: 200Mi
+            restartPolicy: OnFailure
+            volumes:
+            - name: qontract-reconcile-toml
+              secret:
+                secretName: qontract-reconcile-toml
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    labels:
+      app: qontract-reconcile-github-users
+    name: qontract-reconcile-github-users
+  spec:
+    schedule: "0 0 1 * *"
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+            - name: int
+              image: ${IMAGE}:${IMAGE_TAG}
+              env:
+              - name: RUN_ONCE
+                value: 'true'
+              - name: DRY_RUN
+                value: ${DRY_RUN}
+              - name: INTEGRATION_NAME
+                value: github-users
+              - name: INTEGRATION_EXTRA_ARGS
+                value: "--send-mails"
+              - name: GITHUB_API
+                valueFrom:
+                  configMapKeyRef:
+                    name: app-interface
+                    key: GITHUB_API
+              - name: UNLEASH_API_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: API_URL
+              - name: UNLEASH_CLIENT_ACCESS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: unleash
+                    key: CLIENT_ACCESS_TOKEN
+              - name: gitlab_pr_submitter_queue_url
+                valueFrom:
+                  secretKeyRef:
+                    name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                    key: gitlab_pr_submitter_queue_url
+              volumeMounts:
+              - name: qontract-reconcile-toml
+                mountPath: /config
+              resources:
+                limits:
+                  cpu: 300m
+                  memory: 150Mi
+                requests:
+                  cpu: 200m
+                  memory: 50Mi
             restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
