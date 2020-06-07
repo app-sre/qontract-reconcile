@@ -1,15 +1,4 @@
 integrations:
-- name: aws-garbage-collector
-  resources:
-    requests:
-        memory: 200Mi
-        cpu: 25m
-    limits:
-      memory: 400Mi
-      cpu: 50m
-  logs:
-    slack: true
-    cloudwatch: true
 - name: aws-iam-keys
   resources:
     requests:
@@ -96,17 +85,6 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
-- name: github-users
-  resources:
-    requests:
-      memory: 50Mi
-      cpu: 200m
-    limits:
-      memory: 150Mi
-      cpu: 300m
-  extraEnv:
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: gitlab_pr_submitter_queue_url
 - name: jira-watcher
   resources:
     requests:
@@ -417,5 +395,30 @@ cronjobs:
     limits:
       memory: 200Mi
       cpu: 300m
+  # once every 6 hours
   cron: '0 */6 * * *'
   extraArgs: --vault-output-path app-sre/integrations-output
+- name: aws-garbage-collector
+  resources:
+    requests:
+        memory: 200Mi
+        cpu: 25m
+    limits:
+      memory: 400Mi
+      cpu: 50m
+  # once a week
+  cron: '0 0 * * 0'
+- name: github-users
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 200m
+    limits:
+      memory: 150Mi
+      cpu: 300m
+  # once a month
+  cron: '0 0 1 * *'
+  extraArgs: --send-mails
+  extraEnv:
+  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
+    secretKey: gitlab_pr_submitter_queue_url

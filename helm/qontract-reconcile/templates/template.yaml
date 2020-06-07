@@ -244,6 +244,15 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
+              {{- with $integration.extraEnv }}
+              {{- range $i, $env := . }}
+              - name: {{ $env.secretKey }}
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ $env.secretName }}
+                    key: {{ $env.secretKey }}
+              {{- end }}
+              {{- end }}
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
