@@ -118,7 +118,7 @@ class SaasHerder():
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
-            f = project.files.get(file_path=path, ref=ref)
+            f = project.files.get(file_path=path.lstrip('/'), ref=ref)
             html_url = os.path.join(url, 'blob', ref, path)
             return f.decode(), html_url
 
