@@ -258,6 +258,11 @@ CLUSTERS_QUERY = """
         format
       }
     }
+    auth {
+      service
+      org
+      team
+    }
     ocm {
       name
       url

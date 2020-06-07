@@ -63,6 +63,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
 - `ocm-clusters`: Manages (currently: validates only) clusters desired state with current state in OCM.
 - `ocm-aws-infrastructure-access`: Grants AWS infrastructure access to members in AWS groups via OCM.
+- `ocm-github-idp`: Manage GitHub Identity Providers in OCM.
 - `email-sender`: Send email notifications to app-interface audience.
 - `requests-sender`: Send emails to users based on requests submitted to app-interface.
 - `service-dependencies`: Validate dependencies are defined for each service.

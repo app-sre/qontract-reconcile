@@ -58,6 +58,7 @@ import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
 import reconcile.ocm_clusters
 import reconcile.ocm_aws_infrastructure_access
+import reconcile.ocm_github_idp
 import reconcile.email_sender
 import reconcile.requests_sender
 import reconcile.service_dependencies
@@ -155,6 +156,14 @@ def throughput(function):
     function = click.option('--io-dir',
                             help='directory of input/output files.',
                             default='throughput/')(function)
+
+    return function
+
+
+def vault_input_path(function):
+    function = click.option('--vault-input-path',
+                            help='path in Vault to find input resources.',
+                            default='')(function)
 
     return function
 
@@ -778,6 +787,14 @@ def ocm_clusters(ctx, thread_pool_size):
 def ocm_aws_infrastructure_access(ctx):
     run_integration(reconcile.ocm_aws_infrastructure_access,
                     ctx.obj['dry_run'])
+
+
+@integration.command()
+@vault_input_path
+@click.pass_context
+def ocm_github_idp(ctx, vault_input_path):
+    run_integration(reconcile.ocm_github_idp,
+                    ctx.obj['dry_run'], vault_input_path)
 
 
 @integration.command()
