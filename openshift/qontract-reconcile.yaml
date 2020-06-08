@@ -2342,7 +2342,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2509,7 +2509,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-network-policies
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2676,7 +2676,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-acme
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
