@@ -305,7 +305,6 @@ CLUSTERS_QUERY = """
       pod
     }
     peering {
-      vpc_id
       connections {
         name
         vpc {
@@ -313,6 +312,10 @@ CLUSTERS_QUERY = """
             name
             uid
             terraformUsername
+            automationToken {
+              path
+              field
+            }
           }
           vpc_id
           cidr_block

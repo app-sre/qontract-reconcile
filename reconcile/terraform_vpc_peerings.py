@@ -6,6 +6,7 @@ import reconcile.queries as queries
 
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
+from utils.aws_api import AWSApi
 from utils.ocm import OCMMap
 from utils.defer import defer
 
@@ -16,6 +17,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 def fetch_desired_state(settings):
     desired_state = []
+    error = False
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
@@ -26,7 +28,6 @@ def fetch_desired_state(settings):
         peering_info = cluster_info['peering']
         # requester is the cluster's AWS account
         requester = {
-            'vpc_id': peering_info['vpc_id'],
             'cidr_block': cluster_info['network']['vpc'],
             'region': cluster_info['spec']['region']
         }
@@ -51,8 +52,16 @@ def fetch_desired_state(settings):
                     peer_vpc['account']['uid'],
                     peer_vpc['account']['terraformUsername']
                 )
-            # assume_region is the region in which the requester resides
             account['assume_region'] = requester['region']
+            account['assume_cidr'] = requester['cidr_block']
+            aws_api = AWSApi(1, [account], settings=settings)
+            requester_vpc_id = aws_api.get_cluster_vpc_id(account)
+            if requester_vpc_id is None:
+                logging.error(f'[{cluster} could not find VPC ID for cluster')
+                error = True
+                continue
+            requester['vpc_id'] = aws_api.get_cluster_vpc_id(account)
+            # assume_region is the region in which the requester resides
             item = {
                 'connection_name': connection_name,
                 'requester': requester,
@@ -61,14 +70,16 @@ def fetch_desired_state(settings):
             }
             desired_state.append(item)
 
-    return desired_state
+    return desired_state, error
 
 
 @defer
 def run(dry_run=False, print_only=False,
         enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
-    desired_state = fetch_desired_state(settings)
+    desired_state, error = fetch_desired_state(settings)
+    if error:
+        sys.exit(1)
 
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]

@@ -568,3 +568,29 @@ class AWSApi(object):
                 auth_tokens[f"{account_name}/{region_name}"] = token
 
         self.auth_tokens = auth_tokens
+
+    def get_cluster_vpc_id(self, account):
+        session = self.get_session(account['name'])
+        sts = session.client('sts')
+        role_arn = account['assume_role']
+        role_name = role_arn.split('/')[1]
+        response = sts.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName=role_name
+        )
+        credentials = response['Credentials']
+
+        assumed_session = boto3.Session(
+            aws_access_key_id=credentials['AccessKeyId'],
+            aws_secret_access_key=credentials['SecretAccessKey'],
+            aws_session_token=credentials['SessionToken'],
+            region_name=account['assume_region']
+        )
+
+        assumed_ec2 = assumed_session.client('ec2')
+        vpcs = assumed_ec2.describe_vpcs()
+        for vpc in vpcs.get('Vpcs'):
+            if vpc['CidrBlock'] == account['assume_cidr']:
+                return vpc['VpcId']
+
+        return None
