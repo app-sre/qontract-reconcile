@@ -176,7 +176,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 800m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
@@ -188,7 +188,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
@@ -200,7 +200,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 300m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
