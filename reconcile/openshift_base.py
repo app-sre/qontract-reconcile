@@ -8,6 +8,8 @@ from utils.oc import StatusCodeError
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceInventory)
 
+from sretoolbox.utils import retry
+
 
 class StateSpec(object):
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
@@ -175,7 +177,14 @@ def fetch_current_state(namespaces=None,
     return ri, oc_map
 
 
-def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
+@retry(max_attempts=20)
+def wait_for_namespace_exists(oc, namespace):
+    if not oc.project_exists(namespace):
+        raise Exception(f'namespace {namespace} does not exist')
+
+
+def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
+          wait_for_namespace):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
@@ -185,8 +194,12 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource):
         # do not skip if this is a cluster scoped integration
         if namespace != 'cluster' and not oc.project_exists(namespace):
             msg = f"[{cluster}/{namespace}] namespace does not exist (yet)"
-            logging.warning(msg)
-            return
+            if wait_for_namespace:
+                logging.info(msg)
+                wait_for_namespace_exists(oc, namespace)
+            else:
+                logging.warning(msg)
+                return
 
         oc.apply(namespace, annotated.toJSON())
 
@@ -216,7 +229,8 @@ def check_unused_resource_types(ri):
 
 def realize_data(dry_run, oc_map, ri,
                  take_over=False,
-                 caller=None):
+                 caller=None,
+                 wait_for_namespace=False):
     enable_deletion = False if ri.has_error_registered() else True
 
     for cluster, namespace, resource_type, data in ri:
@@ -268,7 +282,7 @@ def realize_data(dry_run, oc_map, ri,
 
             try:
                 apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item)
+                      resource_type, d_item, wait_for_namespace)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {} (error details: {})".format(
