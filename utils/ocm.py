@@ -222,7 +222,10 @@ class OCM(object):
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
-        idps = self._get_json(api)['items']
+        idps = self._get_json(api).get('items')
+        if not idps:
+            return result_idps
+
         for idp in idps:
             if idp['type'] != 'GithubIdentityProvider':
                 continue
