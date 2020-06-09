@@ -225,9 +225,6 @@ integrations:
       memory: 100Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
-  logs:
-    slack: true
-    cloudwatch: true
 - name: openshift-resources
   resources:
     requests:
