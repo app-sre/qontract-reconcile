@@ -5,12 +5,18 @@ metadata:
   name: qontract-reconcile
 objects:
 {{- range $i, $integration := .Values.integrations }}
+{{- $shards := int $integration.shards | default 1 }}
+{{- range $shard_id := until $shards }}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
     labels:
       app: qontract-reconcile-{{ $integration.name }}
+    {{- if gt $shards 1 }}
+    name: qontract-reconcile-{{ $integration.name }}-{{ $shard_id }}
+    {{- else }}
     name: qontract-reconcile-{{ $integration.name }}
+    {{- end }}
   spec:
     replicas: 1
     selector:
@@ -110,6 +116,10 @@ objects:
             - name: http
               containerPort: 9090
           env:
+          - name: SHARDS
+            value: {{ $shards }}
+          - name: SHARD_ID
+            value: {{ $shard_id }}
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
@@ -212,6 +222,7 @@ objects:
         - name: fluentd-config
           emptyDir: {}
         {{- end }}
+{{- end }}
 {{- end }}
 {{- range $i, $integration := .Values.cronjobs }}
 - apiVersion: batch/v1beta1
