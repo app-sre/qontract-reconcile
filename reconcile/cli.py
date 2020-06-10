@@ -66,6 +66,8 @@ import reconcile.sentry_config
 import reconcile.sql_query
 import reconcile.user_validator
 
+from reconcile.status import State
+
 from utils.gql import GqlApiError
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
@@ -224,19 +226,19 @@ def run_integration(func_container, *args):
     unleash_feature_state = get_feature_toggle_state(integration_name)
     if not unleash_feature_state:
         logging.info('Integration toggle is disabled, skipping integration.')
-        sys.exit(0)
+        sys.exit(State.SUCCESS)
 
     try:
         func_container.run(*args)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
-        sys.exit(1)
+        sys.exit(State.ERROR)
     except GqlApiError as e:
         if '409' in str(e):
             logging.error(f'Data changed during execution. This is fine.')
             # exit code to relect conflict
             # TODO: document this better
-            sys.exit(3)
+            sys.exit(State.DATA_CHANGED)
         else:
             raise e
 
