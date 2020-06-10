@@ -13,6 +13,9 @@ from prometheus_client import Counter
 from reconcile.status import State
 
 
+SHARDS = int(os.environ.get('SHARDS', 1))
+SHARD_ID = int(os.environ.get('SHARD_ID', 0))
+
 INTEGRATION_NAME = os.environ['INTEGRATION_NAME']
 
 RUN_ONCE = os.environ.get('RUN_ONCE')
@@ -70,11 +73,12 @@ if __name__ == "__main__":
 
     run_time = Gauge(name='qontract_reconcile_last_run_seconds',
                      documentation='Last run duration in seconds',
-                     labelnames=['integration'])
+                     labelnames=['integration', 'shards', 'shard_id'])
 
     run_status = Counter(name='qontract_reconcile_run_status',
                          documentation='Status of the runs',
-                         labelnames=['integration', 'status'])
+                         labelnames=['integration', 'status',
+                                     'shards', 'shard_id'])
 
     while True:
         start_time = time.monotonic()
@@ -84,9 +88,10 @@ if __name__ == "__main__":
         if RUN_ONCE:
             sys.exit(return_code)
 
-        run_time.labels(integration=INTEGRATION_NAME).set(time_spent)
-        run_status.labels(integration=INTEGRATION_NAME,
-                          status=return_code).inc()
+        run_time.labels(integration=INTEGRATION_NAME,
+                        shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
+        run_status.labels(integration=INTEGRATION_NAME, status=return_code,
+                          shards=SHARDS, shard_id=SHARD_ID).inc()
 
         if return_code == State.DATA_CHANGED:
             continue
