@@ -65,5 +65,5 @@ COPY setup.py .
 
 RUN python3 setup.py install
 
-COPY dockerfiles/hack/run-integration.sh /run-integration.sh
-CMD [ "/run-integration.sh" ]
+COPY dockerfiles/hack/run-integration.py /run-integration.py
+CMD [ "/run-integration.py" ]
