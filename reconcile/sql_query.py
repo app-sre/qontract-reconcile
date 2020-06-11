@@ -251,7 +251,8 @@ def run(dry_run=False, enable_deletion=False):
                              cluster=query['cluster'],
                              namespace=query['namespace']['name'],
                              resource_type='job',
-                             resource=job_resource)
+                             resource=job_resource,
+                             wait_for_namespace=False)
 
         if not dry_run:
             state[query_name] = time.time()
