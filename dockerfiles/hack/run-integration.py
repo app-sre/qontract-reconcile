@@ -20,7 +20,7 @@ DRY_RUN = os.environ.get('DRY_RUN')
 INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 
 LOG_FILE = os.environ.get('LOG_FILE')
-SLEEP_DURATION_SECS = os.environ['SLEEP_DURATION_SECS']
+SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
 
 LOG = logging.getLogger(__name__)
 
