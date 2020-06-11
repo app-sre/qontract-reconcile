@@ -51,7 +51,8 @@ def run(dry_run=False, thread_pool_size=10,
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     ob.realize_data(dry_run, oc_map, ri,
-                    caller=saas_file_name)
+                    caller=saas_file_name,
+                    wait_for_namespace=True)
 
     if ri.has_error_registered():
         sys.exit(1)
