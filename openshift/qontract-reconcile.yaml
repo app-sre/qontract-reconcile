@@ -10,6 +10,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-aws-iam-keys
+      component: qontract-reconcile
     name: qontract-reconcile-aws-iam-keys
   spec:
     replicas: 1
@@ -180,6 +181,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-github
+      component: qontract-reconcile
     name: qontract-reconcile-github
   spec:
     replicas: 1
@@ -350,6 +352,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-github-owners
+      component: qontract-reconcile
     name: qontract-reconcile-github-owners
   spec:
     replicas: 1
@@ -520,6 +523,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-github-repo-invites
+      component: qontract-reconcile
     name: qontract-reconcile-github-repo-invites
   spec:
     replicas: 1
@@ -690,6 +694,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-quay-membership
+      component: qontract-reconcile
     name: qontract-reconcile-quay-membership
   spec:
     replicas: 1
@@ -860,6 +865,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-quay-mirror
+      component: qontract-reconcile
     name: qontract-reconcile-quay-mirror
   spec:
     replicas: 1
@@ -1012,6 +1018,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gcr-mirror
+      component: qontract-reconcile
     name: qontract-reconcile-gcr-mirror
   spec:
     replicas: 1
@@ -1164,6 +1171,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-quay-repos
+      component: qontract-reconcile
     name: qontract-reconcile-quay-repos
   spec:
     replicas: 1
@@ -1334,6 +1342,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jira-watcher
+      component: qontract-reconcile
     name: qontract-reconcile-jira-watcher
   spec:
     replicas: 1
@@ -1394,6 +1403,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-github-scanner
+      component: qontract-reconcile
     name: qontract-reconcile-github-scanner
   spec:
     replicas: 1
@@ -1459,6 +1469,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-aws-support-cases-sos
+      component: qontract-reconcile
     name: qontract-reconcile-aws-support-cases-sos
   spec:
     replicas: 1
@@ -1616,6 +1627,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-users
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-users
   spec:
     replicas: 1
@@ -1786,6 +1798,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-groups
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-groups
   spec:
     replicas: 1
@@ -1956,6 +1969,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-namespaces
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-namespaces
   spec:
     replicas: 1
@@ -2126,6 +2140,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-clusterrolebindings
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-clusterrolebindings
   spec:
     replicas: 1
@@ -2296,6 +2311,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-rolebindings
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-rolebindings
   spec:
     replicas: 1
@@ -2466,6 +2482,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-network-policies
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-network-policies
   spec:
     replicas: 1
@@ -2636,6 +2653,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-acme
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-acme
   spec:
     replicas: 1
@@ -2806,6 +2824,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-limitranges
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-limitranges
   spec:
     replicas: 1
@@ -2976,6 +2995,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-resourcequotas
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-resourcequotas
   spec:
     replicas: 1
@@ -3036,6 +3056,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-resources
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-resources
   spec:
     replicas: 1
@@ -3206,6 +3227,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-vault-secrets
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-vault-secrets
   spec:
     replicas: 1
@@ -3358,6 +3380,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-routes
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-routes
   spec:
     replicas: 1
@@ -3510,6 +3533,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-terraform-resources
+      component: qontract-reconcile
     name: qontract-reconcile-terraform-resources
   spec:
     replicas: 1
@@ -3680,6 +3704,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-terraform-users
+      component: qontract-reconcile
     name: qontract-reconcile-terraform-users
   spec:
     replicas: 1
@@ -3850,6 +3875,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-terraform-vpc-peerings
+      component: qontract-reconcile
     name: qontract-reconcile-terraform-vpc-peerings
   spec:
     replicas: 1
@@ -4020,6 +4046,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-ocm-groups
+      component: qontract-reconcile
     name: qontract-reconcile-ocm-groups
   spec:
     replicas: 1
@@ -4172,6 +4199,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-ocm-clusters
+      component: qontract-reconcile
     name: qontract-reconcile-ocm-clusters
   spec:
     replicas: 1
@@ -4315,6 +4343,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-ocm-aws-infrastructure-access
+      component: qontract-reconcile
     name: qontract-reconcile-ocm-aws-infrastructure-access
   spec:
     replicas: 1
@@ -4458,6 +4487,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-ocm-github-idp
+      component: qontract-reconcile
     name: qontract-reconcile-ocm-github-idp
   spec:
     replicas: 1
@@ -4610,6 +4640,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-email-sender
+      component: qontract-reconcile
     name: qontract-reconcile-email-sender
   spec:
     replicas: 1
@@ -4787,6 +4818,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-requests-sender
+      component: qontract-reconcile
     name: qontract-reconcile-requests-sender
   spec:
     replicas: 1
@@ -4964,6 +4996,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-sentry-config
+      component: qontract-reconcile
     name: qontract-reconcile-sentry-config
   spec:
     replicas: 1
@@ -5134,6 +5167,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-sql-query
+      component: qontract-reconcile
     name: qontract-reconcile-sql-query
   spec:
     replicas: 1
@@ -5311,6 +5345,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-performance-parameters
+      component: qontract-reconcile
     name: qontract-reconcile-openshift-performance-parameters
   spec:
     replicas: 1
@@ -5643,6 +5678,20 @@ objects:
             - name: qontract-reconcile-toml
               secret:
                 secretName: qontract-reconcile-toml
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: qontract-reconcile
+    labels:
+      app: qontract-reconcile
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9090
+        name: qontract-reconcile
+    selector:
+      component: qontract-reconcile
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile

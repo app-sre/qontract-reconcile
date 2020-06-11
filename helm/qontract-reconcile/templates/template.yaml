@@ -10,6 +10,7 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-{{ $integration.name }}
+      component: qontract-reconcile
     name: qontract-reconcile-{{ $integration.name }}
   spec:
     replicas: 1
@@ -267,6 +268,20 @@ objects:
               secret:
                 secretName: qontract-reconcile-toml
 {{- end }}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: qontract-reconcile
+    labels:
+      app: qontract-reconcile
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9090
+        name: qontract-reconcile
+    selector:
+      component: qontract-reconcile
 parameters:
 - name: IMAGE
   value: quay.io/app-sre/qontract-reconcile
