@@ -66,7 +66,7 @@ def run_cmd():
 
 
 if __name__ == "__main__":
-    start_http_server(8080)
+    start_http_server(9090)
 
     run_time = Gauge(name='qontract_reconcile_last_run_seconds',
                      documentation='Last run duration in seconds',
