@@ -88,9 +88,10 @@ if __name__ == "__main__":
         run_status.labels(integration=INTEGRATION_NAME,
                           status=return_code).inc()
 
-        # In case of failure, skip the sleep and
-        # immediately restart the integration
-        if return_code != State.SUCCESS:
+        if return_code == State.DATA_CHANGED:
+            continue
+
+        if return_code == State.ERROR:
             continue
 
         time.sleep(int(SLEEP_DURATION_SECS))
