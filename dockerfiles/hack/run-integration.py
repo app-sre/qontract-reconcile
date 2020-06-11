@@ -19,7 +19,7 @@ RUN_ONCE = os.environ.get('RUN_ONCE')
 DRY_RUN = os.environ.get('DRY_RUN')
 INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 
-LOG_FILE = os.environ['LOG_FILE']
+LOG_FILE = os.environ.get('LOG_FILE')
 SLEEP_DURATION_SECS = os.environ['SLEEP_DURATION_SECS']
 
 LOG = logging.getLogger(__name__)
@@ -30,9 +30,10 @@ STREAM_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
 LOG.addHandler(STREAM_HANDLER)
 
 # Messages to the log file
-FILE_HANDLER = logging.FileHandler(LOG_FILE)
-FILE_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
-LOG.addHandler(FILE_HANDLER)
+if LOG_FILE is not None:
+    FILE_HANDLER = logging.FileHandler(LOG_FILE)
+    FILE_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
+    LOG.addHandler(FILE_HANDLER)
 
 LOG.setLevel(logging.INFO)
 
