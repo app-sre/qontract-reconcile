@@ -105,6 +105,9 @@ objects:
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: qontract-reconcile
+              containerPort: 9090
           env:
           - name: DRY_RUN
             value: ${DRY_RUN}
