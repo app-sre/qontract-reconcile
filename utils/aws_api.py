@@ -570,6 +570,25 @@ class AWSApi(object):
         self.auth_tokens = auth_tokens
 
     def get_cluster_vpc_id(self, account):
+        """
+        Returns a cluster VPC ID.
+
+        :param account: a dictionary containing the following keys:
+                        - name - name of the AWS account
+                        - assume_role - role to assume to get access
+                                        to the cluster's AWS account
+                        - assume_region - region in which to operate
+                        - assume_cidr - CIDR block of the cluster to
+                                        use to find the matching VPC
+        """
+        required_keys = \
+            ['name', 'assume_role', 'assume_region', 'assume_cidr']
+        ok = all(elem in account.keys() for elem in required_keys)
+        if not ok:
+            account_name = account.get('name')
+            raise KeyError(
+                '[{}] account is missing required keys'.format(account_name))
+
         session = self.get_session(account['name'])
         sts = session.client('sts')
         role_arn = account['assume_role']
