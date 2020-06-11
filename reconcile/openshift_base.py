@@ -195,7 +195,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         if namespace != 'cluster' and not oc.project_exists(namespace):
             msg = f"[{cluster}/{namespace}] namespace does not exist (yet)."
             if wait_for_namespace:
-                logging.info(msg += ' waiting...')
+                logging.info(msg + ' waiting...')
                 wait_for_namespace_exists(oc, namespace)
             else:
                 logging.warning(msg)
