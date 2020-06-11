@@ -10,7 +10,6 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-{{ $integration.name }}
-      component: qontract-reconcile
     name: qontract-reconcile-{{ $integration.name }}
   spec:
     replicas: 1
@@ -21,6 +20,7 @@ objects:
       metadata:
         labels:
           app: qontract-reconcile-{{ $integration.name }}
+          component: qontract-reconcile
       spec:
         {{- if $integration.logs }}
         initContainers:
