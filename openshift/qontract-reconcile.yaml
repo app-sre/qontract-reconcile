@@ -97,7 +97,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -268,7 +268,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -439,7 +439,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -610,7 +610,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -781,7 +781,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -934,7 +934,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1087,7 +1087,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1258,7 +1258,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1358,7 +1358,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1419,7 +1419,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1538,7 +1538,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1714,7 +1714,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -1885,7 +1885,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2056,7 +2056,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2227,7 +2227,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2398,7 +2398,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2569,7 +2569,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2740,7 +2740,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -2911,7 +2911,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3011,7 +3011,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3143,7 +3143,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3296,7 +3296,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3449,7 +3449,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3620,7 +3620,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3791,7 +3791,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -3962,7 +3962,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4115,7 +4115,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4275,7 +4275,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4419,7 +4419,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4556,7 +4556,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4727,7 +4727,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -4905,7 +4905,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -5083,7 +5083,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -5254,7 +5254,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -5432,7 +5432,7 @@ objects:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
           ports:
-            - name: qontract-reconcile
+            - name: http
               containerPort: 9090
           env:
           - name: DRY_RUN
@@ -5689,7 +5689,7 @@ objects:
       - protocol: TCP
         port: 80
         targetPort: 9090
-        name: qontract-reconcile
+        name: http
     selector:
       component: qontract-reconcile
 parameters:
