@@ -193,9 +193,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         # skip if namespace does not exist (as it will soon)
         # do not skip if this is a cluster scoped integration
         if namespace != 'cluster' and not oc.project_exists(namespace):
-            msg = f"[{cluster}/{namespace}] namespace does not exist (yet)"
+            msg = f"[{cluster}/{namespace}] namespace does not exist (yet)."
             if wait_for_namespace:
-                logging.info(msg)
+                logging.info(msg += ' waiting...')
                 wait_for_namespace_exists(oc, namespace)
             else:
                 logging.warning(msg)
@@ -231,6 +231,18 @@ def realize_data(dry_run, oc_map, ri,
                  take_over=False,
                  caller=None,
                  wait_for_namespace=False):
+    """
+    Realize the current state to the desired state.
+
+    :param dry_run: run in dry-run mode
+    :param oc_map: a dictionary containing oc client per cluster
+    :param ri: a ResourceInventory containing current and desired states
+    :param take_over: manage resource types in a namespace exclusively
+    :param caller: name of the calling entity.
+                   enables multiple running instances of the same integration
+                   to deploy to the same namespace
+    :param wait_for_namespace: wait for namespace to exist before applying
+    """
     enable_deletion = False if ri.has_error_registered() else True
 
     for cluster, namespace, resource_type, data in ri:
