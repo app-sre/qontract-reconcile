@@ -113,11 +113,13 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
 
     try:
         gqlapi = gql.get_api()
-        namespaces = [
-            namespace_info for namespace_info
-            in gqlapi.query(NAMESPACES_QUERY)['namespaces']
-            if namespace_info.get('networkPoliciesAllow')
-            ]
+
+        namespaces = []
+        for namespace_info in gqlapi.query(NAMESPACES_QUERY)['namespaces']:
+            if not namespace_info.get('networkPoliciesAllow'):
+                continue
+            namespaces.append(namespace_info)
+
         ri, oc_map = ob.fetch_current_state(
             namespaces=namespaces,
             thread_pool_size=thread_pool_size,
