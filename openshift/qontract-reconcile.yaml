@@ -108,13 +108,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -281,13 +284,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -454,13 +460,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -627,13 +636,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -800,13 +812,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -955,13 +970,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1110,13 +1128,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1283,13 +1304,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1385,13 +1409,16 @@ objects:
             value: "--io-dir /tmp/throughput/"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -1448,13 +1475,16 @@ objects:
             value: "--thread-pool-size 1"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -1569,13 +1599,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1747,13 +1780,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1920,13 +1956,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2093,13 +2132,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2266,13 +2308,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2439,13 +2484,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2612,13 +2660,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2785,13 +2836,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2958,13 +3012,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3060,13 +3117,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -3194,13 +3254,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3349,13 +3412,16 @@ objects:
             value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3504,13 +3570,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3677,13 +3746,16 @@ objects:
             value: "--external --no-use-jump-host --vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3850,13 +3922,16 @@ objects:
             value: "--io-dir /tmp/throughput/"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4023,13 +4098,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4178,13 +4256,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4340,13 +4421,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4486,13 +4570,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4625,13 +4712,16 @@ objects:
             value: "--vault-input-path app-sre/integrations-input"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4798,13 +4888,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -4978,13 +5071,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -5158,13 +5254,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -5331,13 +5430,16 @@ objects:
             value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -5511,13 +5613,16 @@ objects:
             value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL

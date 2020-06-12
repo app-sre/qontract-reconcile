@@ -118,13 +118,16 @@ objects:
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
-          - name: SENTRY_DSN
-            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           {{- if $integration.logs }}
           - name: LOG_FILE
             value: "${LOG_FILE}"
