@@ -7,7 +7,7 @@ import reconcile.openshift_base as ob
 
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.defer import defer
-
+from utils.sharding import is_in_shard
 
 NAMESPACES_QUERY = """
 {
@@ -117,6 +117,8 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         namespaces = []
         for namespace_info in gqlapi.query(NAMESPACES_QUERY)['namespaces']:
             if not namespace_info.get('networkPoliciesAllow'):
+                continue
+            if not is_in_shard(namespace_info['name']):
                 continue
             namespaces.append(namespace_info)
 
