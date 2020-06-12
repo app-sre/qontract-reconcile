@@ -20,8 +20,8 @@ def is_in_shard(value):
     in_shard = value_int % SHARDS == SHARD_ID
 
     if in_shard:
-        LOG.info('IN_SHARD TRUE: %s', value)
+        LOG.debug('IN_SHARD TRUE: %s', value)
     else:
-        LOG.info('IN_SHARD FALSE: %s', value)
+        LOG.debug('IN_SHARD FALSE: %s', value)
 
     return in_shard
