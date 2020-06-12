@@ -118,8 +118,13 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         for namespace_info in gqlapi.query(NAMESPACES_QUERY)['namespaces']:
             if not namespace_info.get('networkPoliciesAllow'):
                 continue
-            if not is_in_shard(namespace_info['name']):
+
+            shard_key = (f"{namespace_info['cluster']['name']}/"
+                         f"{namespace_info['name']}")
+
+            if not is_in_shard(shard_key):
                 continue
+
             namespaces.append(namespace_info)
 
         ri, oc_map = ob.fetch_current_state(
