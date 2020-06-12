@@ -118,6 +118,8 @@ objects:
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
+          - name: SENTRY_DSN
+            value: ${SENTRY_DSN}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
@@ -319,3 +321,5 @@ parameters:
   value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
 - name: CLOUDWATCH_SECRET
   value: app-interface-cloudwatch
+- name: SENTRY_DSN
+  value: ""
