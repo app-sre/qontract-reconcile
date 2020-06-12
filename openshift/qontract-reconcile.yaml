@@ -113,6 +113,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -284,6 +289,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -455,6 +465,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -626,6 +641,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -797,6 +817,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -950,6 +975,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1103,6 +1133,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1274,6 +1309,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1374,6 +1414,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -1435,6 +1480,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -1554,6 +1604,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1730,6 +1785,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -1901,6 +1961,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2072,6 +2137,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2243,6 +2313,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2414,6 +2489,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2585,6 +2665,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2756,6 +2841,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -2927,6 +3017,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3027,6 +3122,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -3159,6 +3259,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3312,6 +3417,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3465,6 +3575,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3636,6 +3751,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3807,6 +3927,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -3978,6 +4103,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4131,6 +4261,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4291,6 +4426,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4435,6 +4575,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4572,6 +4717,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -4743,6 +4893,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -4921,6 +5076,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -5099,6 +5259,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -5270,6 +5435,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
@@ -5448,6 +5618,11 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
@@ -5729,3 +5904,5 @@ parameters:
   value: 'http://github-mirror.github-mirror-stage.svc.cluster.local'
 - name: CLOUDWATCH_SECRET
   value: app-interface-cloudwatch
+- name: SENTRY_DSN
+  value: ""

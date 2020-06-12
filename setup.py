@@ -45,6 +45,7 @@ setup(
         "tabulate>=0.8.6,<0.9.0",
         "UnleashClient>=3.4.2,<3.5.0",
         "prometheus-client~=0.8",
+        "sentry-sdk~=0.14",
     ],
 
     test_suite="tests",
