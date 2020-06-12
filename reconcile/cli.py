@@ -1,6 +1,9 @@
-import sys
 import logging
+import os
+import sys
+
 import click
+import sentry_sdk
 
 import utils.config as config
 import utils.gql as gql
@@ -74,6 +77,10 @@ from utils.binary import binary
 from utils.environ import environ
 from utils.unleash import get_feature_toggle_state
 
+
+# Enable Sentry
+if os.getenv('SENTRY_DSN'):
+    sentry_sdk.init(os.environ['SENTRY_DSN'])
 
 def config_file(function):
     help_msg = 'Path to configuration file in toml format.'
