@@ -117,9 +117,9 @@ objects:
               containerPort: 9090
           env:
           - name: SHARDS
-            value: {{ $shards }}
+            value: "{{ $shards }}"
           - name: SHARD_ID
-            value: {{ $shard_id }}
+            value: "{{ $shard_id }}"
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
