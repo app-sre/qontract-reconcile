@@ -82,6 +82,7 @@ from utils.unleash import get_feature_toggle_state
 if os.getenv('SENTRY_DSN'):
     sentry_sdk.init(os.environ['SENTRY_DSN'])
 
+
 def config_file(function):
     help_msg = 'Path to configuration file in toml format.'
     function = click.option('--config', 'configfile',
