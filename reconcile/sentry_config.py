@@ -521,7 +521,10 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
                         else:
                             config[field] = project_config[field]
                 team_projects.append(config)
-            projects[team] = team_projects
+            if team in projects:
+                projects[team].extend(team_projects)
+            else:
+                projects[team] = team_projects
     state.init_projects(projects)
     return state
 
