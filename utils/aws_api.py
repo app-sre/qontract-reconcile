@@ -31,6 +31,9 @@ class AWSApi(object):
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
 
+        # store the app-interface accounts in a dictionary indexed by name
+        self.accounts = {acc['name']: acc for acc in accounts}
+
     def init_sessions_and_resources(self, accounts):
         results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
@@ -527,6 +530,8 @@ class AWSApi(object):
     def get_support_cases(self):
         all_support_cases = {}
         for account, s in self.sessions.items():
+            if not self.accounts[account].get('premiumSupport'):
+                continue
             try:
                 support = s.client('support')
                 support_cases = support.describe_cases(
