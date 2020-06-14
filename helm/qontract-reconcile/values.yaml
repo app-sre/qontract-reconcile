@@ -252,10 +252,12 @@ integrations:
 - name: openshift-routes
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 770Mi
+      memory: 800Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
   logs:
