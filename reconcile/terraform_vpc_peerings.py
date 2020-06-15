@@ -60,13 +60,13 @@ def fetch_desired_state(settings):
                 logging.error(f'[{cluster} could not find VPC ID for cluster')
                 error = True
                 continue
-            requester['vpc_id'] = aws_api.get_cluster_vpc_id(account)
-            # assume_region is the region in which the requester resides
+            requester['vpc_id'] = requester_vpc_id
+            requester['account'] = account
+            accepter['account'] = account
             item = {
                 'connection_name': connection_name,
                 'requester': requester,
                 'accepter': accepter,
-                'account': account
             }
             desired_state.append(item)
 
