@@ -99,4 +99,7 @@ if __name__ == "__main__":
         if return_code == State.ERROR:
             continue
 
+        if return_code == State.SIGKILL:
+            sys.exit(return_code)
+
         time.sleep(int(SLEEP_DURATION_SECS))
