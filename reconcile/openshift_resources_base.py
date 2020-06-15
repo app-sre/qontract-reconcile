@@ -154,7 +154,9 @@ class UnknownTemplateTypeError(Exception):
         )
 
 
-def lookup_vault_secret(path, key, version=None):
+def lookup_vault_secret(path, key, version=None, tvars={}):
+    path = process_jinja2_template(path, vars=tvars)
+    key = process_jinja2_template(key, vars=tvars)
     secret = {
         'path': path,
         'field': key,
@@ -167,7 +169,8 @@ def lookup_vault_secret(path, key, version=None):
 
 
 def process_jinja2_template(body, vars={}, env={}):
-    vars.update({'vault': lookup_vault_secret})
+    vars.update({'vault': lambda p, k, v=None:
+        lookup_vault_secret(p, k, v, vars)})
     try:
         env = jinja2.Environment(
             extensions=[B64EncodeExtension],
