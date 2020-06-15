@@ -260,6 +260,17 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     cloudwatch: true
+- name: terraform-aws-route53
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 100m
+    limits:
+      memory: 1000Mi
+      cpu: 500m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:
