@@ -85,9 +85,6 @@ if __name__ == "__main__":
         return_code = run_cmd()
         time_spent = time.monotonic() - start_time
 
-        if RUN_ONCE:
-            sys.exit(return_code)
-
         run_time.labels(integration=INTEGRATION_NAME,
                         shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
         run_status.labels(integration=INTEGRATION_NAME, status=return_code,
@@ -98,5 +95,8 @@ if __name__ == "__main__":
 
         if return_code == State.ERROR:
             continue
+
+        if RUN_ONCE:
+            sys.exit(return_code)
 
         time.sleep(int(SLEEP_DURATION_SECS))
