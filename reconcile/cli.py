@@ -35,6 +35,7 @@ import reconcile.gcr_mirror
 import reconcile.quay_mirror
 import reconcile.quay_repos
 import reconcile.ldap_users
+import reconcile.terraform_aws_route53
 import reconcile.terraform_resources
 import reconcile.terraform_users
 import reconcile.terraform_vpc_peerings
@@ -705,6 +706,19 @@ def ldap_users(ctx, gitlab_project_id, thread_pool_size):
 @click.pass_context
 def user_validator(ctx):
     run_integration(reconcile.user_validator, ctx.obj['dry_run'])
+
+
+@integration.command()
+@terraform
+@threaded()
+@binary(['terraform'])
+@enable_deletion(default=False)
+@click.pass_context
+def terraform_aws_route53(ctx, print_only, enable_deletion,
+                          thread_pool_size):
+    run_integration(reconcile.terraform_aws_route53,
+                    ctx.obj['dry_run'], print_only,
+                    enable_deletion, thread_pool_size)
 
 
 @integration.command()

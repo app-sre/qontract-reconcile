@@ -41,7 +41,9 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudwatch_log_group, aws_kms_key,
                                aws_kms_alias,
                                aws_elasticsearch_domain,
-                               aws_iam_service_linked_role)
+                               aws_iam_service_linked_role,
+                               aws_route53_record,
+                               aws_route53_zone)
 
 
 class UnknownProviderError(Exception):
@@ -305,6 +307,85 @@ class TerrascriptClient(object):
                            region=account['assume_region'],
                            alias=alias,
                            assume_role={'role_arn': assume_role})
+
+    def populate_route53(self, desired_state):
+        error = False
+        for zone in desired_state:
+            # provider = zone['provider']
+            account = zone['account']
+            account_name = account['name']
+            origin = zone['origin']
+            records = zone['records']
+
+            # terraform identifier for zone
+            # We need to replace some characters that are not allowed
+            zone_id = origin
+            zone_id = zone_id.replace(".", "_")
+
+            values = {
+                'name': origin,
+            }
+
+            zone_resource = aws_route53_zone(zone_id, **values)
+            self.add_resource(account_name, zone_resource)
+
+            for record in records:
+                record_name = record['name']
+                record_type = record['type']
+                # Terraform record id
+                # This contains a lot of info on purpose
+                # - Needs to be unique per record per zone
+                # - Terraform client logs only the resource name, so having
+                #   all this info as actually useful when looking at reports
+                record_id = '_'.join([record_name, zone_id, record_type])
+
+                # terraform identifier for record
+                # We need to replace some characters that are not allowed
+                record_id = record_id.replace(".", "_")
+                record_id = record_id.replace("@", "_ORIGIN_")
+                record_id = record_id.replace("*", "_wildcard_")
+
+                values = {
+                    'zone_id': zone_resource.zone_id,
+                    'name': record_name,
+                    'type': record_type,
+                }
+
+                targets = []
+
+                record_target = record.get('target')
+                if record_target:
+                    targets.append(record_target)
+
+                record_targets = record.get('targets')
+                if record_targets:
+                    targets.extend(record_targets)
+
+                record_target_cluster = record.get('target_cluster', None)
+                if record_target_cluster:
+                    cluster = record_target_cluster
+                    elb_fqdn = cluster['elbFQDN']
+                    if not elb_fqdn:
+                        msg = f"elbFQDN for cluster {cluster['name']} is " \
+                              f"not set."
+                        logging.error(msg)
+                        error = True
+                        continue
+                    targets.append(elb_fqdn)
+
+                if not len(targets) > 0:
+                    msg = f"no targets found on the record {record_id} " \
+                          f"for origin {origin}"
+                    logging.error(msg)
+                    error = True
+                    continue
+                values['records'] = targets
+
+                values['ttl'] = record.get('ttl') or zone.get('default_ttl')
+
+                record_resource = aws_route53_record(record_id, **values)
+                self.add_resource(account_name, record_resource)
+        return error
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:

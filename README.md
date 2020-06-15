@@ -57,6 +57,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `quay-repos`: Creates and Manages Quay Repos.
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `sql-query`: Runs SQL Queries against app-interface RDS resources.
+- `terraform-aws-route53`: Manage AWS Route53 DNS zones and records using Terraform.
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
 - `terraform-vpc-peerings`: Manage VPC peerings between OSDv4 clusters and AWS accounts.

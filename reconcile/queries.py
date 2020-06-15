@@ -1021,3 +1021,45 @@ def get_performance_parameters():
     gqlapi = gql.get_api()
     return gqlapi.query(
         PERFORMANCE_PARAMETERS_QUERY)['performance_parameters_v1']
+
+
+DNS_ZONE_QUERY = """
+{
+  zones: dns_zone_v1 {
+    name
+    provider
+    account {
+      name
+      uid
+      terraformUsername
+    }
+    origin
+    default_ttl
+    records {
+      type
+      ... on DnsRecordCommon_v1 {
+        name
+        ttl
+        target
+        targets
+        target_cluster {
+          name
+          elbFQDN
+        }
+      }
+      ... on DnsRecordMX_v1 {
+        name
+        ttl
+        target
+        priority
+      }
+    }
+  }
+}
+"""
+
+
+def get_dns_zones():
+    """ Returnes all DNS Zones. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(DNS_ZONE_QUERY)['zones']
