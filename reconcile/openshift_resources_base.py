@@ -170,7 +170,7 @@ def lookup_vault_secret(path, key, version=None, tvars={}):
 
 def process_jinja2_template(body, vars={}, env={}):
     vars.update({'vault': lambda p, k, v=None:
-        lookup_vault_secret(p, k, v, vars)})
+                 lookup_vault_secret(p, k, v, vars)})
     try:
         env = jinja2.Environment(
             extensions=[B64EncodeExtension],
