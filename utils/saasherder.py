@@ -505,10 +505,10 @@ class SaasHerder():
                      if k in ['name', 'cluster', 'app']}
         cluster = namespace['cluster']
         namespace['cluster'] = {k: v for k, v in cluster.items()
-                   if k in ['name', 'serverUrl']}
+                                if k in ['name', 'serverUrl']}
         app = namespace['app']
         namespace['app'] = {k: v for k,v in app.items()
-               if k in ['name']}
+                            if k in ['name']}
 
     def update_config(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
