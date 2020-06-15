@@ -93,10 +93,10 @@ if __name__ == "__main__":
         if return_code == State.DATA_CHANGED:
             continue
 
-        if return_code == State.ERROR:
-            continue
-
         if RUN_ONCE:
             sys.exit(return_code)
+
+        if return_code == State.ERROR:
+            continue
 
         time.sleep(int(SLEEP_DURATION_SECS))
