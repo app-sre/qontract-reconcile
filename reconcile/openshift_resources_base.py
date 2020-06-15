@@ -154,9 +154,10 @@ class UnknownTemplateTypeError(Exception):
         )
 
 
-def lookup_vault_secret(path, key, version=None, tvars={}):
-    path = process_jinja2_template(path, vars=tvars)
-    key = process_jinja2_template(key, vars=tvars)
+def lookup_vault_secret(path, key, version=None, tvars=None):
+    if tvars is not None:
+        path = process_jinja2_template(path, vars=tvars)
+        key = process_jinja2_template(key, vars=tvars)
     secret = {
         'path': path,
         'field': key,
