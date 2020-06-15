@@ -344,7 +344,7 @@ class TerrascriptClient(object):
 
             # Accepter's side of the connection.
             values = {
-                'provider': 'aws.' + acc_alias, 
+                'provider': 'aws.' + acc_alias,
                 'vpc_peering_connection_id':
                     '${aws_vpc_peering_connection.' + identifier + '.id}',
                 'auto_accept': True,
