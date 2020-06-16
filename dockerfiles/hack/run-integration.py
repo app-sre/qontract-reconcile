@@ -80,7 +80,10 @@ if __name__ == "__main__":
                          labelnames=['integration', 'status',
                                      'shards', 'shard_id'])
 
-    while True:
+    last_status = State.SUCCESS
+    errors = 0
+
+    while errors < 5:
         start_time = time.monotonic()
         return_code = run_cmd()
         time_spent = time.monotonic() - start_time
@@ -89,6 +92,13 @@ if __name__ == "__main__":
                         shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
         run_status.labels(integration=INTEGRATION_NAME, status=return_code,
                           shards=SHARDS, shard_id=SHARD_ID).inc()
+
+        if return_code != State.SUCCESS:
+            if return_code == last_status:
+                errors += 1
+            else:
+                errors = 1
+                last_status = return_code
 
         if return_code == State.DATA_CHANGED:
             continue
@@ -100,3 +110,5 @@ if __name__ == "__main__":
             continue
 
         time.sleep(int(SLEEP_DURATION_SECS))
+
+    sys.exit(last_status)
