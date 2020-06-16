@@ -473,6 +473,8 @@ class SaasHerder():
                 cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
+                desired_target_config['namespace'] = \
+                    self.sanitize_namespace(namespace)
                 # add parent parameters to target config
                 desired_target_config['saas_file_parameters'] = \
                     saas_file_parameters
@@ -496,6 +498,24 @@ class SaasHerder():
                 trigger_specs.append(job_spec)
 
         return trigger_specs
+
+    @staticmethod
+    def sanitize_namespace(namespace):
+        """Only keep fields that should trigger a new job."""
+        new_job_fields = {
+            'namespace': ['name', 'cluster', 'app'],
+            'cluster':  ['name', 'serverUrl'],
+            'app': ['name']
+        }
+        namespace = {k: v for k, v in namespace.items()
+                     if k in new_job_fields['namespace']}
+        cluster = namespace['cluster']
+        namespace['cluster'] = {k: v for k, v in cluster.items()
+                                if k in new_job_fields['cluster']}
+        app = namespace['app']
+        namespace['app'] = {k: v for k, v in app.items()
+                            if k in new_job_fields['app']}
+        return namespace
 
     def update_config(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
