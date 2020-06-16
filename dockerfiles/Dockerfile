@@ -27,7 +27,6 @@ FROM centos:7
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 ENV TF_VERSION=0.11.14
-ENV JJB_VERSION=2.10.1
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
@@ -37,7 +36,6 @@ RUN yum install -y centos-release-openshift-origin && \
     yum install -y skopeo && \
     yum install -y python36 python36-pip origin-clients openssh-clients openssl git unzip gcc gcc-c++ python36-devel && \
     python3 -m pip install --upgrade pip setuptools && \
-    python3 -m pip install jenkins-job-builder==${JJB_VERSION} && \
     yum clean all
 
 RUN curl https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip --output terraform.zip && \

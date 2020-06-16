@@ -46,6 +46,7 @@ setup(
         "UnleashClient>=3.4.2,<3.5.0",
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
+        "jenkins-job-builder==2.10.1",
     ],
 
     test_suite="tests",
