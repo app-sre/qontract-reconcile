@@ -9,6 +9,8 @@ from utils.openshift_resource import ResourceInventory
 from utils.oc import OC_Map
 from utils.oc import StatusCodeError
 from utils.defer import defer
+from utils.sharding import is_in_shard
+
 
 QUERY = """
 {
@@ -63,6 +65,10 @@ def get_desired_state(internal, use_jump_host):
     desired_state = []
     for cluster, namespace, _, _ in ri:
         if cluster not in oc_map.clusters():
+            continue
+
+        shard_key = f'{cluster}/{namespace}'
+        if not is_in_shard(shard_key):
             continue
 
         desired_state.append({"cluster": cluster, "namespace": namespace})
