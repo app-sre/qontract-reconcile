@@ -154,6 +154,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 500m
+  shards: 2
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
