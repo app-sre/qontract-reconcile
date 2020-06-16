@@ -18,7 +18,12 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def labels_to_selectors(labels):
-    if isinstance(labels, list):
+    if isinstance(labels, str):
+        labels = json.loads(labels)
+    if not labels:
+        return ""
+
+    elif isinstance(labels, list):
         return ", ".join([f"'{sel}'" for sel in labels])
     else:
         return ", ".join([f'\'{k}="{v}"\'' for k, v in labels.items()])
