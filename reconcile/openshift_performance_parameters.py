@@ -28,7 +28,7 @@ def build_rules_aoa(rules, category):
     return " + ".join([f'[{r}__{category}.rules]' for r in rules])
 
 
-def generate_resource(template_file, values):
+def render_template(template_file, values):
     template_env = template.get_package_environment()
     tpl = template_env.get_template(template_file)
     tpl.globals['labels_to_selectors'] = labels_to_selectors
@@ -36,7 +36,11 @@ def generate_resource(template_file, values):
     tpl.globals['load_json'] = json.loads
     tpl.globals['dump_json'] = json.dumps
 
-    rendered = tpl.render(values)
+    return tpl.render(values)
+
+
+def generate_resource(template_file, values):
+    rendered = render_template(template_file, values)
     jsonnet_resource = jsonnet.generate_object(rendered)
 
     return OR(jsonnet_resource,

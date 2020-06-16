@@ -1,0 +1,48 @@
+local slo = import 'valet-libsonnet/valet.libsonnet';
+
+// Labels that will be reused in SLO rules
+local labels = ['service="observability"', 'component="prometheus"'];
+local http_rates__http_rates = slo.httpRates({
+  metric: 'prometheus_http_requests_total',
+  selectors: ['job="prometheus-app-sre"', 'extraselkey!="extraselval"'],
+  labels: labels,
+});
+local v1_query_p90_latency_rates__latency_rates = slo.latencyPercentileRates({
+  metric: 'prometheus_http_request_duration_seconds_bucket',
+  selectors: ['job="prometheus-app-sre"', 'handler="/api/v1/query"'],
+  percentile: '90',
+  labels: labels,
+});
+local volume_slo__volume = slo.volumeSLO({
+  rules: http_rates__http_rates.rateRules,
+  threshold: '5000',
+});
+local v1_query_latency_slo__latency = slo.latencySLO({
+  rules: v1_query_p90_latency_rates__latency_rates.rules,
+  threshold: '3',
+});
+local errors_slo__errors = slo.errorsSLO({
+  rules: http_rates__http_rates.errorRateRules,
+  threshold: '0.01',
+});
+local availability_slo__availability = slo.availabilitySLO({
+  latencyRules: [v1_query_latency_slo__latency.rules],
+  errorsRules: [errors_slo__errors.rules],
+});
+
+{
+  apiVersion: 'monitoring.coreos.com/v1',
+  kind: 'PrometheusRule',
+  metadata: {
+    name: 'prometheus-slo-test',
+    labels: {"role":"alert-rules","prometheus":"app-sre","type":"slo-rules"},
+  },
+  spec: {
+    groups: [
+      {
+        name: 'prometheus.slo.rules',
+        rules: http_rates__http_rates.rateRules + http_rates__http_rates.errorRateRules + v1_query_p90_latency_rates__latency_rates.rules + volume_slo__volume.rules + v1_query_latency_slo__latency.rules + errors_slo__errors.rules + availability_slo__availability.rules + [],
+       },
+    ],
+  },
+}

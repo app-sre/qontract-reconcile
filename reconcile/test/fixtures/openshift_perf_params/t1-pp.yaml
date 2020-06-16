@@ -1,0 +1,48 @@
+labels: '{"service":"observability"}'
+name: prometheus
+component: prometheus
+prometheusLabels: '{"role":"alert-rules","prometheus":"app-sre","type":"slo-rules"}'
+namespace:
+  name: test
+SLIRecordingRules:
+  - name: http_rates
+    kind: http_rate
+    metric: prometheus_http_requests_total
+    percentile: null
+    selectors:
+      - job="prometheus-app-sre"
+      - extraselkey!="extraselval"
+    httpStatusLabel: null
+  - name: v1_query_p90_latency_rates
+    kind: latency_rate
+    metric: prometheus_http_request_duration_seconds_bucket
+    percentile: '90'
+    selectors:
+      - job="prometheus-app-sre"
+      - handler="/api/v1/query"
+    httpStatusLabel: null
+volume:
+  - name: volume_slo
+    target: '5000'
+    rules: http_rates
+    additionalLabels: null
+availability:
+  - name: availability_slo
+    additionalLabels: null
+    rules:
+      latency:
+        - v1_query_latency_slo
+      errors:
+        - errors_slo
+latency:
+  - name: v1_query_latency_slo
+    threshold: '3'
+    rules: v1_query_p90_latency_rates
+    additionalLabels: null
+errors:
+  - name: errors_slo
+    target: '1'
+    rules: http_rates
+    additionalLabels: null
+rawRecordingRules: null
+rawAlerting: null
