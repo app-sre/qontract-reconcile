@@ -198,10 +198,12 @@ integrations:
 - name: openshift-acme
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 800Mi
+      memory: 800Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 300m
   extraArgs: --external --no-use-jump-host
   logs:
