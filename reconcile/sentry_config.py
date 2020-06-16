@@ -4,6 +4,8 @@ import reconcile.queries as queries
 import utils.gql as gql
 import utils.secret_reader as secret_reader
 
+from github.GithubException import UnknownObjectException
+
 from reconcile.github_users import init_github
 from utils.sentry_client import SentryClient
 
@@ -541,7 +543,10 @@ def get_github_email(gh, user):
     github_username = user.get('github_username')
     if github_username:
         if github_username not in github_email_cache:
-            user_info = gh.get_user(login=github_username)
+            try:
+                user_info = gh.get_user(login=github_username)
+            except UnknownObjectException:
+                return None
             email = user_info.email
             if email is not None:
                 github_email_cache[github_username] = email
