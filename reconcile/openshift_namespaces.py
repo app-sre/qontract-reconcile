@@ -59,9 +59,13 @@ def get_desired_state(internal, use_jump_host):
         namespaces=namespaces,
         override_managed_types=['Namespace']
     )
-    desired_state = [{"cluster": cluster, "namespace": namespace}
-                     for cluster, namespace, _, _ in ri
-                     if cluster in oc_map.clusters()]
+
+    desired_state = []
+    for cluster, namespace, _, _ in ri:
+        if cluster not in oc_map.clusters():
+            continue
+
+        desired_state.append({"cluster": cluster, "namespace": namespace})
 
     return oc_map, desired_state
 
