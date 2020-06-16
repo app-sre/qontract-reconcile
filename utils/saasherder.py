@@ -75,6 +75,12 @@ class SaasHerder():
                 targets = rt['targets']
                 for target in targets:
                     namespace = target['namespace']
+                    if target.get('disable'):
+                        logging.warning(
+                            f"[{saas_file['name']}/{rt['name']}] target " +
+                            f"{namespace['cluster']['name']}/" +
+                            f"{namespace['name']} is disabled.")
+                        continue
                     # managedResourceTypes is defined per saas_file
                     # add it to each namespace in the current saas_file
                     namespace['managedResourceTypes'] = managed_resource_types
@@ -328,6 +334,9 @@ class SaasHerder():
 
             # iterate over targets (each target is a namespace)
             for target in rt['targets']:
+                if target.get('disable'):
+                    # a warning is logged during SaasHerder initiation
+                    continue
                 cluster, namespace = \
                     self._get_cluster_and_namespace(target)
                 process_template_options = {
