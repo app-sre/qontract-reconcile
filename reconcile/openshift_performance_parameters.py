@@ -18,7 +18,10 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def labels_to_selectors(labels):
-    return ", ".join([f'\'{k}="{v}"\'' for k, v in labels.items()])
+    if isinstance(labels, list):
+        return ", ".join([f"'{sel}'" for sel in labels])
+    else:
+        return ", ".join([f'\'{k}="{v}"\'' for k, v in labels.items()])
 
 
 def build_rules_aoa(rules, category):

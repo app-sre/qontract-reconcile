@@ -6,7 +6,7 @@ local labels = [{{ labels_to_selectors(labels) }}];
 {%- for h in http_rates %}
 local {{ h.name + "__http_rates" }} = slo.httpRates({
   metric: '{{ h.metric }}',
-  selectors: [{{ labels_to_selectors(load_json(h.selectors)) }}],
+  selectors: [{{ labels_to_selectors(h.selectors) }}],
   labels: labels,
   {%- if h.httpStatusLabel %}
   codeSelector: h.httpStatusLabel,
@@ -17,7 +17,7 @@ local {{ h.name + "__http_rates" }} = slo.httpRates({
 {%- for l in latency_rates %}
 local {{ l.name + "__latency_rates" }} = slo.latencyPercentileRates({
   metric: '{{ l.metric }}',
-  selectors: [{{ labels_to_selectors(load_json(l.selectors)) }}],
+  selectors: [{{ labels_to_selectors(l.selectors) }}],
   percentile: '{{ l.percentile }}',
   labels: labels,
 });
