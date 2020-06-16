@@ -502,14 +502,25 @@ class SaasHerder():
     @staticmethod
     def sanitize_namespace(namespace):
         """Only keep fields that should trigger a new job."""
+        new_job_fields = {
+            # https://gitlab.cee.redhat.com/service/app-interface/-/blob/master
+            # /schemas/openshift/namespace-1.yml
+            'namespace': ['name', 'cluster', 'app'],
+            # https://gitlab.cee.redhat.com/service/app-interface/-/blob/master
+            # /schemas/openshift/cluster-1.yml
+            'cluster':  ['name', 'serverUrl'],
+            # https://gitlab.cee.redhat.com/service/app-interface/-/blob/master
+            # /schemas/app-sre/app-1.yml
+            'app': ['name']
+        }
         namespace = {k: v for k, v in namespace.items()
-                     if k in ['name', 'cluster', 'app']}
+                     if k in new_job_fields['namespace']}
         cluster = namespace['cluster']
         namespace['cluster'] = {k: v for k, v in cluster.items()
-                                if k in ['name', 'serverUrl']}
+                                if k in new_job_fields['cluster']}
         app = namespace['app']
         namespace['app'] = {k: v for k, v in app.items()
-                            if k in ['name']}
+                            if k in new_job_fields['app']}
         return namespace
 
     def update_config(self, job_spec):
