@@ -149,10 +149,12 @@ integrations:
 - name: openshift-namespaces
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 800Mi
+      memory: 800Mi
       cpu: 400m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 500m
   shards: 2
   extraArgs: --external --no-use-jump-host
