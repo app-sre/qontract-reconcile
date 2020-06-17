@@ -279,8 +279,13 @@ CLUSTERS_QUERY = """
     awsInfrastructureAccess {
       awsGroup {
         account {
+          name
           uid
           terraformUsername
+          automationToken {
+            path
+            field
+          }
         }
         roles {
           users {
@@ -308,19 +313,59 @@ CLUSTERS_QUERY = """
     peering {
       connections {
         name
-        vpc {
-          account {
+        provider
+        ... on ClusterPeeringConnectionAccount_v1 {
+          vpc {
+            account {
+              name
+              uid
+              terraformUsername
+              automationToken {
+                path
+                field
+              }
+            }
+            vpc_id
+            cidr_block
+            region
+          }
+        }
+        ... on ClusterPeeringConnectionClusterRequester_v1 {
+          cluster {
             name
-            uid
-            terraformUsername
-            automationToken {
-              path
-              field
+            network {
+              vpc
+            }
+            spec {
+              region
+            }
+            awsInfrastructureAccess {
+              awsGroup {
+                account {
+                  name
+                  uid
+                  terraformUsername
+                  automationToken {
+                    path
+                    field
+                  }
+                }
+              }
+              accessLevel
+            }
+            peering {
+              connections {
+                name
+                provider
+                ... on ClusterPeeringConnectionClusterAccepter_v1 {
+                  name
+                  cluster {
+                    name
+                  }
+                }
+              }
             }
           }
-          vpc_id
-          cidr_block
-          region
         }
       }
     }
