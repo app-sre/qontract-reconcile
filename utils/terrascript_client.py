@@ -311,21 +311,22 @@ class TerrascriptClient(object):
             connection_name = item['connection_name']
             requester = item['requester']
             accepter = item['accepter']
-            account = item['account']
-            account_name = account['name']
+
+            req_account = requester['account']
+            req_account_name = req_account['name']
             # arn:aws:iam::12345:role/role-1 --> 12345
-            alias = account['assume_role'].split(':')[4]
+            req_alias = req_account['assume_role'].split(':')[4]
 
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
             values = {
                 # adding the alias to the provider will add this resource
                 # to the cluster's AWS account
-                'provider': 'aws.' + alias,
+                'provider': 'aws.' + req_alias,
                 'vpc_id': requester['vpc_id'],
                 'peer_vpc_id': accepter['vpc_id'],
                 'peer_region': accepter['region'],
-                'peer_owner_id': account['uid'],
+                'peer_owner_id': req_account['uid'],
                 'auto_accept': False,
                 'tags': {
                     'managed_by_integration': self.integration,
@@ -333,11 +334,20 @@ class TerrascriptClient(object):
                     'Name': connection_name
                 }
             }
+            req_peer_owner_id = requester.get('peer_owner_id')
+            if req_peer_owner_id:
+                values['peer_owner_id'] = req_peer_owner_id
             tf_resource = aws_vpc_peering_connection(identifier, **values)
-            self.add_resource(account_name, tf_resource)
+            self.add_resource(req_account_name, tf_resource)
+
+            acc_account = accepter['account']
+            acc_account_name = acc_account['name']
+            # arn:aws:iam::12345:role/role-1 --> 12345
+            acc_alias = acc_account['assume_role'].split(':')[4]
 
             # Accepter's side of the connection.
             values = {
+                'provider': 'aws.' + acc_alias,
                 'vpc_peering_connection_id':
                     '${aws_vpc_peering_connection.' + identifier + '.id}',
                 'auto_accept': True,
@@ -347,11 +357,11 @@ class TerrascriptClient(object):
                     'Name': connection_name
                 }
             }
-            if self._multiregion_account_(account_name):
+            if self._multiregion_account_(acc_account_name):
                 values['provider'] = 'aws.' + accepter['region']
             tf_resource = \
                 aws_vpc_peering_connection_accepter(identifier, **values)
-            self.add_resource(account_name, tf_resource)
+            self.add_resource(acc_account_name, tf_resource)
 
     def populate_resources(self, namespaces, existing_secrets):
         self.init_populate_specs(namespaces)
