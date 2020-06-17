@@ -22,7 +22,6 @@ def labels_to_selectors(labels):
         labels = json.loads(labels)
     if not labels:
         return ""
-
     elif isinstance(labels, list):
         return ", ".join([f"'{sel}'" for sel in labels])
     else:
