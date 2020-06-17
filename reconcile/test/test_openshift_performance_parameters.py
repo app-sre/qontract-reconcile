@@ -2,10 +2,10 @@ from .fixtures import Fixtures
 
 import reconcile.openshift_performance_parameters as perf_params
 
-fxt = Fixtures('openshift_perf_params')
+fxt = Fixtures('openshift_performance_parameters')
 
 
-class TestPerfParams(object):
+class TestOpenShiftPerfParams(object):
     def test_labels_to_selectors(self):
         items = [
             ([], ""),
