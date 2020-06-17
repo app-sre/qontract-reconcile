@@ -1,3 +1,5 @@
+---
+# This file is internal representation of reconcile.openshift_performance_parameters.build_template_params
 http_rates:
   - name: http_rates
     kind: http_rate

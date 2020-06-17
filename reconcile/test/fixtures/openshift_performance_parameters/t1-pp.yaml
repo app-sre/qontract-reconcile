@@ -1,3 +1,5 @@
+---
+# This file is the app-interface representation of a performance-parameters file
 labels: '{"service":"observability"}'
 name: prometheus
 component: prometheus
