@@ -49,7 +49,14 @@ QONTRACT_INTEGRATION = 'openshift-namespaces'
 
 def get_desired_state(internal, use_jump_host):
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(QUERY)['namespaces']
+    all_namespaces = gqlapi.query(QUERY)['namespaces']
+
+    namespaces = []
+    for namespace in all_namespaces:
+        shard_key = f'{namespace["cluster"]["name"]}/{namespace["name"]}'
+        if is_in_shard(shard_key):
+            namespaces.append(namespace)
+
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
@@ -66,11 +73,6 @@ def get_desired_state(internal, use_jump_host):
     for cluster, namespace, _, _ in ri:
         if cluster not in oc_map.clusters():
             continue
-
-        shard_key = f'{cluster}/{namespace}'
-        if not is_in_shard(shard_key):
-            continue
-
         desired_state.append({"cluster": cluster, "namespace": namespace})
 
     return oc_map, desired_state
