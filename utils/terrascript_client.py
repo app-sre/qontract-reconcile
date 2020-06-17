@@ -334,6 +334,9 @@ class TerrascriptClient(object):
                     'Name': connection_name
                 }
             }
+            req_peer_owner_id = requester.get('peer_owner_id')
+            if req_peer_owner_id:
+                values['peer_owner_id'] = req_peer_owner_id
             tf_resource = aws_vpc_peering_connection(identifier, **values)
             self.add_resource(req_account_name, tf_resource)
 

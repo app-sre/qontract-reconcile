@@ -141,6 +141,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 logging.error(msg)
                 error = True
                 continue
+            requester['peer_owner_id'] = acc_aws['assume_role'].split(':')[4]
             accepter = {
                 'cidr_block': peer_cluster['network']['vpc'],
                 'region': peer_cluster['spec']['region'],
