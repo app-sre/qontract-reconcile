@@ -537,7 +537,7 @@ Please consult relevant SOPs to verify that the account is secure.
         trigger = data['trigger']
         hook = {
             'url': url,
-            'enable_ssl_verification': 0,
+            'enable_ssl_verification': 1,
             'note_events': int(trigger == 'mr'),
             'push_events': int(trigger == 'push'),
             'merge_requests_events': int(trigger == 'mr'),
