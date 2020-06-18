@@ -10,7 +10,7 @@ from prometheus_client import start_http_server
 from prometheus_client import Gauge
 from prometheus_client import Counter
 
-from reconcile.status import State
+from reconcile.status import ExitCodes
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
@@ -90,13 +90,13 @@ if __name__ == "__main__":
         run_status.labels(integration=INTEGRATION_NAME, status=return_code,
                           shards=SHARDS, shard_id=SHARD_ID).inc()
 
-        if return_code == State.DATA_CHANGED:
+        if return_code == ExitCodes.DATA_CHANGED:
             continue
 
         if RUN_ONCE:
             sys.exit(return_code)
 
-        if return_code == State.ERROR:
+        if return_code == ExitCodes.ERROR:
             continue
 
         time.sleep(int(SLEEP_DURATION_SECS))
