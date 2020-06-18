@@ -1,5 +1,6 @@
 import logging
 import semver
+import sys
 import time
 
 import jinja2
@@ -7,6 +8,7 @@ import ruamel.yaml as yaml
 
 from reconcile import openshift_base
 from reconcile import queries
+from reconcile.status import ExitCodes
 
 from utils import gql
 from utils.oc import OC_Map
@@ -115,6 +117,12 @@ def collect_queries(query_name=None):
 
     for sql_query in sql_queries:
         name = sql_query['name']
+
+        for existing in queries_list:
+            if existing['name'] == name:
+                logging.error(['SQL-Query %s defined more than once'],
+                              name)
+                sys.exit(ExitCodes.ERROR)
 
         # Looking for a specific query
         if query_name is not None:
