@@ -1,8 +1,11 @@
 import logging
+import sys
 
 import utils.gql as gql
 import utils.secret_reader as secret_reader
 import reconcile.queries as queries
+
+from reconcile.status import ExitCodes
 
 from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
@@ -88,6 +91,15 @@ def fetch_desired_state():
                     'org': name,
                     'repo': repo['name']
                 }
+
+                # Avoiding duplicates
+                try:
+                    state.get(params)
+                    logging.error(['Repository %s/%s defined more than once'],
+                                  params['org'], params['repo'])
+                    sys.exit(ExitCodes.ERROR)
+                except KeyError:
+                    pass
 
                 item = {
                     'public': repo['public'],
