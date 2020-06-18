@@ -673,7 +673,6 @@ USERS_QUERY = """
     org_username
     github_username
     slack_username
-    pagerduty_name
     public_gpg_key
   }
 }

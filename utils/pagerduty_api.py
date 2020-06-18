@@ -11,6 +11,10 @@ class PagerDutyApi(object):
     def __init__(self, token, settings=None):
         pd_api_key = secret_reader.read(token, settings=settings)
         pypd.api_key = pd_api_key
+        self.init_users()
+
+    def init_users(self):
+        self.users = pypd.User.find()
 
     def get_pagerduty_users(self, resource_type, resource_id):
         now = datetime.datetime.utcnow()
@@ -25,6 +29,13 @@ class PagerDutyApi(object):
 
         return users
 
+    def get_user(self, user_id):
+        for user in self.users:
+            if user.id == user_id:
+                return user.email.split('@')[0]
+
+        return None
+
     def get_schedule_users(self, schedule_id, now):
         s = pypd.Schedule.fetch(
             id=schedule_id,
@@ -32,7 +43,8 @@ class PagerDutyApi(object):
             until=now,
             time_zone='UTC')
         entries = s['final_schedule']['rendered_schedule_entries']
-        return [entry['user']['summary'] for entry in entries]
+
+        return [self.get_user(entry['user']['id']) for entry in entries]
 
     def get_escalation_policy_users(self, escalation_policy_id, now):
         ep = pypd.EscalationPolicy.fetch(
@@ -51,7 +63,7 @@ class PagerDutyApi(object):
                         self.get_schedule_users(target['id'], now)
                     users.extend(schedule_users)
                 elif target_type == 'user_reference':
-                    users.append(target['summary'])
+                    users.append(self.get_user(target['id']))
             if users and rule['escalation_delay_in_minutes'] != 0:
                 # process rules until users are found
                 # and next escalation is not 0 minutes from now
