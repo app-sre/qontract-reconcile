@@ -111,8 +111,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
         if not good_to_rebase:
             continue
 
-        logging.info(['rebase', gl.project.name, mr.iid])
         if not dry_run and rebases < rebase_limit:
+            logging.info(['rebase', gl.project.name, mr.iid])
             try:
                 mr.rebase()
                 rebases += 1
@@ -159,25 +159,31 @@ def merge_merge_requests(dry_run, gl, merge_limit):
         if last_pipeline_result != 'success':
             continue
 
-        logging.info(['merge', gl.project.name, mr.iid])
         if not dry_run and merges < merge_limit:
+            logging.info(['merge', gl.project.name, mr.iid])
             mr.merge()
             merges += 1
 
 
-def run(dry_run=False, days_interval=15,
-        enable_closing=False, limit=1):
+def run(dry_run=False):
+    default_days_interval = 15
+    default_limit = 8
+    default_enable_closing = False
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_housekeeping(server=instance['url'])
 
     for repo in repos:
+        hk = repo['housekeeping']
         project_url = repo['url']
+        days_interval = hk.get('days_interval') or default_days_interval
+        enable_closing = hk.get('enable_closing') or default_enable_closing
+        limit = hk.get('limit') or default_limit
         gl = GitLabApi(instance, project_url=project_url, settings=settings)
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'issue')
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'merge-request')
         merge_merge_requests(dry_run, gl, limit)
-        if repo['enable_rebase']:
+        if hk.get('rebase'):
             rebase_merge_requests(dry_run, gl, limit)

@@ -587,6 +587,9 @@ APPS_QUERY = """
       gitlabHousekeeping {
         enabled
         rebase
+        days_interval
+        limit
+        enable_closing
       }
       jira {
         serverUrl
@@ -647,7 +650,7 @@ def get_repos_gitlab_housekeeping(server=''):
     """
     code_components = get_code_components()
     return [{'url': c['url'],
-             'enable_rebase': c['gitlabHousekeeping']['rebase']}
+             'housekeeping': c['gitlabHousekeeping']}
             for c in code_components
             if c['url'].startswith(server) and
             c['gitlabHousekeeping'] and
