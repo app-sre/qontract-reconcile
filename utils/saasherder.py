@@ -259,6 +259,7 @@ class SaasHerder():
         if image_auth:
             username = image_auth['user']
             password = image_auth['token']
+            auth_server = image_auth.get('url')
         else:
             username = None
             password = None
@@ -269,7 +270,12 @@ class SaasHerder():
                 logging.error(
                     f"{error_prefix} Image is not in imagePatterns: {image}")
             try:
-                valid = Image(image, username=username, password=password)
+                valid = Image(
+                    image,
+                    username=username,
+                    password=password,
+                    auth_server=auth_server
+                )
                 if not valid:
                     error = True
                     logging.error(
