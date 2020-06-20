@@ -259,14 +259,21 @@ def realize_data(dry_run, oc_map, ri,
                     ).format(cluster, namespace, resource_type, name)
                     logging.info(msg)
 
+                # the comparison logic here is flawed.
+                # we only check fields that exist in the desired resource
+                # which may lead to a situation that we will not apply
+                # a resource if a field was removed (a selector for example).
+                # this section is mostly used by openshift-saas-deploy
+                # which is no longer running continously, so it is not
+                # needed at this point.
                 # don't apply if resources match
-                elif d_item == c_item:
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "and matches desired, skipping."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.debug(msg)
-                    continue
+                # elif d_item == c_item:
+                #     msg = (
+                #         "[{}/{}] resource '{}/{}' present "
+                #         "and matches desired, skipping."
+                #     ).format(cluster, namespace, resource_type, name)
+                #     logging.debug(msg)
+                #     continue
 
                 # don't apply if sha256sum hashes match
                 elif c_item.sha256sum() == d_item.sha256sum():
