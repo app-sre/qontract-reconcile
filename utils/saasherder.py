@@ -214,8 +214,7 @@ class SaasHerder():
                 f"error processing template: {str(e)}")
         return resources, html_url
 
-    @staticmethod
-    def _collect_images(resource):
+    def _collect_images(self, resource):
         images = set()
         # resources with pod templates
         try:
