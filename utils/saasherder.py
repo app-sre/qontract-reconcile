@@ -256,13 +256,7 @@ class SaasHerder():
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         error = False
         images = self._collect_images(resource)
-        if image_auth:
-            username = image_auth['user']
-            password = image_auth['token']
-            auth_server = image_auth.get('url')
-        else:
-            username = None
-            password = None
+
         for image in images:
             if image_patterns and \
                     not any(image.startswith(p) for p in image_patterns):
@@ -270,12 +264,7 @@ class SaasHerder():
                 logging.error(
                     f"{error_prefix} Image is not in imagePatterns: {image}")
             try:
-                valid = Image(
-                    image,
-                    username=username,
-                    password=password,
-                    auth_server=auth_server
-                )
+                valid = Image(image, **image_auth)
                 if not valid:
                     error = True
                     logging.error(
@@ -302,14 +291,47 @@ class SaasHerder():
         return Github(token, base_url=base_url)
 
     def _initiate_image_auth(self, saas_file):
-        auth = saas_file.get('authentication') or {}
-        auth_image = auth.get('image') or {}
-        if auth_image:
-            creds = \
-                secret_reader.read_all(auth_image, settings=self.settings)
-        else:
-            creds = None
-        return creds
+        """
+        This function initiates a dict required for image authentication.
+        This dict will be used as kwargs for sertoolbox's Image.
+        The image authentication secret specified in the saas file must
+        contain the 'user' and 'token' keys, and may optionally contain
+        a 'url' key specifying the image registry url to be passed to check
+        if an image should be checked using these credentials.
+        The function returns the keys extracted from the secret in the
+        structure expected by sretoolbox's Image:
+        'user' --> 'username'
+        'token' --> 'password'
+        'url' --> 'auth_server' (optional)
+        """
+        auth = saas_file.get('authentication')
+        if not auth:
+            return None
+        auth_image_secret = auth.get('image')
+        if not auth_image_secret:
+            return None
+
+        creds = \
+            secret_reader.read_all(auth_image_secret, settings=self.settings)
+        required_keys = ['user', 'token']
+        ok = all(k in creds.keys() for k in required_keys)
+        if not ok:
+            logging.warning(
+                "the specified image authentication secret " +
+                f"found in path {auth_image['path']} does not contain " +
+                f"all required keys: {required_keys}"
+            )
+            return None
+
+        image_auth = {
+            'username': creds['user'],
+            'password': creds['token']
+        }
+        url = creds.get('url')
+        if url:
+            image_auth['auth_server']: url
+
+        return image_auth
 
     def populate_desired_state(self, ri):
         threaded.run(self.populate_desired_state_saas_file,
