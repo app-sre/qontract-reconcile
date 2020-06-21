@@ -246,6 +246,29 @@ class SaasHerder():
 
         return images
 
+    @staticmethod
+    def _check_image(image, image_patterns, image_auth, error_prefix):
+        print('check image start: ' + image)
+        error = False
+        if image_patterns and \
+                not any(image.startswith(p) for p in image_patterns):
+            error = True
+            logging.error(
+                f"{error_prefix} Image is not in imagePatterns: {image}")
+        try:
+            valid = Image(image, **image_auth)
+            if not valid:
+                error = True
+                logging.error(
+                    f"{error_prefix} Image does not exist: {image}")
+        except Exception as e:
+            error = True
+            logging.error(f"{error_prefix} Image is invalid: {image}. " +
+                          f"details: {str(e)}")
+
+        print('check image end: ' + image)
+        return error
+
     def _check_images(self, options):
         saas_file_name = options['saas_file_name']
         resource_template_name = options['resource_template_name']
@@ -259,22 +282,9 @@ class SaasHerder():
         images = self._collect_images(resources)
 
         for image in images:
-            if image_patterns and \
-                    not any(image.startswith(p) for p in image_patterns):
+            image_error = self._check_image(image, image_patterns, image_auth, error_prefix)
+            if image_error:
                 error = True
-                logging.error(
-                    f"{error_prefix} Image is not in imagePatterns: {image}")
-            try:
-                valid = Image(image, **image_auth)
-                if not valid:
-                    error = True
-                    logging.error(
-                        f"{error_prefix} Image does not exist: {image}")
-                    continue
-            except Exception:
-                error = True
-                logging.error(f"{error_prefix} Image is invalid: {image}")
-                continue
         return error
 
     def _initiate_github(self, saas_file):
