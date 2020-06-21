@@ -5,6 +5,10 @@ import requests
 import utils.secret_reader as secret_reader
 
 
+class PagerDutyUserNotFoundException(Exception):
+    pass
+
+
 class PagerDutyApi(object):
     """Wrapper around PagerDuty API calls"""
 
@@ -34,7 +38,8 @@ class PagerDutyApi(object):
             if user.id == user_id:
                 return user.email.split('@')[0]
 
-        return None
+        # should never be reached as user_id comes from PagerDuty API itself
+        raise PagerDutyUserNotFoundException(user_id)
 
     def get_schedule_users(self, schedule_id, now):
         s = pypd.Schedule.fetch(
