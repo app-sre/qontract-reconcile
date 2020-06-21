@@ -306,10 +306,10 @@ class SaasHerder():
         """
         auth = saas_file.get('authentication')
         if not auth:
-            return None
+            return {}
         auth_image_secret = auth.get('image')
         if not auth_image_secret:
-            return None
+            return {}
 
         creds = \
             secret_reader.read_all(auth_image_secret, settings=self.settings)
@@ -321,7 +321,7 @@ class SaasHerder():
                 f"found in path {auth_image_secret['path']} " +
                 f"does not contain all required keys: {required_keys}"
             )
-            return None
+            return {}
 
         image_auth = {
             'username': creds['user'],
