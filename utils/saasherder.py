@@ -248,7 +248,6 @@ class SaasHerder():
 
     @staticmethod
     def _check_image(image, image_patterns, image_auth, error_prefix):
-        print('check image start: ' + image)
         error = False
         if image_patterns and \
                 not any(image.startswith(p) for p in image_patterns):
@@ -266,7 +265,6 @@ class SaasHerder():
             logging.error(f"{error_prefix} Image is invalid: {image}. " +
                           f"details: {str(e)}")
 
-        print('check image end: ' + image)
         return error
 
     def _check_images(self, options):
@@ -278,13 +276,13 @@ class SaasHerder():
         image_patterns = options['image_patterns']
         error_prefix = \
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
-        error = False
         images = self._collect_images(resources)
 
-        for image in images:
-            image_error = self._check_image(image, image_patterns, image_auth, error_prefix)
-            if image_error:
-                error = True
+        errors = threaded.run(self._check_image, images, self.thread_pool_size,
+                              image_patterns=image_patterns,
+                              image_auth=image_auth,
+                              error_prefix=error_prefix)
+        error = True in errors
         return error
 
     def _initiate_github(self, saas_file):
