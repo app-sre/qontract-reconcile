@@ -318,8 +318,8 @@ class SaasHerder():
         if not ok:
             logging.warning(
                 "the specified image authentication secret " +
-                f"found in path {auth_image['path']} does not contain " +
-                f"all required keys: {required_keys}"
+                f"found in path {auth_image_secret['path']} " +
+                f"does not contain all required keys: {required_keys}"
             )
             return None
 
