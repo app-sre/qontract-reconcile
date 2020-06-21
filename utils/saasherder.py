@@ -278,7 +278,16 @@ class SaasHerder():
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
         images = self._collect_images(resources)
 
-        errors = threaded.run(self._check_image, images, self.thread_pool_size,
+        # get a sane number of thread pool size to use
+        # when working on a low number of saas files.
+        thread_pool_size = int(
+            self.thread_pool_size /
+            len(self.saas_files) /
+            len(self.namespaces)
+        )
+        thread_pool_size = max(thread_pool_size, 1)
+
+        errors = threaded.run(self._check_image, images, thread_pool_size,
                               image_patterns=image_patterns,
                               image_auth=image_auth,
                               error_prefix=error_prefix)
