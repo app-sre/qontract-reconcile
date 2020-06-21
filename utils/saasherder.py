@@ -214,35 +214,35 @@ class SaasHerder():
                 f"error processing template: {str(e)}")
         return resources, html_url
 
-    def _collect_images(self, resources):
+    @staticmethod
+    def _collect_images(resource):
         images = set()
-        for resource in resources:
-            # resources with pod templates
-            try:
-                template = resource["spec"]["template"]
-                for c in template["spec"]["containers"]:
-                    images.add(c["image"])
-            except KeyError:
-                pass
-            # init containers
-            try:
-                template = resource["spec"]["template"]
-                for c in template["spec"]["initContainers"]:
-                    images.add(c["image"])
-            except KeyError:
-                pass
-            # CronJob
-            try:
-                template = resource["spec"]["jobTemplate"]["spec"]["template"]
-                for c in template["spec"]["containers"]:
-                    images.add(c["image"])
-            except KeyError:
-                pass
-            # CatalogSource templates
-            try:
-                images.add(resource["spec"]["image"])
-            except KeyError:
-                pass
+        # resources with pod templates
+        try:
+            template = resource["spec"]["template"]
+            for c in template["spec"]["containers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
+        # init containers
+        try:
+            template = resource["spec"]["template"]
+            for c in template["spec"]["initContainers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
+        # CronJob
+        try:
+            template = resource["spec"]["jobTemplate"]["spec"]["template"]
+            for c in template["spec"]["containers"]:
+                images.add(c["image"])
+        except KeyError:
+            pass
+        # CatalogSource templates
+        try:
+            images.add(resource["spec"]["image"])
+        except KeyError:
+            pass
 
         return images
 
@@ -276,7 +276,6 @@ class SaasHerder():
         image_patterns = options['image_patterns']
         error_prefix = \
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
-        images = self._collect_images(resources)
 
         # get a sane number of thread pool size to use
         # when working on a low number of saas files.
@@ -287,6 +286,9 @@ class SaasHerder():
         )
         thread_pool_size = max(thread_pool_size, 1)
 
+        images_list = \
+            threaded.run(self._collect_images, resources, thread_pool_size)
+        images = set([item for sublist in images_list for item in sublist])
         errors = threaded.run(self._check_image, images, thread_pool_size,
                               image_patterns=image_patterns,
                               image_auth=image_auth,
