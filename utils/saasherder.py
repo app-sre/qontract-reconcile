@@ -334,14 +334,19 @@ class SaasHerder():
         return image_auth
 
     def populate_desired_state(self, ri):
+        results = threaded.run(self.init_populate_desired_state_specs,
+                               self.saas_files,
+                               self.thread_pool_size)
+        desired_state_specs = \
+            [item for sublist in results for item in sublist]
         threaded.run(self.populate_desired_state_saas_file,
-                     self.saas_files,
+                     desired_state_specs,
                      self.thread_pool_size,
                      ri=ri)
 
-    def populate_desired_state_saas_file(self, saas_file, ri):
+    def init_populate_desired_state_specs(self, saas_file):
+        specs = []
         saas_file_name = saas_file['name']
-        logging.debug(f"populating desired state for {saas_file_name}")
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
         managed_resource_types = saas_file['managedResourceTypes']
@@ -377,43 +382,66 @@ class SaasHerder():
                     'parameters': consolidated_parameters,
                     'github': github
                 }
-                resources, html_url = \
-                    self._process_template(process_template_options)
-                if resources is None:
-                    ri.register_error()
-                    continue
-                # add desired resources
-                for resource in resources:
-                    resource_kind = resource['kind']
-                    if resource_kind not in managed_resource_types:
-                        continue
-                    # check images
-                    check_images_options = {
-                        'saas_file_name': saas_file_name,
-                        'resource_template_name': rt_name,
-                        'html_url': html_url,
-                        'resource': resource,
-                        'image_auth': image_auth,
-                        'image_patterns': image_patterns
-                    }
-                    image_error = self._check_images(check_images_options)
-                    if image_error:
-                        ri.register_error()
-                        continue
-                    resource_name = resource['metadata']['name']
-                    oc_resource = OR(
-                        resource,
-                        self.integration,
-                        self.integration_version,
-                        caller_name=saas_file_name,
-                        error_details=html_url)
-                    ri.add_desired(
-                        cluster,
-                        namespace,
-                        resource_kind,
-                        resource_name,
-                        oc_resource
-                    )
+                check_images_options_base = {
+                    'saas_file_name': saas_file_name,
+                    'resource_template_name': rt_name,
+                    'image_auth': image_auth,
+                    'image_patterns': image_patterns
+                }
+                spec = {
+                    'saas_file_name': saas_file_name,
+                    'cluster': cluster,
+                    'namespace': namespace,
+                    'managed_resource_types': managed_resource_types,
+                    'process_template_options': process_template_options,
+                    'check_images_options_base': check_images_options_base
+                }
+                specs.append(spec)
+
+        return specs
+
+    def populate_desired_state_saas_file(self, spec, ri):
+        saas_file_name = spec['saas_file_name']
+        cluster = spec['cluster']
+        namespace = spec['namespace']
+        managed_resource_types = spec['managed_resource_types']
+        process_template_options = spec['process_template_options']
+        check_images_options_base = spec['check_images_options_base']
+
+        resources, html_url = \
+            self._process_template(process_template_options)
+        if resources is None:
+            ri.register_error()
+            return
+        # add desired resources
+        for resource in resources:
+            resource_kind = resource['kind']
+            if resource_kind not in managed_resource_types:
+                continue
+            # check images
+            check_images_options = {
+                'html_url': html_url,
+                'resource': resource
+            }
+            check_images_options.update(check_images_options_base)
+            image_error = self._check_images(check_images_options)
+            if image_error:
+                ri.register_error()
+                continue
+            resource_name = resource['metadata']['name']
+            oc_resource = OR(
+                resource,
+                self.integration,
+                self.integration_version,
+                caller_name=saas_file_name,
+                error_details=html_url)
+            ri.add_desired(
+                cluster,
+                namespace,
+                resource_kind,
+                resource_name,
+                oc_resource
+            )
 
     def get_moving_commits_diff(self, dry_run):
         results = threaded.run(self.get_moving_commits_diff_saas_file,
