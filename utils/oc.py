@@ -315,7 +315,7 @@ class OC(object):
                     continue
         return False
 
-    @retry(exceptions=(StatusCodeError, NoOutputError))
+    @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
     def _run(self, cmd, **kwargs):
         if kwargs.get('stdin'):
             stdin = PIPE
