@@ -230,7 +230,8 @@ def check_unused_resource_types(ri):
 def realize_data(dry_run, oc_map, ri,
                  take_over=False,
                  caller=None,
-                 wait_for_namespace=False):
+                 wait_for_namespace=False,
+                 no_dry_run_skip_compare=False):
     """
     Realize the current state to the desired state.
 
@@ -242,6 +243,7 @@ def realize_data(dry_run, oc_map, ri,
                    enables multiple running instances of the same integration
                    to deploy to the same namespace
     :param wait_for_namespace: wait for namespace to exist before applying
+    :param no_dry_run_skip_compare: when running without dry-run, skip compare
     """
     enable_deletion = False if ri.has_error_registered() else True
 
@@ -251,41 +253,47 @@ def realize_data(dry_run, oc_map, ri,
             c_item = data['current'].get(name)
 
             if c_item is not None:
-                #  If resource doesn't have annotations, annotate and apply
-                if not c_item.has_qontract_annotations():
+                if not dry_run and no_dry_run_skip_compare:
                     msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "w/o annotations, annotating and applying"
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.info(msg)
-
-                # don't apply if resources match
-                elif d_item == c_item:
-                    msg = (
-                        "[{}/{}] resource '{}/{}' present "
-                        "and matches desired, skipping."
+                        "[{}/{}] skipping compare of resource '{}/{}'."
                     ).format(cluster, namespace, resource_type, name)
                     logging.debug(msg)
-                    continue
-
-                # don't apply if sha256sum hashes match
-                elif c_item.sha256sum() == d_item.sha256sum():
-                    if c_item.has_valid_sha256sum():
+                else:
+                    # If resource doesn't have annotations, annotate and apply
+                    if not c_item.has_qontract_annotations():
                         msg = (
                             "[{}/{}] resource '{}/{}' present "
-                            "and hashes match, skipping."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.debug(msg)
-                        continue
-                    else:
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and has stale sha256sum due to manual changes."
+                            "w/o annotations, annotating and applying"
                         ).format(cluster, namespace, resource_type, name)
                         logging.info(msg)
 
-                logging.debug("CURRENT: " +
-                              OR.serialize(OR.canonicalize(c_item.body)))
+                    # don't apply if resources match
+                    elif d_item == c_item:
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present "
+                            "and matches desired, skipping."
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.debug(msg)
+                        continue
+
+                    # don't apply if sha256sum hashes match
+                    elif c_item.sha256sum() == d_item.sha256sum():
+                        if c_item.has_valid_sha256sum():
+                            msg = (
+                                "[{}/{}] resource '{}/{}' present "
+                                "and hashes match, skipping."
+                            ).format(cluster, namespace, resource_type, name)
+                            logging.debug(msg)
+                            continue
+                        else:
+                            msg = (
+                                "[{}/{}] resource '{}/{}' present and "
+                                "has stale sha256sum due to manual changes."
+                            ).format(cluster, namespace, resource_type, name)
+                            logging.info(msg)
+
+                    logging.debug("CURRENT: " +
+                                  OR.serialize(OR.canonicalize(c_item.body)))
             else:
                 logging.debug("CURRENT: None")
 

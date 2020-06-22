@@ -52,7 +52,8 @@ def run(dry_run=False, thread_pool_size=10,
     # is being called from multiple running instances
     ob.realize_data(dry_run, oc_map, ri,
                     caller=saas_file_name,
-                    wait_for_namespace=True)
+                    wait_for_namespace=True,
+                    no_dry_run_skip_compare=True)
 
     if ri.has_error_registered():
         sys.exit(1)
