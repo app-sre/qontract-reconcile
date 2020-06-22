@@ -94,7 +94,7 @@ class SaasHerder():
         # each thread can use ~20/3 threads internally.
         # if there are 20 threads and 100 targts,
         # each thread can use 1 thread internally.
-        # 
+        #
         # each namespace is in fact a target,
         # so we can use it to calculate.
         thread_pool_size = int(
