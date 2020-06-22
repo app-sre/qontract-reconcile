@@ -5,34 +5,14 @@ import utils.git_secrets as git_secrets
 import reconcile.aws_support_cases_sos as aws_sos
 import reconcile.queries as queries
 
-from github.GithubException import UnknownObjectException
-
 from utils.aws_api import AWSApi
-from reconcile.github_users import init_github
+
 
 QONTRACT_INTEGRATION = 'github-scanner'
 
 
 def strip_repo_url(repo_url):
     return repo_url.rstrip('/').replace('.git', '')
-
-
-def get_all_repos_to_scan(repos):
-    logging.info('getting full list of repos')
-    all_repos = []
-    all_repos.extend([strip_repo_url(r) for r in repos])
-    g = init_github()
-    for r in repos:
-        logging.debug('getting forks: {}'.format(r))
-        repo_name = r.replace('https://github.com/', '')
-        try:
-            repo = g.get_repo(repo_name)
-            forks = repo.get_forks()
-            all_repos.extend([strip_repo_url(f.clone_url) for f in forks])
-        except UnknownObjectException:
-            logging.error('not found {}'.format(r))
-
-    return all_repos
 
 
 def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10):
@@ -45,7 +25,7 @@ def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10):
     logging.info('found {} existing keys'.format(len(existing_keys_list)))
 
     app_int_github_repos = queries.get_repos(server='https://github.com')
-    all_repos = get_all_repos_to_scan(app_int_github_repos)
+    all_repos = [strip_repo_url(r) for r in app_int_github_repos]
     logging.info('about to scan {} repos'.format(len(all_repos)))
 
     results = threaded.run(git_secrets.scan_history, all_repos,
