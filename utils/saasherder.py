@@ -36,6 +36,8 @@ class SaasHerder():
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+        self.available_thread_pool_size = \
+            self._estimate_available_thread_pool_size()
         if accounts:
             self._initiate_state(accounts)
 
@@ -86,6 +88,20 @@ class SaasHerder():
                     namespace['managedResourceTypes'] = managed_resource_types
                     namespaces.append(namespace)
         return namespaces
+
+    def _estimate_available_thread_pool_size(self):
+        # if there are 20 threads and only 3 targets,
+        # each thread can use ~20/3 threads internally.
+        # if there are 20 threads and 100 targts,
+        # each thread can use 1 thread internally.
+        # 
+        # each namespace is in fact a target,
+        # so we can use it to calculate.
+        thread_pool_size = int(
+            self.thread_pool_size /
+            len(self.namespaces)
+        )
+        return max(thread_pool_size, 1)
 
     def _initiate_state(self, accounts):
         self.state = State(
@@ -276,19 +292,11 @@ class SaasHerder():
         error_prefix = \
             f"[{saas_file_name}/{resource_template_name}] {html_url}:"
 
-        # get a sane number of thread pool size to use
-        # when working on a low number of saas files.
-        thread_pool_size = int(
-            self.thread_pool_size /
-            len(self.saas_files) /
-            len(self.namespaces)
-        )
-        thread_pool_size = max(thread_pool_size, 1)
-
-        images_list = \
-            threaded.run(self._collect_images, resources, thread_pool_size)
+        images_list = threaded.run(self._collect_images, resources,
+                                   self.available_thread_pool_size)
         images = set([item for sublist in images_list for item in sublist])
-        errors = threaded.run(self._check_image, images, thread_pool_size,
+        errors = threaded.run(self._check_image, images,
+                              self.available_thread_pool_size,
                               image_patterns=image_patterns,
                               image_auth=image_auth,
                               error_prefix=error_prefix)
