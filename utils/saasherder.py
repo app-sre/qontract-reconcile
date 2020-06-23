@@ -295,6 +295,8 @@ class SaasHerder():
         images_list = threaded.run(self._collect_images, resources,
                                    self.available_thread_pool_size)
         images = set([item for sublist in images_list for item in sublist])
+        if not images:
+            return False # no errors
         errors = threaded.run(self._check_image, images,
                               self.available_thread_pool_size,
                               image_patterns=image_patterns,
@@ -440,6 +442,9 @@ class SaasHerder():
         if resources is None:
             ri.register_error()
             return
+        # filter resources
+        resources = [resource for resource in resources
+                     if resource['kind'] in managed_resource_types]
         # check images
         check_images_options = {
             'html_url': html_url,
@@ -453,8 +458,6 @@ class SaasHerder():
         # add desired resources
         for resource in resources:
             resource_kind = resource['kind']
-            if resource_kind not in managed_resource_types:
-                continue
             resource_name = resource['metadata']['name']
             oc_resource = OR(
                 resource,
