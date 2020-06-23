@@ -157,7 +157,7 @@ integrations:
       memory: 1040Mi
       cpu: 500m
   shards: 2
-  extraArgs: --external --no-use-jump-host
+  extraArgs: --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
@@ -181,7 +181,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 800m
-  extraArgs: --external --no-use-jump-host
+  extraArgs: --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
@@ -193,7 +193,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
-  extraArgs: --external --no-use-jump-host
+  extraArgs: --no-use-jump-host
   shards: 4
   logs:
     slack: true
@@ -208,7 +208,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
-  extraArgs: --external --no-use-jump-host
+  extraArgs: --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
