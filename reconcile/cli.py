@@ -113,6 +113,16 @@ def dry_run(function):
     return function
 
 
+def gql_sha_url(function):
+    help_msg = ('If `false`, it will not use the sha_url endpoint '
+                'of graphql (prevent stopping execution on data reload).')
+
+    function = click.option('--gql-sha-url/--no-gql-sha-url',
+                            default=True,
+                            help=help_msg)(function)
+    return function
+
+
 def threaded(**kwargs):
     def f(function):
         opt = '--thread-pool-size'
@@ -264,14 +274,15 @@ def init_log_level(log_level):
 @click.group()
 @config_file
 @dry_run
+@gql_sha_url
 @log_level
 @click.pass_context
-def integration(ctx, configfile, dry_run, log_level):
+def integration(ctx, configfile, dry_run, log_level, gql_sha_url):
     ctx.ensure_object(dict)
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
-    gql.init_from_config()
+    gql.init_from_config(sha_url=gql_sha_url)
     ctx.obj['dry_run'] = dry_run
 
 
