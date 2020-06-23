@@ -157,7 +157,7 @@ integrations:
       memory: 1040Mi
       cpu: 500m
   shards: 2
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
     cloudwatch: true
