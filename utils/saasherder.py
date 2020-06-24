@@ -25,11 +25,13 @@ class SaasHerder():
                  integration,
                  integration_version,
                  settings,
-                 accounts=None):
+                 accounts=None,
+                 validate_saas_files=True):
         self.saas_files = saas_files
-        self._validate_saas_files()
-        if not self.valid:
-            return
+        if validate_saas_files:
+            self._validate_saas_files()
+            if not self.valid:
+                return
         self.thread_pool_size = thread_pool_size
         self.gitlab = gitlab
         self.integration = integration
