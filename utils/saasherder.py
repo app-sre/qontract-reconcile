@@ -209,7 +209,13 @@ class SaasHerder():
 
         template = yaml.safe_load(content)
         if "IMAGE_TAG" not in consolidated_parameters:
-            for template_parameter in template['parameters']:
+            template_parameters = template.get('parameters')
+            if not template_parameters:
+                logging.error(
+                    f"[{url}/{path}:{target_ref}] " +
+                    f"missing parameters section")
+                return None, None
+            for template_parameter in template_parameters:
                 if template_parameter['name'] == 'IMAGE_TAG':
                     # add IMAGE_TAG only if it is required
                     get_commit_sha_options = {
