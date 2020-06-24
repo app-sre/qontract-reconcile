@@ -528,7 +528,8 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
               default=None,
               help='environment to deploy to.')
 @click.pass_context
-def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name, io_dir):
+def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name,
+                          io_dir):
     run_integration(reconcile.openshift_saas_deploy,
                     ctx.obj['dry_run'], thread_pool_size,
                     saas_file_name, env_name, io_dir)
