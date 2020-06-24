@@ -18,6 +18,13 @@ def get_baseline_file_path(io_dir):
     return os.path.join(dir_path, 'baseline.json')
 
 
+def get_diffs_file_path(io_dir):
+    dir_path = os.path.join(io_dir, QONTRACT_INTEGRATION)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    return os.path.join(dir_path, 'diffs.json')
+
+
 def collect_owners():
     owners = {}
     saas_files = queries.get_saas_files()
@@ -55,8 +62,10 @@ def collect_state():
             resource_template_parameters = \
                 json.loads(resource_template.get('parameters') or '{}')
             for target in resource_template['targets']:
-                namespace = target['namespace']['name']
-                cluster = target['namespace']['cluster']['name']
+                namespace_info = target['namespace']
+                namespace = namespace_info['name']
+                cluster = namespace_info['cluster']['name']
+                environment = namespace_info['environment']['name']
                 target_ref = target['ref']
                 target_parameters = \
                     json.loads(target.get('parameters') or '{}')
@@ -70,6 +79,7 @@ def collect_state():
                     'resource_template_name': resource_template_name,
                     'cluster': cluster,
                     'namespace': namespace,
+                    'environment': environment,
                     'ref': target_ref,
                     'parameters': parameters
                 })
@@ -94,6 +104,24 @@ def read_baseline_from_file(io_dir):
     with open(file_path, 'r') as f:
         baseline = json.load(f)
     return baseline
+
+
+def write_diffs_to_file(io_dir, diffs):
+    required_keys = ['saas_file_name', 'environment']
+    diffs = [{k: v for k, v in diff.items()
+              if k in required_keys}
+             for diff in diffs]
+    file_path = get_diffs_file_path(io_dir)
+    with open(file_path, 'w') as f:
+        f.write(json.dumps(diffs))
+    throughput.change_files_ownership(io_dir)
+
+
+def read_diffs_from_file(io_dir):
+    file_path = get_diffs_file_path(io_dir)
+    with open(file_path, 'r') as f:
+        diffs = json.load(f)
+    return diffs
 
 
 def init_gitlab(gitlab_project_id):
@@ -157,6 +185,8 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     owners = baseline['owners']
     current_state = baseline['state']
     desired_state = collect_state()
+    diffs = [s for s in desired_state if s not in current_state]
+    write_diffs_to_file(io_dir, diffs)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
@@ -168,10 +198,8 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
         return
 
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
-
     changed_paths = \
         gl.get_merge_request_changed_paths(gitlab_merge_request_id)
-    diffs = [s for s in desired_state if s not in current_state]
     comment_lines = {}
     for diff in diffs:
         # check for a lgtm by an owner of this app
