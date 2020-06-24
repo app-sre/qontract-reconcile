@@ -106,6 +106,8 @@ TF_NAMESPACES_QUERY = """
         region
         identifier
         defaults
+        es_identifier
+        filter_pattern
         output_resource_name
       }
       ... on NamespaceTerraformResourceKMS_v1 {

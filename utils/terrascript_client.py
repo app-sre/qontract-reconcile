@@ -6,6 +6,7 @@ import json
 import anymarkup
 import logging
 import re
+import requests
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -21,14 +22,15 @@ from utils.elasticsearch_exceptions \
           ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 from threading import Lock
-from terrascript import Terrascript, provider, terraform, backend, output
+from terrascript import Terrascript, provider, terraform, backend, output, data
 from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_s3_bucket, aws_iam_user,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
                                aws_iam_user_login_profile, aws_iam_policy,
-                               aws_iam_role, aws_iam_role_policy_attachment,
+                               aws_iam_role, aws_iam_role_policy,
+                               aws_iam_role_policy_attachment,
                                aws_elasticache_replication_group,
                                aws_elasticache_parameter_group,
                                aws_iam_user_policy_attachment,
@@ -41,7 +43,12 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudwatch_log_group, aws_kms_key,
                                aws_kms_alias,
                                aws_elasticsearch_domain,
-                               aws_iam_service_linked_role)
+                               aws_iam_service_linked_role,
+                               aws_lambda_function, aws_lambda_permission,
+                               aws_cloudwatch_log_subscription_filter)
+
+LAMBDA_RELEASE = 'https://github.com/app-sre/' + \
+                 'logs-to-elasticsearch-lambda/releases/download/'
 
 
 class UnknownProviderError(Exception):
@@ -1485,6 +1492,147 @@ class TerrascriptClient(object):
             values['provider'] = 'aws.' + region
         log_group_tf_resource = aws_cloudwatch_log_group(identifier, **values)
         tf_resources.append(log_group_tf_resource)
+
+        es_identifier = common_values.get('es_identifier', None)
+        if es_identifier is not None:
+
+            assume_role_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": "sts:AssumeRole",
+                        "Principal": {
+                            "Service": "lambda.amazonaws.com"
+                        },
+                        "Effect": "Allow"
+                    }
+                ]
+            }
+
+            role_identifier = f"{identifier}-lambda-execution-role"
+            role_values = {
+                'name': role_identifier,
+                'assume_role_policy':
+                    json.dumps(assume_role_policy, sort_keys=True)
+            }
+
+            role_tf_resource = aws_iam_role(role_identifier, **role_values)
+            tf_resources.append(role_tf_resource)
+
+            policy_identifier = f"{identifier}-lambda-execution-policy"
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "ec2:CreateNetworkInterface",
+                            "ec2:DescribeNetworkInterfaces",
+                            "ec2:DeleteNetworkInterface"
+                        ],
+                        "Resource": "*"
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": "es:*",
+                        "Resource": "arn:aws:es:*"
+                    }
+                ]
+            }
+
+            policy_values = {
+                'role': "${" + role_tf_resource.fullname + ".id}",
+                'policy': json.dumps(policy, sort_keys=True)
+            }
+            policy_tf_resource = \
+                aws_iam_role_policy(policy_identifier, **policy_values)
+            tf_resources.append(policy_tf_resource)
+
+            es_domain = {
+                'domain_name': es_identifier
+            }
+            tf_resources.append(data('aws_elasticsearch_domain',
+                                     'es_domain', **es_domain))
+
+            zip_url = common_values.get(
+                'zip_url', LAMBDA_RELEASE + 'v1.0/LogsToElasticsearch.zip')
+            r = requests.get(zip_url)
+            open('/tmp/LogsToElasticsearch.zip', 'wb').write(r.content)
+
+            lambda_identifier = f"{identifier}-lambda"
+            lambda_values = {
+                'filename': '/tmp/LogsToElasticsearch.zip',
+                'source_code_hash':
+                    '${filebase64sha256("/tmp/LogsToElasticsearch.zip")}',
+                'role': "${" + role_tf_resource.fullname + ".arn}"
+            }
+
+            lambda_values["function_name"] = lambda_identifier
+            lambda_values["runtime"] = \
+                common_values.get('runtime', 'nodejs10.x')
+            lambda_values["timeout"] = \
+                common_values.get('timeout', 30)
+            lambda_values["handler"] = \
+                common_values.get('handler', 'index.handler')
+            lambda_values["memory_size"] = \
+                common_values.get('memory_size', 128)
+
+            lambda_values["vpc_config"] = {
+                'subnet_ids': [
+                    "${data.aws_elasticsearch_domain.es_domain." +
+                    "vpc_options.0.subnet_ids}"
+                ],
+                'security_group_ids': [
+                    "${data.aws_elasticsearch_domain.es_domain." +
+                    "vpc_options.0.security_group_ids}"
+                ]
+            }
+
+            lambda_values["environment"] = {
+                'variables': {
+                    'es_endpoint':
+                        '${data.aws_elasticsearch_domain.es_domain.endpoint}'
+                }
+            }
+
+            lambds_tf_resource = \
+                aws_lambda_function(lambda_identifier, **lambda_values)
+            tf_resources.append(lambds_tf_resource)
+
+            permission_vaules = {
+                'statement_id': 'cloudwatch_allow',
+                'action': 'lambda:InvokeFunction',
+                'function_name': "${" + lambds_tf_resource.fullname + ".arn}",
+                'principal': 'logs.amazonaws.com',
+                'source_arn': "${" + log_group_tf_resource.fullname + ".arn}"
+            }
+
+            permission_tf_resource = \
+                aws_lambda_permission(lambda_identifier, **permission_vaules)
+            tf_resources.append(permission_tf_resource)
+
+            subscription_vaules = {
+                'name': lambda_identifier,
+                'log_group_name':
+                    "${" + log_group_tf_resource.fullname + ".name}",
+                'destination_arn':
+                    "${" + lambds_tf_resource.fullname + ".arn}",
+                'filter_pattern': "",
+                'depends_on': [log_group_tf_resource]
+            }
+
+            filter_pattern = common_values.get('filter_pattern', None)
+            if filter_pattern is not None:
+                subscription_vaules["filter_pattern"] = filter_pattern
+
+            subscription_tf_resource = \
+                aws_cloudwatch_log_subscription_filter(lambda_identifier,
+                                                       **subscription_vaules)
+            tf_resources.append(subscription_tf_resource)
+
         output_name = output_prefix + '[log_group_name]'
         output_value = '${' + log_group_tf_resource.fullname + '.name}'
         tf_resources.append(output(output_name, value=output_value))
@@ -1670,6 +1818,8 @@ class TerrascriptClient(object):
         sc = resource.get('storage_class', None)
         enhanced_monitoring = resource.get('enhanced_monitoring', None)
         replica_source = resource.get('replica_source', None)
+        es_identifier = resource.get('es_identifier', None)
+        filter_pattern = resource.get('filter_pattern', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1687,6 +1837,8 @@ class TerrascriptClient(object):
         values['storage_class'] = sc
         values['enhanced_monitoring'] = enhanced_monitoring
         values['replica_source'] = replica_source
+        values['es_identifier'] = es_identifier
+        values['filter_pattern'] = filter_pattern
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
