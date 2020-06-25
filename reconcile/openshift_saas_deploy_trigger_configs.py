@@ -53,6 +53,17 @@ def run(dry_run=False, thread_pool_size=10):
 
         if not dry_run:
             jenkins = jenkins_map[instance_name]
+            upstream = job_spec['target_config'].get('upstream')
+            if upstream and jenkins.is_job_running(upstream):
+                # if upstream job is defined and it is currently running,
+                # triggering the job may result in an image that was not
+                # built yet. we can skip triggering this job since it will
+                # be triggered when the upstream job succeeds. if it fails,
+                # we are better off not attempting to deploy. tl;dr - we
+                # skip triggering a job that it's upstream job is running.
+                # we use already_triggered even though the job was not
+                # triggered, but this will achieve the desired outcome.
+                already_triggered.append(job_name)
             try:
                 if job_name not in already_triggered:
                     jenkins.trigger_job(job_name)
