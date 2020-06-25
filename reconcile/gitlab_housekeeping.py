@@ -111,8 +111,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
         if not good_to_rebase:
             continue
 
+        logging.info(['rebase', gl.project.name, mr.iid])
         if not dry_run and rebases < rebase_limit:
-            logging.info(['rebase', gl.project.name, mr.iid])
             try:
                 mr.rebase()
                 rebases += 1
@@ -120,7 +120,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
                 logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
-def merge_merge_requests(dry_run, gl, merge_limit):
+def merge_merge_requests(dry_run, gl, merge_limit, rebase):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for mr in reversed(mrs):
@@ -159,9 +159,11 @@ def merge_merge_requests(dry_run, gl, merge_limit):
         if last_pipeline_result != 'success':
             continue
 
+        logging.info(['merge', gl.project.name, mr.iid])
         if not dry_run and merges < merge_limit:
-            logging.info(['merge', gl.project.name, mr.iid])
             mr.merge()
+            if rebase:
+                return
             merges += 1
 
 
@@ -184,6 +186,7 @@ def run(dry_run=False):
                            'issue')
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'merge-request')
-        merge_merge_requests(dry_run, gl, limit)
-        if hk.get('rebase'):
+        rebase = hk.get('rebase')
+        merge_merge_requests(dry_run, gl, limit, rebase)
+        if rebase:
             rebase_merge_requests(dry_run, gl, limit)
