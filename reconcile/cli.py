@@ -41,6 +41,7 @@ import reconcile.terraform_resources
 import reconcile.terraform_users
 import reconcile.terraform_vpc_peerings
 import reconcile.github_repo_invites
+import reconcile.github_repo_permissions_validator
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
 import reconcile.jenkins_job_builder
@@ -781,6 +782,16 @@ def terraform_vpc_peerings(ctx, print_only, enable_deletion,
 @click.pass_context
 def github_repo_invites(ctx):
     run_integration(reconcile.github_repo_invites, ctx.obj['dry_run'])
+
+
+@integration.command()
+@click.argument('instance-name')
+@click.argument('bot-token-org-name')
+@click.pass_context
+def github_repo_permissions_validator(ctx, instance_name, bot_token_org_name):
+    run_integration(reconcile.github_repo_permissions_validator,
+                    ctx.obj['dry_run'],
+                    instance_name, bot_token_org_name)
 
 
 @integration.command()
