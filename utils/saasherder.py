@@ -25,21 +25,23 @@ class SaasHerder():
                  integration,
                  integration_version,
                  settings,
-                 accounts=None,
-                 validate_saas_files=True):
+                 accounts=None):
         self.saas_files = saas_files
-        if validate_saas_files:
-            self._validate_saas_files()
-            if not self.valid:
-                return
+        self._validate_saas_files()
+        if not self.valid:
+            return
         self.thread_pool_size = thread_pool_size
         self.gitlab = gitlab
         self.integration = integration
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+        # each namespace is in fact a target,
+        # so we can use it to calculate.
         self.available_thread_pool_size = \
-            self._estimate_available_thread_pool_size()
+            threaded.estimate_available_thread_pool_size(
+                self.thread_pool_size,
+                len(self.namespaces))
         if accounts:
             self._initiate_state(accounts)
 
@@ -90,20 +92,6 @@ class SaasHerder():
                     namespace['managedResourceTypes'] = managed_resource_types
                     namespaces.append(namespace)
         return namespaces
-
-    def _estimate_available_thread_pool_size(self):
-        # if there are 20 threads and only 3 targets,
-        # each thread can use ~20/3 threads internally.
-        # if there are 20 threads and 100 targts,
-        # each thread can use 1 thread internally.
-        #
-        # each namespace is in fact a target,
-        # so we can use it to calculate.
-        thread_pool_size = int(
-            self.thread_pool_size /
-            len(self.namespaces)
-        )
-        return max(thread_pool_size, 1)
 
     def _initiate_state(self, accounts):
         self.state = State(

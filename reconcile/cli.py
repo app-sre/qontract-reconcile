@@ -27,6 +27,7 @@ import reconcile.openshift_network_policies
 import reconcile.openshift_performance_parameters
 import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
+import reconcile.openshift_saas_deploy_wrapper
 import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.saas_file_owners
@@ -173,15 +174,12 @@ def terraform(function):
     return function
 
 
-def throughput(**kwargs):
-    def f(function):
-        opt = '--io-dir'
-        msg = 'directory of input/output files.'
-        function = click.option(opt,
-                                default=kwargs.get('default', 'throughput/'),
-                                help=msg)(function)
-        return function
-    return f
+def throughput(function):
+    function = click.option('--io-dir',
+                            help='directory of input/output files.',
+                            default='throughput/')(function)
+
+    return function
 
 
 def vault_input_path(function):
@@ -406,7 +404,7 @@ def jenkins_plugins(ctx):
 
 
 @integration.command()
-@throughput()
+@throughput
 @click.option('--compare/--no-compare',
               default=True,
               help='compare between current and desired state.')
@@ -429,7 +427,7 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command()
-@throughput()
+@throughput
 @click.pass_context
 def jira_watcher(ctx, io_dir):
     run_integration(reconcile.jira_watcher, ctx.obj['dry_run'], io_dir)
@@ -471,7 +469,7 @@ def gitlab_pr_submitter(ctx, gitlab_project_id):
 
 
 @integration.command()
-@throughput()
+@throughput
 @threaded()
 @click.pass_context
 def aws_garbage_collector(ctx, thread_pool_size, io_dir):
@@ -520,7 +518,6 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh'])
-@throughput(default=None)
 @click.option('--saas-file-name',
               default=None,
               help='saas-file to act on.')
@@ -528,11 +525,20 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
               default=None,
               help='environment to deploy to.')
 @click.pass_context
-def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name,
-                          io_dir):
+def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
     run_integration(reconcile.openshift_saas_deploy,
                     ctx.obj['dry_run'], thread_pool_size,
-                    saas_file_name, env_name, io_dir)
+                    saas_file_name, env_name)
+
+
+@integration.command()
+@threaded(default=20)
+@binary(['oc', 'ssh'])
+@throughput
+@click.pass_context
+def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir):
+    run_integration(reconcile.openshift_saas_deploy_wrapper,
+                    ctx.obj['dry_run'], thread_pool_size, io_dir)
 
 
 @integration.command()
@@ -562,7 +568,7 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
 
 
 @integration.command()
-@throughput()
+@throughput
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.option('--compare/--no-compare',
@@ -722,7 +728,7 @@ def user_validator(ctx):
 
 @integration.command()
 @terraform
-@throughput()
+@throughput
 @vault_output_path
 @threaded(default=20)
 @binary(['terraform', 'oc'])
@@ -744,7 +750,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 
 @integration.command()
 @terraform
-@throughput()
+@throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
 @enable_deletion(default=True)
