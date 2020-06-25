@@ -26,6 +26,10 @@ class RecyclePodsUnsupportedKindError(Exception):
     pass
 
 
+class RecyclePodsInvalidAnnotationValue(Exception):
+    pass
+
+
 class PodNotReadyError(Exception):
     pass
 
@@ -205,7 +209,12 @@ class OC(object):
             return
 
         dep_annotations = dep_resource.body['metadata'].get('annotations', {})
-        if dep_annotations.get('qontract.recycle') != 'true':
+        qontract_recycle = dep_annotations.get('qontract.recycle')
+        if qontract_recycle is True:
+            raise RecyclePodsInvalidAnnotationValue('should be "true"')
+        if not isinstance(qontract_recycle, str):
+            raise RecyclePodsInvalidAnnotationValue('should be a string')
+        if qontract_recycle != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
                            namespace, dep_kind])
             return
