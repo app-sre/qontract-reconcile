@@ -8,8 +8,6 @@ import reconcile.openshift_base as ob
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
 from utils.defer import defer
-from reconcile.saas_file_owners import read_diffs_from_file as \
-    read_saas_file_owners_diffs
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
