@@ -302,10 +302,12 @@ class JJB(object):
         repo_url_raw = job['properties'][0]['github']['url']
         return repo_url_raw.strip('/').replace('.git', '')
 
-    def get_all_jobs(self, job_types=['']):
+    def get_all_jobs(self, job_types=[''], instance_name=None):
         all_jobs = {}
         for name, wd in self.working_dirs.items():
-            logging.info(f'getting jobs from {name}')
+            if instance_name and name != instance_name:
+                continue
+            logging.debug(f'getting jobs from {name}')
             all_jobs[name] = []
             jobs = self.get_jobs(wd, name)
             for job in jobs:
