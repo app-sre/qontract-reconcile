@@ -38,7 +38,7 @@ ROLES_QUERY = """
       name
       org_username
       slack_username
-      pagerduty_name
+      pagerduty_username
     }
     permissions {
       service
@@ -132,7 +132,7 @@ def get_slack_username(user):
 
 
 def get_pagerduty_name(user):
-    return user['pagerduty_name'] or user['name']
+    return user['pagerduty_username'] or user['org_username']
 
 
 def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
@@ -164,9 +164,9 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
              if pagerduty_name not in all_pagerduty_names]
         if not_found_pagerduty_names:
             msg = (
-                '[{}] PagerDuty names not found in app-interface: {} '
+                '[{}] PagerDuty username not found in app-interface: {} '
                 '(hint: user files should contain '
-                'pagerduty_name if it is different then name)'
+                'pagerduty_username if it is different then org_username)'
             ).format(usergroup, not_found_pagerduty_names)
             logging.warning(msg)
         all_slack_usernames.extend(slack_usernames)
