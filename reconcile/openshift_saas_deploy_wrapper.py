@@ -21,6 +21,9 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size):
 
 def run(dry_run=False, thread_pool_size=10, io_dir='throughput/'):
     saas_file_owners_diffs = read_saas_file_owners_diffs(io_dir)
+    if len(saas_file_owners_diffs) == 0:
+        return
+
     available_thread_pool_size = \
         threaded.estimate_available_thread_pool_size(
             thread_pool_size,
