@@ -17,7 +17,7 @@ def get_jobs(jjb, instance_name):
         jjb.get_all_jobs(
             job_types=['gh-pr-check'],
             instance_name=instance_name
-    ).get(instance_name)
+        ).get(instance_name)
 
     return pr_check_jobs
 
