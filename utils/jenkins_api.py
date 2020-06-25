@@ -118,6 +118,17 @@ class JenkinsApi(object):
         return [b['result'] for b in res.json()['builds']
                 if time_limit < self.timestamp_seconds(b['timestamp'])]
 
+    def is_job_running(self, job_name):
+        url = f"{self.url}/job/{job_name}/lastBuild/api/json"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        return res.json()['building'] is True
+
     def trigger_job(self, job_name):
         try:
             crumb_url = f"{self.url}/crumbIssuer/api/json"
