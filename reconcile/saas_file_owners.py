@@ -111,9 +111,13 @@ def write_diffs_to_file(io_dir, diffs):
     diffs = [{k: v for k, v in diff.items()
               if k in required_keys}
              for diff in diffs]
+    unique_diffs = []
+    for diff in diffs:
+        if diff not in unique_diffs:
+            unique_diffs.append(diff)
     file_path = get_diffs_file_path(io_dir)
     with open(file_path, 'w') as f:
-        f.write(json.dumps(diffs))
+        f.write(json.dumps(unique_diffs))
     throughput.change_files_ownership(io_dir)
 
 
