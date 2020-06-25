@@ -46,7 +46,7 @@ def run(dry_run, instance_name, bot_token_org_name):
         permissions = repo.permissions
         if not permissions.push:
             logging.error(
-                f'missing edit permissions for bot in repo {repo_url}')
+                f'missing write permissions for bot in repo {repo_url}')
             error = True
 
     if error:
