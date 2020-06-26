@@ -212,8 +212,6 @@ class OC(object):
         qontract_recycle = dep_annotations.get('qontract.recycle')
         if qontract_recycle is True:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
-        if not isinstance(qontract_recycle, str):
-            raise RecyclePodsInvalidAnnotationValue('should be a string')
         if qontract_recycle != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
                            namespace, dep_kind])
