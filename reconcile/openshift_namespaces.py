@@ -47,7 +47,7 @@ QUERY = """
 QONTRACT_INTEGRATION = 'openshift-namespaces'
 
 
-def get_desired_state(internal, use_jump_host):
+def get_desired_state(internal, use_jump_host, thread_pool_size):
     gqlapi = gql.get_api()
     all_namespaces = gqlapi.query(QUERY)['namespaces']
 
@@ -61,7 +61,8 @@ def get_desired_state(internal, use_jump_host):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
-                    use_jump_host=use_jump_host)
+                    use_jump_host=use_jump_host, thread_pool_size=thread_pool_size,
+                    init_projects=True)
     ob.init_specs_to_fetch(
         ri,
         oc_map,
@@ -107,7 +108,8 @@ def create_new_project(spec, oc_map):
 @defer
 def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    oc_map, desired_state = get_desired_state(internal, use_jump_host)
+    oc_map, desired_state = get_desired_state(internal, use_jump_host,
+                                              thread_pool_size)
     defer(lambda: oc_map.cleanup())
     results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
                            oc_map=oc_map)
