@@ -61,7 +61,8 @@ def get_desired_state(internal, use_jump_host, thread_pool_size):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
-                    use_jump_host=use_jump_host, thread_pool_size=thread_pool_size,
+                    use_jump_host=use_jump_host,
+                    thread_pool_size=thread_pool_size,
                     init_projects=True)
     ob.init_specs_to_fetch(
         ri,
