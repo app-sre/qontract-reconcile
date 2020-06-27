@@ -160,7 +160,8 @@ def fetch_current_state(namespaces=None,
                     integration=integration,
                     settings=settings,
                     internal=internal,
-                    use_jump_host=use_jump_host)
+                    use_jump_host=use_jump_host,
+                    thread_pool_size=thread_pool_size)
     state_specs = \
         init_specs_to_fetch(
             ri,
