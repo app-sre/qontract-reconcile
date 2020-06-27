@@ -1,9 +1,12 @@
 import json
 import logging
 
+import utils.threaded as threaded
+
 from subprocess import Popen, PIPE
 from datetime import datetime
 
+from threading import Lock
 from sretoolbox.utils import retry
 
 from utils import secret_reader
@@ -35,7 +38,8 @@ class PodNotReadyError(Exception):
 
 
 class OC(object):
-    def __init__(self, server, token, jh=None, settings=None):
+    def __init__(self, server, token, jh=None, settings=None,
+                 init_projects=False):
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -49,6 +53,10 @@ class OC(object):
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
+        self.init_projects = init_projects
+        if self.init_projects:
+            self.projects = [p['metadata']['name']
+                             for p in self.get_all('Project')['items']]
 
     def whoami(self):
         return self._run(['whoami'])
@@ -131,6 +139,9 @@ class OC(object):
         self._run(cmd)
 
     def project_exists(self, name):
+        if self.init_projects:
+            return name in self.projects
+
         try:
             self.get(None, 'Project', name)
         except StatusCodeError as e:
@@ -379,23 +390,25 @@ class OC_Map(object):
 
     def __init__(self, clusters=None, namespaces=None,
                  integration='', e2e_test='', settings=None,
-                 internal=None, use_jump_host=True):
+                 internal=None, use_jump_host=True, thread_pool_size=1,
+                 init_projects=False):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
         self.settings = settings
         self.internal = internal
         self.use_jump_host = use_jump_host
+        self.thread_pool_size = thread_pool_size
+        self.init_projects = init_projects
+        self._lock = Lock()
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
         elif clusters:
-            for cluster_info in clusters:
-                self.init_oc_client(cluster_info)
+            threaded.run(self.init_oc_client, clusters, self.thread_pool_size)
         elif namespaces:
-            for namespace_info in namespaces:
-                cluster_info = namespace_info['cluster']
-                self.init_oc_client(cluster_info)
+            clusters = [ns_info['cluster'] for ns_info in namespaces]
+            threaded.run(self.init_oc_client, clusters, self.thread_pool_size)
         else:
             raise KeyError('expected one of clusters or namespaces.')
 
@@ -415,7 +428,7 @@ class OC_Map(object):
 
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:
-            self.oc_map[cluster] = False
+            self.set_oc(cluster, False)
         else:
             server_url = cluster_info['serverUrl']
             token = secret_reader.read(automation_token, self.settings)
@@ -423,8 +436,15 @@ class OC_Map(object):
                 jump_host = cluster_info.get('jumpHost')
             else:
                 jump_host = None
-            self.oc_map[cluster] = OC(server_url, token, jump_host,
-                                      settings=self.settings)
+            self.set_oc(
+                cluster,
+                OC(server_url, token, jump_host,
+                   settings=self.settings,
+                   init_projects=self.init_projects))
+
+    def set_oc(self, cluster, value):
+        with self._lock:
+            self.oc_map[cluster] = value
 
     def cluster_disabled(self, cluster_info):
         try:
