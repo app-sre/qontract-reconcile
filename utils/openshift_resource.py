@@ -137,7 +137,7 @@ class OpenshiftResource(object):
     def caller(self):
         try:
             return self.caller_name or \
-                self.body['annotations']['qontract.caller_name']
+                self.body['metadata']['annotations']['qontract.caller_name']
         except KeyError:
             return None
 
