@@ -137,15 +137,17 @@ def init_gitlab(gitlab_project_id):
 
 def valid_diff(current_state, desired_state):
     """ checks that current_state and desired_state
-    are different only in 'ref' or 'parameters' between entries """
+    are different only in 'ref', 'parameters' or 'disable between entries """
     current_state_copy = copy.deepcopy(current_state)
     for c in current_state_copy:
         c.pop('ref')
         c.pop('parameters')
+        c.pop('disable', None)
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
+        c.pop('disable', None)
     return current_state_copy == desired_state_copy
 
 
