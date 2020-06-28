@@ -38,10 +38,11 @@ class SaasHerder():
         self.namespaces = self._collect_namespaces()
         # each namespace is in fact a target,
         # so we can use it to calculate.
+        divisor = len(self.namespaces) or 1
         self.available_thread_pool_size = \
             threaded.estimate_available_thread_pool_size(
                 self.thread_pool_size,
-                len(self.namespaces))
+                divisor)
         if accounts:
             self._initiate_state(accounts)
 

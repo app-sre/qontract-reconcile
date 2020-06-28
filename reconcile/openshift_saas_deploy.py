@@ -40,6 +40,9 @@ def run(dry_run=False, thread_pool_size=10,
         settings=settings)
     if not saasherder.valid:
         sys.exit(1)
+    if len(saasherder.namespaces) == 0:
+        logging.warning('no targets found')
+        sys.exit(0)
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
