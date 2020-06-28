@@ -21,5 +21,4 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
 
     # check for unused resources types
     # listed under `managedResourceTypes`
-    # only applicable for openshift-resources
     ob.check_unused_resource_types(ri)
