@@ -198,20 +198,6 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
-- name: openshift-acme
-  resources:
-    requests:
-      # Known peaks are at 800Mi
-      memory: 800Mi
-      cpu: 200m
-    limits:
-      # Limits 30% above requests
-      memory: 1040Mi
-      cpu: 300m
-  extraArgs: --no-use-jump-host
-  logs:
-    slack: true
-    cloudwatch: true
 - name: openshift-limitranges
   resources:
     requests:
