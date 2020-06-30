@@ -147,7 +147,7 @@ def run(dry_run=False, io_dir='throughput/', compare=True, defer=None):
     if compare:
         validate_repos_and_admins(jjb)
 
-    # if dry_run:
-    #     jjb.test(io_dir, compare=compare)
-    # else:
-    #     jjb.update()
+    if dry_run:
+        jjb.test(io_dir, compare=compare)
+    else:
+        jjb.update()
