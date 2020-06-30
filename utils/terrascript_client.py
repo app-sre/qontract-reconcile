@@ -47,8 +47,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_lambda_function, aws_lambda_permission,
                                aws_cloudwatch_log_subscription_filter)
 
-LAMBDA_RELEASE = 'https://github.com/app-sre/' + \
-                 'logs-to-elasticsearch-lambda/releases/download/'
+LOGTOES_ZIP = 'https://github.com/app-sre/logs-to-elasticsearch-lambda' + \
+              '/releases/latest/download/LogsToElasticsearch.zip'
 
 
 class UnknownProviderError(Exception):
@@ -1557,8 +1557,7 @@ class TerrascriptClient(object):
             tf_resources.append(data('aws_elasticsearch_domain',
                                      'es_domain', **es_domain))
 
-            zip_url = common_values.get(
-                'zip_url', LAMBDA_RELEASE + 'v1.0/LogsToElasticsearch.zip')
+            zip_url = common_values.get('zip_url', LOGTOES_ZIP)
             r = requests.get(zip_url)
             open('/tmp/LogsToElasticsearch.zip', 'wb').write(r.content)
 
