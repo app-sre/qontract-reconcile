@@ -33,7 +33,8 @@ def run(dry_run):
     token = secret_reader.read(secret, settings=settings)
     g = utils.raw_github_api.RawGithubApi(token)
 
-    urls = []
+    urls = set()
+    known_orgs = set()
     for app in result['apps_v1']:
         code_components = app['codeComponents']
 
@@ -41,7 +42,10 @@ def run(dry_run):
             continue
 
         for code_component in app['codeComponents']:
-            urls.append(code_component['url'])
+            url = code_component['url']
+            urls.add(url)
+            org = url[:url.rindex('/')]
+            known_orgs.add(org)
 
     for i in g.repo_invitations():
         invitation_id = i['id']
@@ -49,7 +53,8 @@ def run(dry_run):
 
         url = os.path.dirname(invitation_url)
 
-        if url in urls:
+        accept = url in urls or any(url.startswith(org) for org in known_orgs)
+        if accept:
             logging.info(['accept', url])
 
             if not dry_run:
