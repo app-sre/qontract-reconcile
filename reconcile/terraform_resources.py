@@ -180,7 +180,8 @@ def fetch_current_state(namespaces, thread_pool_size, internal, use_jump_host):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
-                    use_jump_host=use_jump_host)
+                    use_jump_host=use_jump_host,
+                    thread_pool_size=thread_pool_size)
     state_specs = \
         ob.init_specs_to_fetch(
             ri,

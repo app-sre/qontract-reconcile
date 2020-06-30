@@ -62,7 +62,8 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
-                    use_jump_host=use_jump_host)
+                    use_jump_host=use_jump_host,
+                    thread_pool_size=thread_pool_size)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
     current_state = [item for sublist in results for item in sublist]
