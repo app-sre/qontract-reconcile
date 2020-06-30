@@ -128,9 +128,11 @@ def validate_repos_and_admins(jjb):
     jjb_admins = jjb.get_admins()
     app_int_users = queries.get_users()
     app_int_bots = queries.get_bots()
+    external_users = queries.get_external_users()
     github_usernames = \
         [u.get('github_username') for u in app_int_users] + \
-        [b.get('github_username') for b in app_int_bots]
+        [b.get('github_username') for b in app_int_bots] + \
+        [u.get('github_username') for u in external_users]
     unknown_admins = [a for a in jjb_admins if a not in github_usernames]
     for a in unknown_admins:
         logging.warning('admin is missing from users: {}'.format(a))
@@ -145,7 +147,7 @@ def run(dry_run=False, io_dir='throughput/', compare=True, defer=None):
     if compare:
         validate_repos_and_admins(jjb)
 
-    if dry_run:
-        jjb.test(io_dir, compare=compare)
-    else:
-        jjb.update()
+    # if dry_run:
+    #     jjb.test(io_dir, compare=compare)
+    # else:
+    #     jjb.update()

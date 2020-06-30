@@ -757,6 +757,23 @@ def get_bots():
     return gqlapi.query(BOTS_QUERY)['bots']
 
 
+EXTERNAL_USERS_QUERY = """
+{
+  external_users: external_users_v1 {
+    path
+    name
+    github_username
+  }
+}
+"""
+
+
+def get_external_users():
+    """ Returnes all Users. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(EXTERNAL_USERS_QUERY)['external_users']
+
+
 APP_INTERFACE_SQL_QUERIES_QUERY = """
 {
   sql_queries: app_interface_sql_queries_v1 {
