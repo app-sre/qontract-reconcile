@@ -106,7 +106,7 @@ def read_baseline_from_file(io_dir):
     return baseline
 
 
-def write_diffs_to_file(io_dir, diffs):
+def write_diffs_to_file(io_dir, diffs, valid_saas_file_changes_only):
     required_keys = ['saas_file_name', 'environment']
     diffs = [{k: v for k, v in diff.items()
               if k in required_keys}
@@ -116,15 +116,20 @@ def write_diffs_to_file(io_dir, diffs):
         if diff not in unique_diffs:
             unique_diffs.append(diff)
     file_path = get_diffs_file_path(io_dir)
+    body = {
+        'valid_saas_file_changes_only': valid_saas_file_changes_only,
+        'items': unique_diffs
+    }
     with open(file_path, 'w') as f:
-        f.write(json.dumps(unique_diffs))
+        f.write(json.dumps(body))
     throughput.change_files_ownership(io_dir)
 
 
 def read_diffs_from_file(io_dir):
     file_path = get_diffs_file_path(io_dir)
     with open(file_path, 'r') as f:
-        diffs = json.load(f)
+        body = json.load(f)
+    diffs = body['items']
     return diffs
 
 
@@ -176,6 +181,21 @@ def check_if_lgtm(owners, comments):
     return approved
 
 
+def check_saas_files_changes_only(changed_paths, diffs):
+    saas_file_paths = [d['saas_file_path'] for d in diffs]
+    non_saas_file_changed_paths = []
+    for changed_path in changed_paths:
+        found = False
+        for saas_file_path in saas_file_paths:
+            if changed_path.endswith(saas_file_path):
+                found = True
+                break
+        if not found:
+            non_saas_file_changed_paths.append(changed_path)
+
+    return len(non_saas_file_changed_paths) == 0
+
+
 def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
         io_dir='throughput/', compare=True):
     if not compare:
@@ -192,21 +212,25 @@ def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
     current_state = baseline['state']
     desired_state = collect_state()
     diffs = [s for s in desired_state if s not in current_state]
-    write_diffs_to_file(io_dir, diffs)
+    changed_paths = \
+        gl.get_merge_request_changed_paths(gitlab_merge_request_id)
+    is_saas_file_changes_only = \
+        check_saas_files_changes_only(changed_paths, diffs)
+    is_valid_diff = valid_diff(current_state, desired_state)
+    valid_saas_file_changes_only = is_saas_file_changes_only and is_valid_diff
+    write_diffs_to_file(io_dir, diffs, valid_saas_file_changes_only)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
             gitlab_merge_request_id, 'approved')
         return
-    if not valid_diff(current_state, desired_state):
+    if not is_valid_diff:
         gl.remove_label_from_merge_request(
             gitlab_merge_request_id, 'approved')
         return
 
     author = gl.get_merge_request_author(gitlab_merge_request_id)
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
-    changed_paths = \
-        gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     comment_lines = {}
     for diff in diffs:
         # check for a lgtm by an owner of this app
