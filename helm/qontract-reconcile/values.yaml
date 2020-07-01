@@ -137,10 +137,12 @@ integrations:
 - name: openshift-groups
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 600Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 780Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
   logs:
