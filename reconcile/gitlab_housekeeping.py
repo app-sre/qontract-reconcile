@@ -8,7 +8,7 @@ import reconcile.queries as queries
 from utils.gitlab_api import GitLabApi
 
 
-MERGE_LABELS = ['lgtm', 'automerge', 'approved']
+MERGE_LABELS_PRIORITY = ['approved', 'automerge', 'lgtm']
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
@@ -83,88 +83,90 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
                     gl.remove_label(item, item_type, LABEL)
 
 
-def is_good_to_merge(labels):
-    return any(l in MERGE_LABELS for l in labels) and \
+def is_good_to_merge(merge_label, labels):
+    return merge_label in labels and \
         not any(l in HOLD_LABELS for l in labels)
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
-    for mr in reversed(mrs):
-        if mr.merge_status == 'cannot_be_merged':
-            continue
-        if mr.work_in_progress:
-            continue
+    for merge_label in MERGE_LABELS_PRIORITY:
+        for mr in reversed(mrs):
+            if mr.merge_status == 'cannot_be_merged':
+                continue
+            if mr.work_in_progress:
+                continue
 
-        target_branch = mr.target_branch
-        head = gl.project.commits.list(ref_name=target_branch)[0].id
-        result = gl.project.repository_compare(mr.sha, head)
-        if len(result['commits']) == 0:  # rebased
-            continue
+            target_branch = mr.target_branch
+            head = gl.project.commits.list(ref_name=target_branch)[0].id
+            result = gl.project.repository_compare(mr.sha, head)
+            if len(result['commits']) == 0:  # rebased
+                continue
 
-        labels = mr.attributes.get('labels')
-        if not labels:
-            continue
+            labels = mr.attributes.get('labels')
+            if not labels:
+                continue
 
-        good_to_rebase = is_good_to_merge(labels)
-        if not good_to_rebase:
-            continue
+            good_to_rebase = is_good_to_merge(merge_label, labels)
+            if not good_to_rebase:
+                continue
 
-        logging.info(['rebase', gl.project.name, mr.iid])
-        if not dry_run and rebases < rebase_limit:
-            try:
-                mr.rebase()
-                rebases += 1
-            except gitlab.exceptions.GitlabMRRebaseError as e:
-                logging.error('unable to rebase {}: {}'.format(mr.iid, e))
+            logging.info(['rebase', gl.project.name, mr.iid])
+            if not dry_run and rebases < rebase_limit:
+                try:
+                    mr.rebase()
+                    rebases += 1
+                except gitlab.exceptions.GitlabMRRebaseError as e:
+                    logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
 def merge_merge_requests(dry_run, gl, merge_limit, rebase):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
-    for mr in reversed(mrs):
-        if mr.merge_status == 'cannot_be_merged':
-            continue
-        if mr.work_in_progress:
-            continue
+    for merge_label in MERGE_LABELS_PRIORITY:
+        for mr in reversed(mrs):
+            if mr.merge_status == 'cannot_be_merged':
+                continue
+            if mr.work_in_progress:
+                continue
 
-        target_branch = mr.target_branch
-        head = gl.project.commits.list(ref_name=target_branch)[0].id
-        result = gl.project.repository_compare(mr.sha, head)
-        if len(result['commits']) != 0:  # not rebased
-            continue
+            target_branch = mr.target_branch
+            head = gl.project.commits.list(ref_name=target_branch)[0].id
+            result = gl.project.repository_compare(mr.sha, head)
+            if len(result['commits']) != 0:  # not rebased
+                continue
 
-        labels = mr.attributes.get('labels')
-        if not labels:
-            continue
+            labels = mr.attributes.get('labels')
+            if not labels:
+                continue
 
-        good_to_merge = is_good_to_merge(labels)
-        if not good_to_merge:
-            continue
+            good_to_merge = is_good_to_merge(merge_label, labels)
+            if not good_to_merge:
+                continue
 
-        pipelines = mr.pipelines()
-        if not pipelines:
-            continue
+            pipelines = mr.pipelines()
+            if not pipelines:
+                continue
 
-        # posibble statuses:
-        # running, pending, success, failed, canceled, skipped
-        incomplete_pipelines = \
-            [p for p in pipelines
-             if p['status'] in ['running', 'pending']]
-        if incomplete_pipelines:
-            continue
+            # posibble statuses:
+            # running, pending, success, failed, canceled, skipped
+            incomplete_pipelines = \
+                [p for p in pipelines
+                if p['status'] in ['running', 'pending']]
+            if incomplete_pipelines:
+                continue
 
-        last_pipeline_result = pipelines[0]['status']
-        if last_pipeline_result != 'success':
-            continue
+            last_pipeline_result = pipelines[0]['status']
+            if last_pipeline_result != 'success':
+                continue
 
-        logging.info(['merge', gl.project.name, mr.iid])
-        if not dry_run and merges < merge_limit:
-            mr.merge()
-            if rebase:
-                return
-            merges += 1
+            logging.info(['merge', gl.project.name, mr.iid])
+            if not dry_run and merges < merge_limit:
+                mr.merge()
+                if rebase:
+                    return
+                merges += 1
 
 
 def run(dry_run=False):
