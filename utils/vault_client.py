@@ -30,7 +30,15 @@ def init(server, role_id, secret_id):
     global _client
 
     if _client is None:
-        client = hvac.Client(url=server)
+        # This is a threaded world. Let's define a big
+        # connections pool to live in that world
+        # (this avoids the warning "Connection pool is
+        # full, discarding connection: vault.devshift.net")
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=100,
+                                                pool_maxsize=100)
+        session.mount('https://', adapter)
+        client = hvac.Client(url=server, session=session)
 
         authenticated = False
         for i in range(0, 3):
