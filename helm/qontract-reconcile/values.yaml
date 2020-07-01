@@ -163,10 +163,12 @@ integrations:
 - name: openshift-clusterrolebindings
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 800Mi
+      memory: 800Mi
       cpu: 150m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 250m
   extraArgs: --no-use-jump-host
   logs:
