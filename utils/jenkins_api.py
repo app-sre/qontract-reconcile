@@ -127,7 +127,7 @@ class JenkinsApi(object):
         )
 
         if res.status_code == 404:
-            # assuming the job exists due to the nature of our integrations
+            # assuming the job exists due to the nature of our integrations,
             # this means the job was never triggered, which is fine.
             return False
 
