@@ -58,9 +58,5 @@ def run(dry_run=False, thread_pool_size=10,
                     wait_for_namespace=True,
                     no_dry_run_skip_compare=True)
 
-    # check for unused resources types
-    # listed under `managedResourceTypes`
-    ob.check_unused_resource_types(ri)
-
     if ri.has_error_registered():
         sys.exit(1)
