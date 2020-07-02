@@ -135,6 +135,7 @@ class SaasHerder():
             html_url = os.path.join(url, 'blob', ref, path)
             return f.decode(), html_url
 
+    @retry()
     def _get_commit_sha(self, options):
         url = options['url']
         ref = options['ref']
