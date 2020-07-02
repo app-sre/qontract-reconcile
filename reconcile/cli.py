@@ -72,6 +72,7 @@ import reconcile.sentry_config
 import reconcile.sql_query
 import reconcile.user_validator
 
+from reconcile.constants import DEFAULT_THREADS
 from reconcile.status import ExitCodes
 
 from utils.gql import GqlApiError
@@ -505,7 +506,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 
 
 @integration.command()
-@threaded(default=20)
+@threaded(default=DEFAULT_THREADS)
 @binary(['oc', 'ssh'])
 @internal()
 @use_jump_host()
@@ -517,7 +518,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
 
 
 @integration.command()
-@threaded(default=20)
+@threaded(default=DEFAULT_THREADS)
 @binary(['oc', 'ssh'])
 @click.option('--saas-file-name',
               default=None,
@@ -533,7 +534,7 @@ def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
 
 
 @integration.command()
-@threaded(default=20)
+@threaded(default=DEFAULT_THREADS)
 @binary(['oc', 'ssh'])
 @throughput
 @click.pass_context
@@ -731,7 +732,7 @@ def user_validator(ctx):
 @terraform
 @throughput
 @vault_output_path
-@threaded(default=20)
+@threaded(default=DEFAULT_THREADS)
 @binary(['terraform', 'oc'])
 @internal()
 @use_jump_host()
@@ -752,7 +753,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @integration.command()
 @terraform
 @throughput
-@threaded(default=20)
+@threaded(default=DEFAULT_THREADS)
 @binary(['terraform', 'gpg'])
 @enable_deletion(default=True)
 @send_mails(default=True)

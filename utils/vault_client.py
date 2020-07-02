@@ -5,6 +5,7 @@ import base64
 
 from sretoolbox.utils import retry
 
+from reconcile.constants import DEFAULT_THREADS
 from utils.config import get_config
 
 _client = None
@@ -30,13 +31,15 @@ def init(server, role_id, secret_id):
     global _client
 
     if _client is None:
-        # This is a threaded world. Let's define a big
+        # This is a threaded world. Let's define a
         # connections pool to live in that world
         # (this avoids the warning "Connection pool is
         # full, discarding connection: vault.devshift.net")
         session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=100,
-                                                pool_maxsize=100)
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=DEFAULT_THREADS,
+            pool_maxsize=DEFAULT_THREADS
+        )
         session.mount('https://', adapter)
         client = hvac.Client(url=server, session=session)
 
