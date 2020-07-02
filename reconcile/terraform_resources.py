@@ -290,7 +290,7 @@ def run(dry_run=False, print_only=False,
     ob.realize_data(dry_run, oc_map, ri)
 
     disable_keys(dry_run, thread_pool_size,
-                  disable_service_account_keys=True)
+                 disable_service_account_keys=True)
 
     if vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
