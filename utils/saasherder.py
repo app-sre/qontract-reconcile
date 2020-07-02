@@ -556,6 +556,7 @@ class SaasHerder():
     def get_configs_diff_saas_file(self, saas_file):
         saas_file_name = saas_file['name']
         saas_file_parameters = saas_file.get('parameters')
+        saas_file_managed_resource_types = saas_file['managedResourceTypes']
         instace_name = saas_file['instance']['name']
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
@@ -571,6 +572,9 @@ class SaasHerder():
                 # add parent parameters to target config
                 desired_target_config['saas_file_parameters'] = \
                     saas_file_parameters
+                # add managed resource types to target config
+                desired_target_config['saas_file_managed_resource_types'] = \
+                    saas_file_managed_resource_types
                 desired_target_config['rt_parameters'] = rt_parameters
                 # get current target config from state
                 key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
