@@ -256,54 +256,46 @@ def run(dry_run=False, print_only=False,
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='', defer=None):
 
-    try:
-        ri, oc_map, tf = \
-            setup(print_only, thread_pool_size, internal, use_jump_host)
+    ri, oc_map, tf = \
+        setup(print_only, thread_pool_size, internal, use_jump_host)
 
-        defer(lambda: oc_map.cleanup())
+    defer(lambda: oc_map.cleanup())
 
-        if print_only:
-            cleanup_and_exit()
-        if tf is None:
-            err = True
+    if print_only:
+        cleanup_and_exit()
+    if tf is None:
+        err = True
+        cleanup_and_exit(tf, err)
+
+    if not light:
+        deletions_detected, err = tf.plan(enable_deletion)
+        if err:
+            cleanup_and_exit(tf, err)
+        if deletions_detected:
+            if enable_deletion:
+                tf.dump_deleted_users(io_dir)
+            else:
+                cleanup_and_exit(tf, deletions_detected)
+
+    if dry_run:
+        cleanup_and_exit(tf)
+
+    if not light:
+        err = tf.apply()
+        if err:
             cleanup_and_exit(tf, err)
 
-        if not light:
-            deletions_detected, err = tf.plan(enable_deletion)
-            if err:
-                cleanup_and_exit(tf, err)
-            if deletions_detected:
-                if enable_deletion:
-                    tf.dump_deleted_users(io_dir)
-                else:
-                    cleanup_and_exit(tf, deletions_detected)
+    tf.populate_desired_state(ri, oc_map)
 
-        if dry_run:
-            cleanup_and_exit(tf)
+    ob.realize_data(dry_run, oc_map, ri)
 
-        if not light:
-            err = tf.apply()
-            if err:
-                cleanup_and_exit(tf, err)
+    disable_keys(dry_run, thread_pool_size,
+                 disable_service_account_keys=True)
 
-        tf.populate_desired_state(ri, oc_map)
+    if vault_output_path:
+        write_outputs_to_vault(vault_output_path, ri)
 
-        ob.realize_data(dry_run, oc_map, ri)
-
-        disable_keys(dry_run, thread_pool_size,
-                     disable_service_account_keys=True)
-
-        if vault_output_path:
-            write_outputs_to_vault(vault_output_path, ri)
-
-        if ri.has_error_registered():
-            sys.exit(1)
-
-    except Exception as e:
-        msg = 'There was problem running terraform resource reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
+    if ri.has_error_registered():
         sys.exit(1)
 
     cleanup_and_exit(tf)
