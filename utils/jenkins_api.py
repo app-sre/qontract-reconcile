@@ -126,6 +126,11 @@ class JenkinsApi(object):
             auth=(self.user, self.password)
         )
 
+        if res.status_code == 404:
+            # assuming the job exists due to the nature of our integrations
+            # this means the job was never triggered, which is fine.
+            return False
+
         res.raise_for_status()
         return res.json()['building'] is True
 
