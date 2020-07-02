@@ -231,10 +231,10 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         # we only manage dedicated-admins via OCM
         current_state = [s for s in current_state
                          if not (s['cluster'] in ocm_clusters
-                         and s['group'] == 'dedicated-admins')]
+                                 and s['group'] == 'dedicated-admins')]
         desired_state = [s for s in desired_state
                          if not (s['cluster'] in ocm_clusters
-                         and s['group'] == 'dedicated-admins')]
+                                 and s['group'] == 'dedicated-admins')]
 
         diffs = calculate_diff(current_state, desired_state)
         validate_diffs(diffs)
