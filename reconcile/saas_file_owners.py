@@ -56,6 +56,10 @@ def collect_state():
         saas_file_path = saas_file['path']
         saas_file_name = saas_file['name']
         saas_file_parameters = json.loads(saas_file.get('parameters') or '{}')
+        saas_file_definitions = {
+            'managed_resource_types': saas_file['managedResourceTypes'],
+            'image_patterns': saas_file['imagePatterns']
+        }
         resource_templates = saas_file['resourceTemplates']
         for resource_template in resource_templates:
             resource_template_name = resource_template['name']
@@ -81,7 +85,8 @@ def collect_state():
                     'namespace': namespace,
                     'environment': environment,
                     'ref': target_ref,
-                    'parameters': parameters
+                    'parameters': parameters,
+                    'saas_file_definitions': saas_file_definitions
                 })
     return state
 
