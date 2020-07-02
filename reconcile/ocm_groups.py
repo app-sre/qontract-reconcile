@@ -41,18 +41,6 @@ def fetch_current_state(thread_pool_size):
     return ocm_map, current_state
 
 
-def validate_diffs(diffs):
-    error = False
-    for diff in diffs:
-        if diff['action'] not in ["create_group", "delete_group"]:
-            continue
-        error = True
-        logging.error(list(diff.values()))
-        logging.error("can not create or delete groups via OCM")
-    if error:
-        sys.exit(1)
-
-
 def act(diff, ocm_map):
     cluster = diff['cluster']
     group = diff['group']
@@ -64,8 +52,6 @@ def act(diff, ocm_map):
         ocm.add_user_to_group(cluster, group, user)
     elif action == "del_user_from_group":
         ocm.del_user_from_group(cluster, group, user)
-    else:
-        raise Exception("invalid action: {}".format(action))
 
 
 def run(dry_run=False, thread_pool_size=10):
@@ -79,7 +65,6 @@ def run(dry_run=False, thread_pool_size=10):
                      if s['group'] == 'dedicated-admins']
 
     diffs = openshift_groups.calculate_diff(current_state, desired_state)
-    validate_diffs(diffs)
     openshift_groups.validate_diffs(diffs)
 
     for diff in diffs:
