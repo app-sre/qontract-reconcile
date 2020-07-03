@@ -75,7 +75,8 @@ import reconcile.user_validator
 
 from reconcile.status import ExitCodes
 
-from utils.gql import GqlApiError
+from utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+                       GqlApiIntegrationNotFound)
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
@@ -253,8 +254,10 @@ def enable_rebase(**kwargs):
 
 
 def run_integration(func_container, ctx, *args):
-    integration_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
-    unleash_feature_state = get_feature_toggle_state(integration_name)
+    int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+    gql.init_from_config(sha_url=ctx['gql_sha_url'], integration=int_name)
+
+    unleash_feature_state = get_feature_toggle_state(int_name)
     if not unleash_feature_state:
         logging.info('Integration toggle is disabled, skipping integration.')
         sys.exit(ExitCodes.SUCCESS)
@@ -266,6 +269,12 @@ def run_integration(func_container, ctx, *args):
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
+    except GqlApiIntegrationNotFound as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
+    except GqlApiErrorForbiddenSchema as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except GqlApiError as e:
         if '409' in str(e):
             logging.error(f'Data changed during execution. This is fine.')
@@ -304,9 +313,9 @@ def integration(ctx, configfile, dry_run, dump_schemas, log_level,
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
-    gql.init_from_config(sha_url=gql_sha_url)
     ctx.obj['dry_run'] = dry_run
     ctx.obj['dump_schemas'] = dump_schemas
+    ctx.obj['gql_sha_url'] = gql_sha_url
 
 
 @integration.command()
