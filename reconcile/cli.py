@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -112,6 +113,15 @@ def dry_run(function):
 
     function = click.option('--dry-run/--no-dry-run',
                             default=False,
+                            help=help_msg)(function)
+    return function
+
+
+def dump_schemas(function):
+    help_msg = ('Dump the list of used schemas to a file. It will not'
+                'overwrite the target file')
+
+    function = click.option('--dump-schemas',
                             help=help_msg)(function)
     return function
 
@@ -265,6 +275,11 @@ def run_integration(func_container, ctx, *args):
         else:
             raise e
 
+    dump_schemas_file = ctx.get('dump_schemas')
+    if dump_schemas_file:
+        with open(dump_schemas_file, 'w') as f:
+            f.write(json.dumps(gql.get_called_schemas()))
+
 
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
@@ -279,16 +294,19 @@ def init_log_level(log_level):
 @click.group()
 @config_file
 @dry_run
+@dump_schemas
 @gql_sha_url
 @log_level
 @click.pass_context
-def integration(ctx, configfile, dry_run, log_level, gql_sha_url):
+def integration(ctx, configfile, dry_run, dump_schemas, log_level,
+                gql_sha_url):
     ctx.ensure_object(dict)
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
     gql.init_from_config(sha_url=gql_sha_url)
     ctx.obj['dry_run'] = dry_run
+    ctx.obj['dump_schemas'] = dump_schemas
 
 
 @integration.command()

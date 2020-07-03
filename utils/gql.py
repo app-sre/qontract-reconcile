@@ -21,6 +21,8 @@ class GqlGetResourceError(Exception):
 
 
 class GqlApi(object):
+    _called_schemas = set([])
+
     def __init__(self, url, token=None):
         self.url = url
         self.token = token
@@ -42,6 +44,12 @@ class GqlApi(object):
                 'Could not connect to GraphQL server ({})'.format(e))
 
         result = json.loads(result_json)
+
+        try:
+            schemas = result['extensions']['schemas']
+            self._called_schemas.update(schemas)
+        except KeyError:
+            pass
 
         if 'errors' in result:
             raise GqlApiError(result['errors'])
@@ -114,3 +122,13 @@ def get_api():
         raise GqlApiError("gql module has not been initialized.")
 
     return _gqlapi
+
+
+def get_called_schemas():
+    global _gqlapi
+    return list(_gqlapi._called_schemas)
+
+
+def clear_called_schemas():
+    global _gqlapi
+    _gqlapi._called_schemas = set([])
