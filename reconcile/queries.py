@@ -304,6 +304,7 @@ CLUSTERS_QUERY = """
       instance_type
       storage
       load_balancers
+      extended_dedicated_admin
     }
     network {
       vpc

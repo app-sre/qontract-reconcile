@@ -105,13 +105,13 @@ class OC(object):
 
         return items
 
-    def get(self, namespace, kind, name=None):
+    def get(self, namespace, kind, name=None, allow_not_found=False):
         cmd = ['get', '-o', 'json', kind]
         if name:
             cmd.append(name)
         if namespace is not None:
             cmd.extend(['-n', namespace])
-        return self._run_json(cmd)
+        return self._run_json(cmd, allow_not_found=allow_not_found)
 
     def get_all(self, kind, all_namespaces=False):
         cmd = ['get', '-o', 'json', kind]

@@ -816,10 +816,13 @@ def ocm_groups(ctx, thread_pool_size):
 
 @integration.command()
 @threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
 @click.pass_context
-def ocm_clusters(ctx, thread_pool_size):
+def ocm_clusters(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.ocm_clusters, ctx.obj['dry_run'],
-                    thread_pool_size)
+                    thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
