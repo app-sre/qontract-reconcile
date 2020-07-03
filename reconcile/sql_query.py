@@ -218,7 +218,7 @@ def process_template(query):
     return job_yaml
 
 
-def run(dry_run=False, enable_deletion=False):
+def run(dry_run, enable_deletion=False):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     state = State(integration=QONTRACT_INTEGRATION,

@@ -42,7 +42,7 @@ def validate_users_gpg_key(users):
     return ok
 
 
-def run(dry_run=False):
+def run(dry_run):
     users = queries.get_users()
 
     single_path_ok = validate_users_single_path(users)

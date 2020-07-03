@@ -98,7 +98,7 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(dry_run=False, print_only=False,
+def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
     working_dirs = setup(print_only, thread_pool_size)

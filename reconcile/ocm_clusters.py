@@ -8,7 +8,7 @@ from utils.ocm import OCMMap
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is not None]

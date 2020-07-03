@@ -14,7 +14,7 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-configs'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run, thread_pool_size=10):
     saas_files = queries.get_saas_files()
     if not saas_files:
         logging.error('no saas files found')

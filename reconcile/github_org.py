@@ -366,7 +366,7 @@ def service_is(service):
     return lambda params: params.get("service") == service
 
 
-def run(dry_run=False):
+def run(dry_run):
     config = get_config()
     gh_api_store = GHApiStore(config)
 

@@ -46,7 +46,7 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
             gw.create_delete_aws_access_key_mr(account, path, key)
 
 
-def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
+def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False):
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()

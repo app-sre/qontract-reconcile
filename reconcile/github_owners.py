@@ -61,7 +61,7 @@ def fetch_desired_state():
     return desired_state
 
 
-def run(dry_run=True):
+def run(dry_run):
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
     desired_state = fetch_desired_state()
 

@@ -141,7 +141,7 @@ def validate_repos_and_admins(jjb):
 
 
 @defer
-def run(dry_run=False, io_dir='throughput/', compare=True, defer=None):
+def run(dry_run, io_dir='throughput/', compare=True, defer=None):
     jjb = init_jjb()
     defer(lambda: jjb.cleanup())
     if compare:

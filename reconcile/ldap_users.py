@@ -35,7 +35,7 @@ def init_user_spec(user):
     return (username, delete, paths)
 
 
-def run(gitlab_project_id, dry_run=False, thread_pool_size=10):
+def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     users = init_users()
     user_specs = threaded.run(init_user_spec, users, thread_pool_size)
     users_to_delete = [(username, paths) for username, delete, paths

@@ -330,7 +330,7 @@ def act(desired_state, slack_map):
         slack.update_usergroup(ugid, channels, description)
 
 
-def run(dry_run=False):
+def run(dry_run):
     slack_map = get_slack_map()
     current_state = get_current_state(slack_map)
     desired_state = get_desired_state(slack_map)

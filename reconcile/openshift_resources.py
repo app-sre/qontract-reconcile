@@ -7,7 +7,7 @@ QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 3)
 
 
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     providers = ['resource', 'resource-template']
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION

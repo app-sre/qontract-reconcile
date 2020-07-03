@@ -35,7 +35,7 @@ def get_all_repos_to_scan(repos):
     return all_repos
 
 
-def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     aws = AWSApi(thread_pool_size, accounts, settings=settings)

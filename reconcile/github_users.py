@@ -70,7 +70,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     smtp_client.send_mail([to], subject, body, settings=settings)
 
 
-def run(dry_run=False, gitlab_project_id=None, thread_pool_size=10,
+def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
     users = queries.get_users()
     g = init_github()

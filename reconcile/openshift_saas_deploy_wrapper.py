@@ -19,7 +19,7 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size):
             env_name=env_name)
 
 
-def run(dry_run=False, thread_pool_size=10, io_dir='throughput/'):
+def run(dry_run, thread_pool_size=10, io_dir='throughput/'):
     saas_file_owners_diffs = read_saas_file_owners_diffs(io_dir)
     if len(saas_file_owners_diffs) == 0:
         return
