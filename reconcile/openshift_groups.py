@@ -76,7 +76,7 @@ def create_groups_list(clusters, oc_map):
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get('ocm') is None]
+    ocm_clusters = [c['name'] for c in clusters if c.get('ocm') is not None]
     current_state = []
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
@@ -89,7 +89,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
                            oc_map=oc_map)
 
     current_state = [item for sublist in results for item in sublist]
-    return oc_map, current_state
+    return oc_map, current_state, ocm_clusters
 
 
 def fetch_desired_state(oc_map):
@@ -223,10 +223,18 @@ def run(dry_run=False, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
 
     try:
-        oc_map, current_state = \
+        oc_map, current_state, ocm_clusters = \
             fetch_current_state(thread_pool_size, internal, use_jump_host)
         defer(lambda: oc_map.cleanup())
         desired_state = fetch_desired_state(oc_map)
+
+        # we only manage dedicated-admins via OCM
+        current_state = [s for s in current_state
+                         if not (s['cluster'] in ocm_clusters
+                                 and s['group'] == 'dedicated-admins')]
+        desired_state = [s for s in desired_state
+                         if not (s['cluster'] in ocm_clusters
+                                 and s['group'] == 'dedicated-admins')]
 
         diffs = calculate_diff(current_state, desired_state)
         validate_diffs(diffs)

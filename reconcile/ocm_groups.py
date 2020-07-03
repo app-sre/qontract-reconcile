@@ -73,6 +73,12 @@ def run(dry_run=False, thread_pool_size=10):
     ocm_map, current_state = fetch_current_state(thread_pool_size)
     desired_state = openshift_groups.fetch_desired_state(oc_map=ocm_map)
 
+    # we only manage dedicated-admins via OCM
+    current_state = [s for s in current_state
+                     if s['group'] == 'dedicated-admins']
+    desired_state = [s for s in desired_state
+                     if s['group'] == 'dedicated-admins']
+
     diffs = openshift_groups.calculate_diff(current_state, desired_state)
     validate_diffs(diffs)
     openshift_groups.validate_diffs(diffs)
