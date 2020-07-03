@@ -169,7 +169,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase):
                 merges += 1
 
 
-def run(dry_run=False):
+def run(dry_run):
     default_days_interval = 15
     default_limit = 8
     default_enable_closing = False

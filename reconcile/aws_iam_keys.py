@@ -41,7 +41,7 @@ def cleanup(working_dirs):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10,
+def run(dry_run, thread_pool_size=10,
         disable_service_account_keys=False, defer=None):
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()

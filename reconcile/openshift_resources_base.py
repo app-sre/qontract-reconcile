@@ -528,7 +528,7 @@ def conicalize_namespaces(namespaces, providers):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, providers=[], defer=None):
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']

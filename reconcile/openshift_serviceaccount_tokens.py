@@ -67,7 +67,7 @@ def write_outputs_to_vault(vault_path, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, vault_output_path='', defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()

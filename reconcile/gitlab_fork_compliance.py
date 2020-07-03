@@ -110,6 +110,6 @@ class GitlabForkCompliance:
         self.mr.notes.create({'body': comment})
 
 
-def run(project_id, mr_id, maintainers_group):
+def run(dry_run, project_id, mr_id, maintainers_group):
     gfc = GitlabForkCompliance(project_id, mr_id, maintainers_group)
     gfc.run()

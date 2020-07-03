@@ -145,7 +145,7 @@ def write_state(io_dir, project, state):
         json.dump(state, f)
 
 
-def run(dry_run=False, io_dir='throughput/'):
+def run(dry_run, io_dir='throughput/'):
     gqlapi = gql.get_api()
     jira_boards = gqlapi.query(QUERY)['jira_boards']
     for jira_board in jira_boards:

@@ -107,7 +107,7 @@ def create_new_project(spec, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     oc_map, desired_state = get_desired_state(internal, use_jump_host,
                                               thread_pool_size)

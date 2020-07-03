@@ -69,7 +69,7 @@ def act(diff, ocm_map):
         raise Exception("invalid action: {}".format(action))
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run, thread_pool_size=10):
     ocm_map, current_state = fetch_current_state(thread_pool_size)
     desired_state = openshift_groups.fetch_desired_state(oc_map=ocm_map)
 

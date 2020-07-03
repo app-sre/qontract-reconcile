@@ -159,7 +159,7 @@ class MRApproval:
         return APPROVAL_LABEL in labels
 
 
-def run(dry_run=False):
+def run(dry_run):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_owner(server=instance['url'])

@@ -555,7 +555,7 @@ def get_github_email(gh, user):
         return email
 
 
-def run(dry_run=False):
+def run(dry_run):
     settings = queries.get_app_interface_settings()
     gqlapi = gql.get_api()
     github = init_github()

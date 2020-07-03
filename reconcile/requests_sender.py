@@ -46,7 +46,7 @@ def get_ecrypted_credentials(credentials_name, user, settings):
     return encrypted_credentials
 
 
-def run(dry_run=False):
+def run(dry_run):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     state = State(

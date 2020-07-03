@@ -54,7 +54,7 @@ def write_output_to_vault(dry_run, vault_path, account, secret_data, name):
         vault_client.write(secret)
 
 
-def run(dry_run=False, vault_output_path=''):
+def run(dry_run, vault_output_path=''):
     accounts = [a for a in queries.get_aws_accounts() if a.get('ecrs')]
     settings = queries.get_app_interface_settings()
     aws = AWSApi(1, accounts, settings=settings, init_ecr_auth_tokens=True)

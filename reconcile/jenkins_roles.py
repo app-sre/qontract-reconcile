@@ -169,7 +169,7 @@ def act(diff, jenkins_map):
         raise Exception("invalid action: {}".format(action))
 
 
-def run(dry_run=False):
+def run(dry_run):
     jenkins_map = get_jenkins_map()
     current_state = get_current_state(jenkins_map)
     desired_state = get_desired_state()

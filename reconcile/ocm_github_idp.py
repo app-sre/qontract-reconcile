@@ -76,7 +76,7 @@ def act(dry_run, ocm_map, current_state, desired_state):
             ocm.create_github_idp_teams(item)
 
 
-def run(dry_run=False, vault_input_path=''):
+def run(dry_run, vault_input_path=''):
     if not vault_input_path:
         logging.error('must supply vault input path')
         sys.exit(1)

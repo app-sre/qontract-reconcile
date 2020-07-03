@@ -201,7 +201,7 @@ def check_saas_files_changes_only(changed_paths, diffs):
     return len(non_saas_file_changed_paths) == 0
 
 
-def run(gitlab_project_id, gitlab_merge_request_id, dry_run=False,
+def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         io_dir='throughput/', compare=True):
     if not compare:
         # baseline is the current state and the owners.

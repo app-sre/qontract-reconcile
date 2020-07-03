@@ -221,7 +221,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
 
 
 @defer
-def run(dry_run=False, print_only=False,
+def run(dry_run, print_only=False,
         enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()

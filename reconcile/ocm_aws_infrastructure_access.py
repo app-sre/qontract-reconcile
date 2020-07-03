@@ -93,7 +93,7 @@ def act(dry_run, ocm_map, current_state, desired_state):
                 cluster, user_arn, access_level)
 
 
-def run(dry_run=False):
+def run(dry_run):
     ocm_map, current_state = fetch_current_state()
     desired_state = fetch_desired_state()
     act(dry_run, ocm_map, current_state, desired_state)

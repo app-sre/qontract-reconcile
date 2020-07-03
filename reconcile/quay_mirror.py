@@ -183,6 +183,6 @@ class QuayMirror:
         return creds
 
 
-def run(dry_run=False):
+def run(dry_run):
     quay_mirror = QuayMirror(dry_run)
     quay_mirror.run()
