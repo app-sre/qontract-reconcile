@@ -171,7 +171,7 @@ class TerrascriptClient(object):
                         # only managed policies, as it is currently
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
-                                group_name + '-' + policy,
+                                group_name + '-' + policy.replace('/', '_'),
                                 group=group_name,
                                 policy_arn='arn:aws:iam::aws:policy/' + policy,
                                 depends_on=[tf_iam_group]
