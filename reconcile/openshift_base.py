@@ -185,8 +185,9 @@ def wait_for_namespace_exists(oc, namespace):
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
-          wait_for_namespace):
-    logging.info(['apply', cluster, namespace, resource_type, resource.name])
+          wait_for_namespace, replace=False):
+    action = 'replace' if replace else 'apply'
+    logging.info([action, cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
     if not dry_run:
@@ -202,7 +203,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 logging.warning(msg)
                 return
 
-        oc.apply(namespace, annotated.toJSON())
+        oc.apply(namespace, annotated.toJSON(), replace=replace)
 
     oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
@@ -302,13 +303,25 @@ def realize_data(dry_run, oc_map, ri,
                           OR.serialize(OR.canonicalize(d_item.body)))
 
             try:
+                apply_success = True
                 apply(dry_run, oc_map, cluster, namespace,
                       resource_type, d_item, wait_for_namespace)
             except StatusCodeError as e:
-                ri.register_error()
+                apply_success = False
                 msg = "[{}/{}] {} (error details: {})".format(
-                    cluster, namespace, str(e), d_item.error_details)
-                logging.error(msg)
+                        cluster, namespace, str(e), d_item.error_details)
+                logging.warning(msg)
+
+            if not apply_success:
+                try:
+                    apply(dry_run, oc_map, cluster, namespace,
+                          resource_type, d_item, wait_for_namespace,
+                          replace=True)
+                except StatusCodeError as e:
+                    ri.register_error()
+                    msg = "[{}/{}] {} (error details: {})".format(
+                        cluster, namespace, str(e), d_item.error_details)
+                    logging.error(msg)
 
         # current items
         for name, c_item in data['current'].items():

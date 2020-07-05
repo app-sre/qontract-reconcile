@@ -130,8 +130,9 @@ class OC(object):
         result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)['items']
 
-    def apply(self, namespace, resource):
-        cmd = ['apply', '-n', namespace, '-f', '-']
+    def apply(self, namespace, resource, replace=False):
+        action = 'replace' if replace else 'apply'
+        cmd = [action, '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
 
     def delete(self, namespace, kind, name):
