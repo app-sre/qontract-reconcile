@@ -13,6 +13,16 @@ class GqlApiError(Exception):
     pass
 
 
+class GqlApiIntegrationNotFound(Exception):
+    def __init__(self, integration):
+        super().__init__(f"integration not found: {integration}")
+
+
+class GqlApiErrorForbiddenSchema(Exception):
+    def __init__(self, schema):
+        super().__init__(f"forbidden schema: {schema}")
+
+
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
         super(GqlGetResourceError, self).__init__(
@@ -20,15 +30,40 @@ class GqlGetResourceError(Exception):
         )
 
 
+INTEGRATIONS_QUERY = """
+{
+    integrations_v1 {
+        name
+        schemas
+    }
+}
+"""
+
+
 class GqlApi(object):
-    def __init__(self, url, token=None):
+    _valid_schemas = None
+
+    def __init__(self, url, token=None, int_name=None, validate_schemas=False):
         self.url = url
         self.token = token
+        self.integration = int_name
+        self.validate_schemas = validate_schemas
 
         self.client = GraphQLClient(self.url)
 
         if token:
             self.client.inject_token(token)
+
+        if int_name:
+            integrations = self.query(INTEGRATIONS_QUERY)
+
+            for integration in integrations['integrations_v1']:
+                if integration['name'] == int_name:
+                    self._valid_schemas = integration['schemas']
+                    break
+
+            if not self._valid_schemas:
+                raise GqlApiIntegrationNotFound(int_name)
 
     def query(self, query, variables=None):
         try:
@@ -42,6 +77,13 @@ class GqlApi(object):
                 'Could not connect to GraphQL server ({})'.format(e))
 
         result = json.loads(result_json)
+
+        # we need to test self._valid_schemas to let through the query that
+        # retrieves the schemas in the __init__ method
+        if self.validate_schemas and self._valid_schemas:
+            for schema in result['extensions']['schemas']:
+                if schema not in self._valid_schemas:
+                    raise GqlApiErrorForbiddenSchema(schema)
 
         if 'errors' in result:
             raise GqlApiError(result['errors'])
@@ -81,9 +123,9 @@ class GqlApi(object):
         return resources[0]
 
 
-def init(url, token=None):
+def init(url, token=None, integration=None, validate_schemas=False):
     global _gqlapi
-    _gqlapi = GqlApi(url, token)
+    _gqlapi = GqlApi(url, token, integration, validate_schemas)
     return _gqlapi
 
 
@@ -96,7 +138,7 @@ def get_sha_url(server, token=None):
     return f'{gql_sha_endpoint}/{sha}'
 
 
-def init_from_config(sha_url=True):
+def init_from_config(sha_url=True, integration=None, validate_schemas=False):
     config = get_config()
 
     server = config['graphql']['server']
@@ -104,7 +146,7 @@ def init_from_config(sha_url=True):
     if sha_url:
         server = get_sha_url(server, token)
 
-    return init(server, token)
+    return init(server, token, integration, validate_schemas)
 
 
 def get_api():
