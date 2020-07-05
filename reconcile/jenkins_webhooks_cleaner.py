@@ -7,7 +7,7 @@ from utils.gitlab_api import GitLabApi
 QONTRACT_INTEGRATION = 'jenkins-webhooks-cleaner'
 
 
-def run(dry_run=False):
+def run(dry_run):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)

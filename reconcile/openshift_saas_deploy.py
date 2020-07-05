@@ -15,7 +15,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10,
+def run(dry_run, thread_pool_size=10,
         saas_file_name=None, env_name=None, defer=None):
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:

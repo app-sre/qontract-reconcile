@@ -160,7 +160,7 @@ def fetch_desired_state(ri, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     clusters = [cluster_info for cluster_info
                 in queries.get_clusters()

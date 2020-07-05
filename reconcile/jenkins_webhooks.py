@@ -36,7 +36,7 @@ def get_hooks_to_add(desired_state, gl):
     return diff
 
 
-def run(dry_run=False):
+def run(dry_run):
     jjb = init_jjb()
     gl = get_gitlab_api()
 

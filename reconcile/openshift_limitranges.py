@@ -82,7 +82,7 @@ def add_desired_state(namespaces, ri, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, take_over=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()

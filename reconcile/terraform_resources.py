@@ -251,7 +251,7 @@ def write_outputs_to_vault(vault_path, ri):
 
 
 @defer
-def run(dry_run=False, print_only=False,
+def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='', defer=None):

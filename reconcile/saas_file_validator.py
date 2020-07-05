@@ -9,7 +9,7 @@ QONTRACT_INTEGRATION = 'saas-file-validator'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
-def run(dry_run=False):
+def run(dry_run):
     saas_files = queries.get_saas_files()
     settings = queries.get_app_interface_settings()
     saasherder = SaasHerder(

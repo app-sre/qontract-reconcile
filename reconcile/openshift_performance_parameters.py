@@ -174,7 +174,7 @@ def fetch_desired_state(performance_parameters, ri):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     performance_parameters = queries.get_performance_parameters()
     observability_namespaces = [

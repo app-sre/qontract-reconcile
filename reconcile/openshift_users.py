@@ -127,7 +127,7 @@ def act(diff, oc_map):
 
 
 @defer
-def run(dry_run=False, thread_pool_size=10, internal=None,
+def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     oc_map, current_state = \
         fetch_current_state(thread_pool_size, internal, use_jump_host)
