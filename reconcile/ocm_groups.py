@@ -68,6 +68,9 @@ def run(dry_run=False, thread_pool_size=10):
     openshift_groups.validate_diffs(diffs)
 
     for diff in diffs:
+        # we do not need to create/delete groups in OCM
+        if diff['action'] in ['create_group', 'delete_group']:
+            continue
         logging.info(list(diff.values()))
 
         if not dry_run:
