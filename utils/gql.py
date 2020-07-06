@@ -16,18 +16,26 @@ class GqlApiError(Exception):
 
 class GqlApiIntegrationNotFound(Exception):
     def __init__(self, integration):
-        super().__init__(f"integration not found: {integration}")
+        super().__init__(f"""Integration not found: {integration}
+
+        Integration should be defined in App-Interface with the
+        /app-sre/integration-1.yml schema.
+        """)
 
 
 class GqlApiErrorForbiddenSchema(Exception):
     def __init__(self, schema):
-        super().__init__(f"forbidden schema: {schema}")
+        super().__init__(f"""Forbidden schema: {schema}
+
+        The `schemas` parameter in the integration file in App-Interface
+        should be updated to include this schema.
+        """)
 
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
         super(GqlGetResourceError, self).__init__(
-            "error getting resource from path {}: {}".format(path, str(msg))
+            "Error getting resource from path {}: {}".format(path, str(msg))
         )
 
 
