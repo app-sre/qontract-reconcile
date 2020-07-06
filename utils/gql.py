@@ -56,7 +56,7 @@ class GqlApi(object):
         if int_name:
             integrations = self.query(INTEGRATIONS_QUERY)
 
-            for integration in integrations['integrations_v1']:
+            for integration in integrations['integrations']:
                 if integration['name'] == int_name:
                     self._valid_schemas = integration['schemas']
                     break

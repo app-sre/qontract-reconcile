@@ -104,7 +104,7 @@ def get_credentials_requests():
 
 INTEGRATIONS_QUERY = """
 {
-    integrations_v1 {
+    integrations: integrations_v1 {
         name
         schemas
     }
@@ -114,7 +114,7 @@ INTEGRATIONS_QUERY = """
 
 def get_integrations():
     gqlapi = gql.get_api()
-    return gqlapi.query(INTEGRATIONS_QUERY)['integrations_v1']
+    return gqlapi.query(INTEGRATIONS_QUERY)['integrations']
 
 
 JENKINS_INSTANCES_QUERY = """
