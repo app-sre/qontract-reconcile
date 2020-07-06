@@ -2,6 +2,8 @@ import json
 import requests
 import os
 import contextlib
+import textwrap
+import logging
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
@@ -16,20 +18,24 @@ class GqlApiError(Exception):
 
 class GqlApiIntegrationNotFound(Exception):
     def __init__(self, integration):
-        super().__init__(f"""Integration not found: {integration}
+        msg = f"""
+        Integration not found: {integration}
 
         Integration should be defined in App-Interface with the
         /app-sre/integration-1.yml schema.
-        """)
+        """
+        super().__init__(textwrap.dedent(msg).strip())
 
 
 class GqlApiErrorForbiddenSchema(Exception):
     def __init__(self, schema):
-        super().__init__(f"""Forbidden schema: {schema}
+        msg = f"""
+        Forbidden schema: {schema}
 
         The `schemas` parameter in the integration file in App-Interface
         should be updated to include this schema.
-        """)
+        """
+        super().__init__(textwrap.dedent(msg).strip())
 
 
 class GqlGetResourceError(Exception):
