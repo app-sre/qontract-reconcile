@@ -1,6 +1,7 @@
 import sys
 import semver
 import logging
+import time
 
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
@@ -39,29 +40,34 @@ def run(dry_run, thread_pool_size=10):
 
     trigger_specs = saasherder.get_configs_diff()
     already_triggered = []
-    error = False
-    for job_spec in trigger_specs:
-        saas_file_name = job_spec['saas_file_name']
-        env_name = job_spec['env_name']
-        instance_name = job_spec['instance_name']
-        job_name = get_openshift_saas_deploy_job_name(
-            saas_file_name, env_name, settings)
-        if job_name not in already_triggered:
-            logging.info(['trigger_job', instance_name, job_name])
-            if dry_run:
-                already_triggered.append(job_name)
 
-        if not dry_run:
-            jenkins = jenkins_map[instance_name]
-            try:
-                if job_name not in already_triggered:
-                    jenkins.trigger_job(job_name)
+    error = True  # enter loop
+    while error:
+        error = False
+        for job_spec in trigger_specs:
+            saas_file_name = job_spec['saas_file_name']
+            env_name = job_spec['env_name']
+            instance_name = job_spec['instance_name']
+            job_name = get_openshift_saas_deploy_job_name(
+                saas_file_name, env_name, settings)
+            if job_name not in already_triggered:
+                logging.info(['trigger_job', instance_name, job_name])
+                if dry_run:
                     already_triggered.append(job_name)
-                saasherder.update_config(job_spec)
-            except Exception:
-                error = True
-                logging.error(
-                    f"could not trigger job {job_name} in {instance_name}.")
 
-    if error:
-        sys.exit(1)
+            if not dry_run:
+                jenkins = jenkins_map[instance_name]
+                try:
+                    if job_name not in already_triggered:
+                        jenkins.trigger_job(job_name)
+                        already_triggered.append(job_name)
+                    saasherder.update_config(job_spec)
+                except Exception as e:
+                    error = True
+                    logging.error(
+                        f"could not trigger job {job_name} " +
+                        f"in {instance_name}. details: {str(e)}"
+                    )
+
+        if error:
+            time.sleep(10)  # add to contants module once created
