@@ -72,6 +72,7 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
         enable_deletion=False, send_mails=False):
+    settings = queries.get_app_interface_settings()
     users = queries.get_users()
     g = init_github()
 
@@ -82,7 +83,6 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
 
     if not dry_run and enable_deletion:
         gw = prg.init(gitlab_project_id=gitlab_project_id)
-        settings = queries.get_app_interface_settings()
 
     for user in users_to_delete:
         username = user['username']
