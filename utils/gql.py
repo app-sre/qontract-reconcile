@@ -83,6 +83,10 @@ class GqlApi(object):
 
         result = json.loads(result_json)
 
+        # show schemas if log level is debug
+        for s in result['extensions']['schemas']:
+            logging.debug(['schema', s])
+
         # we need to test self._valid_schemas to let through the query that
         # retrieves the schemas in the __init__ method
         if self.validate_schemas and self._valid_schemas:
