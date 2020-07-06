@@ -71,6 +71,7 @@ import reconcile.service_dependencies
 import reconcile.sentry_config
 import reconcile.sql_query
 import reconcile.user_validator
+import reconcile.integrations_validator
 
 from reconcile.status import ExitCodes
 
@@ -253,11 +254,19 @@ def enable_rebase(**kwargs):
 
 
 def run_integration(func_container, ctx, *args):
-    int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+    try:
+        int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+    except AttributeError:
+        sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
+        sys.exit(ExitCodes.ERROR)
 
-    gql.init_from_config(sha_url=ctx['gql_sha_url'],
-                         integration=int_name,
-                         validate_schemas=ctx['validate_schemas'])
+    try:
+        gql.init_from_config(sha_url=ctx['gql_sha_url'],
+                             integration=int_name,
+                             validate_schemas=ctx['validate_schemas'])
+    except GqlApiIntegrationNotFound as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
 
     unleash_feature_state = get_feature_toggle_state(int_name)
     if not unleash_feature_state:
@@ -271,9 +280,6 @@ def run_integration(func_container, ctx, *args):
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
-    except GqlApiIntegrationNotFound as e:
-        sys.stderr.write(str(e) + "\n")
-        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
     except GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
@@ -907,3 +913,10 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
     run_integration(reconcile.gitlab_fork_compliance, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id,
                     gitlab_maintainers_group)
+
+
+@integration.command()
+@click.pass_context
+def integrations_validator(ctx):
+    run_integration(reconcile.integrations_validator, ctx.obj,
+                    reconcile.cli.integration.commands.keys())

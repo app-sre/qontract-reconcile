@@ -102,6 +102,21 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)['credentials_requests']
 
 
+INTEGRATIONS_QUERY = """
+{
+    integrations_v1 {
+        name
+        schemas
+    }
+}
+"""
+
+
+def get_integrations():
+    gqlapi = gql.get_api()
+    return gqlapi.query(INTEGRATIONS_QUERY)['integrations_v1']
+
+
 JENKINS_INSTANCES_QUERY = """
 {
   instances: jenkins_instances_v1 {
@@ -116,7 +131,6 @@ JENKINS_INSTANCES_QUERY = """
   }
 }
 """
-
 
 def get_jenkins_instances():
     """ Returns a list of Jenkins instances """

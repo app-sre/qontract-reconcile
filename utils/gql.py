@@ -5,6 +5,7 @@ import contextlib
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
+from reconcile.queries import INTEGRATIONS_QUERY
 
 _gqlapi = None
 
@@ -28,16 +29,6 @@ class GqlGetResourceError(Exception):
         super(GqlGetResourceError, self).__init__(
             "error getting resource from path {}: {}".format(path, str(msg))
         )
-
-
-INTEGRATIONS_QUERY = """
-{
-    integrations_v1 {
-        name
-        schemas
-    }
-}
-"""
 
 
 class GqlApi(object):

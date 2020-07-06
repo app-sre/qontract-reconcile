@@ -70,6 +70,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `sentry-config`: Configure and enforce sentry instance configuration.
 - `saas-file-owners`: Adds an `approved` label on merge requests based on approver schema for saas files.
 - `user-validator`: Validate user files.
+- `integrations-validator`: Ensures all integrations are defined in App-Interface.
 
 ### e2e-tests
 
