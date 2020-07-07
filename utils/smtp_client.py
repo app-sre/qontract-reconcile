@@ -4,6 +4,7 @@ import utils.secret_reader as secret_reader
 
 from utils.config import get_config
 
+from sretoolbox.utils import retry
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
@@ -68,6 +69,7 @@ def get_smtp_config(path, settings):
     return config
 
 
+@retry()
 def send_mail(names, subject, body, settings=None):
     global _client
     global _username
