@@ -123,6 +123,8 @@ class OpenshiftResource(object):
             return True
         if val1 == 'extensions/v1beta1' and val2 == 'apps/v1':
             return True
+        if val1 == 'networking.k8s.io/v1' and val2 == 'extensions/v1beta1':
+            return True
         return val1 == val2
 
     @property
