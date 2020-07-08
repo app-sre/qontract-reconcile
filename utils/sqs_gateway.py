@@ -82,3 +82,10 @@ class SQSGateway(object):
             'version': version
         }
         self.send_message(body)
+
+    def create_app_interface_notificator_mr(self, notification):
+        body = {
+            'pr_type': 'create_app_interface_notificator_mr',
+            'notification': notification
+        }
+        self.send_message(body)
