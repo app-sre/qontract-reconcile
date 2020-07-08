@@ -132,6 +132,7 @@ JENKINS_INSTANCES_QUERY = """
 }
 """
 
+
 def get_jenkins_instances():
     """ Returns a list of Jenkins instances """
     gqlapi = gql.get_api()
