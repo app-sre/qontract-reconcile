@@ -7,9 +7,18 @@ import logging
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
-from reconcile.queries import INTEGRATIONS_QUERY
 
 _gqlapi = None
+
+
+INTEGRATIONS_QUERY = """
+{
+    integrations: integrations_v1 {
+        name
+        schemas
+    }
+}
+"""
 
 
 class GqlApiError(Exception):
