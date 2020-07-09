@@ -96,11 +96,13 @@ class GqlApi(object):
         result = json.loads(result_json)
 
         # show schemas if log level is debug
-        for s in result['extensions']['schemas']:
+        query_schemas = result.get('extensions', {}).get('schemas', [])
+
+        for s in query_schemas:
             logging.debug(['schema', s])
 
         if self.validate_schemas and not skip_validation:
-            for schema in result['extensions']['schemas']:
+            for schema in query_schemas:
                 if schema not in self._valid_schemas:
                     raise GqlApiErrorForbiddenSchema(schema)
 
