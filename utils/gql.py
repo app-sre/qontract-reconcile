@@ -2,6 +2,8 @@ import json
 import requests
 import os
 import contextlib
+import textwrap
+import logging
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
@@ -9,28 +11,78 @@ from utils.config import get_config
 _gqlapi = None
 
 
+INTEGRATIONS_QUERY = """
+{
+    integrations: integrations_v1 {
+        name
+        schemas
+    }
+}
+"""
+
+
 class GqlApiError(Exception):
     pass
+
+
+class GqlApiIntegrationNotFound(Exception):
+    def __init__(self, integration):
+        msg = f"""
+        Integration not found: {integration}
+
+        Integration should be defined in App-Interface with the
+        /app-sre/integration-1.yml schema.
+        """
+        super().__init__(textwrap.dedent(msg).strip())
+
+
+class GqlApiErrorForbiddenSchema(Exception):
+    def __init__(self, schema):
+        msg = f"""
+        Forbidden schema: {schema}
+
+        The `schemas` parameter in the integration file in App-Interface
+        should be updated to include this schema.
+        """
+        super().__init__(textwrap.dedent(msg).strip())
 
 
 class GqlGetResourceError(Exception):
     def __init__(self, path, msg):
         super(GqlGetResourceError, self).__init__(
-            "error getting resource from path {}: {}".format(path, str(msg))
+            "Error getting resource from path {}: {}".format(path, str(msg))
         )
 
 
 class GqlApi(object):
-    def __init__(self, url, token=None):
+    _valid_schemas = None
+
+    def __init__(self, url, token=None, int_name=None, validate_schemas=False):
         self.url = url
         self.token = token
-
+        self.integration = int_name
+        self.validate_schemas = validate_schemas
         self.client = GraphQLClient(self.url)
+
+        if validate_schemas and not int_name:
+            raise Exception('Cannot validate schemas if integration name '
+                            'is not supplied')
 
         if token:
             self.client.inject_token(token)
 
-    def query(self, query, variables=None):
+        if int_name:
+            integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
+
+            for integration in integrations['integrations']:
+                if integration['name'] == int_name:
+                    self._valid_schemas = integration['schemas']
+                    break
+
+            if not self._valid_schemas:
+                raise GqlApiIntegrationNotFound(int_name)
+
+    def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
             # https://github.com/prisma-labs/python-graphql-client
@@ -42,6 +94,15 @@ class GqlApi(object):
                 'Could not connect to GraphQL server ({})'.format(e))
 
         result = json.loads(result_json)
+
+        # show schemas if log level is debug
+        for s in result['extensions']['schemas']:
+            logging.debug(['schema', s])
+
+        if self.validate_schemas and not skip_validation:
+            for schema in result['extensions']['schemas']:
+                if schema not in self._valid_schemas:
+                    raise GqlApiErrorForbiddenSchema(schema)
 
         if 'errors' in result:
             raise GqlApiError(result['errors'])
@@ -81,9 +142,9 @@ class GqlApi(object):
         return resources[0]
 
 
-def init(url, token=None):
+def init(url, token=None, integration=None, validate_schemas=False):
     global _gqlapi
-    _gqlapi = GqlApi(url, token)
+    _gqlapi = GqlApi(url, token, integration, validate_schemas)
     return _gqlapi
 
 
@@ -96,7 +157,7 @@ def get_sha_url(server, token=None):
     return f'{gql_sha_endpoint}/{sha}'
 
 
-def init_from_config(sha_url=True):
+def init_from_config(sha_url=True, integration=None, validate_schemas=False):
     config = get_config()
 
     server = config['graphql']['server']
@@ -104,7 +165,7 @@ def init_from_config(sha_url=True):
     if sha_url:
         server = get_sha_url(server, token)
 
-    return init(server, token)
+    return init(server, token, integration, validate_schemas)
 
 
 def get_api():

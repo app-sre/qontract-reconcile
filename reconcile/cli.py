@@ -71,10 +71,12 @@ import reconcile.service_dependencies
 import reconcile.sentry_config
 import reconcile.sql_query
 import reconcile.user_validator
+import reconcile.integrations_validator
 
 from reconcile.status import ExitCodes
 
-from utils.gql import GqlApiError
+from utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+                       GqlApiIntegrationNotFound)
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
@@ -112,6 +114,15 @@ def dry_run(function):
 
     function = click.option('--dry-run/--no-dry-run',
                             default=False,
+                            help=help_msg)(function)
+    return function
+
+
+def validate_schemas(function):
+    help_msg = 'Fail integration if it queries forbidden schemas'
+
+    function = click.option('--validate-schemas/--no-validate-schemas',
+                            default=True,
                             help=help_msg)(function)
     return function
 
@@ -243,8 +254,21 @@ def enable_rebase(**kwargs):
 
 
 def run_integration(func_container, ctx, *args):
-    integration_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
-    unleash_feature_state = get_feature_toggle_state(integration_name)
+    try:
+        int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+    except AttributeError:
+        sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
+        sys.exit(ExitCodes.ERROR)
+
+    try:
+        gql.init_from_config(sha_url=ctx['gql_sha_url'],
+                             integration=int_name,
+                             validate_schemas=ctx['validate_schemas'])
+    except GqlApiIntegrationNotFound as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
+
+    unleash_feature_state = get_feature_toggle_state(int_name)
     if not unleash_feature_state:
         logging.info('Integration toggle is disabled, skipping integration.')
         sys.exit(ExitCodes.SUCCESS)
@@ -256,6 +280,9 @@ def run_integration(func_container, ctx, *args):
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
+    except GqlApiErrorForbiddenSchema as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except GqlApiError as e:
         if '409' in str(e):
             logging.info(f'Data changed during execution. This is fine.')
@@ -279,16 +306,19 @@ def init_log_level(log_level):
 @click.group()
 @config_file
 @dry_run
+@validate_schemas
 @gql_sha_url
 @log_level
 @click.pass_context
-def integration(ctx, configfile, dry_run, log_level, gql_sha_url):
+def integration(ctx, configfile, dry_run, validate_schemas, log_level,
+                gql_sha_url):
     ctx.ensure_object(dict)
 
     init_log_level(log_level)
     config.init_from_toml(configfile)
-    gql.init_from_config(sha_url=gql_sha_url)
     ctx.obj['dry_run'] = dry_run
+    ctx.obj['validate_schemas'] = validate_schemas
+    ctx.obj['gql_sha_url'] = gql_sha_url
 
 
 @integration.command()
@@ -883,3 +913,10 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
     run_integration(reconcile.gitlab_fork_compliance, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id,
                     gitlab_maintainers_group)
+
+
+@integration.command()
+@click.pass_context
+def integrations_validator(ctx):
+    run_integration(reconcile.integrations_validator, ctx.obj,
+                    reconcile.cli.integration.commands.keys())

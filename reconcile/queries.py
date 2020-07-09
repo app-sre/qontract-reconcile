@@ -102,6 +102,11 @@ def get_credentials_requests():
     return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)['credentials_requests']
 
 
+def get_integrations():
+    gqlapi = gql.get_api()
+    return gqlapi.query(gql.INTEGRATIONS_QUERY)['integrations']
+
+
 JENKINS_INSTANCES_QUERY = """
 {
   instances: jenkins_instances_v1 {
