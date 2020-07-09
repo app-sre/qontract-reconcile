@@ -122,7 +122,7 @@ def validate_schemas(function):
     help_msg = 'Fail integration if it queries forbidden schemas'
 
     function = click.option('--validate-schemas/--no-validate-schemas',
-                            default=False,
+                            default=True,
                             help=help_msg)(function)
     return function
 

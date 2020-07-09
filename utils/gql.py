@@ -62,14 +62,17 @@ class GqlApi(object):
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
-
         self.client = GraphQLClient(self.url)
+
+        if validate_schemas and not int_name:
+            raise Exception('Cannot validate schemas if integration name '
+                            'is not supplied')
 
         if token:
             self.client.inject_token(token)
 
         if int_name:
-            integrations = self.query(INTEGRATIONS_QUERY)
+            integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
 
             for integration in integrations['integrations']:
                 if integration['name'] == int_name:
@@ -79,7 +82,7 @@ class GqlApi(object):
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    def query(self, query, variables=None):
+    def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
             # https://github.com/prisma-labs/python-graphql-client
@@ -96,9 +99,7 @@ class GqlApi(object):
         for s in result['extensions']['schemas']:
             logging.debug(['schema', s])
 
-        # we need to test self._valid_schemas to let through the query that
-        # retrieves the schemas in the __init__ method
-        if self.validate_schemas and self._valid_schemas:
+        if self.validate_schemas and not skip_validation:
             for schema in result['extensions']['schemas']:
                 if schema not in self._valid_schemas:
                     raise GqlApiErrorForbiddenSchema(schema)
