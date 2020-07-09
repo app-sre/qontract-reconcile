@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -123,6 +124,14 @@ def validate_schemas(function):
 
     function = click.option('--validate-schemas/--no-validate-schemas',
                             default=True,
+                            help=help_msg)(function)
+    return function
+
+
+def dump_schemas(function):
+    help_msg = 'Dump schemas to a file'
+
+    function = click.option('--dump-schemas', 'dump_schemas_file',
                             help=help_msg)(function)
     return function
 
@@ -291,6 +300,11 @@ def run_integration(func_container, ctx, *args):
             sys.exit(ExitCodes.DATA_CHANGED)
         else:
             raise e
+    finally:
+        if ctx.get('dump_schemas_file'):
+            gqlapi = gql.get_api()
+            with open(ctx.get('dump_schemas_file'), 'w') as f:
+                f.write(json.dumps(gqlapi.get_queried_schemas()))
 
 
 def init_log_level(log_level):
@@ -307,11 +321,12 @@ def init_log_level(log_level):
 @config_file
 @dry_run
 @validate_schemas
+@dump_schemas
 @gql_sha_url
 @log_level
 @click.pass_context
-def integration(ctx, configfile, dry_run, validate_schemas, log_level,
-                gql_sha_url):
+def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
+                log_level, gql_sha_url):
     ctx.ensure_object(dict)
 
     init_log_level(log_level)
@@ -319,6 +334,7 @@ def integration(ctx, configfile, dry_run, validate_schemas, log_level,
     ctx.obj['dry_run'] = dry_run
     ctx.obj['validate_schemas'] = validate_schemas
     ctx.obj['gql_sha_url'] = gql_sha_url
+    ctx.obj['dump_schemas_file'] = dump_schemas_file
 
 
 @integration.command()

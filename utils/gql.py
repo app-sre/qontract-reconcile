@@ -56,6 +56,7 @@ class GqlGetResourceError(Exception):
 
 class GqlApi(object):
     _valid_schemas = None
+    _queried_schemas = set()
 
     def __init__(self, url, token=None, int_name=None, validate_schemas=False):
         self.url = url
@@ -97,6 +98,7 @@ class GqlApi(object):
 
         # show schemas if log level is debug
         query_schemas = result.get('extensions', {}).get('schemas', [])
+        self._queried_schemas.update(query_schemas)
 
         for s in query_schemas:
             logging.debug(['schema', s])
@@ -142,6 +144,9 @@ class GqlApi(object):
                 'Expecting one and only one resource.')
 
         return resources[0]
+
+    def get_queried_schemas(self):
+        return list(self._queried_schemas)
 
 
 def init(url, token=None, integration=None, validate_schemas=False):
