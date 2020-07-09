@@ -11,7 +11,7 @@ def run(dry_run, integration_commands):
     missing = set(integration_commands) - set(desired_integrations)
 
     for integration in missing:
-        logging.info(['missing_integration', integration])
+        logging.error(['missing_integration', integration])
 
     if missing:
         sys.exit(1)
