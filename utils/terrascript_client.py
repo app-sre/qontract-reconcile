@@ -682,8 +682,7 @@ class TerrascriptClient(object):
 
     @staticmethod
     def _db_needs_auth_(config):
-        if 'snapshot_identifier' not in config and \
-           'replicate_source_db' not in config and \
+        if 'replicate_source_db' not in config and \
            config.get('replica_source', None) is None:
             return True
         return False
@@ -702,8 +701,9 @@ class TerrascriptClient(object):
             self.fetch_existing_oc_resource(namespace_info,
                                             output_resource_name)
         if existing_oc_resource is not None:
-            enc_password = existing_oc_resource['data'][secret_key]
-            return base64.b64decode(enc_password).decode('utf-8')
+            enc_password = existing_oc_resource['data'].get(secret_key)
+            if enc_password:
+                return base64.b64decode(enc_password).decode('utf-8')
         return self.generate_random_password()
 
         # TODO: except KeyError?
