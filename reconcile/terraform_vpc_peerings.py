@@ -170,13 +170,13 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
         cluster = cluster_info['name']
         ocm = ocm_map.get(cluster)
         peering_info = cluster_info['peering']
-        # requester is the cluster's AWS account
-        requester = {
-            'cidr_block': cluster_info['network']['vpc'],
-            'region': cluster_info['spec']['region']
-        }
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
+            # requester is the cluster's AWS account
+            requester = {
+                'cidr_block': cluster_info['network']['vpc'],
+                'region': cluster_info['spec']['region']
+            }
             # We only care about account-vpc peering providers
             if not peer_connection['provider'] == 'account-vpc':
                 continue
