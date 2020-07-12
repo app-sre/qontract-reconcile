@@ -260,8 +260,8 @@ class SaasHerder():
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
                 logging.error(
-                    f"[{saas_file_name}/{resource_template_name}] {html_url}: " +
-                    f"error processing template: {str(e)}")
+                    f"[{saas_file_name}/{resource_template_name}] " +
+                    f"{html_url}: error processing template: {str(e)}")
 
         elif provider == 'directory':
             get_directory_contents_options = {
