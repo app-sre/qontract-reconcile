@@ -122,18 +122,49 @@ class SaasHerder():
         path = options['path']
         ref = options['ref']
         github = options['github']
+        html_url = os.path.join(url, 'blob', ref, path)
+        content = None
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
             f = repo.get_contents(path, ref)
-            return f.decoded_content, f.html_url
+            content = f.decoded_content
         elif 'gitlab' in url:
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             f = project.files.get(file_path=path.lstrip('/'), ref=ref)
-            html_url = os.path.join(url, 'blob', ref, path)
-            return f.decode(), html_url
+            content = f.decode()
+
+        return yaml.safe_load(content), html_url
+
+    @retry()
+    def _get_directory_contents(self, options):
+        url = options['url']
+        path = options['path']
+        ref = options['ref']
+        github = options['github']
+        html_url = os.path.join(url, 'tree', ref, path)
+        resources = []
+        if 'github' in url:
+            repo_name = url.rstrip("/").replace('https://github.com/', '')
+            repo = github.get_repo(repo_name)
+            for f in repo.get_contents(path):
+                file_path = os.path.join(path, f.name)
+                file_contents = repo.get_contents(file_path, ref)
+                resource = yaml.safe_load(file_contents.decoded_content)
+                resources.append(resource)
+        elif 'gitlab' in url:
+            if not self.gitlab:
+                raise Exception('gitlab is not initialized')
+            project = self.gitlab.get_project(url)
+            for f in project.repository_tree(path=path.lstrip('/'), ref=ref):
+                file_contents = \
+                    project.files.get(file_path=f['path'], ref=ref)
+                resource = yaml.safe_load(file_contents.decode())
+                resources.append(resource)
+
+        return resources, html_url
 
     @retry()
     def _get_commit_sha(self, options):
@@ -170,62 +201,90 @@ class SaasHerder():
         resource_template_name = options['resource_template_name']
         url = options['url']
         path = options['path']
-        hash_length = options['hash_length']
+        provider = options['provider']
         target = options['target']
-        parameters = options['parameters']
         github = options['github']
         target_ref = target['ref']
-        environment = target['namespace']['environment']
-        environment_parameters = self._collect_parameters(environment)
-        target_parameters = self._collect_parameters(target)
 
-        consolidated_parameters = {}
-        consolidated_parameters.update(environment_parameters)
-        consolidated_parameters.update(parameters)
-        consolidated_parameters.update(target_parameters)
+        resources = None
+        html_url = None
 
-        try:
+        if provider == 'openshift-template':
+            hash_length = options['hash_length']
+            parameters = options['parameters']
+            environment = target['namespace']['environment']
+            environment_parameters = self._collect_parameters(environment)
+            target_parameters = self._collect_parameters(target)
+
+            consolidated_parameters = {}
+            consolidated_parameters.update(environment_parameters)
+            consolidated_parameters.update(parameters)
+            consolidated_parameters.update(target_parameters)
             get_file_contents_options = {
                 'url': url,
                 'path': path,
                 'ref': target_ref,
                 'github': github
             }
-            content, html_url = \
-                self._get_file_contents(get_file_contents_options)
-        except Exception as e:
-            logging.error(
-                f"[{url}/{path}:{target_ref}] " +
-                f"error fetching template: {str(e)}")
-            return None, None
 
-        template = yaml.safe_load(content)
-        if "IMAGE_TAG" not in consolidated_parameters:
-            template_parameters = template.get('parameters')
-            if not template_parameters:
+            try:
+                template, html_url = \
+                    self._get_file_contents(get_file_contents_options)
+            except Exception as e:
                 logging.error(
                     f"[{url}/{path}:{target_ref}] " +
-                    f"missing parameters section")
+                    f"error fetching template: {str(e)}")
                 return None, None
-            for template_parameter in template_parameters:
-                if template_parameter['name'] == 'IMAGE_TAG':
-                    # add IMAGE_TAG only if it is required
-                    get_commit_sha_options = {
-                        'url': url,
-                        'ref': target_ref,
-                        'hash_length': hash_length,
-                        'github': github
-                    }
-                    image_tag = self._get_commit_sha(get_commit_sha_options)
-                    consolidated_parameters['IMAGE_TAG'] = image_tag
-        oc = OC('server', 'token')
-        try:
-            resources = oc.process(template, consolidated_parameters)
-        except StatusCodeError as e:
-            resources = None
+
+            if "IMAGE_TAG" not in consolidated_parameters:
+                template_parameters = template.get('parameters')
+                if not template_parameters:
+                    logging.error(
+                        f"[{url}/{path}:{target_ref}] " +
+                        f"missing parameters section")
+                    return None, None
+                for template_parameter in template_parameters:
+                    if template_parameter['name'] == 'IMAGE_TAG':
+                        # add IMAGE_TAG only if it is required
+                        get_commit_sha_options = {
+                            'url': url,
+                            'ref': target_ref,
+                            'hash_length': hash_length,
+                            'github': github
+                        }
+                        image_tag = self._get_commit_sha(
+                            get_commit_sha_options)
+                        consolidated_parameters['IMAGE_TAG'] = image_tag
+            oc = OC('server', 'token')
+            try:
+                resources = oc.process(template, consolidated_parameters)
+            except StatusCodeError as e:
+                logging.error(
+                    f"[{saas_file_name}/{resource_template_name}] {html_url}: " +
+                    f"error processing template: {str(e)}")
+
+        elif provider == 'directory':
+            get_directory_contents_options = {
+                'url': url,
+                'path': path,
+                'ref': target_ref,
+                'github': github
+            }
+            try:
+                resources, html_url = \
+                    self._get_directory_contents(
+                        get_directory_contents_options)
+            except Exception as e:
+                logging.error(
+                    f"[{url}/{path}:{target_ref}] " +
+                    f"error fetching directory: {str(e)}")
+                return None, None
+
+        else:
             logging.error(
-                f"[{saas_file_name}/{resource_template_name}] {html_url}: " +
-                f"error processing template: {str(e)}")
+                f"[{saas_file_name}/{resource_template_name}] " +
+                f"unknown provider: {provider}")
+
         return resources, html_url
 
     def _collect_images(self, resource):
@@ -385,6 +444,7 @@ class SaasHerder():
             rt_name = rt['name']
             url = rt['url']
             path = rt['path']
+            provider = rt.get('provider') or 'openshift-template'
             hash_length = rt.get('hash_length') or self.settings['hashLength']
             parameters = self._collect_parameters(rt)
 
@@ -404,6 +464,7 @@ class SaasHerder():
                     'resource_template_name': rt_name,
                     'url': url,
                     'path': path,
+                    'provider': provider,
                     'hash_length': hash_length,
                     'target': target,
                     'parameters': consolidated_parameters,

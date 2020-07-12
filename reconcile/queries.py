@@ -881,6 +881,7 @@ SAAS_FILES_QUERY = """
       name
       url
       path
+      provider
       hash_length
       parameters
       targets {
