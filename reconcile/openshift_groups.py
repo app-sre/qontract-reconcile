@@ -101,7 +101,7 @@ def fetch_desired_state(oc_map):
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
                 continue
-            if a['cluster']['name'] not in oc_map.clusters():
+            if oc_map and a['cluster']['name'] not in oc_map.clusters():
                 continue
 
             for u in r['users']:

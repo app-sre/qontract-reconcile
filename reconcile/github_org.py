@@ -11,8 +11,6 @@ import reconcile.queries as queries
 
 from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
 from utils.raw_github_api import RawGithubApi
-from utils.oc import OC_Map
-from utils.defer import defer
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
@@ -185,11 +183,8 @@ def fetch_desired_state(infer_clusters=True):
         return state
 
     clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(clusters=clusters, settings=settings)
-    defer(lambda: oc_map.cleanup())
     openshift_users_desired_state = \
-        openshift_users.fetch_desired_state(oc_map)
+        openshift_users.fetch_desired_state(oc_map=None)
     for cluster in clusters:
         if not cluster['auth']:
             continue
