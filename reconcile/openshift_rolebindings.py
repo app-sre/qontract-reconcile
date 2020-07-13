@@ -110,7 +110,7 @@ def fetch_desired_state(ri, oc_map):
 
         for permission in permissions:
             cluster = permission['cluster']
-            if not oc_map.get(cluster):
+            if oc_map and not oc_map.get(cluster):
                 continue
             for user in users:
                 # used by openshift-users and github integrations
