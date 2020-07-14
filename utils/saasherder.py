@@ -516,7 +516,7 @@ class SaasHerder():
             self.jenkins_map[instance_name].is_job_running(upstream)
         if skip_check_images:
             logging.warning(
-                f"skipping check_image since " + 
+                f"skipping check_image since " +
                 f"upstream job {upstream} is running"
             )
         else:
