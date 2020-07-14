@@ -395,6 +395,18 @@ integrations:
     slack: true
     cloudwatch: true
   extraArgs: --no-use-jump-host
+- name: dashdotdb-cso
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  logs:
+    slack: true
+    cloudwatch: true
+  dashdotdb: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
