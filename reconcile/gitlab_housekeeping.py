@@ -2,6 +2,7 @@ import logging
 import gitlab
 
 from datetime import datetime, timedelta
+from sretoolbox.utils import retry
 
 import reconcile.queries as queries
 
@@ -121,7 +122,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
                     logging.error('unable to rebase {}: {}'.format(mr.iid, e))
 
 
-def merge_merge_requests(dry_run, gl, merge_limit, rebase):
+@retry(max_attempts=10)
+def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
@@ -155,7 +157,10 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase):
                 [p for p in pipelines
                  if p['status'] in ['running', 'pending']]
             if incomplete_pipelines:
-                continue
+                if insist:
+                    raise Exception(f'insisting on {merge_label}')
+                else:
+                    continue
 
             last_pipeline_result = pipelines[0]['status']
             if last_pipeline_result != 'success':
@@ -189,6 +194,9 @@ def run(dry_run):
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'merge-request')
         rebase = hk.get('rebase')
-        merge_merge_requests(dry_run, gl, limit, rebase)
+        try:
+            merge_merge_requests(dry_run, gl, limit, rebase, insist=True)
+        except Exception:
+            merge_merge_requests(dry_run, gl, limit, rebase)
         if rebase:
             rebase_merge_requests(dry_run, gl, limit)
