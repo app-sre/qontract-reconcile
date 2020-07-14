@@ -45,7 +45,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_elasticsearch_domain,
                                aws_iam_service_linked_role,
                                aws_lambda_function, aws_lambda_permission,
-                               aws_cloudwatch_log_subscription_filter)
+                               aws_cloudwatch_log_subscription_filter,
+                               aws_acm_certificate)
 
 LOGTOES_ZIP = 'https://github.com/app-sre/logs-to-elasticsearch-lambda' + \
               '/releases/latest/download/LogsToElasticsearch.zip'
@@ -66,6 +67,7 @@ class TerrascriptClient(object):
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
+        self.settings = settings
         self.populate_configs(filtered_accounts, settings)
         tss = {}
         locks = {}
@@ -421,6 +423,9 @@ class TerrascriptClient(object):
         elif provider == 'elasticsearch':
             self.populate_tf_resource_elasticsearch(resource, namespace_info,
                                                     existing_secrets)
+        elif provider == 'acm':
+            self.populate_tf_resource_acm(resource, namespace_info,
+                                          existing_secrets)
         else:
             raise UnknownProviderError(provider)
 
@@ -1488,8 +1493,10 @@ class TerrascriptClient(object):
         }
 
         region = common_values['region'] or self.default_regions.get(account)
+        provider = ''
         if self._multiregion_account_(account):
-            values['provider'] = 'aws.' + region
+            provider = 'aws.' + region
+            values['provider'] = provider
         log_group_tf_resource = aws_cloudwatch_log_group(identifier, **values)
         tf_resources.append(log_group_tf_resource)
 
@@ -1554,8 +1561,10 @@ class TerrascriptClient(object):
             es_domain = {
                 'domain_name': es_identifier
             }
+            if provider:
+                es_domain['provider'] = provider
             tf_resources.append(data('aws_elasticsearch_domain',
-                                     'es_domain', **es_domain))
+                                     es_identifier, **es_domain))
 
             zip_url = common_values.get('zip_url', LOGTOES_ZIP)
             r = requests.get(zip_url)
@@ -1581,22 +1590,25 @@ class TerrascriptClient(object):
 
             lambda_values["vpc_config"] = {
                 'subnet_ids': [
-                    "${data.aws_elasticsearch_domain.es_domain." +
-                    "vpc_options.0.subnet_ids}"
+                    "${data.aws_elasticsearch_domain." + es_identifier +
+                    ".vpc_options.0.subnet_ids}"
                 ],
                 'security_group_ids': [
-                    "${data.aws_elasticsearch_domain.es_domain." +
-                    "vpc_options.0.security_group_ids}"
+                    "${data.aws_elasticsearch_domain." + es_identifier +
+                    ".vpc_options.0.security_group_ids}"
                 ]
             }
 
             lambda_values["environment"] = {
                 'variables': {
                     'es_endpoint':
-                        '${data.aws_elasticsearch_domain.es_domain.endpoint}'
+                        '${data.aws_elasticsearch_domain.' + es_identifier +
+                        '.endpoint}'
                 }
             }
 
+            if provider:
+                lambda_values['provider'] = provider
             lambds_tf_resource = \
                 aws_lambda_function(lambda_identifier, **lambda_values)
             tf_resources.append(lambds_tf_resource)
@@ -1609,6 +1621,8 @@ class TerrascriptClient(object):
                 'source_arn': "${" + log_group_tf_resource.fullname + ".arn}"
             }
 
+            if provider:
+                permission_vaules['provider'] = provider
             permission_tf_resource = \
                 aws_lambda_permission(lambda_identifier, **permission_vaules)
             tf_resources.append(permission_tf_resource)
@@ -1627,6 +1641,8 @@ class TerrascriptClient(object):
             if filter_pattern is not None:
                 subscription_vaules["filter_pattern"] = filter_pattern
 
+            if provider:
+                subscription_vaules['provider'] = provider
             subscription_tf_resource = \
                 aws_cloudwatch_log_subscription_filter(lambda_identifier,
                                                        **subscription_vaules)
@@ -1819,6 +1835,7 @@ class TerrascriptClient(object):
         replica_source = resource.get('replica_source', None)
         es_identifier = resource.get('es_identifier', None)
         filter_pattern = resource.get('filter_pattern', None)
+        secret = resource.get('secret', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -1838,6 +1855,7 @@ class TerrascriptClient(object):
         values['replica_source'] = replica_source
         values['es_identifier'] = es_identifier
         values['filter_pattern'] = filter_pattern
+        values['secret'] = secret
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
@@ -2093,6 +2111,10 @@ class TerrascriptClient(object):
         es_values['access_policies'] = json.dumps(
             access_policies, sort_keys=True)
 
+        region = values['region'] or self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            es_values['provider'] = 'aws.' + region
+
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
 
@@ -2123,6 +2145,64 @@ class TerrascriptClient(object):
         output_value = '${' + es_tf_resource.fullname + \
             '.vpc_options.0.vpc_id}'
         tf_resources.append(output(output_name, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_acm(self, resource, namespace_info,
+                                 existing_secrets):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        secret = common_values.get('secret', None)
+        secret_data = secret_reader.read_all(secret, self.settings)
+
+        key = secret_data.get('key', None)
+        if key is None:
+            raise KeyError(
+                    f"Vault secret '{secret['path']}' " +
+                    f"does not have required key [key]")
+
+        certificate = secret_data.get('certificate', None)
+        if certificate is None:
+            raise KeyError(
+                    f"Vault secret '{secret['path']}' " +
+                    f"does not have required key [certificate]")
+
+        caCertificate = secret_data.get('caCertificate', None)
+
+        values = {
+            'private_key': key,
+            'certificate_body': certificate
+        }
+        if caCertificate is not None:
+            values['certificate_chain'] = caCertificate
+
+        region = common_values['region'] or self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+
+        acm_tf_resource = aws_acm_certificate(identifier, **values)
+        tf_resources.append(acm_tf_resource)
+
+        output_name = output_prefix + '[arn]'
+        output_value = '${' + acm_tf_resource.fullname + '.arn}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '[key]'
+        output_value = key
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '[certificate]'
+        output_value = certificate
+        tf_resources.append(output(output_name, value=output_value))
+        if caCertificate is not None:
+            output_name = output_prefix + '[caCertificate]'
+            output_value = caCertificate
+            tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)

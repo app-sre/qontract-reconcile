@@ -120,8 +120,19 @@ TF_NAMESPACES_QUERY = """
       }
       ... on NamespaceTerraformResourceElasticSearch_v1 {
         account
+        region
         identifier
         defaults
+        output_resource_name
+      }
+      ... on NamespaceTerraformResourceACM_v1 {
+        account
+        region
+        identifier
+        secret {
+          path
+          field
+        }
         output_resource_name
       }
     }
