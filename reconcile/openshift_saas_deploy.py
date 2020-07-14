@@ -4,6 +4,7 @@ import logging
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
+import reconcile.jenkins_plugins as jenkins_base
 
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
@@ -23,6 +24,7 @@ def run(dry_run, thread_pool_size=10,
         sys.exit(1)
 
     instance = queries.get_gitlab_instance()
+    jenkins_map = jenkins_base.get_jenkins_map()
     settings = queries.get_app_interface_settings()
     try:
         gl = GitLabApi(instance, settings=settings)
@@ -37,7 +39,8 @@ def run(dry_run, thread_pool_size=10,
         gitlab=gl,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        settings=settings)
+        settings=settings,
+        jenkins_map=jenkins_map)
     if not saasherder.valid:
         sys.exit(1)
     if len(saasherder.namespaces) == 0:

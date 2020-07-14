@@ -25,6 +25,7 @@ class SaasHerder():
                  integration,
                  integration_version,
                  settings,
+                 jenkins_map=None,
                  accounts=None):
         self.saas_files = saas_files
         self._validate_saas_files()
@@ -36,6 +37,7 @@ class SaasHerder():
         self.integration_version = integration_version
         self.settings = settings
         self.namespaces = self._collect_namespaces()
+        self.jenkins_map = jenkins_map
         # each namespace is in fact a target,
         # so we can use it to calculate.
         divisor = len(self.namespaces) or 1
@@ -435,6 +437,7 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
+        instance_name = saas_file['instance']['name']
         managed_resource_types = saas_file['managedResourceTypes']
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
@@ -482,7 +485,9 @@ class SaasHerder():
                     'namespace': namespace,
                     'managed_resource_types': managed_resource_types,
                     'process_template_options': process_template_options,
-                    'check_images_options_base': check_images_options_base
+                    'check_images_options_base': check_images_options_base,
+                    'instance_name': instance_name,
+                    'upstream': target.get('upstream')
                 }
                 specs.append(spec)
 
@@ -495,6 +500,8 @@ class SaasHerder():
         managed_resource_types = spec['managed_resource_types']
         process_template_options = spec['process_template_options']
         check_images_options_base = spec['check_images_options_base']
+        instance_name = spec['instance_name']
+        upstream = spec['upstream']
 
         resources, html_url = \
             self._process_template(process_template_options)
@@ -505,15 +512,23 @@ class SaasHerder():
         resources = [resource for resource in resources
                      if resource['kind'] in managed_resource_types]
         # check images
-        check_images_options = {
-            'html_url': html_url,
-            'resources': resources
-        }
-        check_images_options.update(check_images_options_base)
-        image_error = self._check_images(check_images_options)
-        if image_error:
-            ri.register_error()
-            return
+        skip_check_images = upstream and self.jenkins_map and \
+            self.jenkins_map[instance_name].is_job_running(upstream)
+        if skip_check_images:
+            logging.warning(
+                f"skipping check_image since " +
+                f"upstream job {upstream} is running"
+            )
+        else:
+            check_images_options = {
+                'html_url': html_url,
+                'resources': resources
+            }
+            check_images_options.update(check_images_options_base)
+            image_error = self._check_images(check_images_options)
+            if image_error:
+                ri.register_error()
+                return
         # add desired resources
         for resource in resources:
             resource_kind = resource['kind']
