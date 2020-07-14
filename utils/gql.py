@@ -37,12 +37,12 @@ class GqlApiIntegrationNotFound(Exception):
 
 
 class GqlApiErrorForbiddenSchema(Exception):
-    def __init__(self, schema):
+    def __init__(self, schemas):
         msg = f"""
-        Forbidden schema: {schema}
+        Forbidden schemas: {schemas}
 
         The `schemas` parameter in the integration file in App-Interface
-        should be updated to include this schema.
+        should be updated to include these schemas.
         """
         super().__init__(textwrap.dedent(msg).strip())
 
@@ -104,9 +104,10 @@ class GqlApi(object):
             logging.debug(['schema', s])
 
         if self.validate_schemas and not skip_validation:
-            for schema in query_schemas:
-                if schema not in self._valid_schemas:
-                    raise GqlApiErrorForbiddenSchema(schema)
+            forbidden_schemas = [schema for schema in query_schemas
+                                 if schema not in self._valid_schemas]
+            if forbidden_schemas:
+                raise GqlApiErrorForbiddenSchema(forbidden_schemas)
 
         if 'errors' in result:
             raise GqlApiError(result['errors'])
