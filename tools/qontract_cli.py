@@ -315,6 +315,14 @@ def users(ctx, org_username):
     print_output(ctx.obj['output'], users, columns)
 
 
+@get.command()
+@click.pass_context
+def integrations(ctx):
+    environments = queries.get_integrations()
+    columns = ['name', 'description']
+    print_output(ctx.obj['output'], environments, columns)
+
+
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)
