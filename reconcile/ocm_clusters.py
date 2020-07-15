@@ -14,7 +14,7 @@ def run(dry_run, thread_pool_size=10):
     clusters = [c for c in clusters if c.get('ocm') is not None]
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
-    current_state = ocm_map.cluster_specs()
+    current_state, pending_state = ocm_map.cluster_specs()
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
 
@@ -31,7 +31,7 @@ def run(dry_run, thread_pool_size=10):
         sys.exit(1)
 
     for cluster_name, desired_spec in desired_state.items():
-        if cluster_name in current_state:
+        if cluster_name in current_state or cluster_name in pending_state:
             continue
         logging.info(['create_cluster', cluster_name])
         if not dry_run:

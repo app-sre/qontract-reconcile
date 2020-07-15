@@ -1,4 +1,5 @@
 import requests
+import logging
 
 from sretoolbox.utils import retry
 
@@ -52,6 +53,8 @@ class OCM(object):
         self.clusters = {c['name']: self._get_cluster_ocm_spec(c)
                          for c in clusters if c['managed']
                          and c['state'] == 'ready'}
+        self.not_ready_clusters = [c['name'] for c in clusters
+                                   if c['managed'] and c['state'] != 'ready']
 
     @staticmethod
     def _get_cluster_ocm_spec(cluster):
@@ -317,7 +320,11 @@ class OCM(object):
 
     def _post(self, api, data):
         r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        Except Exception as e:
+            logging.error(r.text)
+            raise e
 
     def _delete(self, api):
         r = requests.delete(f"{self.url}{api}", headers=self.headers)
@@ -433,4 +440,8 @@ class OCMMap(object):
         cluster_specs = {}
         for v in self.ocm_map.values():
             cluster_specs.update(v.clusters)
-        return cluster_specs
+
+        not_ready_cluster_names = []
+        for v in self.ocm_map.values():
+            not_ready_cluster_names.extend(v.not_ready_clusters)
+        return cluster_specs, not_ready_cluster_names
