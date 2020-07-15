@@ -69,7 +69,8 @@ class OCM(object):
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
                     int(cluster['storage_quota']['value'] / pow(1024, 3)),
-                'load_balancers': cluster['load_balancer_quota']
+                'load_balancers': cluster['load_balancer_quota'],
+                'private': cluster['api']['listening'] == 'internal'
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -100,7 +101,9 @@ class OCM(object):
             'region': {
                 'id': cluster_spec['region']
             },
-            'openshift_version': cluster_spec['version'],
+            'version': {
+                'id': 'openshift-v' + cluster_spec['version']
+            },
             'multi_az': cluster_spec['multi_az'],
             'nodes': {
                 'compute': cluster_spec['nodes'],
@@ -116,6 +119,10 @@ class OCM(object):
                 'machine_cidr': cluster_network['vpc'],
                 'service_cidr': cluster_network['service'],
                 'pod_cidr': cluster_network['pod'],
+            },
+            'api': {
+                'listening': 'internal' if cluster_spec['private'] \
+                    else 'external'
             }
         }
 

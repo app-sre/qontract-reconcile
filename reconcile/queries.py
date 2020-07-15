@@ -309,6 +309,7 @@ CLUSTERS_QUERY = """
       instance_type
       storage
       load_balancers
+      private
     }
     network {
       vpc
