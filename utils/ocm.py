@@ -322,7 +322,7 @@ class OCM(object):
         r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
         try:
             r.raise_for_status()
-        Except Exception as e:
+        except Exception as e:
             logging.error(r.text)
             raise e
 
