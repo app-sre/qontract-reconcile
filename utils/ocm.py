@@ -106,7 +106,7 @@ class OCM(object):
                 }
             },
             'storage_quota': {
-                'value': int(cluster_spec['storage'] * pow(1024, 3))
+                'value': float(cluster_spec['storage'] * pow(1024, 3))
             },
             'load_balancer_quota': cluster_spec['load_balancers'],
             'network': {
