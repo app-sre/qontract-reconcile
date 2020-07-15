@@ -20,8 +20,8 @@ def run(dry_run, thread_pool_size=10):
 
     error = False
     for cluster_name, desired_spec in desired_state.items():
-        current_spec = current_state[cluster_name]
-        if current_spec != desired_spec:
+        current_spec = current_state.get(cluster_name)
+        if current_spec and current_spec != desired_spec:
             logging.error(
                 '[%s] desired spec %s is different from current spec %s',
                 cluster_name, desired_spec, current_spec)

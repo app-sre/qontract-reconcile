@@ -77,7 +77,7 @@ class OCM(object):
         }
         return ocm_spec
 
-    def create_cluster(name, cluster):
+    def create_cluster(self, name, cluster):
         """
         Creates a cluster.
 
