@@ -1,4 +1,5 @@
 import requests
+import logging
 
 from sretoolbox.utils import retry
 
@@ -52,6 +53,8 @@ class OCM(object):
         self.clusters = {c['name']: self._get_cluster_ocm_spec(c)
                          for c in clusters if c['managed']
                          and c['state'] == 'ready'}
+        self.not_ready_clusters = [c['name'] for c in clusters
+                                   if c['managed'] and c['state'] != 'ready']
 
     @staticmethod
     def _get_cluster_ocm_spec(cluster):
@@ -59,15 +62,15 @@ class OCM(object):
             'spec': {
                 'provider': cluster['cloud_provider']['id'],
                 'region': cluster['region']['id'],
-                'major_version':
-                    int(cluster['openshift_version'].split('.')[0]),
+                'version': cluster['openshift_version'],
                 'multi_az': cluster['multi_az'],
                 'nodes': cluster['nodes']['compute'],
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
                     int(cluster['storage_quota']['value'] / pow(1024, 3)),
-                'load_balancers': cluster['load_balancer_quota']
+                'load_balancers': cluster['load_balancer_quota'],
+                'private': cluster['api']['listening'] == 'internal'
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -76,6 +79,55 @@ class OCM(object):
             }
         }
         return ocm_spec
+
+    def create_cluster(self, name, cluster):
+        """
+        Creates a cluster.
+
+        :param name: name of the cluster
+        :param cluster: a dictionary representing a cluster desired state
+
+        :type name: string
+        :type cluster: dict
+        """
+        api = f'/api/clusters_mgmt/v1/clusters'
+        cluster_spec = cluster['spec']
+        cluster_network = cluster['network']
+        ocm_spec = {
+            'name': name,
+            'cloud_provider': {
+                'id': cluster_spec['provider']
+            },
+            'region': {
+                'id': cluster_spec['region']
+            },
+            'version': {
+                'id': 'openshift-v' + cluster_spec['version']
+            },
+            'multi_az': cluster_spec['multi_az'],
+            'nodes': {
+                'compute': cluster_spec['nodes'],
+                'compute_machine_type': {
+                    'id': cluster_spec['instance_type']
+                }
+            },
+            'storage_quota': {
+                'value': float(cluster_spec['storage'] * pow(1024, 3))
+            },
+            'load_balancer_quota': cluster_spec['load_balancers'],
+            'network': {
+                'machine_cidr': cluster_network['vpc'],
+                'service_cidr': cluster_network['service'],
+                'pod_cidr': cluster_network['pod'],
+            },
+            'api': {
+                'listening':
+                    'internal' if cluster_spec['private']
+                    else 'external'
+            }
+        }
+
+        self._post(api, ocm_spec)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -276,7 +328,11 @@ class OCM(object):
 
     def _post(self, api, data):
         r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logging.error(r.text)
+            raise e
 
     def _delete(self, api):
         r = requests.delete(f"{self.url}{api}", headers=self.headers)
@@ -392,4 +448,8 @@ class OCMMap(object):
         cluster_specs = {}
         for v in self.ocm_map.values():
             cluster_specs.update(v.clusters)
-        return cluster_specs
+
+        not_ready_cluster_names = []
+        for v in self.ocm_map.values():
+            not_ready_cluster_names.extend(v.not_ready_clusters)
+        return cluster_specs, not_ready_cluster_names

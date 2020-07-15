@@ -14,18 +14,26 @@ def run(dry_run, thread_pool_size=10):
     clusters = [c for c in clusters if c.get('ocm') is not None]
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
-    current_state = ocm_map.cluster_specs()
+    current_state, pending_state = ocm_map.cluster_specs()
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
 
     error = False
-    for k, desired_spec in desired_state.items():
-        current_spec = current_state[k]
-        if current_spec != desired_spec:
+    for cluster_name, desired_spec in desired_state.items():
+        current_spec = current_state.get(cluster_name)
+        if current_spec and current_spec != desired_spec:
             logging.error(
                 '[%s] desired spec %s is different from current spec %s',
-                k, desired_spec, current_spec)
+                cluster_name, desired_spec, current_spec)
             error = True
 
     if error:
         sys.exit(1)
+
+    for cluster_name, desired_spec in desired_state.items():
+        if cluster_name in current_state or cluster_name in pending_state:
+            continue
+        logging.info(['create_cluster', cluster_name])
+        if not dry_run:
+            ocm = ocm_map.get(cluster_name)
+            ocm.create_cluster(cluster_name, desired_spec)
