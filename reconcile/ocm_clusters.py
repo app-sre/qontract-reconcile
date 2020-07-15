@@ -19,13 +19,21 @@ def run(dry_run, thread_pool_size=10):
                      for c in clusters}
 
     error = False
-    for k, desired_spec in desired_state.items():
-        current_spec = current_state[k]
+    for cluster_name, desired_spec in desired_state.items():
+        current_spec = current_state[cluster_name]
         if current_spec != desired_spec:
             logging.error(
                 '[%s] desired spec %s is different from current spec %s',
-                k, desired_spec, current_spec)
+                cluster_name, desired_spec, current_spec)
             error = True
 
     if error:
         sys.exit(1)
+
+    for cluster_name, desired_spec in desired_state.items():
+        if cluster_name in current_state:
+            continue
+        logging.info(['create_cluster', cluster_name])
+        if not dry_run:
+            ocm = ocm_map.get(cluster_name)
+            ocm.create_cluster(cluster_name, desired_spec)

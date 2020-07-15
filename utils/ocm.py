@@ -77,6 +77,47 @@ class OCM(object):
         }
         return ocm_spec
 
+    def create_cluster(name, cluster):
+        """
+        Creates a cluster.
+
+        :param name: name of the cluster
+        :param cluster: a dictionary representing a cluster desired state
+
+        :type name: string
+        :type cluster: dict
+        """
+        api = f'/api/clusters_mgmt/v1/clusters'
+        cluster_spec = cluster['spec']
+        cluster_network = cluster['network']
+        ocm_spec = {
+            'name': name,
+            'cloud_provider': {
+                'id': cluster_spec['provider']
+            },
+            'region': {
+                'id': cluster_spec['region']
+            },
+            'multi_az': cluster_spec['multi_az'],
+            'nodes': {
+                'compute': cluster_spec['nodes'],
+                'compute_machine_type': {
+                    'id': cluster_spec['instance_type']
+                }
+            },
+            'storage_quota': {
+                'value': int(cluster_spec['storage'] * pow(1024, 3))
+            },
+            'load_balancer_quota': cluster_spec['load_balancers'],
+            'network': {
+                'machine_cidr': cluster_network['vpc'],
+                'service_cidr': cluster_network['service'],
+                'pod_cidr': cluster_network['pod'],
+            }
+        }
+
+        self._post(api, ocm_spec)
+
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
         If the group does not exist, None will be returned.
