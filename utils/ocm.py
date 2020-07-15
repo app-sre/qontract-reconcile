@@ -62,8 +62,7 @@ class OCM(object):
             'spec': {
                 'provider': cluster['cloud_provider']['id'],
                 'region': cluster['region']['id'],
-                'major_version':
-                    int(cluster['openshift_version'].split('.')[0]),
+                'version': cluster['openshift_version'],
                 'multi_az': cluster['multi_az'],
                 'nodes': cluster['nodes']['compute'],
                 'instance_type':
@@ -101,6 +100,7 @@ class OCM(object):
             'region': {
                 'id': cluster_spec['region']
             },
+            'openshift_version': cluster_spec['version'],
             'multi_az': cluster_spec['multi_az'],
             'nodes': {
                 'compute': cluster_spec['nodes'],

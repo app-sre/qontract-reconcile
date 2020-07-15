@@ -303,7 +303,7 @@ CLUSTERS_QUERY = """
     spec {
       provider
       region
-      major_version
+      version
       multi_az
       nodes
       instance_type
