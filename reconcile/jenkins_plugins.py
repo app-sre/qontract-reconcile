@@ -22,7 +22,7 @@ INSTANCES_QUERY = """
 QONTRACT_INTEGRATION = 'jenkins-plugins'
 
 
-def get_jenkins_map(plugins_only=False):
+def get_jenkins_map(plugins_only=False, desired_instances=None):
     gqlapi = gql.get_api()
     jenkins_instances = gqlapi.query(INSTANCES_QUERY)['instances']
     settings = queries.get_app_interface_settings()
@@ -30,6 +30,8 @@ def get_jenkins_map(plugins_only=False):
     jenkins_map = {}
     for instance in jenkins_instances:
         instance_name = instance['name']
+        if desired_instances and instance_name not in desired_instances:
+            continue
         if instance_name in jenkins_map:
             continue
         if plugins_only and not instance['plugins']:
