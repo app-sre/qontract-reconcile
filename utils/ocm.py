@@ -121,7 +121,8 @@ class OCM(object):
                 'pod_cidr': cluster_network['pod'],
             },
             'api': {
-                'listening': 'internal' if cluster_spec['private'] \
+                'listening':
+                    'internal' if cluster_spec['private']
                     else 'external'
             }
         }
