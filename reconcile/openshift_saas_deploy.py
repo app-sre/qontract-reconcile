@@ -24,7 +24,9 @@ def run(dry_run, thread_pool_size=10,
         sys.exit(1)
 
     instance = queries.get_gitlab_instance()
-    jenkins_map = jenkins_base.get_jenkins_map()
+    desired_jenkins_instances = [s['instance']['name'] for s in saas_files]
+    jenkins_map = jenkins_base.get_jenkins_map(
+        desired_instances=desired_jenkins_instances)
     settings = queries.get_app_interface_settings()
     try:
         gl = GitLabApi(instance, settings=settings)
