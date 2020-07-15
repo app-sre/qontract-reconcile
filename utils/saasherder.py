@@ -637,6 +637,8 @@ class SaasHerder():
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
+            url = rt['url']
+            path = rt['path']
             rt_parameters = rt.get('parameters')
             for desired_target_config in rt['targets']:
                 namespace = desired_target_config['namespace']
@@ -651,6 +653,8 @@ class SaasHerder():
                 # add managed resource types to target config
                 desired_target_config['saas_file_managed_resource_types'] = \
                     saas_file_managed_resource_types
+                desired_target_config['url'] = url
+                desired_target_config['path'] = path
                 desired_target_config['rt_parameters'] = rt_parameters
                 # get current target config from state
                 key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
