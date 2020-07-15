@@ -30,7 +30,7 @@ def init_github(bot_token_org_name):
 
 
 def run(dry_run, instance_name, bot_token_org_name):
-    jjb = init_jjb()
+    jjb, _ = init_jjb()
     pr_check_jobs = get_jobs(jjb, instance_name)
     if not pr_check_jobs:
         logging.error(f'no jobs found for instance {instance_name}')
