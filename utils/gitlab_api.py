@@ -222,7 +222,7 @@ class GitLabApi(object):
             'subject': (f"[{prefix} {notification['notification_type']}] "
                         f"{notification['short_description']} "
                         f"for {short_date}"),
-            'to': {"users": notification["recipients"]},
+            'to': {"users": [{"$ref": r} for r in notification["recipients"]]},
             'body': pss(notification["description"])
         }
         content = '---\n' + \
