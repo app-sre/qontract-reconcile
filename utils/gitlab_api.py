@@ -203,8 +203,7 @@ class GitLabApi(object):
         isodate = now.isoformat()
         short_date = now.strftime('%Y-%m-%d')
 
-        email_id = (f"app-interface-notificator-{ts}-"
-                    f"{notification['short_description']}")
+        email_id = f"{prefix}-{ts}"
 
         branch_name = email_id
         commit_message = f"[{prefix}] notification for {isodate}"
