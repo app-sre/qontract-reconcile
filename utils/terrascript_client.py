@@ -40,6 +40,7 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudfront_distribution,
                                aws_vpc_peering_connection,
                                aws_vpc_peering_connection_accepter,
+                               aws_route,
                                aws_cloudwatch_log_group, aws_kms_key,
                                aws_kms_alias,
                                aws_elasticsearch_domain,
@@ -350,6 +351,22 @@ class TerrascriptClient(object):
             tf_resource = aws_vpc_peering_connection(identifier, **values)
             self.add_resource(req_account_name, tf_resource)
 
+            # add routes to existing route tables
+            route_table_ids = requester.get('route_table_ids')
+            if route_table_ids:
+                for route_table_id in route_table_ids:
+                    values = {
+                        'provider': 'aws.' + req_alias,
+                        'route_table_id': route_table_id,
+                        'destination_cidr_block': accepter['cidr_block'],
+                        'vpc_peering_connection_id':
+                            '${aws_vpc_peering_connection.' +
+                            identifier + '.id}'
+                    }
+                    route_identifier = f'{identifier}-{route_table_id}'
+                    tf_resource = aws_route(route_identifier, **values)
+                    self.add_resource(req_account_name, tf_resource)
+
             acc_account = accepter['account']
             acc_account_name = acc_account['name']
             # arn:aws:iam::12345:role/role-1 --> 12345
@@ -374,6 +391,26 @@ class TerrascriptClient(object):
             tf_resource = \
                 aws_vpc_peering_connection_accepter(identifier, **values)
             self.add_resource(acc_account_name, tf_resource)
+
+            # add routes to existing route tables
+            route_table_ids = accepter.get('route_table_ids')
+            if route_table_ids:
+                for route_table_id in route_table_ids:
+                    values = {
+                        'route_table_id': route_table_id,
+                        'destination_cidr_block': requester['cidr_block'],
+                        'vpc_peering_connection_id':
+                            '${aws_vpc_peering_connection_accepter.' +
+                            identifier + '.id}'
+                    }
+                    if connection_provider == 'account-vpc':
+                        if self._multiregion_account_(acc_account_name):
+                            values['provider'] = 'aws.' + accepter['region']
+                    else:
+                        values['provider'] = 'aws.' + acc_alias
+                    route_identifier = f'{identifier}-{route_table_id}'
+                    tf_resource = aws_route(route_identifier, **values)
+                    self.add_resource(acc_account_name, tf_resource)
 
     def populate_resources(self, namespaces, existing_secrets):
         self.init_populate_specs(namespaces)
