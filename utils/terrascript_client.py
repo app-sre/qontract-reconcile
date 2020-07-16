@@ -360,7 +360,7 @@ class TerrascriptClient(object):
                         'route_table_id': route_table_id,
                         'destination_cidr_block': accepter['cidr_block'],
                         'vpc_peering_connection_id':
-                            '${aws_vpc_peering_connection.' + \
+                            '${aws_vpc_peering_connection.' +
                             identifier + '.id}'
                     }
                     route_identifier = f'{identifier}-{route_table_id}'
@@ -400,7 +400,7 @@ class TerrascriptClient(object):
                         'route_table_id': route_table_id,
                         'destination_cidr_block': requester['cidr_block'],
                         'vpc_peering_connection_id':
-                            '${aws_vpc_peering_connection_accepter.' + \
+                            '${aws_vpc_peering_connection_accepter.' +
                             identifier + '.id}'
                     }
                     if connection_provider == 'account-vpc':
