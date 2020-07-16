@@ -61,7 +61,8 @@ def run(dry_run, thread_pool_size=10,
     ob.realize_data(dry_run, oc_map, ri,
                     caller=saas_file_name,
                     wait_for_namespace=True,
-                    no_dry_run_skip_compare=True)
+                    no_dry_run_skip_compare=True,
+                    take_over=saasherder.take_over)
 
     if ri.has_error_registered():
         sys.exit(1)
