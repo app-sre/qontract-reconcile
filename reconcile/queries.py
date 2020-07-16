@@ -320,6 +320,7 @@ CLUSTERS_QUERY = """
       connections {
         name
         provider
+        manageRoutes
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
             account {
@@ -363,6 +364,7 @@ CLUSTERS_QUERY = """
               connections {
                 name
                 provider
+                manageRoutes
                 ... on ClusterPeeringConnectionClusterAccepter_v1 {
                   name
                   cluster {

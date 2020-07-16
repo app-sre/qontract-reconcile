@@ -93,6 +93,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             peer_connection_name = peer_connection['name']
             peer_cluster = peer_connection['cluster']
             peer_cluster_name = peer_cluster['name']
+            requester_manage_routes = peer_connection.get('manageRoutes')
 
             # Ensure we have a matching peering connection
             peer_info = find_matching_peering(cluster_info,
@@ -106,9 +107,14 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 logging.error(msg)
                 error = True
                 continue
+            accepter_manage_routes = peer_info.get('manageRoutes')
 
             aws_api = AWSApi(1, [req_aws], settings=settings)
-            requester_vpc_id = aws_api.get_cluster_vpc_id(req_aws)
+            requester_vpc_id, requester_route_table_ids = \
+                aws_api.get_cluster_vpc_id(
+                    req_aws,
+                    route_tables=requester_manage_routes
+                )
             if requester_vpc_id is None:
                 msg = f'[{cluster_name} could not find VPC ID for cluster'
                 logging.error(msg)
@@ -118,6 +124,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 'cidr_block': cluster_info['network']['vpc'],
                 'region': cluster_info['spec']['region'],
                 'vpc_id': requester_vpc_id,
+                'route_table_ids': requester_route_table_ids,
                 'account': req_aws
             }
 
@@ -136,7 +143,11 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             acc_aws['assume_cidr'] = peer_cluster['network']['vpc']
 
             aws_api = AWSApi(1, [acc_aws], settings=settings)
-            accepter_vpc_id = aws_api.get_cluster_vpc_id(acc_aws)
+            accepter_vpc_id, accepter_route_table_ids = \
+                aws_api.get_cluster_vpc_id(
+                    acc_aws,
+                    route_tables=accepter_manage_routes
+                )
             if accepter_vpc_id is None:
                 msg = f'[{peer_cluster_name} could not find VPC ID for cluster'
                 logging.error(msg)
@@ -147,6 +158,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 'cidr_block': peer_cluster['network']['vpc'],
                 'region': peer_cluster['spec']['region'],
                 'vpc_id': accepter_vpc_id,
+                'route_table_ids': accepter_route_table_ids,
                 'account': acc_aws
             }
 
@@ -204,12 +216,18 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
             account['assume_region'] = requester['region']
             account['assume_cidr'] = requester['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            requester_vpc_id = aws_api.get_cluster_vpc_id(account)
+            requester_vpc_id, requester_route_table_ids = \
+                aws_api.get_cluster_vpc_id(
+                    account,
+                    route_tables=peer_connection.get('manageRoutes')
+            )
+
             if requester_vpc_id is None:
                 logging.error(f'[{cluster} could not find VPC ID for cluster')
                 error = True
                 continue
             requester['vpc_id'] = requester_vpc_id
+            requester['route_table_ids'] = requester_route_table_ids
             requester['account'] = account
             accepter['account'] = account
             item = {
