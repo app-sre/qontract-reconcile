@@ -869,6 +869,7 @@ SAAS_FILES_QUERY = """
       channel
     }
     managedResourceTypes
+    takeover
     imagePatterns
     authentication {
       code {
