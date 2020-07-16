@@ -86,7 +86,8 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
             # We only care about cluster-vpc-requester peering providers
-            if not peer_connection['provider'] == 'cluster-vpc-requester':
+            peer_connection_provider = peer_connection['provider']
+            if not peer_connection_provider == 'cluster-vpc-requester':
                 continue
 
             peer_connection_name = peer_connection['name']
@@ -150,7 +151,8 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             }
 
             item = {
-                'connection_name': peer_connection['name'],
+                'connection_provider': peer_connection_provider,
+                'connection_name': peer_connection_name,
                 'requester': requester,
                 'accepter': accepter,
             }
@@ -172,14 +174,15 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
+            # We only care about account-vpc peering providers
+            peer_connection_provider = peer_connection['provider']
+            if not peer_connection_provider == 'account-vpc':
+                continue
             # requester is the cluster's AWS account
             requester = {
                 'cidr_block': cluster_info['network']['vpc'],
                 'region': cluster_info['spec']['region']
             }
-            # We only care about account-vpc peering providers
-            if not peer_connection['provider'] == 'account-vpc':
-                continue
 
             connection_name = peer_connection['name']
             peer_vpc = peer_connection['vpc']
@@ -192,8 +195,6 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
             account = peer_vpc['account']
             # assume_role is the role to assume to provision the
             # peering connection request, through the accepter AWS account.
-            # this may change in the future -
-            # in case we add support for peerings between clusters.
             account['assume_role'] = \
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
                     cluster,
@@ -212,6 +213,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
             requester['account'] = account
             accepter['account'] = account
             item = {
+                'connection_provider': peer_connection_provider,
                 'connection_name': connection_name,
                 'requester': requester,
                 'accepter': accepter,
