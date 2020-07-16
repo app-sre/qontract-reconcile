@@ -220,7 +220,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 aws_api.get_cluster_vpc_id(
                     account,
                     route_tables=peer_connection.get('manageRoutes')
-            )
+                )
 
             if requester_vpc_id is None:
                 logging.error(f'[{cluster} could not find VPC ID for cluster')
