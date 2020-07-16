@@ -236,6 +236,7 @@ integrations:
   logs:
     cloudwatch: true
     slack: true
+  shards: 3
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -247,6 +248,7 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     cloudwatch: true
+  shards: 3
 - name: openshift-routes
   resources:
     requests:
@@ -260,6 +262,7 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     cloudwatch: true
+  shards: 2
 - name: terraform-resources
   resources:
     requests:
