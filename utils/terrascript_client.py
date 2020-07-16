@@ -317,6 +317,7 @@ class TerrascriptClient(object):
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
+            connection_provider = item['connection_provider']
             connection_name = item['connection_name']
             requester = item['requester']
             accepter = item['accepter']
@@ -356,7 +357,6 @@ class TerrascriptClient(object):
 
             # Accepter's side of the connection.
             values = {
-                'provider': 'aws.' + acc_alias,
                 'vpc_peering_connection_id':
                     '${aws_vpc_peering_connection.' + identifier + '.id}',
                 'auto_accept': True,
@@ -366,8 +366,11 @@ class TerrascriptClient(object):
                     'Name': connection_name
                 }
             }
-            if self._multiregion_account_(acc_account_name):
-                values['provider'] = 'aws.' + accepter['region']
+            if connection_provider == 'account-vpc':
+                if self._multiregion_account_(acc_account_name):
+                    values['provider'] = 'aws.' + accepter['region']
+            else:
+                values['provider'] = 'aws.' + acc_alias
             tf_resource = \
                 aws_vpc_peering_connection_accepter(identifier, **values)
             self.add_resource(acc_account_name, tf_resource)
