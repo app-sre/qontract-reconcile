@@ -188,6 +188,7 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+  shards: 4
 - name: openshift-network-policies
   resources:
     requests:
