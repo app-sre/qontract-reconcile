@@ -1131,6 +1131,6 @@ UNLEASH_INSTANCES_QUERY = """
 
 
 def get_unleash_instances():
-  """ Returns Unleash instances defined in app-interface """
-  gqlapi = gql.get_api()
-  return gqlapi.query(UNLEASH_INSTANCES_QUERY)['unleash_instances']
+    """ Returns Unleash instances defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(UNLEASH_INSTANCES_QUERY)['unleash_instances']

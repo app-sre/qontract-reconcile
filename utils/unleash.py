@@ -43,6 +43,7 @@ def get_feature_toggle_state(integration_name, defer=None):
                               fallback_function=get_feature_toggle_default)
     return state
 
+
 @defer
 def get_feature_toggles(api_url, client_access_token, defer=None):
     # hide INFO logging from UnleashClient
