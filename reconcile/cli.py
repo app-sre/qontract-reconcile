@@ -49,6 +49,7 @@ import reconcile.jenkins_job_builder
 import reconcile.jenkins_webhooks
 import reconcile.jenkins_webhooks_cleaner
 import reconcile.jira_watcher
+import reconcile.unleash_watcher
 import reconcile.slack_usergroups
 import reconcile.gitlab_integrations
 import reconcile.gitlab_permissions
@@ -481,6 +482,13 @@ def jenkins_webhooks_cleaner(ctx):
 @click.pass_context
 def jira_watcher(ctx, io_dir):
     run_integration(reconcile.jira_watcher, ctx.obj, io_dir)
+
+
+@integration.command()
+@throughput
+@click.pass_context
+def unleash_watcher(ctx, io_dir):
+    run_integration(reconcile.unleash_watcher, ctx.obj, io_dir)
 
 
 @integration.command()
