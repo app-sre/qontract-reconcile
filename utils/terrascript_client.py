@@ -478,6 +478,7 @@ class TerrascriptClient(object):
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+
         # we want to allow an empty name, so we
         # only validate names which are not empty
         if (
@@ -489,6 +490,13 @@ class TerrascriptClient(object):
                 f"numbers, or underscores. RDS name must begin with a " +
                 f"letter. Subsequent characters can be letters, " +
                 f"underscores, or digits (0-9): {values['name']}")
+
+        # allow users to provide database name in cases where
+        # initial database name was not provided when rds instance
+        # was created. this will be null or empty in most cases.
+        # we must pop this value as leaving it in values will
+        # result in unknown key error from terraform.
+        alt_db_name = values.pop('alt_db_name', None)
 
         az = values.get('availability_zone')
         provider = ''
@@ -681,6 +689,14 @@ class TerrascriptClient(object):
         # db.name
         output_name = output_prefix + '[db.name]'
         output_value = values.get('name', '')
+
+        # if database name is empty string, we can assume that
+        # rds instance was created from snapshot that did not
+        # have an initial database. in this case we will use the
+        # alternate db name user has provided.
+        if not output_value and alt_db_name:
+            output_value = alt_db_name
+
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
