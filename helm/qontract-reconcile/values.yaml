@@ -413,7 +413,6 @@ integrations:
       memory: 600Mi
       cpu: 200m
   logs:
-    slack: true
     cloudwatch: true
   dashdotdb: true
 cronjobs:

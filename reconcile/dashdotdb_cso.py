@@ -45,21 +45,24 @@ class DashdotdbCSO:
 
             response = requests.post(url=endpoint, json=imagemanifestvuln,
                                      headers=headers)
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as details:
+                LOG.error('CSO: error posting %s - %s', cluster, details)
 
-        LOG.debug('CSO: cluster %s synced', cluster)
+        LOG.info('CSO: cluster %s synced', cluster)
         return response
 
     @staticmethod
     def _get_imagemanifestvuln(cluster, oc_map):
-        LOG.debug('CSO: processing %s', cluster)
+        LOG.info('CSO: processing %s', cluster)
         oc_cli = oc_map.get(cluster)
 
         try:
             imagemanifestvuln = oc_cli.get_all('imagemanifestvuln',
                                                all_namespaces=True)
         except StatusCodeError:
-            LOG.debug('CSO: not installed on %s', cluster)
+            LOG.info('CSO: not installed on %s', cluster)
             return None
 
         if not imagemanifestvuln:
