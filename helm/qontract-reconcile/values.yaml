@@ -96,6 +96,15 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --io-dir /tmp/throughput/
+- name: unleash-watcher
+  resources:
+    requests:
+      memory: 80Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --io-dir /tmp/throughput/
 - name: github-scanner
   resources:
     requests:
