@@ -16,6 +16,7 @@ import reconcile.queries as queries
 from utils.oc import OC_Map
 from utils.oc import StatusCodeError
 from utils.defer import defer
+from utils.sharding import is_in_shard
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ConstructResourceError,
                                       ResourceInventory,
@@ -508,7 +509,7 @@ def fetch_data(namespaces, thread_pool_size, internal, use_jump_host):
     return oc_map, ri
 
 
-def conicalize_namespaces(namespaces, providers):
+def canonicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
         openshift_resources = namespace_info.get('openshiftResources')
@@ -531,8 +532,12 @@ def conicalize_namespaces(namespaces, providers):
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, providers=[], defer=None):
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(NAMESPACES_QUERY)['namespaces']
-    namespaces = conicalize_namespaces(namespaces, providers)
+    namespaces = [namespace_info for namespace_info
+                  in gqlapi.query(NAMESPACES_QUERY)['namespaces']
+                  if is_in_shard(
+                      f"{namespace_info['cluster']['name']}/" +
+                      f"{namespace_info['name']}")]
+    namespaces = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = \
         fetch_data(namespaces, thread_pool_size, internal, use_jump_host)
     defer(lambda: oc_map.cleanup())
