@@ -320,6 +320,7 @@ CLUSTERS_QUERY = """
       connections {
         name
         provider
+        manageRoutes
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
             account {
@@ -363,6 +364,7 @@ CLUSTERS_QUERY = """
               connections {
                 name
                 provider
+                manageRoutes
                 ... on ClusterPeeringConnectionClusterAccepter_v1 {
                   name
                   cluster {
@@ -867,6 +869,7 @@ SAAS_FILES_QUERY = """
       channel
     }
     managedResourceTypes
+    takeover
     imagePatterns
     authentication {
       code {
@@ -1094,3 +1097,40 @@ def get_performance_parameters():
     gqlapi = gql.get_api()
     return gqlapi.query(
         PERFORMANCE_PARAMETERS_QUERY)['performance_parameters_v1']
+
+
+UNLEASH_INSTANCES_QUERY = """
+{
+  unleash_instances: unleash_instances_v1 {
+    name
+    url
+    token {
+      path
+      field
+    }
+    notifications {
+      slack {
+        workspace {
+          name
+          integrations {
+            name
+            token {
+              path
+              field
+            }
+          }
+        }
+        channel
+        icon_emoji
+        username
+      }
+    }
+  }
+}
+"""
+
+
+def get_unleash_instances():
+    """ Returns Unleash instances defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(UNLEASH_INSTANCES_QUERY)['unleash_instances']
