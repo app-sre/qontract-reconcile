@@ -8,6 +8,7 @@ import reconcile.openshift_base as ob
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceKeyExistsError)
 from utils.defer import defer
+from utils.sharding import is_in_shard
 
 
 ROLES_QUERY = """
@@ -163,7 +164,10 @@ def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
-                  if namespace_info.get('managedRoles')]
+                  if namespace_info.get('managedRoles')
+                  and is_in_shard(
+                      f"{namespace_info['cluster']['name']}/" +
+                      f"{namespace_info['name']}")]
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,

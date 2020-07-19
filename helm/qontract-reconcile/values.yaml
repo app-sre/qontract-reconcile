@@ -96,6 +96,15 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --io-dir /tmp/throughput/
+- name: unleash-watcher
+  resources:
+    requests:
+      memory: 80Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --io-dir /tmp/throughput/
 - name: github-scanner
   resources:
     requests:
@@ -188,6 +197,7 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+  shards: 4
 - name: openshift-network-policies
   resources:
     requests:
@@ -398,6 +408,17 @@ integrations:
     slack: true
     cloudwatch: true
   extraArgs: --no-use-jump-host
+- name: dashdotdb-cso
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+  dashdotdb: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:

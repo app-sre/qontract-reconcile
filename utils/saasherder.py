@@ -45,6 +45,10 @@ class SaasHerder():
             threaded.estimate_available_thread_pool_size(
                 self.thread_pool_size,
                 divisor)
+        # if called by a single saas file,it may
+        # specify that it manages resources exclusively.
+        self.take_over = \
+            len(self.saas_files) == 1 and self.saas_files[0].get('takeover')
         if accounts:
             self._initiate_state(accounts)
 
@@ -160,7 +164,8 @@ class SaasHerder():
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
-            for f in project.repository_tree(path=path.lstrip('/'), ref=ref):
+            for f in project.repository_tree(path=path.lstrip('/'),
+                                             ref=ref, all=True):
                 file_contents = \
                     project.files.get(file_path=f['path'], ref=ref)
                 resource = yaml.safe_load(file_contents.decode())

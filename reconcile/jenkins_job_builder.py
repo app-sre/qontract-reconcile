@@ -44,6 +44,7 @@ def collect_saas_file_configs():
     # to make things understandable, each variable used to form
     # the structure will be called `jc_<variable>` (jenkins config).
     saas_file_configs = []
+    repo_urls = set()
     saas_files = queries.get_saas_files()
     settings = queries.get_app_interface_settings()
     for saas_file in saas_files:
@@ -54,6 +55,8 @@ def collect_saas_file_configs():
         # revisit this if we support more then a single Slack workspace.
         slack_channel = saas_file['slack']['channel']
         for resource_template in saas_file['resourceTemplates']:
+            url = resource_template['url']
+            repo_urls.add(url)
             for target in resource_template['targets']:
                 namespace = target['namespace']
                 env_name = namespace['environment']['name']
@@ -102,25 +105,28 @@ def collect_saas_file_configs():
                     'config': jc_config
                 })
 
-    return saas_file_configs, settings
+    return saas_file_configs, settings, repo_urls
 
 
 def collect_configs():
     gqlapi = gql.get_api()
     raw_jjb_configs = gqlapi.query(QUERY)['jenkins_configs']
-    saas_file_configs, settings = collect_saas_file_configs()
+    saas_file_configs, settings, saas_file_repo_urls = \
+        collect_saas_file_configs()
     configs = raw_jjb_configs + saas_file_configs
 
-    return configs, settings
+    return configs, settings, saas_file_repo_urls
 
 
 def init_jjb():
-    configs, settings = collect_configs()
-    return JJB(configs, ssl_verify=False, settings=settings)
+    configs, settings, additional_repo_urls = collect_configs()
+    return JJB(configs, ssl_verify=False, settings=settings), \
+        additional_repo_urls
 
 
-def validate_repos_and_admins(jjb):
+def validate_repos_and_admins(jjb, additional_repo_urls):
     jjb_repos = jjb.get_repos()
+    jjb_repos.update(additional_repo_urls)
     app_int_repos = queries.get_repos()
     missing_repos = [r for r in jjb_repos if r not in app_int_repos]
     for r in missing_repos:
@@ -142,10 +148,10 @@ def validate_repos_and_admins(jjb):
 
 @defer
 def run(dry_run, io_dir='throughput/', compare=True, defer=None):
-    jjb = init_jjb()
+    jjb, additional_repo_urls = init_jjb()
     defer(lambda: jjb.cleanup())
     if compare:
-        validate_repos_and_admins(jjb)
+        validate_repos_and_admins(jjb, additional_repo_urls)
 
     if dry_run:
         jjb.test(io_dir, compare=compare)

@@ -574,7 +574,7 @@ class AWSApi(object):
 
         self.auth_tokens = auth_tokens
 
-    def get_cluster_vpc_id(self, account):
+    def get_cluster_vpc_id(self, account, route_tables=False):
         """
         Returns a cluster VPC ID.
         :param account: a dictionary containing the following keys:
@@ -612,8 +612,18 @@ class AWSApi(object):
 
         assumed_ec2 = assumed_session.client('ec2')
         vpcs = assumed_ec2.describe_vpcs()
+        vpc_id = None
         for vpc in vpcs.get('Vpcs'):
             if vpc['CidrBlock'] == account['assume_cidr']:
-                return vpc['VpcId']
+                vpc_id = vpc['VpcId']
+                break
 
-        return None
+        route_table_ids = None
+        if route_tables and vpc_id:
+            route_tables = assumed_ec2.describe_route_tables(
+                Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+            )
+            route_table_ids = [rt['RouteTableId']
+                               for rt in route_tables['RouteTables']]
+
+        return vpc_id, route_table_ids
