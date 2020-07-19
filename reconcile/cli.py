@@ -49,6 +49,7 @@ import reconcile.jenkins_job_builder
 import reconcile.jenkins_webhooks
 import reconcile.jenkins_webhooks_cleaner
 import reconcile.jira_watcher
+import reconcile.unleash_watcher
 import reconcile.slack_usergroups
 import reconcile.gitlab_integrations
 import reconcile.gitlab_permissions
@@ -73,6 +74,7 @@ import reconcile.sentry_config
 import reconcile.sql_query
 import reconcile.user_validator
 import reconcile.integrations_validator
+import reconcile.dashdotdb_cso
 
 from reconcile.status import ExitCodes
 
@@ -480,6 +482,13 @@ def jenkins_webhooks_cleaner(ctx):
 @click.pass_context
 def jira_watcher(ctx, io_dir):
     run_integration(reconcile.jira_watcher, ctx.obj, io_dir)
+
+
+@integration.command()
+@throughput
+@click.pass_context
+def unleash_watcher(ctx, io_dir):
+    run_integration(reconcile.unleash_watcher, ctx.obj, io_dir)
 
 
 @integration.command()
@@ -929,6 +938,13 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
     run_integration(reconcile.gitlab_fork_compliance, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id,
                     gitlab_maintainers_group)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def dashdotdb_cso(ctx, thread_pool_size):
+    run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
 
 
 @integration.command()
