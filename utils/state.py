@@ -103,6 +103,13 @@ class State(object):
                 return args[0]
             raise
 
+    def get_all(self, path):
+        """
+        Gets all keys and values from the state in the specified path.
+        """
+        return {k.replace(f'/{path}/', ''): self.get(k.lstrip('/'))
+                for k in self.ls()}
+
     def __getitem__(self, item):
         try:
             response = self.client.get_object(Bucket=self.bucket,
