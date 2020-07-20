@@ -941,7 +941,7 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
 
 
 @integration.command()
-@threaded()
+@threaded(default=2)
 @click.pass_context
 def dashdotdb_cso(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
