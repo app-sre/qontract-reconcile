@@ -512,20 +512,13 @@ def fetch_data(namespaces, thread_pool_size, internal, use_jump_host):
 def filter_namespaces_by_cluster_and_namespace(namespaces,
                                                cluster_name,
                                                namespace_name):
-    filtered_namespaces = []
     if cluster_name:
-        filtered_namespaces.extend(
-            [n for n in namespaces
-             if n['cluster']['name'] == cluster_name]
-        )
-    elif namespace_name:
-        filtered_namespaces.extend(
-            [n for n in namespaces
-             if n['name'] == namespace_name]
-        )
-    else:
-        return namespaces
-    return filtered_namespaces
+        namespaces = [n for n in namespaces
+                      if n['cluster']['name'] == cluster_name]
+    if namespace_name:
+        namespaces = [n for n in namespaces
+                      if n['name'] == namespace_name]
+    return namespaces
 
 
 def canonicalize_namespaces(namespaces, providers):
