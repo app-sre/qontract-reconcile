@@ -117,7 +117,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
             if not pipelines:
                 continue
 
-            # posibble statuses:
+            # possible statuses:
             # running, pending, success, failed, canceled, skipped
             incomplete_pipelines = \
                 [p for p in pipelines
@@ -163,7 +163,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False):
             if not pipelines:
                 continue
 
-            # posibble statuses:
+            # possible statuses:
             # running, pending, success, failed, canceled, skipped
             incomplete_pipelines = \
                 [p for p in pipelines
