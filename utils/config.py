@@ -1,5 +1,4 @@
 import toml
-import logging
 
 _config = None
 
@@ -26,7 +25,6 @@ def init_from_toml(configfile):
 def read(secret):
     path = secret['path']
     field = secret['field']
-    logging.debug(f'reading secret from config: path: {path}, field: {field}')
     try:
         path_tokens = path.split('/')
         config = get_config()
@@ -40,7 +38,6 @@ def read(secret):
 
 def read_all(secret):
     path = secret['path']
-    logging.debug(f'reading secret from config: path: {path}, fields: all')
     try:
         path_tokens = path.split('/')
         config = get_config()
