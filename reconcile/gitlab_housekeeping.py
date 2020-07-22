@@ -113,6 +113,18 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
             if not good_to_rebase:
                 continue
 
+            pipelines = mr.pipelines()
+            if not pipelines:
+                continue
+
+            # possible statuses:
+            # running, pending, success, failed, canceled, skipped
+            incomplete_pipelines = \
+                [p for p in pipelines
+                 if p['status'] in ['running', 'pending']]
+            if incomplete_pipelines:
+                continue
+
             logging.info(['rebase', gl.project.name, mr.iid])
             if not dry_run and rebases < rebase_limit:
                 try:
@@ -151,7 +163,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False):
             if not pipelines:
                 continue
 
-            # posibble statuses:
+            # possible statuses:
             # running, pending, success, failed, canceled, skipped
             incomplete_pipelines = \
                 [p for p in pipelines

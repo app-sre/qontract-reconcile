@@ -853,6 +853,7 @@ SAAS_FILES_QUERY = """
       deleteMethod
     }
     slack {
+      output
       workspace {
         name
         integrations {
@@ -870,6 +871,7 @@ SAAS_FILES_QUERY = """
     }
     managedResourceTypes
     takeover
+    compare
     imagePatterns
     authentication {
       code {

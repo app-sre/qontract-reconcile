@@ -501,10 +501,10 @@ def jira_watcher(ctx, io_dir):
 
 
 @integration.command()
-@throughput
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
-def unleash_watcher(ctx, io_dir):
-    run_integration(reconcile.unleash_watcher, ctx.obj, io_dir)
+def unleash_watcher(ctx):
+    run_integration(reconcile.unleash_watcher, ctx.obj)
 
 
 @integration.command()
@@ -968,7 +968,7 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
 
 
 @integration.command()
-@threaded()
+@threaded(default=2)
 @click.pass_context
 def dashdotdb_cso(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
