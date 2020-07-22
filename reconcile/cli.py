@@ -221,6 +221,22 @@ def vault_output_path(function):
     return function
 
 
+def cluster_name(function):
+    function = click.option('--cluster-name',
+                            help='cluster name to act on.',
+                            default=None)(function)
+
+    return function
+
+
+def namespace_name(function):
+    function = click.option('--namespace-name',
+                            help='namespace name to act on.',
+                            default=None)(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
@@ -264,7 +280,7 @@ def enable_rebase(**kwargs):
     return f
 
 
-def run_integration(func_container, ctx, *args):
+def run_integration(func_container, ctx, *args, **kwargs):
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
     except AttributeError:
@@ -287,7 +303,7 @@ def run_integration(func_container, ctx, *args):
     dry_run = ctx.get('dry_run', False)
 
     try:
-        func_container.run(dry_run, *args)
+        func_container.run(dry_run, *args, **kwargs)
     except RunnerException as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
@@ -485,10 +501,10 @@ def jira_watcher(ctx, io_dir):
 
 
 @integration.command()
-@throughput
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
-def unleash_watcher(ctx, io_dir):
-    run_integration(reconcile.unleash_watcher, ctx.obj, io_dir)
+def unleash_watcher(ctx):
+    run_integration(reconcile.unleash_watcher, ctx.obj)
 
 
 @integration.command()
@@ -565,11 +581,16 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @binary(['oc', 'ssh'])
 @internal()
 @use_jump_host()
+@cluster_name
+@namespace_name
 @click.pass_context
-def openshift_resources(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
+                        cluster_name, namespace_name):
     run_integration(reconcile.openshift_resources,
                     ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
+                    use_jump_host,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name)
 
 
 @integration.command()
@@ -708,12 +729,15 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal,
 @binary(['oc', 'ssh'])
 @internal()
 @use_jump_host()
+@cluster_name
+@namespace_name
 @click.pass_context
-def openshift_vault_secrets(ctx, thread_pool_size, internal,
-                            use_jump_host):
+def openshift_vault_secrets(ctx, thread_pool_size, internal, use_jump_host,
+                            cluster_name, namespace_name):
     run_integration(reconcile.openshift_vault_secrets,
-                    ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
+                    ctx.obj, thread_pool_size, internal, use_jump_host,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name)
 
 
 @integration.command()
@@ -721,12 +745,15 @@ def openshift_vault_secrets(ctx, thread_pool_size, internal,
 @binary(['oc', 'ssh'])
 @internal()
 @use_jump_host()
+@cluster_name
+@namespace_name
 @click.pass_context
-def openshift_routes(ctx, thread_pool_size, internal,
-                     use_jump_host):
+def openshift_routes(ctx, thread_pool_size, internal, use_jump_host,
+                     cluster_name, namespace_name):
     run_integration(reconcile.openshift_routes,
-                    ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
+                    ctx.obj, thread_pool_size, internal, use_jump_host,
+                    cluster_name=cluster_name,
+                    namespace_name=namespace_name)
 
 
 @integration.command()

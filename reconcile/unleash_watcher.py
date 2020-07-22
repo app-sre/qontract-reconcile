@@ -1,5 +1,3 @@
-import os
-import json
 import logging
 
 import reconcile.queries as queries
@@ -7,6 +5,7 @@ import reconcile.queries as queries
 from utils.unleash import get_feature_toggles
 from utils.slack_api import SlackApi
 from utils import secret_reader
+from utils.state import State
 
 
 QONTRACT_INTEGRATION = 'unleash-watcher'
@@ -20,22 +19,8 @@ def fetch_current_state(unleash_instance):
     return get_feature_toggles(api_url, admin_access_token)
 
 
-def get_project_file_path(io_dir, project):
-    dir_path = os.path.join(io_dir, QONTRACT_INTEGRATION)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    return os.path.join(dir_path, project + '.json')
-
-
-def fetch_previous_state(io_dir, project):
-    project_file_path = get_project_file_path(io_dir, project)
-    try:
-        with open(project_file_path, 'r') as f:
-            logging.debug('[{}] previous state found'.format(project))
-            return json.load(f)
-    except IOError:
-        logging.debug('[{}] previous state not found'.format(project))
-        return None
+def fetch_previous_state(state, instance_name):
+    return state.get_all(instance_name)
 
 
 def format_message(url, key, event,
@@ -47,28 +32,40 @@ def format_message(url, key, event,
     return '{} {} {}{}'.format(url, key, event, info)
 
 
-def calculate_diff(server, current_state, previous_state):
-    messages = []
-    new_issues = [format_message(server, key, 'created')
-                  for key in current_state
-                  if key not in previous_state]
-    messages.extend(new_issues)
+def calculate_diff(current_state, previous_state):
+    diffs = []
 
-    deleted_issues = [format_message(server, key, 'deleted')
-                      for key in previous_state
-                      if key not in current_state]
-    messages.extend(deleted_issues)
+    for toggle, current_value in current_state.items():
+        # new toggles
+        if toggle not in previous_state:
+            diff = {
+                'event': 'created',
+                'toggle': toggle,
+                'to': current_value
+            }
+            diffs.append(diff)
+        # updated toggles
+        else:
+            previous_value = previous_state[toggle]
+            if current_value != previous_value:
+                diff = {
+                    'event': 'updated',
+                    'toggle': toggle,
+                    'from': previous_value,
+                    'to': current_value
+                }
+                diffs.append(diff)
 
-    updated_issues = \
-        [format_message(server, key, 'status change',
-                        previous_state[key],
-                        current_state[key])
-         for key, data in current_state.items()
-         if key in previous_state
-         and data != previous_state[key]]
-    messages.extend(updated_issues)
+    # deleted toggles
+    for toggle in previous_state:
+        if toggle not in current_state:
+            diff = {
+                'event': 'deleted',
+                'toggle': toggle
+            }
+            diffs.append(diff)
 
-    return messages
+    return diffs
 
 
 def init_slack_map(unleash_instance):
@@ -99,7 +96,7 @@ def init_slack_map(unleash_instance):
     return slack_map
 
 
-def act(dry_run, unleash_instance, diffs):
+def act(dry_run, state, unleash_instance, diffs):
     if not dry_run and diffs:
         slack_notifications = \
             unleash_instance.get('notifications') \
@@ -109,26 +106,38 @@ def act(dry_run, unleash_instance, diffs):
         slack_map = init_slack_map(unleash_instance)
 
     for diff in reversed(diffs):
-        logging.info(diff)
+        event = diff['event']
+        toggle = diff['toggle']
+
+        msg = f"Feature toggle {toggle} {event}"
+        if event == 'updated':
+            msg += f": {diff['from']} -> {diff['to']}"
+        logging.info(msg)
         if not dry_run:
             for slack in slack_map.values():
-                slack.chat_post_message(diff)
+                slack.chat_post_message(msg)
+            key = f"{unleash_instance['name']}/{toggle}"
+            if event == 'created':
+                state.add(key, diff['to'])
+            elif event == 'deleted':
+                state.rm(key)
+            elif event == 'updated':
+                state.add(key, diff['to'], force=True)
 
 
-def write_state(io_dir, project, state):
-    project_file_path = get_project_file_path(io_dir, project)
-    with open(project_file_path, 'w') as f:
-        json.dump(state, f)
-
-
-def run(dry_run, io_dir='throughput/'):
+def run(dry_run):
     unleash_instances = queries.get_unleash_instances()
+    accounts = queries.get_aws_accounts()
+    settings = queries.get_app_interface_settings()
+    state = State(
+        integration=QONTRACT_INTEGRATION,
+        accounts=accounts,
+        settings=settings
+    )
     for unleash_instance in unleash_instances:
         instance_name = unleash_instance['name']
-        instance_url = unleash_instance['url']
         current_state = fetch_current_state(unleash_instance)
-        previous_state = fetch_previous_state(io_dir, instance_name)
-        if previous_state:
-            diffs = calculate_diff(instance_url, current_state, previous_state)
-            act(dry_run, unleash_instance, diffs)
-        write_state(io_dir, instance_name, current_state)
+        previous_state = fetch_previous_state(state, instance_name)
+        diffs = calculate_diff(current_state, previous_state)
+        if diffs:
+            act(dry_run, state, unleash_instance, diffs)

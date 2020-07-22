@@ -6,6 +6,7 @@ import reconcile.queries as queries
 import reconcile.openshift_base as ob
 import reconcile.jenkins_plugins as jenkins_base
 
+from reconcile.slack_base import init_slack
 from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
 from utils.defer import defer
@@ -59,11 +60,30 @@ def run(dry_run, thread_pool_size=10,
     saasherder.populate_desired_state(ri)
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
-    ob.realize_data(dry_run, oc_map, ri,
-                    caller=saas_file_name,
-                    wait_for_namespace=True,
-                    no_dry_run_skip_compare=True,
-                    take_over=saasherder.take_over)
+    actions = ob.realize_data(
+        dry_run, oc_map, ri,
+        caller=saas_file_name,
+        wait_for_namespace=True,
+        no_dry_run_skip_compare=(not saasherder.compare),
+        take_over=saasherder.take_over
+    )
 
     if ri.has_error_registered():
         sys.exit(1)
+
+    # send human readable notifications to slack
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    # - output is 'events'
+    # - no errors were registered
+    if not dry_run and len(saasherder.saas_files) == 1:
+        saas_file = saasherder.saas_files[0]
+        slack_info = saas_file.get('slack')
+        if slack_info and actions and slack_info.get('output') == 'events':
+            slack = init_slack(slack_info, QONTRACT_INTEGRATION)
+            for action in actions:
+                message = \
+                    f"[{action['cluster']}] " + \
+                    f"{action['kind']} {action['name']} {action['action']}"
+                slack.chat_post_message(message)
