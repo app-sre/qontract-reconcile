@@ -246,6 +246,7 @@ def realize_data(dry_run, oc_map, ri,
     :param wait_for_namespace: wait for namespace to exist before applying
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
     """
+    actions = []
     enable_deletion = False if ri.has_error_registered() else True
 
     for cluster, namespace, resource_type, data in ri:
@@ -304,6 +305,14 @@ def realize_data(dry_run, oc_map, ri,
             try:
                 apply(dry_run, oc_map, cluster, namespace,
                       resource_type, d_item, wait_for_namespace)
+                action = {
+                    'action': 'applied',
+                    'cluster': cluster,
+                    'namespace': namespace,
+                    'kind': resource_type,
+                    'name': d_item.name
+                }
+                actions.append(action)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {} (error details: {})".format(
@@ -325,7 +334,17 @@ def realize_data(dry_run, oc_map, ri,
             try:
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)
+                action = {
+                    'action': 'deleted',
+                    'cluster': cluster,
+                    'namespace': namespace,
+                    'kind': resource_type,
+                    'name': d_item.name
+                }
+                actions.append(action)
             except StatusCodeError as e:
                 ri.register_error()
                 msg = "[{}/{}] {}".format(cluster, namespace, str(e))
                 logging.error(msg)
+
+    return actions
