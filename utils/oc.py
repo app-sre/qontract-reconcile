@@ -39,7 +39,7 @@ class PodNotReadyError(Exception):
 
 class OC(object):
     def __init__(self, server, token, jh=None, settings=None,
-                 init_projects=False):
+                 init_projects=False, init_api_resources=False):
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -57,6 +57,11 @@ class OC(object):
         if self.init_projects:
             self.projects = [p['metadata']['name']
                              for p in self.get_all('Project')['items']]
+        self.init_api_resources = init_api_resources
+        if self.init_api_resources:
+            self.api_resources = self.get_api_resources()
+        else:
+            self.api_resources = None
 
     def whoami(self):
         return self._run(['whoami'])
@@ -198,6 +203,13 @@ class OC(object):
     def sa_get_token(self, namespace, name):
         cmd = ['sa', '-n', namespace, 'get-token', name]
         return self._run(cmd)
+
+    def get_api_resources(self):
+        # oc api-resources only has name or wide output
+        # and we need to get the KIND, which is the last column
+        cmd = ['api-resources', '--no-headers']
+        results = self._run(cmd).decode('utf-8').split('\n')
+        return [r.split()[-1] for r in results]
 
     @staticmethod
     def get_service_account_username(user):
@@ -391,7 +403,7 @@ class OC_Map(object):
     def __init__(self, clusters=None, namespaces=None,
                  integration='', e2e_test='', settings=None,
                  internal=None, use_jump_host=True, thread_pool_size=1,
-                 init_projects=False):
+                 init_projects=False, init_api_resources=False):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
@@ -400,6 +412,7 @@ class OC_Map(object):
         self.use_jump_host = use_jump_host
         self.thread_pool_size = thread_pool_size
         self.init_projects = init_projects
+        self.init_api_resources = init_api_resources
         self._lock = Lock()
 
         if clusters and namespaces:
@@ -440,7 +453,8 @@ class OC_Map(object):
                 cluster,
                 OC(server_url, token, jump_host,
                    settings=self.settings,
-                   init_projects=self.init_projects))
+                   init_projects=self.init_projects,
+                   init_api_resources=self.init_api_resources))
 
     def set_oc(self, cluster, value):
         with self._lock:

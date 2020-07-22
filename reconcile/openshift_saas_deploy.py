@@ -53,7 +53,8 @@ def run(dry_run, thread_pool_size=10,
         namespaces=saasherder.namespaces,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION)
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        init_api_resources=True)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
     # if saas_file_name is defined, the integration
