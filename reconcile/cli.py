@@ -485,10 +485,10 @@ def jira_watcher(ctx, io_dir):
 
 
 @integration.command()
-@throughput
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
-def unleash_watcher(ctx, io_dir):
-    run_integration(reconcile.unleash_watcher, ctx.obj, io_dir)
+def unleash_watcher(ctx):
+    run_integration(reconcile.unleash_watcher, ctx.obj)
 
 
 @integration.command()
