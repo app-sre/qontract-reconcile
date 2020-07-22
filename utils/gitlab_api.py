@@ -208,9 +208,14 @@ class GitLabApi(object):
         branch_name = email_id
         commit_message = f"[{prefix}] notification for {isodate}"
 
+        title = (f"[{prefix} {notification['notification_type']}] "
+                 f"{notification['short_description']}")
+
+        if self.mr_exists(title):
+            return
+
         self.create_branch(branch_name, main_branch)
 
-        msg = 'add email notification'
         email_path = os.path.join("data", notification_path,
                                   "emails", email_id + ".yml")
 
@@ -226,10 +231,10 @@ class GitLabApi(object):
         }
         content = '---\n' + \
                   yaml.dump(email, Dumper=yaml.RoundTripDumper)
-        self.create_file(branch_name, email_path, msg, content)
+        self.create_file(branch_name, email_path, commit_message, content)
 
         return self.create_mr(branch_name, main_branch,
-                              commit_message, labels=labels)
+                              title, labels=labels)
 
     def create_delete_user_mr(self, username, paths):
         labels = ['automerge']
