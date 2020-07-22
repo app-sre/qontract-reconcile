@@ -509,6 +509,18 @@ def fetch_data(namespaces, thread_pool_size, internal, use_jump_host):
     return oc_map, ri
 
 
+def filter_namespaces_by_cluster_and_namespace(namespaces,
+                                               cluster_name,
+                                               namespace_name):
+    if cluster_name:
+        namespaces = [n for n in namespaces
+                      if n['cluster']['name'] == cluster_name]
+    if namespace_name:
+        namespaces = [n for n in namespaces
+                      if n['name'] == namespace_name]
+    return namespaces
+
+
 def canonicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
@@ -530,13 +542,21 @@ def canonicalize_namespaces(namespaces, providers):
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True, providers=[], defer=None):
+        use_jump_host=True, providers=[],
+        cluster_name=None, namespace_name=None,
+        defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
                   if is_in_shard(
                       f"{namespace_info['cluster']['name']}/" +
                       f"{namespace_info['name']}")]
+    namespaces = \
+        filter_namespaces_by_cluster_and_namespace(
+            namespaces,
+            cluster_name,
+            namespace_name
+        )
     namespaces = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = \
         fetch_data(namespaces, thread_pool_size, internal, use_jump_host)

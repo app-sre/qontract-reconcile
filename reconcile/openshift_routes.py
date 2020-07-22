@@ -6,8 +6,8 @@ QONTRACT_INTEGRATION = 'openshift-routes'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 3)
 
 
-def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True, defer=None):
+def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
+        cluster_name=None, namespace_name=None, defer=None):
     providers = ['route']
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
@@ -16,4 +16,6 @@ def run(dry_run, thread_pool_size=10, internal=None,
             thread_pool_size=thread_pool_size,
             internal=internal,
             use_jump_host=use_jump_host,
-            providers=providers)
+            providers=providers,
+            cluster_name=cluster_name,
+            namespace_name=namespace_name)
