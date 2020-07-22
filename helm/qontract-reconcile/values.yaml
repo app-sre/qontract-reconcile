@@ -104,7 +104,7 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  extraArgs: --io-dir /tmp/throughput/
+  state: true
 - name: github-scanner
   resources:
     requests:

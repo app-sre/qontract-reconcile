@@ -1512,7 +1512,7 @@ objects:
           - name: INTEGRATION_NAME
             value: unleash-watcher
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--io-dir /tmp/throughput/"
+            value: ""
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1525,6 +1525,13 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
