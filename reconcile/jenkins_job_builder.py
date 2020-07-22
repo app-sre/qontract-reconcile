@@ -53,7 +53,13 @@ def collect_saas_file_configs():
         # currently ignoring the actual Slack workspace
         # as that is configured in Jenkins.
         # revisit this if we support more then a single Slack workspace.
-        slack_channel = saas_file['slack']['channel']
+        output = saas_file['slack'].get('output') or 'publish'
+        # if the output type is 'publish', we send notifications
+        # to the selected slack_channel
+        slack_channel = \
+            saas_file['slack']['channel'] \
+            if output == 'publish' \
+            else 'dev-null'
         for resource_template in saas_file['resourceTemplates']:
             url = resource_template['url']
             repo_urls.add(url)

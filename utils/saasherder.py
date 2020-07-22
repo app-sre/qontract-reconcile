@@ -49,6 +49,8 @@ class SaasHerder():
         # specify that it manages resources exclusively.
         self.take_over = \
             len(self.saas_files) == 1 and self.saas_files[0].get('takeover')
+        self.compare = \
+            len(self.saas_files) == 1 and self.saas_files[0].get('compare')
         if accounts:
             self._initiate_state(accounts)
 
