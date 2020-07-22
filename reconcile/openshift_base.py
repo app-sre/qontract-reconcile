@@ -128,11 +128,17 @@ def init_specs_to_fetch(ri, oc_map,
 
 
 def populate_current_state(spec, ri, integration, integration_version):
-    if spec.oc is None:
+    oc = spec.oc
+    if oc is None:
         return
-    for item in spec.oc.get_items(spec.resource,
-                                  namespace=spec.namespace,
-                                  resource_names=spec.resource_names):
+    api_resources = oc.api_resources
+    if api_resources and spec.resource not in api_resources:
+        msg = f"[{spec.cluster}] cluster has no API resource {spec.resource}."
+        logging.warning(msg)
+        return
+    for item in oc.get_items(spec.resource,
+                             namespace=spec.namespace,
+                             resource_names=spec.resource_names):
         openshift_resource = OR(item,
                                 integration,
                                 integration_version)
@@ -152,7 +158,8 @@ def fetch_current_state(namespaces=None,
                         integration_version=None,
                         override_managed_types=None,
                         internal=None,
-                        use_jump_host=True):
+                        use_jump_host=True,
+                        init_api_resources=False):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces,
@@ -161,7 +168,8 @@ def fetch_current_state(namespaces=None,
                     settings=settings,
                     internal=internal,
                     use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size)
+                    thread_pool_size=thread_pool_size,
+                    init_api_resources=init_api_resources)
     state_specs = \
         init_specs_to_fetch(
             ri,
