@@ -12,12 +12,16 @@ def get_feature_toggle_default(feature_name, context):
     return True
 
 
+def get_feature_toggle_default_false(feature_name, context):
+    return False
+
+
 @defer
-def get_feature_toggle_state(integration_name, defer=None):
+def get_feature_toggle_state(integration_name, default=True, defer=None):
     api_url = os.environ.get('UNLEASH_API_URL')
     client_access_token = os.environ.get('UNLEASH_CLIENT_ACCESS_TOKEN')
     if not (api_url and client_access_token):
-        return True
+        return default
 
     # hide INFO logging from UnleashClient
     logger = logging.getLogger()
@@ -39,8 +43,11 @@ def get_feature_toggle_state(integration_name, defer=None):
     defer(lambda: client.destroy())
 
     # get feature toggle state
+    fallback_function = get_feature_toggle_default
+    if default is False:
+        fallback_function = get_feature_toggle_default_false
     state = client.is_enabled(integration_name,
-                              fallback_function=get_feature_toggle_default)
+                              fallback_function=fallback_function)
     return state
 
 

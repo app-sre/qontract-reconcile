@@ -826,6 +826,12 @@ def user_validator(ctx):
 def terraform_resources(ctx, print_only, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
                         light, vault_output_path):
+    int_name = \
+        reconcile.terraform_resources.QONTRACT_INTEGRATION.replace('_', '-')
+    feature_name = f"{int_name}-enable-deletion"
+    unleash_feature_state = \
+        get_feature_toggle_state(feature_name, default=False)
+    enable_deletion = unleash_feature_state or enable_deletion
     run_integration(reconcile.terraform_resources,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
