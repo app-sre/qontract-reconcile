@@ -12,6 +12,7 @@ import os
 import utils.gql as gql
 import utils.threaded as threaded
 import utils.secret_reader as secret_reader
+from reconcile.github_org import get_config
 
 from utils.oc import StatusCodeError
 from utils.gpg import gpg_key_valid
@@ -106,10 +107,13 @@ class TerrascriptClient(object):
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
+        github_config = get_config()['github']
+        self.token = github_config['app-sre']['token']
         self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
 
     def download_logtoes_zip(self, release_url):
-        r = requests.get(GH_BASE_URL + '/' + release_url)
+        headers = {'Authorization': 'token ' + self.token}
+        r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
         r.raise_for_status()
         data = r.json()
         zip_url = data['assets'][0]['browser_download_url']
