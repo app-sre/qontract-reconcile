@@ -42,10 +42,10 @@ def get_feature_toggle_state(integration_name, default=True, defer=None):
     client.initialize_client()
     defer(lambda: client.destroy())
 
+    fallback_function = \
+        get_feature_toggle_default_false if default is False \
+        else get_feature_toggle_default
     # get feature toggle state
-    fallback_function = get_feature_toggle_default
-    if default is False:
-        fallback_function = get_feature_toggle_default_false
     state = client.is_enabled(integration_name,
                               fallback_function=fallback_function)
     return state
