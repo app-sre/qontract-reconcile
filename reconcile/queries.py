@@ -103,6 +103,7 @@ def get_app_interface_notifications():
     gqlapi = gql.get_api()
     return gqlapi.query(APP_INTERFACE_NOTIFICATIONS_QUERY)['notifications']
 
+
 CREDENTIALS_REQUESTS_QUERY = """
 {
   credentials_requests: credentials_requests_v1 {
