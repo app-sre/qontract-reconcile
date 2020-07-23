@@ -7,6 +7,7 @@ import anymarkup
 import logging
 import re
 import requests
+import os
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -49,8 +50,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_cloudwatch_log_subscription_filter,
                                aws_acm_certificate)
 
-LOGTOES_ZIP = 'https://github.com/app-sre/logs-to-elasticsearch-lambda' + \
-              '/releases/latest/download/LogsToElasticsearch.zip'
+GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
+LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
 
 
 class UnknownProviderError(Exception):
@@ -105,6 +106,19 @@ class TerrascriptClient(object):
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
+        self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
+
+    def download_logtoes_zip(self, release_url):
+        r = requests.get(GH_BASE_URL + '/' + release_url)
+        r.raise_for_status()
+        data = r.json()
+        zip_url = data['assets'][0]['browser_download_url']
+        zip_file = '/tmp/LogsToElasticsearch-' + data['tag_name'] + '.zip'
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url)
+            r.raise_for_status()
+            open(zip_file, 'wb').write(r.content)
+        return zip_file
 
     def filter_disabled_accounts(self, accounts):
         filtered_accounts = []
@@ -1606,15 +1620,17 @@ class TerrascriptClient(object):
             tf_resources.append(data('aws_elasticsearch_domain',
                                      es_identifier, **es_domain))
 
-            zip_url = common_values.get('zip_url', LOGTOES_ZIP)
-            r = requests.get(zip_url)
-            open('/tmp/LogsToElasticsearch.zip', 'wb').write(r.content)
+            release_url = common_values.get('release_url', LOGTOES_RELEASE)
+            if release_url == LOGTOES_RELEASE:
+                zip_file = self.logtoes_zip
+            else:
+                zip_file = self.download_logtoes_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
             lambda_values = {
-                'filename': '/tmp/LogsToElasticsearch.zip',
+                'filename': zip_file,
                 'source_code_hash':
-                    '${filebase64sha256("/tmp/LogsToElasticsearch.zip")}',
+                    '${filebase64sha256("' + zip_file + '")}',
                 'role': "${" + role_tf_resource.fullname + ".arn}"
             }
 
