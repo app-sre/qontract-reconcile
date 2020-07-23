@@ -29,6 +29,14 @@ class SlackApi(object):
             **self.chat_kwargs
         )
 
+    def chat_post_message_to_channel(self, channel, text):
+        self.sc.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=text,
+            **self.chat_kwargs
+        )
+
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
         description = usergroup['description']

@@ -81,6 +81,28 @@ def get_app_interface_emails():
     return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)['emails']
 
 
+APP_INTERFACE_NOTIFICATIONS_QUERY = """
+{
+  notifications: app_interface_notifications_v1 {
+    name
+    subject
+    to {
+      users {
+        org_username
+      }
+      channels
+    }
+    body
+  }
+}
+"""
+
+
+def get_app_interface_notifications():
+    """ Returns Email resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(APP_INTERFACE_NOTIFICATIONS_QUERY)['notifications']
+
 CREDENTIALS_REQUESTS_QUERY = """
 {
   credentials_requests: credentials_requests_v1 {
