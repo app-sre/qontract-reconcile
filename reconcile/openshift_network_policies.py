@@ -53,7 +53,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 def construct_oc_resource(name, source_ns):
     body = {
-        "apiVersion": "extensions/v1beta1",
+        "apiVersion": "networking.k8s.io/v1",
         "kind": "NetworkPolicy",
         "metadata": {
             "name": name
