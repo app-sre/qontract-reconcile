@@ -347,7 +347,7 @@ def realize_data(dry_run, oc_map, ri,
                     'cluster': cluster,
                     'namespace': namespace,
                     'kind': resource_type,
-                    'name': d_item.name
+                    'name': name
                 }
                 actions.append(action)
             except StatusCodeError as e:
