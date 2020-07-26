@@ -54,7 +54,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
             if current_spec != desired_spec:
                 logging.error(
-                    '[%s] desired spec %s is different ' + 
+                    '[%s] desired spec %s is different ' +
                     'from current spec %s',
                     cluster_name, desired_spec, current_spec)
                 error = True
