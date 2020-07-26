@@ -102,7 +102,7 @@ class OCM(object):
                 'id': cluster_spec['region']
             },
             'version': {
-                'id': 'openshift-v' + cluster_spec['version']
+                'id': 'openshift-v' + cluster_spec['initial_version']
             },
             'multi_az': cluster_spec['multi_az'],
             'nodes': {

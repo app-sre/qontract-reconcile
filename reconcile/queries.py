@@ -304,6 +304,7 @@ CLUSTERS_QUERY = """
       provider
       region
       version
+      initial_version
       multi_az
       nodes
       instance_type
