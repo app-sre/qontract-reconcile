@@ -292,8 +292,7 @@ Please consult relevant SOPs to verify that the account is secure.
                                          cluster_name,
                                          path,
                                          version):
-        # labels = ['automerge']
-        labels = ['do-not-merge/hold']
+        labels = ['automerge']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = \
