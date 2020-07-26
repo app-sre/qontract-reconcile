@@ -1,5 +1,6 @@
 import sys
 import logging
+import semver
 
 import reconcile.queries as queries
 
@@ -21,19 +22,41 @@ def run(dry_run, thread_pool_size=10):
     error = False
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
-        if current_spec and current_spec != desired_spec:
-            logging.error(
-                '[%s] desired spec %s is different from current spec %s',
-                cluster_name, desired_spec, current_spec)
-            error = True
+        if current_spec:
+            # validate cluster
+            desired_spec['spec'].pop('initial_version')
+            desired_version = desired_spec['spec'].pop('version')
+            current_version = current_spec['spec'].pop('version')
+            compare_result = semver.compare(current_version, desired_version)
+            if compare_result > 0:
+                # current version is larger due to an upgrade.
+                # submit MR to update cluster version
+                logging.info(
+                    '[%s] desired version %s is different ' +
+                    'from current version %s. ' +
+                    'version will be updated',
+                    cluster_name, desired_version, current_version)
+                # TODO: submit MR
+            elif compare_result < 0:
+                logging.error(
+                    '[%s] desired version %s is different ' +
+                    'from current version %s',
+                    cluster_name, desired_version, current_version)
+                error = True
+            if current_spec != desired_spec:
+                logging.error(
+                    '[%s] desired spec %s is different ' + 
+                    'from current spec %s',
+                    cluster_name, desired_spec, current_spec)
+                error = True
+        else:
+            # create cluster
+            if cluster_name in pending_state:
+                continue
+            logging.info(['create_cluster', cluster_name])
+            if not dry_run:
+                ocm = ocm_map.get(cluster_name)
+                ocm.create_cluster(cluster_name, desired_spec)
 
     if error:
         sys.exit(1)
-
-    for cluster_name, desired_spec in desired_state.items():
-        if cluster_name in current_state or cluster_name in pending_state:
-            continue
-        logging.info(['create_cluster', cluster_name])
-        if not dry_run:
-            ocm = ocm_map.get(cluster_name)
-            ocm.create_cluster(cluster_name, desired_spec)
