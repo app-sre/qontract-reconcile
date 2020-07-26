@@ -73,3 +73,12 @@ class SQSGateway(object):
             'reports': reports
         }
         self.send_message(body)
+
+    def create_update_cluster_version_mr(self, cluster_name, path, version):
+        body = {
+            'pr_type': 'create_update_cluster_version_mr',
+            'cluster_name': cluster_name,
+            'path': path,
+            'version': version
+        }
+        self.send_message(body)

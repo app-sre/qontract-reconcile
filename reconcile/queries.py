@@ -247,6 +247,7 @@ def get_aws_accounts():
 CLUSTERS_QUERY = """
 {
   clusters: clusters_v1 {
+    path
     name
     serverUrl
     consoleUrl
