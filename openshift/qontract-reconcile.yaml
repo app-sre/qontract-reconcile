@@ -5838,6 +5838,11 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: gitlab_pr_submitter_queue_url
+            valueFrom:
+              secretKeyRef:
+                name: ${APP_INTERFACE_SQS_SECRET_NAME}
+                key: gitlab_pr_submitter_queue_url
           resources:
             limits:
               cpu: 200m

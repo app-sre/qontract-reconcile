@@ -896,10 +896,13 @@ def ocm_groups(ctx, thread_pool_size):
 
 
 @integration.command()
+@environ(['gitlab_pr_submitter_queue_url'])
+@gitlab_project_id
 @threaded()
 @click.pass_context
-def ocm_clusters(ctx, thread_pool_size):
-    run_integration(reconcile.ocm_clusters, ctx.obj, thread_pool_size)
+def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
+    run_integration(reconcile.ocm_clusters, ctx.obj,
+                    gitlab_project_id, thread_pool_size)
 
 
 @integration.command()

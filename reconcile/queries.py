@@ -247,6 +247,7 @@ def get_aws_accounts():
 CLUSTERS_QUERY = """
 {
   clusters: clusters_v1 {
+    path
     name
     serverUrl
     consoleUrl
@@ -304,6 +305,7 @@ CLUSTERS_QUERY = """
       provider
       region
       version
+      initial_version
       multi_az
       nodes
       instance_type

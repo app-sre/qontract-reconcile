@@ -288,6 +288,44 @@ Please consult relevant SOPs to verify that the account is secure.
 
         return self.create_mr(branch_name, target_branch, title, labels=labels)
 
+    def create_update_cluster_version_mr(self,
+                                         cluster_name,
+                                         path,
+                                         version):
+        labels = ['automerge']
+        prefix = 'qontract-reconcile'
+        target_branch = 'master'
+        branch_name = \
+            f'{prefix}-update-cluster-version-' + \
+            f'{cluster_name}-{version}-{str(uuid.uuid4())[0:6]}'
+        title = \
+            f'[{prefix}] update cluster {cluster_name} version to {version}'
+
+        if self.mr_exists(title):
+            return
+
+        self.create_branch(branch_name, target_branch)
+
+        msg = 'update cluster version'
+        path = path.lstrip('/')
+        f = self.project.files.get(file_path=path, ref=target_branch)
+        content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
+        content['spec']['version'] = version
+        new_content = '---\n' + \
+            yaml.dump(content, Dumper=yaml.RoundTripDumper)
+        try:
+            self.update_file(branch_name, path, msg, new_content)
+        except gitlab.exceptions.GitlabCreateError as e:
+            self.delete_branch(branch_name)
+            if str(e) != "400: A file with this name doesn't exist":
+                raise e
+            logging.info(
+                "File {} does not exist, not opening MR".format(path)
+            )
+            return
+
+        return self.create_mr(branch_name, target_branch, title, labels=labels)
+
     def get_project_maintainers(self, repo_url=None):
         if repo_url is None:
             project = self.project
