@@ -20,6 +20,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
 
+    if not dry_run:
+        gw = prg.init(gitlab_project_id=gitlab_project_id)
     error = False
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
@@ -28,8 +30,6 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             desired_spec['spec'].pop('initial_version')
             desired_version = desired_spec['spec'].pop('version')
             current_version = current_spec['spec'].pop('version')
-            if cluster_name == 'app-sre-stage-01':
-                current_version = '4.5.0'
             compare_result = semver.compare(current_version, desired_version)
             if compare_result > 0:
                 # current version is larger due to an upgrade.
@@ -40,7 +40,6 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
                 if not dry_run:
-                    gw = prg.init(gitlab_project_id=gitlab_project_id)
                     cluster_path = 'data' + \
                         [c['path'] for c in clusters
                          if c['name'] == cluster_name][0]
