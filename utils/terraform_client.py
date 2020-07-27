@@ -192,11 +192,11 @@ class TerraformClient(object):
         return deletions_detected, deleted_users
 
     # terraform apply
-    def apply(self):
+    def apply(self, override_thread_pool_size=None):
         errors = False
-
+        thread_pool_size = override_thread_pool_size or self.thread_pool_size
         results = threaded.run(self.terraform_apply, self.specs,
-                               self.thread_pool_size)
+                               thread_pool_size)
 
         for error in results:
             if error:

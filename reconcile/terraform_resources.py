@@ -2,6 +2,7 @@ import sys
 import shutil
 import semver
 import logging
+import time
 
 import utils.gql as gql
 import utils.threaded as threaded
@@ -292,7 +293,14 @@ def run(dry_run, print_only=False,
         cleanup_and_exit(tf)
 
     if not light:
-        err = tf.apply()
+        override_thread_pool_size = None
+        if deletions_detected and enable_deletion:
+            logging.info(
+                'deletions detected and deletion enabled. ' +
+                'waiting for 2 minutes before proceeding')
+            time.sleep(120)
+            override_thread_pool_size = 1
+        err = tf.apply(override_thread_pool_size=override_thread_pool_size)
         if err:
             cleanup_and_exit(tf, err)
 
