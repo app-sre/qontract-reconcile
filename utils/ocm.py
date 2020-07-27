@@ -139,7 +139,9 @@ class OCM(object):
         :type cluster: string
         :type group_id: string
         """
-        cluster_id = self.cluster_ids[cluster]
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return None
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups'
         groups = self._get_json(api)['items']
         if group_id not in [g['id'] for g in groups]:
@@ -191,7 +193,9 @@ class OCM(object):
 
         :type cluster: string
         """
-        cluster_id = self.cluster_ids[cluster]
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return []
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
               f'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
@@ -271,7 +275,9 @@ class OCM(object):
         :type cluster: string
         """
         result_idps = []
-        cluster_id = self.cluster_ids[cluster]
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return result_idps
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
         idps = self._get_json(api).get('items')
