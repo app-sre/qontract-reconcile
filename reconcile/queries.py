@@ -323,6 +323,7 @@ CLUSTERS_QUERY = """
         name
         provider
         manageRoutes
+        delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
             account {

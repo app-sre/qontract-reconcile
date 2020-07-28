@@ -23,12 +23,12 @@ def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
     peering_info = to_cluster['peering']
     peer_connections = peering_info['connections']
     for peer_connection in peer_connections:
-            if not peer_connection['provider'] == desired_provider:
-                continue
-            if not peer_connection['cluster']:
-                continue
-            if from_cluster['name'] == peer_connection['cluster']['name']:
-                return peer_connection
+        if not peer_connection['provider'] == desired_provider:
+            continue
+        if not peer_connection['cluster']:
+            continue
+        if from_cluster['name'] == peer_connection['cluster']['name']:
+            return peer_connection
     return None
 
 
@@ -85,6 +85,10 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
+            # Don't include the peering if set to be deleted
+            if peer_connection['delete']:
+                continue
+
             # We only care about cluster-vpc-requester peering providers
             peer_connection_provider = peer_connection['provider']
             if not peer_connection_provider == 'cluster-vpc-requester':
@@ -186,6 +190,9 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
+            # Don't include the peering if set to be deleted
+            if peer_connection['delete']:
+                continue
             # We only care about account-vpc peering providers
             peer_connection_provider = peer_connection['provider']
             if not peer_connection_provider == 'account-vpc':
