@@ -10,6 +10,13 @@ from utils.openshift_resource import (OpenshiftResource as OR,
 
 from sretoolbox.utils import retry
 
+ACTION_APPLIED = 'applied'
+ACTION_DELETED = 'deleted'
+
+
+class ValidationError(Exception):
+    pass
+
 
 class StateSpec(object):
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
@@ -314,7 +321,7 @@ def realize_data(dry_run, oc_map, ri,
                 apply(dry_run, oc_map, cluster, namespace,
                       resource_type, d_item, wait_for_namespace)
                 action = {
-                    'action': 'applied',
+                    'action': ACTION_APPLIED,
                     'cluster': cluster,
                     'namespace': namespace,
                     'kind': resource_type,
@@ -343,7 +350,7 @@ def realize_data(dry_run, oc_map, ri,
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)
                 action = {
-                    'action': 'deleted',
+                    'action': ACTION_DELETED,
                     'cluster': cluster,
                     'namespace': namespace,
                     'kind': resource_type,
@@ -356,3 +363,38 @@ def realize_data(dry_run, oc_map, ri,
                 logging.error(msg)
 
     return actions
+
+
+@retry(max_attempts=20)
+def validate_data(oc_map, actions):
+    """
+    Validate the realized desired state.
+
+    :param oc_map: a dictionary containing oc client per cluster
+    :param actions: a dictionary of performed actions
+    """
+
+    supported_kinds = ['Deployment', 'DeploymentConfig']
+    for action in actions:
+        if action['action'] == ACTION_APPLIED:
+            kind = action['kind']
+            if kind not in supported_kinds:
+                continue
+            cluster = action['cluster']
+            namespace = action['namespace']
+            name = action['name']
+            logging.info(['validating', cluster, namespace, kind, name])
+
+            oc = oc_map.get(cluster)
+            resource = oc.get(namespace, kind, name=name)
+            # add elif to validate additional resource kinds
+            if kind in ['Deployment', 'DeploymentConfig']:
+                status = resource['status']
+                replicas = status['replicas']
+                updated_replicas = status['updatedReplicas']
+                ready_replicas = status['readyReplicas']
+                if replicas == 0:
+                    continue
+                if not replicas == ready_replicas == updated_replicas:
+                    logging.info('new replicas not ready, status is invalid')
+                    raise ValidationError(name)
