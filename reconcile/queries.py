@@ -874,6 +874,7 @@ SAAS_FILES_QUERY = """
     managedResourceTypes
     takeover
     compare
+    timeout
     imagePatterns
     authentication {
       code {
