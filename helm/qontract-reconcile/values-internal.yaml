@@ -1,0 +1,12 @@
+integrations:
+- name: slack-usergroups
+  resources:
+    requests:
+      memory: 75Mi
+      cpu: 20m
+    limits:
+      memory: 150Mi
+      cpu: 40m
+  logs:
+    slack: true
+    cloudwatch: true
