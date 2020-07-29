@@ -21,7 +21,7 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size):
                 saas_file_name=saas_file_name,
                 env_name=env_name)
     except SystemExit as e:
-        exit_code = int(str(e))
+        exit_code = e.code
     return exit_code
 
 
