@@ -14,15 +14,15 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 def osd_run_wrapper(diff, dry_run, available_thread_pool_size):
     saas_file_name = diff['saas_file_name']
     env_name = diff['environment']
-    err = False
+    exit_code = 0
     try:
         osd.run(dry_run=dry_run,
                 thread_pool_size=available_thread_pool_size,
                 saas_file_name=saas_file_name,
                 env_name=env_name)
-    except SystemExit:
-        err = True
-    return err
+    except SystemExit as e:
+        exit_code = int(str(e))
+    return exit_code
 
 
 def run(dry_run, thread_pool_size=10, io_dir='throughput/'):
@@ -35,11 +35,11 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/'):
             thread_pool_size,
             len(saas_file_owners_diffs))
 
-    errors = threaded.run(
+    exit_codes = threaded.run(
         osd_run_wrapper, saas_file_owners_diffs, thread_pool_size,
         dry_run=dry_run,
         available_thread_pool_size=available_thread_pool_size
     )
 
-    if True in errors:
+    if [ec for ec in exit_codes if ec > 0]:
         sys.exit(1)
