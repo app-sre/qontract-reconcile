@@ -310,6 +310,8 @@ Please consult relevant SOPs to verify that the account is secure.
         path = path.lstrip('/')
         f = self.project.files.get(file_path=path, ref=target_branch)
         content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
+        if content['spec']['version'] == version:
+            return
         content['spec']['version'] = version
         new_content = '---\n' + \
             yaml.dump(content, Dumper=yaml.RoundTripDumper)
