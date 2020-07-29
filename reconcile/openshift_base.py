@@ -374,7 +374,7 @@ def validate_data(oc_map, actions):
     :param actions: a dictionary of performed actions
     """
 
-    supported_kinds = ['Deployment', 'DeploymentConfig']
+    supported_kinds = ['Deployment', 'DeploymentConfig', 'Subscription']
     for action in actions:
         if action['action'] == ACTION_APPLIED:
             kind = action['kind']
@@ -397,4 +397,10 @@ def validate_data(oc_map, actions):
                     continue
                 if not replicas == ready_replicas == updated_replicas:
                     logging.info('new replicas not ready, status is invalid')
+                    raise ValidationError(name)
+            elif kind == 'Subscription':
+                status = resource['status']
+                state = status['state']
+                if state != 'AtLatestKnown':
+                    logging.info('Subscription status.state is invalid')
                     raise ValidationError(name)
