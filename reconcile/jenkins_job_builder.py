@@ -60,6 +60,7 @@ def collect_saas_file_configs():
             saas_file['slack']['channel'] \
             if output == 'publish' \
             else 'dev-null'
+        timeout = saas_file.get('timeout', None)
         for resource_template in saas_file['resourceTemplates']:
             url = resource_template['url']
             repo_urls.add(url)
@@ -89,7 +90,7 @@ def collect_saas_file_configs():
                 #   jobs:
                 #   - 'openshift-saas-deploy':
                 #       display_name: display name of the job
-                jc_config = json.dumps([{
+                jc_data = {
                     'project': {
                         'name': jc_name,
                         'saas_file_name': saas_file_name,
@@ -103,7 +104,10 @@ def collect_saas_file_configs():
                             }
                         }]
                     }
-                }])
+                }
+                if timeout:
+                    jc_data['project']['timeout'] = timeout
+                jc_config = json.dumps([jc_data])
                 saas_file_configs.append({
                     'name': jc_name,
                     'instance': jc_instance,

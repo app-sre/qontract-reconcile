@@ -68,6 +68,12 @@ def run(dry_run, thread_pool_size=10,
         take_over=saasherder.take_over
     )
 
+    if not dry_run:
+        try:
+            ob.validate_data(oc_map, actions)
+        except Exception:
+            ri.register_error()
+
     if ri.has_error_registered():
         sys.exit(1)
 
