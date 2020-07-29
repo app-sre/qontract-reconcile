@@ -41,5 +41,5 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/'):
         available_thread_pool_size=available_thread_pool_size
     )
 
-    if [ec for ec in exit_codes if ec > 0]:
+    if [ec for ec in exit_codes if ec]:
         sys.exit(1)
