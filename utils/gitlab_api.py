@@ -472,10 +472,6 @@ Please consult relevant SOPs to verify that the account is secure.
             changed_paths.add(new_path)
         return list(changed_paths)
 
-    def get_merge_request_author(self, mr_id):
-        merge_request = self.project.mergerequests.get(mr_id)
-        return merge_request.author['username']
-
     def get_merge_request_comments(self, mr_id):
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)

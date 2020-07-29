@@ -234,17 +234,12 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
             gitlab_merge_request_id, 'approved')
         return
 
-    author = gl.get_merge_request_author(gitlab_merge_request_id)
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
     comment_lines = {}
     for diff in diffs:
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
         saas_file_owners = owners.get(saas_file_name)
-        if author in saas_file_owners:
-            # allow a single owner to lgtm themselves for now
-            if len(saas_file_owners) > 1:
-                saas_file_owners.remove(author)
         valid_lgtm = check_if_lgtm(saas_file_owners, comments)
         if not valid_lgtm:
             gl.remove_label_from_merge_request(
