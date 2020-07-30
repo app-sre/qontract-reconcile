@@ -365,7 +365,7 @@ def realize_data(dry_run, oc_map, ri,
     return actions
 
 
-@retry(max_attempts=20)
+@retry(max_attempts=100)
 def validate_data(oc_map, actions):
     """
     Validate the realized desired state.
