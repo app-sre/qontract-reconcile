@@ -374,7 +374,12 @@ def validate_data(oc_map, actions):
     :param actions: a dictionary of performed actions
     """
 
-    supported_kinds = ['Deployment', 'DeploymentConfig', 'Subscription']
+    supported_kinds = [
+        'Deployment',
+        'DeploymentConfig',
+        'Subscription',
+        'Job'
+    ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
             kind = action['kind']
@@ -403,4 +408,10 @@ def validate_data(oc_map, actions):
                 state = status['state']
                 if state != 'AtLatestKnown':
                     logging.info('Subscription status.state is invalid')
+                    raise ValidationError(name)
+            elif kind == 'Job':
+                status = resource['status']
+                succeeded = status.get('succeeded')
+                if not succeeded:
+                    logging.info('Job has not succeeded, status is invalid')
                     raise ValidationError(name)
