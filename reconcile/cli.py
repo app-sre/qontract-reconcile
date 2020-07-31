@@ -8,6 +8,7 @@ import sentry_sdk
 
 import utils.config as config
 import utils.gql as gql
+import reconcile.aws_route53
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -353,6 +354,12 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
     ctx.obj['validate_schemas'] = validate_schemas
     ctx.obj['gql_sha_url'] = gql_sha_url
     ctx.obj['dump_schemas_file'] = dump_schemas_file
+
+
+@integration.command()
+@click.pass_context
+def aws_route53(ctx):
+    run_integration(reconcile.aws_route53, ctx.obj)
 
 
 @integration.command()
