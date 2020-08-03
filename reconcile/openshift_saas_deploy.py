@@ -73,7 +73,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             try:
                 ob.follow_logs(oc_map, actions, io_dir)
             except Exception:
-                ri.register_error() 
+                ri.register_error()
         try:
             ob.validate_data(oc_map, actions)
         except Exception:
