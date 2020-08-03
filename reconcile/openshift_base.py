@@ -365,7 +365,7 @@ def realize_data(dry_run, oc_map, ri,
     return actions
 
 
-@retry(max_attempts=100)
+@retry(exceptions=(ValidationError), max_attempts=100)
 def validate_data(oc_map, actions):
     """
     Validate the realized desired state.
@@ -395,11 +395,14 @@ def validate_data(oc_map, actions):
             status = resource['status']
             # add elif to validate additional resource kinds
             if kind in ['Deployment', 'DeploymentConfig']:
+                desired_replicas = resource['spec']['replicas']
+                if desired_replicas == 0:
+                    continue
                 replicas = status['replicas']
-                updated_replicas = status['updatedReplicas']
-                ready_replicas = status['readyReplicas']
                 if replicas == 0:
                     continue
+                updated_replicas = status['updatedReplicas']
+                ready_replicas = status['readyReplicas']
                 if not replicas == ready_replicas == updated_replicas:
                     logging.info('new replicas not ready, status is invalid')
                     raise ValidationError(name)
