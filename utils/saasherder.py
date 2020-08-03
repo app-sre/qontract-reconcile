@@ -47,12 +47,14 @@ class SaasHerder():
                 divisor)
         # if called by a single saas file,it may
         # specify that it manages resources exclusively.
-        self.take_over = \
-            len(self.saas_files) == 1 and self.saas_files[0].get('takeover')
-        self.compare = \
-            len(self.saas_files) == 1 and self.saas_files[0].get('compare')
+        self.take_over = self._get_saas_file_attribute('takeover')
+        self.compare = self._get_saas_file_attribute('compare')
+        self.publish_job_logs = self._get_saas_file_attribute('publishJobLogs')
         if accounts:
             self._initiate_state(accounts)
+
+    def _get_saas_file_attribute(self, attribute):
+        return len(self.saas_files) == 1 and self.saas_files[0].get(attribute)
 
     def _validate_saas_files(self):
         self.valid = True

@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 
@@ -34,6 +35,10 @@ class RecyclePodsInvalidAnnotationValue(Exception):
 
 
 class PodNotReadyError(Exception):
+    pass
+
+
+class JobNotRunningError(Exception):
     pass
 
 
@@ -210,6 +215,25 @@ class OC(object):
         cmd = ['api-resources', '--no-headers']
         results = self._run(cmd).decode('utf-8').split('\n')
         return [r.split()[-1] for r in results]
+
+    @retry(exceptions=(JobNotRunningError), max_attempts=20)
+    def wait_for_job_running(self, namespace, name):
+        logging.info('waiting for job to run: ' + name)
+        pods = self.get_items('Pod', namespace=namespace,
+                              labels={'job-name': name})
+        ready_pods = [pod for pod in pods
+                      if p['status'].get('phase') == 'Running']
+        if not ready_pods:
+            raise JobNotRunningError(name)
+
+    def job_logs(self, namespace, name, follow, output):
+        self.wait_for_job_running(namespace, name)
+        cmd = ['logs', '-n', namespace, f'job/{name}']
+        if follow:
+            cmd.append('-f')
+        output_file = open(os.path.join(output, name), 'w')
+        # collect logs to file async
+        Popen(self.oc_base_cmd + cmd, stdout=output_file)
 
     @staticmethod
     def get_service_account_username(user):

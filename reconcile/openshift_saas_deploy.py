@@ -17,7 +17,7 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 @defer
-def run(dry_run, thread_pool_size=10,
+def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         saas_file_name=None, env_name=None, defer=None):
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
@@ -69,6 +69,11 @@ def run(dry_run, thread_pool_size=10,
     )
 
     if not dry_run:
+        if saasherder.publish_job_logs:
+            try:
+                ob.follow_logs(oc_map, actions, io_dir)
+            except Exception:
+                ri.register_error() 
         try:
             ob.validate_data(oc_map, actions)
         except Exception:

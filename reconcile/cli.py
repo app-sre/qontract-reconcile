@@ -595,6 +595,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
 
 @integration.command()
 @threaded(default=20)
+@throughput
 @binary(['oc', 'ssh'])
 @click.option('--saas-file-name',
               default=None,
@@ -603,9 +604,10 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
               default=None,
               help='environment to deploy to.')
 @click.pass_context
-def openshift_saas_deploy(ctx, thread_pool_size, saas_file_name, env_name):
+def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
+                          saas_file_name, env_name):
     run_integration(reconcile.openshift_saas_deploy,
-                    ctx.obj, thread_pool_size,
+                    ctx.obj, thread_pool_size, io_dir,
                     saas_file_name, env_name)
 
 
