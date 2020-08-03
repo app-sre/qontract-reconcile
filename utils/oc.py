@@ -222,7 +222,7 @@ class OC(object):
         pods = self.get_items('Pod', namespace=namespace,
                               labels={'job-name': name})
         ready_pods = [pod for pod in pods
-                      if p['status'].get('phase') == 'Running']
+                      if pod['status'].get('phase') == 'Running']
         if not ready_pods:
             raise JobNotRunningError(name)
 
