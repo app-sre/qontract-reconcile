@@ -29,7 +29,7 @@ class DuplicateException(Exception):
     """
     def __init__(self, item, to):
         msg = f"Refusing to add duplicate {item} to {to}"
-        super(DuplicateException, self).__init__(msg)
+        super().__init__(msg)
 
 
 class InvalidRecordData(Exception):
@@ -40,7 +40,7 @@ class InvalidRecordData(Exception):
     :type msg: str
     """
     def __init__(self, msg):
-        super(InvalidRecordData, self).__init__(msg)
+        super().__init__(msg)
 
 
 class InvalidRecordType(Exception):
@@ -51,7 +51,7 @@ class InvalidRecordType(Exception):
     :type msg: str
     """
     def __init__(self, msg):
-        super(InvalidRecordType, self).__init__(msg)
+        super().__init__(msg)
 
 
 class State(object):
