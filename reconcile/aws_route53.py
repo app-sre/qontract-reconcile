@@ -338,7 +338,7 @@ def reconcile_state(current_state, desired_state):
     actions = []
     errors = False
 
-    for _, desired_account in desired_state.accounts.items():
+    for desired_account in desired_state.accounts.values():
         current_account = current_state.get_account(desired_account.name)
 
         new_zones = []
