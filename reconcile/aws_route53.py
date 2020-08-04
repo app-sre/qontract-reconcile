@@ -3,6 +3,8 @@ import semver
 import sys
 
 import reconcile.queries as queries
+
+from reconcile.status import ExitCodes
 from utils.aws_api import AWSApi
 
 from utils.aws.route53 import State, Account, Record, Zone
@@ -390,19 +392,19 @@ def run(dry_run=False, thread_pool_size=10):
 
     desired_state, err = build_desired_state(zones)
     if err:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     participating_accounts = [z['account'] for z in zones]
     awsapi = AWSApi(thread_pool_size, participating_accounts, settings)
     current_state, err = build_current_state(awsapi)
     if err:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     actions, err = reconcile_state(current_state, desired_state)
     if err:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     for action in actions:
         err = action[0](dry_run, awsapi, *action[1:])
         if err:
-            sys.exit(1)
+            sys.exit(ExitCodes.ERROR)
