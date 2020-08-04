@@ -165,6 +165,7 @@ def check_if_lgtm(owners, comments):
     if not owners:
         return False
     approved = False
+    hold = False
     lgtm_comment = False
     sorted_comments = sorted(comments, key=lambda k: k['created_at'])
     for comment in sorted_comments:
@@ -179,11 +180,13 @@ def check_if_lgtm(owners, comments):
                 lgtm_comment = False
                 approved = False
             if line == '/hold':
+                hold = True
                 approved = False
             if line == '/hold cancel' and lgtm_comment:
+                hold = False
                 approved = True
 
-    return approved
+    return approved, hold
 
 
 def check_saas_files_changes_only(changed_paths, diffs):
@@ -240,7 +243,13 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
         saas_file_owners = owners.get(saas_file_name)
-        valid_lgtm = check_if_lgtm(saas_file_owners, comments)
+        valid_lgtm, hold = check_if_lgtm(saas_file_owners, comments)
+        if hold:
+            gl.add_label_to_merge_request(
+                gitlab_merge_request_id, 'hold')
+        else:
+            gl.remove_label_from_merge_request(
+                gitlab_merge_request_id, 'hold')
         if not valid_lgtm:
             gl.remove_label_from_merge_request(
                 gitlab_merge_request_id, 'approved')
