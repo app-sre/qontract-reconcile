@@ -107,8 +107,10 @@ def update_record(dry_run, awsapi, account, zone, recordset):
     desired_record = recordset[0]
     current_record = recordset[1]
     logging.info(f'[{account.name}] Update {current_record} in {zone}')
-    logging.info(f'  Current: {current_record.stringify()}')
-    logging.info(f'  Desired: {desired_record.stringify()}')
+    logging.info(f'  Current: {current_record.name} {current_record.type} '
+                 f'{current_record.ttl} {current_record.values}')
+    logging.info(f'  Desired: {desired_record.name} {desired_record.type} '
+                 f'{desired_record.ttl} {desired_record.values}')
 
     zone_id = zone.data.get('Id')
     if not zone_id:

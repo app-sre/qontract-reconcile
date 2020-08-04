@@ -294,10 +294,6 @@ class Record(object):
             raise TypeError(f"expected list, received {type(values)}")
         self._values.extend(values)
 
-    def stringify(self):
-        """Returns a human readable representation of the record"""
-        return f"{self.name} {self.type} {self.ttl} {self.values}"
-
     def __eq__(self, other):
         if not isinstance(other, Record):
             return False
