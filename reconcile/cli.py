@@ -84,7 +84,6 @@ from utils.aggregated_list import RunnerException
 from utils.binary import binary
 from utils.environ import environ
 from utils.unleash import get_feature_toggle_state
-from utils.defer import defer
 
 
 # Enable Sentry
@@ -281,11 +280,7 @@ def enable_rebase(**kwargs):
     return f
 
 
-@defer
-def run_integration(func_container, ctx, defer=None, *args, **kwargs):
-    logging.info('tick')
-    defer(lambda: logging.info('tock'))
-
+def run_integration(func_container, ctx, *args, **kwargs):
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
     except AttributeError:
