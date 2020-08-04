@@ -10,7 +10,7 @@ from utils.gitlab_api import GitLabApi
 
 
 MERGE_LABELS_PRIORITY = ['approved', 'automerge', 'lgtm']
-HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access',
+HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
