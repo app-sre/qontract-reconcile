@@ -18,6 +18,10 @@ class StatusCodeError(Exception):
     pass
 
 
+class ApplyError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -141,13 +145,13 @@ class OC(object):
         return json.loads(result)['items']
 
     def remove_last_applied_configuration(self, namespace, kind, name):
-        cmd = ['annotate', kind, name,
+        cmd = ['annotate', '-n', namespace, kind, name,
                'kubectl.kubernetes.io/last-applied-configuration-']
         self._run(cmd)
 
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
-        self._run(cmd, stdin=resource)
+        self._run(cmd, stdin=resource, apply=True)
 
     def delete(self, namespace, kind, name):
         cmd = ['delete', '-n', namespace, kind, name]
@@ -397,6 +401,8 @@ class OC(object):
 
         if code != 0:
             err = err.decode('utf-8')
+            if kwargs.get('apply'):
+                raise ApplyError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
