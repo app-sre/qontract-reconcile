@@ -113,7 +113,7 @@ def update_record(dry_run, awsapi, account, zone, recordset):
                  f'{desired_record.ttl} {desired_record.values}')
 
     zone_id = zone.data.get('Id')
-    if not zone_id:
+    if zone_id is not None:
         logging.error(
             f'[{account.name}] Cannot update {current_record} in {zone}: '
             f'missing Id key in zone data'
@@ -276,7 +276,7 @@ def build_desired_state(zones):
                     continue
                 targets.append(elb_fqdn)
 
-            if not len(targets) > 0:
+            if not targets:
                 logging.error(
                     f'[{account}] no targets found for '
                     f'{new_record} in {new_zone}'
