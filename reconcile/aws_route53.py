@@ -9,7 +9,7 @@ from utils.aws.route53 import State, Account, Record, Zone
 from utils.aws.route53 import DuplicateException
 
 
-QONTRACT_INTEGRATION = 'aws_route53'
+QONTRACT_INTEGRATION = 'aws-route53'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 DEFAULT_RECORD_TTL = 300
