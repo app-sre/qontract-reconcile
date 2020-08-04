@@ -111,40 +111,32 @@ def fetch_desired_state(namespaces, ri, oc_map):
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
 
-    try:
-        gqlapi = gql.get_api()
+    gqlapi = gql.get_api()
 
-        namespaces = []
-        for namespace_info in gqlapi.query(NAMESPACES_QUERY)['namespaces']:
-            if not namespace_info.get('networkPoliciesAllow'):
-                continue
+    namespaces = []
+    for namespace_info in gqlapi.query(NAMESPACES_QUERY)['namespaces']:
+        if not namespace_info.get('networkPoliciesAllow'):
+            continue
 
-            shard_key = (f"{namespace_info['cluster']['name']}/"
-                         f"{namespace_info['name']}")
+        shard_key = (f"{namespace_info['cluster']['name']}/"
+                     f"{namespace_info['name']}")
 
-            if not is_in_shard(shard_key):
-                continue
+        if not is_in_shard(shard_key):
+            continue
 
-            namespaces.append(namespace_info)
+        namespaces.append(namespace_info)
 
-        ri, oc_map = ob.fetch_current_state(
-            namespaces=namespaces,
-            thread_pool_size=thread_pool_size,
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-            override_managed_types=['NetworkPolicy'],
-            internal=internal,
-            use_jump_host=use_jump_host)
-        defer(lambda: oc_map.cleanup())
-        fetch_desired_state(namespaces, ri, oc_map)
-        ob.realize_data(dry_run, oc_map, ri)
+    ri, oc_map = ob.fetch_current_state(
+        namespaces=namespaces,
+        thread_pool_size=thread_pool_size,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        override_managed_types=['NetworkPolicy'],
+        internal=internal,
+        use_jump_host=use_jump_host)
+    defer(lambda: oc_map.cleanup())
+    fetch_desired_state(namespaces, ri, oc_map)
+    ob.realize_data(dry_run, oc_map, ri)
 
-        if ri.has_error_registered():
-            sys.exit(1)
-
-    except Exception as e:
-        msg = 'There was problem running openshift network policies reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
+    if ri.has_error_registered():
         sys.exit(1)

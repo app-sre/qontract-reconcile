@@ -222,33 +222,25 @@ def act(diff, oc_map):
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
 
-    try:
-        oc_map, current_state, ocm_clusters = \
-            fetch_current_state(thread_pool_size, internal, use_jump_host)
-        defer(lambda: oc_map.cleanup())
-        desired_state = fetch_desired_state(oc_map)
+    oc_map, current_state, ocm_clusters = \
+        fetch_current_state(thread_pool_size, internal, use_jump_host)
+    defer(lambda: oc_map.cleanup())
+    desired_state = fetch_desired_state(oc_map)
 
-        # we only manage dedicated-admins via OCM
-        current_state = [s for s in current_state
-                         if not (s['cluster'] in ocm_clusters
-                                 and s['group'] == 'dedicated-admins')]
-        desired_state = [s for s in desired_state
-                         if not (s['cluster'] in ocm_clusters
-                                 and s['group'] == 'dedicated-admins')]
+    # we only manage dedicated-admins via OCM
+    current_state = [s for s in current_state
+                     if not (s['cluster'] in ocm_clusters
+                             and s['group'] == 'dedicated-admins')]
+    desired_state = [s for s in desired_state
+                     if not (s['cluster'] in ocm_clusters
+                             and s['group'] == 'dedicated-admins')]
 
-        diffs = calculate_diff(current_state, desired_state)
-        validate_diffs(diffs)
-        diffs.sort(key=sort_diffs)
+    diffs = calculate_diff(current_state, desired_state)
+    validate_diffs(diffs)
+    diffs.sort(key=sort_diffs)
 
-        for diff in diffs:
-            logging.info(list(diff.values()))
+    for diff in diffs:
+        logging.info(list(diff.values()))
 
-            if not dry_run:
-                act(diff, oc_map)
-
-    except Exception as e:
-        msg = 'There was problem running openshift groups reconcile.'
-        msg += ' Exception: {}'
-        msg = msg.format(str(e))
-        logging.error(msg)
-        sys.exit(1)
+        if not dry_run:
+            act(diff, oc_map)
