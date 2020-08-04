@@ -217,7 +217,13 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 logging.warning(msg)
                 return
 
-        oc.apply(namespace, annotated.toJSON())
+        try:
+            oc.apply(namespace, annotated.toJSON())
+        except StatusCodeError as e:
+            if 'Invalid value: 0x0' in str(e):
+                oc.remove_last_applied_configuration(
+                    namespace, resource_type, resource.name)
+                oc.apply(namespace, annotated.toJSON())
 
     oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
