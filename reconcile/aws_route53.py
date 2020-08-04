@@ -113,7 +113,7 @@ def update_record(dry_run, awsapi, account, zone, recordset):
                  f'{desired_record.ttl} {desired_record.values}')
 
     zone_id = zone.data.get('Id')
-    if zone_id is not None:
+    if zone_id is None:
         logging.error(
             f'[{account.name}] Cannot update {current_record} in {zone}: '
             f'missing Id key in zone data'
