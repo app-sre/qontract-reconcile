@@ -19,39 +19,15 @@ def _octal_replace(s):
 
 
 class DuplicateException(Exception):
-    """
-    Duplicate items exception
-
-    :param item: thing that is being added
-    :type item: any
-    :param item: thing that the item is being added to
-    :type item: any
-    """
-    def __init__(self, item, to):
-        msg = f"Refusing to add duplicate {item} to {to}"
-        super().__init__(msg)
+    pass
 
 
 class InvalidRecordData(Exception):
-    """
-    Invalid DNS record data exception
-
-    :param msg: error message
-    :type msg: str
-    """
-    def __init__(self, msg):
-        super().__init__(msg)
+    pass
 
 
 class InvalidRecordType(Exception):
-    """
-    Unsupported record type
-
-    :param msg: error message
-    :type msg: str
-    """
-    def __init__(self, msg):
-        super().__init__(msg)
+    pass
 
 
 class State(object):
@@ -89,7 +65,8 @@ class State(object):
         :raises DuplicateException: if an account by that name already exists
         """
         if self.accounts.get(account.name):
-            raise DuplicateException(account, self)
+            raise DuplicateException(
+                f"Refusing to add duplicate {account} to {self}")
         self._accounts.append(account)
 
     def get_account(self, name):
@@ -137,9 +114,11 @@ class Account(object):
 
         :param zone: DNS zone to add
         :type zone: Zone
+        :raises DuplicateException: if a zone by that name already exists
         """
         if self.zones.get(zone.name):
-            raise DuplicateException(zone, self)
+            raise DuplicateException(
+                f"Refusing to add duplicate {zone} to {self}")
         self._zones.append(zone)
 
     def get_zone(self, name):
@@ -195,7 +174,8 @@ class Zone(object):
         :raises DuplicateException: if a record by that name already exists
         """
         if self.records.get(record.name):
-            raise DuplicateException(record, self)
+            raise DuplicateException(
+                f"Refusing to add duplicate {record} to {self}")
         self._records.append(record)
 
     def __eq__(self, other):
