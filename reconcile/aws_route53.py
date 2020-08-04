@@ -310,12 +310,12 @@ def diff_sets(desired, current):
         changed elements from the desired dict
     :rtype: (list, list, list)
     """
-    added = [desired[d] for d in list(set(desired) - set(current))]
-    removed = [current[c] for c in list(set(current) - set(desired))]
+    added = [desired[item] for item in desired if item not in current]
+    removed = [current[item] for item in current if item not in desired]
 
     changed = []
-    common = [(desired[n], current[n])
-              for n in list(set(current) & set(desired))]
+    common = [(desired[item], current[item])
+              for item in current if item in desired]
     for item in common:
         if not item[0] == item[1]:
             # Append the desired item set to changed zones list
