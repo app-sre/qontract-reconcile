@@ -145,10 +145,13 @@ class Zone(object):
     :type name: str
     :type data: dict
     """
-    def __init__(self, name, data={}):
+    def __init__(self, name, data=None):
         self._name = name.lower().rstrip('.')
         self._records = []
-        self._data = data
+        if data is None:
+            self._data = {}
+        else:
+            self._data = data
 
     @property
     def data(self):
