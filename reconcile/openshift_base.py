@@ -416,3 +416,29 @@ def validate_data(oc_map, actions):
                 if not succeeded:
                     logging.info('Job has not succeeded, status is invalid')
                     raise ValidationError(name)
+
+
+def follow_logs(oc_map, actions, io_dir):
+    """
+    Collect the logs from the owned pods into files in io_dir.
+
+    :param oc_map: a dictionary containing oc client per cluster
+    :param actions: a dictionary of performed actions
+    :param io_dir: a directory to store the logs as files
+    """
+
+    supported_kinds = [
+        'Job'
+    ]
+    for action in actions:
+        if action['action'] == ACTION_APPLIED:
+            kind = action['kind']
+            if kind not in supported_kinds:
+                continue
+            cluster = action['cluster']
+            namespace = action['namespace']
+            name = action['name']
+            logging.info(['collecting', cluster, namespace, kind, name])
+
+            oc = oc_map.get(cluster)
+            oc.job_logs(namespace, name, follow=True, output=io_dir)

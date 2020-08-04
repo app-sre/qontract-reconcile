@@ -876,6 +876,7 @@ SAAS_FILES_QUERY = """
     takeover
     compare
     timeout
+    publishJobLogs
     imagePatterns
     authentication {
       code {
