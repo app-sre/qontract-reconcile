@@ -140,6 +140,11 @@ class OC(object):
         result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
         return json.loads(result)['items']
 
+    def remove_last_applied_configuration(self, namespace, kind, name):
+        cmd = ['annotate', kind, name,
+               'kubectl.kubernetes.io/last-applied-configuration-']
+        self._run(cmd)
+
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource)
