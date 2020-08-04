@@ -188,6 +188,54 @@ class GitLabApi(object):
         return self.create_mr(branch_name, target_branch,
                               commit_message, labels=labels)
 
+    def create_app_interface_notificator_mr(
+        self, notification,
+        notification_path="app-interface",
+        email_schema="/app-interface/app-interface-email-1.yml"
+    ):
+        # labels = ['automerge']
+        labels = ['do-not-merge/hold']
+        prefix = 'app-interface-notificator'
+        main_branch = 'master'
+
+        now = datetime.now()
+        ts = now.strftime("%Y%m%d%H%M%S")
+        isodate = now.isoformat()
+        short_date = now.strftime('%Y-%m-%d')
+
+        email_id = f"{prefix}-{ts}"
+
+        branch_name = email_id
+        commit_message = f"[{prefix}] notification for {isodate}"
+
+        title = (f"[{prefix} {notification['notification_type']}] "
+                 f"{notification['short_description']}")
+
+        if self.mr_exists(title):
+            return
+
+        self.create_branch(branch_name, main_branch)
+
+        email_path = os.path.join("data", notification_path,
+                                  "emails", email_id + ".yml")
+
+        email = {
+            '$schema': email_schema,
+            'labels': {},
+            'name': email_id,
+            'subject': (f"[{prefix} {notification['notification_type']}] "
+                        f"{notification['short_description']} "
+                        f"for {short_date}"),
+            'to': {"users": [{"$ref": r} for r in notification["recipients"]]},
+            'body': pss(notification["description"])
+        }
+        content = '---\n' + \
+                  yaml.dump(email, Dumper=yaml.RoundTripDumper)
+        self.create_file(branch_name, email_path, commit_message, content)
+
+        return self.create_mr(branch_name, main_branch,
+                              title, labels=labels)
+
     def create_delete_user_mr(self, username, paths):
         labels = ['automerge']
         prefix = 'qontract-reconcile'
