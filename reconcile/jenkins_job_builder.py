@@ -69,6 +69,9 @@ def collect_saas_file_configs():
             for target in resource_template['targets']:
                 env_name = target['namespace']['environment']['name']
                 upstream = target.get('upstream', '')
+                final_job_template_name = \
+                    f'{job_template_name}-with-upstream' if upstream \
+                        else job_template_name
 
                 jc_name = get_openshift_saas_deploy_job_name(
                     saas_file_name, env_name, settings)
@@ -85,9 +88,7 @@ def collect_saas_file_configs():
                         # update job template name if needed
                         job_definition = project['jobs'][0]
                         if job_template_name in job_definition:
-                            upstream_job_template_name = \
-                                f'{job_template_name}-with-upstream'
-                            job_definition[upstream_job_template_name] = \
+                            job_definition[final_job_template_name] = \
                                 job_definition.pop(job_template_name)
                     continue
 
@@ -111,7 +112,7 @@ def collect_saas_file_configs():
                         'slack_channel': slack_channel,
                         'upstream': upstream,
                         'jobs': [{
-                            job_template_name: {
+                            final_job_template_name: {
                                 'display_name': jc_name
                             }
                         }]
