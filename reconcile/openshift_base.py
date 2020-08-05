@@ -400,13 +400,15 @@ def validate_data(oc_map, actions):
 
             oc = oc_map.get(cluster)
             resource = oc.get(namespace, kind, name=name)
-            status = resource['status']
+            status = resource.get('status')
+            if not status:
+                raise ValidationError('status')
             # add elif to validate additional resource kinds
             if kind in ['Deployment', 'DeploymentConfig']:
                 desired_replicas = resource['spec']['replicas']
                 if desired_replicas == 0:
                     continue
-                replicas = status['replicas']
+                replicas = status.get('replicas')
                 if replicas == 0:
                     continue
                 updated_replicas = status['updatedReplicas']
@@ -415,7 +417,7 @@ def validate_data(oc_map, actions):
                     logging.info('new replicas not ready, status is invalid')
                     raise ValidationError(name)
             elif kind == 'Subscription':
-                state = status['state']
+                state = status.get('state')
                 if state != 'AtLatestKnown':
                     logging.info('Subscription status.state is invalid')
                     raise ValidationError(name)
