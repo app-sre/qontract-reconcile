@@ -72,11 +72,13 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         if saasherder.publish_job_logs:
             try:
                 ob.follow_logs(oc_map, actions, io_dir)
-            except Exception:
+            except Exception as e:
+                logging.error(str(e))
                 ri.register_error()
         try:
             ob.validate_data(oc_map, actions)
-        except Exception:
+        except Exception as e:
+            logging.error(str(e))
             ri.register_error()
 
     if ri.has_error_registered():
