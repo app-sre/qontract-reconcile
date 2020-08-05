@@ -525,7 +525,7 @@ Please consult relevant SOPs to verify that the account is secure.
     def get_merge_request_comments(self, mr_id):
         comments = []
         merge_request = self.project.mergerequests.get(mr_id)
-        for note in merge_request.notes.list():
+        for note in merge_request.notes.list(all=True):
             if note.system:
                 continue
             username = note.author['username']
