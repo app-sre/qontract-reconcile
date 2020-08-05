@@ -47,9 +47,11 @@ def collect_saas_file_configs():
     repo_urls = set()
     saas_files = queries.get_saas_files()
     settings = queries.get_app_interface_settings()
+    job_template_name = settings['saasDeployJobTemplate']
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         jc_instance = saas_file['instance']
+        app_name = saas_file['app']['name']
         # currently ignoring the actual Slack workspace
         # as that is configured in Jenkins.
         # revisit this if we support more then a single Slack workspace.
@@ -65,18 +67,28 @@ def collect_saas_file_configs():
             url = resource_template['url']
             repo_urls.add(url)
             for target in resource_template['targets']:
-                namespace = target['namespace']
-                env_name = namespace['environment']['name']
+                env_name = target['namespace']['environment']['name']
                 upstream = target.get('upstream', '')
-                job_template_name = settings['saasDeployJobTemplate']
-                if upstream:
-                    job_template_name += '-with-upstream'
-                app_name = namespace['app']['name']
+
                 jc_name = get_openshift_saas_deploy_job_name(
                     saas_file_name, env_name, settings)
                 existing_configs = \
                     [c for c in saas_file_configs if c['name'] == jc_name]
                 if existing_configs:
+                    # if upstream is defined - append it to existing upstreams
+                    if upstream:
+                        # should be exactly one
+                        jc_data = existing_configs[0]['data']
+                        project = jc_data['project']
+                        # append upstream to existing upstreams
+                        project['upstream'] += f',{upstream}'
+                        # update job template name if needed
+                        job_definition = project['jobs'][0]
+                        if job_template_name in job_definition:
+                            upstream_job_template_name = \
+                                f'{job_template_name}-with-upstream'
+                            job_definition[upstream_job_template_name] = \
+                                job_definition.pop(job_template_name)
                     continue
 
                 # each config is a list with a single item
@@ -107,13 +119,16 @@ def collect_saas_file_configs():
                 }
                 if timeout:
                     jc_data['project']['timeout'] = timeout
-                jc_config = json.dumps([jc_data])
                 saas_file_configs.append({
                     'name': jc_name,
                     'instance': jc_instance,
                     'type': 'jobs',
-                    'config': jc_config
+                    'data': jc_data
                 })
+
+    for saas_file_config in saas_file_configs:
+        jc_data = saas_file_config.pop('data')
+        saas_file_config['config'] = json.dumps([jc_data])
 
     return saas_file_configs, settings, repo_urls
 
