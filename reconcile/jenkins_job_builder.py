@@ -71,7 +71,7 @@ def collect_saas_file_configs():
                 upstream = target.get('upstream', '')
                 final_job_template_name = \
                     f'{job_template_name}-with-upstream' if upstream \
-                        else job_template_name
+                    else job_template_name
 
                 jc_name = get_openshift_saas_deploy_job_name(
                     saas_file_name, env_name, settings)
