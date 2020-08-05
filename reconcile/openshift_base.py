@@ -224,6 +224,8 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 oc.remove_last_applied_configuration(
                     namespace, resource_type, resource.name)
                 oc.apply(namespace, annotated.toJSON())
+            else:
+                raise StatusCodeError(str(e))
 
     oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
