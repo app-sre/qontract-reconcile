@@ -75,6 +75,8 @@ import reconcile.sql_query
 import reconcile.user_validator
 import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
+import reconcile.slack_sender
+
 
 from reconcile.status import ExitCodes
 
