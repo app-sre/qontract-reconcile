@@ -266,7 +266,8 @@ class GitLabApi(object):
         self.create_branch(branch_name, main_branch)
 
         notification_path = os.path.join("data", notification_path,
-                                  "notifications/", notification_id + ".yml")
+                                         "notifications/",
+                                         notification_id + ".yml")
 
         notification = {
             '$schema': notification_schema,
