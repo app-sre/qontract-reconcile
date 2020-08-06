@@ -58,8 +58,7 @@ def run(dry_run=False):
         if not dry_run:
             recipients = collect_to(notification['to'])
             slack_ids = slackapi.get_user_list_by_names(recipients)
-            channel_name = f"{notification['short_description']}-" \
-                           f"{round(time.time())}"
+            channel_name = notification["name"]
             if notification['create_channel']:
                 channel_info = slackapi.create_channel(channel_name)
                 channel_id = channel_info["channel"]["id"]
