@@ -89,3 +89,10 @@ class SQSGateway(object):
             'notification': notification
         }
         self.send_message(body)
+
+    def create_app_interface_notificator_slack_mr(self, notification):
+        body = {
+            'pr_type': 'create_app_interface_notificator_slack_mr',
+            'notification': notification
+        }
+        self.send_message(body)

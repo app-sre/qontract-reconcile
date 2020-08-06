@@ -1,9 +1,9 @@
 import sys
 import logging
+import time
 
 import reconcile.queries as queries
 from utils.slack_api import SlackApi
-
 from utils.state import State
 
 QONTRACT_INTEGRATION = 'slack-sender'
@@ -27,11 +27,6 @@ def collect_to(to):
     if users:
         for user in users:
             audience.add(user['org_username'])
-
-    channels = to.get('channels')
-    if channels:
-        for channel in channels:
-            audience.add(channel)
 
     return audience
 
@@ -61,17 +56,20 @@ def run(dry_run=False):
                       notification['subject']])
 
         if not dry_run:
-            names = collect_to(notification['to'])
-            # if user, get user_id; if channel, keep the original (channel
-            # name)
-            users = slackapi.get_user_list_by_names(names)
-            user_ids = list(users.keys())
-            user_names = list(users.values())
-            channel_names = [c for c in names if c not in user_names]
-            ids = user_ids + channel_names
-            subject = notification['subject']
-            body = notification['body']
-            for id in ids:
-                slackapi.chat_post_message_to_channel(channel=id, text=subject
-                                                      + '\n' + body)
-            state.add(notification['name'])
+            recipients = collect_to(notification['to'])
+            slack_ids = slackapi.get_user_list_by_names(recipients)
+            channel_name = f"{notification['short_description']}-" \
+                           f"{round(time.time())}"
+            if notification['create_channel']:
+                channel_info = slackapi.create_channel(channel_name)
+                channel_id = channel_info["channel"]["id"]
+                slackapi.invite_users_to_channel(channel=channel_id,
+                                                 users=slack_ids)
+                slackapi.chat_post_message_to_channel(channel=channel_id,
+                                                      text=notification[
+                                                           "description"])
+            else:
+                for slack_id in slack_ids:
+                    slackapi.chat_post_message_to_channel(channel=slack_id,
+                                                          text=notification[
+                                                               "description"])

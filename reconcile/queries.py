@@ -83,14 +83,13 @@ def get_app_interface_emails():
 
 APP_INTERFACE_NOTIFICATIONS_QUERY = """
 {
-  notifications: app_interface_notifications_v1 {
+  notifications: app_interface_slack_notifications_v1 {
     name
     subject
     to {
       users {
         org_username
       }
-      channels
     }
     body
   }

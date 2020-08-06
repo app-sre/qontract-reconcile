@@ -29,14 +29,6 @@ class SlackApi(object):
             **self.chat_kwargs
         )
 
-    def chat_post_message_to_channel(self, channel, text):
-        self.sc.api_call(
-            "chat.postMessage",
-            channel=channel,
-            text=text,
-            **self.chat_kwargs
-        )
-
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
         description = usergroup['description']
@@ -127,3 +119,42 @@ class SlackApi(object):
 
         self.results[type] = results
         return results
+
+    def create_channel(self, name, is_private=True):
+        result = self.sc.api_call(
+            "conversations.create",
+            name=name,
+            is_private=is_private,
+            **self.chat_kwargs
+        )
+        return result
+
+    def get_channel_list(self):
+        response = self.sc.api_call(
+            "conversations.list",
+            types=["private_channel"],
+            **self.chat_kwargs
+        )
+        channel_name = [{c['name']:c['id']} for c in response["channels"]]
+        return channel_name
+
+    def invite_users_to_channel(self, channel, users):
+        response = self.sc.api_call(
+            "conversations.invite",
+            channel=channel,
+            users=users,
+            **self.chat_kwargs
+        )
+        return response
+
+    def chat_post_message_to_channel(self, channel, text):
+        self.sc.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=text,
+            **self.chat_kwargs
+        )
+
+    def get_user_list_by_names(self, user_names):
+        return [k for k, v in self.get('users').items()
+                if v in user_names]

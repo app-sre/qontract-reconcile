@@ -926,6 +926,12 @@ def ocm_github_idp(ctx, vault_input_path):
 def email_sender(ctx):
     run_integration(reconcile.email_sender, ctx.obj)
 
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def slack_sender(ctx):
+    run_integration(reconcile.slack_sender, ctx.obj)
+
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])

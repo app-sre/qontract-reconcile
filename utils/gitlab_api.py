@@ -236,6 +236,57 @@ class GitLabApi(object):
         return self.create_mr(branch_name, main_branch,
                               title, labels=labels)
 
+    def create_app_interface_notificator_slack_mr(
+            self, notification,
+            notification_path="app-interface",
+            notification_schema="/app-interface/app-interface"
+                                "-slack- notification-1.yml"
+    ):
+        # labels = ['automerge']
+        labels = ['do-not-merge/hold']
+        prefix = 'app-interface-notificator-slack'
+        main_branch = 'master'
+
+        now = datetime.now()
+        ts = now.strftime("%Y%m%d%H%M%S")
+        isodate = now.isoformat()
+        short_date = now.strftime('%Y-%m-%d')
+
+        notification_id = f"{prefix}-{ts}"
+
+        branch_name = notification_id
+        commit_message = f"[{prefix}] notification for {isodate}"
+
+        title = (f"[{prefix} {notification['notification_type']}] "
+                 f"{notification['short_description']}")
+
+        if self.mr_exists(title):
+            return
+
+        self.create_branch(branch_name, main_branch)
+
+        notification_path = os.path.join("data", notification_path,
+                                  "notifications/", notification_id + ".yml")
+
+        notification = {
+            '$schema': notification_schema,
+            'labels': {},
+            'name': notification_id,
+            'subject': (f"[{prefix} {notification['notification_type']}] "
+                        f"{notification['short_description']} "
+                        f"for {short_date}"),
+            'to': {"users": [{"$ref": r} for r in notification["recipients"]]},
+            'body': pss(notification["description"])
+        }
+        content = '---\n' + \
+                  yaml.dump(notification, Dumper=yaml.RoundTripDumper,
+                            width=1000)
+        self.create_file(branch_name, notification_path, commit_message,
+                         content)
+
+        return self.create_mr(branch_name, main_branch,
+                              title, labels=labels)
+
     def create_delete_user_mr(self, username, paths):
         labels = ['automerge']
         prefix = 'qontract-reconcile'
