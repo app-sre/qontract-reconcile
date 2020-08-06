@@ -1,6 +1,5 @@
 import sys
 import logging
-import time
 
 import reconcile.queries as queries
 from utils.slack_api import SlackApi
