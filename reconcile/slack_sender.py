@@ -3,6 +3,7 @@ import logging
 
 import reconcile.queries as queries
 from utils.slack_api import SlackApi
+from reconcile.slack_base import init_slack
 from utils.state import State
 
 QONTRACT_INTEGRATION = 'slack-sender'
@@ -31,7 +32,24 @@ def collect_to(to):
 
 
 def run(dry_run=False):
-    slackapi = SlackApi(username="app-sre-bot", icon_emoji=":eyes:")
+    workspaces = queries.get_slack_workspaces()
+
+    desired_workspace_name = 'coreos'
+    workspace = None
+    for ws in workspaces:
+        if ws['name'] == desired_workspace_name:
+            workspace = ws
+    if workspace is None:
+        logging.error(f'Could not find workspace {desired_workspace_name} '
+                      f'with a \'slack-notification\' defined')
+        sys.exit(1)
+
+    slack_info = {
+        'workspace': workspace,
+        'channel': 'test-jfc-violet'
+    }
+
+    slackapi = init_slack(slack_info, QONTRACT_INTEGRATION)
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     state = State(

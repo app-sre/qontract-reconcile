@@ -1163,3 +1163,32 @@ def get_unleash_instances():
     """ Returns Unleash instances defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(UNLEASH_INSTANCES_QUERY)['unleash_instances']
+
+
+SLACK_WORKSPACES_QUERY = """
+{
+  slack_workspaces: slack_workspaces_v1 {
+    name
+    token {
+      field
+      path
+    }
+    integrations {
+      name
+      token {
+        field
+        path
+      }
+      channel
+      username
+      icon_emoji
+    }
+  }
+}
+"""
+
+
+def get_slack_workspaces():
+    """ Returns slack workspaces defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces']
