@@ -2,7 +2,6 @@ import sys
 import logging
 
 import reconcile.queries as queries
-from utils.slack_api import SlackApi
 from reconcile.slack_base import init_slack
 from utils.state import State
 
@@ -75,8 +74,8 @@ def run(dry_run=False):
         if not dry_run:
             recipients = collect_to(notification['to'])
             slack_ids = slackapi.get_user_list_by_names(recipients)
-            channel_name = notification["name"]
-            if notification['create_channel']:
+            channel_name = notification.get("channel")
+            if channel_name:
                 channel_info = slackapi.create_channel(channel_name)
                 channel_id = channel_info["channel"]["id"]
                 slackapi.invite_users_to_channel(channel=channel_id,
