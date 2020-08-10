@@ -11,6 +11,8 @@ import click
 import requests
 import yaml
 
+from prometheus_client.parser import text_string_to_metric_families
+
 import utils.gql as gql
 import utils.config as config
 import utils.secret_reader as secret_reader
@@ -28,6 +30,8 @@ from reconcile.cli import (
 )
 
 CONTENT_FORMAT_VERSION = '1.0.0'
+DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
+                                  'app-sre/dashdot/auth-proxy-production')
 
 
 def promql(url, query, auth=None):
@@ -87,6 +91,13 @@ class Report(object):
         self.add_report_section(
             'merges_to_master',
             self.get_activity_content(self.app.get('merge_activity'))
+        )
+        # Container Vulnerabilities
+        self.add_report_section(
+            'container_vulnerabilities',
+            self.get_vulnerability_content(
+                self.app.get('container_vulnerabilities')
+            )
         )
 
     @property
@@ -149,6 +160,19 @@ class Report(object):
             return None
 
         return metrics
+
+    @staticmethod
+    def get_vulnerability_content(container_vulnerabilities):
+        parsed_metrics = []
+        if not container_vulnerabilities:
+            return parsed_metrics
+
+        for cluster, namespaces in container_vulnerabilities.items():
+            for namespace, severities in namespaces.items():
+                parsed_metrics.append({'cluster': cluster,
+                                       'namespace': namespace,
+                                       'vulnerabilities': severities})
+        return parsed_metrics
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
@@ -362,6 +386,16 @@ def get_apps_data(date, month_delta=1):
     build_master_build_history = \
         get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
+    settings = queries.get_app_interface_settings()
+    secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET},
+                                            settings=settings)
+    dashdotdb_url = secret_content['url']
+    dashdotdb_user = secret_content['username']
+    dashdotdb_pass = secret_content['password']
+    metrics = requests.get(f'{dashdotdb_url}/api/v1/metrics',
+                           auth=(dashdotdb_user, dashdotdb_pass)).text
+    namespaces = queries.get_namespaces()
+
     for app in apps:
         if not app['codeComponents']:
             continue
@@ -388,6 +422,34 @@ def get_apps_data(date, month_delta=1):
                 continue
             successes = [h for h in cr_history if h == 'SUCCESS']
             app['merge_activity'][cr] = (len(cr_history), len(successes))
+
+        logging.info(f"collecting vulnerabilities information for {app_name}")
+        app_namespaces = []
+        for namespace in namespaces:
+            if namespace['app']['name'] != app['name']:
+                continue
+            app_namespaces.append(namespace)
+        app_metrics = {}
+        for family in text_string_to_metric_families(metrics):
+            for sample in family.samples:
+                if sample.name != 'imagemanifestvuln_total':
+                    continue
+                for app_namespace in app_namespaces:
+                    cluster = sample.labels['cluster']
+                    if app_namespace['cluster']['name'] != cluster:
+                        continue
+                    namespace = sample.labels['namespace']
+                    if app_namespace['name'] != namespace:
+                        continue
+                    severity = sample.labels['severity']
+                    if cluster not in app_metrics:
+                        app_metrics[cluster] = {}
+                    if namespace not in app_metrics[cluster]:
+                        app_metrics[cluster][namespace] = {}
+                    if severity not in app_metrics[cluster][namespace]:
+                        value = int(sample.value)
+                        app_metrics[cluster][namespace][severity] = value
+        app['container_vulnerabilities'] = app_metrics
 
     return apps
 
