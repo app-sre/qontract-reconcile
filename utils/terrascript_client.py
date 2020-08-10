@@ -109,7 +109,15 @@ class TerrascriptClient(object):
                                 for a in filtered_accounts}
         github_config = get_config()['github']
         self.token = github_config['app-sre']['token']
-        self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
+        self.logtoes_zip = ''
+
+    def get_logtoes_zip(self, release_url):
+        if not self.logtoes_zip:
+            self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
+        if release_url == LOGTOES_RELEASE:
+            return self.logtoes_zip
+        else:
+            return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
         headers = {'Authorization': 'token ' + self.token}
@@ -1625,10 +1633,7 @@ class TerrascriptClient(object):
                                      es_identifier, **es_domain))
 
             release_url = common_values.get('release_url', LOGTOES_RELEASE)
-            if release_url == LOGTOES_RELEASE:
-                zip_file = self.logtoes_zip
-            else:
-                zip_file = self.download_logtoes_zip(release_url)
+            zip_file = self.get_logtoes_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
             lambda_values = {
