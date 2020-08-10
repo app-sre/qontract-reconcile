@@ -161,10 +161,6 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
-          {{- if $integration.dashdotdb }}
-          - name: DASHDOTDB_SECRET
-            value: ${DASHDOTDB_SECRET}
-          {{- end }}
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
@@ -276,6 +272,10 @@ objects:
                     name: {{ $env.secretName }}
                     key: {{ $env.secretKey }}
               {{- end }}
+              {{- end }}
+              {{- if $integration.dashdotdb }}
+              - name: DASHDOTDB_SECRET
+                value: ${DASHDOTDB_SECRET}
               {{- end }}
               volumeMounts:
               - name: qontract-reconcile-toml
