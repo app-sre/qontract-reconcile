@@ -496,13 +496,15 @@ def fetch_states(spec, ri):
         logging.error(msg)
 
 
-def fetch_data(namespaces, thread_pool_size, internal, use_jump_host):
+def fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
+               init_api_resources=False):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size)
+                    thread_pool_size=thread_pool_size,
+                    init_api_resources=init_api_resources)
     state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
@@ -544,6 +546,7 @@ def canonicalize_namespaces(namespaces, providers):
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, providers=[],
         cluster_name=None, namespace_name=None,
+        init_api_resources=False,
         defer=None):
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
@@ -559,7 +562,8 @@ def run(dry_run, thread_pool_size=10, internal=None,
         )
     namespaces = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = \
-        fetch_data(namespaces, thread_pool_size, internal, use_jump_host)
+        fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
+                   init_api_resources=init_api_resources)
     defer(lambda: oc_map.cleanup())
 
     ob.realize_data(dry_run, oc_map, ri)
