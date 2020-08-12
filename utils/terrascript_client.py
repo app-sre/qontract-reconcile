@@ -1018,6 +1018,12 @@ class TerrascriptClient(object):
         values = {}
         values['user'] = identifier
         values['name'] = identifier
+
+        action = ["s3:*Object"]
+        allow_object_tagging = common_values.get('allow_object_tagging', False)
+        if allow_object_tagging:
+            action.append("s3:*ObjectTagging")
+
         policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -1030,7 +1036,7 @@ class TerrascriptClient(object):
                 {
                     "Sid": "AllObjectActions",
                     "Effect": "Allow",
-                    "Action": "s3:*Object",
+                    "Action": action,
                     "Resource": ["arn:aws:s3:::{0}/*".format(identifier)]
                 }
             ]
