@@ -7,6 +7,7 @@ import reconcile.queries as queries
 
 from utils.terrascript_client import TerrascriptClient as Terrascript
 from utils.terraform_client import TerraformClient as Terraform
+from utils.sharding import is_in_shard
 
 TF_QUERY = """
 {
@@ -43,7 +44,12 @@ QONTRACT_TF_PREFIX = 'qrtf'
 
 def setup(print_only, thread_pool_size):
     gqlapi = gql.get_api()
-    accounts = queries.get_aws_accounts()
+    all_accounts = queries.get_aws_accounts()
+    accounts = []
+    for account in all_accounts:
+        shard_key = f'{account["uid"]}'
+        if is_in_shard(shard_key):
+            accounts.append(account)
     settings = queries.get_app_interface_settings()
     roles = gqlapi.query(TF_QUERY)['roles']
     tf_roles = [r for r in roles

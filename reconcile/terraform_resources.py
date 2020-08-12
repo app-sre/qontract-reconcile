@@ -16,6 +16,7 @@ from utils.oc import OC_Map
 from utils.defer import defer
 from reconcile.aws_iam_keys import run as disable_keys
 from utils.oc import StatusCodeError
+from utils.sharding import is_in_shard
 
 TF_NAMESPACES_QUERY = """
 {
@@ -219,7 +220,12 @@ def init_working_dirs(accounts, thread_pool_size,
 
 def setup(print_only, thread_pool_size, internal, use_jump_host):
     gqlapi = gql.get_api()
-    accounts = queries.get_aws_accounts()
+    all_accounts = queries.get_aws_accounts()
+    accounts = []
+    for account in all_accounts:
+        shard_key = f'{account["uid"]}'
+        if is_in_shard(shard_key):
+            accounts.append(account)
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces

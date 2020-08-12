@@ -6,6 +6,7 @@ import reconcile.queries as queries
 from utils.defer import defer
 from utils.aws_api import AWSApi
 from utils.terrascript_client import TerrascriptClient as Terrascript
+from utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = 'aws-iam-keys'
 
@@ -43,7 +44,12 @@ def cleanup(working_dirs):
 @defer
 def run(dry_run, thread_pool_size=10,
         disable_service_account_keys=False, defer=None):
-    accounts = queries.get_aws_accounts()
+    all_accounts = queries.get_aws_accounts()
+    accounts = []
+    for account in all_accounts:
+        shard_key = f'{account["uid"]}'
+        if is_in_shard(shard_key):
+            accounts.append(account)
     settings = queries.get_app_interface_settings()
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
