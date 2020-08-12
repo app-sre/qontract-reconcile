@@ -1090,7 +1090,9 @@ class TerrascriptClient(object):
                 self.determine_db_password(namespace_info,
                                            output_resource_name,
                                            secret_key='db.auth_token')
-        values['auth_token'] = auth_token
+
+        if values.get('transit_encryption_enabled', False):
+            values['auth_token'] = auth_token
 
         # elasticache replication group
         # Ref: https://www.terraform.io/docs/providers/aws/r/
@@ -1110,9 +1112,10 @@ class TerrascriptClient(object):
         output_value = '${' + tf_resource.fullname + '.port}'
         tf_resources.append(output(output_name, value=output_value))
         # db.auth_token
-        output_name = output_prefix + '[db.auth_token]'
-        output_value = values['auth_token']
-        tf_resources.append(output(output_name, value=output_value))
+        if values.get('transit_encryption_enabled', False):
+            output_name = output_prefix + '[db.auth_token]'
+            output_value = values['auth_token']
+            tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
