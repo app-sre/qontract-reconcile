@@ -108,7 +108,7 @@ class State(object):
         Gets all keys and values from the state in the specified path.
         """
         return {k.replace(f'/{path}/', ''): self.get(k.lstrip('/'))
-                for k in self.ls()}
+                for k in self.ls() if k.startswith(f'/{path}')}
 
     def __getitem__(self, item):
         try:
