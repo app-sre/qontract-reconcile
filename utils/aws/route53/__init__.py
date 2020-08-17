@@ -184,10 +184,11 @@ class Zone(object):
     def __eq__(self, other):
         if not isinstance(other, Zone):
             return False
-        return self.name == other.name
+        return (self.name == other.name and
+                self.records == other.records)
 
-    def __hash__(self):
-        return f"{self.name}".__hash__()
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __repr__(self):
         return f"Zone<{self.name}>"
