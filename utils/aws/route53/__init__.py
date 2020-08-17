@@ -274,8 +274,6 @@ class Record(object):
         :param values: a list of values to add
         :type values: list of str
         """
-        if not isinstance(values, list):
-            raise TypeError(f"expected list, received {type(values)}")
         self._values.extend(values)
 
     def __eq__(self, other):
