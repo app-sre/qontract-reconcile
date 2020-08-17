@@ -6,7 +6,7 @@ from glob import glob
 setup(
     name="reconcile",
     version="0.2.2",
-    license="BSD",
+    license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",
     author_email="sd-app-sre@redhat.com",
