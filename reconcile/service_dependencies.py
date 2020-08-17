@@ -51,7 +51,7 @@ def get_desired_dependency_names(app, dependency_map):
             required_dep_names.update(
                 get_dependency_names(dependency_map, 'gitlab'))
         github_urls = [cc for cc in code_components
-                       if 'github' in cc['url']]
+                       if 'github.com' in cc['url']]
         if github_urls:
             required_dep_names.update(
                 get_dependency_names(dependency_map, 'github'))
