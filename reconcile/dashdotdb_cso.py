@@ -15,7 +15,7 @@ QONTRACT_INTEGRATION = 'dashdotdb-cso'
 
 
 DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
-                                  'app-sre/dashdot/dashdotdb-production')
+                                  'app-sre/dashdot/auth-proxy-production')
 
 
 class DashdotdbCSO:
@@ -27,8 +27,9 @@ class DashdotdbCSO:
         secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET},
                                                 settings=self.settings)
 
-        self.dashdotdb_url = secret_content['API_URL']
-        self.dashdotdb_token = secret_content['ACCESS_TOKEN']
+        self.dashdotdb_url = secret_content['url']
+        self.dashdotdb_user = secret_content['username']
+        self.dashdotdb_pass = secret_content['password']
 
     def _post(self, manifest):
         if manifest is None:
@@ -41,10 +42,9 @@ class DashdotdbCSO:
         if not self.dry_run:
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
                         f'imagemanifestvuln/{cluster}')
-            headers = {'Authorization': f'token {self.dashdotdb_token}'}
-
             response = requests.post(url=endpoint, json=imagemanifestvuln,
-                                     headers=headers)
+                                     auth=(self.dashdotdb_user,
+                                           self.dashdotdb_pass))
             try:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:

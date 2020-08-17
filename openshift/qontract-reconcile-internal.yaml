@@ -239,4 +239,4 @@ parameters:
 - name: SENTRY_DSN
   value: ""
 - name: DASHDOTDB_SECRET
-  value: "app-sre/dashdot/dashdotdb-production"
+  value: "app-sre/dashdot/auth-proxy-production"
