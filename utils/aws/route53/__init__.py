@@ -210,7 +210,7 @@ class Record(object):
 
     SUPPORTED_TYPES = ['A', 'CNAME', 'NS', 'TXT']
 
-    def __init__(self, zone, name, data, awsdata):
+    def __init__(self, zone, name, data, awsdata=None):
         self._zone = zone
         self._name = _octal_replace(name).lower().rstrip('.')
 
@@ -225,7 +225,10 @@ class Record(object):
 
         self._values = data.get('values', [])
         self._data = data
-        self._awsdata = awsdata
+        if awsdata is None:
+            self._awsdata = {}
+        else:
+            self._awsdata = awsdata
 
     @property
     def data(self):
