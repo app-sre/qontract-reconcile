@@ -78,7 +78,7 @@ class State(object):
         """
         return self.accounts.get(name)
 
-    def __repr__(self):
+    def __str__(self):
         return f"State<{self.name}>"
 
 
@@ -132,8 +132,8 @@ class Account(object):
         """
         return self.zones.get(name)
 
-    def __repr__(self):
-        return f"Account<{self.name}>"
+    def __str__(self):
+        return f'Account(name="{self.name}")'
 
 
 class Zone(object):
@@ -190,7 +190,7 @@ class Zone(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __str__(self):
         return f"Zone<{self.name}>"
 
 
@@ -287,7 +287,7 @@ class Record(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
+    def __str__(self):
         if self.name:
             return f"Record<{self.type}, {self.name}>"
         return f"Record<{self.type}>"
