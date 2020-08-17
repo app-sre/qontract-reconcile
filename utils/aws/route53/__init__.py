@@ -210,7 +210,7 @@ class Record(object):
 
     SUPPORTED_TYPES = ['A', 'CNAME', 'NS', 'TXT']
 
-    def __init__(self, zone, name, data={}, awsdata={}):
+    def __init__(self, zone, name, data, awsdata):
         self._zone = zone
         self._name = _octal_replace(name).lower().rstrip('.')
 
