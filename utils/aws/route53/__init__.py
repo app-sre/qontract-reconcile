@@ -22,7 +22,7 @@ class DuplicateException(Exception):
     pass
 
 
-class InvalidRecordData(Exception):
+class InvalidRecordData(AttributeError):
     pass
 
 
