@@ -133,7 +133,7 @@ class Account(object):
         return self.zones.get(name)
 
     def __str__(self):
-        return f'Account(name="{self.name}")'
+        return f"Account<{self.name}>"
 
 
 class Zone(object):
