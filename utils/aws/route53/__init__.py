@@ -289,9 +289,6 @@ class Record(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __hash__(self):
-        return f"{self.name}:{self.type}:{self.ttl}:{self.values}".__hash__()
-
     def __repr__(self):
         if self.name:
             return f"Record<{self.type}, {self.name}>"
