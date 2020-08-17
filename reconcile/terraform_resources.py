@@ -139,6 +139,17 @@ TF_NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      jumpHost {
+        hostname
+        knownHosts
+        user
+        port
+        identity {
+          path
+          field
+          format
+        }
+      }
       automationToken {
         path
         field
