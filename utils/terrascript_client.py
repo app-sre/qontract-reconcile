@@ -2012,7 +2012,7 @@ class TerrascriptClient(object):
     @staticmethod
     def validate_elasticsearch_version(version):
         """ Validate ElasticSearch version. """
-        return version in [7.4, 7.1,
+        return version in [7.7, 7.4, 7.1,
                            6.8, 6.7, 6.5, 6.4, 6.3, 6.2, 6.0,
                            5.6, 5.5, 5.3, 5.1,
                            2.3,
@@ -2056,7 +2056,7 @@ class TerrascriptClient(object):
                 f", and - (hyphen). " +
                 f"{values['identifier']}")
 
-        elasticsearch_version = values.get('elasticsearch_version', 7.4)
+        elasticsearch_version = values.get('elasticsearch_version', 7.7)
         if not self.validate_elasticsearch_version(elasticsearch_version):
             raise ElasticSearchResourceVersionInvalidError(
                 f"[{account}] Invalid ElasticSearch version" +
