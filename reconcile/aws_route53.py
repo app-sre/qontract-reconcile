@@ -258,7 +258,11 @@ def build_desired_state(zones):
 
             record_target = record.get('target')
             if record_target:
-                targets.append(record_target)
+                if record['type'] == 'TXT':
+                    # TXT records values need to be enclosed in double quotes
+                    targets.append(f'"{record_target}"')
+                else:
+                    targets.append(record_target)
 
             record_targets = record.get('targets')
             if record_targets:
