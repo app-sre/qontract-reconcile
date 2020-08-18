@@ -1141,3 +1141,46 @@ def get_unleash_instances():
     """ Returns Unleash instances defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(UNLEASH_INSTANCES_QUERY)['unleash_instances']
+
+
+DNS_ZONES_QUERY = """
+{
+  zones: dns_zone_v1 {
+    name
+    account {
+      name
+      uid
+      terraformUsername
+      automationToken {
+        path
+        field
+      }
+    }
+    records {
+      type
+      ... on DnsRecordCommon_v1 {
+        name
+        ttl
+        target
+        targets
+        target_cluster {
+          name
+          elbFQDN
+        }
+      }
+      ... on DnsRecordMX_v1 {
+        name
+        ttl
+        target
+        priority
+      }
+    }
+  }
+}
+"""
+
+
+def get_dns_zones():
+    """ Returnes all AWS Route53 DNS Zones. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(DNS_ZONES_QUERY)['zones']

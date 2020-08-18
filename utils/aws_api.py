@@ -9,6 +9,7 @@ import utils.threaded as threaded
 import utils.secret_reader as secret_reader
 import utils.lean_terraform_client as terraform
 
+from datetime import datetime
 from threading import Lock
 
 
@@ -98,6 +99,8 @@ class AWSApi(object):
             self.map_rds_resources()
         elif resource_type == 'rds_snapshots':
             self.map_rds_snapshots()
+        elif resource_type == 'route53':
+            self.map_route53_resources()
         else:
             raise InvalidResourceTypeError(resource_type)
 
@@ -175,12 +178,26 @@ class AWSApi(object):
             self.set_resouces(account, 'rds_snapshots_no_owner',
                               unfiltered_snapshots)
 
-    def paginate(self, client, method, key):
+    def map_route53_resources(self):
+        for account, s in self.sessions.items():
+            client = s.client('route53')
+            results = \
+                self.paginate(client, 'list_hosted_zones', 'HostedZones')
+            zones = [z for z in results]
+            for zone in zones:
+                results = \
+                    self.paginate(client, 'list_resource_record_sets',
+                                          'ResourceRecordSets',
+                                          {'HostedZoneId': zone['Id']})
+                zone['records'] = results
+            self.set_resouces(account, 'route53', zones)
+
+    def paginate(self, client, method, key, params={}):
         """ paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
         paginator = client.get_paginator(method)
         return [values
-                for page in paginator.paginate()
+                for page in paginator.paginate(**params)
                 for values in page.get(key, [])]
 
     def wait_for_resource(self, resource):
@@ -627,3 +644,130 @@ class AWSApi(object):
                                for rt in route_tables['RouteTables']]
 
         return vpc_id, route_table_ids
+
+    def get_route53_zones(self):
+        """
+        Return a list of (str, dict) representing Route53 DNS zones per account
+
+        :return: route53 dns zones per account
+        :rtype: list of (str, dict)
+        """
+        return {
+            account: self.resources.get(account, {}).get('route53', [])
+            for account, _ in self.sessions.items()
+        }
+
+    def create_route53_zone(self, account_name, zone_name):
+        """
+        Create a Route53 DNS zone
+
+        :param account_name: the account name to operate on
+        :param zone_name: name of the zone to create
+        :type account_name: str
+        :type zone_name: str
+        """
+        session = self.get_session(account_name)
+        client = session.client('route53')
+
+        try:
+            caller_ref = f"{datetime.now()}"
+            client.create_hosted_zone(
+                Name=zone_name,
+                CallerReference=caller_ref,
+                HostedZoneConfig={
+                    'Comment': 'Managed by App-Interface',
+                },
+            )
+        except client.exceptions.InvalidDomainName:
+            logging.error(f'[{account_name}] invalid domain name {zone_name}')
+        except client.exceptions.HostedZoneAlreadyExists:
+            logging.error(
+                f'[{account_name}] hosted zone already exists: {zone_name}'
+            )
+        except client.exceptions.TooManyHostedZones:
+            logging.error(f'[{account_name}] too many hosted zones in account')
+        except Exception as e:
+            logging.error(f'[{account_name}] unhandled exception: {e}')
+
+    def delete_route53_zone(self, account_name, zone_id):
+        """
+        Delete a Route53 DNS zone
+
+        :param account_name: the account name to operate on
+        :param zone_id: aws zone id of the zone to delete
+        :type account_name: str
+        :type zone_id: str
+        """
+        session = self.get_session(account_name)
+        client = session.client('route53')
+
+        try:
+            client.delete_hosted_zone(Id=zone_id)
+        except client.exceptions.NoSuchHostedZone:
+            logging.error(f'[{account_name}] Error trying to delete '
+                          f'unknown DNS zone {zone_id}')
+        except client.exceptions.HostedZoneNotEmpty:
+            logging.error(f'[{account_name}] Cannot delete DNS zone that '
+                          f'is not empty {zone_id}')
+        except Exception as e:
+            logging.error(f'[{account_name}] unhandled exception: {e}')
+
+    def delete_route53_record(self, account_name, zone_id, awsdata):
+        """
+        Delete a Route53 DNS zone record
+
+        :param account_name: the account name to operate on
+        :param zone_id: aws zone id of the zone to operate on
+        :param awsdata: aws record data of the record to delete
+        :type account_name: str
+        :type zone_id: str
+        :type awsdata: dict
+        """
+        session = self.get_session(account_name)
+        client = session.client('route53')
+
+        try:
+            client.change_resource_record_sets(
+                HostedZoneId=zone_id,
+                ChangeBatch={
+                    'Changes': [{
+                        'Action': 'DELETE',
+                        'ResourceRecordSet': awsdata,
+                    }]
+                }
+            )
+        except client.exceptions.NoSuchHostedZone:
+            logging.error(f'[{account_name}] Error trying to delete record: '
+                          f'unknown DNS zone {zone_id}')
+        except Exception as e:
+            logging.error(f'[{account_name}] unhandled exception: {e}')
+
+    def upsert_route53_record(self, account_name, zone_id, recordset):
+        """
+        Upsert a Route53 DNS zone record
+
+        :param account_name: the account name to operate on
+        :param zone_id: aws zone id of the zone to operate on
+        :param recordset: aws record data of the record to create or update
+        :type account_name: str
+        :type zone_id: str
+        :type recordset: dict
+        """
+        session = self.get_session(account_name)
+        client = session.client('route53')
+
+        try:
+            client.change_resource_record_sets(
+                HostedZoneId=zone_id,
+                ChangeBatch={
+                    'Changes': [{
+                        'Action': 'UPSERT',
+                        'ResourceRecordSet': recordset,
+                    }]
+                }
+            )
+        except client.exceptions.NoSuchHostedZone:
+            logging.error(f'[{account_name}] Error trying to delete record: '
+                          f'unknown DNS zone {zone_id}')
+        except Exception as e:
+            logging.error(f'[{account_name}] unhandled exception: {e}')
