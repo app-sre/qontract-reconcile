@@ -159,6 +159,8 @@ def lookup_vault_secret(path, key, version=None, tvars=None):
     if tvars is not None:
         path = process_jinja2_template(path, vars=tvars)
         key = process_jinja2_template(key, vars=tvars)
+        if version and not isinstance(version, int):
+            version = process_jinja2_template(version, vars=tvars)
     secret = {
         'path': path,
         'field': key,
