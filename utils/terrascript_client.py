@@ -344,6 +344,9 @@ class TerrascriptClient(object):
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
+            if item['deleted']:
+                continue
+
             connection_provider = item['connection_provider']
             connection_name = item['connection_name']
             requester = item['requester']

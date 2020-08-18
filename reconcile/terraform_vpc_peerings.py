@@ -85,10 +85,6 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
-            # Don't include the peering if set to be deleted
-            if peer_connection['delete']:
-                continue
-
             # We only care about cluster-vpc-requester peering providers
             peer_connection_provider = peer_connection['provider']
             if not peer_connection_provider == 'cluster-vpc-requester':
@@ -171,6 +167,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 'connection_name': peer_connection_name,
                 'requester': requester,
                 'accepter': accepter,
+                'deleted': peer_connection.get('delete', False)
             }
             desired_state.append(item)
 
@@ -190,9 +187,6 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
         for peer_connection in peer_connections:
-            # Don't include the peering if set to be deleted
-            if peer_connection['delete']:
-                continue
             # We only care about account-vpc peering providers
             peer_connection_provider = peer_connection['provider']
             if not peer_connection_provider == 'account-vpc':
@@ -242,6 +236,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 'connection_name': connection_name,
                 'requester': requester,
                 'accepter': accepter,
+                'deleted': peer_connection.get('delete', False)
             }
             desired_state.append(item)
     return desired_state, error
