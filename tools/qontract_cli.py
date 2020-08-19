@@ -87,6 +87,26 @@ def clusters(ctx, name):
 @get.command()
 @click.argument('name', default='')
 @click.pass_context
+def cluster_upgrades(ctx, name):
+    clusters = queries.get_clusters()
+    if name:
+        clusters = [c for c in clusters if c['name'] == name]
+
+    clusters_data = [
+        {'name': c['name'], 'upgrade': c['spec']['upgrade']}
+        for c in clusters
+        if c.get('spec')
+    ]
+
+    clusters_data = sorted(clusters_data, key=lambda k: k['name'])
+
+    columns = ['name', 'upgrade']
+    print_output(ctx.obj['output'], clusters_data, columns)
+
+
+@get.command()
+@click.argument('name', default='')
+@click.pass_context
 def clusters_network(ctx, name):
     clusters = queries.get_clusters()
     if name:

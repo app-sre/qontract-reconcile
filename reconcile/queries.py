@@ -312,6 +312,7 @@ CLUSTERS_QUERY = """
       storage
       load_balancers
       private
+      upgrade
     }
     network {
       vpc
