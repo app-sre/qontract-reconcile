@@ -15,6 +15,8 @@ PR_TYPES = {
     'create_update_cluster_ids_mr': ['cluster_name', 'path', 'cluster_id',
                                      'cluster_external_id'],
     'create_app_interface_notificator_mr': ['notification']
+    'create_app_interface_notificator_mr': ['notification'],
+    'create_cloud_ingress_operator_cidr_blocks_mr': ['cidr_blocks']
 }
 
 
@@ -33,10 +35,11 @@ def init(gitlab_project_id=None, override_pr_gateway_type=None):
     if pr_gateway_type == 'gitlab':
         instance = queries.get_gitlab_instance()
         settings = queries.get_app_interface_settings()
+        saas_files = queries.get_saas_files_minimal()
         if gitlab_project_id is None:
             raise PullRequestGatewayError('missing gitlab project id')
         return GitLabApi(instance, project_id=gitlab_project_id,
-                         settings=settings)
+                         settings=settings, saas_files=saas_files)
     elif pr_gateway_type == 'sqs':
         accounts = queries.get_aws_accounts()
         settings = queries.get_app_interface_settings()
