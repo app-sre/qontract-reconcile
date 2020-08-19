@@ -68,9 +68,9 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 cluster_id = current_spec['spec']['id']
                 cluster_external_id = current_spec['spec']['external_id']
                 logging.info(
-                    '[%s] is missing id %s and external_id: %s. ' +
-                    'It will be updated automatically in app-interface.',
-                    cluster_name, cluster_id, cluster_external_id)
+                    f'[{cluster_name}] is missing id: {cluster_id}, ' +
+                    f'and external_id: {cluster_external_id}. ' +
+                    'It will be updated automatically in app-interface.')
                 if not dry_run:
                     gw.create_update_cluster_ids_mr(cluster_name, cluster_path,
                                                     cluster_id,
