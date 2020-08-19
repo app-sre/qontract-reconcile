@@ -35,7 +35,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
-            # validate cluster
+            cluster_path = 'data' + \
+                [c['path'] for c in clusters
+                 if c['name'] == cluster_name][0]
+
+            # validate version
             desired_spec['spec'].pop('initial_version')
             desired_version = desired_spec['spec'].pop('version')
             current_version = current_spec['spec'].pop('version')
@@ -49,9 +53,6 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
                 if not dry_run:
-                    cluster_path = 'data' + \
-                        [c['path'] for c in clusters
-                         if c['name'] == cluster_name][0]
                     gw.create_update_cluster_version_mr(
                         cluster_name, cluster_path, current_version)
             elif compare_result < 0:
@@ -60,6 +61,21 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s',
                     cluster_name, desired_version, current_version)
                 error = True
+
+            # id and external_id are present
+            if not desired_spec.get('id') or \
+                    not desired_spec.get('external_id'):
+                cluster_id = current_spec['spec']['id']
+                cluster_external_id = current_spec['spec']['external_id']
+                logging.info(
+                    '[%s] is missing id %s and external_id: %s. ' +
+                    'It will be updated automatically in app-interface.',
+                    cluster_name, cluster_id, cluster_external_id)
+                if not dry_run:
+                    gw.create_update_cluster_ids_mr(cluster_name, cluster_path,
+                                                    cluster_id,
+                                                    cluster_external_id)
+            # validate specs
             if current_spec != desired_spec:
                 logging.error(
                     '[%s] desired spec %s is different ' +
