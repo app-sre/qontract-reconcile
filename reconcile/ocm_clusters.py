@@ -63,8 +63,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
 
             # id and external_id are present
-            if not desired_spec.get('id') or \
-                    not desired_spec.get('external_id'):
+            if not desired_spec['spec'].get('id') or \
+                    not desired_spec['spec'].get('external_id'):
                 cluster_id = current_spec['spec']['id']
                 cluster_external_id = current_spec['spec']['external_id']
                 logging.info(
