@@ -999,7 +999,6 @@ SAAS_FILES_MINIMAL_QUERY = """
 """
 
 
-
 def get_saas_files_minimal():
     """ Returns SaasFile resources defined in app-interface """
     gqlapi = gql.get_api()
