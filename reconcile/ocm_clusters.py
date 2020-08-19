@@ -75,6 +75,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     gw.create_update_cluster_ids_mr(cluster_name, cluster_path,
                                                     cluster_id,
                                                     cluster_external_id)
+
+            # cleanup upgrade in desired_spec because it's not returned by OCM
+            desired_spec['spec'].pop('upgrade')
+
             # validate specs
             if current_spec != desired_spec:
                 logging.error(
