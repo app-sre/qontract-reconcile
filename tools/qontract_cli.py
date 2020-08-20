@@ -93,14 +93,18 @@ def cluster_upgrades(ctx, name):
         clusters = [c for c in clusters if c['name'] == name]
 
     clusters_data = [
-        {'name': c['name'], 'upgrade': c['spec']['upgrade']}
+        {
+            'name': c['name'],
+            'upgrade': c['spec']['upgrade'],
+            'external_id': c['spec'].get('external_id')
+        }
         for c in clusters
         if c.get('spec')
     ]
 
-    clusters_data = sorted(clusters_data, key=lambda k: k['name'])
+    clusters_data = sorted(clusters_data, key=lambda k: k['upgrade'])
 
-    columns = ['name', 'upgrade']
+    columns = ['name', 'external_id', 'upgrade']
     print_output(ctx.obj['output'], clusters_data, columns)
 
 
