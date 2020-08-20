@@ -420,7 +420,7 @@ Please consult relevant SOPs to verify that the account is secure.
         return self.create_mr(branch_name, target_branch, title, labels=labels)
 
     def create_cloud_ingress_operator_cidr_blocks_mr(self, cidr_blocks):
-        labels = []  # add 'automerge' once this is working
+        labels = ['automerge']
         prefix = 'private-cluster-rhapi-apischeme-updater'
         target_branch = 'master'
         branch_name = \
