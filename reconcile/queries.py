@@ -989,6 +989,22 @@ def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
     return saas_files
 
 
+SAAS_FILES_MINIMAL_QUERY = """
+{
+  saas_files: saas_files_v1 {
+    path
+    name
+  }
+}
+"""
+
+
+def get_saas_files_minimal():
+    """ Returns SaasFile resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(SAAS_FILES_MINIMAL_QUERY)['saas_files']
+
+
 PERFORMANCE_PARAMETERS_QUERY = """
 {
   performance_parameters_v1 {

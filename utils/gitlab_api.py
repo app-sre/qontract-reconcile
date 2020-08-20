@@ -32,7 +32,7 @@ class MRState:
 
 class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True,
-                 settings=None, project_url=None):
+                 settings=None, project_url=None, saas_files=None):
         self.server = instance['url']
         token = secret_reader.read(instance['token'], settings=settings)
         ssl_verify = instance['sslVerify']
@@ -51,6 +51,7 @@ class GitLabApi(object):
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
             self.project = self.gl.projects.get(project_id)
+        self.saas_files = saas_files
 
     def create_branch(self, new_branch, source_branch):
         data = {
@@ -403,6 +404,59 @@ Please consult relevant SOPs to verify that the account is secure.
             return
         content['spec']['id'] = cluster_id
         content['spec']['external_id'] = external_id
+        new_content = '---\n' + \
+            yaml.dump(content, Dumper=yaml.RoundTripDumper)
+        try:
+            self.update_file(branch_name, path, msg, new_content)
+        except gitlab.exceptions.GitlabCreateError as e:
+            self.delete_branch(branch_name)
+            if str(e) != "400: A file with this name doesn't exist":
+                raise e
+            logging.info(
+                "File {} does not exist, not opening MR".format(path)
+            )
+            return
+
+        return self.create_mr(branch_name, target_branch, title, labels=labels)
+
+    def create_cloud_ingress_operator_cidr_blocks_mr(self, cidr_blocks):
+        labels = []  # add 'automerge' once this is working
+        prefix = 'private-cluster-rhapi-apischeme-updater'
+        target_branch = 'master'
+        branch_name = \
+            f'{prefix}-update-cloud-ingress-operator-' + \
+            f'{str(uuid.uuid4())[0:6]}'
+        title = \
+            f'[{prefix}] update cloud-ingress-operator with {cidr_blocks}'
+
+        if self.mr_exists(title):
+            return
+
+        self.create_branch(branch_name, target_branch)
+
+        msg = 'update cidr block'
+        saas_file = [s for s in self.saas_files
+                     if s['name'] == 'saas-cloud-ingress-operator']
+        path = 'data' + saas_file[0]['path']
+        f = self.project.files.get(file_path=path, ref=target_branch)
+        content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
+        resource_templates = content['resourceTemplates']
+        for rt in resource_templates:
+            if rt['name'] != 'cloud-ingress-operator':
+                continue
+
+            allowed_cidr_blocks = rt['parameters']['ALLOWED_CIDR_BLOCKS']
+            updated = False
+            for cidr_block in cidr_blocks:
+                if cidr_block in allowed_cidr_blocks:
+                    continue
+                updated = True
+                allowed_cidr_blocks.append(cidr_block)
+            if not updated:
+                return
+
+            rt['parameters']['ALLOWED_CIDR_BLOCKS'] = allowed_cidr_blocks
+
         new_content = '---\n' + \
             yaml.dump(content, Dumper=yaml.RoundTripDumper)
         try:
