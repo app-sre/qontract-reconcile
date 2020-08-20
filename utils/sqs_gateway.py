@@ -86,7 +86,7 @@ class SQSGateway(object):
     def create_update_cluster_ids_mr(self, cluster_name, path, cluster_id,
                                      cluster_external_id):
         body = {
-            'pr_type': 'create_update_cluster_version_mr',
+            'pr_type': 'create_update_cluster_ids_mr',
             'cluster_name': cluster_name,
             'cluster_id': cluster_id,
             'cluster_external_id': cluster_external_id,
