@@ -9,7 +9,6 @@ from utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
-
 def fetch_current_state(clusters):
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
@@ -75,6 +74,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     gw.create_update_cluster_ids_mr(cluster_name, cluster_path,
                                                     cluster_id,
                                                     cluster_external_id)
+
+            # exclude params we don't want to check in the specs
+            for k in ['id', 'external_id']:
+                current_spec['spec'].pop(k, None)
+                desired_spec['spec'].pop(k, None)
 
             # validate specs
             if current_spec != desired_spec:
