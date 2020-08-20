@@ -9,6 +9,7 @@ from utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
+
 def fetch_current_state(clusters):
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
