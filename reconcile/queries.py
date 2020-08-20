@@ -302,6 +302,8 @@ CLUSTERS_QUERY = """
       accessLevel
     }
     spec {
+      id
+      external_id
       provider
       region
       version

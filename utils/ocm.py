@@ -60,6 +60,8 @@ class OCM(object):
     def _get_cluster_ocm_spec(cluster):
         ocm_spec = {
             'spec': {
+                'id': cluster['id'],
+                'external_id': cluster['external_id'],
                 'provider': cluster['cloud_provider']['id'],
                 'region': cluster['region']['id'],
                 'version': cluster['openshift_version'],
