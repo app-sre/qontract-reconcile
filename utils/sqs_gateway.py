@@ -83,6 +83,16 @@ class SQSGateway(object):
         }
         self.send_message(body)
 
+    def create_update_cluster_ids_mr(self, cluster_name, path, cluster_id,
+                                     cluster_external_id):
+        body = {
+            'pr_type': 'create_update_cluster_ids_mr',
+            'cluster_name': cluster_name,
+            'cluster_id': cluster_id,
+            'cluster_external_id': cluster_external_id,
+        }
+        self.send_message(body)
+
     def create_app_interface_notificator_mr(self, notification):
         body = {
             'pr_type': 'create_app_interface_notificator_mr',
