@@ -62,6 +62,12 @@ def collect_saas_file_configs():
             saas_file['slack']['channel'] \
             if output == 'publish' \
             else 'dev-null'
+        slack_notify_start = False
+        slack_notifications = saas_file['slack'].get('notifications')
+        if slack_notifications:
+            start = slack_notifications.get('start')
+            if start:
+                slack_notify_start = True
         timeout = saas_file.get('timeout', None)
         for resource_template in saas_file['resourceTemplates']:
             url = resource_template['url']
@@ -100,6 +106,7 @@ def collect_saas_file_configs():
                 #   env_name: '{env_name}'
                 #   app_name: '{app_name}'
                 #   slack_channel: '{slack_channel}'
+                #   slack_notify_start: '{slack_notify_start}
                 #   jobs:
                 #   - 'openshift-saas-deploy':
                 #       display_name: display name of the job
@@ -110,6 +117,7 @@ def collect_saas_file_configs():
                         'env_name': env_name,
                         'app_name': app_name,
                         'slack_channel': slack_channel,
+                        'slack_notify_start': slack_notify_start,
                         'upstream': upstream,
                         'jobs': [{
                             final_job_template_name: {

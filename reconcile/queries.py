@@ -872,6 +872,9 @@ SAAS_FILES_QUERY = """
         }
       }
       channel
+      notifications {
+        start
+      }
     }
     managedResourceTypes
     takeover
