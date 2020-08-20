@@ -10,6 +10,16 @@ from utils.ocm import OCMMap
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
 
+def fetch_current_state(clusters):
+    desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
+                     for c in clusters}
+    # remove unused keys
+    for desired_spec in desired_state.values():
+        desired_spec['spec'].pop('upgrade', None)
+
+    return desired_state
+
+
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
@@ -17,8 +27,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
     current_state, pending_state = ocm_map.cluster_specs()
-    desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
-                     for c in clusters}
+    desired_state = fetch_current_state(clusters)
 
     if not dry_run:
         gw = prg.init(gitlab_project_id=gitlab_project_id)
