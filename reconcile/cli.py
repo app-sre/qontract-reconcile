@@ -671,15 +671,12 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
 
 
 @integration.command()
-@throughput
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.pass_context
-def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id,
-                      io_dir):
+def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id):
     run_integration(reconcile.gitlab_ci_skipper, ctx.obj,
-                    gitlab_project_id, gitlab_merge_request_id,
-                    io_dir)
+                    gitlab_project_id, gitlab_merge_request_id)
 
 
 @integration.command()
