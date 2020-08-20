@@ -33,6 +33,7 @@ import reconcile.openshift_saas_deploy_wrapper
 import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.saas_file_owners
+import reconcile.gitlab_ci_skipper
 import reconcile.saas_file_validator
 import reconcile.quay_membership
 import reconcile.gcr_mirror
@@ -667,6 +668,18 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
     run_integration(reconcile.saas_file_owners, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id,
                     io_dir, compare)
+
+
+@integration.command()
+@throughput
+@click.argument('gitlab-project-id')
+@click.argument('gitlab-merge-request-id')
+@click.pass_context
+def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id,
+                      io_dir):
+    run_integration(reconcile.gitlab_ci_skipper, ctx.obj,
+                    gitlab_project_id, gitlab_merge_request_id,
+                    io_dir)
 
 
 @integration.command()

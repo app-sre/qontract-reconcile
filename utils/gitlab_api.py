@@ -340,7 +340,7 @@ Please consult relevant SOPs to verify that the account is secure.
                                          cluster_name,
                                          path,
                                          version):
-        labels = ['automerge']
+        labels = ['automerge', 'skip-ci']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = \
@@ -380,7 +380,7 @@ Please consult relevant SOPs to verify that the account is secure.
                                      cluster_name,
                                      path,
                                      cluster_id, external_id):
-        labels = ['automerge']
+        labels = ['automerge', 'skip-ci']
         prefix = 'qontract-reconcile'
         target_branch = 'master'
         branch_name = \
@@ -398,6 +398,9 @@ Please consult relevant SOPs to verify that the account is secure.
         path = path.lstrip('/')
         f = self.project.files.get(file_path=path, ref=target_branch)
         content = yaml.load(f.decode(), Loader=yaml.RoundTripLoader)
+        if content['spec'].get('id') == cluster_id and \
+                content['spec'].get('external_id') == external_id:
+            return
         content['spec']['id'] = cluster_id
         content['spec']['external_id'] = external_id
         new_content = '---\n' + \
