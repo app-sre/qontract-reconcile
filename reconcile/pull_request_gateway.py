@@ -12,6 +12,8 @@ PR_TYPES = {
     'create_delete_user_mr': ['username', 'paths'],
     'create_app_interface_reporter_mr': ['reports'],
     'create_update_cluster_version_mr': ['cluster_name', 'path', 'version'],
+    'create_update_cluster_ids_mr': ['cluster_name', 'path', 'cluster_id',
+                                     'cluster_external_id'],
     'create_app_interface_notificator_mr': ['notification']
 }
 
