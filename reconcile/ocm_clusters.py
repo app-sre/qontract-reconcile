@@ -76,6 +76,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                                                     cluster_id,
                                                     cluster_external_id)
 
+            # exclude params we don't want to check in the specs
+            for k in ['id', 'external_id']:
+                current_spec['spec'].pop(k, None)
+                desired_spec['spec'].pop(k, None)
+
             # validate specs
             if current_spec != desired_spec:
                 logging.error(
