@@ -416,7 +416,8 @@ def validate_data(oc_map, actions):
                     continue
                 updated_replicas = status.get('updatedReplicas')
                 ready_replicas = status.get('readyReplicas')
-                if not replicas == ready_replicas == updated_replicas != None:
+                if not desired_replicas == replicas == \
+                        ready_replicas == updated_replicas:
                     logging.info('new replicas not ready, status is invalid')
                     raise ValidationError(name)
             elif kind == 'Subscription':
