@@ -96,6 +96,7 @@ def cluster_upgrades(ctx, name):
         {
             'name': c['name'],
             'upgrade': c['spec']['upgrade'],
+            'id': c['spec']['id'],
             'external_id': c['spec'].get('external_id')
         }
         for c in clusters
@@ -104,7 +105,7 @@ def cluster_upgrades(ctx, name):
 
     clusters_data = sorted(clusters_data, key=lambda k: k['upgrade'])
 
-    columns = ['name', 'external_id', 'upgrade']
+    columns = ['name', 'id', 'external_id', 'upgrade']
     print_output(ctx.obj['output'], clusters_data, columns)
 
 
