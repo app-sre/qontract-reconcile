@@ -419,7 +419,8 @@ Please consult relevant SOPs to verify that the account is secure.
 
         return self.create_mr(branch_name, target_branch, title, labels=labels)
 
-    def create_cloud_ingress_operator_cidr_blocks_mr(self, cidr_blocks):
+    def create_cloud_ingress_operator_cidr_blocks_mr(self, cidr_blocks,
+                                                     operation):
         labels = []  # add 'automerge' once this is working
         prefix = 'private-cluster-rhapi-apischeme-updater'
         target_branch = 'master'
@@ -427,7 +428,8 @@ Please consult relevant SOPs to verify that the account is secure.
             f'{prefix}-update-cloud-ingress-operator-' + \
             f'{str(uuid.uuid4())[0:6]}'
         title = \
-            f'[{prefix}] update cloud-ingress-operator with {cidr_blocks}'
+            f'[{prefix}] update cloud-ingress-operator: ' + \
+            f'{operation} {cidr_blocks}'
 
         if self.mr_exists(title):
             return
@@ -448,10 +450,14 @@ Please consult relevant SOPs to verify that the account is secure.
             allowed_cidr_blocks = rt['parameters']['ALLOWED_CIDR_BLOCKS']
             updated = False
             for cidr_block in cidr_blocks:
-                if cidr_block in allowed_cidr_blocks:
-                    continue
-                updated = True
-                allowed_cidr_blocks.append(cidr_block)
+                if operation == 'add':
+                    if cidr_block not in allowed_cidr_blocks:
+                        updated = True
+                        allowed_cidr_blocks.append(cidr_block)
+                elif operation == 'remove':
+                    if cidr_block in allowed_cidr_blocks:
+                        updated = True
+                        allowed_cidr_blocks.remove(cidr_block)
             if not updated:
                 return
 

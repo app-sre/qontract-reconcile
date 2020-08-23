@@ -15,7 +15,8 @@ PR_TYPES = {
     'create_update_cluster_ids_mr': ['cluster_name', 'path', 'cluster_id',
                                      'cluster_external_id'],
     'create_app_interface_notificator_mr': ['notification'],
-    'create_cloud_ingress_operator_cidr_blocks_mr': ['cidr_blocks']
+    'create_cloud_ingress_operator_cidr_blocks_mr': ['cidr_blocks',
+                                                     'operation']
 }
 
 
