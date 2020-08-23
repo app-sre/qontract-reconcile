@@ -517,6 +517,18 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
                 parameters.update(saas_file_parameters)
                 parameters.update(rt_parameters)
                 parameters.update(target_parameters)
+
+                for replace_key, replace_value in parameters.items():
+                    if not isinstance(replace_value, str):
+                        continue
+                    replace_pattern = '${' + replace_key + '}'
+                    for k, v in parameters.items():
+                        if not isinstance(v, str):
+                            continue
+                        if replace_pattern in v:
+                            parameters[k] = \
+                                v.replace(replace_pattern, replace_value)
+
                 parameters_cmd = ''
                 for k, v in parameters.items():
                     parameters_cmd += f" -p {k}=\"{v}\""
