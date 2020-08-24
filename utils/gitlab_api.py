@@ -421,7 +421,7 @@ Please consult relevant SOPs to verify that the account is secure.
 
     def create_cloud_ingress_operator_cidr_blocks_mr(self, cidr_blocks,
                                                      operation):
-        labels = []  # add 'automerge' once this is working
+        labels = ['automerge'] if operation == 'add' else []
         prefix = 'private-cluster-rhapi-apischeme-updater'
         target_branch = 'master'
         branch_name = \
