@@ -70,6 +70,7 @@ import reconcile.ocm_clusters
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.ocm_github_idp
 import reconcile.email_sender
+import reconcile.sentry_helper
 import reconcile.requests_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
@@ -942,6 +943,13 @@ def ocm_github_idp(ctx, vault_input_path):
 @click.pass_context
 def email_sender(ctx):
     run_integration(reconcile.email_sender, ctx.obj)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def sentry_helper(ctx):
+    run_integration(reconcile.sentry_helper, ctx.obj)
 
 
 @integration.command()

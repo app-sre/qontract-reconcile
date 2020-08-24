@@ -1,4 +1,5 @@
 import smtplib
+import imaplib
 
 import utils.secret_reader as secret_reader
 
@@ -11,12 +12,14 @@ from email.header import Header
 from email.utils import formataddr
 
 _client = None
+_server = None
 _username = None
 _mail_address = None
 
 
 def init(host, port, username, password):
     global _client
+    global _server
 
     if _client is None:
         s = smtplib.SMTP(
@@ -27,8 +30,14 @@ def init(host, port, username, password):
         s.starttls()
         s.login(username, password)
         _client = s
+    if _server is None:
+        s = imaplib.IMAP4_SSL(
+            host=host
+        )
+        s.login(username, password)
+        _server = s
 
-    return _client
+    return _client, _server
 
 
 def teardown():
@@ -67,6 +76,32 @@ def get_smtp_config(path, settings):
                         .format(e))
 
     return config
+
+
+def get_sentry_users_from_mails(settings=None):
+    global _server
+
+    if _server is None:
+        init_from_config(settings)
+
+    _server.select('"[Gmail]/Sent Mail"')
+
+    criteria = 'SUBJECT "Sentry Access Request"'
+    result, data = _server.uid('search', None, criteria)
+    uids = [s for s in data[0].split()]
+    user_names = set()
+    for uid in uids:
+        result, data = _server.uid('fetch', uid, '(RFC822)')
+        msg = data[0][1].decode('utf-8')
+        user_line = [l for l in msg.split('\n')
+                     if 'is requesting access to' in l]
+        if not user_line:
+            continue
+        user_line = user_line[0]
+        user_name = \
+            user_line.split('is requesting access to')[0].strip()
+        user_names.add(user_name)
+    return user_names
 
 
 @retry()
