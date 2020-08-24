@@ -429,7 +429,7 @@ Please consult relevant SOPs to verify that the account is secure.
             f'{str(uuid.uuid4())[0:6]}'
         title = \
             f'[{prefix}] update cloud-ingress-operator: ' + \
-            f'{operation} {cidr_blocks}'
+            f'{operation} {len(cidr_blocks)} cidr blocks'
 
         if self.mr_exists(title):
             return
