@@ -78,30 +78,23 @@ def get_smtp_config(path, settings):
     return config
 
 
-def get_sentry_users_from_mails(settings=None):
+def get_mails(folder='INBOX', criteria='ALL', settings=None):
     global _server
 
     if _server is None:
         init_from_config(settings)
 
-    _server.select('"[Gmail]/Sent Mail"')
+    _server.select(f'"{folder}"')
 
-    criteria = 'SUBJECT "Sentry Access Request"'
     result, data = _server.uid('search', None, criteria)
     uids = [s for s in data[0].split()]
-    user_names = set()
+    results = []
     for uid in uids:
         result, data = _server.uid('fetch', uid, '(RFC822)')
         msg = data[0][1].decode('utf-8')
-        user_line = [l for l in msg.split('\n')
-                     if 'is requesting access to' in l]
-        if not user_line:
-            continue
-        user_line = user_line[0]
-        user_name = \
-            user_line.split('is requesting access to')[0].strip()
-        user_names.add(user_name)
-    return user_names
+        results.append({'uid': uid, 'msg': msg})
+
+    return results
 
 
 @retry()
