@@ -115,8 +115,8 @@ class SaasHerder():
                                     '${' + e_key + '}'
                                 )
                                 details = \
-                                    f'\"{t_key}: {t_value}\" (target). ' + \
-                                    f'\"{e_key}: {e_value}\" (environment). ' + \
+                                    f'target: \"{t_key}: {t_value}\". ' + \
+                                    f'env: \"{e_key}: {e_value}\". ' + \
                                     f'consider \"{t_key}: {replacement}\"'
                             logging.warning(f'{msg}: {details}')
 
