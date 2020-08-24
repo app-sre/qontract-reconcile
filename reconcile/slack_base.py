@@ -24,3 +24,8 @@ def init_slack(slack_info, integration):
                      username=username)
 
     return slack
+
+
+def init_slack_workspace(integration):
+    workspace = queries.get_slack_workspace()
+    return init_slack({'workspace': workspace}, integration)

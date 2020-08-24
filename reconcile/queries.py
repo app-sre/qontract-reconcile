@@ -1206,3 +1206,29 @@ def get_dns_zones():
     """ Returnes all AWS Route53 DNS Zones. """
     gqlapi = gql.get_api()
     return gqlapi.query(DNS_ZONES_QUERY)['zones']
+
+
+SLACK_WORKSPACES_QUERY = """
+{
+  slack_workspaces: slack_workspaces_v1 {
+    name
+    integrations {
+      name
+      token {
+        path
+        field
+      }
+      channel
+      icon_emoji
+      username
+    }
+  }
+}
+"""
+
+
+def get_slack_workspace():
+    """ Returns a single Slack workspace """
+    gqlapi = gql.get_api()
+    # assuming a single Slack workspace for now
+    return gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces'][0]
