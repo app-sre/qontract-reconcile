@@ -26,11 +26,13 @@ class SaasHerder():
                  integration_version,
                  settings,
                  jenkins_map=None,
-                 accounts=None):
+                 accounts=None,
+                 validate=False):
         self.saas_files = saas_files
-        self._validate_saas_files()
-        if not self.valid:
-            return
+        if validate:
+            self._validate_saas_files()
+            if not self.valid:
+                return
         self.thread_pool_size = thread_pool_size
         self.gitlab = gitlab
         self.integration = integration
@@ -71,6 +73,52 @@ class SaasHerder():
             if not saas_file_owners:
                 msg = 'saas file {} has no owners: {}'
                 logging.warning(msg.format(saas_file_name, saas_file_path))
+
+            for resource_template in saas_file['resourceTemplates']:
+                resource_template_name = resource_template['name']
+                for target in resource_template['targets']:
+                    target_parameters = target['parameters']
+                    if not target_parameters:
+                        continue
+                    target_parameters = json.loads(target_parameters)
+                    target_namespace = target['namespace']
+                    namespace_name = target_namespace['name']
+                    cluster_name = target_namespace['cluster']['name']
+                    environment = target_namespace['environment']
+                    environment_name = environment['name']
+                    environment_parameters = environment['parameters']
+                    if not environment_parameters:
+                        continue
+                    environment_parameters = \
+                        json.loads(environment_parameters)
+                    msg = \
+                        f'[{saas_file_name}/{resource_template_name}] ' + \
+                        f'parameter found in target ' + \
+                        f'{cluster_name}/{namespace_name} ' + \
+                        f'should be reused from env {environment_name}'
+                    for t_key, t_value in target_parameters.items():
+                        if not isinstance(t_value, str):
+                            continue
+                        for e_key, e_value in environment_parameters.items():
+                            if not isinstance(e_value, str):
+                                continue
+                            if '.' not in e_value:
+                                continue
+                            if e_value not in t_value:
+                                continue
+                            if t_key == e_key and t_value == e_value:
+                                details = \
+                                    f'consider removing {t_key}'
+                            else:
+                                replacement = t_value.replace(
+                                    e_value,
+                                    '${' + e_key + '}'
+                                )
+                                details = \
+                                    f'target: \"{t_key}: {t_value}\". ' + \
+                                    f'env: \"{e_key}: {e_value}\". ' + \
+                                    f'consider \"{t_key}: {replacement}\"'
+                            logging.warning(f'{msg}: {details}')
 
         duplicates = {saas_file_name: saas_file_paths
                       for saas_file_name, saas_file_paths
@@ -231,6 +279,18 @@ class SaasHerder():
             consolidated_parameters.update(environment_parameters)
             consolidated_parameters.update(parameters)
             consolidated_parameters.update(target_parameters)
+
+            for replace_key, replace_value in consolidated_parameters.items():
+                if not isinstance(replace_value, str):
+                    continue
+                replace_pattern = '${' + replace_key + '}'
+                for k, v in consolidated_parameters.items():
+                    if not isinstance(v, str):
+                        continue
+                    if replace_pattern in v:
+                        consolidated_parameters[k] = \
+                            v.replace(replace_pattern, replace_value)
+
             get_file_contents_options = {
                 'url': url,
                 'path': path,

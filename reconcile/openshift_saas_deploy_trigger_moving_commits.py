@@ -34,8 +34,6 @@ def run(dry_run, thread_pool_size=10):
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
         accounts=accounts)
-    if not saasherder.valid:
-        sys.exit(1)
 
     trigger_specs = saasherder.get_moving_commits_diff(dry_run)
     already_triggered = []

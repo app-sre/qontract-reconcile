@@ -44,8 +44,6 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
         jenkins_map=jenkins_map)
-    if not saasherder.valid:
-        sys.exit(1)
     if len(saasherder.namespaces) == 0:
         logging.warning('no targets found')
         sys.exit(0)

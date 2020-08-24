@@ -18,6 +18,7 @@ def run(dry_run):
         gitlab=None,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        settings=settings)
+        settings=settings,
+        validate=True)
     if not saasherder.valid:
         sys.exit(1)
