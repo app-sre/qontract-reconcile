@@ -19,6 +19,22 @@ def guess_user(user_name, users):
     return guesses
 
 
+def get_sentry_users_from_mails(mails):
+    user_names = set()
+    for mail in mails:
+        msg = mail['msg']
+        user_line = [l for l in msg.split('\n')
+                     if 'is requesting access to' in l]
+        if not user_line:
+            continue
+        user_line = user_line[0]
+        user_name = \
+            user_line.split('is requesting access to')[0].strip()
+        user_names.add(user_name)
+
+    return user_names
+
+
 def run(dry_run):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
@@ -29,7 +45,12 @@ def run(dry_run):
         settings=settings
     )
 
-    user_names = smtp_client.get_sentry_users_from_mails(settings=settings)
+    mails = smtp_client.get_mails(
+        criteria='SUBJECT "Sentry Access Request"',
+        folder='[Gmail]/Sent Mail',
+        settings=settings
+    )
+    user_names = get_sentry_users_from_mails(mails)
     if not dry_run:
         slack = init_slack_workspace(QONTRACT_INTEGRATION)
     for user_name in user_names:
