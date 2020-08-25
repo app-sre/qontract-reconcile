@@ -613,7 +613,12 @@ class AWSApi(object):
         session = self.get_session(account['name'])
         sts = session.client('sts')
         role_arn = account['assume_role']
-        role_name = role_arn.split('/')[1]
+
+        try:
+            role_name = role_arn.split('/')[1]
+        except Exception:
+            logging.error("awsInfrastructureAccess missing in cluster.yml")
+
         response = sts.assume_role(
             RoleArn=role_arn,
             RoleSessionName=role_name
