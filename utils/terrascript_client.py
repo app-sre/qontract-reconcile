@@ -2166,6 +2166,10 @@ class TerrascriptClient(object):
         if security_group_ids is not None:
             es_values["vpc_options"]['security_group_ids'] = security_group_ids
 
+        advanced_options = values.get('advanced_options', None)
+        if advanced_options is not None:
+            es_values["advanced_options"] = advanced_options
+
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
 
