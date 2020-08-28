@@ -76,10 +76,15 @@ def get_tf_resource_info(namespace, identifier):
     """
     tf_resources = namespace['terraformResources']
     for tf_resource in tf_resources:
+        if 'identifier' not in tf_resource:
+            continue
+
         if tf_resource['identifier'] != identifier:
             continue
+
         if tf_resource['provider'] != 'rds':
             continue
+
         defaults = gql.get_api().get_resource(tf_resource['defaults'])
 
         output_resource_name = tf_resource['output_resource_name']
