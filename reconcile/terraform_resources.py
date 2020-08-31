@@ -41,6 +41,8 @@ TF_NAMESPACES_QUERY = """
         identifier
         defaults
         overrides
+        sqs_identifier
+        s3_events
         output_resource_name
         storage_class
       }
@@ -94,6 +96,14 @@ TF_NAMESPACES_QUERY = """
         output_resource_name
       }
       ... on NamespaceTerraformResourceS3CloudFront_v1 {
+        account
+        region
+        identifier
+        defaults
+        output_resource_name
+        storage_class
+      }
+      ... on NamespaceTerraformResourceS3SQS_v1 {
         account
         region
         identifier
