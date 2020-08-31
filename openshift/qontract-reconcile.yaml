@@ -7378,7 +7378,7 @@ objects:
       app: qontract-reconcile-aws-ecr-image-pull-secrets
     name: qontract-reconcile-aws-ecr-image-pull-secrets
   spec:
-    schedule: "0 */6 * * *"
+    schedule: "0 */2 * * *"
     jobTemplate:
       spec:
         template:
