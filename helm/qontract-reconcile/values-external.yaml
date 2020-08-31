@@ -439,8 +439,8 @@ cronjobs:
     limits:
       memory: 200Mi
       cpu: 300m
-  # once every 6 hours
-  cron: '0 */6 * * *'
+  # once every 2 hours
+  cron: '0 */2 * * *'
   extraArgs: --vault-output-path app-sre/integrations-output
 - name: aws-garbage-collector
   resources:
