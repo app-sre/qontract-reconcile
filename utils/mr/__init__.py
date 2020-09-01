@@ -5,6 +5,7 @@ from utils.mr.aws_access import CreateDeleteAwsAccessKey
 from utils.mr.cluster_ids import CreateUpdateClusterIds
 from utils.mr.cluster_version import CreateUpdateClusterVersion
 from utils.mr.notificator import CreateAppInterfaceNotificator
+from utils.mr.user_maintenance import CreateDeleteUser
 
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     'CreateUpdateClusterIds',
     'CreateUpdateClusterVersion',
     'CreateAppInterfaceNotificator',
+    'CreateDeleteUser',
 ]
 
 
