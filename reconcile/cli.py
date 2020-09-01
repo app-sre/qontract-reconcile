@@ -61,6 +61,7 @@ import reconcile.gitlab_fork_compliance
 import reconcile.gitlab_members
 import reconcile.gitlab_owners
 import reconcile.gitlab_pr_submitter
+import reconcile.gitlab_mr_sqs_consumer
 import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
@@ -557,6 +558,15 @@ def gitlab_housekeeping(ctx):
 @click.pass_context
 def gitlab_pr_submitter(ctx, gitlab_project_id):
     run_integration(reconcile.gitlab_pr_submitter, ctx.obj, gitlab_project_id)
+
+
+@integration.command()
+@environ(['gitlab_pr_submitter_queue_url'])
+@click.argument('gitlab-project-id')
+@click.pass_context
+def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
+    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx.obj,
+                    gitlab_project_id)
 
 
 @integration.command()
