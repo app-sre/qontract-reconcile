@@ -22,6 +22,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `github`: Configures the teams and members in a GitHub org.
 - `github-owners`: Configures owners in a GitHub org.
 - `github-validator`: Validates GitHub organization settings.
+- `gitlab-labeler`: Guesses and adds labels to merge requests according to changed paths.
 - `gitlab-fork-compliance`: Ensures that forks of App Interface are compliant.
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-integrations`: Manage integrations on GitLab projects.
