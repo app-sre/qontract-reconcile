@@ -4,7 +4,7 @@ import utils.threaded as threaded
 import reconcile.queries as queries
 
 from utils.oc import OC_Map
-from utils.oc import StatusCodeError, ApplyError
+from utils.oc import StatusCodeError, InvalidValueApplyError
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceInventory)
 
@@ -219,13 +219,10 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
         try:
             oc.apply(namespace, annotated.toJSON())
-        except ApplyError as e:
-            if 'Invalid value: 0x0' in str(e):
-                oc.remove_last_applied_configuration(
-                    namespace, resource_type, resource.name)
-                oc.apply(namespace, annotated.toJSON())
-            else:
-                raise StatusCodeError(str(e))
+        except InvalidValueApplyError as e:
+            oc.remove_last_applied_configuration(
+                namespace, resource_type, resource.name)
+            oc.apply(namespace, annotated.toJSON())
 
     oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
