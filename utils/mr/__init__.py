@@ -2,12 +2,14 @@ from utils.mr.base import MergeRequestBase
 
 from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from utils.mr.aws_access import CreateDeleteAwsAccessKey
+from utils.mr.cluster_ids import CreateUpdateClusterIds
 
 
 __all__ = [
     'init_from_sqs_message',
     'CreateAppInterfaceReporter',
     'CreateDeleteAwsAccessKey',
+    'CreateUpdateClusterIds',
 ]
 
 
