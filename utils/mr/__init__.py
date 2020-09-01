@@ -4,6 +4,7 @@ from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from utils.mr.aws_access import CreateDeleteAwsAccessKey
 from utils.mr.cluster_ids import CreateUpdateClusterIds
 from utils.mr.cluster_version import CreateUpdateClusterVersion
+from utils.mr.notificator import CreateAppInterfaceNotificator
 
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     'CreateDeleteAwsAccessKey',
     'CreateUpdateClusterIds',
     'CreateUpdateClusterVersion',
+    'CreateAppInterfaceNotificator',
 ]
 
 
