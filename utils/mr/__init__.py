@@ -1,11 +1,13 @@
 from utils.mr.base import MergeRequestBase
 
 from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
+from utils.mr.aws_access import CreateDeleteAwsAccessKey
 
 
 __all__ = [
     'init_from_sqs_message',
     'CreateAppInterfaceReporter',
+    'CreateDeleteAwsAccessKey',
 ]
 
 
