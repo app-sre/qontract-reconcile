@@ -1,9 +1,11 @@
 from utils.mr.base import MergeRequestBase
 
+from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 
 
 __all__ = [
     'init_from_sqs_message',
+    'CreateAppInterfaceReporter',
 ]
 
 
