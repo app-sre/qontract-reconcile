@@ -656,6 +656,7 @@ Please consult relevant SOPs to verify that the account is secure.
         self.update_labels(merge_request, 'merge-request', labels)
 
     def add_labels_to_merge_request(self, mr_id, labels):
+        """ Adds labels to a Merge Request """
         merge_request = self.project.mergerequests.get(mr_id)
         mr_labels = merge_request.attributes.get('labels')
         mr_labels += labels

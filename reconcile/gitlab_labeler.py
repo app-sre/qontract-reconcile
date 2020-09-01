@@ -10,6 +10,11 @@ QONTRACT_INTEGRATION = 'gitlab-labeler'
 
 
 def guess_labels(project_labels, changed_paths):
+    """
+    Guess labels returns a list of labels from the project labels
+    that contain parts of the changed paths.
+    This is the first form of guessing, which will likely be adjusted.
+    """
     not_allowed_labels = MERGE_LABELS_PRIORITY + HOLD_LABELS
     guesses = set()
     for label in project_labels:
