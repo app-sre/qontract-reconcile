@@ -642,6 +642,9 @@ Please consult relevant SOPs to verify that the account is secure.
         merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({'body': comment})
 
+    def get_project_labels(self):
+        return [l.name for l in self.project.labels.list()]
+
     def get_merge_request_labels(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
         return merge_request.labels
@@ -651,6 +654,12 @@ Please consult relevant SOPs to verify that the account is secure.
         labels = merge_request.attributes.get('labels')
         labels.append(label)
         self.update_labels(merge_request, 'merge-request', labels)
+
+    def add_labels_to_merge_request(self, mr_id, labels):
+        merge_request = self.project.mergerequests.get(mr_id)
+        mr_labels = merge_request.attributes.get('labels')
+        mr_labels += labels
+        self.update_labels(merge_request, 'merge-request', mr_labels)
 
     def remove_label_from_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
