@@ -27,6 +27,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `gitlab-housekeeping`: Manage issues and merge requests on GitLab projects.
 - `gitlab-integrations`: Manage integrations on GitLab projects.
 - `gitlab-members` : Manage GitLab group members.
+- `gitlab-mr-sqs-consumer` : Listen to SQS and creates MRs out of the messages.
 - `gitlab-owners`: Adds an `approved` label on gitlab merge requests based on OWNERS files schema.
 - `gitlab-permissions`: Manage permissions on GitLab projects.
 - `gitlab-projects`: Create GitLab projects.
