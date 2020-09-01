@@ -3,6 +3,7 @@ from utils.mr.base import MergeRequestBase
 from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from utils.mr.aws_access import CreateDeleteAwsAccessKey
 from utils.mr.cluster_ids import CreateUpdateClusterIds
+from utils.mr.cluster_version import CreateUpdateClusterVersion
 
 
 __all__ = [
@@ -10,6 +11,7 @@ __all__ = [
     'CreateAppInterfaceReporter',
     'CreateDeleteAwsAccessKey',
     'CreateUpdateClusterIds',
+    'CreateUpdateClusterVersion',
 ]
 
 
