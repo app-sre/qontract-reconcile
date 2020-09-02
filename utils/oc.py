@@ -18,7 +18,7 @@ class StatusCodeError(Exception):
     pass
 
 
-class ApplyError(Exception):
+class InvalidValueApplyError(Exception):
     pass
 
 
@@ -401,8 +401,8 @@ class OC(object):
 
         if code != 0:
             err = err.decode('utf-8')
-            if kwargs.get('apply'):
-                raise ApplyError(f"[{self.server}]: {err}")
+            if kwargs.get('apply') and 'Invalid value: 0x0' in err:
+                raise InvalidValueApplyError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
