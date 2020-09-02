@@ -241,6 +241,14 @@ def namespace_name(function):
     return function
 
 
+def account_name(function):
+    function = click.option('--account-name',
+                            help='aws account name to act on.',
+                            default=None)(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
@@ -849,17 +857,19 @@ def user_validator(ctx):
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
+@account_name
 @click.option('--light/--full',
               default=False,
               help='run without executing terraform plan and apply.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
-                        light, vault_output_path):
+                        light, vault_output_path, account_name):
     run_integration(reconcile.terraform_resources,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
-                    internal, use_jump_host, light, vault_output_path)
+                    internal, use_jump_host, light, vault_output_path,
+                    account_name=account_name)
 
 
 @integration.command()
