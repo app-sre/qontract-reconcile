@@ -207,7 +207,8 @@ def populate_oc_resources(spec, ri):
         logging.error(msg)
 
 
-def fetch_current_state(dry_run, namespaces, thread_pool_size, internal, use_jump_host):
+def fetch_current_state(dry_run, namespaces, thread_pool_size,
+                        internal, use_jump_host):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
