@@ -443,13 +443,13 @@ class TerrascriptClient(object):
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
 
-    def populate_resources(self, namespaces, existing_secrets):
-        self.init_populate_specs(namespaces)
+    def populate_resources(self, namespaces, existing_secrets, account_name):
+        self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resources.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets)
 
-    def init_populate_specs(self, namespaces):
+    def init_populate_specs(self, namespaces, account_name):
         self.account_resources = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
@@ -460,6 +460,9 @@ class TerrascriptClient(object):
                 populate_spec = {'resource': resource,
                                  'namespace_info': namespace_info}
                 account = resource['account']
+                # Skip if account_name is specified
+                if account_name and account != account_name:
+                    continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
                 self.account_resources[account].append(populate_spec)
