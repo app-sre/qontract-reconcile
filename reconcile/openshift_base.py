@@ -219,7 +219,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
         try:
             oc.apply(namespace, annotated.toJSON())
-        except InvalidValueApplyError as e:
+        except InvalidValueApplyError:
             oc.remove_last_applied_configuration(
                 namespace, resource_type, resource.name)
             oc.apply(namespace, annotated.toJSON())
