@@ -207,13 +207,16 @@ def populate_oc_resources(spec, ri):
         logging.error(msg)
 
 
-def fetch_current_state(namespaces, thread_pool_size, internal, use_jump_host):
+def fetch_current_state(dry_run, namespaces, thread_pool_size, internal, use_jump_host):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size)
+    if dry_run:
+        return ri, oc_map
+
     state_specs = \
         ob.init_specs_to_fetch(
             ri,
@@ -251,7 +254,7 @@ def setup(print_only, thread_pool_size, internal, use_jump_host,
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size,
+    ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
