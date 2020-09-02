@@ -306,6 +306,7 @@ CLUSTERS_QUERY = """
       external_id
       provider
       region
+      channel
       version
       initial_version
       multi_az

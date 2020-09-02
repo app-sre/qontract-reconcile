@@ -64,6 +64,7 @@ class OCM(object):
                 'external_id': cluster['external_id'],
                 'provider': cluster['cloud_provider']['id'],
                 'region': cluster['region']['id'],
+                'channel': cluster['version']['channel_group']
                 'version': cluster['openshift_version'],
                 'multi_az': cluster['multi_az'],
                 'nodes': cluster['nodes']['compute'],
@@ -104,7 +105,8 @@ class OCM(object):
                 'id': cluster_spec['region']
             },
             'version': {
-                'id': 'openshift-v' + cluster_spec['initial_version']
+                'id': 'openshift-v' + cluster_spec['initial_version'],
+                'channel_group': cluster_spec['channel']
             },
             'multi_az': cluster_spec['multi_az'],
             'nodes': {
