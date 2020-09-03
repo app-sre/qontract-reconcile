@@ -45,7 +45,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             current_version = current_spec['spec'].pop('version')
             compare_result = 1  # default value in case version is empty
             if desired_version:
-                compare_result = semver.compare(current_version, desired_version)
+                compare_result = \
+                    semver.compare(current_version, desired_version)
             if compare_result > 0:
                 # current version is larger due to an upgrade.
                 # submit MR to update cluster version
