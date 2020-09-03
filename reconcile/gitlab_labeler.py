@@ -17,6 +17,7 @@ def guess_labels(project_labels, changed_paths):
     This is the first form of guessing, which will likely be adjusted.
     """
     not_allowed_labels = MERGE_LABELS_PRIORITY + HOLD_LABELS
+    ignore_tokens = ['cicd']
     guesses = set()
     for label in project_labels:
         if label in not_allowed_labels:
@@ -24,7 +25,9 @@ def guess_labels(project_labels, changed_paths):
         for path in changed_paths:
             path_dir = os.path.dirname(path)
             path_tokens = path_dir.split('/')
-            matches = [t for t in path_tokens if t and t in label]
+            matches = [t for t in path_tokens if t
+                       and t in label
+                       and t not in ignore_tokens]
             if matches:
                 guesses.add(label)
 
