@@ -1,5 +1,5 @@
 from utils.mr.base import MergeRequestBase
-from utils.mr.labels import DO_NOT_MERGE
+from utils.mr.labels import AUTO_MERGE
 
 
 class CreateDeleteUser(MergeRequestBase):
@@ -12,7 +12,7 @@ class CreateDeleteUser(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self):

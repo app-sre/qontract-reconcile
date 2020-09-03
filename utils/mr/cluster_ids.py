@@ -1,7 +1,8 @@
 import ruamel.yaml as yaml
 
 from utils.mr.base import MergeRequestBase
-from utils.mr.labels import DO_NOT_MERGE
+from utils.mr.labels import AUTO_MERGE
+from utils.mr.labels import SKIP_CI
 
 
 class CreateUpdateClusterIds(MergeRequestBase):
@@ -16,7 +17,7 @@ class CreateUpdateClusterIds(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [AUTO_MERGE, SKIP_CI]
 
     @property
     def title(self):
