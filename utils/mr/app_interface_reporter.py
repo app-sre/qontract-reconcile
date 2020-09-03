@@ -5,7 +5,7 @@ from jinja2 import Template
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from utils.mr.base import MergeRequestBase
-from utils.mr.labels import DO_NOT_MERGE
+from utils.mr.labels import AUTO_MERGE
 
 
 PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()
@@ -23,7 +23,7 @@ class CreateAppInterfaceReporter(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [AUTO_MERGE]
 
         now = datetime.now()
         self.isodate = now.isoformat()

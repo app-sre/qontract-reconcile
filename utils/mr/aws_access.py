@@ -5,7 +5,7 @@ import ruamel.yaml as yaml
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from utils.mr.base import MergeRequestBase
-from utils.mr.labels import DO_NOT_MERGE
+from utils.mr.labels import AUTO_MERGE
 
 
 PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()
@@ -24,7 +24,7 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self):
