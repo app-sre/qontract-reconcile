@@ -238,9 +238,15 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(print_only, thread_pool_size, internal, use_jump_host):
+def setup(print_only, thread_pool_size, internal, use_jump_host,
+          account_name):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
+    if account_name:
+        accounts = [n for n in accounts
+                    if n['name'] == account_name]
+        if not accounts:
+            raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
@@ -257,7 +263,7 @@ def setup(print_only, thread_pool_size, internal, use_jump_host):
                    working_dirs,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
-    ts.populate_resources(tf_namespaces, existing_secrets)
+    ts.populate_resources(tf_namespaces, existing_secrets, account_name)
     ts.dump(print_only, existing_dirs=working_dirs)
 
     return ri, oc_map, tf
@@ -286,10 +292,12 @@ def write_outputs_to_vault(vault_path, ri):
 def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
-        light=False, vault_output_path='', defer=None):
+        light=False, vault_output_path='',
+        account_name=None, defer=None):
 
     ri, oc_map, tf = \
-        setup(print_only, thread_pool_size, internal, use_jump_host)
+        setup(print_only, thread_pool_size, internal, use_jump_host,
+              account_name)
 
     defer(lambda: oc_map.cleanup())
 
