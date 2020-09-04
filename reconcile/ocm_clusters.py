@@ -3,7 +3,10 @@ import logging
 import semver
 
 import reconcile.queries as queries
-import reconcile.pull_request_gateway as prg
+
+from reconcile import mr_client_gateway
+from utils.mr import CreateUpdateClusterIds
+from utils.mr import CreateUpdateClusterVersion
 
 from utils.ocm import OCMMap
 
@@ -30,7 +33,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     desired_state = fetch_current_state(clusters)
 
     if not dry_run:
-        gw = prg.init(gitlab_project_id=gitlab_project_id)
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+
     error = False
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
@@ -56,8 +60,9 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
                 if not dry_run:
-                    gw.create_update_cluster_version_mr(
-                        cluster_name, cluster_path, current_version)
+                    mr = CreateUpdateClusterVersion(cluster_name, cluster_path,
+                                                    current_version)
+                    mr.submit(cli=mr_cli)
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -69,15 +74,15 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             if not desired_spec['spec'].get('id') or \
                     not desired_spec['spec'].get('external_id'):
                 cluster_id = current_spec['spec']['id']
-                cluster_external_id = current_spec['spec']['external_id']
+                external_id = current_spec['spec']['external_id']
                 logging.info(
                     f'[{cluster_name}] is missing id: {cluster_id}, ' +
-                    f'and external_id: {cluster_external_id}. ' +
+                    f'and external_id: {external_id}. ' +
                     'It will be updated automatically in app-interface.')
                 if not dry_run:
-                    gw.create_update_cluster_ids_mr(cluster_name, cluster_path,
-                                                    cluster_id,
-                                                    cluster_external_id)
+                    mr = CreateUpdateClusterIds(cluster_name, cluster_path,
+                                                cluster_id, external_id)
+                    mr.submit(cli=mr_cli)
 
             # exclude params we don't want to check in the specs
             for k in ['id', 'external_id']:
