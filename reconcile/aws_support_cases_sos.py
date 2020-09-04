@@ -1,9 +1,11 @@
 import logging
 
 import reconcile.queries as queries
-import reconcile.pull_request_gateway as prg
 
+from reconcile import mr_client_gateway
+from utils.mr import CreateDeleteAwsAccessKey
 from utils.aws_api import AWSApi
+
 
 QONTRACT_INTEGRATION = 'aws-support-cases-sos'
 
@@ -34,7 +36,7 @@ def get_keys_to_delete(aws_support_cases):
 
 def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
     if not dry_run and keys_to_delete:
-        gw = prg.init(gitlab_project_id=gitlab_project_id)
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
 
     for k in keys_to_delete:
         account = k['account']
@@ -43,7 +45,9 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
         if not dry_run:
             path = 'data' + \
                 [a['path'] for a in accounts if a['name'] == account][0]
-            gw.create_delete_aws_access_key_mr(account, path, key)
+
+            mr = CreateDeleteAwsAccessKey(account, path, key)
+            mr.submit(cli=mr_cli)
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
