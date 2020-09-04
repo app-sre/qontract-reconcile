@@ -42,6 +42,6 @@ def run(dry_run, gitlab_project_id, defer=None):
                          receipt_handle[:6], json.dumps(body))
 
             if not dry_run:
-                defer(lambda: sqs_cli.delete_message(receipt_handle))
+                defer(lambda: sqs_cli.delete_message(str(receipt_handle)))
                 merge_request = mr.init_from_sqs_message(body)
                 merge_request.submit_to_gitlab(gitlab_cli=gitlab_cli)
