@@ -141,7 +141,7 @@ class SaasHerder():
                 for target in targets:
                     namespace = target['namespace']
                     if target.get('disable'):
-                        logging.warning(
+                        logging.debug(
                             f"[{saas_file['name']}/{rt['name']}] target " +
                             f"{namespace['cluster']['name']}/" +
                             f"{namespace['name']} is disabled.")
