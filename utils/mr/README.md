@@ -2,6 +2,72 @@
 
 Module responsible for abstracting a Gitlab Merge Request.
 
+## Creating New MergeRequest Classes
+
+Each type of merge request requires a class that inherits
+from utils.mr.base.MergeRequestBase.
+
+That class has to comply with the specification below.
+
+### Class Name
+
+The class name is given by the class variable `name`. That name will be
+used all around, the most important place being the SQS Message parameter
+`pr_type`, used later to create an instance of the same class.
+
+While the name can be anything it is mandatory that it is defined.
+
+### Class Initialization
+
+The `__init__` method has to call `super().__init__()` right after the minimum
+parameters initialization. That is required to compose the SQS Message that
+will later be used to create a new instance of the same class.
+
+### Class Methods
+
+The minimum methods that have to be defined are:
+
+* `title`: a property that is used to give the Gitlab Merge Request a title.
+  It can also be used for building commit messages or as content to committed
+  files.
+* `process`: this method is called when submitting the Merge Request to gitlab.
+  it's the place for the merge request changes, like creating, updating and
+  deleting files. The `process` method is called after the local branch is
+  created and right after it the `gitlab_cli.project.mergerequests.create()`
+  is called.
+
+### Example
+
+This is an example of a minimum implementation for a new MergeRequest class:
+
+```python
+from utils.mr.base import MergeRequestBase
+
+
+class CreateDeleteUser(MergeRequestBase):
+
+    name = 'create_delete_user_mr'
+
+    def __init__(self, username, paths):
+        self.username = username
+        self.paths = paths
+
+        # Called right after the minimum parameters to recreate
+        # an instance with the same data. This is important for
+        # building up the SQS message payload.
+        super().__init__()
+
+    @property
+    def title(self):
+        return f'[{self.name}] delete user {self.username}'
+
+    def process(self, gitlab_cli):
+        for path in self.paths:
+            gitlab_cli.delete_file(branch_name=self.branch,
+                                   file_path=path,
+                                   commit_message=self.title)
+```
+
 ## Sending MRs to SQS
 
 To send a Merge Request to SQS, create the corresponding MergeRequest object:
@@ -82,68 +148,43 @@ for message in messages:
     sqs_cli.delete_message(receipt_handle)
 ```
 
-## Creating New MergeRequest Classes
+## Using the MR Module for Qontract-reconcile Integrations
 
-Each type of merge request requires a class that inherits
-from utils.mr.base.MergeRequestBase.
+A given integration might be executed in different environments, like:
 
-That class has to comply with the specification below.
+* Developer local machine.
+* OpenShift cluster outside the VPN.
+* OpenShift cluster inside the VPN.
+* Jenkins periodic job.
 
-### Class Name
-
-The class name is given by the class variable `name`. That name will be
-used all around, the most important place being the SQS Message parameter
-`pr_type`, used later to create an instance of the same class.
-
-While the name can be anything it is mandatory that it is defined.
-
-### Class Initialization
-
-The `__init__` method has to call `super().__init__()` right after the minimum
-parameters initialization. That is required to compose the SQS Message that
-will later be used to create a new instance of the same class.
-
-### Class Methods
-
-The minimum methods that have to be defined are:
-
-* `title`: a property that is used to give the Gitlab Merge Request a title.
-  It can also be used for building commit messages or as content to committed
-  files.
-* `process`: this method is called when submitting the Merge Request to gitlab.
-  it's the place for the merge request changes, like creating, updating and
-  deleting files. The `process` method is called after the local branch is
-  created and right after it the `gitlab_cli.project.mergerequests.create()`
-  is called.
-
-### Example
-
-This is an example of a minimum implementation for a new MergeRequest class:
+Because we don't want the integrations to care if they are running inside or
+outside the VPN, we use the `reconcile.mr_client_gateway.init()` to get the
+on of SQS or GitLab client, according to the App Interface settings. Example:
 
 ```python
-from utils.mr.base import MergeRequestBase
+from reconcile import mr_client_gateway
+from utils.mr import CreateDeleteAwsAccessKey
 
 
-class CreateDeleteUser(MergeRequestBase):
+def run(dry_run, gitlab_project_id):
+    ...    
+    mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+    mr = CreateDeleteAwsAccessKey(...)
+    mr.submit(cli=mr_cli)
+```
 
-    name = 'create_delete_user_mr'
+If we want to override what's set in App Interface and get a specific client,
+say `gitlab`, we would:
 
-    def __init__(self, username, paths):
-        self.username = username
-        self.paths = paths
+```python
+from reconcile import mr_client_gateway
+from utils.mr import CreateDeleteAwsAccessKey
 
-        # Called right after the minimum parameters to recreate
-        # an instance with the same data. This is important for
-        # building up the SQS message payload.
-        super().__init__()
 
-    @property
-    def title(self):
-        return f'[{self.name}] delete user {self.username}'
-
-    def process(self, gitlab_cli):
-        for path in self.paths:
-            gitlab_cli.delete_file(branch_name=self.branch,
-                                   file_path=path,
-                                   commit_message=self.title)
+def run(dry_run, gitlab_project_id):
+    ...
+    mr_cli = mr_client_gateway.init(sqs_or_gitlab='gitlab',
+                                    gitlab_project_id=gitlab_project_id)
+    mr = CreateDeleteAwsAccessKey(...)
+    mr.submit(cli=mr_cli)
 ```

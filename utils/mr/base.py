@@ -6,6 +6,9 @@ from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
 
+from utils.gitlab_api import GitLabApi
+from utils.sqs_gateway import SQSGateway
+
 from utils.mr.labels import DO_NOT_MERGE
 
 
@@ -132,3 +135,12 @@ class MergeRequestBase(metaclass=ABCMeta):
             return
 
         return gitlab_cli.project.mergerequests.create(self.gitlab_data)
+
+    def submit(self, cli):
+        if isinstance(cli, GitLabApi):
+            return self.submit_to_gitlab(gitlab_cli=cli)
+
+        if isinstance(cli, SQSGateway):
+            return self.submit_to_sqs(sqs_cli=cli)
+
+        raise AttributeError(f'client {cli} not supported')
