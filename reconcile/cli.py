@@ -253,7 +253,7 @@ def account_name(function):
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
-                                 'not required if pullRequestGateway '
+                                 'not required if mergeRequestGateway '
                                  'is not set to gitlab',
                             default=None)(function)
 
