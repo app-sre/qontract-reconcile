@@ -6,7 +6,6 @@ APP_INTERFACE_SETTINGS_QUERY = """
   settings: app_interface_settings_v1 {
     vault
     kubeBinary
-    pullRequestGateway
     mergeRequestGateway
     saasDeployJobTemplate
     hashLength
