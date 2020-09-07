@@ -7,6 +7,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     vault
     kubeBinary
     pullRequestGateway
+    mergeRequestGateway
     saasDeployJobTemplate
     hashLength
     dependencies {
