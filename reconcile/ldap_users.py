@@ -43,7 +43,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                        in user_specs if delete]
 
     if not dry_run:
-        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
+                                        sqs_or_gitlab='gitlab')
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])
