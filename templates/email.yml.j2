@@ -1,0 +1,26 @@
+---
+$schema: "/app-interface/app-interface-email-1.yml"
+labels: {}
+name: "{{ NAME }}"
+subject: "{{ SUBJECT }}"
+to:
+{% if USERS is defined %}
+  users:
+{%  for user in USERS %}
+    - $ref: "{{ user }}"
+{% endfor %}
+{% endif %}
+{% if ALIASES is defined %}
+  aliases:
+{%  for alias in ALIASES %}
+    - $ref: "{{ alias }}"
+{% endfor %}
+{% endif %}
+{% if AWS_ACCOUNTS is defined %}
+  aws_accounts:
+{%  for aws_account in AWS_ACCOUNTS %}
+    - $ref: "{{ aws_account }}"
+{% endfor %}
+{% endif %}
+body: |
+  {{ BODY | indent(2) }}

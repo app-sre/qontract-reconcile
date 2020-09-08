@@ -56,7 +56,7 @@ def describe(ctx, output):
 @click.pass_context
 def settings(ctx):
     settings = queries.get_app_interface_settings()
-    columns = ['vault', 'kubeBinary', 'pullRequestGateway']
+    columns = ['vault', 'kubeBinary', 'mergeRequestGateway']
     print_output(ctx.obj['output'], [settings], columns)
 
 

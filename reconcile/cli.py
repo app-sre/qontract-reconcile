@@ -60,7 +60,7 @@ import reconcile.gitlab_housekeeping
 import reconcile.gitlab_fork_compliance
 import reconcile.gitlab_members
 import reconcile.gitlab_owners
-import reconcile.gitlab_pr_submitter
+import reconcile.gitlab_mr_sqs_consumer
 import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
@@ -252,7 +252,7 @@ def account_name(function):
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
-                                 'not required if pullRequestGateway '
+                                 'not required if mergeRequestGateway '
                                  'is not set to gitlab',
                             default=None)(function)
 
@@ -555,8 +555,9 @@ def gitlab_housekeeping(ctx):
 @environ(['gitlab_pr_submitter_queue_url'])
 @click.argument('gitlab-project-id')
 @click.pass_context
-def gitlab_pr_submitter(ctx, gitlab_project_id):
-    run_integration(reconcile.gitlab_pr_submitter, ctx.obj, gitlab_project_id)
+def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
+    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx.obj,
+                    gitlab_project_id)
 
 
 @integration.command()
