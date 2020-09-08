@@ -9,6 +9,8 @@ from utils.gitlab_api import GitLabApi
 from utils.saasherder import SaasHerder
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 
+from reconcile.status import ExitCodes
+
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-moving-commits'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
@@ -35,7 +37,11 @@ def run(dry_run, thread_pool_size=10):
         settings=settings,
         accounts=accounts)
 
-    trigger_specs = saasherder.get_moving_commits_diff(dry_run)
+    try:
+        trigger_specs = saasherder.get_moving_commits_diff(dry_run)
+    except Exception as e:
+        logging.error(f"could not get moving commits: {e}")
+        sys.exit(ExitCodes.ERROR)
     already_triggered = []
     error = False
     for job_spec in trigger_specs:

@@ -16,6 +16,10 @@ from utils.state import State
 from reconcile.github_org import get_config
 
 
+class NoCommitsFoundError(Exception):
+    pass
+
+
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
@@ -242,6 +246,9 @@ class SaasHerder():
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             commits = project.commits.list(ref_name=ref)
+            if not commits:
+                raise NoCommitsFoundError(f'no commits found for repo {url}'
+                                          f', ref {ref}')
             commit_sha = commits[0].id
 
         if hash_length:
