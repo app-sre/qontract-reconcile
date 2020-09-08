@@ -309,23 +309,20 @@ class SaasHerder():
 
             if "IMAGE_TAG" not in consolidated_parameters:
                 template_parameters = template.get('parameters')
-                if not template_parameters:
-                    logging.error(
-                        f"[{url}/{path}:{target_ref}] " +
-                        f"missing parameters section")
-                    return None, None
-                for template_parameter in template_parameters:
-                    if template_parameter['name'] == 'IMAGE_TAG':
-                        # add IMAGE_TAG only if it is required
-                        get_commit_sha_options = {
-                            'url': url,
-                            'ref': target_ref,
-                            'hash_length': hash_length,
-                            'github': github
-                        }
-                        image_tag = self._get_commit_sha(
-                            get_commit_sha_options)
-                        consolidated_parameters['IMAGE_TAG'] = image_tag
+                if template_parameters is not None:
+                    for template_parameter in template_parameters:
+                        if template_parameter['name'] == 'IMAGE_TAG':
+                            # add IMAGE_TAG only if it is required
+                            get_commit_sha_options = {
+                                'url': url,
+                                'ref': target_ref,
+                                'hash_length': hash_length,
+                                'github': github
+                            }
+                            image_tag = self._get_commit_sha(
+                                get_commit_sha_options)
+                            consolidated_parameters['IMAGE_TAG'] = image_tag
+
             oc = OC('server', 'token')
             try:
                 resources = oc.process(template, consolidated_parameters)
