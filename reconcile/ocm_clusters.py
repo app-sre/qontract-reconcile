@@ -85,7 +85,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     mr.submit(cli=mr_cli)
 
             # exclude params we don't want to check in the specs
-            for k in ['id', 'external_id']:
+            for k in ['id', 'external_id', 'provision_shard_id']:
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
 

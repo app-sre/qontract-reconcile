@@ -316,6 +316,7 @@ CLUSTERS_QUERY = """
       load_balancers
       private
       upgrade
+      provision_shard_id
     }
     network {
       vpc
