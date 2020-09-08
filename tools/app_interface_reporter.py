@@ -17,9 +17,10 @@ import utils.gql as gql
 import utils.config as config
 import utils.secret_reader as secret_reader
 import reconcile.queries as queries
-import reconcile.pull_request_gateway as prg
 import reconcile.jenkins_plugins as jenkins_base
 
+from utils.mr import CreateAppInterfaceReporter
+from reconcile import mr_client_gateway
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.cli import (
     config_file,
@@ -506,7 +507,6 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
                 f.write(report['content'])
 
     if not dry_run:
-        email_schema = '/app-interface/app-interface-email-1.yml'
         email_body = """\
             Hello,
 
@@ -527,8 +527,11 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
             as owning a service being run by the App SRE team:
             https://gitlab.cee.redhat.com/service/app-interface
             """
-        gw = prg.init(gitlab_project_id=gitlab_project_id,
-                      override_pr_gateway_type='gitlab')
-        mr = gw.create_app_interface_reporter_mr(
-            reports, email_schema, textwrap.dedent(email_body), reports_path)
-        logging.info(['created_mr', mr.web_url])
+
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
+                                        sqs_or_gitlab='gitlab')
+        mr = CreateAppInterfaceReporter(reports=reports,
+                                        email_body=textwrap.dedent(email_body),
+                                        reports_path=reports_path)
+        result = mr.submit(cli=mr_cli)
+        logging.info(['created_mr', result.web_url])
