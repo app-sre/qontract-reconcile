@@ -133,7 +133,7 @@ class OCM(object):
 
         provision_shard_id = cluster_spec.get('provision_shard_id')
         if provision_shard_id:
-            ocm['properties']['provision_shard_id'] = provision_shard_id
+            ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
         self._post(api, ocm_spec)
 
