@@ -404,6 +404,12 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type,
     _log_lock.release()
     if oc is None:
         return
+    if hasattr(oc, 'api_resources') and \
+            resource_type_to_use not in oc.api_resources:
+        msg = \
+            f"[{cluster}] cluster has no API resource {resource_type_to_use}."
+        logging.warning(msg)
+        return
     for item in oc.get_items(resource_type_to_use, namespace=namespace,
                              resource_names=resource_names):
         openshift_resource = OR(item,
