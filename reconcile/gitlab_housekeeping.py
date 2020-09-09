@@ -9,7 +9,8 @@ import reconcile.queries as queries
 from utils.gitlab_api import GitLabApi
 
 
-MERGE_LABELS_PRIORITY = ['bot/approved', 'approved', 'automerge', 'lgtm']
+MERGE_LABELS_PRIORITY = ['bot/approved', 'approved', 'bot/automerge',
+                         'automerge', 'lgtm']
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
