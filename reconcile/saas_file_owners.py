@@ -216,6 +216,8 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         write_baseline_to_file(io_dir, baseline)
         return
 
+    approved_label = 'bot/approved'
+    hold_label = 'bot/hold'
     gl = init_gitlab(gitlab_project_id)
     baseline = read_baseline_from_file(io_dir)
     owners = baseline['owners']
@@ -232,11 +234,11 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, 'approved')
+            gitlab_merge_request_id, approved_label)
         return
     if not is_valid_diff:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, 'approved')
+            gitlab_merge_request_id, approved_label)
         return
 
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
@@ -248,13 +250,13 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         valid_lgtm, hold = check_if_lgtm(saas_file_owners, comments)
         if hold:
             gl.add_label_to_merge_request(
-                gitlab_merge_request_id, 'hold')
+                gitlab_merge_request_id, hold_label)
         else:
             gl.remove_label_from_merge_request(
-                gitlab_merge_request_id, 'hold')
+                gitlab_merge_request_id, hold_label)
         if not valid_lgtm:
             gl.remove_label_from_merge_request(
-                gitlab_merge_request_id, 'approved')
+                gitlab_merge_request_id, approved_label)
             comment_line_body = \
                 f"- changes to saas file '{saas_file_name}' " + \
                 f"require approval (`/lgtm`) from one of: {saas_file_owners}."
@@ -273,8 +275,8 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     # if there are still entries in this list - they are not approved
     if len(changed_paths) != 0:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, 'approved')
+            gitlab_merge_request_id, approved_label)
         return
 
-    # add 'approved' label to merge request!
-    gl.add_label_to_merge_request(gitlab_merge_request_id, 'approved')
+    # add approved label to merge request!
+    gl.add_label_to_merge_request(gitlab_merge_request_id, approved_label)
