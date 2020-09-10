@@ -1021,7 +1021,6 @@ class TerrascriptClient(object):
             notification_values = {
                 'bucket': '${' + bucket_tf_resource.fullname + '.id}',
                 'queue': [{
-                    'id': sqs_identifier,
                     'queue_arn':
                         '${data.aws_sqs_queue.' + sqs_identifier + '.arn}',
                     'events': events
@@ -1631,7 +1630,6 @@ class TerrascriptClient(object):
         notification_values = {
             'bucket': '${' + bucket_tf_resource.fullname + '.id}',
             'queue': [{
-                'id': sqs_identifier,
                 'queue_arn':
                     '${' + sqs_tf_resource.fullname + '.arn}',
                 'events': events
