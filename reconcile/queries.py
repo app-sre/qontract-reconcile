@@ -1,3 +1,5 @@
+import logging
+
 import utils.gql as gql
 
 
@@ -6,7 +8,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
   settings: app_interface_settings_v1 {
     vault
     kubeBinary
-    pullRequestGateway
+    mergeRequestGateway
     saasDeployJobTemplate
     hashLength
     dependencies {
@@ -306,6 +308,7 @@ CLUSTERS_QUERY = """
       external_id
       provider
       region
+      channel
       version
       initial_version
       multi_az
@@ -945,6 +948,7 @@ SAAS_FILES_QUERY = """
     roles {
       users {
         org_username
+        tag_on_merge_requests
       }
     }
   }
@@ -1206,3 +1210,32 @@ def get_dns_zones():
     """ Returnes all AWS Route53 DNS Zones. """
     gqlapi = gql.get_api()
     return gqlapi.query(DNS_ZONES_QUERY)['zones']
+
+
+SLACK_WORKSPACES_QUERY = """
+{
+  slack_workspaces: slack_workspaces_v1 {
+    name
+    integrations {
+      name
+      token {
+        path
+        field
+      }
+      channel
+      icon_emoji
+      username
+    }
+  }
+}
+"""
+
+
+def get_slack_workspace():
+    """ Returns a single Slack workspace """
+    gqlapi = gql.get_api()
+    slack_workspaces = \
+        gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces']
+    if len(slack_workspaces) != 1:
+        logging.warning('multiple Slack workspaces found.')
+    return gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces'][0]

@@ -1,5 +1,6 @@
 import sys
 import semver
+import logging
 import collections
 
 import reconcile.queries as queries
@@ -68,6 +69,11 @@ def run(dry_run, thread_pool_size=10, internal=None,
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
                   if namespace_info.get('quota')]
+
+    if not namespaces:
+        logging.debug("No ResourceQuota definition found in app-interface!")
+        sys.exit(0)
+
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,

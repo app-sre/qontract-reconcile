@@ -137,6 +137,12 @@ def run(dry_run):
     for unleash_instance in unleash_instances:
         instance_name = unleash_instance['name']
         current_state = fetch_current_state(unleash_instance)
+        if not current_state:
+            logging.warning(
+                'not acting on empty Unleash instances. ' +
+                'please create a feature toggle to get started.'
+            )
+            continue
         previous_state = fetch_previous_state(state, instance_name)
         diffs = calculate_diff(current_state, previous_state)
         if diffs:

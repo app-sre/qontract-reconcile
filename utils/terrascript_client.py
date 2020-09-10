@@ -25,8 +25,10 @@ from utils.elasticsearch_exceptions \
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output, data
+from terrascript.aws.d import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_s3_bucket, aws_iam_user,
+                               aws_s3_bucket_notification,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
@@ -441,13 +443,13 @@ class TerrascriptClient(object):
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
 
-    def populate_resources(self, namespaces, existing_secrets):
-        self.init_populate_specs(namespaces)
+    def populate_resources(self, namespaces, existing_secrets, account_name):
+        self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resources.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets)
 
-    def init_populate_specs(self, namespaces):
+    def init_populate_specs(self, namespaces, account_name):
         self.account_resources = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
@@ -458,6 +460,9 @@ class TerrascriptClient(object):
                 populate_spec = {'resource': resource,
                                  'namespace_info': namespace_info}
                 account = resource['account']
+                # Skip if account_name is specified
+                if account_name and account != account_name:
+                    continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
                 self.account_resources[account].append(populate_spec)
@@ -485,6 +490,8 @@ class TerrascriptClient(object):
             self.populate_tf_resource_ecr(resource, namespace_info)
         elif provider == 's3-cloudfront':
             self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
+        elif provider == 's3-sqs':
+            self.populate_tf_resource_s3_sqs(resource, namespace_info)
         elif provider == 'cloudwatch':
             self.populate_tf_resource_cloudwatch(resource, namespace_info)
         elif provider == 'kms':
@@ -999,6 +1006,40 @@ class TerrascriptClient(object):
         endpoint = 's3.{}.amazonaws.com'.format(region)
         output_name = output_prefix + '[endpoint]'
         tf_resources.append(output(output_name, value=endpoint))
+
+        sqs_identifier = common_values.get('sqs_identifier', None)
+        if sqs_identifier is not None:
+            sqs_values = {
+                'name': sqs_identifier
+            }
+            if values['provider']:
+                sqs_values['provider'] = values['provider']
+            sqs_data = data_aws_sqs_queue(sqs_identifier, **sqs_values)
+            tf_resources.append(sqs_data)
+
+            events = common_values.get('events', ["s3:ObjectCreated:*"])
+            notification_identifier = identifier + '-to-' + sqs_identifier
+            notification_values = {
+                'bucket': '${' + bucket_tf_resource.fullname + '.bucket.id}',
+                'queue': [{
+                    'id': notification_identifier,
+                    'queue_arn':
+                        '${data.aws_sqs_queue.' + sqs_identifier + '.arn}',
+                    'events': events
+                }]
+            }
+            filter_prefix = common_values.get('filter_prefix', None)
+            if filter_prefix is not None:
+                notification_values['queue'][0]['filter_prefix'] = \
+                    filter_prefix
+            filter_suffix = common_values.get('filter_suffix', None)
+            if filter_suffix is not None:
+                notification_values['queue'][0]['filter_suffix'] = \
+                    filter_suffix
+
+            notification_tf_resource = aws_s3_bucket_notification(
+                notification_identifier, **notification_values)
+            tf_resources.append(notification_tf_resource)
 
         # iam resources
         # Terraform resource reference:
@@ -1549,6 +1590,133 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_s3_sqs(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+        uid = self.uids.get(account)
+
+        bucket_tf_resource = \
+            self.populate_tf_resource_s3(resource, namespace_info)
+
+        tf_resources = []
+        sqs_identifier = f'{identifier}-sqs'
+        sqs_values = {
+            'name': sqs_identifier
+        }
+
+        visibility_timeout_seconds = \
+            int(common_values.get('visibility_timeout_seconds', 30))
+        if visibility_timeout_seconds in range(0, 43200):
+            sqs_values['visibility_timeout_seconds'] = \
+                visibility_timeout_seconds
+
+        message_retention_seconds = \
+            int(common_values.get('message_retention_seconds', 345600))
+        if visibility_timeout_seconds in range(60, 1209600):
+            sqs_values['message_retention_seconds'] = \
+                message_retention_seconds
+
+        kms_master_key_id = common_values.get('kms_master_key_id', None)
+        if kms_master_key_id is not None:
+            sqs_values['kms_master_key_id'] = kms_master_key_id
+
+        region = common_values['region'] or self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            sqs_values['provider'] = 'aws.' + region
+
+        sqs_tf_resource = aws_sqs_queue(sqs_identifier, **sqs_values)
+        tf_resources.append(sqs_tf_resource)
+
+        events = common_values.get('events', ["s3:ObjectCreated:*"])
+        notification_values = {
+            'bucket': '${' + bucket_tf_resource.fullname + '.bucket.id}',
+            'queue': [{
+                'id': sqs_identifier,
+                'queue_arn':
+                    '${' + sqs_tf_resource.fullname + '.arn}',
+                'events': events
+            }]
+        }
+
+        filter_prefix = common_values.get('filter_prefix', None)
+        if filter_prefix is not None:
+            notification_values['queue'][0]['filter_prefix'] = filter_prefix
+        filter_suffix = common_values.get('filter_suffix', None)
+        if filter_suffix is not None:
+            notification_values['queue'][0]['filter_suffix'] = filter_suffix
+
+        notification_tf_resource = aws_s3_bucket_notification(
+            sqs_identifier, **notification_values)
+        tf_resources.append(notification_tf_resource)
+
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+
+        # iam user for queue
+        values = {}
+        values['name'] = sqs_identifier
+        user_tf_resource = aws_iam_user(sqs_identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key for user
+        values = {}
+        values['user'] = sqs_identifier
+        values['depends_on'] = [user_tf_resource]
+        access_key_tf_resource = aws_iam_access_key(sqs_identifier, **values)
+        tf_resources.append(access_key_tf_resource)
+        output_name = output_prefix + '[sqs_aws_access_key_id]'
+        output_value = '${' + access_key_tf_resource.fullname + '.id}'
+        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '[sqs_aws_secret_access_key]'
+        output_value = '${' + access_key_tf_resource.fullname + '.secret}'
+        tf_resources.append(output(output_name, value=output_value))
+
+        # iam policy for queue
+        values = {}
+        values['name'] = sqs_identifier
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["sqs:*"],
+                    "Resource": [
+                        "arn:aws:sqs:*:{}:{}".format(uid, sqs_identifier)
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": ["sqs:ListQueues"],
+                    "Resource": "*"
+                }
+            ]
+        }
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        policy_tf_resource = aws_iam_policy(sqs_identifier, **values)
+        tf_resources.append(policy_tf_resource)
+
+        # iam user policy attachment
+        values = {}
+        values['user'] = sqs_identifier
+        values['policy_arn'] = \
+            '${' + policy_tf_resource.fullname + '.arn}'
+        values['depends_on'] = [user_tf_resource, policy_tf_resource]
+        user_policy_attachment_tf_resource = \
+            aws_iam_user_policy_attachment(sqs_identifier, **values)
+        tf_resources.append(user_policy_attachment_tf_resource)
+
+        # outputs
+        output_name = '{}[{}]'.format(output_prefix, sqs_identifier)
+        output_value = \
+            'https://sqs.{}.amazonaws.com/{}/{}'.format(
+                region, uid, sqs_identifier)
+        tf_resources.append(output(output_name, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
     def populate_tf_resource_cloudwatch(self, resource, namespace_info):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
@@ -1907,6 +2075,8 @@ class TerrascriptClient(object):
         queues = resource.get('queues', None)
         specs = resource.get('specs', None)
         parameter_group = resource.get('parameter_group', None)
+        sqs_identifier = resource.get('sqs_identifier', None)
+        s3_events = resource.get('s3_events', None)
         sc = resource.get('storage_class', None)
         enhanced_monitoring = resource.get('enhanced_monitoring', None)
         replica_source = resource.get('replica_source', None)
@@ -1927,6 +2097,8 @@ class TerrascriptClient(object):
         values['queues'] = queues
         values['specs'] = specs
         values['parameter_group'] = parameter_group
+        values['sqs_identifier'] = sqs_identifier
+        values['s3_events'] = s3_events
         values['storage_class'] = sc
         values['enhanced_monitoring'] = enhanced_monitoring
         values['replica_source'] = replica_source
@@ -2165,6 +2337,10 @@ class TerrascriptClient(object):
 
         if security_group_ids is not None:
             es_values["vpc_options"]['security_group_ids'] = security_group_ids
+
+        advanced_options = values.get('advanced_options', None)
+        if advanced_options is not None:
+            es_values["advanced_options"] = advanced_options
 
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()

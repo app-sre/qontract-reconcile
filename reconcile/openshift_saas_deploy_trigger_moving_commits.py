@@ -20,6 +20,15 @@ def run(dry_run, thread_pool_size=10):
         logging.error('no saas files found')
         sys.exit(1)
 
+    # Remove saas-file targets that are disabled
+    for saas_file in saas_files[:]:
+        resource_templates = saas_file['resourceTemplates']
+        for rt in resource_templates[:]:
+            targets = rt['targets']
+            for target in targets[:]:
+                if target['disable']:
+                    targets.remove(target)
+
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
@@ -34,8 +43,6 @@ def run(dry_run, thread_pool_size=10):
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
         accounts=accounts)
-    if not saasherder.valid:
-        sys.exit(1)
 
     trigger_specs = saasherder.get_moving_commits_diff(dry_run)
     already_triggered = []

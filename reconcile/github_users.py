@@ -4,9 +4,9 @@ import logging
 
 import utils.threaded as threaded
 import utils.smtp_client as smtp_client
-import reconcile.pull_request_gateway as prg
 import reconcile.queries as queries
 
+from reconcile import mr_client_gateway
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths
 
@@ -14,6 +14,8 @@ from github import Github
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
+
+from utils.mr import CreateDeleteUser
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 
@@ -82,7 +84,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
     users_to_delete = get_users_to_delete(results)
 
     if not dry_run and enable_deletion:
-        gw = prg.init(gitlab_project_id=gitlab_project_id)
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
 
     for user in users_to_delete:
         username = user['username']
@@ -93,7 +95,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
             if send_mails:
                 send_email_notification(user, settings)
             elif enable_deletion:
-                gw.create_delete_user_mr(username, paths)
+                mr = CreateDeleteUser(username, paths)
+                mr.submit(cli=mr_cli)
             else:
                 msg = ('\'delete\' action is not enabled. '
                        'Please run the integration manually '

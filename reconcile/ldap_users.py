@@ -4,7 +4,8 @@ import utils.threaded as threaded
 import utils.ldap_client as ldap_client
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile import mr_client_gateway
+from utils.mr import CreateDeleteUser
 
 from collections import defaultdict
 
@@ -42,13 +43,12 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                        in user_specs if delete]
 
     if not dry_run:
-        instance = queries.get_gitlab_instance()
-        settings = queries.get_app_interface_settings()
-        gl = GitLabApi(instance, project_id=gitlab_project_id,
-                       settings=settings)
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
+                                        sqs_or_gitlab='gitlab')
 
     for username, paths in users_to_delete:
         logging.info(['delete_user', username])
 
         if not dry_run:
-            gl.create_delete_user_mr(username, paths)
+            mr = CreateDeleteUser(username, paths)
+            mr.submit(cli=mr_cli)

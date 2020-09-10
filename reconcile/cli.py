@@ -34,6 +34,7 @@ import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.saas_file_owners
 import reconcile.gitlab_ci_skipper
+import reconcile.gitlab_labeler
 import reconcile.saas_file_validator
 import reconcile.quay_membership
 import reconcile.gcr_mirror
@@ -59,7 +60,7 @@ import reconcile.gitlab_housekeeping
 import reconcile.gitlab_fork_compliance
 import reconcile.gitlab_members
 import reconcile.gitlab_owners
-import reconcile.gitlab_pr_submitter
+import reconcile.gitlab_mr_sqs_consumer
 import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
@@ -70,6 +71,7 @@ import reconcile.ocm_clusters
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.ocm_github_idp
 import reconcile.email_sender
+import reconcile.sentry_helper
 import reconcile.requests_sender
 import reconcile.service_dependencies
 import reconcile.sentry_config
@@ -239,10 +241,18 @@ def namespace_name(function):
     return function
 
 
+def account_name(function):
+    function = click.option('--account-name',
+                            help='aws account name to act on.',
+                            default=None)(function)
+
+    return function
+
+
 def gitlab_project_id(function):
     function = click.option('--gitlab-project-id',
                             help='gitlab project id to submit PRs to. '
-                                 'not required if pullRequestGateway '
+                                 'not required if mergeRequestGateway '
                                  'is not set to gitlab',
                             default=None)(function)
 
@@ -545,8 +555,9 @@ def gitlab_housekeeping(ctx):
 @environ(['gitlab_pr_submitter_queue_url'])
 @click.argument('gitlab-project-id')
 @click.pass_context
-def gitlab_pr_submitter(ctx, gitlab_project_id):
-    run_integration(reconcile.gitlab_pr_submitter, ctx.obj, gitlab_project_id)
+def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
+    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx.obj,
+                    gitlab_project_id)
 
 
 @integration.command()
@@ -676,6 +687,15 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
 @click.pass_context
 def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id):
     run_integration(reconcile.gitlab_ci_skipper, ctx.obj,
+                    gitlab_project_id, gitlab_merge_request_id)
+
+
+@integration.command()
+@click.argument('gitlab-project-id')
+@click.argument('gitlab-merge-request-id')
+@click.pass_context
+def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
+    run_integration(reconcile.gitlab_labeler, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id)
 
 
@@ -838,17 +858,19 @@ def user_validator(ctx):
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
+@account_name
 @click.option('--light/--full',
               default=False,
               help='run without executing terraform plan and apply.')
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
-                        light, vault_output_path):
+                        light, vault_output_path, account_name):
     run_integration(reconcile.terraform_resources,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
-                    internal, use_jump_host, light, vault_output_path)
+                    internal, use_jump_host, light, vault_output_path,
+                    account_name=account_name)
 
 
 @integration.command()
@@ -942,6 +964,13 @@ def ocm_github_idp(ctx, vault_input_path):
 @click.pass_context
 def email_sender(ctx):
     run_integration(reconcile.email_sender, ctx.obj)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def sentry_helper(ctx):
+    run_integration(reconcile.sentry_helper, ctx.obj)
 
 
 @integration.command()

@@ -1,4 +1,5 @@
 import smtplib
+import imaplib
 
 import utils.secret_reader as secret_reader
 
@@ -11,12 +12,14 @@ from email.header import Header
 from email.utils import formataddr
 
 _client = None
+_server = None
 _username = None
 _mail_address = None
 
 
-def init(host, port, username, password):
+def init(host, port, username, password, client_only):
     global _client
+    global _server
 
     if _client is None:
         s = smtplib.SMTP(
@@ -27,8 +30,14 @@ def init(host, port, username, password):
         s.starttls()
         s.login(username, password)
         _client = s
+    if _server is None and not client_only:
+        s = imaplib.IMAP4_SSL(
+            host=host
+        )
+        s.login(username, password)
+        _server = s
 
-    return _client
+    return _client, _server
 
 
 def teardown():
@@ -37,7 +46,7 @@ def teardown():
     _client.quit()
 
 
-def init_from_config(settings):
+def init_from_config(settings, client_only=True):
     global _username
     global _mail_address
 
@@ -50,7 +59,7 @@ def init_from_config(settings):
     password = smtp_config['password']
     _mail_address = config['smtp']['mail_address']
 
-    return init(host, port, _username, password)
+    return init(host, port, _username, password, client_only=client_only)
 
 
 def get_smtp_config(path, settings):
@@ -67,6 +76,25 @@ def get_smtp_config(path, settings):
                         .format(e))
 
     return config
+
+
+def get_mails(folder='INBOX', criteria='ALL', settings=None):
+    global _server
+
+    if _server is None:
+        init_from_config(settings, client_only=False)
+
+    _server.select(f'"{folder}"')
+
+    result, data = _server.uid('search', None, criteria)
+    uids = [s for s in data[0].split()]
+    results = []
+    for uid in uids:
+        result, data = _server.uid('fetch', uid, '(RFC822)')
+        msg = data[0][1].decode('utf-8')
+        results.append({'uid': uid, 'msg': msg})
+
+    return results
 
 
 @retry()
