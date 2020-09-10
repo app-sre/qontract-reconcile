@@ -1630,7 +1630,7 @@ class TerrascriptClient(object):
 
         events = common_values.get('events', ["s3:ObjectCreated:*"])
         notification_values = {
-            'bucket': '${' + bucket_tf_resource.fullname + '.bucket.id}',
+            'bucket': '${' + bucket_tf_resource.fullname + '.id}',
             'queue': [{
                 'id': sqs_identifier,
                 'queue_arn':
