@@ -946,6 +946,7 @@ SAAS_FILES_QUERY = """
     roles {
       users {
         org_username
+        tag_on_merge_requests
       }
     }
   }
