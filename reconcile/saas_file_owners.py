@@ -40,6 +40,8 @@ def collect_owners():
                 continue
             for owner_user in owner_users:
                 owner_username = owner_user['org_username']
+                if owner_user.get('tag_on_merge_requests'):
+                    owner_username = f'@{owner_username}'
                 owners[saas_file_name].add(owner_username)
 
     # make owners suitable for json dump
