@@ -17,7 +17,7 @@ _username = None
 _mail_address = None
 
 
-def init(host, port, username, password):
+def init(host, port, username, password, client_only):
     global _client
     global _server
 
@@ -30,7 +30,7 @@ def init(host, port, username, password):
         s.starttls()
         s.login(username, password)
         _client = s
-    if _server is None:
+    if _server is None and not client_only:
         s = imaplib.IMAP4_SSL(
             host=host
         )
@@ -46,7 +46,7 @@ def teardown():
     _client.quit()
 
 
-def init_from_config(settings):
+def init_from_config(settings, client_only=True):
     global _username
     global _mail_address
 
@@ -59,7 +59,7 @@ def init_from_config(settings):
     password = smtp_config['password']
     _mail_address = config['smtp']['mail_address']
 
-    return init(host, port, _username, password)
+    return init(host, port, _username, password, client_only=client_only)
 
 
 def get_smtp_config(path, settings):
@@ -82,7 +82,7 @@ def get_mails(folder='INBOX', criteria='ALL', settings=None):
     global _server
 
     if _server is None:
-        init_from_config(settings)
+        init_from_config(settings, client_only=False)
 
     _server.select(f'"{folder}"')
 

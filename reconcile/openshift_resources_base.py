@@ -404,6 +404,16 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type,
     _log_lock.release()
     if oc is None:
         return
+    # some resource types may be used explicitly (<kind>.<api_group>).
+    # we only take the first token as oc.api_resources contains only the kind.
+    # this is the case created by using `managedResourceTypeOverrides`.
+    if oc.api_resources and \
+            resource_type_to_use.split('.')[0].lower() \
+            not in [a.lower() for a in oc.api_resources]:
+        msg = \
+            f"[{cluster}] cluster has no API resource {resource_type_to_use}."
+        logging.warning(msg)
+        return
     for item in oc.get_items(resource_type_to_use, namespace=namespace,
                              resource_names=resource_names):
         openshift_resource = OR(item,
