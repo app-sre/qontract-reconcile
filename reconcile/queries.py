@@ -1,3 +1,5 @@
+import logging
+
 import utils.gql as gql
 
 
@@ -947,6 +949,7 @@ SAAS_FILES_QUERY = """
     roles {
       users {
         org_username
+        tag_on_merge_requests
       }
     }
   }
@@ -1232,5 +1235,8 @@ SLACK_WORKSPACES_QUERY = """
 def get_slack_workspace():
     """ Returns a single Slack workspace """
     gqlapi = gql.get_api()
-    # assuming a single Slack workspace for now
+    slack_workspaces = \
+        gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces']
+    if len(slack_workspaces) != 1:
+        logging.warning('multiple Slack workspaces found.')
     return gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces'][0]

@@ -56,6 +56,7 @@ def run(dry_run):
     for user_name in user_names:
         guesses = guess_user(user_name, users)
         if not guesses:
+            logging.debug(f'no users guessed for {user_name}')
             continue
         slack_username = \
             guesses[0].get('slack_username') or guesses[0]['org_username']
@@ -65,5 +66,7 @@ def run(dry_run):
         if not dry_run:
             state.add(slack_username)
             slack.chat_post_message(
-                f'yo <@{slack_username}>! ' +
+                f'yo <@{slack_username}>! it appears that you have ' +
+                'requested access to a project in Sentry. ' +
+                'access is managed automatically via app-interface. '
                 'checkout https://url.corp.redhat.com/sentry-help')
