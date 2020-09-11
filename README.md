@@ -32,6 +32,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `gitlab-permissions`: Manage permissions on GitLab projects.
 - `gitlab-projects`: Create GitLab projects.
 - `jenkins-job-builder`: Manage Jenkins jobs configurations using jenkins-jobs
+- `jenkins-job-cleaner`: Delete Jenkins jobs in multiple tenant instances.
 - `jenkins-plugins`: Manage Jenkins plugins installation via REST API.
 - `jenkins-roles`: Manage Jenkins roles association via REST API.
 - `jenkins-webhooks`: Manage web hooks to Jenkins jobs.
