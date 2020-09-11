@@ -1018,11 +1018,10 @@ class TerrascriptClient(object):
             tf_resources.append(sqs_data)
 
             events = common_values.get('events', ["s3:ObjectCreated:*"])
-            notification_identifier = identifier + '-to-' + sqs_identifier
             notification_values = {
-                'bucket': '${' + bucket_tf_resource.fullname + '.bucket.id}',
+                'bucket': '${' + bucket_tf_resource.fullname + '.id}',
                 'queue': [{
-                    'id': notification_identifier,
+                    'id': sqs_identifier,
                     'queue_arn':
                         '${data.aws_sqs_queue.' + sqs_identifier + '.arn}',
                     'events': events
@@ -1038,7 +1037,7 @@ class TerrascriptClient(object):
                     filter_suffix
 
             notification_tf_resource = aws_s3_bucket_notification(
-                notification_identifier, **notification_values)
+                sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
 
         # iam resources
@@ -1630,7 +1629,7 @@ class TerrascriptClient(object):
 
         events = common_values.get('events', ["s3:ObjectCreated:*"])
         notification_values = {
-            'bucket': '${' + bucket_tf_resource.fullname + '.bucket.id}',
+            'bucket': '${' + bucket_tf_resource.fullname + '.id}',
             'queue': [{
                 'id': sqs_identifier,
                 'queue_arn':
