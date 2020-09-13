@@ -720,15 +720,11 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
 
 
 @integration.command()
-@threaded()
-@binary(['oc', 'ssh'])
-@internal()
-@use_jump_host()
+@click.argument('gitlab-project-id')
 @click.pass_context
-def openshift_environments(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_environments(ctx, gitlab_project_id):
     run_integration(reconcile.openshift_environments,
-                    ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
+                    ctx.obj, gitlab_project_id)
 
 
 @integration.command()

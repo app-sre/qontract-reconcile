@@ -578,6 +578,10 @@ ENVIRONMENTS_QUERY = """
           namespaces {
             path
             name
+            cluster {
+              path
+              name
+            }
           }
         }
       }
