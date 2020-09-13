@@ -25,6 +25,7 @@ import reconcile.openshift_resources
 import reconcile.openshift_vault_secrets
 import reconcile.openshift_routes
 import reconcile.openshift_namespaces
+import reconcile.openshift_environments
 import reconcile.openshift_network_policies
 import reconcile.openshift_performance_parameters
 import reconcile.openshift_serviceaccount_tokens
@@ -714,6 +715,18 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 @click.pass_context
 def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_namespaces,
+                    ctx.obj, thread_pool_size, internal,
+                    use_jump_host)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_environments(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.openshift_environments,
                     ctx.obj, thread_pool_size, internal,
                     use_jump_host)
 

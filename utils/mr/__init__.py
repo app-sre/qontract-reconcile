@@ -6,6 +6,7 @@ from utils.mr.cluster_ids import CreateUpdateClusterIds
 from utils.mr.cluster_version import CreateUpdateClusterVersion
 from utils.mr.notificator import CreateAppInterfaceNotificator
 from utils.mr.user_maintenance import CreateDeleteUser
+from utils.mr.environment import CreateEnvironment
 
 
 __all__ = [

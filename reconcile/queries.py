@@ -571,9 +571,29 @@ ENVIRONMENTS_QUERY = """
     product {
       name
     }
+    copy {
+      source {
+        environment {
+          name
+          namespaces {
+            path
+            name
+          }
+        }
+      }
+      target {
+        cluster {
+          path
+          name
+        }
+      }
+    }
     namespaces {
       name
       app {
+        name
+      }
+      environment {
         name
       }
       cluster {
@@ -909,6 +929,7 @@ SAAS_FILES_QUERY = """
       parameters
       targets {
         namespace {
+          path
           name
           environment {
             name
