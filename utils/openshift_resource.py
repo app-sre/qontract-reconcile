@@ -256,6 +256,7 @@ class OpenshiftResource(object):
         body['metadata'].pop('selfLink', None)
         body['metadata'].pop('uid', None)
         body['metadata'].pop('namespace', None)
+        body['metadata'].pop('managedFields', None)
         annotations.pop('kubectl.kubernetes.io/last-applied-configuration',
                         None)
 
