@@ -19,6 +19,31 @@ class JenkinsApi(object):
         self.should_restart = False
         self.settings = settings
 
+    def get_job_names(self):
+        url = f"{self.url}/api/json?tree=jobs[name]"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        job_names = [r['name'] for r in res.json()['jobs']]
+        return job_names
+
+    def delete_job(self, job_name):
+        kwargs = self.get_crumb_kwargs()
+
+        url = f"{self.url}/job/{job_name}/doDelete"
+        res = requests.post(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            **kwargs
+        )
+
+        res.raise_for_status()
+
     def get_all_roles(self):
         url = "{}/role-strategy/strategy/getAllRoles".format(self.url)
         res = requests.get(
@@ -134,7 +159,7 @@ class JenkinsApi(object):
         res.raise_for_status()
         return res.json()['building'] is True
 
-    def trigger_job(self, job_name):
+    def get_crumb_kwargs(self):
         try:
             crumb_url = f"{self.url}/crumbIssuer/api/json"
             res = requests.get(
@@ -149,6 +174,11 @@ class JenkinsApi(object):
             }
         except Exception:
             kwargs = {}
+
+        return kwargs
+
+    def trigger_job(self, job_name):
+        kwargs = self.get_crumb_kwargs()
 
         url = f"{self.url}/job/{job_name}/build"
         res = requests.post(

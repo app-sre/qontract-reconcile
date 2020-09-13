@@ -120,6 +120,8 @@ JENKINS_INSTANCES_QUERY = """
     }
     previousUrls
     plugins
+    deleteMethod
+    managedProjects
   }
 }
 """
