@@ -302,7 +302,8 @@ class JJB(object):
         repo_url_raw = job['properties'][0]['github']['url']
         return repo_url_raw.strip('/').replace('.git', '')
 
-    def get_all_jobs(self, job_types=[''], instance_name=None):
+    def get_all_jobs(self, job_types=[''], instance_name=None,
+                     include_test=False):
         all_jobs = {}
         for name, wd in self.working_dirs.items():
             if instance_name and name != instance_name:
@@ -314,7 +315,7 @@ class JJB(object):
                 job_name = job['name']
                 if not any(job_type in job_name for job_type in job_types):
                     continue
-                if 'test' in job_name:
+                if not include_test and 'test' in job_name:
                     continue
                 # temporarily ignore openshift-saas-deploy jobs
                 if job_name.startswith('openshift-saas-deploy'):
