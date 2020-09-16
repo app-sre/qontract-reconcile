@@ -1231,6 +1231,7 @@ class TerrascriptClient(object):
         region = common_values['region'] or self.default_regions.get(account)
         specs = common_values['specs']
         all_queues_per_spec = []
+        kms_keys = set()
         for spec in specs:
             defaults = self.get_values(spec['defaults'])
             queues = spec.pop('queues', [])
@@ -1248,6 +1249,21 @@ class TerrascriptClient(object):
                 if self._multiregion_account_(account):
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
+                kms_master_key_id = values.pop('kms_master_key_id', None)
+                if kms_master_key_id is not None:
+                    if not kms_master_key_id.startswith("arn:"):
+                        kms_key = self._find_resource_(
+                            account, kms_master_key_id, 'kms')
+                        if kms_key:
+                            kms_res = "aws_kms_key." + \
+                                kms_key['resource']['identifier']
+                            values['kms_master_key_id'] = \
+                                "${" + kms_res + ".arn}"
+                            values['depends_on'] = [kms_res]
+                        else:
+                            raise ValueError(
+                                f"failed to find kms key {kms_master_key_id}")
+                    kms_keys.add(values['kms_master_key_id'])
                 queue_tf_resource = aws_sqs_queue(queue, **values)
                 tf_resources.append(queue_tf_resource)
                 output_name = output_prefix + '[aws_region]'
@@ -1302,6 +1318,13 @@ class TerrascriptClient(object):
                     }
                 ]
             }
+            if len(kms_keys):
+                kms_statement = {
+                    "Effect": "Allow",
+                    "Action": ["kms:Decrypt"],
+                    "Resource": list(kms_keys)
+                }
+                policy['Statement'].append(kms_statement)
             values['policy'] = json.dumps(policy, sort_keys=True)
             policy_tf_resource = aws_iam_policy(policy_identifier, **values)
             tf_resources.append(policy_tf_resource)
