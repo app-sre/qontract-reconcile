@@ -286,7 +286,11 @@ class OC(object):
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
         recyclables = {}
-        supported_recyclables = ['Deployment', 'DeploymentConfig']
+        supported_recyclables = [
+            'Deployment',
+            'DeploymentConfig',
+            'StatefulSet',
+        ]
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod)
             kind = owner['kind']
