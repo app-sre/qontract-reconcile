@@ -1,8 +1,13 @@
-from sretoolbox.utils import retry
+import hvac
 
+from sretoolbox.utils import retry
 
 import utils.vault_client as vault_client
 import utils.config as config
+
+
+class VaultForbidden(Exception):
+    pass
 
 
 @retry()
@@ -49,6 +54,11 @@ def read_all(secret, settings=None):
     """
 
     if settings and settings.get('vault'):
-        return vault_client.read_all(secret)
+        try:
+            data = vault_client.read_all(secret)
+        except hvac.exceptions.Forbidden:
+            raise VaultForbidden(f'permission denied reading vault secret at '
+                                 f'{secret["path"]}')
+        return data
     else:
         return config.read_all(secret)
