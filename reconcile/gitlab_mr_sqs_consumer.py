@@ -8,7 +8,6 @@ import logging
 import reconcile.queries as queries
 
 from utils import mr
-from utils.defer import defer
 from utils.sqs_gateway import SQSGateway
 from utils.gitlab_api import GitLabApi
 
@@ -16,8 +15,7 @@ from utils.gitlab_api import GitLabApi
 QONTRACT_INTEGRATION = 'gitlab-mr-sqs-consumer'
 
 
-@defer
-def run(dry_run, gitlab_project_id, defer=None):
+def run(dry_run, gitlab_project_id):
     settings = queries.get_app_interface_settings()
 
     accounts = queries.get_aws_accounts()
@@ -36,12 +34,20 @@ def run(dry_run, gitlab_project_id, defer=None):
             break
 
         for message in messages:
-            receipt_handle, body = message[0], message[1]
+            # Let's first delete all the message we received,
+            # otherwise they will come back in 30s.
+            receipt_handle = message[0]
+            sqs_cli.delete_message(str(receipt_handle))
 
+        for message in messages:
+            # Time to process the messages. Any failure here is not
+            # critical, even though we already deleted the messaged,
+            # since the producers will keep re-sending the message
+            # until the MR gets merged to app-interface
+            receipt_handle, body = message[0], message[1]
             logging.info('received message %s with body %s',
                          receipt_handle[:6], json.dumps(body))
 
             if not dry_run:
-                defer(lambda: sqs_cli.delete_message(str(receipt_handle)))
                 merge_request = mr.init_from_sqs_message(body)
                 merge_request.submit_to_gitlab(gitlab_cli=gitlab_cli)
