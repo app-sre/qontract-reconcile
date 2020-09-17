@@ -90,7 +90,7 @@ def is_good_to_merge(merge_label, labels):
         not any(l in HOLD_LABELS for l in labels)
 
 
-def rebase_merge_requests(dry_run, gl, rebase_limit):
+def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for merge_label in MERGE_LABELS_PRIORITY:
@@ -114,17 +114,18 @@ def rebase_merge_requests(dry_run, gl, rebase_limit):
             if not good_to_rebase:
                 continue
 
-            pipelines = mr.pipelines()
-            if not pipelines:
-                continue
+            if wait_for_pipeline:
+                pipelines = mr.pipelines()
+                if not pipelines:
+                    continue
 
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
-            incomplete_pipelines = \
-                [p for p in pipelines
-                 if p['status'] in ['running', 'pending']]
-            if incomplete_pipelines:
-                continue
+                # possible statuses:
+                # running, pending, success, failed, canceled, skipped
+                incomplete_pipelines = \
+                    [p for p in pipelines
+                     if p['status'] in ['running', 'pending']]
+                if incomplete_pipelines:
+                    continue
 
             logging.info(['rebase', gl.project.name, mr.iid])
             if not dry_run and rebases < rebase_limit:
