@@ -44,7 +44,13 @@ class QuayMirror:
           }
           items {
             name
-            mirror
+            mirror {
+              url
+              pullCredentials {
+                path
+                field
+              }
+            }
           }
         }
       }
@@ -64,6 +70,7 @@ class QuayMirror:
             for item in data:
                 try:
                     self.skopeo_cli.copy(src_image=item['mirror_url'],
+                                         src_creds=item['mirror_creds'],
                                          dst_image=item['image_url'],
                                          dest_creds=self.push_creds[org])
                 except SkopeoCmdError as details:
@@ -103,7 +110,22 @@ class QuayMirror:
         for org, data in summary.items():
             for item in data:
                 image = Image(f'{item["server_url"]}/{org}/{item["name"]}')
-                image_mirror = Image(item['mirror'])
+
+                mirror_url = item['mirror']['url']
+
+                username = None
+                password = None
+                mirror_creds = None
+                if item['mirror']['pullCredentials'] is not None:
+                    pull_credentials = item['mirror']['pullCredentials']
+                    raw_data = secret_reader.read_all(pull_credentials,
+                                                      settings=self.settings)
+                    username = raw_data["user"]
+                    password = raw_data["token"]
+                    mirror_creds = f'{username}:{password}'
+
+                image_mirror = Image(mirror_url, username=username,
+                                     password=password)
 
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
@@ -112,6 +134,7 @@ class QuayMirror:
                         _LOG.debug('Image %s and mirror %s are out off sync',
                                    downstream, upstream)
                         sync_tasks[org].append({'mirror_url': str(upstream),
+                                                'mirror_creds': mirror_creds,
                                                 'image_url': str(downstream)})
                         continue
 
@@ -139,6 +162,7 @@ class QuayMirror:
                     _LOG.debug('Image %s and mirror %s are out of sync',
                                downstream, upstream)
                     sync_tasks[org].append({'mirror_url': str(upstream),
+                                            'mirror_creds': mirror_creds,
                                             'image_url': str(downstream)})
 
         return sync_tasks
