@@ -74,7 +74,7 @@ def collect_saas_file_configs():
             repo_urls.add(url)
             for target in resource_template['targets']:
                 env_name = target['namespace']['environment']['name']
-                upstream = target.get('upstream', '')
+                upstream = target.get('upstream') or ''
                 final_job_template_name = \
                     f'{job_template_name}-with-upstream' if upstream \
                     else job_template_name
