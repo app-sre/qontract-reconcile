@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 import time
 
@@ -50,6 +51,8 @@ class QuayMirror:
                 path
                 field
               }
+              tags
+              tagsExclude
             }
           }
         }
@@ -100,6 +103,25 @@ class QuayMirror:
 
         return summary
 
+    def sync_tag(self, tags, tags_exclude, candidate):
+        if tags is not None:
+            for tag in tags:
+                if re.match(tag, candidate):
+                    return True
+            # When tags is defined, we don't look at
+            # tags_exclude
+            return False
+
+        if tags_exclude is not None:
+            for tag_exclude in tags_exclude:
+                if re.match(tag_exclude, candidate):
+                    return False
+            return True
+
+        # Both tags and tags_exclude are None, so
+        # tag must be synced
+        return True
+
     def process_sync_tasks(self):
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
@@ -127,7 +149,14 @@ class QuayMirror:
                 image_mirror = Image(mirror_url, username=username,
                                      password=password)
 
+                tags = item['mirror'].get('tags')
+                tags_exclude = item['mirror'].get('tagsExclude')
+
                 for tag in image_mirror:
+                    if not self.sync_tag(tags=tags, tags_exclude=tags_exclude,
+                                         candidate=tag):
+                        continue
+
                     upstream = image_mirror[tag]
                     downstream = image[tag]
                     if tag not in image:
