@@ -235,7 +235,8 @@ class TerraformClient(object):
                 output_resource_name = data['{}.output_resource_name'.format(
                     self.integration_prefix)]
                 oc_resource = \
-                    self.construct_oc_resource(output_resource_name, data)
+                    self.construct_oc_resource(output_resource_name,
+                                               account, data)
                 ri.add_desired(
                     cluster,
                     namespace,
@@ -301,7 +302,7 @@ class TerraformClient(object):
             return data[list(data.keys())[0]]
         return data
 
-    def construct_oc_resource(self, name, data):
+    def construct_oc_resource(self, name, account, data):
         body = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -309,7 +310,8 @@ class TerraformClient(object):
             "metadata": {
                 "name": name,
                 "annotations": {
-                    "qontract.recycle": "true"
+                    "qontract.recycle": "true",
+                    "aws.account.name": account
                 }
             },
             "data": {}
