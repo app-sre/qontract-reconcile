@@ -181,6 +181,17 @@ class Zone(object):
                 f"Refusing to add duplicate {record} to {self}")
         self._records.append(record)
 
+    def remove_record(self, record_name):
+        """
+        Remove a record to the zone based on the record name
+
+        :param record_name: name of the record to remove
+        :type record: str
+        """
+        for record in self._records:
+            if record.name == record_name:
+                self._records.remove(record)
+
     def __eq__(self, other):
         if not isinstance(other, Zone):
             return False
