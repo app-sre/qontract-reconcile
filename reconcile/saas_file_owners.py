@@ -165,7 +165,7 @@ def valid_diff(current_state, desired_state):
 
 def check_if_lgtm(owners, comments):
     if not owners:
-        return False
+        return False, False
     approved = False
     hold = False
     lgtm_comment = False
