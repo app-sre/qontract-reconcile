@@ -56,6 +56,11 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
 
+KEY_USAGE_VALUE = ['ENCRYPT_DECRYPT', 'SIGN_VERIFY', 'ENCRYPT_DECRYPT']
+KEY_SPEC_VAULE = ['SYMMETRIC_DEFAULT', 'RSA_2048', 'RSA_3072', 'RSA_4096',
+                  'ECC_NIST_P256', 'ECC_NIST_P384', 'ECC_NIST_P521',
+                  'ECC_SECG_P256K1']
+
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
@@ -1621,31 +1626,130 @@ class TerrascriptClient(object):
         bucket_tf_resource = \
             self.populate_tf_resource_s3(resource, namespace_info)
 
+        region = common_values['region'] or self.default_regions.get(account)
+        provider = ''
+        if self._multiregion_account_(account):
+            provider = 'aws.' + region
         tf_resources = []
         sqs_identifier = f'{identifier}-sqs'
         sqs_values = {
             'name': sqs_identifier
         }
+        # https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#grant-destinations-permissions-to-s3
+        sqs_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "sqs:SendMessage",
+                "Resource": "arn:aws:sqs:*:*:" + sqs_identifier,
+                "Condition": {
+                    "ArnEquals": {
+                        "aws:SourceArn":
+                            '${' + bucket_tf_resource.fullname + '.arn}'
+                    }
+                }
+            }]
+        }
+        sqs_values['policy'] = json.dumps(sqs_policy, sort_keys=True)
 
         visibility_timeout_seconds = \
             int(common_values.get('visibility_timeout_seconds', 30))
-        if visibility_timeout_seconds in range(0, 43200):
+        if visibility_timeout_seconds in range(0, 43201):
             sqs_values['visibility_timeout_seconds'] = \
                 visibility_timeout_seconds
 
         message_retention_seconds = \
             int(common_values.get('message_retention_seconds', 345600))
-        if visibility_timeout_seconds in range(60, 1209600):
+        if message_retention_seconds in range(60, 1209601):
             sqs_values['message_retention_seconds'] = \
                 message_retention_seconds
 
-        kms_master_key_id = common_values.get('kms_master_key_id', None)
-        if kms_master_key_id is not None:
-            sqs_values['kms_master_key_id'] = kms_master_key_id
+        max_message_size = \
+            int(common_values.get('max_message_size', 262144))
+        if max_message_size in range(1024, 262145):
+            sqs_values['max_message_size'] = \
+                max_message_size
 
-        region = common_values['region'] or self.default_regions.get(account)
-        if self._multiregion_account_(account):
-            sqs_values['provider'] = 'aws.' + region
+        delay_seconds = \
+            int(common_values.get('delay_seconds', 0))
+        if delay_seconds in range(0, 901):
+            sqs_values['delay_seconds'] = \
+                delay_seconds
+
+        receive_wait_time_seconds = \
+            int(common_values.get('receive_wait_time_seconds', 0))
+        if receive_wait_time_seconds in range(0, 21):
+            sqs_values['receive_wait_time_seconds'] = \
+                receive_wait_time_seconds
+
+        encryption = common_values.get('encryption', True)
+        if encryption:
+            kms_identifier = f'{identifier}-kms'
+            kms_values = {
+                'description':
+                    'app-interface created KMS key for' + sqs_identifier
+            }
+            key_usage = \
+                str(common_values.get('key_usage', 'ENCRYPT_DECRYPT')).upper()
+            if key_usage in KEY_USAGE_VALUE:
+                kms_values['key_usage'] = key_usage
+
+            customer_master_key_spec = \
+                str(common_values.get('customer_master_key_spec',
+                                      'SYMMETRIC_DEFAULT')).upper()
+            if customer_master_key_spec in KEY_USAGE_VALUE:
+                kms_values['customer_master_key_spec'] = \
+                    customer_master_key_spec
+
+            kms_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "AWS": "arn:aws:iam::" + account + ":root"
+                        },
+                        "Action": "kms:*",
+                        "Resource": "*"
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "s3.amazonaws.com"
+                        },
+                        "Action": [
+                            "kms:GenerateDataKey",
+                            "kms:Decrypt"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+            kms_values['policy'] = json.dumps(kms_policy, sort_keys=True)
+            kms_values['is_enabled'] = common_values.get('is_enabled', True)
+            if provider:
+                kms_values['provider'] = provider
+
+            kms_tf_resource = aws_kms_key(kms_identifier, **kms_values)
+            tf_resources.append(kms_tf_resource)
+
+            alias_values = {
+                'name': 'alias/' + kms_identifier,
+                'target_key_id':
+                    '${' + kms_tf_resource.fullname + '.key_id}'
+            }
+            if provider:
+                alias_values['provider'] = provider
+            alias_tf_resource = aws_kms_alias(kms_identifier, **alias_values)
+            tf_resources.append(alias_tf_resource)
+
+            sqs_values['kms_master_key_id'] = \
+                '${' + kms_tf_resource.fullname + '.arn}'
+            sqs_values['depends_on'] = [kms_tf_resource]
+
+        if provider:
+            sqs_values['provider'] = provider
 
         sqs_tf_resource = aws_sqs_queue(sqs_identifier, **sqs_values)
         tf_resources.append(sqs_tf_resource)
@@ -1715,6 +1819,15 @@ class TerrascriptClient(object):
                 }
             ]
         }
+        if encryption:
+            kms_statement = {
+                "Effect": "Allow",
+                "Action": ["kms:Decrypt"],
+                "Resource": [
+                    sqs_values['kms_master_key_id']
+                ]
+            }
+            policy['Statement'].append(kms_statement)
         values['policy'] = json.dumps(policy, sort_keys=True)
         policy_tf_resource = aws_iam_policy(sqs_identifier, **values)
         tf_resources.append(policy_tf_resource)
