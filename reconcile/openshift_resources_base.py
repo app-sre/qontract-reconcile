@@ -94,6 +94,9 @@ NAMESPACES_QUERY = """
               format
           }
       }
+      spec {
+        version
+      }
       automationToken {
         path
         field
