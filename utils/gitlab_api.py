@@ -26,7 +26,8 @@ class MRState:
 
 class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True,
-                 settings=None, project_url=None, saas_files=None):
+                 settings=None, project_url=None, saas_files=None,
+                 main_ref_name='master'):
         self.server = instance['url']
         token = secret_reader.read(instance['token'], settings=settings)
         ssl_verify = instance['sslVerify']
@@ -36,6 +37,7 @@ class GitLabApi(object):
                                 ssl_verify=ssl_verify)
         self.gl.auth()
         self.user = self.gl.user
+        self.head = None
         if project_id is None:
             # When project_id is not provide, we try to get the project
             # using the project_url
@@ -45,6 +47,9 @@ class GitLabApi(object):
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
             self.project = self.gl.projects.get(project_id)
+            if main_ref_name:
+                self.head = \
+                    self.project.commits.list(ref_name=main_ref_name)[0].id
         self.saas_files = saas_files
 
     def create_branch(self, new_branch, source_branch):
