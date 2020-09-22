@@ -162,6 +162,12 @@ def collect_queries(query_name=None):
         # fo the given identifier
         tf_resource_info = get_tf_resource_info(namespace,
                                                 identifier)
+        if tf_resource_info is None:
+            logging.error(
+                ['Could not find rds identifier %s in namespace %s'],
+                identifier, namespace['name']
+            )
+            sys.exit(ExitCodes.ERROR)
 
         queries_list.append(
             # building up the final query dictionary
