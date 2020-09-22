@@ -1,4 +1,4 @@
-FROM centos:7 AS jsonnet-builder
+FROM quay.io/app-sre/centos:7 AS jsonnet-builder
 
 ENV GOPATH=/go
 ENV JSONNET_VERSION=v0.15.0
@@ -22,7 +22,7 @@ WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
     /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
-FROM centos:7
+FROM quay.io/app-sre/centos:7
 
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
