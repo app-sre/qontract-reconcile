@@ -165,7 +165,7 @@ def collect_queries(query_name=None):
         if tf_resource_info is None:
             logging.error(
                 ['Could not find rds identifier %s in namespace %s'],
-                 identifier, namespace['name']
+                identifier, namespace['name']
             )
             sys.exit(ExitCodes.ERROR)
 
