@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 import time
 
@@ -44,7 +45,15 @@ class QuayMirror:
           }
           items {
             name
-            mirror
+            mirror {
+              url
+              pullCredentials {
+                path
+                field
+              }
+              tags
+              tagsExclude
+            }
           }
         }
       }
@@ -64,6 +73,7 @@ class QuayMirror:
             for item in data:
                 try:
                     self.skopeo_cli.copy(src_image=item['mirror_url'],
+                                         src_creds=item['mirror_creds'],
                                          dst_image=item['image_url'],
                                          dest_creds=self.push_creds[org])
                 except SkopeoCmdError as details:
@@ -93,6 +103,25 @@ class QuayMirror:
 
         return summary
 
+    def sync_tag(self, tags, tags_exclude, candidate):
+        if tags is not None:
+            for tag in tags:
+                if re.match(tag, candidate):
+                    return True
+            # When tags is defined, we don't look at
+            # tags_exclude
+            return False
+
+        if tags_exclude is not None:
+            for tag_exclude in tags_exclude:
+                if re.match(tag_exclude, candidate):
+                    return False
+            return True
+
+        # Both tags and tags_exclude are None, so
+        # tag must be synced
+        return True
+
     def process_sync_tasks(self):
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
@@ -103,15 +132,38 @@ class QuayMirror:
         for org, data in summary.items():
             for item in data:
                 image = Image(f'{item["server_url"]}/{org}/{item["name"]}')
-                image_mirror = Image(item['mirror'])
+
+                mirror_url = item['mirror']['url']
+
+                username = None
+                password = None
+                mirror_creds = None
+                if item['mirror']['pullCredentials'] is not None:
+                    pull_credentials = item['mirror']['pullCredentials']
+                    raw_data = secret_reader.read_all(pull_credentials,
+                                                      settings=self.settings)
+                    username = raw_data["user"]
+                    password = raw_data["token"]
+                    mirror_creds = f'{username}:{password}'
+
+                image_mirror = Image(mirror_url, username=username,
+                                     password=password)
+
+                tags = item['mirror'].get('tags')
+                tags_exclude = item['mirror'].get('tagsExclude')
 
                 for tag in image_mirror:
+                    if not self.sync_tag(tags=tags, tags_exclude=tags_exclude,
+                                         candidate=tag):
+                        continue
+
                     upstream = image_mirror[tag]
                     downstream = image[tag]
                     if tag not in image:
                         _LOG.debug('Image %s and mirror %s are out off sync',
                                    downstream, upstream)
                         sync_tasks[org].append({'mirror_url': str(upstream),
+                                                'mirror_creds': mirror_creds,
                                                 'image_url': str(downstream)})
                         continue
 
@@ -139,6 +191,7 @@ class QuayMirror:
                     _LOG.debug('Image %s and mirror %s are out of sync',
                                downstream, upstream)
                     sync_tasks[org].append({'mirror_url': str(upstream),
+                                            'mirror_creds': mirror_creds,
                                             'image_url': str(downstream)})
 
         return sync_tasks
