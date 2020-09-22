@@ -47,6 +47,7 @@ setup(
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
         "jenkins-job-builder==2.10.1",
+        "tzlocal==2.1",
     ],
 
     test_suite="tests",

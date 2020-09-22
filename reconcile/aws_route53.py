@@ -1,4 +1,5 @@
 import logging
+import re
 import semver
 import sys
 
@@ -246,7 +247,7 @@ def build_desired_state(zones):
         if not account:
             account = Account(account_name)
 
-        new_zone = Zone(zone['name'])
+        new_zone = Zone(zone['name'], zone)
 
         for record in zone['records']:
             new_record = Record(new_zone, record['name'], {
@@ -372,6 +373,23 @@ def reconcile_state(current_state, desired_state):
                 # they will be created on the next run
                 # TODO: Find a way to create the records on the same run?
                 continue
+
+            # Check if we have unmanaged_record_names (urn) and compile them
+            # all as regular expressions
+            urn_compiled = []
+            if 'unmanaged_record_names' in zone.data:
+                for urn in zone.data['unmanaged_record_names']:
+                    urn_compiled.append(re.compile(urn))
+
+            for record in zone.records.values():
+                for regex in urn_compiled:
+                    if regex.fullmatch(record.name):
+                        logging.debug(f'{desired_account} excluding unmanaged '
+                                      f'record {record} because it matched '
+                                      f'unmanaged_record_names pattern '
+                                      f'\'{regex.pattern}\'')
+                        zone.remove_record(record.name)
+                        current_zone.remove_record(record.name)
 
             add, remove, update = diff_sets(zone.records, current_zone.records)
             for record in remove:

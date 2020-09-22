@@ -1185,6 +1185,7 @@ DNS_ZONES_QUERY = """
         field
       }
     }
+    unmanaged_record_names
     records {
       type
       ... on DnsRecordCommon_v1 {
