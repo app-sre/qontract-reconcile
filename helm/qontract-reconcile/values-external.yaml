@@ -238,11 +238,11 @@ integrations:
 - name: openshift-resourcequotas
   resources:
     requests:
-      memory: 50Mi
-      cpu: 200m
+      memory: 800Mi
+      cpu: 900m
     limits:
-      memory: 100Mi
-      cpu: 300m
+      memory: 1200Mi
+      cpu: 1200m
   extraArgs: --no-use-jump-host
 - name: openshift-resources
   resources:
