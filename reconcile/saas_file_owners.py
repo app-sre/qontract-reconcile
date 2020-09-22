@@ -216,6 +216,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         write_baseline_to_file(io_dir, baseline)
         return
 
+    saas_label = 'saas-file-update'
     approved_label = 'bot/approved'
     hold_label = 'bot/hold'
     gl = init_gitlab(gitlab_project_id)
@@ -231,6 +232,10 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     is_valid_diff = valid_diff(current_state, desired_state)
     valid_saas_file_changes_only = is_saas_file_changes_only and is_valid_diff
     write_diffs_to_file(io_dir, diffs, valid_saas_file_changes_only)
+
+    labels = gl.get_merge_request_labels(gitlab_merge_request_id)
+    if valid_saas_file_changes_only and saas_label not in labels:
+        gl.add_labels_to_merge_request(gitlab_merge_request_id, saas_label)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
