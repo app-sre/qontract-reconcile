@@ -85,7 +85,8 @@ def get_tf_resource_info(namespace, identifier):
         if tf_resource['provider'] != 'rds':
             continue
 
-        defaults = gql.get_api().get_resource(tf_resource['defaults'])
+        defaults_ref = gql.get_api().get_resource(tf_resource['defaults'])
+        defaults = yaml.safe_load(defaults_ref['content'])
 
         output_resource_name = tf_resource['output_resource_name']
         if output_resource_name is None:
