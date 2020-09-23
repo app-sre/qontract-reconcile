@@ -41,11 +41,8 @@ spec:
         command:
           - /bin/bash
         args:
-          - "-c"
-          - 'time docker-entrypoint.sh \
-{{ CMD }} {{ ENGINE }}://$(db.user):$(db.password)@\
-$(db.host):$(db.port)/$(db.name) \
---command "{{ QUERY }}"{{ OUTPUT_SUFFIX }}'
+          - '-c'
+          - '{{ COMMAND }}'
         env:
           {% for key, value in DB_CONN.items() %}
           {% if value is none %}
@@ -186,6 +183,51 @@ def collect_queries(query_name=None):
     return queries_list
 
 
+def make_postgres_command(output, query):
+    command = [
+        'time psql',
+        'postgres://$(db.user):$(db.password)@'
+        '$(db.host):$(db.port)/$(db.name)',
+        f'--command "{query}"',
+    ]
+
+    if output == 'filesystem':
+        command.extend(filesystem_extra_command())
+
+    return ' '.join(command)
+
+
+def make_mysql_command(output, query):
+    command = [
+        'time mysql',
+        '--host=$(db.host)',
+        '--port=$(db.port)',
+        '--database=$(db.name)',
+        '--user=$(db.user)',
+        '--password=$(db.password)',
+        f'--execute="{query}"',
+    ]
+
+    if output == 'filesystem':
+        command.extend(filesystem_extra_command())
+
+    return ' '.join(command)
+
+
+def filesystem_extra_command():
+    return [
+        '> /tmp/query-result.txt;',
+        'echo;',
+        'echo Get the sql-query results with:;',
+        'echo;',
+        'echo  oc rsh --shell=/bin/bash ${HOSTNAME} ',
+        'cat /tmp/query-result.txt;',
+        'echo;',
+        f'echo Sleeping {POD_TTL}s...;',
+        f'sleep {POD_TTL};',
+    ]
+
+
 def process_template(query):
     """
     Renders the Jinja2 Job Template.
@@ -194,29 +236,22 @@ def process_template(query):
                   to be used in the Template
     :return: rendered Job YAML
     """
-    engine_cmd_map = {'postgres': 'psql',
-                      'mysql': 'mysql'}
+    engine_cmd_map = {'postgres': make_postgres_command,
+                      'mysql': make_mysql_command}
 
     engine = query['engine']
-    try:
-        cmd = engine_cmd_map[engine]
-    except KeyError:
+    if engine not in engine_cmd_map:
         raise RuntimeError(f'Engine {engine} not supported')
 
+    supported_outputs = ['stdout', 'filesystem']
     output = query['output']
-    if output == 'stdout':
-        output_suffix = ';'
-    elif output == 'filesystem':
-        output_suffix = (' > /tmp/query-result.txt; '
-                         'echo Get the sql-query results with:; '
-                         'echo; '
-                         'echo oc rsh --shell=/bin/bash ${HOSTNAME} '
-                         'cat /tmp/query-result.txt; '
-                         'echo; '
-                         f'echo Sleeping {POD_TTL}s...;'
-                         f'sleep {POD_TTL}')
-    else:
+    if output not in supported_outputs:
         raise RuntimeError(f'Output {output} not supported')
+
+    make_command = engine_cmd_map[engine]
+
+    command = make_command(output=output,
+                           query=query['query'])
 
     template = jinja2.Template(JOB_TEMPLATE)
     job_yaml = template.render(JOB_NAME=query['name'],
@@ -225,8 +260,7 @@ def process_template(query):
                                ENGINE=engine,
                                ENGINE_VERSION=query['engine_version'],
                                DB_CONN=query['db_conn'],
-                               CMD=cmd,
-                               OUTPUT_SUFFIX=output_suffix)
+                               COMMAND=command)
     return job_yaml
 
 
@@ -260,7 +294,6 @@ def run(dry_run, enable_deletion=False):
         job = yaml.safe_load(job_yaml)
         job_resource = OpenshiftResource(job, QONTRACT_INTEGRATION,
                                          QONTRACT_INTEGRATION_VERSION)
-
         oc_map = OC_Map(namespaces=[query['namespace']],
                         integration=QONTRACT_INTEGRATION,
                         settings=queries.get_app_interface_settings(),
