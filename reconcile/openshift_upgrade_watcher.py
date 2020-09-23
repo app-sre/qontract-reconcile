@@ -14,7 +14,8 @@ QONTRACT_INTEGRATION = 'openshift-upgrade-watcher'
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
+        defer=None):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
     clusters = [c for c in queries.get_clusters(minimal=True) if c.get('ocm')]
@@ -22,6 +23,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size)
+    defer(lambda: oc_map.cleanup())
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,
