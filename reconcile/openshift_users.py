@@ -1,6 +1,5 @@
 import logging
 
-import utils.gql as gql
 import utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
 import reconcile.openshift_rolebindings as openshift_rolebindings
@@ -9,38 +8,6 @@ import reconcile.queries as queries
 from utils.oc import OC_Map
 from utils.defer import defer
 
-CLUSTERS_QUERY = """
-{
-  clusters: clusters_v1 {
-    name
-    serverUrl
-    jumpHost {
-      hostname
-      knownHosts
-      user
-      port
-      identity {
-        path
-        field
-        format
-      }
-    }
-    managedGroups
-    ocm {
-      name
-    }
-    automationToken {
-      path
-      field
-      format
-    }
-    internal
-    disable {
-      integrations
-    }
-  }
-}
-"""
 
 QONTRACT_INTEGRATION = 'openshift-users'
 
@@ -56,8 +23,7 @@ def get_cluster_users(cluster, oc_map):
 
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
-    gqlapi = gql.get_api()
-    clusters = gqlapi.query(CLUSTERS_QUERY)['clusters']
+    clusters = queries.get_clusters(minimal=True)
     clusters = [c for c in clusters if c.get('ocm') is None]
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,

@@ -56,6 +56,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-serviceaccount-tokens`: Use OpenShift ServiceAccount tokens across namespaces/clusters.
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `openshift-vault-secrets`: Manages OpenShift Secrets from Vault.
+- `openshift-upgrade-watcher`: Watches for OpenShift upgrades and sends notifications.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-mirror`: Mirrors external images into Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
