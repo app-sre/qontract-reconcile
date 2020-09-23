@@ -403,10 +403,45 @@ CLUSTERS_QUERY = """
 """
 
 
-def get_clusters():
+CLUSTERS_MINIMAL_QUERY = """
+{
+  clusters: clusters_v1 {
+    name
+    serverUrl
+    jumpHost {
+      hostname
+      knownHosts
+      user
+      port
+      identity {
+        path
+        field
+        format
+      }
+    }
+    managedGroups
+    ocm {
+      name
+    }
+    automationToken {
+      path
+      field
+      format
+    }
+    internal
+    disable {
+      integrations
+    }
+  }
+}
+"""
+
+
+def get_clusters(minimal=False):
     """ Returns all Clusters """
     gqlapi = gql.get_api()
-    return gqlapi.query(CLUSTERS_QUERY)['clusters']
+    query = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    return gqlapi.query(query)['clusters']
 
 
 NAMESPACES_QUERY = """

@@ -154,6 +154,16 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: openshift-upgrade-watcher
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 300Mi
+      cpu: 200m
+  extraArgs: --no-use-jump-host
+  state: true
 - name: openshift-groups
   resources:
     requests:

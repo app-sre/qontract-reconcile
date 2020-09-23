@@ -2162,6 +2162,83 @@ objects:
   kind: Deployment
   metadata:
     labels:
+      app: qontract-reconcile-openshift-upgrade-watcher
+    name: qontract-reconcile-openshift-upgrade-watcher
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-openshift-upgrade-watcher
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-openshift-upgrade-watcher
+          component: qontract-reconcile
+      spec:
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "1"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-upgrade-watcher
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--no-use-jump-host"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
+          resources:
+            limits:
+              cpu: 200m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
       app: qontract-reconcile-openshift-groups
     name: qontract-reconcile-openshift-groups
   spec:

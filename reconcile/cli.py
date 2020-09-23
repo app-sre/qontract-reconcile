@@ -54,6 +54,7 @@ import reconcile.jenkins_webhooks
 import reconcile.jenkins_webhooks_cleaner
 import reconcile.jira_watcher
 import reconcile.unleash_watcher
+import reconcile.openshift_upgrade_watcher
 import reconcile.slack_usergroups
 import reconcile.gitlab_integrations
 import reconcile.gitlab_permissions
@@ -530,6 +531,18 @@ def jira_watcher(ctx, io_dir):
 @click.pass_context
 def unleash_watcher(ctx):
     run_integration(reconcile.unleash_watcher, ctx.obj)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@binary(['oc', 'ssh'])
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.openshift_upgrade_watcher, ctx.obj,
+                    thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
