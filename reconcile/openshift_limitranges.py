@@ -16,7 +16,8 @@ SUPPORTED_LIMITRANGE_TYPES = (
     'defaultRequest',
     'max',
     'maxLimitRequestRatio',
-    'min'
+    'min',
+    'type'
 )
 
 
@@ -44,8 +45,8 @@ def construct_resources(namespaces):
         }
 
         # Build each limit item ignoring null ones
-        speclimit = {}
         for l in limitranges['limits']:
+            speclimit = {}
             for ltype in SUPPORTED_LIMITRANGE_TYPES:
                 if ltype in l and l[ltype] is not None:
                     speclimit[ltype] = l[ltype]
