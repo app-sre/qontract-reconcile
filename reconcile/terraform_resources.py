@@ -325,6 +325,13 @@ def run(dry_run, print_only=False,
         if err:
             cleanup_and_exit(tf, err)
 
+    # Temporary skip apply secret for running tf-r per account locally.
+    # The integration running on the cluster will manage the secret
+    # after any manual running.
+    # Will refactor with caller for further operator implement.
+    if account_name:
+        cleanup_and_exit(tf)
+
     tf.populate_desired_state(ri, oc_map)
 
     ob.realize_data(dry_run, oc_map, ri)
