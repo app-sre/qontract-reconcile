@@ -558,7 +558,7 @@ def canonicalize_namespaces(namespaces, providers):
             openshift_shared_resources_items = []
             for openshift_shared_resources_item in openshift_shared_resources:
                 openshift_shared_resources_items.extend(
-                    openshift_resources_item['openshiftResources']
+                    openshift_shared_resources_item['openshiftResources']
                 )
             if openshift_resources:
                 openshift_resources.extend(openshift_shared_resources_items)
