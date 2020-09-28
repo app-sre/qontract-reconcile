@@ -170,6 +170,7 @@ def check_if_lgtm(owners, comments):
     hold = False
     lgtm_comment = False
     sorted_comments = sorted(comments, key=lambda k: k['created_at'])
+    owners = [u.replace('@', '') for u in owners]
     for comment in sorted_comments:
         commenter = comment['username']
         if commenter not in owners:
