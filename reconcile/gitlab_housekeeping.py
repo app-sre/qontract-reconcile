@@ -137,7 +137,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
 
 
 @retry(max_attempts=10)
-def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False):
+def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
+                         wait_for_pipeline=False):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
@@ -165,16 +166,17 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False):
             if not pipelines:
                 continue
 
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
-            incomplete_pipelines = \
-                [p for p in pipelines
-                 if p['status'] in ['running', 'pending']]
-            if incomplete_pipelines:
-                if insist:
-                    raise Exception(f'insisting on {merge_label}')
-                else:
-                    continue
+            if wait_for_pipeline:
+                # possible statuses:
+                # running, pending, success, failed, canceled, skipped
+                incomplete_pipelines = \
+                    [p for p in pipelines
+                     if p['status'] in ['running', 'pending']]
+                if incomplete_pipelines:
+                    if insist:
+                        raise Exception(f'insisting on {merge_label}')
+                    else:
+                        continue
 
             last_pipeline_result = pipelines[0]['status']
             if last_pipeline_result != 'success':
