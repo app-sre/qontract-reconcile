@@ -66,7 +66,7 @@ class JumpHostSSH(JumpHostBase):
         return [
             'ssh',
             '-o', 'ControlMaster=auto',
-            '-o', 'ControlPath=~/controlmaster-%r@%h:%p',
+            '-o', 'ControlPath=/tmp/controlmaster-%r@%h:%p',
             '-o', 'ControlPersist=600',
             '-o', 'StrictHostKeyChecking=yes',
             '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
