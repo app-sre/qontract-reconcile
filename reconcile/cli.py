@@ -566,9 +566,13 @@ def gitlab_permissions(ctx, thread_pool_size):
 
 
 @integration.command()
+@click.option('--wait-for-pipeline/--no-wait-for-pipeline',
+              default=False,
+              help='wait for pending/running pipelines before acting.')
 @click.pass_context
-def gitlab_housekeeping(ctx):
-    run_integration(reconcile.gitlab_housekeeping, ctx.obj)
+def gitlab_housekeeping(ctx, wait_for_pipeline):
+    run_integration(reconcile.gitlab_housekeeping, ctx.obj,
+                    wait_for_pipeline)
 
 
 @integration.command()

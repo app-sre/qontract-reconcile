@@ -190,7 +190,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
                 merges += 1
 
 
-def run(dry_run):
+def run(dry_run, wait_for_pipeline):
     default_days_interval = 15
     default_limit = 8
     default_enable_closing = False
@@ -211,8 +211,11 @@ def run(dry_run):
                            'merge-request')
         rebase = hk.get('rebase')
         try:
-            merge_merge_requests(dry_run, gl, limit, rebase, insist=True)
+            merge_merge_requests(dry_run, gl, limit, rebase, insist=True,
+                                 wait_for_pipeline=wait_for_pipeline)
         except Exception:
-            merge_merge_requests(dry_run, gl, limit, rebase)
+            merge_merge_requests(dry_run, gl, limit, rebase,
+                                 wait_for_pipeline=wait_for_pipeline)
         if rebase:
-            rebase_merge_requests(dry_run, gl, limit)
+            rebase_merge_requests(dry_run, gl, limit,
+                                  wait_for_pipeline=wait_for_pipeline)
