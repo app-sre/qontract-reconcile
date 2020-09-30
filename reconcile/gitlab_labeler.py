@@ -17,7 +17,7 @@ def guess_labels(project_labels, changed_paths):
     This is the first form of guessing, which will likely be adjusted.
     """
     not_allowed_labels = MERGE_LABELS_PRIORITY + HOLD_LABELS
-    ignore_tokens = ['cicd', 'saas', 'rds']
+    ignore_tokens = ['cicd', 'saas', 'rds', 'services']
     guesses = set()
     for label in project_labels:
         if label in not_allowed_labels:
