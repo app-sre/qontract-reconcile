@@ -25,6 +25,7 @@ from utils.jinja2_ext import B64EncodeExtension
 from reconcile.exceptions import FetchResourceError
 
 from threading import Lock
+from textwrap import indent
 
 """
 +-----------------------+-------------------------+-------------+
@@ -42,6 +43,32 @@ from threading import Lock
 +-----------------------+-------------------------+-------------+
 """
 
+OPENSHIFT_RESOURCE = """
+provider
+... on NamespaceOpenshiftResourceResource_v1 {
+  path
+  validate_json
+}
+... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+  path
+  type
+  variables
+}
+... on NamespaceOpenshiftResourceVaultSecret_v1 {
+  path
+  version
+  name
+  labels
+  annotations
+  type
+}
+... on NamespaceOpenshiftResourceRoute_v1 {
+  path
+  vault_tls_secret_path
+  vault_tls_secret_version
+}
+"""
+
 NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -55,30 +82,13 @@ NAMESPACES_QUERY = """
       resource
       resourceNames
     }
+    sharedResources {
+      openshiftResources {
+        %s
+      }
+    }
     openshiftResources {
-      provider
-      ... on NamespaceOpenshiftResourceResource_v1 {
-        path
-        validate_json
-      }
-      ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
-        path
-        type
-        variables
-      }
-      ... on NamespaceOpenshiftResourceVaultSecret_v1 {
-        path
-        version
-        name
-        labels
-        annotations
-        type
-      }
-      ... on NamespaceOpenshiftResourceRoute_v1 {
-        path
-        vault_tls_secret_path
-        vault_tls_secret_version
-      }
+      %s
     }
     cluster {
       name
@@ -109,7 +119,7 @@ NAMESPACES_QUERY = """
     }
   }
 }
-"""
+""" % (indent(OPENSHIFT_RESOURCE, 8*' '), indent(OPENSHIFT_RESOURCE, 6*' '))
 
 QONTRACT_INTEGRATION = 'openshift_resources_base'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
@@ -541,7 +551,22 @@ def filter_namespaces_by_cluster_and_namespace(namespaces,
 def canonicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
+        shared_resources = namespace_info.get('sharedResources')
         openshift_resources = namespace_info.get('openshiftResources')
+        if shared_resources:
+            shared_openshift_resources_items = []
+            for shared_resources_item in shared_resources:
+                shared_openshift_resources = \
+                    shared_resources_item.get('openshiftResources')
+                if shared_openshift_resources:
+                    shared_openshift_resources_items.extend(
+                        shared_openshift_resources
+                    )
+            if openshift_resources:
+                openshift_resources.extend(shared_openshift_resources_items)
+            else:
+                openshift_resources = shared_openshift_resources_items
+                namespace_info['openshiftResources'] = openshift_resources
         if openshift_resources:
             for resource in openshift_resources[:]:
                 if resource['provider'] not in providers:
