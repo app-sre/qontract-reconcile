@@ -487,3 +487,14 @@ cronjobs:
   # once every 6 hours
   cron: '0 */6 * * *'
   dashdotdb: true
+- name: slack-cluster-usergroups
+  resources:
+    requests:
+      memory: 80Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    slack: true
+    cloudwatch: true

@@ -5,6 +5,7 @@ from utils.slack_api import SlackApi
 
 def init_slack(slack_info, integration):
     settings = queries.get_app_interface_settings()
+    workspace_name = slack_info['workspace']['name']
     slack_integrations = slack_info['workspace']['integrations']
     slack_config = \
         [i for i in slack_integrations if i['name'] == integration]
@@ -19,6 +20,7 @@ def init_slack(slack_info, integration):
     slack = SlackApi(token,
                      settings=settings,
                      init_usergroups=False,
+                     workspace_name=workspace_name,
                      channel=channel,
                      icon_emoji=icon_emoji,
                      username=username)

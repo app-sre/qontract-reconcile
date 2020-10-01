@@ -14,13 +14,14 @@ class SlackApi(object):
     """Wrapper around Slack API calls"""
 
     def __init__(self, token, settings=None, init_usergroups=True,
-                 **chat_kwargs):
+                 workspace_name=None, **chat_kwargs):
         slack_token = secret_reader.read(token, settings=settings)
         self.sc = SlackClient(slack_token)
         self.results = {}
         self.chat_kwargs = chat_kwargs
         if init_usergroups:
             self.initiate_usergroups()
+        self.workspace_name = workspace_name or ''
 
     def chat_post_message(self, text):
         self.sc.api_call(

@@ -56,6 +56,7 @@ import reconcile.jira_watcher
 import reconcile.unleash_watcher
 import reconcile.openshift_upgrade_watcher
 import reconcile.slack_usergroups
+import reconcile.slack_cluster_usergroups
 import reconcile.gitlab_integrations
 import reconcile.gitlab_permissions
 import reconcile.gitlab_housekeeping
@@ -549,6 +550,12 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 @click.pass_context
 def slack_usergroups(ctx):
     run_integration(reconcile.slack_usergroups, ctx.obj)
+
+
+@integration.command()
+@click.pass_context
+def slack_cluster_usergroups(ctx):
+    run_integration(reconcile.slack_cluster_usergroups, ctx.obj)
 
 
 @integration.command()
