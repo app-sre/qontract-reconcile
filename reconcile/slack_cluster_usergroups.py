@@ -1,12 +1,8 @@
-import logging
-
-import utils.smtp_client as smtp_client
 import reconcile.queries as queries
 import reconcile.openshift_users as openshift_users
 import reconcile.slack_usergroups as slack_usergroups
 
 from reconcile.slack_base import init_slack_workspace
-from utils.state import State
 
 QONTRACT_INTEGRATION = 'slack-cluster-usergroups'
 
