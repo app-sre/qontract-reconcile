@@ -64,11 +64,7 @@ def run(dry_run):
     slack.initiate_usergroups()
     desired_state = get_desired_state(slack)
     usergroups = [d['usergroup'] for d in desired_state]
-    print(usergroups)
     current_state = get_current_state(slack, usergroups)
-    print(current_state)
-    import sys
-    sys.exit()
     slack_usergroups.print_diff(current_state, desired_state)
 
     if not dry_run:
