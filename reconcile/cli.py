@@ -91,6 +91,7 @@ import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
 import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
+import reconcile.dashdotdb_dvo
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1133,6 +1134,13 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
 @click.pass_context
 def dashdotdb_cso(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
+
+
+@integration.command()
+@threaded(default=2)
+@click.pass_context
+def dashdotdb_dvo(ctx, thread_pool_size):
+    run_integration(reconcile.dashdotdb_dvo, ctx.obj, thread_pool_size)
 
 
 @integration.command()

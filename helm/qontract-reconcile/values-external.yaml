@@ -553,3 +553,14 @@ cronjobs:
   # once every 6 hours
   cron: '0 */6 * * *'
   dashdotdb: true
+- name: dashdotdb-dvo
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once every hour
+  cron: '0 */1 * * *'
+  dashdotdb: true
