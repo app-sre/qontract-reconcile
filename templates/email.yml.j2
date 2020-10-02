@@ -13,7 +13,7 @@ to:
 {% if ALIASES is defined %}
   aliases:
 {%  for alias in ALIASES %}
-    - $ref: "{{ alias }}"
+    - {{ alias }}
 {% endfor %}
 {% endif %}
 {% if AWS_ACCOUNTS is defined %}
