@@ -293,6 +293,7 @@ def realize_data(dry_run, oc_map, ri,
                     # if there is a caller (saas file) and this is a take over
                     # we skip the equal compare as it's not covering
                     # cases of a removed label (for example)
+                    # d_item == c_item is uncommutative
                     elif not (caller and take_over) and d_item == c_item:
                         msg = (
                             "[{}/{}] resource '{}/{}' present "

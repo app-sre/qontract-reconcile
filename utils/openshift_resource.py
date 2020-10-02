@@ -19,6 +19,9 @@ class ConstructResourceError(Exception):
         )
 
 
+IGNORABLE_DATA_FIELDS = ['service-ca.crt']
+
+
 class OpenshiftResource(object):
     def __init__(self, body, integration, integration_version,
                  error_details='', caller_name=None):
@@ -33,6 +36,8 @@ class OpenshiftResource(object):
         return self.obj_intersect_equal(self.body, other.body)
 
     def obj_intersect_equal(self, obj1, obj2):
+        # obj1 == d_item
+        # obj2 == c_item
         if obj1.__class__ != obj2.__class__:
             return False
 
@@ -46,6 +51,12 @@ class OpenshiftResource(object):
                     pass
                 elif self.ignorable_key_value_pair(obj1_k, obj1_v):
                     pass
+                elif obj1_k in ['data', 'labels']:
+                    diff = [k for k in obj2_v
+                            if k not in obj1_v
+                            and k not in IGNORABLE_DATA_FIELDS]
+                    if diff:
+                        return False
                 elif obj1_k == 'cpu':
                     equal = self.cpu_equal(obj1_v, obj2_v)
                     if not equal:
