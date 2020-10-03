@@ -55,7 +55,7 @@ class OpenshiftResource(object):
                     diff = [k for k in obj2_v
                             if k not in obj1_v
                             and k not in IGNORABLE_DATA_FIELDS]
-                    if diff:
+                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
                         return False
                 elif obj1_k == 'cpu':
                     equal = self.cpu_equal(obj1_v, obj2_v)
