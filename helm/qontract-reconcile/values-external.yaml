@@ -448,9 +448,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
-    cloudwatch: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
