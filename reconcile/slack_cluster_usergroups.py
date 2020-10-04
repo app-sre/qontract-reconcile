@@ -64,7 +64,6 @@ def get_current_state(slack, usergroups):
 
 def run(dry_run):
     slack = init_slack_workspace(QONTRACT_INTEGRATION)
-    slack.initiate_usergroups()
     desired_state = get_desired_state(slack)
     usergroups = [d['usergroup'] for d in desired_state]
     current_state = get_current_state(slack, usergroups)

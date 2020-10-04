@@ -3,7 +3,7 @@ import reconcile.queries as queries
 from utils.slack_api import SlackApi
 
 
-def init_slack(slack_info, integration):
+def init_slack(slack_info, integration, init_usergroups=True):
     settings = queries.get_app_interface_settings()
     workspace_name = slack_info['workspace']['name']
     slack_integrations = slack_info['workspace']['integrations']
@@ -19,7 +19,7 @@ def init_slack(slack_info, integration):
 
     slack = SlackApi(token,
                      settings=settings,
-                     init_usergroups=False,
+                     init_usergroups=init_usergroups,
                      workspace_name=workspace_name,
                      channel=channel,
                      icon_emoji=icon_emoji,
@@ -28,6 +28,7 @@ def init_slack(slack_info, integration):
     return slack
 
 
-def init_slack_workspace(integration):
+def init_slack_workspace(integration, init_usergroups=True):
     workspace = queries.get_slack_workspace()
-    return init_slack({'workspace': workspace}, integration)
+    return init_slack({'workspace': workspace}, integration,
+                      init_usergroups=init_usergroups)

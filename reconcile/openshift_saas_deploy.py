@@ -92,7 +92,8 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         saas_file = saasherder.saas_files[0]
         slack_info = saas_file.get('slack')
         if slack_info and actions and slack_info.get('output') == 'events':
-            slack = init_slack(slack_info, QONTRACT_INTEGRATION)
+            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
+                               init_usergroups=False)
             for action in actions:
                 message = \
                     f"[{action['cluster']}] " + \

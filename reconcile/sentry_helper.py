@@ -52,7 +52,8 @@ def run(dry_run):
     )
     user_names = get_sentry_users_from_mails(mails)
     if not dry_run:
-        slack = init_slack_workspace(QONTRACT_INTEGRATION)
+        slack = init_slack_workspace(QONTRACT_INTEGRATION,
+                                     init_usergroups=False)
     for user_name in user_names:
         guesses = guess_user(user_name, users)
         if not guesses:
