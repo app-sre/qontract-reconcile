@@ -334,8 +334,12 @@ def run_integration(func_container, ctx, *args, **kwargs):
         else:
             raise e
     finally:
+        gqlapi = gql.get_api()
+        unused_schemas = gqlapi.get_unused_schemas()
+        if unused_schemas and not dry_run:
+            logging.warning(
+                f'Integration is not using schemas: {unused_schemas}')
         if ctx.get('dump_schemas_file'):
-            gqlapi = gql.get_api()
             with open(ctx.get('dump_schemas_file'), 'w') as f:
                 f.write(json.dumps(gqlapi.get_queried_schemas()))
 

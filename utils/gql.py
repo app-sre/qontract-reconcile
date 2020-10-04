@@ -150,6 +150,10 @@ class GqlApi(object):
     def get_queried_schemas(self):
         return list(self._queried_schemas)
 
+    def get_unused_schemas(self):
+        return [s for s in self._valid_schemas
+                if s not in self._queried_schemas]
+
 
 def init(url, token=None, integration=None, validate_schemas=False):
     global _gqlapi
