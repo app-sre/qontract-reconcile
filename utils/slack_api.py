@@ -20,7 +20,7 @@ class SlackApi(object):
         self.results = {}
         self.chat_kwargs = chat_kwargs
         if init_usergroups:
-            self.initiate_usergroups()
+            self._initiate_usergroups()
         self.workspace_name = workspace_name or ''
 
     def chat_post_message(self, text):
@@ -47,7 +47,7 @@ class SlackApi(object):
         return usergroup['id']
 
     @retry()
-    def initiate_usergroups(self):
+    def _initiate_usergroups(self):
         result = self.sc.api_call(
             "usergroups.list",
             include_users=True
