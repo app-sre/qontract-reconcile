@@ -17,10 +17,10 @@ def init_slack(slack_info, integration, init_usergroups=True):
     username = slack_config['username']
     channel = slack_info.get('channel') or default_channel
 
-    slack = SlackApi(token,
+    slack = SlackApi(workspace_name,
+                     token,
                      settings=settings,
                      init_usergroups=init_usergroups,
-                     workspace_name=workspace_name,
                      channel=channel,
                      icon_emoji=icon_emoji,
                      username=username)

@@ -108,7 +108,9 @@ def calculate_diff(server, current_state, previous_state):
 def init_slack(jira_board):
     settings = queries.get_app_interface_settings()
     slack_info = jira_board['slack']
-    slack_integrations = slack_info['workspace']['integrations']
+    workspace = slack_info['workspace']
+    workspace_name = workspace['name']
+    slack_integrations = workspace['integrations']
     jira_config = \
         [i for i in slack_integrations if i['name'] == QONTRACT_INTEGRATION]
     [jira_config] = jira_config
@@ -119,7 +121,8 @@ def init_slack(jira_board):
     username = jira_config['username']
     channel = slack_info.get('channel') or default_channel
 
-    slack = SlackApi(token,
+    slack = SlackApi(workspace_name,
+                     token,
                      settings=settings,
                      init_usergroups=False,
                      channel=channel,
