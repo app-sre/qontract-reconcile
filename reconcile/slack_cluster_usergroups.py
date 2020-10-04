@@ -1,8 +1,11 @@
+import logging
+
 import reconcile.queries as queries
 import reconcile.openshift_users as openshift_users
 import reconcile.slack_usergroups as slack_usergroups
 
 from reconcile.slack_base import init_slack_workspace
+from utils.slack_api import UsergroupNotFoundException
 
 QONTRACT_INTEGRATION = 'slack-cluster-usergroups'
 
@@ -21,7 +24,11 @@ def get_desired_state(slack):
         cluster_users = [u['user'] for u in openshift_users_desired_state
                          if u['cluster'] == cluster_name]
         usergroup = cluster['auth']['team']
-        ugid = slack.get_usergroup_id(usergroup)
+        try:
+            ugid = slack.get_usergroup_id(usergroup)
+        except UsergroupNotFoundException:
+            logging.warning(f'Usergroup {usergroup} not found')
+            continue
         user_names = [slack_usergroups.get_slack_username(u) for u in all_users
                       if u['github_username'] in cluster_users
                       and u.get('tag_on_cluster_updates') is not False]
