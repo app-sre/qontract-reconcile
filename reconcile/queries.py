@@ -432,6 +432,9 @@ CLUSTERS_MINIMAL_QUERY = """
     disable {
       integrations
     }
+    auth {
+      team
+    }
   }
 }
 """
@@ -730,6 +733,7 @@ USERS_QUERY = """
     slack_username
     pagerduty_username
     public_gpg_key
+    tag_on_cluster_updates
   }
 }
 """

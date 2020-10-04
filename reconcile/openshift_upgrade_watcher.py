@@ -31,7 +31,8 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
     )
 
     if not dry_run:
-        slack = init_slack_workspace(QONTRACT_INTEGRATION)
+        slack = init_slack_workspace(QONTRACT_INTEGRATION,
+                                     init_usergroups=False)
 
     now = datetime.utcnow()
     for cluster in oc_map.clusters():
@@ -61,6 +62,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
             if not dry_run:
                 state.add(state_key)
                 slack.chat_post_message(
-                    f'Heads up! cluster `{cluster}` is currently ' +
+                    f'Heads up <@{cluster}-cluster>! ' +
+                    f'cluster `{cluster}` is currently ' +
                     f'being upgraded to version `{version}`'
                 )

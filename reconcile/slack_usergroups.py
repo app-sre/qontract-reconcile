@@ -100,7 +100,10 @@ def get_slack_map():
             continue
 
         workspace_spec = {
-            "slack": SlackApi(workspace['token'], settings=settings),
+            "slack": SlackApi(
+                workspace_name,
+                workspace['token'],
+                settings=settings),
             "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec

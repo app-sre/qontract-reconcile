@@ -73,7 +73,9 @@ def init_slack_map(unleash_instance):
     slack_notifications = unleash_instance['notifications']['slack']
     slack_map = {}
     for slack_info in slack_notifications:
-        slack_integrations = slack_info['workspace']['integrations']
+        workspace = slack_info['workspace']
+        workspace_name = workspace['name']
+        slack_integrations = workspace['integrations']
         slack_config = \
             [i for i in slack_integrations
              if i['name'] == QONTRACT_INTEGRATION]
@@ -84,7 +86,8 @@ def init_slack_map(unleash_instance):
         icon_emoji = slack_info['icon_emoji']
         username = slack_info['username']
 
-        slack = SlackApi(token,
+        slack = SlackApi(workspace_name,
+                         token,
                          settings=settings,
                          init_usergroups=False,
                          channel=channel,
