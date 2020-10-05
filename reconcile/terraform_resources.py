@@ -34,7 +34,7 @@ TF_NAMESPACES_QUERY = """
         output_resource_name
         enhanced_monitoring
         replica_source
-        alt_db_name
+        output_resource_db_name
       }
       ... on NamespaceTerraformResourceS3_v1 {
         account
