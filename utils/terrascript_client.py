@@ -698,7 +698,7 @@ class TerrascriptClient(object):
 
         # pop alternate db name from value before creating the db instance
         # this will only affect the output Secret
-        alt_db_name = values.pop('alt_db_name', None)
+        output_resource_db_name = values.pop('output_resource_db_name', None)
 
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
@@ -717,7 +717,7 @@ class TerrascriptClient(object):
         tf_resources.append(output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + '[db.name]'
-        output_value = alt_db_name or values.get('name', '')
+        output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
@@ -2106,7 +2106,8 @@ class TerrascriptClient(object):
         es_identifier = resource.get('es_identifier', None)
         filter_pattern = resource.get('filter_pattern', None)
         secret = resource.get('secret', None)
-        alt_db_name = resource.get('alt_db_name', None)
+        output_resource_db_name = \
+            resource.get('output_resource_db_name', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2129,7 +2130,7 @@ class TerrascriptClient(object):
         values['es_identifier'] = es_identifier
         values['filter_pattern'] = filter_pattern
         values['secret'] = secret
-        values['alt_db_name'] = alt_db_name
+        values['output_resource_db_name'] = output_resource_db_name
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
