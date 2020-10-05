@@ -159,7 +159,7 @@ def valid_diff(current_state, desired_state):
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
-        c.pop('disable', None)
+        d.pop('disable', None)
     return current_state_copy == desired_state_copy
 
 
