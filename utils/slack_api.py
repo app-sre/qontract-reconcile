@@ -98,6 +98,7 @@ class SlackApi(object):
         return {k: v for k, v in self.get('users').items()
                 if k in users_ids}
 
+    @retry()
     def get(self, type):
         result_key = 'members' if type == 'users' else type
         results = {}
