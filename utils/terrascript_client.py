@@ -516,10 +516,7 @@ class TerrascriptClient(object):
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        if (
-            values.get('name', None) and
-            not self.validate_db_name(values['name'])
-        ):
+        if values.get('name') and not self.validate_db_name(values['name']):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, " +
                 f"numbers, or underscores. RDS name must begin with a " +
@@ -699,6 +696,10 @@ class TerrascriptClient(object):
         if len(deps) > 0:
             values['depends_on'] = deps
 
+        # pop alternate db name from value before creating the db instance
+        # this will only affect the output Secret
+        alt_db_name = values.pop('alt_db_name', None)
+
         # rds instance
         # Ref: https://www.terraform.io/docs/providers/aws/r/db_instance.html
         tf_resource = aws_db_instance(identifier, **values)
@@ -716,7 +717,7 @@ class TerrascriptClient(object):
         tf_resources.append(output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + '[db.name]'
-        output_value = values.get('name', '')
+        output_value = alt_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
@@ -2105,6 +2106,7 @@ class TerrascriptClient(object):
         es_identifier = resource.get('es_identifier', None)
         filter_pattern = resource.get('filter_pattern', None)
         secret = resource.get('secret', None)
+        alt_db_name = resource.get('alt_db_name', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2127,6 +2129,7 @@ class TerrascriptClient(object):
         values['es_identifier'] = es_identifier
         values['filter_pattern'] = filter_pattern
         values['secret'] = secret
+        values['alt_db_name'] = alt_db_name
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
