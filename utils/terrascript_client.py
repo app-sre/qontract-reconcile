@@ -516,10 +516,7 @@ class TerrascriptClient(object):
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
-        if (
-            values.get('name') and
-            not self.validate_db_name(values['name'])
-        ):
+        if values.get('name') and not self.validate_db_name(values['name']):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, " +
                 f"numbers, or underscores. RDS name must begin with a " +
