@@ -63,7 +63,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
                 usergroup = f'{cluster}-cluster'
                 usergroup_id = slack.get_usergroup_id(usergroup)
                 slack.chat_post_message(
-                    f'Heads up <!subteam^{usergroup_id}|{usergroup}>! ' +
+                    f'Heads up <!subteam^{usergroup_id}>! ' +
                     f'cluster `{cluster}` is currently ' +
                     f'being upgraded to version `{version}`'
                 )
