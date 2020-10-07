@@ -230,8 +230,11 @@ class OC(object):
         logging.info('waiting for job to run: ' + name)
         pods = self.get_items('Pod', namespace=namespace,
                               labels={'job-name': name})
+
         ready_pods = [pod for pod in pods
-                      if pod['status'].get('phase') == 'Running']
+                      if pod['status'].get('phase')
+                      in ('Running', 'Succeeded')]
+
         if not ready_pods:
             raise JobNotRunningError(name)
 
