@@ -46,7 +46,7 @@ def include_user(user, cluster_name, cluster_users):
                         role_result = role_result or False
                     else:
                         role_result = True
-        
+
     result = False if role_result is False else True
     return result
 
