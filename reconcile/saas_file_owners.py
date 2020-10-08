@@ -102,7 +102,7 @@ def collect_baseline():
 
 
 def collect_compare_diffs(current_state, desired_state):
-    compare_diffs = []
+    compare_diffs = set()
     for d in desired_state:
         for c in current_state:
             if d['saas_file_name'] != c['saas_file_name']:
@@ -117,7 +117,7 @@ def collect_compare_diffs(current_state, desired_state):
                 continue
             if d['ref'] == c['ref']:
                 continue
-            compare_diffs.append(
+            compare_diffs.add(
                 f"{d['url']}/compare/{c['ref']}...{d['ref']}")
 
     return compare_diffs
