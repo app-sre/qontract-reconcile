@@ -276,6 +276,10 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
 
     comment_body = '\n'.join(comment_lines.values())
     if comment_body:
+        # if there are still entries in this list - they are not approved
+        if not valid_saas_file_changes_only:
+            comment_body = comment_body + \
+                '\n\nNote: this merge request can not be self-serviced.'
         gl.add_comment_to_merge_request(gitlab_merge_request_id, comment_body)
 
     # if there are still entries in this list - they are not approved
