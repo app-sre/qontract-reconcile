@@ -733,7 +733,6 @@ USERS_QUERY = """
     slack_username
     pagerduty_username
     public_gpg_key
-    tag_on_cluster_updates
   }
 }
 """
@@ -744,6 +743,9 @@ ROLES_QUERY = """
   users: users_v1 {
     name
     org_username
+    github_username
+    slack_username
+    tag_on_cluster_updates
     labels
     roles {
       name
@@ -760,7 +762,9 @@ ROLES_QUERY = """
           org
           team
         }
-      } access {
+      }
+      tag_on_cluster_updates
+      access {
         cluster {
           name
           path
@@ -768,16 +772,21 @@ ROLES_QUERY = """
         clusterRole
         namespace {
           name
+          cluster {
+            name
+          }
         }
         role
-      } aws_groups {
+      }
+      aws_groups {
         name
         path
         account {
           name
         }
         policies
-      } owned_saas_files {
+      }
+      owned_saas_files {
         name
       }
     }
