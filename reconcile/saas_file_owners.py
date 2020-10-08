@@ -102,6 +102,8 @@ def collect_baseline():
 
 
 def collect_compare_diffs(current_state, desired_state):
+    """ Collect a list of URLs in a git diff format
+    for each change in the merge request """
     compare_diffs = set()
     for d in desired_state:
         for c in current_state:
@@ -252,9 +254,9 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     diffs = [s for s in desired_state if s not in current_state]
 
     compare_diffs = collect_compare_diffs(current_state, desired_state)
-    compare_diffs_comment_body = '\n'.join([f'- {d}' for d in compare_diffs])
-    if compare_diffs_comment_body:
-        compare_diffs_comment_body = 'Diffs:\n' + compare_diffs_comment_body
+    if compare_diffs:
+        compare_diffs_comment_body = 'Diffs:\n' + \
+            '\n'.join([f'- {d}' for d in compare_diffs])
         gl.add_comment_to_merge_request(
             gitlab_merge_request_id, compare_diffs_comment_body)
 
