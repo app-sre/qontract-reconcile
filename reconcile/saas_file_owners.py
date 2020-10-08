@@ -67,6 +67,7 @@ def collect_state():
             resource_template_name = resource_template['name']
             resource_template_parameters = \
                 json.loads(resource_template.get('parameters') or '{}')
+            resource_template_url = resource_template['url']
             for target in resource_template['targets']:
                 namespace_info = target['namespace']
                 namespace = namespace_info['name']
@@ -86,6 +87,7 @@ def collect_state():
                     'cluster': cluster,
                     'namespace': namespace,
                     'environment': environment,
+                    'url': resource_template_url,
                     'ref': target_ref,
                     'parameters': parameters,
                     'saas_file_definitions': saas_file_definitions
@@ -97,6 +99,28 @@ def collect_baseline():
     owners = collect_owners()
     state = collect_state()
     return {'owners': owners, 'state': state}
+
+
+def collect_compare_diffs(current_state, desired_state):
+    compare_diffs = []
+    for d in desired_state:
+        for c in current_state:
+            if d['saas_file_name'] != c['saas_file_name']:
+                continue
+            if d['resource_template_name'] != c['resource_template_name']:
+                continue
+            if d['environment'] != c['environment']:
+                continue
+            if d['cluster'] != c['cluster']:
+                continue
+            if d['namespace'] != c['namespace']:
+                continue
+            if d['ref'] == c['ref']:
+                continue
+            compare_diffs.append(
+                f"{d['url']}/compare/{c['ref']}...{d['ref']}")
+
+    return compare_diffs
 
 
 def write_baseline_to_file(io_dir, baseline):
@@ -226,6 +250,14 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     current_state = baseline['state']
     desired_state = collect_state()
     diffs = [s for s in desired_state if s not in current_state]
+
+    compare_diffs = collect_compare_diffs(current_state, desired_state)
+    compare_diffs_comment_body = '\n'.join([f'- {d}' for d in compare_diffs])
+    if compare_diffs_comment_body:
+        compare_diffs_comment_body = 'Diffs:\n' + compare_diffs_comment_body
+        gl.add_comment_to_merge_request(
+            gitlab_merge_request_id, compare_diffs_comment_body)
+
     changed_paths = \
         gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     is_saas_file_changes_only = \
