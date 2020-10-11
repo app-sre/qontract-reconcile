@@ -123,7 +123,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
                 # running, pending, success, failed, canceled, skipped
                 incomplete_pipelines = \
                     [p for p in pipelines
-                     if p['status'] in ['running', 'pending']]
+                     if p['status'] in ['running']]
                 if incomplete_pipelines:
                     continue
 
@@ -171,7 +171,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
                 # running, pending, success, failed, canceled, skipped
                 incomplete_pipelines = \
                     [p for p in pipelines
-                     if p['status'] in ['running', 'pending']]
+                     if p['status'] in ['running']]
                 if incomplete_pipelines:
                     if insist:
                         raise Exception(f'insisting on {merge_label}')
