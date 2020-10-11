@@ -9,8 +9,8 @@ import reconcile.queries as queries
 from utils.gitlab_api import GitLabApi
 
 
-MERGE_LABELS_PRIORITY = ['bot/approved', 'approved', 'bot/automerge',
-                         'automerge', 'lgtm']
+MERGE_LABELS_PRIORITY = ['bot/approved', 'lgtm', 'bot/automerge']
+REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY + ['saas-file-update']
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
@@ -93,7 +93,7 @@ def is_good_to_merge(merge_label, labels):
 def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
-    for merge_label in MERGE_LABELS_PRIORITY:
+    for rebase_label in REBASE_LABELS_PRIORITY:
         for mr in reversed(mrs):
             if mr.merge_status == 'cannot_be_merged':
                 continue
@@ -110,7 +110,7 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
             if not labels:
                 continue
 
-            good_to_rebase = is_good_to_merge(merge_label, labels)
+            good_to_rebase = is_good_to_merge(rebase_label, labels)
             if not good_to_rebase:
                 continue
 
