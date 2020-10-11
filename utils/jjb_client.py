@@ -82,6 +82,15 @@ class JJB(object):
         self.instance_urls = instance_urls
         self.working_dirs = working_dirs
 
+    def overwrite_configs(self, configs):
+        """ This function will override the existing
+        config files in the working directories with
+        the supplied configs """
+        for name, wd in self.working_dirs.items():
+            config_path = '{}/config.yaml'.format(wd)
+            with open(config_path, 'w') as f:
+                f.write(configs[name])
+
     def sort(self, configs):
         configs.sort(key=self.sort_by_name)
         configs.sort(key=self.sort_by_type)
@@ -107,12 +116,28 @@ class JJB(object):
     def sort_by_name(self, config):
         return config['name']
 
-    def test(self, io_dir, compare):
+    def get_configs(self):
+        """ This function gets the configs from the
+        working directories """
+        configs = {}
+        for name, wd in self.working_dirs.items():
+            config_path = '{}/config.yaml'.format(wd)
+            with open(config_path, 'r') as f:
+                configs[name] = f.read()
+
+        return configs
+
+    def generate(self, io_dir, fetch_state):
+        """
+        Generates job definitions from JJB configs
+
+        :param io_dir: Input/output directory
+        :param fetch_state: subdirectory to use ('desired' or 'current')
+        """
         for name, wd in self.working_dirs.items():
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
 
-            fetch_state = 'desired' if compare else 'current'
             output_dir = path.join(io_dir, 'jjb', fetch_state, name)
             args = ['--conf', ini_path,
                     'test', config_path,
@@ -121,21 +146,11 @@ class JJB(object):
             self.execute(args)
             throughput.change_files_ownership(io_dir)
 
-        if compare:
-            self.print_diffs(io_dir)
-
     def print_diffs(self, io_dir):
-        compare_err_str = ('unable to find current state data for compare.  '
-                           'If running in dry-run mode, first run with the '
-                           '--no-compare option and use a config that points '
-                           'to unmodified source.  Then run again without '
-                           '--no-compare and use a config that points to '
-                           'a modified source'
-                           )
+        """ Print the diffs between the current and
+        the desired job definitions """
         current_path = path.join(io_dir, 'jjb', 'current')
         current_files = self.get_files(current_path)
-        if not current_files:
-            raise FetchResourceError(compare_err_str)
         desired_path = path.join(io_dir, 'jjb', 'desired')
         desired_files = self.get_files(desired_path)
 
