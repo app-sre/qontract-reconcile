@@ -268,6 +268,11 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     valid_saas_file_changes_only = is_saas_file_changes_only and is_valid_diff
     write_diffs_to_file(io_dir, diffs, valid_saas_file_changes_only)
 
+    # print 'yes' or 'no' to allow pr-check to understand if changes
+    # are only valid saas file changes (and exclude other integrations)
+    output = 'yes' if valid_saas_file_changes_only else 'no'
+    print(output)
+
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)
     if valid_saas_file_changes_only and saas_label not in labels:
         gl.add_label_to_merge_request(gitlab_merge_request_id, saas_label)
