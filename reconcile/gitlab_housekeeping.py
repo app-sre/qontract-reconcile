@@ -100,18 +100,18 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
             if mr.work_in_progress:
                 continue
 
-            target_branch = mr.target_branch
-            head = gl.project.commits.list(ref_name=target_branch)[0].id
-            result = gl.project.repository_compare(mr.sha, head)
-            if len(result['commits']) == 0:  # rebased
-                continue
-
             labels = mr.attributes.get('labels')
             if not labels:
                 continue
 
             good_to_rebase = is_good_to_merge(rebase_label, labels)
             if not good_to_rebase:
+                continue
+
+            target_branch = mr.target_branch
+            head = gl.project.commits.list(ref_name=target_branch)[0].id
+            result = gl.project.repository_compare(mr.sha, head)
+            if len(result['commits']) == 0:  # rebased
                 continue
 
             if wait_for_pipeline:
@@ -148,18 +148,18 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
             if mr.work_in_progress:
                 continue
 
-            target_branch = mr.target_branch
-            head = gl.project.commits.list(ref_name=target_branch)[0].id
-            result = gl.project.repository_compare(mr.sha, head)
-            if len(result['commits']) != 0:  # not rebased
-                continue
-
             labels = mr.attributes.get('labels')
             if not labels:
                 continue
 
             good_to_merge = is_good_to_merge(merge_label, labels)
             if not good_to_merge:
+                continue
+
+            target_branch = mr.target_branch
+            head = gl.project.commits.list(ref_name=target_branch)[0].id
+            result = gl.project.repository_compare(mr.sha, head)
+            if len(result['commits']) != 0:  # not rebased
                 continue
 
             pipelines = mr.pipelines()
