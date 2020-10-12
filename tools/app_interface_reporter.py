@@ -102,6 +102,13 @@ class Report(object):
                 self.app.get('container_vulnerabilities')
             )
         )
+        # Post-deploy Jobs
+        self.add_report_section(
+            'post_deploy_jobs',
+            self.get_post_deploy_jobs_content(
+                self.app.get('post_deploy_jobs')
+            )
+        )
 
     @property
     def path(self):
@@ -176,6 +183,19 @@ class Report(object):
                                        'namespace': namespace,
                                        'vulnerabilities': severities})
         return parsed_metrics
+
+    @staticmethod
+    def get_post_deploy_jobs_content(post_deploy_jobs):
+        results = []
+        if not post_deploy_jobs:
+            return results
+
+        for cluster, namespaces in post_deploy_jobs.items():
+            for namespace, post_deploy_job in namespaces.items():
+                results.append({'cluster': cluster,
+                                'namespace': namespace,
+                                'post_deploy_job': post_deploy_job})
+        return results
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
@@ -375,6 +395,7 @@ def get_performance_parameters():
 
 def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
+    saas_files = queries.get_saas_files()
     jjb, _ = init_jjb()
     saas_jobs = jjb.get_all_jobs(job_types=['saas-deploy', 'promote-to-prod'])
     build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
@@ -402,6 +423,56 @@ def get_apps_data(date, month_delta=1):
             continue
 
         app_name = app['name']
+
+        logging.info(f"collecting post-deploy jobs "
+                     f"information for {app_name}")
+        post_deploy_jobs = {}
+        for saas_file in saas_files:
+            if saas_file['app']['name'] != app_name:
+                continue
+            resource_types = saas_file['managedResourceTypes']
+
+            # Only jobs of these types are expected to have a
+            # further post-deploy job
+            if not any(['Deployment' in resource_types,
+                        'DeploymentConfig' not in resource_types]):
+                continue
+
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+                    cluster = target['namespace']['cluster']['name']
+                    namespace = target['namespace']['name']
+                    post_deploy_jobs[cluster] = {}
+                    post_deploy_jobs[cluster][namespace] = False
+
+        for saas_file in saas_files:
+            if saas_file['app']['name'] != app_name:
+                continue
+            resource_types = saas_file['managedResourceTypes']
+            if 'Job' not in resource_types:
+                continue
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+
+                    cluster = target['namespace']['cluster']['name']
+                    namespace = target['namespace']['name']
+
+                    # This block skips the check if the cluster/namespace
+                    # has no Deployment/DeploymentConfig job associated.
+                    if cluster not in post_deploy_jobs:
+                        continue
+                    if namespace not in post_deploy_jobs[cluster]:
+                        continue
+
+                    # Post-deploy job must depend on a openshift-saas-deploy
+                    # job
+                    if target['upstream'] is None:
+                        continue
+                    if target['upstream'].startswith('openshift-saas-deploy-'):
+                        post_deploy_jobs[cluster][namespace] = True
+
+        app['post_deploy_jobs'] = post_deploy_jobs
+
         logging.info(f"collecting promotions for {app_name}")
         app['promotions'] = {}
         saas_repos = [c['url'] for c in app['codeComponents']
