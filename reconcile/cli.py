@@ -492,14 +492,11 @@ def jenkins_plugins(ctx):
 
 
 @integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @throughput
-@click.option('--compare/--no-compare',
-              default=True,
-              help='compare between current and desired state.')
 @click.pass_context
-def jenkins_job_builder(ctx, io_dir, compare):
-    run_integration(reconcile.jenkins_job_builder, ctx.obj,
-                    io_dir, compare)
+def jenkins_job_builder(ctx, io_dir):
+    run_integration(reconcile.jenkins_job_builder, ctx.obj, io_dir)
 
 
 @integration.command()
