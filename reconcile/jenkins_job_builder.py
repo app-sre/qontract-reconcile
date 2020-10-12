@@ -7,6 +7,7 @@ import reconcile.queries as queries
 
 from utils.defer import defer
 from utils.jjb_client import JJB
+from utils.state import State
 
 
 QUERY = """
@@ -181,13 +182,25 @@ def validate_repos_and_admins(jjb, additional_repo_urls):
 
 
 @defer
-def run(dry_run, io_dir='throughput/', compare=True, defer=None):
+def run(dry_run, io_dir='throughput/', defer=None):
     jjb, additional_repo_urls = init_jjb()
     defer(lambda: jjb.cleanup())
-    if compare:
-        validate_repos_and_admins(jjb, additional_repo_urls)
+
+    accounts = queries.get_aws_accounts()
+    state = State(
+        integration=QONTRACT_INTEGRATION,
+        accounts=accounts,
+        settings=jjb.settings
+    )
 
     if dry_run:
-        jjb.test(io_dir, compare=compare)
+        validate_repos_and_admins(jjb, additional_repo_urls)
+        jjb.generate(io_dir, 'desired')
+        jjb.overwrite_configs(state)
+        jjb.generate(io_dir, 'current')
+        jjb.print_diffs(io_dir)
     else:
         jjb.update()
+        configs = jjb.get_configs()
+        for name, desired_config in configs.items():
+            state.add(name, value=desired_config, force=True)
