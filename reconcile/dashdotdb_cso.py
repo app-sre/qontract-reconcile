@@ -39,10 +39,16 @@ class DashdotdbCSO:
         imagemanifestvuln = manifest['data']
 
         response = None
-        if not self.dry_run:
+
+        LOG.info('CSO: syncing cluster %s', cluster)
+
+        if self.dry_run:
+            return response
+
+        for item in imagemanifestvuln['items']:
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
                         f'imagemanifestvuln/{cluster}')
-            response = requests.post(url=endpoint, json=imagemanifestvuln,
+            response = requests.post(url=endpoint, json=item,
                                      auth=(self.dashdotdb_user,
                                            self.dashdotdb_pass))
             try:
