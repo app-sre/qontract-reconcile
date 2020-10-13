@@ -207,7 +207,7 @@ class SaasHerder():
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            for f in repo.get_contents(path):
+            for f in repo.get_contents(path, ref):
                 file_path = os.path.join(path, f.name)
                 file_contents = repo.get_contents(file_path, ref)
                 resource = yaml.safe_load(file_contents.decoded_content)
