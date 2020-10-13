@@ -576,7 +576,8 @@ class SaasHerder():
             return
         # filter resources
         resources = [resource for resource in resources
-                     if resource['kind'] in managed_resource_types]
+                     if isinstance(resource, dict)
+                     and resource['kind'] in managed_resource_types]
         # check images
         skip_check_images = upstream and self.jenkins_map and \
             self.jenkins_map[instance_name].is_job_running(upstream)
