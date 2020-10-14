@@ -99,6 +99,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
                 continue
             if mr.work_in_progress:
                 continue
+            if len(mr.commits()) == 0:
+                continue
 
             labels = mr.attributes.get('labels')
             if not labels:
@@ -146,6 +148,8 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
             if mr.merge_status == 'cannot_be_merged':
                 continue
             if mr.work_in_progress:
+                continue
+            if len(mr.commits()) == 0:
                 continue
 
             labels = mr.attributes.get('labels')
