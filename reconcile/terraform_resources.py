@@ -17,135 +17,143 @@ from utils.defer import defer
 from reconcile.aws_iam_keys import run as disable_keys
 from utils.oc import StatusCodeError
 
+from textwrap import indent
+
+
+TF_RESOURCE = """
+provider
+... on NamespaceTerraformResourceRDS_v1 {
+  account
+  identifier
+  defaults
+  availability_zone
+  parameter_group
+  overrides
+  output_resource_name
+  enhanced_monitoring
+  replica_source
+  output_resource_db_name
+}
+... on NamespaceTerraformResourceS3_v1 {
+  account
+  region
+  identifier
+  defaults
+  overrides
+  sqs_identifier
+  s3_events
+  output_resource_name
+  storage_class
+}
+... on NamespaceTerraformResourceElastiCache_v1 {
+  account
+  identifier
+  defaults
+  parameter_group
+  region
+  overrides
+  output_resource_name
+}
+... on NamespaceTerraformResourceServiceAccount_v1 {
+  account
+  identifier
+  variables
+  policies
+  user_policy
+  output_resource_name
+}
+... on NamespaceTerraformResourceSQS_v1 {
+  account
+  region
+  identifier
+  output_resource_name
+  specs {
+    defaults
+    queues {
+      key
+      value
+    }
+  }
+}
+... on NamespaceTerraformResourceDynamoDB_v1 {
+  account
+  region
+  identifier
+  output_resource_name
+  specs {
+    defaults
+    tables {
+      key
+      value
+    }
+  }
+}
+... on NamespaceTerraformResourceECR_v1 {
+  account
+  identifier
+  region
+  output_resource_name
+}
+... on NamespaceTerraformResourceS3CloudFront_v1 {
+  account
+  region
+  identifier
+  defaults
+  output_resource_name
+  storage_class
+}
+... on NamespaceTerraformResourceS3SQS_v1 {
+  account
+  region
+  identifier
+  defaults
+  output_resource_name
+  storage_class
+}
+... on NamespaceTerraformResourceCloudWatch_v1 {
+  account
+  region
+  identifier
+  defaults
+  es_identifier
+  filter_pattern
+  output_resource_name
+}
+... on NamespaceTerraformResourceKMS_v1 {
+  account
+  region
+  identifier
+  defaults
+  overrides
+  output_resource_name
+}
+... on NamespaceTerraformResourceElasticSearch_v1 {
+  account
+  region
+  identifier
+  defaults
+  output_resource_name
+}
+... on NamespaceTerraformResourceACM_v1 {
+  account
+  region
+  identifier
+  secret {
+    path
+    field
+  }
+  output_resource_name
+}
+"""
+
+
 TF_NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
     managedTerraformResources
     terraformResources {
-      provider
-      ... on NamespaceTerraformResourceRDS_v1 {
-        account
-        identifier
-        defaults
-        availability_zone
-        parameter_group
-        overrides
-        output_resource_name
-        enhanced_monitoring
-        replica_source
-        output_resource_db_name
-      }
-      ... on NamespaceTerraformResourceS3_v1 {
-        account
-        region
-        identifier
-        defaults
-        overrides
-        sqs_identifier
-        s3_events
-        output_resource_name
-        storage_class
-      }
-      ... on NamespaceTerraformResourceElastiCache_v1 {
-        account
-        identifier
-        defaults
-        parameter_group
-        region
-        overrides
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceServiceAccount_v1 {
-        account
-        identifier
-        variables
-        policies
-        user_policy
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceSQS_v1 {
-        account
-        region
-        identifier
-        output_resource_name
-        specs {
-          defaults
-          queues {
-            key
-            value
-          }
-        }
-      }
-      ... on NamespaceTerraformResourceDynamoDB_v1 {
-        account
-        region
-        identifier
-        output_resource_name
-        specs {
-          defaults
-          tables {
-            key
-            value
-          }
-        }
-      }
-      ... on NamespaceTerraformResourceECR_v1 {
-        account
-        identifier
-        region
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceS3CloudFront_v1 {
-        account
-        region
-        identifier
-        defaults
-        output_resource_name
-        storage_class
-      }
-      ... on NamespaceTerraformResourceS3SQS_v1 {
-        account
-        region
-        identifier
-        defaults
-        output_resource_name
-        storage_class
-      }
-      ... on NamespaceTerraformResourceCloudWatch_v1 {
-        account
-        region
-        identifier
-        defaults
-        es_identifier
-        filter_pattern
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceKMS_v1 {
-        account
-        region
-        identifier
-        defaults
-        overrides
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceElasticSearch_v1 {
-        account
-        region
-        identifier
-        defaults
-        output_resource_name
-      }
-      ... on NamespaceTerraformResourceACM_v1 {
-        account
-        region
-        identifier
-        secret {
-          path
-          field
-        }
-        output_resource_name
-      }
+      %s
     }
     cluster {
       name
@@ -170,7 +178,7 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-"""
+""" % indent(TF_RESOURCE, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 2)
