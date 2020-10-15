@@ -63,12 +63,14 @@ def write_outputs_to_vault(vault_path, ri):
             body_data = d_item.body['data']
             # write secret to per-namespace location
             secret_path = \
-              f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
+                f"{vault_path}/{integration_name}/" + \
+                f"{cluster}/{namespace}/{name}"
             secret = {'path': secret_path, 'data': body_data}
             vault_client.write(secret)
             # write secret to shared-resources location
             secret_path = \
-              f"{vault_path}/{integration_name}/shared-resources/{name}"
+                f"{vault_path}/{integration_name}/" + \
+                f"shared-resources/{name}"
             secret = {'path': secret_path, 'data': body_data}
             vault_client.write(secret)
 
