@@ -553,6 +553,34 @@ def get_namespaces():
     return gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
 
+SERVICEACCOUNT_TOKEN = """
+namespace {
+  name
+  cluster {
+    name
+    serverUrl
+    jumpHost {
+      hostname
+      knownHosts
+      user
+      port
+      identity {
+        path
+        field
+        format
+      }
+    }
+    automationToken {
+      path
+      field
+      format
+    }
+  }
+}
+serviceAccountName
+"""
+
+
 SERVICEACCOUNT_TOKENS_QUERY = """
 {
   namespaces: namespaces_v1 {
@@ -582,34 +610,11 @@ SERVICEACCOUNT_TOKENS_QUERY = """
       }
     }
     openshiftServiceAccountTokens {
-      namespace {
-        name
-        cluster {
-          name
-          serverUrl
-          jumpHost {
-              hostname
-              knownHosts
-              user
-              port
-              identity {
-                  path
-                  field
-                  format
-              }
-          }
-          automationToken {
-            path
-            field
-            format
-          }
-        }
-      }
-      serviceAccountName
+      %s
     }
   }
 }
-"""
+""" % indent(SERVICEACCOUNT_TOKEN, 6*' '))
 
 
 def get_serviceaccount_tokens():
