@@ -548,35 +548,10 @@ def filter_namespaces_by_cluster_and_namespace(namespaces,
     return namespaces
 
 
-def aggregate_shared_resources(namespace_info, shared_resources_type):
-    """ This function aggregates shared resources of the desired type
-    from a shared resources file to the appropriate namespace section. """
-    supported_shared_resources_types = ['openshiftResources']
-    if shared_resources_type not in supported_shared_resources_types:
-        raise KeyError(
-            f'shared_resource_type must be one of'
-            f'{supported_shared_resources_types}.'
-        )
-    shared_resources = namespace_info.get('sharedResources')
-    namespace_type_resources = namespace_info.get(shared_resources_type)
-    if shared_resources:
-        shared_type_resources_items = []
-        for shared_resources_item in shared_resources:
-            shared_type_resources = \
-                shared_resources_item.get(shared_resources_type)
-            if shared_type_resources:
-                shared_type_resources_items.extend(shared_type_resources)
-        if namespace_type_resources:
-            namespace_type_resources.extend(shared_type_resources_items)
-        else:
-            namespace_type_resources = shared_type_resources_items
-            namespace_info[shared_resources_type] = namespace_type_resources
-
-
 def canonicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
-        aggregate_shared_resources(namespace_info, 'openshiftResources')
+        ob.aggregate_shared_resources(namespace_info, 'openshiftResources')
         openshift_resources = namespace_info.get('openshiftResources')
         if openshift_resources:
             for resource in openshift_resources[:]:
