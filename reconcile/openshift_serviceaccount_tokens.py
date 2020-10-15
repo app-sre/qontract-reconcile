@@ -60,9 +60,18 @@ def write_outputs_to_vault(vault_path, ri):
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
     for cluster, namespace, _, data in ri:
         for name, d_item in data['desired'].items():
+            body_data = d_item.body['data']
+            # write secret to per-namespace location
             secret_path = \
-              f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
-            secret = {'path': secret_path, 'data': d_item.body['data']}
+                f"{vault_path}/{integration_name}/" + \
+                f"{cluster}/{namespace}/{name}"
+            secret = {'path': secret_path, 'data': body_data}
+            vault_client.write(secret)
+            # write secret to shared-resources location
+            secret_path = \
+                f"{vault_path}/{integration_name}/" + \
+                f"shared-resources/{namespace}/{name}"
+            secret = {'path': secret_path, 'data': body_data}
             vault_client.write(secret)
 
 
