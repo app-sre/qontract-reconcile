@@ -178,7 +178,7 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-""" % indent(TF_RESOURCE, 6*' '))
+""" % (indent(TF_RESOURCE, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 2)
