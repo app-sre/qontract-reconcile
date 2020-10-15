@@ -462,7 +462,7 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
     supported_shared_resources_types = ['openshiftResources']
     if shared_resources_type not in supported_shared_resources_types:
         raise KeyError(
-            f'shared_resource_type must be one of'
+            f'shared_resource_type must be one of '
             f'{supported_shared_resources_types}.'
         )
     shared_resources = namespace_info.get('sharedResources')
