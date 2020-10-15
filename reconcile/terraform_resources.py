@@ -155,6 +155,15 @@ TF_NAMESPACES_QUERY = """
     terraformResources {
       %s
     }
+    app {
+      name
+      parentApp {
+        name
+      }
+    }
+    environment {
+      name
+    }
     cluster {
       name
       serverUrl

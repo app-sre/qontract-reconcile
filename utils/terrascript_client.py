@@ -2198,17 +2198,19 @@ class TerrascriptClient(object):
         return values
 
     def get_resource_tags(self, namespace_info):
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
+        app, environment = self.unpack_namespace_info(namespace_info)
         return {
             'managed_by_integration': self.integration,
-            'cluster': cluster,
-            'namespace': namespace
+            'app': app,
+            'environment': environment
         }
 
     def unpack_namespace_info(self, namespace_info):
-        cluster = namespace_info['cluster']['name']
-        namespace = namespace_info['name']
-        return cluster, namespace
+        app_info = namespace_info['app']
+        parent_app_info = app_info.get('parentApp')
+        app = parent_app_info['name'] if parent_app_info else app_info['name']
+        environment = namespace_info['environment']['name']
+        return app, environment
 
     @staticmethod
     def validate_elasticsearch_version(version):
