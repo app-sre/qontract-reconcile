@@ -459,7 +459,10 @@ def follow_logs(oc_map, actions, io_dir):
 def aggregate_shared_resources(namespace_info, shared_resources_type):
     """ This function aggregates shared resources of the desired type
     from a shared resources file to the appropriate namespace section. """
-    supported_shared_resources_types = ['openshiftResources']
+    supported_shared_resources_types = [
+        'openshiftResources',
+        'openshiftServiceAccountTokens'
+    ]
     if shared_resources_type not in supported_shared_resources_types:
         raise KeyError(
             f'shared_resource_type must be one of '

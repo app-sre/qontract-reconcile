@@ -2,6 +2,8 @@ import logging
 
 import utils.gql as gql
 
+from textwrap import indent
+
 
 APP_INTERFACE_SETTINGS_QUERY = """
 {
@@ -553,7 +555,7 @@ def get_namespaces():
     return gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
 
-SERVICEACCOUNT_TOKEN = """
+SA_TOKEN = """
 namespace {
   name
   cluster {
@@ -609,12 +611,17 @@ SERVICEACCOUNT_TOKENS_QUERY = """
         integrations
       }
     }
+    sharedResources {
+      openshiftServiceAccountTokens {
+        %s
+      }
+    }
     openshiftServiceAccountTokens {
       %s
     }
   }
 }
-""" % indent(SERVICEACCOUNT_TOKEN, 6*' '))
+""" % (indent(SA_TOKEN, 8*' '), indent(SA_TOKEN, 6*' '))
 
 
 def get_serviceaccount_tokens():
