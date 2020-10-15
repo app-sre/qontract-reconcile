@@ -79,7 +79,7 @@ def write_outputs_to_vault(vault_path, ri):
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, vault_output_path='', defer=None):
     namespaces = [namespace_info for namespace_info
-                  in queries.get_namespaces()
+                  in queries.get_serviceaccount_tokens()
                   if namespace_info.get('openshiftServiceAccountTokens')]
     for namespace_info in namespaces:
         if not namespace_info.get('openshiftServiceAccountTokens'):

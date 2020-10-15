@@ -542,6 +542,45 @@ NAMESPACES_QUERY = """
         scopes
       }
     }
+  }
+}
+"""
+
+
+def get_namespaces():
+    """ Returns all Namespaces """
+    gqlapi = gql.get_api()
+    return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+
+
+SERVICEACCOUNT_TOKENS_QUERY = """
+{
+  namespaces: namespaces_v1 {
+    name
+    cluster {
+      name
+      serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
     openshiftServiceAccountTokens {
       namespace {
         name
@@ -573,10 +612,10 @@ NAMESPACES_QUERY = """
 """
 
 
-def get_namespaces():
-    """ Returns all Namespaces """
+def get_serviceaccount_tokens():
+    """ Returns all namespaces with ServiceAccount tokens information """
     gqlapi = gql.get_api()
-    return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+    return gqlapi.query(SERVICEACCOUNT_TOKENS_QUERY)['namespaces']
 
 
 PRODUCTS_QUERY = """
