@@ -551,22 +551,8 @@ def filter_namespaces_by_cluster_and_namespace(namespaces,
 def canonicalize_namespaces(namespaces, providers):
     canonicalized_namespaces = []
     for namespace_info in namespaces:
-        shared_resources = namespace_info.get('sharedResources')
+        ob.aggregate_shared_resources(namespace_info, 'openshiftResources')
         openshift_resources = namespace_info.get('openshiftResources')
-        if shared_resources:
-            shared_openshift_resources_items = []
-            for shared_resources_item in shared_resources:
-                shared_openshift_resources = \
-                    shared_resources_item.get('openshiftResources')
-                if shared_openshift_resources:
-                    shared_openshift_resources_items.extend(
-                        shared_openshift_resources
-                    )
-            if openshift_resources:
-                openshift_resources.extend(shared_openshift_resources_items)
-            else:
-                openshift_resources = shared_openshift_resources_items
-                namespace_info['openshiftResources'] = openshift_resources
         if openshift_resources:
             for resource in openshift_resources[:]:
                 if resource['provider'] not in providers:

@@ -75,18 +75,25 @@ def write_outputs_to_vault(vault_path, ri):
             vault_client.write(secret)
 
 
+def canonicalize_namespaces(namespaces):
+    canonicalized_namespaces = []
+    for namespace_info in namespaces:
+        ob.aggregate_shared_resources(
+            namespace_info, 'openshiftServiceAccountTokens')
+        openshift_serviceaccount_tokens = \
+            namespace_info.get('openshiftServiceAccountTokens')
+        if openshift_serviceaccount_tokens:
+            canonicalized_namespaces.append(namespace_info)
+            for sat in openshift_serviceaccount_tokens:
+                canonicalized_namespaces.append(sat['namespace'])
+
+    return canonicalized_namespaces
+
+
 @defer
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, vault_output_path='', defer=None):
-    namespaces = [namespace_info for namespace_info
-                  in queries.get_namespaces()
-                  if namespace_info.get('openshiftServiceAccountTokens')]
-    for namespace_info in namespaces:
-        if not namespace_info.get('openshiftServiceAccountTokens'):
-            continue
-        for sat in namespace_info['openshiftServiceAccountTokens']:
-            namespaces.append(sat['namespace'])
-
+    namespaces = canonicalize_namespaces(queries.get_serviceaccount_tokens())
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,

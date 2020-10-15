@@ -2,6 +2,8 @@ import logging
 
 import utils.gql as gql
 
+from textwrap import indent
+
 
 APP_INTERFACE_SETTINGS_QUERY = """
 {
@@ -542,32 +544,6 @@ NAMESPACES_QUERY = """
         scopes
       }
     }
-    openshiftServiceAccountTokens {
-      namespace {
-        name
-        cluster {
-          name
-          serverUrl
-          jumpHost {
-              hostname
-              knownHosts
-              user
-              port
-              identity {
-                  path
-                  field
-                  format
-              }
-          }
-          automationToken {
-            path
-            field
-            format
-          }
-        }
-      }
-      serviceAccountName
-    }
   }
 }
 """
@@ -577,6 +553,81 @@ def get_namespaces():
     """ Returns all Namespaces """
     gqlapi = gql.get_api()
     return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+
+
+SA_TOKEN = """
+namespace {
+  name
+  cluster {
+    name
+    serverUrl
+    jumpHost {
+      hostname
+      knownHosts
+      user
+      port
+      identity {
+        path
+        field
+        format
+      }
+    }
+    automationToken {
+      path
+      field
+      format
+    }
+  }
+}
+serviceAccountName
+"""
+
+
+SERVICEACCOUNT_TOKENS_QUERY = """
+{
+  namespaces: namespaces_v1 {
+    name
+    cluster {
+      name
+      serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
+    sharedResources {
+      openshiftServiceAccountTokens {
+        %s
+      }
+    }
+    openshiftServiceAccountTokens {
+      %s
+    }
+  }
+}
+""" % (indent(SA_TOKEN, 8*' '), indent(SA_TOKEN, 6*' '))
+
+
+def get_serviceaccount_tokens():
+    """ Returns all namespaces with ServiceAccount tokens information """
+    gqlapi = gql.get_api()
+    return gqlapi.query(SERVICEACCOUNT_TOKENS_QUERY)['namespaces']
 
 
 PRODUCTS_QUERY = """
