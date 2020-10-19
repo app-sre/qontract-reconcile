@@ -24,7 +24,6 @@ def get_cluster_users(cluster, oc_map):
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = queries.get_clusters(minimal=True)
-    clusters = [c for c in clusters if c.get('ocm') is None]
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
