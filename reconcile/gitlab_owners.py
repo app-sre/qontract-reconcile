@@ -10,7 +10,7 @@ from utils.repo_owners import RepoOwners
 
 QONTRACT_INTEGRATION = 'gitlab-owners'
 
-APPROVAL_LABEL = 'approved'
+APPROVAL_LABEL = 'bot/approved'
 
 _LOG = logging.getLogger(__name__)
 
