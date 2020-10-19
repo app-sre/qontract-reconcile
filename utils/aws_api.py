@@ -613,6 +613,11 @@ class AWSApi(object):
         session = self.get_session(account['name'])
         sts = session.client('sts')
         role_arn = account['assume_role']
+        if not role_arn:
+            raise KeyError(
+                'Could not find Role ARN. This is likely caused '
+                'due to a missing awsInfrastructureAccess section.'
+            )
         role_name = role_arn.split('/')[1]
         response = sts.assume_role(
             RoleArn=role_arn,
