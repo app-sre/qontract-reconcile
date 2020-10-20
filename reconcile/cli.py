@@ -327,14 +327,6 @@ def run_integration(func_container, ctx, *args, **kwargs):
     except GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
-    except GqlApiError as e:
-        if '409' in str(e):
-            logging.info(f'Data changed during execution. This is fine.')
-            # exit code to relect conflict
-            # TODO: document this better
-            sys.exit(ExitCodes.DATA_CHANGED)
-        else:
-            raise e
     finally:
         if ctx.get('dump_schemas_file'):
             gqlapi = gql.get_api()

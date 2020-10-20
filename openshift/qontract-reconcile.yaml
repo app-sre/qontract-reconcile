@@ -63,14 +63,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -242,14 +234,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -423,14 +407,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -602,14 +578,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -783,14 +751,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -963,14 +923,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -1134,14 +1086,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -1295,14 +1239,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -1466,14 +1402,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -1867,14 +1795,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -2042,14 +1962,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -2300,14 +2212,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -2479,14 +2383,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -2660,14 +2556,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -2839,14 +2727,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -3020,14 +2900,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -3199,14 +3071,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -3380,14 +3244,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -3560,14 +3416,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -3739,14 +3587,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -3990,14 +3830,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -4169,14 +4001,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -4350,14 +4174,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -4521,14 +4337,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -4682,14 +4490,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -4845,14 +4645,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -5007,14 +4799,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -5168,14 +4952,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -5339,14 +5115,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -5520,14 +5288,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -5700,14 +5460,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -5871,14 +5623,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -6037,14 +5781,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -6195,14 +5931,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -6343,14 +6071,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -6514,14 +6234,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -6695,14 +6407,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -6874,14 +6578,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy
@@ -7062,14 +6758,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               <store>
@@ -7248,14 +6936,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <match integration>
               @type copy

@@ -74,14 +74,6 @@ objects:
               </parse>
             </source>
 
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
             <match integration>
               @type copy
               {{- if $integration.logs.slack }}

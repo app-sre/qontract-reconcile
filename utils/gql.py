@@ -134,8 +134,6 @@ class GqlApi(object):
         try:
             resources = self.query(query, {'path': path})['resources']
         except GqlApiError as e:
-            if '409' in str(e):
-                raise e
             raise GqlGetResourceError(
                 path,
                 'Resource not found.')
