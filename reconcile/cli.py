@@ -87,7 +87,7 @@ import reconcile.dashdotdb_cso
 
 from reconcile.status import ExitCodes
 
-from utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+from utils.gql import (GqlApiErrorForbiddenSchema,
                        GqlApiIntegrationNotFound)
 from utils.aggregated_list import RunnerException
 from utils.binary import binary
