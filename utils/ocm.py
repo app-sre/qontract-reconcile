@@ -334,6 +334,45 @@ class OCM(object):
         }
         self._post(api, payload)
 
+    def get_machine_pools(self, cluster):
+        """Returns a list of details of Machine Pools
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        print(cluster)
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        print(cluster_id)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
+        r = self._get_json(api)
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            print(item)
+            # if idp['type'] != 'GithubIdentityProvider':
+            #     continue
+            # if idp['mapping_method'] != 'claim':
+            #     continue
+            # idp_name = idp['name']
+            # idp_github = idp['github']
+
+            # result = {
+            #     'cluster': cluster,
+            #     'name': idp_name,
+            #     'client_id': idp_github['client_id'],
+            #     'teams': idp_github.get('teams')
+            # }
+            # results.append(result)
+
+        return results
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
