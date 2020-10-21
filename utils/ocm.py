@@ -347,7 +347,6 @@ class OCM(object):
             return results
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
-        r = self._get_json(api)
         items = self._get_json(api).get('items')
         if not items:
             return results
