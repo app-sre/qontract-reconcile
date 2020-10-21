@@ -329,6 +329,12 @@ CLUSTERS_QUERY = """
       service
       pod
     }
+    machinePools {
+      id
+      instance_type
+      replicas
+      labels
+    }
     peering {
       connections {
         name
