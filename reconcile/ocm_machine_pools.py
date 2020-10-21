@@ -89,7 +89,6 @@ def act(dry_run, diffs, ocm_map):
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
-    
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('machinePools') is not None]
     ocm_map, current_state = fetch_current_state(clusters)
