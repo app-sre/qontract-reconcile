@@ -77,7 +77,6 @@ def act(dry_run, diffs, ocm_map):
         action = diff.pop('action')
         cluster = diff.pop('cluster')
         logging.info([action, cluster, diff['id']])
-        print(diff)
         if not dry_run:
             ocm = ocm_map.get(cluster)
             if action == 'create':
