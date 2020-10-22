@@ -324,10 +324,20 @@ CLUSTERS_QUERY = """
       upgrade
       provision_shard_id
     }
+    upgradePolicy {
+      schedule_type
+      schedule
+    }
     network {
       vpc
       service
       pod
+    }
+    machinePools {
+      id
+      instance_type
+      replicas
+      labels
     }
     peering {
       connections {

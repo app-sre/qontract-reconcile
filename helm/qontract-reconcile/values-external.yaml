@@ -145,11 +145,13 @@ integrations:
 - name: openshift-users
   resources:
     requests:
-      memory: 200Mi
-      cpu: 100m
+      # Known peaks are at 800Mi
+      memory: 800Mi
+      cpu: 400m
     limits:
-      memory: 300Mi
-      cpu: 200m
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 500m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -372,6 +374,28 @@ integrations:
   extraArgs: --vault-input-path app-sre/integrations-input
   logs:
     cloudwatch: true
+- name: ocm-machine-pools
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: ocm-upgrade-scheduler
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
 - name: email-sender
   resources:
     requests:
