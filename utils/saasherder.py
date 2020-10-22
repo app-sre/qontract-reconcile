@@ -72,7 +72,8 @@ class SaasHerder():
                                 for u in r['users']]
             if not saas_file_owners:
                 msg = 'saas file {} has no owners: {}'
-                logging.warning(msg.format(saas_file_name, saas_file_path))
+                logging.error(msg.format(saas_file_name, saas_file_path))
+                self.valid = False
 
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
