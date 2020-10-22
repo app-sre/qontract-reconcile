@@ -1,6 +1,5 @@
 import sys
 import logging
-import json
 
 import reconcile.queries as queries
 
