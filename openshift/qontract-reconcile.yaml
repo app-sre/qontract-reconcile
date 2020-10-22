@@ -2109,11 +2109,11 @@ objects:
                 key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
-              cpu: 200m
-              memory: 300Mi
+              cpu: 500m
+              memory: 1040Mi
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: 400m
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
