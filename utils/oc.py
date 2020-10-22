@@ -22,6 +22,10 @@ class InvalidValueApplyError(Exception):
     pass
 
 
+class MetaDataAnnotationsTooLongApplyError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -151,6 +155,10 @@ class OC(object):
 
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
+        self._run(cmd, stdin=resource, apply=True)
+
+    def replace(self, namespace, resource):
+        cmd = ['replace', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource, apply=True)
 
     def delete(self, namespace, kind, name):
@@ -410,6 +418,10 @@ class OC(object):
             err = err.decode('utf-8')
             if kwargs.get('apply') and 'Invalid value: 0x0' in err:
                 raise InvalidValueApplyError(f"[{self.server}]: {err}")
+            if kwargs.get('apply') and \
+                    'metadata.annotations: Too long' in err:
+                raise MetaDataAnnotationsTooLongApplyError(
+                    f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
