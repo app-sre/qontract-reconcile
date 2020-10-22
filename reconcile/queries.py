@@ -324,6 +324,10 @@ CLUSTERS_QUERY = """
       upgrade
       provision_shard_id
     }
+    upgradePolicy {
+      schedule_type
+      schedule
+    }
     network {
       vpc
       service

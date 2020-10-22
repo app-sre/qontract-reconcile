@@ -404,6 +404,60 @@ class OCM(object):
             f'{machine_pool_id}'
         self._delete(api)
 
+    def get_upgrade_policies(self, cluster):
+        """Returns a list of details of Upgrade Policies
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/upgrade_policies'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            desired_keys = ['id', 'schedule_type', 'schedule']
+            result = {k: v for k, v in item.items() if k in desired_keys}
+            results.append(result)
+
+        return results
+
+    def create_upgrade_policy(self, cluster, spec):
+        """Creates a new Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/upgrade_policies'
+        self._post(api, spec)
+
+    def delete_upgrade_policy(self, cluster, spec):
+        """Deletes an existing Upgrade Policy
+
+        :param cluster: cluster name
+        :param spec: required information for update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        upgrade_policy_id = spec['id']
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+            f'upgrade_policies/{upgrade_policy_id}'
+        self._delete(api)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
