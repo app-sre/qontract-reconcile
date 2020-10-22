@@ -334,6 +334,76 @@ class OCM(object):
         }
         self._post(api, payload)
 
+    def get_machine_pools(self, cluster):
+        """Returns a list of details of Machine Pools
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            desired_keys = ['id', 'instance_type', 'replicas', 'labels']
+            result = {k: v for k, v in item.items() if k in desired_keys}
+            results.append(result)
+
+        return results
+
+    def create_machine_pool(self, cluster, spec):
+        """Creates a new Machine Pool
+
+        :param cluster: cluster name
+        :param spec: required information for machine pool creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
+        self._post(api, spec)
+
+    def update_machine_pool(self, cluster, spec):
+        """Updates an existing Machine Pool
+
+        :param cluster: cluster name
+        :param spec: required information for machine pool update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        machine_pool_id = spec['id']
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/' + \
+            f'{machine_pool_id}'
+        self._patch(api, spec)
+
+    def delete_machine_pool(self, cluster, spec):
+        """Deletes an existing Machine Pool
+
+        :param cluster: cluster name
+        :param spec: required information for machine pool update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        machine_pool_id = spec['id']
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/' + \
+            f'{machine_pool_id}'
+        self._delete(api)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
@@ -342,6 +412,15 @@ class OCM(object):
 
     def _post(self, api, data):
         r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logging.error(r.text)
+            raise e
+
+    def _patch(self, api, data):
+        r = requests.patch(
+            f"{self.url}{api}", headers=self.headers, json=data)
         try:
             r.raise_for_status()
         except Exception as e:
