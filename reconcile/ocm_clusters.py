@@ -36,9 +36,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
 
     error = False
+    clusters_updates = {}
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
+            clusters_updates[cluster_name] = {}
             cluster_path = 'data' + \
                 [c['path'] for c in clusters
                  if c['name'] == cluster_name][0]
@@ -59,10 +61,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s. ' +
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
-                if not dry_run:
-                    mr = CreateUpdateClusterVersion(cluster_name, cluster_path,
-                                                    current_version)
-                    mr.submit(cli=mr_cli)
+                clusters_updates[cluster_name]['version'] = current_version
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -79,10 +78,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     f'[{cluster_name}] is missing id: {cluster_id}, ' +
                     f'and external_id: {external_id}. ' +
                     'It will be updated automatically in app-interface.')
-                if not dry_run:
-                    mr = CreateUpdateClusterIds(cluster_name, cluster_path,
-                                                cluster_id, external_id)
-                    mr.submit(cli=mr_cli)
+                clusters_updates[cluster_name]['cluster_id'] = cluster_id
+                clusters_updates[cluster_name]['external_id'] = external_id
+
+            if clusters_updates[cluster_name]:
+                clusters_updates[cluster_name]['path'] = cluster_path
 
             # exclude params we don't want to check in the specs
             for k in ['id', 'external_id', 'provision_shard_id']:
@@ -104,6 +104,20 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             if not dry_run:
                 ocm = ocm_map.get(cluster_name)
                 ocm.create_cluster(cluster_name, desired_spec)
+
+    if not dry_run:
+        create_update_mr = False
+        for cluster_name, cluster_updates in clusters_updates.items():
+            for k, v in cluster_updates.items():
+                logging.info(
+                    f"[{cluster_name}] desired key " +
+                    f"{k} will be updated automatically " +
+                    f"with value {v}."
+                )
+                create_update_mr = True
+        if create_update_mr:
+            mr = CreateClusterUpdates(clusters_updates)
+            mr.submit(cli=mr_cli)
 
     if error:
         sys.exit(1)
