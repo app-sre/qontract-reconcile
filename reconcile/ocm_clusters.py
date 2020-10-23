@@ -5,7 +5,7 @@ import semver
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
-from utils.mr import CreateClustersUpdates
+from utils.mr.clusters_updates import CreateClustersUpdates
 
 from utils.ocm import OCMMap
 
