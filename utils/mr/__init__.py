@@ -2,8 +2,7 @@ from utils.mr.base import MergeRequestBase
 
 from utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from utils.mr.aws_access import CreateDeleteAwsAccessKey
-from utils.mr.cluster_ids import CreateUpdateClusterIds
-from utils.mr.cluster_version import CreateUpdateClusterVersion
+from utils.mr.clusters_updates import CreateClustersUpdates
 from utils.mr.notificator import CreateAppInterfaceNotificator
 from utils.mr.user_maintenance import CreateDeleteUser
 
@@ -11,9 +10,7 @@ from utils.mr.user_maintenance import CreateDeleteUser
 __all__ = [
     'init_from_sqs_message',
     'CreateAppInterfaceReporter',
-    'CreateDeleteAwsAccessKey',
-    'CreateUpdateClusterIds',
-    'CreateUpdateClusterVersion',
+    'CreateClustersUpdates',
     'CreateAppInterfaceNotificator',
     'CreateDeleteUser',
 ]
