@@ -5,8 +5,7 @@ import semver
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
-from utils.mr import CreateUpdateClusterIds
-from utils.mr import CreateUpdateClusterVersion
+from utils.mr import CreateClustersUpdates
 
 from utils.ocm import OCMMap
 
@@ -116,7 +115,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 )
                 create_update_mr = True
         if create_update_mr:
-            mr = CreateClusterUpdates(clusters_updates)
+            mr = CreateClustersUpdates(clusters_updates)
             mr.submit(cli=mr_cli)
 
     if error:

@@ -39,5 +39,7 @@ class CreateClustersUpdates(MergeRequestBase):
             new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
 
             msg = f'update cluster {cluster_name} spec fields'
-            gitlab_cli.update_file(branch_name=self.branch, file_path=self.path,
-                                    commit_message=msg, content=new_content)
+            gitlab_cli.update_file(branch_name=self.branch,
+                                   file_path=cluster_path,
+                                   commit_message=msg,
+                                   content=new_content)
