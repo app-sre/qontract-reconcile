@@ -9,8 +9,8 @@ from utils.mr.user_maintenance import CreateDeleteUser
 
 __all__ = [
     'init_from_sqs_message',
-    'CreateDeleteAwsAccessKey',
     'CreateAppInterfaceReporter',
+    'CreateDeleteAwsAccessKey',
     'CreateClustersUpdates',
     'CreateAppInterfaceNotificator',
     'CreateDeleteUser',
