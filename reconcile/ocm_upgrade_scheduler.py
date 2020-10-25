@@ -80,6 +80,10 @@ def act(dry_run, diffs, ocm_map):
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    if not clusters:
+        logging.debug("No upgradePolicy definitions found in app-interface")
+        sys.exit(0)
+
     ocm_map, current_state = fetch_current_state(clusters)
     desired_state = fetch_desired_state(clusters)
     diffs, err = calculate_diff(current_state, desired_state)
