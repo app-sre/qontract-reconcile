@@ -247,8 +247,8 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(print_only, thread_pool_size, internal, use_jump_host,
-          account_name):
+def setup(dry_run, print_only, thread_pool_size, internal,
+          use_jump_host, account_name):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:
@@ -260,8 +260,16 @@ def setup(print_only, thread_pool_size, internal, use_jump_host,
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size,
-                                     internal, use_jump_host)
+    if dry_run:
+        ri = ResourceInventory()
+        oc_map = None
+    else:
+        ri, oc_map = fetch_current_state(
+            tf_namespaces,
+            thread_pool_size,
+            internal,
+            use_jump_host
+        )
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
                                          oc_map=oc_map,
@@ -305,10 +313,11 @@ def run(dry_run, print_only=False,
         account_name=None, defer=None):
 
     ri, oc_map, tf = \
-        setup(print_only, thread_pool_size, internal, use_jump_host,
-              account_name)
+        setup(dry_run, print_only, thread_pool_size, internal,
+              use_jump_host, account_name)
 
-    defer(lambda: oc_map.cleanup())
+    if not dry_run:
+        defer(lambda: oc_map.cleanup())
 
     if print_only:
         cleanup_and_exit()
