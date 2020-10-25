@@ -68,17 +68,21 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     cluster_name, desired_version, current_version)
                 error = True
 
-            # id and external_id are present
-            if not desired_spec['spec'].get('id') or \
-                    not desired_spec['spec'].get('external_id'):
-                cluster_id = current_spec['spec']['id']
-                external_id = current_spec['spec']['external_id']
-                logging.info(
-                    f'[{cluster_name}] is missing id: {cluster_id}, ' +
-                    f'and external_id: {external_id}. ' +
-                    'It will be updated automatically in app-interface.')
-                clusters_updates[cluster_name]['cluster_id'] = cluster_id
-                clusters_updates[cluster_name]['external_id'] = external_id
+            if not desired_spec['spec'].get('id'):
+                clusters_updates[cluster_name]['cluster_id'] = \
+                    current_spec['spec']['id']
+
+            if not desired_spec['spec'].get('external_id'):
+                clusters_updates[cluster_name]['external_id'] = \
+                    current_spec['spec']['external_id']
+
+            desired_provision_shard_id = \
+                desired_spec['spec'].get('provision_shard_id')
+            current_provision_shard_id = \
+                current_spec['spec']['provision_shard_id']
+            if desired_provision_shard_id != current_provision_shard_id:
+                clusters_updates[cluster_name]['provision_shard_id'] = \
+                    current_provision_shard_id
 
             if clusters_updates[cluster_name]:
                 clusters_updates[cluster_name]['path'] = cluster_path
@@ -104,19 +108,20 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 ocm = ocm_map.get(cluster_name)
                 ocm.create_cluster(cluster_name, desired_spec)
 
-    if not dry_run:
-        create_update_mr = False
-        for cluster_name, cluster_updates in clusters_updates.items():
-            for k, v in cluster_updates.items():
-                logging.info(
-                    f"[{cluster_name}] desired key " +
-                    f"{k} will be updated automatically " +
-                    f"with value {v}."
-                )
-                create_update_mr = True
-        if create_update_mr:
-            mr = CreateClustersUpdates(clusters_updates)
-            mr.submit(cli=mr_cli)
+    create_update_mr = False
+    for cluster_name, cluster_updates in clusters_updates.items():
+        for k, v in cluster_updates.items():
+            if k == 'path':
+                continue
+            logging.info(
+                f"[{cluster_name}] desired key " +
+                f"{k} will be updated automatically " +
+                f"with value {v}."
+            )
+            create_update_mr = True
+    if create_update_mr and not dry_run:
+        mr = CreateClustersUpdates(clusters_updates)
+        mr.submit(cli=mr_cli)
 
     if error:
         sys.exit(1)
