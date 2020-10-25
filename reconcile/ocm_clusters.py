@@ -5,8 +5,7 @@ import semver
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
-from utils.mr import CreateUpdateClusterIds
-from utils.mr import CreateUpdateClusterVersion
+from utils.mr.clusters_updates import CreateClustersUpdates
 
 from utils.ocm import OCMMap
 
@@ -36,9 +35,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
 
     error = False
+    clusters_updates = {}
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
+            clusters_updates[cluster_name] = {}
             cluster_path = 'data' + \
                 [c['path'] for c in clusters
                  if c['name'] == cluster_name][0]
@@ -59,10 +60,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s. ' +
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
-                if not dry_run:
-                    mr = CreateUpdateClusterVersion(cluster_name, cluster_path,
-                                                    current_version)
-                    mr.submit(cli=mr_cli)
+                clusters_updates[cluster_name]['version'] = current_version
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -70,19 +68,24 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     cluster_name, desired_version, current_version)
                 error = True
 
-            # id and external_id are present
-            if not desired_spec['spec'].get('id') or \
-                    not desired_spec['spec'].get('external_id'):
-                cluster_id = current_spec['spec']['id']
-                external_id = current_spec['spec']['external_id']
-                logging.info(
-                    f'[{cluster_name}] is missing id: {cluster_id}, ' +
-                    f'and external_id: {external_id}. ' +
-                    'It will be updated automatically in app-interface.')
-                if not dry_run:
-                    mr = CreateUpdateClusterIds(cluster_name, cluster_path,
-                                                cluster_id, external_id)
-                    mr.submit(cli=mr_cli)
+            if not desired_spec['spec'].get('id'):
+                clusters_updates[cluster_name]['cluster_id'] = \
+                    current_spec['spec']['id']
+
+            if not desired_spec['spec'].get('external_id'):
+                clusters_updates[cluster_name]['external_id'] = \
+                    current_spec['spec']['external_id']
+
+            desired_provision_shard_id = \
+                desired_spec['spec'].get('provision_shard_id')
+            current_provision_shard_id = \
+                current_spec['spec']['provision_shard_id']
+            if desired_provision_shard_id != current_provision_shard_id:
+                clusters_updates[cluster_name]['provision_shard_id'] = \
+                    current_provision_shard_id
+
+            if clusters_updates[cluster_name]:
+                clusters_updates[cluster_name]['path'] = cluster_path
 
             # exclude params we don't want to check in the specs
             for k in ['id', 'external_id', 'provision_shard_id']:
@@ -104,6 +107,21 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             if not dry_run:
                 ocm = ocm_map.get(cluster_name)
                 ocm.create_cluster(cluster_name, desired_spec)
+
+    create_update_mr = False
+    for cluster_name, cluster_updates in clusters_updates.items():
+        for k, v in cluster_updates.items():
+            if k == 'path':
+                continue
+            logging.info(
+                f"[{cluster_name}] desired key " +
+                f"{k} will be updated automatically " +
+                f"with value {v}."
+            )
+            create_update_mr = True
+    if create_update_mr and not dry_run:
+        mr = CreateClustersUpdates(clusters_updates)
+        mr.submit(cli=mr_cli)
 
     if error:
         sys.exit(1)
