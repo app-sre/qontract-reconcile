@@ -68,17 +68,17 @@ def get_desired_dependency_names(app, dependency_map):
 
     jenkins_configs = app.get('jenkinsConfigs')
     if jenkins_configs:
-      instances = set([jc['instance']['name'] for jc in jenkins_configs])
-      for instance in instances:
-          required_dep_names.update(
-              get_dependency_names(dependency_map, instance))
+        instances = set([jc['instance']['name'] for jc in jenkins_configs])
+        for instance in instances:
+            required_dep_names.update(
+                get_dependency_names(dependency_map, instance))
 
     saas_files = app.get('saasFiles')
     if saas_files:
-      instances = set([sf['instance']['name'] for sf in saas_files])
-      for instance in instances:
-          required_dep_names.update(
-              get_dependency_names(dependency_map, instance))
+        instances = set([sf['instance']['name'] for sf in saas_files])
+        for instance in instances:
+            required_dep_names.update(
+                get_dependency_names(dependency_map, instance))
 
     quay_repos = app.get('quayRepos')
     if quay_repos:
@@ -123,7 +123,8 @@ def run(dry_run):
         redundant_deps = list(set(current_deps).difference(desired_deps))
         if redundant_deps:
             msg = \
-                f"App '{app_name}' has redundant dependencies: {redundant_deps}"
+                f"App '{app_name}' has redundant dependencies: " + \
+                f"{redundant_deps}"
             logging.debug(msg)
 
     if error:
