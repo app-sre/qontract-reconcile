@@ -149,4 +149,5 @@ def run(dry_run):
         if previous_state:
             diffs = calculate_diff(jira.server, current_state, previous_state)
             act(dry_run, jira_board, diffs)
-        write_state(state, jira.project, current_state)
+        if not dry_run:
+            write_state(state, jira.project, current_state)
