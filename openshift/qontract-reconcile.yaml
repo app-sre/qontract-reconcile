@@ -1647,11 +1647,11 @@ objects:
                 key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: 300m
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: 150m
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1717,11 +1717,11 @@ objects:
                 key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: 300m
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: 150m
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1787,11 +1787,11 @@ objects:
                 key: CLIENT_ACCESS_TOKEN
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: 300m
+              memory: 400Mi
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: 150m
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
