@@ -21,6 +21,7 @@ class CreateClustersUpdates(MergeRequestBase):
         return (f'[{self.name}] clusters updates')
 
     def process(self, gitlab_cli):
+        changes = False
         for cluster_name, cluster_updates in self.clusters_updates.items():
             if not cluster_updates:
                 continue
@@ -32,7 +33,11 @@ class CreateClustersUpdates(MergeRequestBase):
             if 'spec' not in content:
                 self.cancel('Spec missing. Nothing to do.')
 
-            # if we are here, it means that there are updates
+            # check that there are updates to be made
+            if cluster_updates.items() <= content['spec'].items():
+                continue
+            changes = True
+
             content['spec'].update(cluster_updates)
 
             new_content = '---\n'
@@ -43,3 +48,6 @@ class CreateClustersUpdates(MergeRequestBase):
                                    file_path=cluster_path,
                                    commit_message=msg,
                                    content=new_content)
+
+        if not changes:
+            self.cancel('Clusters are up to date. Nothing to do.')
