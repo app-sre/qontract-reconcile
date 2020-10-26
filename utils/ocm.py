@@ -405,7 +405,7 @@ class OCM(object):
             f'{machine_pool_id}'
         self._delete(api)
 
-    def get_upgrade_policies(self, cluster):
+    def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
 
         :param cluster: cluster name
@@ -423,6 +423,8 @@ class OCM(object):
             return results
 
         for item in items:
+            if schedule_type and item['schedule_type'] != schedule_type:
+                continue
             desired_keys = ['id', 'schedule_type', 'schedule']
             result = {k: v for k, v in item.items() if k in desired_keys}
             results.append(result)
