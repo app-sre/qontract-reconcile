@@ -7,6 +7,7 @@ import reconcile.queries as queries
 
 from utils.jira_client import JiraClient
 from utils.slack_api import SlackApi
+from utils.sharding import is_in_shard
 
 
 QUERY = """
@@ -152,6 +153,8 @@ def run(dry_run, io_dir='throughput/'):
     gqlapi = gql.get_api()
     jira_boards = gqlapi.query(QUERY)['jira_boards']
     for jira_board in jira_boards:
+        if not is_in_shard(jira_board['name']):
+            continue
         jira, current_state = fetch_current_state(jira_board)
         previous_state = fetch_previous_state(io_dir, jira.project)
         if previous_state:
