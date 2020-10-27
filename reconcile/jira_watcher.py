@@ -1,5 +1,3 @@
-import os
-import json
 import logging
 
 import utils.gql as gql
@@ -8,6 +6,7 @@ import reconcile.queries as queries
 from utils.jira_client import JiraClient
 from utils.slack_api import SlackApi
 from utils.sharding import is_in_shard_round_robin
+from utils.state import State
 
 
 QUERY = """
@@ -44,8 +43,7 @@ QUERY = """
 QONTRACT_INTEGRATION = 'jira-watcher'
 
 
-def fetch_current_state(jira_board):
-    settings = queries.get_app_interface_settings()
+def fetch_current_state(jira_board, settings):
     jira = JiraClient(jira_board, settings=settings)
     issues = jira.get_issues()
     return jira, {issue.key: {'status': issue.fields.status.name,
@@ -53,22 +51,8 @@ def fetch_current_state(jira_board):
                   for issue in issues}
 
 
-def get_project_file_path(io_dir, project):
-    dir_path = os.path.join(io_dir, QONTRACT_INTEGRATION)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    return os.path.join(dir_path, project + '.json')
-
-
-def fetch_previous_state(io_dir, project):
-    project_file_path = get_project_file_path(io_dir, project)
-    try:
-        with open(project_file_path, 'r') as f:
-            logging.debug('[{}] previous state found'.format(project))
-            return json.load(f)
-    except IOError:
-        logging.debug('[{}] previous state not found'.format(project))
-        return None
+def fetch_previous_state(state, project):
+    return state.get(project, {})
 
 
 def format_message(server, key, data, event,
@@ -143,21 +127,27 @@ def act(dry_run, jira_board, diffs):
             slack.chat_post_message(diff)
 
 
-def write_state(io_dir, project, state):
-    project_file_path = get_project_file_path(io_dir, project)
-    with open(project_file_path, 'w') as f:
-        json.dump(state, f)
+def write_state(state, project, state_to_write):
+    state.add(project, value=state_to_write, force=True)
 
 
-def run(dry_run, io_dir='throughput/'):
+def run(dry_run):
     gqlapi = gql.get_api()
     jira_boards = gqlapi.query(QUERY)['jira_boards']
+    accounts = queries.get_aws_accounts()
+    settings = queries.get_app_interface_settings()
+    state = State(
+        integration=QONTRACT_INTEGRATION,
+        accounts=accounts,
+        settings=settings
+    )
     for index, jira_board in enumerate(jira_boards):
         if not is_in_shard_round_robin(jira_board['name'], index):
             continue
-        jira, current_state = fetch_current_state(jira_board)
-        previous_state = fetch_previous_state(io_dir, jira.project)
+        jira, current_state = fetch_current_state(jira_board, settings)
+        previous_state = fetch_previous_state(state, jira.project)
         if previous_state:
             diffs = calculate_diff(jira.server, current_state, previous_state)
             act(dry_run, jira_board, diffs)
-        write_state(io_dir, jira.project, current_state)
+        if not dry_run:
+            write_state(state, jira.project, current_state)

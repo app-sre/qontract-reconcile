@@ -520,10 +520,10 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command()
-@throughput
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
-def jira_watcher(ctx, io_dir):
-    run_integration(reconcile.jira_watcher, ctx.obj, io_dir)
+def jira_watcher(ctx):
+    run_integration(reconcile.jira_watcher, ctx.obj)
 
 
 @integration.command()

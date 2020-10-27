@@ -106,7 +106,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 300m
-  extraArgs: --io-dir /tmp/throughput/
+  state: true
   shards: 3
 - name: unleash-watcher
   resources:
