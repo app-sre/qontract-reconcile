@@ -15,6 +15,16 @@ APPS_QUERY = """
     codeComponents {
       url
     }
+    jenkinsConfigs {
+      instance {
+        name
+      }
+    }
+    saasFiles {
+      instance {
+        name
+      }
+    }
     quayRepos {
       org {
         name
@@ -56,6 +66,20 @@ def get_desired_dependency_names(app, dependency_map):
             required_dep_names.update(
                 get_dependency_names(dependency_map, 'github'))
 
+    jenkins_configs = app.get('jenkinsConfigs')
+    if jenkins_configs:
+        instances = set([jc['instance']['name'] for jc in jenkins_configs])
+        for instance in instances:
+            required_dep_names.update(
+                get_dependency_names(dependency_map, instance))
+
+    saas_files = app.get('saasFiles')
+    if saas_files:
+        instances = set([sf['instance']['name'] for sf in saas_files])
+        for instance in instances:
+            required_dep_names.update(
+                get_dependency_names(dependency_map, instance))
+
     quay_repos = app.get('quayRepos')
     if quay_repos:
         required_dep_names.update(
@@ -95,6 +119,13 @@ def run(dry_run):
             error = True
             msg = f"App '{app_name}' has missing dependencies: {missing_deps}"
             logging.error(msg)
+
+        redundant_deps = list(set(current_deps).difference(desired_deps))
+        if redundant_deps:
+            msg = \
+                f"App '{app_name}' has redundant dependencies: " + \
+                f"{redundant_deps}"
+            logging.debug(msg)
 
     if error:
         sys.exit(1)
