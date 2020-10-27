@@ -107,7 +107,6 @@ integrations:
       memory: 400Mi
       cpu: 300m
   state: true
-  shards: 3
 - name: unleash-watcher
   resources:
     requests:
