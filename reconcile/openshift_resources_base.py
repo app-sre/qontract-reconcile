@@ -285,7 +285,7 @@ def fetch_provider_vault_secret(
     # populate data
     for k, v in raw_data.items():
         if v == "":
-            v = None
+            continue
         if k.lower().endswith(QONTRACT_BASE64_SUFFIX):
             k = k[:-len(QONTRACT_BASE64_SUFFIX)]
         elif v is not None:
