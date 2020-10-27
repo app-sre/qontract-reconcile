@@ -56,8 +56,7 @@ class OCM(object):
         self.not_ready_clusters = [c['name'] for c in clusters
                                    if c['managed'] and c['state'] != 'ready']
 
-    @staticmethod
-    def _get_cluster_ocm_spec(cluster):
+    def _get_cluster_ocm_spec(self, cluster):
         ocm_spec = {
             'spec': {
                 'id': cluster['id'],
@@ -73,7 +72,9 @@ class OCM(object):
                 'storage':
                     int(cluster['storage_quota']['value'] / pow(1024, 3)),
                 'load_balancers': cluster['load_balancer_quota'],
-                'private': cluster['api']['listening'] == 'internal'
+                'private': cluster['api']['listening'] == 'internal',
+                'provision_shard_id':
+                    self.get_provision_shard(cluster['id'])['id']
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -133,7 +134,7 @@ class OCM(object):
 
         provision_shard_id = cluster_spec.get('provision_shard_id')
         if provision_shard_id:
-            ocm_spec['properties']['provision_shard_id'] = provision_shard_id
+            ocm_spec['provision_shard']['id'] = provision_shard_id
 
         self._post(api, ocm_spec)
 
@@ -404,7 +405,7 @@ class OCM(object):
             f'{machine_pool_id}'
         self._delete(api)
 
-    def get_upgrade_policies(self, cluster):
+    def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
 
         :param cluster: cluster name
@@ -422,6 +423,8 @@ class OCM(object):
             return results
 
         for item in items:
+            if schedule_type and item['schedule_type'] != schedule_type:
+                continue
             desired_keys = ['id', 'schedule_type', 'schedule']
             result = {k: v for k, v in item.items() if k in desired_keys}
             results.append(result)
@@ -457,6 +460,17 @@ class OCM(object):
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
             f'upgrade_policies/{upgrade_policy_id}'
         self._delete(api)
+
+    def get_provision_shard(self, cluster_id):
+        """Returns details of the provision shard
+
+        :param cluster: cluster id
+
+        :type cluster: string
+        """
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard'
+        return self._get_json(api)
 
     @retry(max_attempts=10)
     def _get_json(self, api):
