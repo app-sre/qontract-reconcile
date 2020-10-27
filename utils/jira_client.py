@@ -24,14 +24,18 @@ class JiraClient(object):
 
         return (secret['username'], secret['password'])
 
-    def get_issues(self):
+    def get_issues(self, fields=None):
         block_size = 100
         block_num = 0
         all_issues = []
         jql = 'project={}'.format(self.project)
+        kwargs = {}
+        if fields:
+            kwargs['fields'] = ','.join(fields)
         while True:
             index = block_num * block_size
-            issues = self.jira.search_issues(jql, index, block_size)
+            issues = self.jira.search_issues(jql, index, block_size,
+                                             **kwargs)
             all_issues.extend(issues)
             if len(issues) < block_size:
                 break

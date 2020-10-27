@@ -101,13 +101,12 @@ integrations:
 - name: jira-watcher
   resources:
     requests:
-      memory: 200Mi
-      cpu: 150m
+      memory: 80Mi
+      cpu: 100m
     limits:
-      memory: 400Mi
-      cpu: 300m
+      memory: 200Mi
+      cpu: 200m
   state: true
-  shards: 3
 - name: unleash-watcher
   resources:
     requests:
