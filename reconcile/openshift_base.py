@@ -6,7 +6,8 @@ import reconcile.queries as queries
 from utils.oc import OC_Map
 from utils.oc import (StatusCodeError,
                       InvalidValueApplyError,
-                      MetaDataAnnotationsTooLongApplyError)
+                      MetaDataAnnotationsTooLongApplyError,
+                      UnsupportedMediaTypeError)
 from utils.openshift_resource import (OpenshiftResource as OR,
                                       ResourceInventory)
 
