@@ -230,7 +230,10 @@ class OC(object):
         # oc api-resources only has name or wide output
         # and we need to get the KIND, which is the last column
         cmd = ['api-resources', '--no-headers']
-        results = self._run(cmd).decode('utf-8').split('\n')
+        if self._run(cmd) == '{}':
+            results = '{}'
+        else:
+            results = self._run(cmd).decode('utf-8').split('\n')   
         return [r.split()[-1] for r in results]
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
@@ -423,14 +426,14 @@ class OC(object):
                 raise MetaDataAnnotationsTooLongApplyError(
                     f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
-                raise StatusCodeError(f"[{self.server}]: {err}")
+                logging.error(StatusCodeError(f"[{self.server}]: {err}"))
 
         if not out:
             if allow_not_found:
                 return '{}'
             else:
-                raise NoOutputError(err)
-
+                logging.error(NoOutputError(err))
+                return '{}'
         return out.strip()
 
     def _run_json(self, cmd, allow_not_found=False):
