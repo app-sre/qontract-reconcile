@@ -233,7 +233,7 @@ class OC(object):
         if self._run(cmd) == '{}':
             results = '{}'
         else:
-            results = self._run(cmd).decode('utf-8').split('\n')   
+            results = self._run(cmd).decode('utf-8').split('\n')
         return [r.split()[-1] for r in results]
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
