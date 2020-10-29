@@ -174,6 +174,8 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False):
     if sha_url:
         server = get_sha_url(server, token)
 
+    logging.info(f'using gql endpoint {server}')
+
     return init(server, token, integration, validate_schemas)
 
 
