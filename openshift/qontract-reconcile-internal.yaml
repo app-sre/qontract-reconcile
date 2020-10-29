@@ -71,6 +71,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
