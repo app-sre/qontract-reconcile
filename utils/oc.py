@@ -523,7 +523,7 @@ class OC_Map(object):
             except StatusCodeError:
                 logging.info('Cluster unreachable: ' + cluster)
                 pass
-
+            
     def set_oc(self, cluster, value):
         with self._lock:
             self.oc_map[cluster] = value
