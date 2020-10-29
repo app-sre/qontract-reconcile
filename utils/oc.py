@@ -26,6 +26,10 @@ class MetaDataAnnotationsTooLongApplyError(Exception):
     pass
 
 
+class UnsupportedMediaTypeError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -422,12 +426,14 @@ class OC(object):
 
         if code != 0:
             err = err.decode('utf-8')
-            if kwargs.get('apply') and 'Invalid value: 0x0' in err:
-                raise InvalidValueApplyError(f"[{self.server}]: {err}")
-            if kwargs.get('apply') and \
-                    'metadata.annotations: Too long' in err:
-                raise MetaDataAnnotationsTooLongApplyError(
-                    f"[{self.server}]: {err}")
+            if kwargs.get('apply'):
+                if 'Invalid value: 0x0' in err:
+                    raise InvalidValueApplyError(f"[{self.server}]: {err}")
+                if 'metadata.annotations: Too long' in err:
+                    raise MetaDataAnnotationsTooLongApplyError(
+                        f"[{self.server}]: {err}")
+                if 'UnsupportedMediaType' in err:
+                    raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

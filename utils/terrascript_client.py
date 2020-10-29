@@ -802,7 +802,11 @@ class TerrascriptClient(object):
     def fetch_existing_oc_resource(self, namespace_info, resource_name):
         cluster, namespace = self.unpack_namespace_info(namespace_info)
         try:
+            if not self.oc_map:
+                return None
             oc = self.oc_map.get(cluster)
+            if not oc:
+                return None
             return oc.get(namespace, 'Secret', resource_name)
         except StatusCodeError as e:
             if str(e).startswith('Error from server (NotFound):'):
