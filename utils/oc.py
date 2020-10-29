@@ -50,10 +50,6 @@ class JobNotRunningError(Exception):
     pass
 
 
-class ClusterUnreachable(Exception):
-    pass
-
-
 class OC(object):
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False):
