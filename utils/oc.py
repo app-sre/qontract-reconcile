@@ -240,7 +240,6 @@ class OC(object):
         return [r.split()[-1] for r in results]
 
     def get_cluster_info(self):
-        # get cluster-info to check that the cluster is reachable
         cmd = ['cluster-info']
         return self._run(cmd)
 
