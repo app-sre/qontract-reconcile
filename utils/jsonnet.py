@@ -20,7 +20,7 @@ def generate_object(jsonnet_string):
 
     try:
         jsonnet_bundler_dir = os.environ['JSONNET_VENDOR_DIR']
-    except KeyError:
+    except KeyError as e:
         raise JsonnetError('JSONNET_VENDOR_DIR not set')
 
     cmd = ['jsonnet', '-J', jsonnet_bundler_dir, path]
