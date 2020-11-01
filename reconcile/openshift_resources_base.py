@@ -93,6 +93,10 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      auth {
+        org
+        team
+      }
       jumpHost {
           hostname
           knownHosts
