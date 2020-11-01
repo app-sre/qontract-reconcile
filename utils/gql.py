@@ -166,7 +166,8 @@ def get_sha_url(server, token=None):
     return f'{gql_sha_endpoint}/{sha}'
 
 
-def init_from_config(sha_url=True, integration=None, validate_schemas=False):
+def init_from_config(sha_url=True, integration=None, validate_schemas=False,
+                     print_url=True):
     config = get_config()
 
     server = config['graphql']['server']
@@ -174,7 +175,8 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False):
     if sha_url:
         server = get_sha_url(server, token)
 
-    logging.info(f'using gql endpoint {server}')
+    if print_url:
+        logging.info(f'using gql endpoint {server}')
 
     return init(server, token, integration, validate_schemas)
 
