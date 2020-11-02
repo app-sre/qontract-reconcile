@@ -28,15 +28,16 @@ FROM registry.access.redhat.com/ubi8/ubi:8.2
 
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
+ENV OC_VERSION=4.6.1
 ENV TF_VERSION=0.11.14
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    curl -L https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz | tar -xvz && \
-    pushd openshift-origin-client* && \
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz -o oc.tar.gz &&\
+    tar -zvxf oc.tar.gz && \
     mv oc kubectl /usr/local/bin && \
-    popd && \
+    rm oc.tar.gz && \
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
     dnf install -y skopeo && \
     dnf install -y python3 python3-pip python3-devel git unzip gcc gcc-c++ openssh-clients openssl glibc-langpack-en && \
