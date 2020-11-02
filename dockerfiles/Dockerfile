@@ -33,7 +33,7 @@ ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz -o oc.tar.gz &&\
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.6.1/openshift-client-linux.tar.gz -o oc.tar.gz &&\
     tar -zvxf oc.tar.gz && \
     mv oc kubectl /usr/local/bin && \
     rm oc.tar.gz && \
