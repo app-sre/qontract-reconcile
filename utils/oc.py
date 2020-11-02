@@ -70,6 +70,8 @@ class OC(object):
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
+        # calling get_cluster_info to check if cluster is reachable	
+        self.get_cluster_info()
         self.init_projects = init_projects
         if self.init_projects:
             self.projects = [p['metadata']['name']
@@ -236,6 +238,10 @@ class OC(object):
         cmd = ['api-resources', '--no-headers']
         results = self._run(cmd).decode('utf-8').split('\n')
         return [r.split()[-1] for r in results]
+
+    def get_cluster_info(self):	
+        cmd = ['cluster-info']	
+        return self._run(cmd)
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
     def wait_for_job_running(self, namespace, name):
@@ -509,12 +515,14 @@ class OC_Map(object):
                 jump_host = cluster_info.get('jumpHost')
             else:
                 jump_host = None
-            self.set_oc(
-                cluster,
-                OC(server_url, token, jump_host,
-                   settings=self.settings,
-                   init_projects=self.init_projects,
-                   init_api_resources=self.init_api_resources))
+            try:
+                oc_client = OC(server_url, token, jump_host,
+                               settings=self.settings,
+                               init_projects=self.init_projects,
+                               init_api_resources=self.init_api_resources)
+                self.set_oc(cluster, oc_client)
+            except StatusCodeError:
+                logging.warning('Cluster unreachable: %s', cluster)
 
     def set_oc(self, cluster, value):
         with self._lock:
