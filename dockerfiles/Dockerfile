@@ -38,15 +38,20 @@ ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz -o oc.tar.gz &&\
-    tar -zvxf oc.tar.gz && \
-    mv oc kubectl /usr/local/bin && \
-    rm oc.tar.gz && \
+    # this is temporary until libgcc, libgomp and libstdc++ in version 8.3.1-5.1.el8 are available in
+    # https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi8/8/x86_64/appstream/os/Packages/g/
+    dnf install -y http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/centos-gpg-keys-8.2-2.2004.0.2.el8.noarch.rpm && \
+    dnf install -y http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/centos-repos-8.2-2.2004.0.2.el8.x86_64.rpm && \
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
     dnf install -y skopeo && \
-    dnf install -y python3 python3-pip python3-devel git unzip gcc gcc-c++ openssh-clients openssl glibc-langpack-en && \
+    dnf install -y python3 python3-pip-9.0.3-16.el8 python3-devel git unzip gcc-8.3.1-5.el8.0.2.x86_64 gcc-c++-8.3.1-5.el8.0.2.x86_64 openssh-clients openssl glibc-langpack-en && \
     python3 -m pip install --upgrade pip setuptools && \
     dnf clean all
+
+RUN curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz -o oc.tar.gz &&\
+    tar -zvxf oc.tar.gz && \
+    mv oc kubectl /usr/local/bin && \
+    rm oc.tar.gz
 
 RUN curl https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip --output terraform.zip && \
     unzip terraform.zip && \
