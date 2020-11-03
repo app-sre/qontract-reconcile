@@ -6,11 +6,6 @@ ENV JSONNET_BUNDLER_VERSION=v0.3.1
 ENV VALET_LIBSONNET_VERSION=d2a774e73549a202f97982dd6982daccdde0035e
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    # this is temporary until libgcc, libgomp and libstdc++ in version 8.3.1-5.1.el8 are available in
-    # https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi8/8/x86_64/appstream/os/Packages/g/
-    dnf install -y http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/centos-gpg-keys-8.2-2.2004.0.2.el8.noarch.rpm && \
-    dnf install -y http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/centos-repos-8.2-2.2004.0.2.el8.x86_64.rpm && \
-    # this is temporary
     dnf install -y git make gcc gcc-c++ tar gzip unzip && \
     dnf clean all
 
