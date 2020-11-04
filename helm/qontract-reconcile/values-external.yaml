@@ -262,7 +262,7 @@ integrations:
       memory: 800Mi
       cpu: 900m
     limits:
-      memory: 1200Mi
+      memory: 1500Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
   logs:

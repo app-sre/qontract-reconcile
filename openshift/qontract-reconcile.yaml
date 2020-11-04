@@ -4232,7 +4232,7 @@ objects:
           resources:
             limits:
               cpu: 1200m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 900m
               memory: 800Mi
@@ -4420,7 +4420,7 @@ objects:
           resources:
             limits:
               cpu: 1200m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 900m
               memory: 800Mi
@@ -4608,7 +4608,7 @@ objects:
           resources:
             limits:
               cpu: 1200m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 900m
               memory: 800Mi
@@ -4796,7 +4796,7 @@ objects:
           resources:
             limits:
               cpu: 1200m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 900m
               memory: 800Mi
@@ -4984,7 +4984,7 @@ objects:
           resources:
             limits:
               cpu: 1200m
-              memory: 1200Mi
+              memory: 1500Mi
             requests:
               cpu: 900m
               memory: 800Mi
