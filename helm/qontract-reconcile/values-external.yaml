@@ -268,7 +268,7 @@ integrations:
   logs:
     cloudwatch: true
     slack: true
-  shards: 4
+  shards: 5
 - name: openshift-vault-secrets
   resources:
     requests:
