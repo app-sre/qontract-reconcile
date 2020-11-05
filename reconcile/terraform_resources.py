@@ -216,11 +216,9 @@ def populate_oc_resources(spec, ri):
         logging.error(msg)
 
 
-def fetch_current_state(dry_run, namespaces, thread_pool_size,
+def fetch_current_state(namespaces, thread_pool_size,
                         internal, use_jump_host):
     ri = ResourceInventory()
-    if dry_run:
-        return ri, None
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
@@ -250,7 +248,7 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(dry_run, print_only, thread_pool_size, internal,
+def setup(print_only, thread_pool_size, internal,
           use_jump_host, account_name):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
@@ -263,7 +261,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = [namespace_info for namespace_info in namespaces
                      if namespace_info.get('managedTerraformResources')]
-    ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
+    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size,
                                      internal, use_jump_host)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          print_only=print_only,
@@ -308,11 +306,10 @@ def run(dry_run, print_only=False,
         account_name=None, defer=None):
 
     ri, oc_map, tf = \
-        setup(dry_run, print_only, thread_pool_size, internal,
+        setup(print_only, thread_pool_size, internal,
               use_jump_host, account_name)
 
-    if not dry_run:
-        defer(lambda: oc_map.cleanup())
+    defer(lambda: oc_map.cleanup())
 
     if print_only:
         cleanup_and_exit()
