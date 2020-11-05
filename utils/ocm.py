@@ -472,19 +472,24 @@ class OCM(object):
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard'
         return self._get_json(api)
 
+    def get_pull_secrets(self,):
+        api = '/api/accounts_mgmt/v1/access_token'
+        return self._post(api)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
         r.raise_for_status()
         return r.json()
 
-    def _post(self, api, data):
+    def _post(self, api, data=None):
         r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
         try:
             r.raise_for_status()
         except Exception as e:
             logging.error(r.text)
             raise e
+        return r.json()
 
     def _patch(self, api, data):
         r = requests.patch(
