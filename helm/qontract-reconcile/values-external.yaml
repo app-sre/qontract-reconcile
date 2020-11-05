@@ -472,6 +472,14 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+- name: ocp-release-ecr-mirror
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 200m
+    limits:
+      memory: 520Mi
+      cpu: 300m
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
