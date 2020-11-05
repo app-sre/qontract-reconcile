@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import tempfile
 
 import utils.threaded as threaded
 
@@ -202,6 +203,24 @@ class OC(object):
     def create_group(self, group):
         cmd = ['adm', 'groups', 'new', group]
         self._run(cmd)
+
+    def release_mirror(self, from_release, to, to_release, dockerconfig):
+        with tempfile.NamedTemporaryFile() as fp:
+            content = json.dumps(dockerconfig)
+            fp.write(content.encode())
+            fp.seek(0)
+
+            cmd = [
+                'adm',
+                '--registry-config', fp.name,
+                'release', 'mirror',
+                '--from', from_release,
+                '--to', to,
+                '--to-release-image', to_release,
+                '--max-per-registry', '1'
+            ]
+
+            self._run(cmd)
 
     def delete_group(self, group):
         cmd = ['delete', 'group', group]
