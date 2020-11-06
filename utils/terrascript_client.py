@@ -604,19 +604,14 @@ class TerrascriptClient(object):
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.fullname + ".arn}"
 
-        reset_password = False
         reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
-            if reset_password_current_value:
-                try:
-                    existing_secret = existing_secrets[account][output_prefix]
-                    reset_password_existing_value = \
-                        existing_secret['reset_password']
-                except KeyError:
-                    reset_password_existing_value = None
-                if reset_password_current_value != \
-                        reset_password_existing_value:
-                    reset_password = True
+            reset_password = self._should_reset_password(
+                reset_password_current_value,
+                existing_secrets,
+                account,
+                output_prefix
+            )
             if reset_password:
                 password = self.generate_random_password()
             else:
@@ -735,8 +730,8 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[db.name]'
         output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
-        # only set reset_password if it is defined
-        if reset_password:
+        # only set reset_password if reset_password_current_value is defined
+        if reset_password_current_value:
             output_name = output_prefix + '[reset_password]'
             output_value = reset_password_current_value
             tf_resources.append(output(output_name, value=output_value))
@@ -753,6 +748,20 @@ class TerrascriptClient(object):
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def _should_reset_password(current_value, existing_secrets,
+                               account, output_prefix):
+        if current_value:
+            try:
+                existing_secret = existing_secrets[account][output_prefix]
+                existing_value = \
+                    existing_secret['reset_password']
+            except KeyError:
+                existing_value = None
+            if current_value != existing_value:
+                return True
+        return False
 
     def _multiregion_account_(self, name):
         if name not in self.configs:
