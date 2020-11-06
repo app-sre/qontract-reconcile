@@ -33,6 +33,7 @@ provider
   enhanced_monitoring
   replica_source
   output_resource_db_name
+  reset_password
 }
 ... on NamespaceTerraformResourceS3_v1 {
   account
@@ -276,9 +277,11 @@ def setup(dry_run, print_only, thread_pool_size, internal,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
     ts.populate_resources(tf_namespaces, existing_secrets, account_name)
+    state = ts.state
+    output_state = ts.output_state
     ts.dump(print_only, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf
+    return ri, oc_map, tf, state, output_state
 
 
 def cleanup_and_exit(tf=None, status=False, working_dirs={}):
@@ -307,7 +310,7 @@ def run(dry_run, print_only=False,
         light=False, vault_output_path='',
         account_name=None, defer=None):
 
-    ri, oc_map, tf = \
+    ri, oc_map, tf, state, output_state = \
         setup(dry_run, print_only, thread_pool_size, internal,
               use_jump_host, account_name)
 
@@ -348,6 +351,8 @@ def run(dry_run, print_only=False,
     tf.populate_desired_state(ri, oc_map)
 
     ob.realize_data(dry_run, oc_map, ri)
+    for k, v in output_state.items():
+        state.add(k, v, force=True)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)

@@ -22,6 +22,7 @@ from utils.elasticsearch_exceptions \
           ElasticSearchResourceMissingSubnetIdError,
           ElasticSearchResourceVersionInvalidError,
           ElasticSearchResourceZoneAwareSubnetInvalidError)
+from utils.state import State
 
 from threading import Lock
 from terrascript import Terrascript, provider, terraform, backend, output, data
@@ -112,6 +113,9 @@ class TerrascriptClient(object):
         github_config = get_config()['github']
         self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
+        self.state = State(self.integration, filtered_accounts,
+                           settings=self.settings)
+        self.output_state = {}
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
@@ -604,7 +608,15 @@ class TerrascriptClient(object):
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.fullname + ".arn}"
 
-        if self._db_needs_auth_(values):
+        # Determine DB password
+        reset_password_key = f'{account}/{identifier}/reset_password'
+        reset_password_value = values.pop('reset_password', None)
+        self.output_state[reset_password_key] = reset_password_value
+        # if the reset_password value is different from the previous one
+        # (which is stored in the state) - reset password
+        if reset_password_value != self.state.get(reset_password_key):
+            password = self.generate_random_password()
+        elif self._db_needs_auth_(values):
             try:
                 password = \
                     existing_secrets[account][output_prefix]['db.password']
@@ -2112,6 +2124,8 @@ class TerrascriptClient(object):
         secret = resource.get('secret', None)
         output_resource_db_name = \
             resource.get('output_resource_db_name', None)
+        reset_password = \
+            resource.get('reset_password', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2135,6 +2149,7 @@ class TerrascriptClient(object):
         values['filter_pattern'] = filter_pattern
         values['secret'] = secret
         values['output_resource_db_name'] = output_resource_db_name
+        values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
