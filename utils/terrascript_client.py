@@ -604,14 +604,25 @@ class TerrascriptClient(object):
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.fullname + ".arn}"
 
+        reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
-            try:
-                password = \
-                    existing_secrets[account][output_prefix]['db.password']
-            except KeyError:
-                password = \
-                    self.determine_db_password(namespace_info,
-                                               output_resource_name)
+            reset_password = self._should_reset_password(
+                reset_password_current_value,
+                existing_secrets,
+                account,
+                output_prefix
+            )
+            if reset_password:
+                password = self.generate_random_password()
+            else:
+                try:
+                    existing_secret = existing_secrets[account][output_prefix]
+                    password = \
+                        existing_secret['db.password']
+                except KeyError:
+                    password = \
+                        self.determine_db_password(namespace_info,
+                                                   output_resource_name)
         else:
             password = ""
         values['password'] = password
@@ -729,9 +740,38 @@ class TerrascriptClient(object):
             output_name = output_prefix + '[db.password]'
             output_value = values['password']
             tf_resources.append(output(output_name, value=output_value))
+            # only add reset_password key to the terraform state
+            # if reset_password_current_value is defined.
+            # this means that if the reset_password field is removed
+            # from the rds definition in app-interface, the key will be
+            # removed from the state and from the output resource,
+            # leading to a recycle of the pods using this resource.
+            if reset_password_current_value:
+                output_name = output_prefix + '[reset_password]'
+                output_value = reset_password_current_value
+                tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    @staticmethod
+    def _should_reset_password(current_value, existing_secrets,
+                               account, output_prefix):
+        """
+        If the current value (graphql) of reset_password
+        is different from the existing value (terraform state)
+        password should be reset.
+        """
+        if current_value:
+            try:
+                existing_secret = existing_secrets[account][output_prefix]
+                existing_value = \
+                    existing_secret['reset_password']
+            except KeyError:
+                existing_value = None
+            if current_value != existing_value:
+                return True
+        return False
 
     def _multiregion_account_(self, name):
         if name not in self.configs:
@@ -2112,6 +2152,8 @@ class TerrascriptClient(object):
         secret = resource.get('secret', None)
         output_resource_db_name = \
             resource.get('output_resource_db_name', None)
+        reset_password = \
+            resource.get('reset_password', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2135,6 +2177,7 @@ class TerrascriptClient(object):
         values['filter_pattern'] = filter_pattern
         values['secret'] = secret
         values['output_resource_db_name'] = output_resource_db_name
+        values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']

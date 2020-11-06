@@ -33,6 +33,7 @@ provider
   enhanced_monitoring
   replica_source
   output_resource_db_name
+  reset_password
 }
 ... on NamespaceTerraformResourceS3_v1 {
   account
