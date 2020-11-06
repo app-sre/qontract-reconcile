@@ -604,14 +604,29 @@ class TerrascriptClient(object):
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.fullname + ".arn}"
 
+        reset_password = False
         if self._db_needs_auth_(values):
-            try:
-                password = \
-                    existing_secrets[account][output_prefix]['db.password']
-            except KeyError:
-                password = \
-                    self.determine_db_password(namespace_info,
-                                               output_resource_name)
+            reset_password_current_value = values.pop('reset_password', None)
+            if reset_password_current_value:
+                try:
+                    existing_secret = existing_secrets[account][output_prefix]
+                    reset_password_existing_value = \
+                        existing_secret['reset_password']
+                except KeyError:
+                    reset_password_existing_value = None
+                if reset_password_current_value != \
+                        reset_password_existing_value:
+                    reset_password = True
+            if reset_password:
+                password = self.generate_random_password()
+            else:
+                try:
+                    password = \
+                        existing_secrets[account][output_prefix]['db.password']
+                except KeyError:
+                    password = \
+                        self.determine_db_password(namespace_info,
+                                                output_resource_name)
         else:
             password = ""
         values['password'] = password
@@ -719,6 +734,11 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[db.name]'
         output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
+        # only set reset_password if it is defined
+        if reset_password:
+            output_name = output_prefix + '[reset_password]'
+            output_value = reset_password_current_value
+            tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
             # db.user
@@ -2112,6 +2132,8 @@ class TerrascriptClient(object):
         secret = resource.get('secret', None)
         output_resource_db_name = \
             resource.get('output_resource_db_name', None)
+        reset_password = \
+            resource.get('reset_password', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2135,6 +2157,7 @@ class TerrascriptClient(object):
         values['filter_pattern'] = filter_pattern
         values['secret'] = secret
         values['output_resource_db_name'] = output_resource_db_name
+        values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
