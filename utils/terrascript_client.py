@@ -621,12 +621,13 @@ class TerrascriptClient(object):
                 password = self.generate_random_password()
             else:
                 try:
+                    existing_secret = existing_secrets[account][output_prefix]
                     password = \
-                        existing_secrets[account][output_prefix]['db.password']
+                        existing_secret['db.password']
                 except KeyError:
                     password = \
                         self.determine_db_password(namespace_info,
-                                                output_resource_name)
+                                                   output_resource_name)
         else:
             password = ""
         values['password'] = password
