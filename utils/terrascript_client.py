@@ -730,11 +730,6 @@ class TerrascriptClient(object):
         output_name = output_prefix + '[db.name]'
         output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
-        # only set reset_password if reset_password_current_value is defined
-        if reset_password_current_value:
-            output_name = output_prefix + '[reset_password]'
-            output_value = reset_password_current_value
-            tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
             # db.user
@@ -745,6 +740,16 @@ class TerrascriptClient(object):
             output_name = output_prefix + '[db.password]'
             output_value = values['password']
             tf_resources.append(output(output_name, value=output_value))
+            # only add reset_password key to the terraform state
+            # if reset_password_current_value is defined.
+            # this means that if the reset_password field is removed
+            # from the rds definition in app-interface, the key will be
+            # removed from the state and from the output resource,
+            # leading to a recycle of the pods using this resource.
+            if reset_password_current_value:
+                output_name = output_prefix + '[reset_password]'
+                output_value = reset_password_current_value
+                tf_resources.append(output(output_name, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
@@ -752,6 +757,11 @@ class TerrascriptClient(object):
     @staticmethod
     def _should_reset_password(current_value, existing_secrets,
                                account, output_prefix):
+        """
+        If the current value (graphql) of reset_password
+        is different from the existing value (terraform state)
+        password should be reset.
+        """
         if current_value:
             try:
                 existing_secret = existing_secrets[account][output_prefix]
