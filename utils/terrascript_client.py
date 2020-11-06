@@ -605,8 +605,8 @@ class TerrascriptClient(object):
                 "${" + role_tf_resource.fullname + ".arn}"
 
         reset_password = False
+        reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
-            reset_password_current_value = values.pop('reset_password', None)
             if reset_password_current_value:
                 try:
                     existing_secret = existing_secrets[account][output_prefix]
