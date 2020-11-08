@@ -2117,7 +2117,6 @@ class TerrascriptClient(object):
             if print_only:
                 print('##### {} #####'.format(name))
                 print(ts.dump())
-                continue
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
