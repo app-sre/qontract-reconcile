@@ -2,9 +2,10 @@ import logging
 import semver
 import sys
 import time
-
 import jinja2
 import ruamel.yaml as yaml
+
+from textwrap import indent
 
 from reconcile import openshift_base
 from reconcile import queries
@@ -25,11 +26,7 @@ LOG = logging.getLogger(__name__)
 JOB_TTL = 604800  # 7 days
 POD_TTL = 3600  # 1 hour (used only when output is "filesystem")
 
-JOB_TEMPLATE = """
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: {{ JOB_NAME }}
+JOB_SPEC = """
 spec:
   template:
     metadata:
@@ -60,6 +57,27 @@ spec:
           {% endfor %}
       restartPolicy: Never
 """
+
+
+JOB_TEMPLATE = """
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ JOB_NAME }}
+%s
+""" % (JOB_SPEC)
+
+
+CRONJOB_TEMPLATE = """
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ JOB_NAME }}
+spec:
+  schedule: "{{ SCHEDULE }}"
+  jobTemplate:
+    %s
+""" % (indent(JOB_SPEC, 4*' '))
 
 
 def get_tf_resource_info(namespace, identifier):
@@ -253,14 +271,23 @@ def process_template(query):
     command = make_command(output=output,
                            query=query['query'])
 
-    template = jinja2.Template(JOB_TEMPLATE)
-    job_yaml = template.render(JOB_NAME=query['name'],
-                               QUERY=query['query'],
-                               SECRET_NAME=query['output_resource_name'],
-                               ENGINE=engine,
-                               ENGINE_VERSION=query['engine_version'],
-                               DB_CONN=query['db_conn'],
-                               COMMAND=command)
+    template_to_render = JOB_TEMPLATE
+    render_kwargs = {
+        'JOB_NAME': query['name'],
+        'QUERY': query['query'],
+        'SECRET_NAME': query['output_resource_name'],
+        'ENGINE': engine,
+        'ENGINE_VERSION': query['engine_version'],
+        'DB_CONN': query['db_conn'],
+        'COMMAND': command
+    }
+    schedule = query.get('schedule')
+    if schedule:
+        template_to_render = CRONJOB_TEMPLATE
+        render_kwargs['SCHEDULE'] = schedule
+        
+    template = jinja2.Template(template_to_render)
+    job_yaml = template.render(**render_kwargs)
     return job_yaml
 
 
@@ -283,7 +310,8 @@ def run(dry_run, enable_deletion=False):
         # - State is 'DONE': executed and removed.
         try:
             query_state = state[query_name]
-            if query_state != 'DONE':
+            is_cronjob = query.get('schedule')
+            if query_state != 'DONE' and not is_cronjob:
                 remove_candidates.append({'name': query_name,
                                           'timestamp': query_state})
             continue
@@ -303,7 +331,7 @@ def run(dry_run, enable_deletion=False):
                              oc_map=oc_map,
                              cluster=query['cluster'],
                              namespace=query['namespace']['name'],
-                             resource_type='job',
+                             resource_type=job_resource.kind,
                              resource=job_resource,
                              wait_for_namespace=False)
 

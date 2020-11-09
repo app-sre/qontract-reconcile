@@ -944,6 +944,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
       db_password
     }
     output
+    schedule
     query
   }
 }
