@@ -286,7 +286,7 @@ def process_template(query):
     if schedule:
         template_to_render = CRONJOB_TEMPLATE
         render_kwargs['SCHEDULE'] = schedule
-        
+
     template = jinja2.Template(template_to_render)
     job_yaml = template.render(**render_kwargs)
     return job_yaml
