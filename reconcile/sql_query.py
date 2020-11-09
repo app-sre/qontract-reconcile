@@ -186,18 +186,24 @@ def collect_queries(query_name=None):
             )
             sys.exit(ExitCodes.ERROR)
 
-        queries_list.append(
-            # building up the final query dictionary
-            {
-                'name': name,
-                'namespace': namespace,
-                'identifier': sql_query['identifier'],
-                'db_conn': db_conn,
-                'output': output,
-                'query': sql_query['query'].replace("'", "''"),
-                **tf_resource_info,
-            }
-        )
+        # building up the final query dictionary
+        item = {
+            'name': name,
+            'namespace': namespace,
+            'identifier': sql_query['identifier'],
+            'db_conn': db_conn,
+            'output': output,
+            'query': sql_query['query'].replace("'", "''"),
+            **tf_resource_info,
+        }
+
+        # If schedule is defined
+        # this should be a CronJob
+        schedule = sql_query.get('schedule')
+        if schedule:
+            item['schedule'] = schedule
+
+        queries_list.append(item)
 
     return queries_list
 
