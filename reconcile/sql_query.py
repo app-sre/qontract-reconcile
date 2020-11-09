@@ -75,6 +75,7 @@ metadata:
   name: {{ JOB_NAME }}
 spec:
   schedule: "{{ SCHEDULE }}"
+  concurrencyPolicy: "Forbid"
   jobTemplate:
     %s
 """ % (indent(JOB_SPEC, 4*' '))
