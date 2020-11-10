@@ -8256,7 +8256,7 @@ objects:
           - name: INTEGRATION_NAME
             value: sql-query
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--enable-deletion"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
