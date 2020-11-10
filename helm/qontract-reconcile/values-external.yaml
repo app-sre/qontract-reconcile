@@ -452,6 +452,7 @@ integrations:
     slack: true
     cloudwatch: true
   state: true
+  extraArgs: --enable-deletion
 - name: openshift-performance-parameters
   resources:
     requests:
