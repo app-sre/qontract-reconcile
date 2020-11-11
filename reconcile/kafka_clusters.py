@@ -8,7 +8,6 @@ import reconcile.openshift_base as ob
 
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.ocm import OCMMap
-from utils.oc import OC_Map
 from utils.defer import defer
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
