@@ -84,6 +84,7 @@ import reconcile.sql_query
 import reconcile.user_validator
 import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
+import reconcile.ocp_release_ecr_mirror
 
 from reconcile.status import ExitCodes
 
@@ -1080,6 +1081,12 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
 @click.pass_context
 def dashdotdb_cso(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
+
+
+@integration.command()
+@click.pass_context
+def ocp_release_ecr_mirror(ctx):
+    run_integration(reconcile.ocp_release_ecr_mirror, ctx.obj)
 
 
 @integration.command()

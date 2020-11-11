@@ -944,6 +944,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
       db_password
     }
     output
+    schedule
     query
   }
 }
@@ -1352,3 +1353,85 @@ def get_slack_workspace():
     if len(slack_workspaces) != 1:
         logging.warning('multiple Slack workspaces found.')
     return gqlapi.query(SLACK_WORKSPACES_QUERY)['slack_workspaces'][0]
+
+
+OCP_RELEASE_ECR_MIRROR_QUERY = """
+{
+  ocp_release_ecr_mirror: ocp_release_ecr_mirror_v1 {
+    hiveCluster {
+      name
+      serverUrl
+      jumpHost {
+        hostname
+        knownHosts
+        user
+        port
+        identity {
+          path
+          field
+          format
+        }
+      }
+      managedGroups
+      ocm {
+        name
+        url
+        accessTokenClientId
+        accessTokenUrl
+        offlineToken {
+          path
+          field
+          format
+          version
+        }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+      auth {
+        team
+      }
+    }
+    ecrResourcesNamespace {
+      name
+      managedTerraformResources
+      terraformResources
+      {
+        provider
+        ... on NamespaceTerraformResourceECR_v1
+        {
+          account
+          region
+          identifier
+          output_resource_name
+        }
+      }
+      cluster
+      {
+        name
+        serverUrl
+        automationToken
+        {
+          path
+          field
+          format
+        }
+        internal
+      }
+    }
+    ocpReleaseEcrIdentifier
+    ocpArtDevEcrIdentifier
+  }
+}
+"""
+
+
+def get_ocp_release_ecr_mirror():
+    gqlapi = gql.get_api()
+    return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_ecr_mirror']

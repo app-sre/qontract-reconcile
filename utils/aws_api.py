@@ -192,6 +192,14 @@ class AWSApi(object):
                 zone['records'] = results
             self.set_resouces(account, 'route53', zones)
 
+    def map_ecr_resources(self):
+        for account, s in self.sessions.items():
+            client = s.client('ecr')
+            repositories = self.paginate(client=client,
+                                         method='describe_repositories',
+                                         key='repositories')
+            self.set_resouces(account, 'ecr', repositories)
+
     def paginate(self, client, method, key, params={}):
         """ paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""

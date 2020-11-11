@@ -262,13 +262,13 @@ integrations:
       memory: 800Mi
       cpu: 900m
     limits:
-      memory: 1200Mi
+      memory: 1500Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
   logs:
     cloudwatch: true
     slack: true
-  shards: 3
+  shards: 5
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -298,10 +298,10 @@ integrations:
 - name: terraform-resources
   resources:
     requests:
-      memory: 800Mi
+      memory: 1500Mi
       cpu: 900m
     limits:
-      memory: 1000Mi
+      memory: 1800Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
@@ -452,6 +452,7 @@ integrations:
     slack: true
     cloudwatch: true
   state: true
+  extraArgs: --enable-deletion
 - name: openshift-performance-parameters
   resources:
     requests:
@@ -472,6 +473,14 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+- name: ocp-release-ecr-mirror
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 200m
+    limits:
+      memory: 520Mi
+      cpu: 300m
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
