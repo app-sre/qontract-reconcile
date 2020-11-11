@@ -476,6 +476,21 @@ class OCM(object):
         api = '/api/accounts_mgmt/v1/access_token'
         return self._post(api)
 
+    def get_kafka_clusters(self, fields=None):
+        """Returns details of the Kafka clusters """
+        api = '/api/managed-services-api/v1/kafkas'
+        clusters = self._get_json(api)['items']
+        if fields:
+            clusters = [{k: v for k, v in cluster.items()
+                         if k in fields}
+                        for cluster in clusters]
+        return clusters
+
+    def create_kafka_cluster(self, data):
+        """Creates (async) a Kafka cluster """
+        api = '/api/managed-services-api/v1/kafkas?async=true'
+        self._post(api, data)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
@@ -619,3 +634,13 @@ class OCMMap(object):
         for v in self.ocm_map.values():
             not_ready_cluster_names.extend(v.not_ready_clusters)
         return cluster_specs, not_ready_cluster_names
+
+    def kafka_cluster_specs(self):
+        """Get dictionary of Kafka cluster names and specs in the OCM map."""
+        fields = ['id', 'status', 'cloud_provider', 'region',
+                  'name', 'bootstrapServerHost']
+        cluster_specs = []
+        for ocm in self.ocm_map.values():
+            clusters = ocm.get_kafka_clusters(fields=fields)
+            cluster_specs.extend(clusters)
+        return cluster_specs
