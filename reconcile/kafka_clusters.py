@@ -9,6 +9,7 @@ import reconcile.openshift_base as ob
 from utils.openshift_resource import OpenshiftResource as OR
 from utils.ocm import OCMMap
 from utils.defer import defer
+from reconcile.status import ExitCodes
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
@@ -45,8 +46,12 @@ def fetch_desired_state(clusters):
 @defer
 def run(dry_run, thread_pool_size=10,
         internal=None, use_jump_host=True, defer=None):
-    settings = queries.get_app_interface_settings()
     kafka_clusters = queries.get_kafka_clusters()
+    if not kafka_clusters:
+        logging.debug("No Kafka clusters found in app-interface")
+        sys.exit(ExitCodes.SUCCESS)
+
+    settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(clusters=kafka_clusters,
                      integration=QONTRACT_INTEGRATION,
                      settings=settings)
@@ -113,4 +118,4 @@ def run(dry_run, thread_pool_size=10,
     ob.realize_data(dry_run, oc_map, ri)
 
     if error:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
