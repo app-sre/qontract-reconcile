@@ -90,6 +90,7 @@ import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
 
 from reconcile.status import ExitCodes
+from reconcile.status import RunningState
 
 from utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
                        GqlApiIntegrationNotFound)
@@ -313,6 +314,8 @@ def enable_rebase(**kwargs):
 def run_integration(func_container, ctx, *args, **kwargs):
     try:
         int_name = func_container.QONTRACT_INTEGRATION.replace('_', '-')
+        running_state = RunningState()
+        running_state.integration = int_name
     except AttributeError:
         sys.stderr.write("Integration missing QONTRACT_INTEGRATION.\n")
         sys.exit(ExitCodes.ERROR)
