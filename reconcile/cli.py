@@ -85,6 +85,7 @@ import reconcile.user_validator
 import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
+import reconcile.kafka_clusters
 
 from reconcile.status import ExitCodes
 
@@ -1087,6 +1088,17 @@ def dashdotdb_cso(ctx, thread_pool_size):
 @click.pass_context
 def ocp_release_ecr_mirror(ctx):
     run_integration(reconcile.ocp_release_ecr_mirror, ctx.obj)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@internal()
+@use_jump_host()
+@click.pass_context
+def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.kafka_clusters, ctx.obj, thread_pool_size,
+                    internal, use_jump_host)
 
 
 @integration.command()

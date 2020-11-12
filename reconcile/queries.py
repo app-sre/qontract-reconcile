@@ -459,6 +459,60 @@ def get_clusters(minimal=False):
     return gqlapi.query(query)['clusters']
 
 
+KAFKA_CLUSTERS_QUERY = """
+{
+  clusters: kafka_clusters_v1 {
+    name
+    ocm {
+      name
+      url
+      accessTokenClientId
+      accessTokenUrl
+      offlineToken {
+        path
+        field
+        format
+        version
+      }
+    }
+    spec {
+      provider
+      region
+    }
+    namespaces {
+      name
+      cluster {
+        name
+        serverUrl
+        jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+            path
+            field
+            format
+          }
+        }
+        automationToken {
+          path
+          field
+          format
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_kafka_clusters(minimal=False):
+    """ Returns all Kafka Clusters """
+    gqlapi = gql.get_api()
+    return gqlapi.query(KAFKA_CLUSTERS_QUERY)['clusters']
+
+
 NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
