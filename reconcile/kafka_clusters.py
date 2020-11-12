@@ -22,6 +22,9 @@ def construct_oc_resource(data):
         "type": "Opaque",
         "metadata": {
             "name": "kafka",
+            "annotations": {
+                "qontract.recycle": "true"
+            }
         },
         "data": {
             k: base64.b64encode(v.encode()).decode('utf-8')
