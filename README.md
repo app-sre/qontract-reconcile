@@ -68,7 +68,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `terraform-users`: Manage AWS users using Terraform.
 - `terraform-vpc-peerings`: Manage VPC peerings between OSDv4 clusters and AWS accounts.
 - `ocm-groups`: Manage membership in OpenShift groups using OpenShift Cluster Manager.
-- `ocm-clusters`: Manages (currently: validates only) clusters desired state with current state in OCM.
+- `ocm-clusters`: Manages clusters via OCM.
 - `ocm-aws-infrastructure-access`: Grants AWS infrastructure access to members in AWS groups via OCM.
 - `ocm-github-idp`: Manage GitHub Identity Providers in OCM.
 - `ocm-machine-pools`: Manage Machine Pools in OCM.

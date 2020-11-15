@@ -85,7 +85,7 @@ class OCM(object):
         }
         return ocm_spec
 
-    def create_cluster(self, name, cluster):
+    def create_cluster(self, name, cluster, dry_run):
         """
         Creates a cluster.
 
@@ -96,6 +96,8 @@ class OCM(object):
         :type cluster: dict
         """
         api = f'/api/clusters_mgmt/v1/clusters'
+        if dry_run:
+            api = api + '?dryRun=true'
         cluster_spec = cluster['spec']
         cluster_network = cluster['network']
         ocm_spec = {
