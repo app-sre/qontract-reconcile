@@ -91,9 +91,11 @@ class OCM(object):
 
         :param name: name of the cluster
         :param cluster: a dictionary representing a cluster desired state
+        :param dry_run: do not execute for real
 
         :type name: string
         :type cluster: dict
+        :type dry_run: bool
         """
         api = f'/api/clusters_mgmt/v1/clusters'
         if dry_run:
