@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 import github
 
@@ -39,6 +40,7 @@ class GithubApi:
             tree_items.append(tree_item)
         return tree_items
 
+    @retry()
     def get_file(self, path, ref='master'):
         try:
             return self.repo.get_contents(path, ref).decoded_content
