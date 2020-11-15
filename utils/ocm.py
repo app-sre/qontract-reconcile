@@ -98,8 +98,6 @@ class OCM(object):
         :type dry_run: bool
         """
         api = f'/api/clusters_mgmt/v1/clusters'
-        if dry_run:
-            api = api + '?dryRun=true'
         cluster_spec = cluster['spec']
         cluster_network = cluster['network']
         ocm_spec = {
@@ -142,7 +140,11 @@ class OCM(object):
             ocm_spec.setdefault('properties', {})
             ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
-        self._post(api, ocm_spec)
+        params = {}
+        if dry_run:
+            params['dryRun'] = 'true'
+
+        self._post(api, ocm_spec, params)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -494,8 +496,9 @@ class OCM(object):
 
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
-        api = '/api/managed-services-api/v1/kafkas?async=true'
-        self._post(api, data)
+        api = '/api/managed-services-api/v1/kafkas'
+        params = {'async': 'true'}
+        self._post(api, data, params)
 
     def _init_addons(self):
         """Returns a list of Addons """
@@ -554,8 +557,13 @@ class OCM(object):
         r.raise_for_status()
         return r.json()
 
-    def _post(self, api, data=None):
-        r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
+    def _post(self, api, data=None, params=None):
+        r = requests.post(
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params
+        )
         try:
             r.raise_for_status()
         except Exception as e:
