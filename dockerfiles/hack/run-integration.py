@@ -24,6 +24,7 @@ INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 
 LOG_FILE = os.environ.get('LOG_FILE')
 SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
+SLEEP_ON_ERROR = os.environ.get('SLEEP_ON_ERROR', 10)
 
 LOG = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ if __name__ == "__main__":
                                      'shards', 'shard_id'])
 
     while True:
+        sleep = SLEEP_DURATION_SECS
         start_time = time.monotonic()
         # Running the integration via Click, so we don't have to replicate
         # the CLI logic here
@@ -79,6 +81,7 @@ if __name__ == "__main__":
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
         except Exception as exc_obj:
+            sleep = SLEEP_ON_ERROR
             LOG.error('Error running qontract-reconcile: %s', exc_obj)
             return_code = ExitCodes.ERROR
 
@@ -95,7 +98,4 @@ if __name__ == "__main__":
         if RUN_ONCE:
             sys.exit(return_code)
 
-        if return_code == ExitCodes.ERROR:
-            continue
-
-        time.sleep(int(SLEEP_DURATION_SECS))
+        time.sleep(int(sleep))
