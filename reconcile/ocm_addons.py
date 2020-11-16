@@ -59,12 +59,12 @@ def act(dry_run, diffs, ocm_map):
         cluster = diff.pop('cluster')
         addon_id = diff['id']
         logging.info([action, cluster, addon_id])
+        ocm = ocm_map.get(cluster)
+        if not ocm.get_addon(addon_id):
+            logging.error(f'Addon {addon_id} does not exist')
+            err = True
+            continue
         if not dry_run:
-            ocm = ocm_map.get(cluster)
-            if not ocm.get_addon(addon_id):
-                logging.error(f'Addon {addon_id} does not exist')
-                err = True
-                continue
             if action == 'install':
                 ocm.install_addon(cluster, diff)
             # uninstall is not supported
