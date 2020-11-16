@@ -42,7 +42,7 @@ LOG.setLevel(logging.INFO)
 
 
 def build_args():
-    args = ['--config', 'config.toml']
+    args = ['--config', '/config/config.toml']
     if DRY_RUN is not None:
         args.append(DRY_RUN)
     args.append(INTEGRATION_NAME)
