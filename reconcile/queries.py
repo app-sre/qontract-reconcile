@@ -401,6 +401,9 @@ CLUSTERS_QUERY = """
         }
       }
     }
+    addons {
+      name
+    }
     automationToken {
       path
       field

@@ -29,6 +29,7 @@ class OCM(object):
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters()
+        self._init_addons()
 
     def _init_access_token(self):
         data = {
@@ -489,6 +490,57 @@ class OCM(object):
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
         api = '/api/managed-services-api/v1/kafkas?async=true'
+        self._post(api, data)
+
+    def _init_addons(self):
+        """Returns a list of Addons """
+        api = '/api/clusters_mgmt/v1/addons'
+        self.addons = self._get_json(api).get('items')
+
+    def get_addon(self, name):
+        for addon in self.addons:
+            resource_name = addon['resource_name']
+            if name == resource_name:
+                return addon
+        return None
+
+    def get_cluster_addons(self, cluster):
+        """Returns a list of Addons installed on a cluster
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            desired_keys = ['id']
+            result = {k: v for k, v in item.items() if k in desired_keys}
+            results.append(result)
+
+        return results
+
+    def install_addon(self, cluster, spec):
+        """ Installs an addon on a cluster
+
+        :param cluster: cluster name
+        :param spec: required information for installation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        data = {'addon': spec}
         self._post(api, data)
 
     @retry(max_attempts=10)
