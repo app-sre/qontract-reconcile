@@ -78,8 +78,7 @@ if __name__ == "__main__":
             return_code = exc_obj.code
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
-        except Exception as exc_obj:
-            LOG.error('Error running qontract-reconcile: %s', exc_obj)
+        except Exception:
             return_code = ExitCodes.ERROR
 
         time_spent = time.monotonic() - start_time
