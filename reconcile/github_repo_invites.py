@@ -3,7 +3,7 @@ import os
 
 import utils.gql as gql
 import utils.raw_github_api
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from utils.config import get_config
@@ -28,9 +28,10 @@ def run(dry_run):
     result = gqlapi.query(REPOS_QUERY)
     config = get_config()['github-repo-invites']
     settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
     secret = {'path': config['secret_path'],
               'field': config['secret_field']}
-    token = secret_reader.read(secret, settings=settings)
+    token = secret_reader.read(secret)
     g = utils.raw_github_api.RawGithubApi(token)
 
     urls = set()

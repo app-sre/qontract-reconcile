@@ -8,7 +8,7 @@ from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
 import utils.threaded as threaded
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 from utils.oc import OC, StatusCodeError
 from utils.openshift_resource import OpenshiftResource as OR
@@ -38,6 +38,7 @@ class SaasHerder():
         self.integration = integration
         self.integration_version = integration_version
         self.settings = settings
+        self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
         self.jenkins_map = jenkins_map
         # each namespace is in fact a target,
@@ -435,7 +436,7 @@ class SaasHerder():
         auth = saas_file.get('authentication') or {}
         auth_code = auth.get('code') or {}
         if auth_code:
-            token = secret_reader.read(auth_code, settings=self.settings)
+            token = self.secret_reader.read(auth_code)
         else:
             # use the app-sre token by default
             default_org_name = 'app-sre'
@@ -466,8 +467,7 @@ class SaasHerder():
         if not auth_image_secret:
             return {}
 
-        creds = \
-            secret_reader.read_all(auth_image_secret, settings=self.settings)
+        creds = self.secret_reader.read_all(auth_image_secret)
         required_keys = ['user', 'token']
         ok = all(k in creds.keys() for k in required_keys)
         if not ok:

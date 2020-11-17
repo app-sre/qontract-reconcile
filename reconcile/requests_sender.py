@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import utils.smtp_client as smtp_client
 import reconcile.queries as queries
 
@@ -37,7 +37,8 @@ def get_ecrypted_credentials(credentials_name, user, settings):
     if len(credentials_map_item) != 1:
         return None
     secret = credentials_map_item[0]['secret']
-    credentials = secret_reader.read(secret, settings=settings)
+    secret_reader = SecretReader(settings=settings)
+    credentials = secret_reader.read(secret)
     recepient = smtp_client.get_recepient(user['org_username'], settings)
     public_gpg_key = user['public_gpg_key']
     encrypted_credentials = \

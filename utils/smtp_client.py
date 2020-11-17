@@ -1,7 +1,7 @@
 import smtplib
 import imaplib
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 from utils.config import get_config
 
@@ -66,7 +66,8 @@ def get_smtp_config(path, settings):
     config = {}
 
     required_keys = ('password', 'port', 'require_tls', 'server', 'username')
-    data = secret_reader.read_all({'path': path}, settings=settings)
+    secret_reader = SecretReader(settings=settings)
+    data = secret_reader.read_all({'path': path})
 
     try:
         for k in required_keys:

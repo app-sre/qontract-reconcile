@@ -1,4 +1,4 @@
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 from jira import JIRA
 
@@ -7,16 +7,17 @@ class JiraClient(object):
     """Wrapper around Jira client"""
 
     def __init__(self, jira_board, settings=None):
+        self.secret_reader = SecretReader(settings=settings)
         self.project = jira_board['name']
         jira_server = jira_board['server']
         self.server = jira_server['serverUrl']
         token = jira_server['token']
-        basic_auth = self.get_basic_auth(token, settings)
+        basic_auth = self.get_basic_auth(token)
         self.jira = JIRA(self.server, basic_auth=basic_auth)
 
-    def get_basic_auth(self, token, settings):
+    def get_basic_auth(self, token):
         required_keys = ['username', 'password']
-        secret = secret_reader.read_all(token, settings)
+        secret = self.secret_reader.read_all(token)
         ok = all(elem in secret.keys() for elem in required_keys)
         if not ok:
             raise KeyError(

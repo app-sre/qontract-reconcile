@@ -15,7 +15,7 @@ from prometheus_client.parser import text_string_to_metric_families
 
 import utils.gql as gql
 import utils.config as config
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
 
@@ -70,6 +70,8 @@ def promql(url, query, auth=None):
 
 class Report(object):
     def __init__(self, app, date):
+        settings = queries.get_app_interface_settings()
+        self.secret_reader = SecretReader(settings=settings)
         # standard date format
         if hasattr(date, 'strftime'):
             date = date.strftime('%Y-%m-%d')
@@ -189,9 +191,8 @@ class Report(object):
         metric_selectors = json.loads(metric['selectors'])
         metric_name = metric['metric']
 
-        settings = queries.get_app_interface_settings()
         prom_info = ns['cluster']['prometheus']
-        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth_creds = self.secret_reader.read(prom_info['auth'])
         prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
 
         # volume
@@ -265,9 +266,8 @@ class Report(object):
         selectors = metric_selectors.copy()
         selectors['namespace'] = ns['name']
 
-        settings = queries.get_app_interface_settings()
         prom_info = ns['cluster']['prometheus']
-        prom_auth_creds = secret_reader.read(prom_info['auth'], settings)
+        prom_auth_creds = self.secret_reader.read(prom_info['auth'])
         prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
 
         percentile = float(metric['percentile']) / 100
@@ -388,8 +388,8 @@ def get_apps_data(date, month_delta=1):
         get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
     settings = queries.get_app_interface_settings()
-    secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET},
-                                            settings=settings)
+    secret_reader = SecretReader(settings=settings)
+    secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET})
     dashdotdb_url = secret_content['url']
     dashdotdb_user = secret_content['username']
     dashdotdb_pass = secret_content['password']
