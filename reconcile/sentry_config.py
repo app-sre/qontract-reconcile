@@ -2,7 +2,7 @@ import logging
 import requests
 import reconcile.queries as queries
 import utils.gql as gql
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 from github.GithubException import UnknownObjectException
 
@@ -559,17 +559,15 @@ def run(dry_run):
     settings = queries.get_app_interface_settings()
     gqlapi = gql.get_api()
     github = init_github()
-
+    secret_reader = SecretReader(settings=settings)
     # Reconcile against all sentry instances
     result = gqlapi.query(SENTRY_INSTANCES_QUERY)
     for instance in result['instances']:
-        token = secret_reader.read(
-            instance['automationToken'], settings=settings)
+        token = secret_reader.read(instance['automationToken'])
         host = instance['consoleUrl']
         sentry_client = SentryClient(host, token)
 
-        skip_user = secret_reader.read(
-            instance['adminUser'], settings=settings)
+        skip_user = secret_reader.read(instance['adminUser'])
         current_state = fetch_current_state(sentry_client, [skip_user])
         desired_state = fetch_desired_state(gqlapi, instance, github)
 

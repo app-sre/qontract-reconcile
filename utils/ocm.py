@@ -3,7 +3,7 @@ import logging
 
 from sretoolbox.utils import retry
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 
 class OCM(object):
@@ -588,7 +588,8 @@ class OCMMap(object):
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info['url']
-            token = secret_reader.read(ocm_offline_token, self.settings)
+            secret_reader = SecretReader(settings=self.settings)
+            token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
                 OCM(url, access_token_client_id, access_token_url, token)
 
