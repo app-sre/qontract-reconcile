@@ -5,7 +5,7 @@ import logging
 
 import utils.gql as gql
 import utils.threaded as threaded
-import utils.vault_client as vault_client
+from utils.vault import VaultClient
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
@@ -293,6 +293,7 @@ def cleanup_and_exit(tf=None, status=False, working_dirs={}):
 
 def write_outputs_to_vault(vault_path, ri):
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+    vault_client = VaultClient()
     for cluster, namespace, _, data in ri:
         for name, d_item in data['desired'].items():
             secret_path = \

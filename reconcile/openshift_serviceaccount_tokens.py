@@ -2,7 +2,7 @@ import sys
 import semver
 import base64
 
-import utils.vault_client as vault_client
+from utils.vault import VaultClient
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
@@ -58,6 +58,7 @@ def fetch_desired_state(namespaces, ri, oc_map):
 
 def write_outputs_to_vault(vault_path, ri):
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+    vault_client = VaultClient()
     for cluster, namespace, _, data in ri:
         for name, d_item in data['desired'].items():
             body_data = d_item.body['data']
