@@ -343,6 +343,38 @@ class OCM(object):
         }
         self._post(api, payload)
 
+    def get_external_configuration_labels(self, cluster):
+        """Returns details of External Configurations
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = {}
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            key = item['key']
+            value = item['value']
+            results[key] = value
+
+        return results
+
+    def create_external_configuration_labels(self, cluster, labels):
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        self._post(api, labels)
+
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
 
