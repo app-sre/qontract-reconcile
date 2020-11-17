@@ -21,7 +21,9 @@ def run(func, iterable, thread_pool_size, **kwargs):
 
     pool = ThreadPool(thread_pool_size)
     func_partial = functools.partial(full_traceback(func), **kwargs)
-    return pool.map(func_partial, iterable)
+    pool_map = pool.map(func_partial, iterable)
+    pool.close()
+    return pool_map
 
 
 def estimate_available_thread_pool_size(thread_pool_size, targets_len):
