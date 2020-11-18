@@ -4,7 +4,7 @@ import logging
 import reconcile.queries as queries
 
 from utils.ocm import OCMMap
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = 'ocm-github-idp'
 
@@ -26,6 +26,7 @@ def fetch_current_state(clusters, settings):
 def fetch_desired_state(clusters, vault_input_path, settings):
     desired_state = []
     error = False
+    secret_reader = SecretReader(settings=settings)
     for cluster_info in clusters:
         cluster = cluster_info['name']
         auth = cluster_info['auth']
@@ -39,7 +40,7 @@ def fetch_desired_state(clusters, vault_input_path, settings):
             f'{service}/{org}/{team}'
         secret = {'path': secret_path}
         try:
-            oauth_data = secret_reader.read_all(secret, settings=settings)
+            oauth_data = secret_reader.read_all(secret)
             client_id = oauth_data['client-id']
             client_secret = oauth_data['client-secret']
         except Exception:
