@@ -53,9 +53,14 @@ class State(object):
         """
         Returns a list of keys in the state
         """
-        objects = self.client.list_objects(
-            Bucket=self.bucket, Prefix=self.state_path)['Contents']
-        return [o['Key'].replace(self.state_path, '') for o in objects]
+        objects = self.client.list_objects(Bucket=self.bucket,
+                                           Prefix=self.state_path)
+
+        if 'Contents' not in objects:
+            return []
+
+        return [o['Key'].replace(self.state_path, '')
+                for o in objects['Contents']]
 
     def add(self, key, value=None, force=False):
         """
