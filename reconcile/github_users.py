@@ -3,7 +3,7 @@ import re
 import logging
 
 import utils.threaded as threaded
-import utils.smtp_client as smtp_client
+from utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
@@ -68,8 +68,8 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
     to = user['username']
     subject = 'App-Interface compliance - GitHub profile'
     body = msg_template
-
-    smtp_client.send_mail([to], subject, body, settings=settings)
+    smtp_client = SmtpClient(settings=settings)
+    smtp_client.send_mail([to], subject, body)
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10,

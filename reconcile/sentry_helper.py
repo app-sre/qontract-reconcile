@@ -1,6 +1,6 @@
 import logging
 
-import utils.smtp_client as smtp_client
+from utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from reconcile.slack_base import init_slack_workspace
@@ -44,11 +44,10 @@ def run(dry_run):
         accounts=accounts,
         settings=settings
     )
-
+    smtp_client = SmtpClient(settings=settings)
     mails = smtp_client.get_mails(
         criteria='SUBJECT "Sentry Access Request"',
-        folder='[Gmail]/Sent Mail',
-        settings=settings
+        folder='[Gmail]/Sent Mail'
     )
     user_names = get_sentry_users_from_mails(mails)
     if not dry_run:
