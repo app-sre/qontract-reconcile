@@ -535,7 +535,7 @@ class OCM(object):
         :param spec: required information for installation
 
         :type cluster: string
-        :type spec: dictionary
+        :type spec: dictionary ({'id': <addon_id>})
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
