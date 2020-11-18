@@ -25,8 +25,7 @@ class DashdotdbCSO:
         self.settings = queries.get_app_interface_settings()
         secret_reader = SecretReader(settings=self.settings)
 
-        secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET},
-                                                settings=self.settings)
+        secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET})
 
         self.dashdotdb_url = secret_content['url']
         self.dashdotdb_user = secret_content['username']
