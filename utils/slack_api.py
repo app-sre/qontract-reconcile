@@ -66,6 +66,7 @@ class SlackApi(object):
         [usergroup] = usergroup
         return usergroup
 
+    @retry()
     def update_usergroup(self, id, channels_list, description):
         channels = ','.join(channels_list)
         self.sc.api_call(
