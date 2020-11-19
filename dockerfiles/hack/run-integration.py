@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 import time
 
@@ -10,7 +11,6 @@ from prometheus_client import Gauge
 from prometheus_client import Counter
 
 from reconcile.status import ExitCodes
-from reconcile.cli import integration
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
@@ -24,7 +24,6 @@ INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
 
 LOG_FILE = os.environ.get('LOG_FILE')
 SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
-SLEEP_ON_ERROR = os.environ.get('SLEEP_ON_ERROR', 10)
 
 LOG = logging.getLogger(__name__)
 
@@ -42,14 +41,31 @@ if LOG_FILE is not None:
 LOG.setLevel(logging.INFO)
 
 
-def build_args():
-    args = ['--config', '/config/config.toml']
+def run_cmd():
+    cmd = ['qontract-reconcile', '--config', '/config/config.toml']
+
     if DRY_RUN is not None:
-        args.append(DRY_RUN)
-    args.append(INTEGRATION_NAME)
+        cmd.append(DRY_RUN)
+
+    cmd.append(INTEGRATION_NAME)
+
     if INTEGRATION_EXTRA_ARGS is not None:
-        args.extend(INTEGRATION_EXTRA_ARGS.split())
-    return args
+        cmd.extend(INTEGRATION_EXTRA_ARGS.split())
+
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT)
+
+    # Draining the subprocess STDOUT to the logger as the
+    # subprocess is executed
+    while True:
+        output = process.stdout.readline().decode()
+        # Print all the lines while they are not empty
+        if output:
+            LOG.info(output.strip())
+            continue
+        # With an empty line, check if the process is still running
+        if process.poll() is not None:
+            return process.poll()
 
 
 if __name__ == "__main__":
@@ -65,26 +81,8 @@ if __name__ == "__main__":
                                      'shards', 'shard_id'])
 
     while True:
-        sleep = SLEEP_DURATION_SECS
         start_time = time.monotonic()
-        # Running the integration via Click, so we don't have to replicate
-        # the CLI logic here
-        try:
-            with integration.make_context(info_name='qontract-reconcile',
-                                          args=build_args()) as ctx:
-                integration.invoke(ctx)
-                return_code = 0
-        # This is for when the integration explicitly
-        # calls sys.exit(N)
-        except SystemExit as exc_obj:
-            return_code = exc_obj.code
-        # We have to be generic since we don't know what can happen
-        # in the integrations, but we want to continue the loop anyway
-        except Exception as exc_obj:
-            sleep = SLEEP_ON_ERROR
-            LOG.error('Error running qontract-reconcile: %s', exc_obj)
-            return_code = ExitCodes.ERROR
-
+        return_code = run_cmd()
         time_spent = time.monotonic() - start_time
 
         run_time.labels(integration=INTEGRATION_NAME,
@@ -98,4 +96,7 @@ if __name__ == "__main__":
         if RUN_ONCE:
             sys.exit(return_code)
 
-        time.sleep(int(sleep))
+        if return_code == ExitCodes.ERROR:
+            continue
+
+        time.sleep(int(SLEEP_DURATION_SECS))
