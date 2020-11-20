@@ -78,6 +78,8 @@ if __name__ == "__main__":
         # calls sys.exit(N)
         except SystemExit as exc_obj:
             return_code = int(exc_obj.code)
+            if return_code:
+                LOG.exception('Error running qontract-reconcile: %s', exc_obj)
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
         except Exception as exc_obj:
