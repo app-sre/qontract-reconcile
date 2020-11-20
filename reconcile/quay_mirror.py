@@ -76,7 +76,8 @@ class QuayMirror:
                     self.skopeo_cli.copy(src_image=item['mirror_url'],
                                          src_creds=item['mirror_creds'],
                                          dst_image=item['image_url'],
-                                         dest_creds=self.push_creds[org])
+                                         dest_creds=self.push_creds[org],
+                                         copy_all=True)
                 except SkopeoCmdError as details:
                     _LOG.error('[%s]', details)
 
