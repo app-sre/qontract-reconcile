@@ -32,8 +32,8 @@ class VaultClient:
         config = get_config()
 
         server = config['vault']['server']
-        role_id = config['vault']['role_id']
-        secret_id = config['vault']['secret_id']
+        self.role_id = config['vault']['role_id']
+        self.secret_id = config['vault']['secret_id']
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -45,12 +45,17 @@ class VaultClient:
         session.mount('https://', adapter)
         self._client = hvac.Client(url=server, session=session)
 
+    @property
+    def client(self):
+        if self._client.is_authenticated():
+            return self._client
+
         authenticated = False
         for i in range(0, 3):
             try:
-                self._client.auth_approle(role_id, secret_id)
+                self._client.auth_approle(self.role_id, self.secret_id)
                 authenticated = self._client.is_authenticated()
-                break
+                return self._client
             except requests.exceptions.ConnectionError:
                 time.sleep(1)
 
@@ -79,7 +84,7 @@ class VaultClient:
         mount_point = path_split[0]
         read_path = '/'.join(path_split[1:])
         try:
-            secret = self._client.secrets.kv.v2.read_secret_version(
+            secret = self.client.secrets.kv.v2.read_secret_version(
                 mount_point=mount_point,
                 path=read_path,
                 version=version,
@@ -94,7 +99,7 @@ class VaultClient:
         return secret['data']['data']
 
     def _read_all_v1(self, path):
-        secret = self._client.read(path)
+        secret = self.client.read(path)
         if secret is None or 'data' not in secret:
             raise SecretNotFound(path)
         return secret['data']
@@ -157,4 +162,4 @@ class VaultClient:
         raise NotImplementedError('vault_client write v2')
 
     def _write_v1(self, path, data):
-        self._client.write(path, **data)
+        self.client.write(path, **data)
