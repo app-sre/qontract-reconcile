@@ -84,7 +84,7 @@ if __name__ == "__main__":
         # in the integrations, but we want to continue the loop anyway
         except Exception as exc_obj:
             sleep = SLEEP_ON_ERROR
-            LOG.error('Error running qontract-reconcile: %s', exc_obj)
+            LOG.exception('Error running qontract-reconcile: %s', exc_obj)
             return_code = ExitCodes.ERROR
 
         time_spent = time.monotonic() - start_time
