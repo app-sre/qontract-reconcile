@@ -8,7 +8,7 @@ import subprocess
 import difflib
 import xml.etree.ElementTree as et
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import utils.gql as gql
 import utils.throughput as throughput
 
@@ -26,6 +26,7 @@ class JJB(object):
 
     def __init__(self, configs, ssl_verify=True, settings=None):
         self.settings = settings
+        self.secret_reader = SecretReader(settings=settings)
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
@@ -45,7 +46,7 @@ class JJB(object):
             token = data['token']
             server_url = data['serverUrl']
             wd = tempfile.mkdtemp()
-            ini = secret_reader.read(token, settings=self.settings)
+            ini = self.secret_reader.read(token)
             ini = ini.replace('"', '')
             ini = ini.replace('false', 'False')
             ini_file_path = '{}/{}.ini'.format(wd, name)

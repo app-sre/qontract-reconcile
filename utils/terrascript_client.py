@@ -11,7 +11,7 @@ import os
 
 import utils.gql as gql
 import utils.threaded as threaded
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 from reconcile.github_org import get_config
 
 from utils.oc import StatusCodeError
@@ -72,8 +72,8 @@ class TerrascriptClient(object):
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
-        self.settings = settings
-        self.populate_configs(filtered_accounts, settings)
+        self.secret_reader = SecretReader(settings=settings)
+        self.populate_configs(filtered_accounts)
         tss = {}
         locks = {}
         for name, config in self.configs.items():
@@ -146,16 +146,15 @@ class TerrascriptClient(object):
                 filtered_accounts.append(account)
         return filtered_accounts
 
-    def populate_configs(self, accounts, settings):
+    def populate_configs(self, accounts):
         results = threaded.run(self.get_tf_secrets, accounts,
-                               self.thread_pool_size, settings=settings)
+                               self.thread_pool_size)
         self.configs = {account: secret for account, secret in results}
 
-    @staticmethod
-    def get_tf_secrets(account, settings=None):
+    def get_tf_secrets(self, account):
         account_name = account['name']
         automation_token = account['automationToken']
-        secret = secret_reader.read_all(automation_token, settings)
+        secret = self.secret_reader.read_all(automation_token)
         secret['supportedDeploymentRegions'] = \
             account['supportedDeploymentRegions']
         return (account_name, secret)
@@ -2117,7 +2116,6 @@ class TerrascriptClient(object):
             if print_only:
                 print('##### {} #####'.format(name))
                 print(ts.dump())
-                continue
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
@@ -2486,7 +2484,7 @@ class TerrascriptClient(object):
                                  output_prefix, output_resource_name)
 
         secret = common_values.get('secret', None)
-        secret_data = secret_reader.read_all(secret, self.settings)
+        secret_data = self.secret_reader.read_all(secret)
 
         key = secret_data.get('key', None)
         if key is None:

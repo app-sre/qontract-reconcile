@@ -2,7 +2,7 @@ import pypd
 import datetime
 import requests
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 
 class PagerDutyUserNotFoundException(Exception):
@@ -13,7 +13,8 @@ class PagerDutyApi(object):
     """Wrapper around PagerDuty API calls"""
 
     def __init__(self, token, settings=None):
-        pd_api_key = secret_reader.read(token, settings=settings)
+        secret_reader = SecretReader(settings=settings)
+        pd_api_key = secret_reader.read(token)
         pypd.api_key = pd_api_key
         self.init_users()
 

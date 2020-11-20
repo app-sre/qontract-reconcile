@@ -163,7 +163,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
             target_branch = mr.target_branch
             head = gl.project.commits.list(ref_name=target_branch)[0].id
             result = gl.project.repository_compare(mr.sha, head)
-            if len(result['commits']) != 0:  # not rebased
+            if rebase and len(result['commits']) != 0:  # not rebased
                 continue
 
             pipelines = mr.pipelines()

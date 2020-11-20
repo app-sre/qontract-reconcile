@@ -7,7 +7,7 @@ from reconcile import queries
 from utils import threaded
 from utils.oc import OC_Map
 from utils.oc import StatusCodeError
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 
 
 LOG = logging.getLogger(__name__)
@@ -23,9 +23,9 @@ class DashdotdbCSO:
         self.dry_run = dry_run
         self.thread_pool_size = thread_pool_size
         self.settings = queries.get_app_interface_settings()
+        secret_reader = SecretReader(settings=self.settings)
 
-        secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET},
-                                                settings=self.settings)
+        secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET})
 
         self.dashdotdb_url = secret_content['url']
         self.dashdotdb_user = secret_content['username']

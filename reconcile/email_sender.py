@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import utils.smtp_client as smtp_client
+from utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from utils.state import State
@@ -94,7 +94,7 @@ def run(dry_run):
         settings=settings
     )
     emails = queries.get_app_interface_emails()
-
+    smtp_client = SmtpClient(settings=settings)
     # validate no 2 emails have the same name
     email_names = set([e['name'] for e in emails])
     if len(emails) != len(email_names):
@@ -109,5 +109,5 @@ def run(dry_run):
             names = collect_to(email['to'])
             subject = email['subject']
             body = email['body']
-            smtp_client.send_mail(names, subject, body, settings=settings)
+            smtp_client.send_mail(names, subject, body)
             state.add(email['name'])

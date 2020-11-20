@@ -3,7 +3,7 @@ import time
 from slackclient import SlackClient
 from sretoolbox.utils import retry
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 
 class UsergroupNotFoundException(Exception):
@@ -18,7 +18,8 @@ class SlackApi(object):
                  init_usergroups=True,
                  **chat_kwargs):
         self.workspace_name = workspace_name
-        slack_token = secret_reader.read(token, settings=settings)
+        secret_reader = SecretReader(settings=settings)
+        slack_token = secret_reader.read(token)
         self.sc = SlackClient(slack_token)
         self.results = {}
         self.chat_kwargs = chat_kwargs
@@ -65,6 +66,7 @@ class SlackApi(object):
         [usergroup] = usergroup
         return usergroup
 
+    @retry()
     def update_usergroup(self, id, channels_list, description):
         channels = ','.join(channels_list)
         self.sc.api_call(

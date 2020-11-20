@@ -211,12 +211,15 @@ integrations:
 - name: openshift-rolebindings
   resources:
     requests:
-      memory: 400Mi
+      # Known peaks are at 700Mi
+      memory: 700Mi
       cpu: 600m
     limits:
-      memory: 1000Mi
+      # Limits 30% above requests
+      memory: 900Mi
       cpu: 800m
   extraArgs: --no-use-jump-host
+  shards: 4
   logs:
     slack: true
     cloudwatch: true
@@ -452,6 +455,7 @@ integrations:
     slack: true
     cloudwatch: true
   state: true
+  extraArgs: --enable-deletion
 - name: openshift-performance-parameters
   resources:
     requests:

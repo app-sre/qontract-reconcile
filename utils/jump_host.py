@@ -3,7 +3,7 @@ import shutil
 import os
 
 import utils.gql as gql
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 from reconcile.exceptions import FetchResourceError
 
@@ -20,7 +20,8 @@ class JumpHostBase(object):
         self.hostname = jh['hostname']
         self.user = jh['user']
         self.port = 22 if jh['port'] is None else jh['port']
-        self.identity = secret_reader.read(jh['identity'], settings=settings)
+        secret_reader = SecretReader(settings=settings)
+        self.identity = secret_reader.read(jh['identity'])
         self.init_identity_file()
 
     def init_identity_file(self):

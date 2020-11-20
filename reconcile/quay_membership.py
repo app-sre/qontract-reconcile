@@ -1,7 +1,7 @@
 import logging
 
 import utils.gql as gql
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from utils.quay_api import QuayApi
@@ -146,12 +146,11 @@ def get_quay_api_store():
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
     settings = queries.get_app_interface_settings()
-
+    secret_reader = SecretReader(settings=settings)
     for org_data in result['quay_orgs']:
         name = org_data['name']
         server_url = org_data.get('serverUrl')
-        token = secret_reader.read(org_data['automationToken'],
-                                   settings=settings)
+        token = secret_reader.read(org_data['automationToken'])
         managed_teams = org_data.get('managedTeams')
 
         store[name] = {}

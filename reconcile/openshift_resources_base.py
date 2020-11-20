@@ -8,7 +8,8 @@ import semver
 
 import utils.gql as gql
 import utils.threaded as threaded
-import utils.vault_client as vault_client
+from utils.vault import VaultClient
+from utils.vault import SecretVersionNotFound
 import utils.openssl as openssl
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
@@ -129,6 +130,7 @@ QONTRACT_INTEGRATION = 'openshift_resources_base'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 
+
 _log_lock = Lock()
 
 
@@ -184,6 +186,7 @@ def lookup_vault_secret(path, key, version=None, tvars=None):
         'version': version
     }
     try:
+        vault_client = VaultClient()
         return vault_client.read(secret)
     except Exception as e:
         raise FetchVaultSecretError(e)
@@ -269,6 +272,7 @@ def fetch_provider_vault_secret(
         integration,
         integration_version):
     # get the fields from vault
+    vault_client = VaultClient()
     raw_data = vault_client.read_all({'path': path, 'version': version})
 
     # construct oc resource
@@ -317,8 +321,9 @@ def fetch_provider_route(path, tls_path, tls_version):
     openshift_resource.body['spec'].setdefault('tls', {})
     tls = openshift_resource.body['spec']['tls']
     # get tls fields from vault
-    raw_data = \
-        vault_client.read_all({'path': tls_path, 'version': tls_version})
+    vault_client = VaultClient()
+    raw_data = vault_client.read_all({'path': tls_path,
+                                      'version': tls_version})
     valid_keys = ['termination', 'insecureEdgeTerminationPolicy',
                   'certificate', 'key',
                   'caCertificate', 'destinationCACertificate']
@@ -396,7 +401,7 @@ def fetch_openshift_resource(resource, parent):
                 labels, annotations, type,
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION)
-        except vault_client.SecretVersionNotFound as e:
+        except SecretVersionNotFound as e:
             raise FetchVaultSecretError(e)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']

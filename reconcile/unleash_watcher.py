@@ -4,7 +4,7 @@ import reconcile.queries as queries
 
 from utils.unleash import get_feature_toggles
 from utils.slack_api import SlackApi
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 from utils.state import State
 
 
@@ -13,9 +13,9 @@ QONTRACT_INTEGRATION = 'unleash-watcher'
 
 def fetch_current_state(unleash_instance):
     api_url = f"{unleash_instance['url']}/api"
+    secret_reader = SecretReader(settings=queries.get_app_interface_settings())
     admin_access_token = \
-        secret_reader.read(unleash_instance['token'],
-                           settings=queries.get_app_interface_settings())
+        secret_reader.read(unleash_instance['token'])
     return get_feature_toggles(api_url, admin_access_token)
 
 

@@ -1,6 +1,6 @@
 import logging
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from utils.gitlab_api import GitLabApi
@@ -12,6 +12,7 @@ def run(dry_run):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
+    secret_reader = SecretReader(settings=settings)
 
     # Jira
     repos = queries.get_repos_gitlab_jira(server=gl.server)
@@ -25,7 +26,7 @@ def run(dry_run):
         desired_jira = repo['jira']
         desired_jira_url = desired_jira['serverUrl']
         desired_jira_crdentials = \
-            secret_reader.read_all(desired_jira['token'], settings=settings)
+            secret_reader.read_all(desired_jira['token'])
 
         if current_jira.active:
             properties = current_jira.properties
