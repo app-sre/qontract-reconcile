@@ -21,6 +21,6 @@ class ElasticSearchResourceVersionInvalidError(Exception):
 
 class ElasticSearchResourceZoneAwareSubnetInvalidError(Exception):
     def __init__(self, msg):
-        super(ElasticSearchResourceVersionInvalidError, self).__init__(
+        super(ElasticSearchResourceZoneAwareSubnetInvalidError, self).__init__(
             str(msg)
         )
