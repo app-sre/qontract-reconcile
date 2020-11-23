@@ -27,7 +27,7 @@ class VaultConnectionError(Exception):
     pass
 
 
-class VaultClient:
+class _VaultClient:
     def __init__(self):
         config = get_config()
 
@@ -158,3 +158,19 @@ class VaultClient:
 
     def _write_v1(self, path, data):
         self._client.write(path, **data)
+
+
+class VaultClient:
+
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = _VaultClient(*args, **kwargs)
+            return cls._instance
+
+        if not cls._instance._client.is_authenticated():
+            cls._instance = _VaultClient(*args, **kwargs)
+            return cls._instance
+
+        return cls._instance
