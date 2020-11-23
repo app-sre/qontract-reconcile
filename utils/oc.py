@@ -11,7 +11,7 @@ from datetime import datetime
 from threading import Lock
 from sretoolbox.utils import retry
 
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 from utils.jump_host import JumpHostSSH
 
 
@@ -529,7 +529,8 @@ class OC_Map(object):
             self.set_oc(cluster, False)
         else:
             server_url = cluster_info['serverUrl']
-            token = secret_reader.read(automation_token, self.settings)
+            secret_reader = SecretReader(settings=self.settings)
+            token = secret_reader.read(automation_token)
             if self.use_jump_host:
                 jump_host = cluster_info.get('jumpHost')
             else:

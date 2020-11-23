@@ -3,7 +3,7 @@ import logging
 
 from sretoolbox.utils import retry
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 
 class OCM(object):
@@ -134,7 +134,8 @@ class OCM(object):
 
         provision_shard_id = cluster_spec.get('provision_shard_id')
         if provision_shard_id:
-            ocm_spec['provision_shard']['id'] = provision_shard_id
+            ocm_spec.setdefault('properties', {})
+            ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
         self._post(api, ocm_spec)
 
@@ -476,6 +477,21 @@ class OCM(object):
         api = '/api/accounts_mgmt/v1/access_token'
         return self._post(api)
 
+    def get_kafka_clusters(self, fields=None):
+        """Returns details of the Kafka clusters """
+        api = '/api/managed-services-api/v1/kafkas'
+        clusters = self._get_json(api)['items']
+        if fields:
+            clusters = [{k: v for k, v in cluster.items()
+                         if k in fields}
+                        for cluster in clusters]
+        return clusters
+
+    def create_kafka_cluster(self, data):
+        """Creates (async) a Kafka cluster """
+        api = '/api/managed-services-api/v1/kafkas?async=true'
+        self._post(api, data)
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
@@ -573,7 +589,8 @@ class OCMMap(object):
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info['url']
-            token = secret_reader.read(ocm_offline_token, self.settings)
+            secret_reader = SecretReader(settings=self.settings)
+            token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
                 OCM(url, access_token_client_id, access_token_url, token)
 
@@ -619,3 +636,13 @@ class OCMMap(object):
         for v in self.ocm_map.values():
             not_ready_cluster_names.extend(v.not_ready_clusters)
         return cluster_specs, not_ready_cluster_names
+
+    def kafka_cluster_specs(self):
+        """Get dictionary of Kafka cluster names and specs in the OCM map."""
+        fields = ['id', 'status', 'cloud_provider', 'region',
+                  'name', 'bootstrapServerHost']
+        cluster_specs = []
+        for ocm in self.ocm_map.values():
+            clusters = ocm.get_kafka_clusters(fields=fields)
+            cluster_specs.extend(clusters)
+        return cluster_specs

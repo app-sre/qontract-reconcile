@@ -7,7 +7,7 @@ import yaml
 
 import utils.gql as gql
 import utils.config as config
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 
@@ -125,6 +125,8 @@ def clusters_network(ctx, name):
 @click.argument('cluster_name')
 @click.pass_context
 def bot_login(ctx, cluster_name):
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c['name'] == cluster_name]
     if len(clusters) == 0:
@@ -132,9 +134,8 @@ def bot_login(ctx, cluster_name):
         sys.exit(1)
 
     cluster = clusters[0]
-    settings = queries.get_app_interface_settings()
     server = cluster['serverUrl']
-    token = secret_reader.read(cluster['automationToken'], settings=settings)
+    token = secret_reader.read(cluster['automationToken'])
     print(f"oc login --server {server} --token {token}")
 
 
@@ -567,7 +568,8 @@ def promquery(cluster, query):
         'field': 'token'
     }
     settings = queries.get_app_interface_settings()
-    prom_auth_creds = secret_reader.read(auth, settings)
+    secret_reader = SecretReader(settings=settings)
+    prom_auth_creds = secret_reader.read(auth)
     prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(':'))
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"

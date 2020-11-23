@@ -19,7 +19,7 @@ setup(
     data_files=[('templates', glob('templates/*.j2'))],
 
     install_requires=[
-        "sretoolbox==0.8.0",
+        "sretoolbox==0.9.1",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",

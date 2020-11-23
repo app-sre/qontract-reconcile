@@ -4,7 +4,7 @@ import urllib3
 
 from urllib.parse import urlparse
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 
 
 # The following line will suppress
@@ -28,7 +28,8 @@ class GitLabApi(object):
     def __init__(self, instance, project_id=None, ssl_verify=True,
                  settings=None, project_url=None, saas_files=None):
         self.server = instance['url']
-        token = secret_reader.read(instance['token'], settings=settings)
+        secret_reader = SecretReader(settings=settings)
+        token = secret_reader.read(instance['token'])
         ssl_verify = instance['sslVerify']
         if ssl_verify is None:
             ssl_verify = True

@@ -3,7 +3,7 @@ import json
 import logging
 
 import reconcile.queries as queries
-import utils.vault_client as vault_client
+from utils.vault import VaultClient
 
 from utils.aws_api import AWSApi
 
@@ -50,6 +50,7 @@ def write_output_to_vault(dry_run, vault_path, account, secret_data, name):
     secret_path = f"{vault_path}/{integration_name}/{account}/{name}"
     secret = {'path': secret_path, 'data': secret_data}
     logging.info(['write_secret', secret_path])
+    vault_client = VaultClient()
     if not dry_run:
         vault_client.write(secret)
 

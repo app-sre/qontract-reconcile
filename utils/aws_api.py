@@ -6,8 +6,9 @@ import os
 import time
 
 import utils.threaded as threaded
-import utils.secret_reader as secret_reader
 import utils.lean_terraform_client as terraform
+
+from utils.secret_reader import SecretReader
 
 from datetime import datetime
 from threading import Lock
@@ -23,7 +24,7 @@ class AWSApi(object):
     def __init__(self, thread_pool_size, accounts, settings=None,
                  init_ecr_auth_tokens=False):
         self.thread_pool_size = thread_pool_size
-        self.settings = settings
+        self.secret_reader = SecretReader(settings=settings)
         self.init_sessions_and_resources(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
@@ -58,8 +59,7 @@ class AWSApi(object):
     def get_tf_secrets(self, account):
         account_name = account['name']
         automation_token = account['automationToken']
-        secret = secret_reader.read_all(automation_token,
-                                        settings=self.settings)
+        secret = self.secret_reader.read_all(automation_token)
         return (account_name, secret)
 
     def init_users(self):

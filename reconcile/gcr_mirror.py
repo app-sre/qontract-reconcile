@@ -14,7 +14,7 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
 from utils import gql
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 
 
 _LOG = logging.getLogger(__name__)
@@ -63,7 +63,8 @@ class QuayMirror:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
-        self.settings = queries.get_app_interface_settings()
+        settings = queries.get_app_interface_settings()
+        self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.push_creds = self._get_push_creds()
 
@@ -140,8 +141,7 @@ class QuayMirror:
                 mirror_creds = None
                 if item['mirror']['pullCredentials'] is not None:
                     pull_credentials = item['mirror']['pullCredentials']
-                    raw_data = secret_reader.read_all(pull_credentials,
-                                                      settings=self.settings)
+                    raw_data = self.secret_reader.read_all(pull_credentials)
                     username = raw_data["user"]
                     password = raw_data["token"]
                     mirror_creds = f'{username}:{password}'
@@ -228,8 +228,7 @@ class QuayMirror:
             if push_secret is None:
                 continue
 
-            raw_data = secret_reader.read_all(push_secret,
-                                              settings=self.settings)
+            raw_data = self.secret_reader.read_all(push_secret)
             project = project_data['name']
             token = base64.b64decode(raw_data["token"]).decode()
             creds[project] = f'{raw_data["user"]}:{token}'

@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 import github
 
-from utils import secret_reader
+from utils.secret_reader import SecretReader
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
@@ -27,7 +28,8 @@ class GithubApi:
     def __init__(self, instance, repo_url, settings):
         parsed_repo_url = urlparse(repo_url)
         repo = parsed_repo_url.path.strip('/')
-        token = secret_reader.read(instance['token'], settings=settings)
+        secret_reader = SecretReader(settings=settings)
+        token = secret_reader.read(instance['token'])
         git_cli = github.Github(token, base_url=GH_BASE_URL)
         self.repo = git_cli.get_repo(repo)
 
@@ -39,6 +41,7 @@ class GithubApi:
             tree_items.append(tree_item)
         return tree_items
 
+    @retry()
     def get_file(self, path, ref='master'):
         try:
             return self.repo.get_contents(path, ref).decoded_content

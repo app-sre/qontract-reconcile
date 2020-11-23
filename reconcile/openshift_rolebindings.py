@@ -111,6 +111,9 @@ def fetch_desired_state(ri, oc_map):
 
         for permission in permissions:
             cluster = permission['cluster']
+            namespace = permission['namespace']
+            if not is_in_shard(f"{cluster}/{namespace}"):
+                continue
             if oc_map and not oc_map.get(cluster):
                 continue
             for user in users:

@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 
-import utils.secret_reader as secret_reader
+from utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from github import Github
@@ -14,11 +14,11 @@ def run(dry_run):
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
     orgs = queries.get_github_orgs()
     settings = queries.get_app_interface_settings()
-
+    secret_reader = SecretReader(settings=settings)
     error = False
     for org in orgs:
         org_name = org['name']
-        token = secret_reader.read(org['token'], settings=settings)
+        token = secret_reader.read(org['token'])
         gh = Github(token, base_url=base_url)
         gh_org = gh.get_organization(org_name)
 
