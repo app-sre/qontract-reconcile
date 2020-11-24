@@ -105,18 +105,9 @@ class _VaultClient:
         return data
 
     def _read_all_v1(self, path):
-        cache_key = path
-        cache_value = self._cache.get(cache_key)
-        if cache_value is not None:
-            logging.debug('Vault v1 cache hit')
-            return cache_value
-
         secret = self._client.read(path)
         if secret is None or 'data' not in secret:
             raise SecretNotFound(path)
-
-        data = secret['data']
-        self._cache[cache_key] = data
         return secret['data']
 
     @retry()
