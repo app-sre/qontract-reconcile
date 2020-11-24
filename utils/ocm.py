@@ -569,6 +569,8 @@ class OCM(object):
         except Exception as e:
             logging.error(r.text)
             raise e
+        if r.status_code == requests.codes.no_content:
+            return None
         return r.json()
 
     def _patch(self, api, data):
