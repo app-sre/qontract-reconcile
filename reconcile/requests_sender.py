@@ -2,7 +2,7 @@ import sys
 import logging
 
 from utils.secret_reader import SecretReader
-import utils.smtp_client as smtp_client
+from utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from utils.state import State
@@ -30,7 +30,7 @@ Encrypted credentials:
 """
 
 
-def get_ecrypted_credentials(credentials_name, user, settings):
+def get_ecrypted_credentials(credentials_name, user, settings, smtp_client):
     credentials_map = settings['credentials']
     credentials_map_item = \
         [c for c in credentials_map if c['name'] == credentials_name]
@@ -39,7 +39,7 @@ def get_ecrypted_credentials(credentials_name, user, settings):
     secret = credentials_map_item[0]['secret']
     secret_reader = SecretReader(settings=settings)
     credentials = secret_reader.read(secret)
-    recepient = smtp_client.get_recepient(user['org_username'], settings)
+    recepient = smtp_client.get_recipient(user['org_username'])
     public_gpg_key = user['public_gpg_key']
     encrypted_credentials = \
         gpg_encrypt(credentials, recepient, public_gpg_key)
@@ -50,6 +50,7 @@ def get_ecrypted_credentials(credentials_name, user, settings):
 def run(dry_run):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
+    smtp_client = SmtpClient(settings=settings)
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,
@@ -84,8 +85,9 @@ def run(dry_run):
             request_name = credentials_request_to_send['name']
             names = [org_username]
             subject = request_name
-            ecrypted_credentials = \
-                get_ecrypted_credentials(credentials_name, user, settings)
+            ecrypted_credentials = get_ecrypted_credentials(credentials_name,
+                                                            user, settings,
+                                                            smtp_client)
             if not ecrypted_credentials:
                 error = True
                 logging.error(
@@ -93,7 +95,7 @@ def run(dry_run):
                 continue
             body = MESSAGE_TEMPLATE.format(
                 request_name, credentials_name, ecrypted_credentials)
-            smtp_client.send_mail(names, subject, body, settings=settings)
+            smtp_client.send_mail(names, subject, body)
             state.add(request_name)
 
     if error:

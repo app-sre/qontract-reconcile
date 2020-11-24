@@ -2,7 +2,7 @@ import sys
 import semver
 
 import utils.gql as gql
-import utils.smtp_client as smtp_client
+from utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from utils.terrascript_client import TerrascriptClient as Terrascript
@@ -88,8 +88,8 @@ Encrypted password: {}
         body = msg_template.format(account, console_url,
                                    user_name, enc_password)
         mails.append((to, subject, body))
-
-    smtp_client.send_mails(mails, settings=settings)
+    smtp_client = SmtpClient(settings=settings)
+    smtp_client.send_mails(mails)
 
 
 def cleanup_and_exit(tf=None, status=False):
