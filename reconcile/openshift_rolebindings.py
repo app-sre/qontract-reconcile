@@ -21,6 +21,7 @@ ROLES_QUERY = """
     bots {
       github_username
       openshift_serviceaccount
+      openshift_group
     }
     access {
       namespace {
@@ -85,6 +86,26 @@ def construct_sa_oc_resource(role, namespace, sa_name):
               error_details=name), name
 
 
+def construct_group_oc_resource(role, group_name):
+    name = f"{role}-{group_name}"
+    body = {
+        "apiVersion": "authorization.openshift.io/v1",
+        "kind": "RoleBinding",
+        "metadata": {
+            "name": name
+        },
+        "roleRef": {
+            "name": role
+        },
+        "subjects": [
+            {"kind": "Group",
+             "name": group_name}
+        ]
+    }
+    return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
+              error_details=name), name
+
+
 def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
@@ -108,6 +129,9 @@ def fetch_desired_state(ri, oc_map):
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
                             if bot.get('openshift_serviceaccount')]
+        groups = [bot['openshift_group']
+                  for bot in role['bots']
+                  if bot.get('openshift_group')]
 
         for permission in permissions:
             cluster = permission['cluster']
@@ -153,6 +177,24 @@ def fetch_desired_state(ri, oc_map):
                     )
                 except ResourceKeyExistsError:
                     # a ServiceAccount may have a Role assigned to it
+                    # from multiple app-interface roles
+                    pass
+            for group in groups:
+                if ri is None:
+                    continue
+                oc_resource, resource_name = \
+                    construct_group_oc_resource(
+                        permission['role'], group)
+                try:
+                    ri.add_desired(
+                        permission['cluster'],
+                        permission['namespace'],
+                        'RoleBinding',
+                        resource_name,
+                        oc_resource
+                    )
+                except ResourceKeyExistsError:
+                    # a Group may have a Role assigned to it
                     # from multiple app-interface roles
                     pass
 
