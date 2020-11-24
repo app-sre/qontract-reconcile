@@ -79,7 +79,7 @@ class _VaultClient:
     def _read_all_v2(self, path, version):
         cache_key = (path, version)
         cache_value = self._cache.get(cache_key)
-        if cache_value:
+        if cache_value is not None:
             logging.debug('Vault v2 cache hit')
             return cache_value
 
@@ -107,7 +107,7 @@ class _VaultClient:
     def _read_all_v1(self, path):
         cache_key = path
         cache_value = self._cache.get(cache_key)
-        if cache_value:
+        if cache_value is not None:
             logging.debug('Vault v1 cache hit')
             return cache_value
 
