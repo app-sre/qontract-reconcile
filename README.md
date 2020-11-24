@@ -73,6 +73,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `ocm-github-idp`: Manage GitHub Identity Providers in OCM.
 - `ocm-machine-pools`: Manage Machine Pools in OCM.
 - `ocm-upgrade-scheduler`: Manage Upgrade Policy schedules in OCM.
+- `ocm-addons`: Manages cluster Addons in OCM.
 - `email-sender`: Send email notifications to app-interface audience.
 - `requests-sender`: Send emails to users based on requests submitted to app-interface.
 - `service-dependencies`: Validate dependencies are defined for each service.
