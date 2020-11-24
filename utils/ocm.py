@@ -85,15 +85,17 @@ class OCM(object):
         }
         return ocm_spec
 
-    def create_cluster(self, name, cluster):
+    def create_cluster(self, name, cluster, dry_run):
         """
         Creates a cluster.
 
         :param name: name of the cluster
         :param cluster: a dictionary representing a cluster desired state
+        :param dry_run: do not execute for real
 
         :type name: string
         :type cluster: dict
+        :type dry_run: bool
         """
         api = f'/api/clusters_mgmt/v1/clusters'
         cluster_spec = cluster['spec']
@@ -138,7 +140,11 @@ class OCM(object):
             ocm_spec.setdefault('properties', {})
             ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
-        self._post(api, ocm_spec)
+        params = {}
+        if dry_run:
+            params['dryRun'] = 'true'
+
+        self._post(api, ocm_spec, params)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -490,8 +496,9 @@ class OCM(object):
 
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
-        api = '/api/managed-services-api/v1/kafkas?async=true'
-        self._post(api, data)
+        api = '/api/managed-services-api/v1/kafkas'
+        params = {'async': 'true'}
+        self._post(api, data, params)
 
     def _init_addons(self):
         """Returns a list of Addons """
@@ -550,13 +557,20 @@ class OCM(object):
         r.raise_for_status()
         return r.json()
 
-    def _post(self, api, data=None):
-        r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
+    def _post(self, api, data=None, params=None):
+        r = requests.post(
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params
+        )
         try:
             r.raise_for_status()
         except Exception as e:
             logging.error(r.text)
             raise e
+        if r.status_code == requests.codes.no_content:
+            return None
         return r.json()
 
     def _patch(self, api, data):

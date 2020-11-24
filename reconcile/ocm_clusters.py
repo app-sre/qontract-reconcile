@@ -104,9 +104,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             if cluster_name in pending_state:
                 continue
             logging.info(['create_cluster', cluster_name])
-            if not dry_run:
-                ocm = ocm_map.get(cluster_name)
-                ocm.create_cluster(cluster_name, desired_spec)
+            ocm = ocm_map.get(cluster_name)
+            ocm.create_cluster(cluster_name, desired_spec, dry_run)
 
     create_update_mr = False
     for cluster_name, cluster_updates in clusters_updates.items():
