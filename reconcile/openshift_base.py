@@ -45,6 +45,7 @@ def init_specs_to_fetch(ri, oc_map,
         raise KeyError('expected only one of clusters or namespaces.')
     elif namespaces:
         for namespace_info in namespaces:
+            #print(namespace_info['name'])
             if override_managed_types is None:
                 managed_types = namespace_info.get(managed_types_key)
             else:
@@ -64,7 +65,12 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster has no automationToken."
                 logging.error(msg)
                 continue
-
+            if oc == '':
+                ri.register_error()
+                msg = f"[{cluster}] cluster is unreachable."
+                logging.error(msg)
+                continue
+            
             namespace = namespace_info['name']
             managed_resource_names = \
                 namespace_info.get('managedResourceNames')
@@ -116,6 +122,11 @@ def init_specs_to_fetch(ri, oc_map,
             if oc is False:
                 ri.register_error()
                 msg = f"[{cluster}] cluster has no automationToken."
+                logging.error(msg)
+                continue
+            if oc == '':
+                ri.register_error()
+                msg = f"[{cluster}] cluster is unreachable."
                 logging.error(msg)
                 continue
 

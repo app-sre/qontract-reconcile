@@ -541,8 +541,9 @@ class OC_Map(object):
                                init_projects=self.init_projects,
                                init_api_resources=self.init_api_resources)
                 self.set_oc(cluster, oc_client)
-            except StatusCodeError:
-                logging.error('Cluster unreachable: %s', cluster)
+            except StatusCodeError as e:
+                logging.error('The cluster is unreachable: error %s', str(e))
+                self.set_oc(cluster, '')
 
     def set_oc(self, cluster, value):
         with self._lock:
