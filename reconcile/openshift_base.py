@@ -69,7 +69,7 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster is unreachable."
                 logging.error(msg)
                 continue
-            
+
             namespace = namespace_info['name']
             managed_resource_names = \
                 namespace_info.get('managedResourceNames')
