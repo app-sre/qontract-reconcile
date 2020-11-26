@@ -186,6 +186,15 @@ def collect_queries(query_name=None):
             )
             sys.exit(ExitCodes.ERROR)
 
+        sql_queries = []
+        if sql_query['query'] is not None:
+            sql_queries.append(sql_query['query'])
+
+        if sql_query['queries'] is not None:
+            sql_queries.extend(sql_query['queries'])
+
+        sql_queries = [item.replace("'", "''") for item in sql_queries]
+
         # building up the final query dictionary
         item = {
             'name': name,
@@ -193,7 +202,7 @@ def collect_queries(query_name=None):
             'identifier': sql_query['identifier'],
             'db_conn': db_conn,
             'output': output,
-            'query': sql_query['query'].replace("'", "''"),
+            'queries': sql_queries,
             **tf_resource_info,
         }
 
@@ -208,40 +217,59 @@ def collect_queries(query_name=None):
     return queries_list
 
 
-def make_postgres_command(output, query):
-    command = [
-        'time psql',
-        'postgres://$(db.user):$(db.password)@'
-        '$(db.host):$(db.port)/$(db.name)',
-        f'--command "{query}"',
-    ]
+def make_postgres_command(output, sqlqueries):
+    command = []
+    for query in sqlqueries:
+        command.extend([
+            '(time psql',
+            'postgres://$(db.user):$(db.password)@'
+            '$(db.host):$(db.port)/$(db.name)',
+            f'--command "{query}")',
+        ])
+
+        if output == 'filesystem':
+            command.extend(filesystem_redir_stdout())
+        else:
+            command.append(';')
 
     if output == 'filesystem':
-        command.extend(filesystem_extra_command())
+        command.extend(filesystem_closing_message())
 
     return ' '.join(command)
 
 
-def make_mysql_command(output, query):
-    command = [
-        'time mysql',
-        '--host=$(db.host)',
-        '--port=$(db.port)',
-        '--database=$(db.name)',
-        '--user=$(db.user)',
-        '--password=$(db.password)',
-        f'--execute="{query}"',
-    ]
+def make_mysql_command(output, sqlqueries):
+    command = []
+    for query in sqlqueries:
+        command.extend([
+            '(time mysql',
+            '--host=$(db.host)',
+            '--port=$(db.port)',
+            '--database=$(db.name)',
+            '--user=$(db.user)',
+            '--password=$(db.password)',
+            f'--execute="{query}")',
+        ])
+
+        if output == 'filesystem':
+            command.extend(filesystem_redir_stdout())
+        else:
+            command.append(';')
 
     if output == 'filesystem':
-        command.extend(filesystem_extra_command())
+        command.extend(filesystem_closing_message())
 
     return ' '.join(command)
 
 
-def filesystem_extra_command():
+def filesystem_redir_stdout():
     return [
-        '> /tmp/query-result.txt;',
+        ' &>> /tmp/query-result.txt;',
+    ]
+
+
+def filesystem_closing_message():
+    return [
         'echo;',
         'echo Get the sql-query results with:;',
         'echo;',
@@ -276,7 +304,7 @@ def process_template(query):
     make_command = engine_cmd_map[engine]
 
     command = make_command(output=output,
-                           query=query['query'])
+                           sqlqueries=query['queries'])
 
     template_to_render = JOB_TEMPLATE
     render_kwargs = {

@@ -1003,6 +1003,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
     output
     schedule
     query
+    queries
   }
 }
 """
