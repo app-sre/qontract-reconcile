@@ -29,6 +29,12 @@ class VaultConnectionError(Exception):
 
 
 class _VaultClient:
+    """
+    A class representing a Vault client. Allows read/write operations.
+    The client caches read requests in-memory if the request is made
+    to a versioned KV engine (v2), since that includes both a path
+    and a version (no invalidation required).
+    """
     def __init__(self):
         config = get_config()
 
