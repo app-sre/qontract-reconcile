@@ -309,7 +309,6 @@ def process_template(query):
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
         'JOB_NAME': query['name'],
-        'QUERY': query['query'],
         'SECRET_NAME': query['output_resource_name'],
         'ENGINE': engine,
         'ENGINE_VERSION': query['engine_version'],
