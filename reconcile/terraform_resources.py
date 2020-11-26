@@ -145,6 +145,13 @@ provider
   }
   output_resource_name
 }
+... on NamespaceTerraformResourceKinesis_v1 {
+  account
+  region
+  identifier
+  defaults
+  output_resource_name
+}
 """
 
 
