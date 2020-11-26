@@ -51,7 +51,8 @@ from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_iam_service_linked_role,
                                aws_lambda_function, aws_lambda_permission,
                                aws_cloudwatch_log_subscription_filter,
-                               aws_acm_certificate)
+                               aws_acm_certificate,
+                               aws_kinesis_stream)
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
@@ -501,6 +502,8 @@ class TerrascriptClient(object):
         elif provider == 'acm':
             self.populate_tf_resource_acm(resource, namespace_info,
                                           existing_secrets)
+        elif provider == 'kinesis':
+            self.populate_tf_resource_kinesis(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -2063,6 +2066,72 @@ class TerrascriptClient(object):
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
+    def populate_tf_resource_kinesis(self, resource, namespace_info):
+        account, identifier, values, output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        # pop identifier since we use values and not common_values
+        values.pop('identifier', None)
+
+        # get region and set provider if required
+        region = values.pop('region', None) or \
+            self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+
+        # kinesis stream
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/kinesis_stream.html
+        kinesis_tf_resource = aws_kinesis_stream(identifier, **values)
+        tf_resources.append(kinesis_tf_resource)
+        output_name = output_prefix + '[stream_name]'
+        tf_resources.append(output(output_name, value=identifier))
+        output_name = output_prefix + '[aws_region]'
+        tf_resources.append(output(output_name, value=region))
+
+        # iam resources
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "kinesis:Get*",
+                        "kinesis:Describe*",
+                        "kinesis:PutRecord"
+                    ],
+                    "Resource": [
+                        "${" + kinesis_tf_resource.fullname + ".arn}"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "kinesis:ListStreams"
+                    ],
+                    "Resource": [
+                        "*"
+                    ]
+                }
+            ]
+        }
+        tf_resources.extend(
+            self.get_tf_iam_service_user(
+                kinesis_tf_resource,
+                identifier,
+                policy,
+                values['tags'],
+                output_prefix
+            )
+        )
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
     @staticmethod
     def _get_retention_in_days(values, account, identifier):
         default_retention_in_days = 14
@@ -2080,6 +2149,37 @@ class TerrascriptClient(object):
                 f"defaulting to '{default_retention_in_days}'.")
 
         return retention_in_days
+
+    def get_tf_iam_service_user(self, dep_tf_resource, identifier, policy,
+                                tags, output_prefix):
+        # iam resources
+        # Terraform resource reference:
+        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+        tf_resources = []
+
+        # iam user
+        values = {}
+        values['name'] = identifier
+        values['tags'] = tags
+        values['depends_on'] = [dep_tf_resource]
+        user_tf_resource = aws_iam_user(identifier, **values)
+        tf_resources.append(user_tf_resource)
+
+        # iam access key
+        tf_resources.extend(
+            self.get_tf_iam_access_key(
+                user_tf_resource, identifier, output_prefix))
+
+        # iam user policy
+        values = {}
+        values['user'] = identifier
+        values['name'] = identifier
+        values['policy'] = json.dumps(policy, sort_keys=True)
+        values['depends_on'] = [user_tf_resource]
+        tf_resource = aws_iam_user_policy(identifier, **values)
+        tf_resources.append(tf_resource)
+
+        return tf_resources
 
     @staticmethod
     def get_tf_iam_access_key(user_tf_resource, identifier, output_prefix):
