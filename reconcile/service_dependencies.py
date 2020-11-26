@@ -32,6 +32,9 @@ APPS_QUERY = """
     }
     namespaces {
       managedTerraformResources
+      kafkaCluster {
+        name
+      }
     }
   }
 }
@@ -94,6 +97,11 @@ def get_desired_dependency_names(app, dependency_map):
         if tf_namespaces:
             required_dep_names.update(
                 get_dependency_names(dependency_map, 'aws'))
+        kafka_namespaces = [n for n in namespaces
+                            if n.get('kafkaCluster')]
+        if kafka_namespaces:
+            required_dep_names.update(
+                get_dependency_names(dependency_map, 'kafka'))
 
     return required_dep_names
 
