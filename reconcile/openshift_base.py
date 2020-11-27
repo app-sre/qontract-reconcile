@@ -59,12 +59,12 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc is False:
+            if oc == 2:
                 ri.register_error()
                 msg = f"[{cluster}] cluster has no automationToken."
                 logging.error(msg)
                 continue
-            if oc == '':
+            if oc == 3:
                 ri.register_error()
                 msg = f"[{cluster}] cluster is unreachable."
                 logging.error(msg)
@@ -118,12 +118,12 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc is False:
+            if oc == 2:
                 ri.register_error()
                 msg = f"[{cluster}] cluster has no automationToken."
                 logging.error(msg)
                 continue
-            if oc == '':
+            if oc == 3:
                 ri.register_error()
                 msg = f"[{cluster}] cluster is unreachable."
                 logging.error(msg)
