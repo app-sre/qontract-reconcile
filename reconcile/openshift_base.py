@@ -59,15 +59,8 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc == 2:
+            if oc is False:
                 ri.register_error()
-                msg = f"[{cluster}] cluster has no automationToken."
-                logging.error(msg)
-                continue
-            if oc == 3:
-                ri.register_error()
-                msg = f"[{cluster}] cluster is unreachable."
-                logging.error(msg)
                 continue
 
             namespace = namespace_info['name']
@@ -118,15 +111,8 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc == 2:
+            if oc is False:
                 ri.register_error()
-                msg = f"[{cluster}] cluster has no automationToken."
-                logging.error(msg)
-                continue
-            if oc == 3:
-                ri.register_error()
-                msg = f"[{cluster}] cluster is unreachable."
-                logging.error(msg)
                 continue
 
             # we currently only use override_managed_types,
