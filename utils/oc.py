@@ -13,7 +13,6 @@ from sretoolbox.utils import retry
 
 from utils.secret_reader import SecretReader
 from utils.jump_host import JumpHostSSH
-from utils.oc_status import OcStatus
 
 
 class StatusCodeError(Exception):
@@ -527,9 +526,8 @@ class OC_Map(object):
 
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:
-            oc_status = OcStatus.set_oc_status(self, cluster,
-                                               'NoAutomationToken')
-            self.set_oc(cluster, oc_status)
+            self.set_oc(cluster,
+                        OCFail(message=f"[{cluster}] has no automation token"))
         else:
             server_url = cluster_info['serverUrl']
             secret_reader = SecretReader(settings=self.settings)
@@ -546,9 +544,8 @@ class OC_Map(object):
                 self.set_oc(cluster, oc_client)
             except StatusCodeError as e:
                 logging.error('The cluster is unreachable: error %s', str(e))
-                oc_status = OcStatus.set_oc_status(self, cluster,
-                                                   'Unreachable')
-                self.set_oc(cluster, oc_status)
+                self.set_oc(cluster,
+                            OCFail(message=f"[{cluster}] is unreachable"))
 
     def set_oc(self, cluster, value):
         with self._lock:
@@ -578,5 +575,13 @@ class OC_Map(object):
 
     def cleanup(self):
         for oc in self.oc_map.values():
-            if oc is not False:
+            if oc:
                 oc.cleanup()
+
+
+class OCFail:
+    def __init__(self, message):
+        self.message = message
+
+    def __bool__(self):
+        return False

@@ -59,8 +59,9 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc is False:
+            if not oc:
                 ri.register_error()
+                logging.error(oc.message)
                 continue
 
             namespace = namespace_info['name']
@@ -111,8 +112,9 @@ def init_specs_to_fetch(ri, oc_map,
                 msg = f"[{cluster}] cluster skipped."
                 logging.debug(msg)
                 continue
-            if oc is False:
+            if not oc:
                 ri.register_error()
+                logging.error(oc.message)
                 continue
 
             # we currently only use override_managed_types,
