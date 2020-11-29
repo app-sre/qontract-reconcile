@@ -368,12 +368,43 @@ class OCM(object):
 
         return results
 
-    def create_external_configuration_labels(self, cluster, labels):
+    def create_external_configuration_label(self, cluster, label):
+        """Creates a new External Configuration label
+
+        :param cluster: cluster name
+        :param label: key and value for new label
+
+        :type cluster: string
+        :type label: dictionary
+        """
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
             f'/external_configuration/labels'
-        self._post(api, labels)
+        self._post(api, label)
+
+    def delete_external_configuration_labels(self, cluster, label):
+        """Deletes an existing External Configuration label
+
+        :param cluster: cluster name
+        :param label:  key and value of label to delete
+
+        :type cluster: string
+        :type label: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        items = self._get_json(api).get('items')
+        item = [item for item in items if label.items() <= item.items()]
+        if not item:
+            return
+        label_id = item[0]['id']
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels/{label_id}'
+        self._delete(api)
 
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools

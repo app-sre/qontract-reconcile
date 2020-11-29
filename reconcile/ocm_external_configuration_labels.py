@@ -20,8 +20,15 @@ def fetch_current_state(clusters):
         cluster_name = cluster['name']
         ocm = ocm_map.get(cluster_name)
         labels = ocm.get_external_configuration_labels(cluster_name)
-        labels['cluster'] = cluster_name
-        current_state.append(labels)
+        for key, value in labels.items():
+            item = {
+                'label': {
+                    'key': key,
+                    'value': value
+                },
+                'cluster': cluster_name
+            }
+            current_state.append(item)
 
     return ocm_map, current_state
 
@@ -31,8 +38,15 @@ def fetch_desired_state(clusters):
     for cluster in clusters:
         cluster_name = cluster['name']
         labels = json.loads(cluster['externalConfiguration']['labels'])
-        labels['cluster'] = cluster_name
-        desired_state.append(labels)
+        for key, value in labels.items():
+            item = {
+                'label': {
+                    'key': key,
+                    'value': value
+                },
+                'cluster': cluster_name
+            }
+            desired_state.append(item)
 
     return desired_state
 
@@ -41,22 +55,13 @@ def calculate_diff(current_state, desired_state):
     diffs = []
     err = False
     for d in desired_state:
-        c = [c for c in current_state if d['cluster'] == c['cluster']]
+        c = [c for c in current_state if d == c]
         if not c:
             d['action'] = 'create'
             diffs.append(d)
-            continue
-        if len(c) != 1:
-            logging.error(f"duplicate id found in {d['cluster']}")
-            err = True
-            continue
-        c = c[0]
-        if d != c:
-            d['action'] = 'update'
-            diffs.append(d)
 
     for c in current_state:
-        d = [d for d in desired_state if c['cluster'] == d['cluster']]
+        d = [d for d in desired_state if c == d]
         if not d:
             c['action'] = 'delete'
             diffs.append(c)
@@ -64,19 +69,26 @@ def calculate_diff(current_state, desired_state):
     return diffs, err
 
 
+def sort_diffs(diff):
+    if diff['action'] == 'delete':
+        return 1
+    else:
+        return 2
+
+
 def act(dry_run, diffs, ocm_map):
+    diffs.sort(key=sort_diffs)
     for diff in diffs:
-        action = diff.pop('action')
-        cluster = diff.pop('cluster')
-        logging.info([action, cluster, diff['id']])
+        action = diff['action']
+        cluster = diff['cluster']
+        label = diff['label']
+        logging.info([action, cluster, label])
         if not dry_run:
             ocm = ocm_map.get(cluster)
             if action == 'create':
-                ocm.create_external_configuration_labels(cluster, diff)
-            # elif action == 'update':
-            #     ocm.update_machine_pool(cluster, diff)
-            # elif action == 'delete':
-            #     ocm.delete_machine_pool(cluster, diff)
+                ocm.create_external_configuration_label(cluster, label)
+            elif action == 'delete':
+                ocm.delete_external_configuration_label(cluster, label)
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
