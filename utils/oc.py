@@ -71,8 +71,8 @@ class OC(object):
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
-        # calling get_oc_version to check if cluster is reachable
-        self.get_oc_version()
+        # calling get_version to check if cluster is reachable
+        self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
             self.projects = [p['metadata']['name']
@@ -258,7 +258,7 @@ class OC(object):
         results = self._run(cmd).decode('utf-8').split('\n')
         return [r.split()[-1] for r in results]
 
-    def get_oc_version(self):
+    def get_version(self):
         cmd = ['version']
         return self._run(cmd)
 
