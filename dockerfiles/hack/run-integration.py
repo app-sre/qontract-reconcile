@@ -6,11 +6,11 @@ import sys
 import time
 
 from prometheus_client import start_http_server
-from prometheus_client import Gauge
-from prometheus_client import Counter
 
 from reconcile.status import ExitCodes
 from reconcile.cli import integration
+from utils.metrics import run_time
+from utils.metrics import run_status
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
@@ -54,15 +54,6 @@ def build_args():
 
 if __name__ == "__main__":
     start_http_server(9090)
-
-    run_time = Gauge(name='qontract_reconcile_last_run_seconds',
-                     documentation='Last run duration in seconds',
-                     labelnames=['integration', 'shards', 'shard_id'])
-
-    run_status = Counter(name='qontract_reconcile_run_status',
-                         documentation='Status of the runs',
-                         labelnames=['integration', 'status',
-                                     'shards', 'shard_id'])
 
     while True:
         sleep = SLEEP_DURATION_SECS
