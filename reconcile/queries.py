@@ -324,6 +324,9 @@ CLUSTERS_QUERY = """
       upgrade
       provision_shard_id
     }
+    externalConfiguration {
+      labels
+    }
     upgradePolicy {
       schedule_type
       schedule
