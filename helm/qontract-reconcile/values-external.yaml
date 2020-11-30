@@ -399,6 +399,17 @@ integrations:
   logs:
     cloudwatch: true
     slack: true
+- name: ocm-external-configuration-labels
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
 - name: email-sender
   resources:
     requests:
