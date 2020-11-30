@@ -70,6 +70,7 @@ def calculate_diff(current_state, desired_state):
 
 
 def sort_diffs(diff):
+    """ Sort diffs so we delete first and create later """
     if diff['action'] == 'delete':
         return 1
     else:
