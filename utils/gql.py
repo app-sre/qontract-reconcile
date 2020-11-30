@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
+from reconcile.status import RunningState
+
 
 _gqlapi = None
 
@@ -167,6 +169,16 @@ def get_sha(server, token=None):
     return sha
 
 
+def get_git_commit_info(sha, server, token=None):
+    git_commit_info_endpoint = server._replace(path=f'/git-commit-info/{sha}')
+    headers = {'Authorization': token} if token else None
+    response = requests.get(git_commit_info_endpoint.geturl(),
+                            headers=headers)
+    response.raise_for_status()
+    git_commit_info = response.json()
+    return git_commit_info
+
+
 def init_from_config(sha_url=True, integration=None, validate_schemas=False,
                      print_url=True):
     config = get_config()
@@ -178,6 +190,10 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False,
     if sha_url:
         sha = get_sha(server_url, token)
         server = server_url._replace(path=f'/graphqlsha/{sha}').geturl()
+
+        runing_state = RunningState()
+        git_commit_info = get_git_commit_info(sha, server_url, token)
+        runing_state.timestamp = git_commit_info.get('timestamp')
 
     if print_url:
         logging.info(f'using gql endpoint {server}')
