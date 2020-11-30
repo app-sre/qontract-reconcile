@@ -5,6 +5,8 @@ import contextlib
 import textwrap
 import logging
 
+from urllib.parse import urlparse
+
 from graphqlclient import GraphQLClient
 from utils.config import get_config
 
@@ -157,27 +159,28 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
-def get_sha_url(server, token=None):
-    sha_endpoint = server.replace('graphql', 'sha256')
+def get_sha(server, token=None):
+    sha_endpoint = server._replace(path='/sha256')
     headers = {'Authorization': token} if token else None
-    r = requests.get(sha_endpoint, headers=headers)
-    sha = r.content.decode('utf-8')
-    gql_sha_endpoint = server.replace('graphql', 'graphqlsha')
-    return f'{gql_sha_endpoint}/{sha}'
+    response = requests.get(sha_endpoint.geturl(), headers=headers)
+    sha = response.content.decode('utf-8')
+    return sha
 
 
 def init_from_config(sha_url=True, integration=None, validate_schemas=False,
                      print_url=True):
     config = get_config()
 
-    server = config['graphql']['server']
+    server_url = urlparse(config['graphql']['server'])
+    server = server_url.geturl()
+
     token = config['graphql'].get('token')
     if sha_url:
-        server = get_sha_url(server, token)
+        sha = get_sha(server_url, token)
+        server = server_url._replace(path=f'/graphqlsha/{sha}').geturl()
 
     if print_url:
         logging.info(f'using gql endpoint {server}')
-
     return init(server, token, integration, validate_schemas)
 
 
