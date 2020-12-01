@@ -527,7 +527,9 @@ class OC_Map(object):
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:
             self.set_oc(cluster,
-                        OCFail(message=f"[{cluster}] has no automation token"))
+                        OCLogMsg(log_level=40,
+                                 message=f"[{cluster}] \
+                                     has no automation token"))
         else:
             server_url = cluster_info['serverUrl']
             secret_reader = SecretReader(settings=self.settings)
@@ -545,7 +547,9 @@ class OC_Map(object):
             except StatusCodeError as e:
                 logging.error('The cluster is unreachable: error %s', str(e))
                 self.set_oc(cluster,
-                            OCFail(message=f"[{cluster}] is unreachable"))
+                            OCLogMsg(log_level=40,
+                                     message=f"[{cluster}] \
+                                         is unreachable"))
 
     def set_oc(self, cluster, value):
         with self._lock:
@@ -568,7 +572,10 @@ class OC_Map(object):
         return False
 
     def get(self, cluster):
-        return self.oc_map.get(cluster, None)
+        return self.oc_map.get(cluster,
+                               OCLogMsg(log_level=10,
+                                        message=f"[{cluster}] \
+                                            cluster skipped"))
 
     def clusters(self):
         return [k for k, v in self.oc_map.items() if v]
@@ -579,8 +586,9 @@ class OC_Map(object):
                 oc.cleanup()
 
 
-class OCFail:
-    def __init__(self, message):
+class OCLogMsg:
+    def __init__(self, log_level, message):
+        self.log_level = log_level
         self.message = message
 
     def __bool__(self):
