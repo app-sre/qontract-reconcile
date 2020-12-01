@@ -527,7 +527,7 @@ class OC_Map(object):
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:
             self.set_oc(cluster,
-                        OCLogMsg(log_level='ERROR',
+                        OCLogMsg(log_level=logging.ERROR,
                                  message=f"[{cluster}] \
                                      has no automation token"))
         else:
@@ -547,7 +547,7 @@ class OC_Map(object):
             except StatusCodeError as e:
                 logging.error('The cluster is unreachable: error %s', str(e))
                 self.set_oc(cluster,
-                            OCLogMsg(log_level='ERROR',
+                            OCLogMsg(log_level=logging.ERROR,
                                      message=f"[{cluster}] \
                                          is unreachable"))
 
@@ -573,7 +573,7 @@ class OC_Map(object):
 
     def get(self, cluster):
         return self.oc_map.get(cluster,
-                               OCLogMsg(log_level='DEBUG',
+                               OCLogMsg(log_level=logging.DEBUG,
                                         message=f"[{cluster}] \
                                             cluster skipped"))
 

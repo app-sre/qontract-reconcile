@@ -58,8 +58,7 @@ def init_specs_to_fetch(ri, oc_map,
             if not oc:
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=getattr(logging, oc.log_level),
-                            msg=oc.message)
+                logging.log(level=oc.log_level, msg=oc.message)
                 continue
 
             namespace = namespace_info['name']
@@ -109,8 +108,7 @@ def init_specs_to_fetch(ri, oc_map,
             if not oc:
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=getattr(logging, oc.log_level),
-                            msg=oc.message)
+                logging.log(level=oc.log_level, msg=oc.message)
                 continue
 
             # we currently only use override_managed_types,
