@@ -40,6 +40,7 @@ import reconcile.quay_membership
 import reconcile.gcr_mirror
 import reconcile.quay_mirror
 import reconcile.quay_repos
+import reconcile.quay_permissions
 import reconcile.ldap_users
 import reconcile.terraform_resources
 import reconcile.terraform_users
@@ -881,6 +882,12 @@ def quay_mirror(ctx):
 @click.pass_context
 def quay_repos(ctx):
     run_integration(reconcile.quay_repos, ctx.obj)
+
+
+@integration.command()
+@click.pass_context
+def quay_permissions(ctx):
+    run_integration(reconcile.quay_permissions, ctx.obj)
 
 
 @integration.command()

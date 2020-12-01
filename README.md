@@ -61,6 +61,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-mirror`: Mirrors external images into Quay.
 - `quay-repos`: Creates and Manages Quay Repos.
+- `quay-permissions`: Manage Quay Repos permissions.
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `slack-cluster-usergroups`: Manage Slack User Groups (channels and users) for OpenShift users notifications.
 - `sql-query`: Runs SQL Queries against app-interface RDS resources.

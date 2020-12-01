@@ -193,3 +193,21 @@ class QuayApi(object):
         r = requests.post(url, json=params, headers=self.auth_header)
         if not r.ok:
             raise RequestsException(r)
+
+    def get_repo_team_permissions(self, repo_name, team_name):
+        url = f"{self.API_URL}/repository/{self.organization}/" +\
+              f"{repo_name}/permissions/team/{team_name}"
+        r = requests.get(url, headers=self.auth_header)
+        if not r.ok:
+            # the API returns 400 when there is no access
+            return None
+
+        return r.json().get('role') or None
+
+    def set_repo_team_permissions(self, repo_name, team_name, role):
+        url = f"{self.API_URL}/repository/{self.organization}/" +\
+              f"{repo_name}/permissions/team/{team_name}"
+        body = {'role': role}
+        r = requests.put(url, json=body, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
