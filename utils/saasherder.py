@@ -389,7 +389,11 @@ class SaasHerder():
         return images
 
     @staticmethod
-    def _check_image(image, image_patterns, image_auth, error_prefix):
+    @retry()
+    def _is_image_valid(image, image_auth):
+        return Image(image, **image_auth)
+
+    def _check_image(self, image, image_patterns, image_auth, error_prefix):
         error = False
         if image_patterns and \
                 not any(image.startswith(p) for p in image_patterns):
@@ -397,7 +401,7 @@ class SaasHerder():
             logging.error(
                 f"{error_prefix} Image is not in imagePatterns: {image}")
         try:
-            valid = Image(image, **image_auth)
+            valid = self._is_image_valid(image, image_auth)
             if not valid:
                 error = True
                 logging.error(
