@@ -56,8 +56,7 @@ def init_specs_to_fetch(ri, oc_map,
             cluster = namespace_info['cluster']['name']
             oc = oc_map.get(cluster)
             if not oc:
-                if oc.log_level == 'ERROR' or oc.log_level == 'CRITICAL' or \
-                                              oc.log_level == 'FATAL':
+                if oc.log_level >= logging.ERROR:
                     ri.register_error()
                 logging.log(level=getattr(logging, oc.log_level),
                             msg=oc.message)
@@ -108,10 +107,10 @@ def init_specs_to_fetch(ri, oc_map,
             cluster = cluster_info['name']
             oc = oc_map.get(cluster)
             if not oc:
-                if oc.log_level == 'ERROR' or oc.log_level == 'CRITICAL' or \
-                                              oc.log_level == 'FATAL':
+                if oc.log_level >= logging.ERROR:
                     ri.register_error()
-                logging.log(level=oc.log_level, msg=oc.message)
+                logging.log(level=getattr(logging, oc.log_level),
+                            msg=oc.message)
                 continue
 
             # we currently only use override_managed_types,
