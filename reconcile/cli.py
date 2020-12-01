@@ -71,8 +71,10 @@ import reconcile.aws_ecr_image_pull_secrets
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
 import reconcile.ocm_clusters
+import reconcile.ocm_external_configuration_labels
 import reconcile.ocm_machine_pools
 import reconcile.ocm_upgrade_scheduler
+import reconcile.ocm_addons
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.ocm_github_idp
 import reconcile.email_sender
@@ -993,6 +995,14 @@ def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded()
 @click.pass_context
+def ocm_external_configuration_labels(ctx, thread_pool_size):
+    run_integration(reconcile.ocm_external_configuration_labels, ctx.obj,
+                    thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
 def ocm_machine_pools(ctx, thread_pool_size):
     run_integration(reconcile.ocm_machine_pools, ctx.obj, thread_pool_size)
 
@@ -1002,6 +1012,14 @@ def ocm_machine_pools(ctx, thread_pool_size):
 @click.pass_context
 def ocm_upgrade_scheduler(ctx, thread_pool_size):
     run_integration(reconcile.ocm_upgrade_scheduler, ctx.obj,
+                    thread_pool_size)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def ocm_addons(ctx, thread_pool_size):
+    run_integration(reconcile.ocm_addons, ctx.obj,
                     thread_pool_size)
 
 

@@ -2,6 +2,7 @@ import time
 import requests
 import hvac
 import base64
+import logging
 
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
@@ -28,6 +29,12 @@ class VaultConnectionError(Exception):
 
 
 class _VaultClient:
+    """
+    A class representing a Vault client. Allows read/write operations.
+    The client caches read requests in-memory if the request is made
+    to a versioned KV engine (v2), since that includes both a path
+    and a version (no invalidation required).
+    """
     def __init__(self):
         config = get_config()
 
@@ -44,6 +51,7 @@ class _VaultClient:
                               pool_maxsize=100)
         session.mount('https://', adapter)
         self._client = hvac.Client(url=server, session=session)
+        self._cache = {}
 
         authenticated = False
         for i in range(0, 3):
@@ -75,6 +83,12 @@ class _VaultClient:
         return data
 
     def _read_all_v2(self, path, version):
+        cache_key = (path, version)
+        cache_value = self._cache.get(cache_key)
+        if cache_value is not None:
+            logging.debug('Vault v2 cache hit')
+            return cache_value
+
         path_split = path.split('/')
         mount_point = path_split[0]
         read_path = '/'.join(path_split[1:])
@@ -91,7 +105,10 @@ class _VaultClient:
         if secret is None or 'data' not in secret \
                 or 'data' not in secret['data']:
             raise SecretNotFound(path)
-        return secret['data']['data']
+
+        data = secret['data']['data']
+        self._cache[cache_key] = data
+        return data
 
     def _read_all_v1(self, path):
         secret = self._client.read(path)

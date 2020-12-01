@@ -29,6 +29,7 @@ class OCM(object):
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters()
+        self._init_addons()
 
     def _init_access_token(self):
         data = {
@@ -84,15 +85,17 @@ class OCM(object):
         }
         return ocm_spec
 
-    def create_cluster(self, name, cluster):
+    def create_cluster(self, name, cluster, dry_run):
         """
         Creates a cluster.
 
         :param name: name of the cluster
         :param cluster: a dictionary representing a cluster desired state
+        :param dry_run: do not execute for real
 
         :type name: string
         :type cluster: dict
+        :type dry_run: bool
         """
         api = f'/api/clusters_mgmt/v1/clusters'
         cluster_spec = cluster['spec']
@@ -137,7 +140,11 @@ class OCM(object):
             ocm_spec.setdefault('properties', {})
             ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
-        self._post(api, ocm_spec)
+        params = {}
+        if dry_run:
+            params['dryRun'] = 'true'
+
+        self._post(api, ocm_spec, params)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -336,6 +343,69 @@ class OCM(object):
         }
         self._post(api, payload)
 
+    def get_external_configuration_labels(self, cluster):
+        """Returns details of External Configurations
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = {}
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            key = item['key']
+            value = item['value']
+            results[key] = value
+
+        return results
+
+    def create_external_configuration_label(self, cluster, label):
+        """Creates a new External Configuration label
+
+        :param cluster: cluster name
+        :param label: key and value for new label
+
+        :type cluster: string
+        :type label: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        self._post(api, label)
+
+    def delete_external_configuration_labels(self, cluster, label):
+        """Deletes an existing External Configuration label
+
+        :param cluster: cluster name
+        :param label:  key and value of label to delete
+
+        :type cluster: string
+        :type label: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels'
+        items = self._get_json(api).get('items')
+        item = [item for item in items if label.items() <= item.items()]
+        if not item:
+            return
+        label_id = item[0]['id']
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'/external_configuration/labels/{label_id}'
+        self._delete(api)
+
     def get_machine_pools(self, cluster):
         """Returns a list of details of Machine Pools
 
@@ -489,7 +559,59 @@ class OCM(object):
 
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
-        api = '/api/managed-services-api/v1/kafkas?async=true'
+        api = '/api/managed-services-api/v1/kafkas'
+        params = {'async': 'true'}
+        self._post(api, data, params)
+
+    def _init_addons(self):
+        """Returns a list of Addons """
+        api = '/api/clusters_mgmt/v1/addons'
+        self.addons = self._get_json(api).get('items')
+
+    def get_addon(self, name):
+        for addon in self.addons:
+            resource_name = addon['resource_name']
+            if name == resource_name:
+                return addon
+        return None
+
+    def get_cluster_addons(self, cluster):
+        """Returns a list of Addons installed on a cluster
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            desired_keys = ['id']
+            result = {k: v for k, v in item.items() if k in desired_keys}
+            results.append(result)
+
+        return results
+
+    def install_addon(self, cluster, spec):
+        """ Installs an addon on a cluster
+
+        :param cluster: cluster name
+        :param spec: required information for installation
+
+        :type cluster: string
+        :type spec: dictionary ({'id': <addon_id>})
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        data = {'addon': spec}
         self._post(api, data)
 
     @retry(max_attempts=10)
@@ -498,13 +620,20 @@ class OCM(object):
         r.raise_for_status()
         return r.json()
 
-    def _post(self, api, data=None):
-        r = requests.post(f"{self.url}{api}", headers=self.headers, json=data)
+    def _post(self, api, data=None, params=None):
+        r = requests.post(
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params
+        )
         try:
             r.raise_for_status()
         except Exception as e:
             logging.error(r.text)
             raise e
+        if r.status_code == requests.codes.no_content:
+            return None
         return r.json()
 
     def _patch(self, api, data):

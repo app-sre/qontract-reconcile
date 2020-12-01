@@ -324,6 +324,9 @@ CLUSTERS_QUERY = """
       upgrade
       provision_shard_id
     }
+    externalConfiguration {
+      labels
+    }
     upgradePolicy {
       schedule_type
       schedule
@@ -400,6 +403,9 @@ CLUSTERS_QUERY = """
           }
         }
       }
+    }
+    addons {
+      name
     }
     automationToken {
       path
@@ -1000,6 +1006,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
     output
     schedule
     query
+    queries
   }
 }
 """
