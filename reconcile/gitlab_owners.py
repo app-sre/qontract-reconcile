@@ -32,8 +32,13 @@ class MRApproval:
         self.owners = owners
         self.dry_run = dry_run
 
-        top_commit = next(self.mr.commits())
-        self.top_commit_created_at = dateparser.parse(top_commit.created_at)
+        commits = self.mr.commits()
+        if len(commits) != 0:
+            top_commit = next(self.mr.commits())
+            self.top_commit_created_at = \
+                dateparser.parse(top_commit.created_at)
+        else:
+            self.top_commit_created_at = None
 
     def get_change_owners_map(self):
         """
@@ -173,6 +178,12 @@ def run(dry_run):
                                      merge_request=mr,
                                      owners=project_owners,
                                      dry_run=dry_run)
+
+            if mr_approval.top_commit_created_at is None:
+                _LOG.info([f'Project:{gitlab_cli.project.id} '
+                           f'Merge Request:{mr.iid} '
+                           f'- skipping'])
+                continue
 
             approval_status = mr_approval.get_approval_status()
             if approval_status['approved']:
