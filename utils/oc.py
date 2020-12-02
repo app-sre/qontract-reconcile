@@ -72,6 +72,8 @@ class OC(object):
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
+        # calling get_version to check if cluster is reachable
+        self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
             self.projects = [p['metadata']['name']
@@ -259,6 +261,10 @@ class OC(object):
         cmd = ['api-resources', '--no-headers']
         results = self._run(cmd).decode('utf-8').split('\n')
         return [r.split()[-1] for r in results]
+
+    def get_version(self):
+        cmd = ['version']
+        return self._run(cmd)
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
     def wait_for_job_running(self, namespace, name):
@@ -524,7 +530,10 @@ class OC_Map(object):
 
         automation_token = cluster_info.get('automationToken')
         if automation_token is None:
-            self.set_oc(cluster, False)
+            self.set_oc(cluster,
+                        OCLogMsg(log_level=logging.ERROR,
+                                 message=f"[{cluster}]"
+                                 " has no automation token"))
         else:
             server_url = cluster_info['serverUrl']
             secret_reader = SecretReader(settings=self.settings)
@@ -533,12 +542,17 @@ class OC_Map(object):
                 jump_host = cluster_info.get('jumpHost')
             else:
                 jump_host = None
-            self.set_oc(
-                cluster,
-                OC(server_url, token, jump_host,
-                   settings=self.settings,
-                   init_projects=self.init_projects,
-                   init_api_resources=self.init_api_resources))
+            try:
+                oc_client = OC(server_url, token, jump_host,
+                               settings=self.settings,
+                               init_projects=self.init_projects,
+                               init_api_resources=self.init_api_resources)
+                self.set_oc(cluster, oc_client)
+            except StatusCodeError:
+                self.set_oc(cluster,
+                            OCLogMsg(log_level=logging.ERROR,
+                                     message=f"[{cluster}]"
+                                     " is unreachable"))
 
     def set_oc(self, cluster, value):
         with self._lock:
@@ -561,7 +575,10 @@ class OC_Map(object):
         return False
 
     def get(self, cluster):
-        return self.oc_map.get(cluster, None)
+        return self.oc_map.get(cluster,
+                               OCLogMsg(log_level=logging.DEBUG,
+                                        message=f"[{cluster}]"
+                                        " cluster skipped"))
 
     def clusters(self):
         return [k for k, v in self.oc_map.items() if v]
@@ -570,3 +587,12 @@ class OC_Map(object):
         for oc in self.oc_map.values():
             if oc:
                 oc.cleanup()
+
+
+class OCLogMsg:
+    def __init__(self, log_level, message):
+        self.log_level = log_level
+        self.message = message
+
+    def __bool__(self):
+        return False
