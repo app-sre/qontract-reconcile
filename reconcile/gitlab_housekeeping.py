@@ -188,10 +188,13 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
 
             logging.info(['merge', gl.project.name, mr.iid])
             if not dry_run and merges < merge_limit:
-                mr.merge()
-                if rebase:
-                    return
-                merges += 1
+                try:
+                    mr.merge()
+                    if rebase:
+                        return
+                    merges += 1
+                except gitlab.exceptions.GitlabMRClosedError as e:
+                    logging.error('unable to merge {}: {}'.format(mr.iid, e))
 
 
 def run(dry_run, wait_for_pipeline):
