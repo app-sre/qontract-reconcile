@@ -3,6 +3,8 @@ import logging
 
 from dateutil import parser as dateparser
 
+import utils.threaded as threaded
+
 from reconcile import queries
 from utils.gitlab_api import GitLabApi
 from utils.gitlab_api import MRState
@@ -164,61 +166,66 @@ class MRApproval:
         return APPROVAL_LABEL in labels
 
 
-def run(dry_run):
+def act(repo, dry_run, instance, settings):
+    gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+    project_owners = RepoOwners(git_cli=gitlab_cli)
+
+    for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
+        mr_approval = MRApproval(gitlab_client=gitlab_cli,
+                                    merge_request=mr,
+                                    owners=project_owners,
+                                    dry_run=dry_run)
+
+        if mr_approval.top_commit_created_at is None:
+            _LOG.info([f'Project:{gitlab_cli.project.id} '
+                        f'Merge Request:{mr.iid} '
+                        f'- skipping'])
+            continue
+
+        approval_status = mr_approval.get_approval_status()
+        if approval_status['approved']:
+            if mr_approval.has_approval_label():
+                _LOG.info([f'Project:{gitlab_cli.project.id} '
+                            f'Merge Request:{mr.iid} '
+                            f'- already approved'])
+                continue
+            _LOG.info([f'Project:{gitlab_cli.project.id} '
+                        f'Merge Request:{mr.iid} '
+                        f'- approving now'])
+            if not dry_run:
+                gitlab_cli.add_label_to_merge_request(mr.iid,
+                                                        APPROVAL_LABEL)
+            continue
+
+        if not dry_run:
+            if mr_approval.has_approval_label():
+                _LOG.info([f'Project:{gitlab_cli.project.id} '
+                            f'Merge Request:{mr.iid} '
+                            f'- removing approval'])
+                gitlab_cli.remove_label_from_merge_request(mr.iid,
+                                                            APPROVAL_LABEL)
+
+        if approval_status['report'] is not None:
+            _LOG.info([f'Project:{gitlab_cli.project.id} '
+                        f'Merge Request:{mr.iid} '
+                        f'- publishing approval report'])
+
+            if not dry_run:
+                gitlab_cli.remove_label_from_merge_request(mr.iid,
+                                                            APPROVAL_LABEL)
+                mr.notes.create({'body': approval_status['report']})
+            continue
+
+        _LOG.info([f'Project:{gitlab_cli.project.id} '
+                    f'Merge Request:{mr.iid} '
+                    f'- not fully approved'])
+
+
+def run(dry_run, thread_pool_size=10):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_owner(server=instance['url'])
-
-    for repo in repos:
-        gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
-        project_owners = RepoOwners(git_cli=gitlab_cli)
-
-        for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
-            mr_approval = MRApproval(gitlab_client=gitlab_cli,
-                                     merge_request=mr,
-                                     owners=project_owners,
-                                     dry_run=dry_run)
-
-            if mr_approval.top_commit_created_at is None:
-                _LOG.info([f'Project:{gitlab_cli.project.id} '
-                           f'Merge Request:{mr.iid} '
-                           f'- skipping'])
-                continue
-
-            approval_status = mr_approval.get_approval_status()
-            if approval_status['approved']:
-                if mr_approval.has_approval_label():
-                    _LOG.info([f'Project:{gitlab_cli.project.id} '
-                               f'Merge Request:{mr.iid} '
-                               f'- already approved'])
-                    continue
-                _LOG.info([f'Project:{gitlab_cli.project.id} '
-                           f'Merge Request:{mr.iid} '
-                           f'- approving now'])
-                if not dry_run:
-                    gitlab_cli.add_label_to_merge_request(mr.iid,
-                                                          APPROVAL_LABEL)
-                continue
-
-            if not dry_run:
-                if mr_approval.has_approval_label():
-                    _LOG.info([f'Project:{gitlab_cli.project.id} '
-                               f'Merge Request:{mr.iid} '
-                               f'- removing approval'])
-                    gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                               APPROVAL_LABEL)
-
-            if approval_status['report'] is not None:
-                _LOG.info([f'Project:{gitlab_cli.project.id} '
-                           f'Merge Request:{mr.iid} '
-                           f'- publishing approval report'])
-
-                if not dry_run:
-                    gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                               APPROVAL_LABEL)
-                    mr.notes.create({'body': approval_status['report']})
-                continue
-
-            _LOG.info([f'Project:{gitlab_cli.project.id} '
-                       f'Merge Request:{mr.iid} '
-                       f'- not fully approved'])
+    threaded.run(act, repos, thread_pool_size,
+                 dry_run=dry_run,
+                 instance=instance,
+                 settings=settings)

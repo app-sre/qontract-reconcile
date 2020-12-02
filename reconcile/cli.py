@@ -1078,9 +1078,10 @@ def sql_query(ctx, enable_deletion):
 
 
 @integration.command()
+@threaded()
 @click.pass_context
-def gitlab_owners(ctx):
-    run_integration(reconcile.gitlab_owners, ctx.obj)
+def gitlab_owners(ctx, thread_pool_size):
+    run_integration(reconcile.gitlab_owners, ctx.obj, thread_pool_size)
 
 
 @integration.command()
