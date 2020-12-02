@@ -35,8 +35,8 @@ class MRApproval:
         self.dry_run = dry_run
 
         commits = self.mr.commits()
-        if len(commits) != 0:
-            top_commit = next(self.mr.commits())
+        if commits:
+            top_commit = next(commits)
             self.top_commit_created_at = \
                 dateparser.parse(top_commit.created_at)
         else:
