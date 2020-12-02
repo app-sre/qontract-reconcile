@@ -3,6 +3,7 @@ import semver
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
+
 QONTRACT_INTEGRATION = 'openshift_resources'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 3)
 

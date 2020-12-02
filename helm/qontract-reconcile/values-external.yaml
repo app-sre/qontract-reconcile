@@ -283,7 +283,7 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     cloudwatch: true
-  shards: 3
+  shards: 5
 - name: openshift-routes
   resources:
     requests:

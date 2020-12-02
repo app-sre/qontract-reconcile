@@ -4,6 +4,7 @@ import logging
 import tempfile
 
 import utils.threaded as threaded
+from utils.qrtracking import elapsed_seconds_from_commit_metric
 
 from subprocess import Popen, PIPE
 from datetime import datetime
@@ -160,14 +161,17 @@ class OC(object):
                'kubectl.kubernetes.io/last-applied-configuration-']
         self._run(cmd)
 
+    @elapsed_seconds_from_commit_metric
     def apply(self, namespace, resource):
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource, apply=True)
 
+    @elapsed_seconds_from_commit_metric
     def replace(self, namespace, resource):
         cmd = ['replace', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource, apply=True)
 
+    @elapsed_seconds_from_commit_metric
     def delete(self, namespace, kind, name):
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
