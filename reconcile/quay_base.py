@@ -3,6 +3,7 @@ import reconcile.queries as queries
 
 from utils.quay_api import QuayApi
 
+
 def get_quay_api_store():
     """
     Returns a dictionary with a key for each Quay organization
@@ -19,7 +20,7 @@ def get_quay_api_store():
         token = secret_reader.read(org_data['automationToken'])
         store[name] = {
             'api': QuayApi(token, name, base_url=server_url),
-            'teams': org_data.get(managedTeams)
+            'teams': org_data.get('managedTeams')
         }
 
     return store
