@@ -76,10 +76,12 @@ def run(dry_run):
                     role = team['role']
                     for permission in permissions:
                         if permission['service'] != 'quay-membership':
-                            logging.warning('wrong service kind')
+                            logging.warning('wrong service kind, ' +
+                                            'should be quay-membership')
                             continue
                         if permission['org'] != org_name:
-                            logging.warning('wrong org')
+                            logging.warning('wrong org, ' +
+                                            f'should be {org_name}')
                             continue
                         team_name = permission['team']
                         current_role = \
