@@ -191,6 +191,20 @@ class JenkinsApi(object):
 
         res.raise_for_status()
 
+    def get_nodes(self):
+        api_url = "/computer"
+
+        return self._get_json(api_url)['computer']
+
     @staticmethod
     def timestamp_seconds(timestamp):
         return int(timestamp / 1000)
+
+    def _get_json(self, api_url):
+        res = requests.get(
+            f"{self.url}/{api_url}/api/json",
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+        res.raise_for_status()
+        return res.json()

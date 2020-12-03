@@ -49,6 +49,7 @@ import reconcile.github_repo_invites
 import reconcile.github_repo_permissions_validator
 import reconcile.jenkins_roles
 import reconcile.jenkins_plugins
+import reconcile.jenkins_nodes
 import reconcile.jenkins_job_builder
 import reconcile.jenkins_job_cleaner
 import reconcile.jenkins_webhooks
@@ -511,6 +512,12 @@ def jenkins_roles(ctx):
 @click.pass_context
 def jenkins_plugins(ctx):
     run_integration(reconcile.jenkins_plugins, ctx.obj)
+
+
+@integration.command()
+@click.pass_context
+def jenkins_nodes(ctx):
+    run_integration(reconcile.jenkins_nodes, ctx.obj)
 
 
 @integration.command()
