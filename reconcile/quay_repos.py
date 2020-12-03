@@ -2,14 +2,13 @@ import logging
 import sys
 
 import utils.gql as gql
-from utils.secret_reader import SecretReader
-import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
 
 from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner)
+from reconcile.quay_base import get_quay_api_store
 
 QUAY_ORG_CATALOG_QUERY = """
 {
@@ -190,23 +189,6 @@ class RunnerAction(object):
                 quay_api.repo_delete(repo)
 
         return action
-
-
-def get_quay_api_store():
-    store = {}
-
-    gqlapi = gql.get_api()
-    result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings
-                                 )
-    for org_data in result['quay_orgs']:
-        name = org_data['name']
-        server_url = org_data.get('serverUrl')
-        token = secret_reader.read(org_data['automationToken'])
-        store[name] = QuayApi(token, name, base_url=server_url)
-
-    return store
 
 
 def run(dry_run):
