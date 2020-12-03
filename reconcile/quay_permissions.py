@@ -1,7 +1,9 @@
+import sys
 import logging
 
 import utils.gql as gql
 
+from reconcile.status import ExitCodes
 from reconcile.quay_base import get_quay_api_store
 
 
@@ -42,6 +44,7 @@ def run(dry_run):
     gqlapi = gql.get_api()
     apps = gqlapi.query(QUAY_REPOS_QUERY)['apps']
     quay_api_store = get_quay_api_store()
+    error = False
     for app in apps:
         quay_repo_configs = app.get('quayRepos')
         if not quay_repo_configs:
@@ -76,5 +79,17 @@ def run(dry_run):
                                 ['update_role', org_name, repo_name,
                                  team_name, role])
                             if not dry_run:
-                                quay_api.set_repo_team_permissions(
-                                    repo_name, team_name, role)
+                                try:
+                                    quay_api.set_repo_team_permissions(
+                                        repo_name, team_name, role)
+                                except Exception as e:
+                                    error = True
+                                    logging.error(
+                                        'could not set repo permissions: ' +
+                                        f'repo name: {repo_name}, ' +
+                                        f'team name: {team_name}. ' +
+                                        f'details: {str(e)}'
+                                    )
+
+    if error:
+        sys.exit(ExitCodes.ERROR)
