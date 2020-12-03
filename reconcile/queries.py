@@ -844,6 +844,29 @@ def get_repos_gitlab_jira(server=''):
             and c.get('jira')]
 
 
+QUAY_ORGS_QUERY = """
+{
+  quay_orgs: quay_orgs_v1 {
+    name
+    serverUrl
+    managedTeams
+    automationToken {
+      path
+      field
+      format
+      version
+    }
+  }
+}
+"""
+
+
+def get_quay_orgs():
+    """ Returns all Quay orgs. """
+    gqlapi = gql.get_api()
+    return gqlapi.query(QUAY_ORGS_QUERY)['quay_orgs']
+
+
 USERS_QUERY = """
 {
   users: users_v1 {

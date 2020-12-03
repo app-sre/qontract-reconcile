@@ -2,29 +2,13 @@ import logging
 import sys
 
 import utils.gql as gql
-from utils.secret_reader import SecretReader
-import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
 
-from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner)
+from reconcile.quay_base import get_quay_api_store
 
-QUAY_ORG_CATALOG_QUERY = """
-{
-  quay_orgs: quay_orgs_v1 {
-    name
-    serverUrl
-    automationToken {
-      path
-      field
-      format
-      version
-    }
-  }
-}
-"""
 
 QUAY_REPOS_QUERY = """
 {
@@ -49,7 +33,8 @@ QONTRACT_INTEGRATION = 'quay-repos'
 def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
-    for name, quay_api in quay_api_store.items():
+    for name, data in quay_api_store.items():
+        quay_api = data['api']
         for repo in quay_api.list_images():
             params = {
                 'org': name,
@@ -121,7 +106,7 @@ class RunnerAction(object):
             org = params["org"]
             repo = params["repo"]
 
-            quay_api = self.quay_api_store[org]
+            quay_api = self.quay_api_store[org]['api']
 
             params_hash = {
                 'org': org,
@@ -171,7 +156,7 @@ class RunnerAction(object):
             logging.info([label, org, repo, description, public])
 
             if not self.dry_run:
-                quay_api = self.quay_api_store[org]
+                quay_api = self.quay_api_store[org]['api']
                 quay_api.repo_create(repo, description, public)
 
         return action
@@ -186,27 +171,10 @@ class RunnerAction(object):
             logging.info([label, org, repo])
 
             if not self.dry_run:
-                quay_api = self.quay_api_store[org]
+                quay_api = self.quay_api_store[org]['api']
                 quay_api.repo_delete(repo)
 
         return action
-
-
-def get_quay_api_store():
-    store = {}
-
-    gqlapi = gql.get_api()
-    result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings
-                                 )
-    for org_data in result['quay_orgs']:
-        name = org_data['name']
-        server_url = org_data.get('serverUrl')
-        token = secret_reader.read(org_data['automationToken'])
-        store[name] = QuayApi(token, name, base_url=server_url)
-
-    return store
 
 
 def run(dry_run):

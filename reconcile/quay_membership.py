@@ -1,29 +1,12 @@
 import logging
 
 import utils.gql as gql
-from utils.secret_reader import SecretReader
-import reconcile.queries as queries
 
-from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner,
                                    RunnerException)
+from reconcile.quay_base import get_quay_api_store
 
-QUAY_ORG_CATALOG_QUERY = """
-{
-  quay_orgs: quay_orgs_v1 {
-    name
-    managedTeams
-    serverUrl
-    automationToken {
-      path
-      field
-      format
-      version
-    }
-  }
-}
-"""
 
 QUAY_ORG_QUERY = """
 {
@@ -55,8 +38,12 @@ def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
     for name, org_data in quay_api_store.items():
-        for team, quay_api in org_data.items():
-            members = quay_api.list_team_members()
+        quay_api = org_data['api']
+        teams = org_data['teams']
+        if not teams:
+            continue
+        for team in teams:
+            members = quay_api.list_team_members(team)
             state.add({
                 'service': 'quay-membership',
                 'org': name,
@@ -108,7 +95,7 @@ class RunnerAction(object):
             org = params["org"]
             team = params["team"]
 
-            quay_api = self.quay_api_store[org][team]
+            quay_api = self.quay_api_store[org]['api']
             for member in items:
                 logging.info([label, member, org, team])
                 user_exists = quay_api.user_exists(member)
@@ -118,7 +105,7 @@ class RunnerAction(object):
                     ).format(member))
                     continue
                 if not self.dry_run:
-                    quay_api.add_user_team(member)
+                    quay_api.add_user_to_team(member, team)
         return action
 
     def del_from_team(self):
@@ -132,33 +119,12 @@ class RunnerAction(object):
                 for member in items:
                     logging.info([label, member, org, team])
             else:
-                quay_api = self.quay_api_store[org][team]
+                quay_api = self.quay_api_store[org]['api']
                 for member in items:
                     logging.info([label, member, org, team])
-                    quay_api.remove_user(member)
+                    quay_api.remove_user_from_team(member, team)
 
         return action
-
-
-def get_quay_api_store():
-    store = {}
-
-    gqlapi = gql.get_api()
-    result = gqlapi.query(QUAY_ORG_CATALOG_QUERY)
-    settings = queries.get_app_interface_settings()
-    secret_reader = SecretReader(settings=settings)
-    for org_data in result['quay_orgs']:
-        name = org_data['name']
-        server_url = org_data.get('serverUrl')
-        token = secret_reader.read(org_data['automationToken'])
-        managed_teams = org_data.get('managedTeams')
-
-        store[name] = {}
-        for team in managed_teams:
-            store[name][team] = QuayApi(token, name, team,
-                                        base_url=server_url)
-
-    return store
 
 
 def run(dry_run):
