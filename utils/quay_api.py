@@ -192,8 +192,12 @@ class QuayApi(object):
               f"{repo_name}/permissions/team/{team_name}"
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
-            # the API returns 400 when there is no access
-            return None
+            message = r.json()['message']
+            expected_message = "Team does not have permission for repo."
+            if message == expected_message:
+                return None
+
+            raise RequestsException(r)
 
         return r.json().get('role') or None
 
