@@ -48,7 +48,7 @@ def run(dry_run):
             continue
         for quay_repo_config in quay_repo_configs:
             org_name = quay_repo_config['org']['name']
-            quay_api = quay_api_store[org_name]
+            quay_api = quay_api_store[org_name]['api']
             teams = quay_repo_config.get('teams')
             if not teams:
                 continue

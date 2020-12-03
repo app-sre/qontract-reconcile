@@ -48,7 +48,8 @@ QONTRACT_INTEGRATION = 'quay-repos'
 def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
-    for name, quay_api in quay_api_store.items():
+    for name, data in quay_api_store.items():
+        quay_api = data['api']
         for repo in quay_api.list_images():
             params = {
                 'org': name,
@@ -120,7 +121,7 @@ class RunnerAction(object):
             org = params["org"]
             repo = params["repo"]
 
-            quay_api = self.quay_api_store[org]
+            quay_api = self.quay_api_store[org]['api']
 
             params_hash = {
                 'org': org,
@@ -170,7 +171,7 @@ class RunnerAction(object):
             logging.info([label, org, repo, description, public])
 
             if not self.dry_run:
-                quay_api = self.quay_api_store[org]
+                quay_api = self.quay_api_store[org]['api']
                 quay_api.repo_create(repo, description, public)
 
         return action
@@ -185,7 +186,7 @@ class RunnerAction(object):
             logging.info([label, org, repo])
 
             if not self.dry_run:
-                quay_api = self.quay_api_store[org]
+                quay_api = self.quay_api_store[org]['api']
                 quay_api.repo_delete(repo)
 
         return action
