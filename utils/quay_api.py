@@ -77,7 +77,7 @@ class QuayApi(object):
         return True
 
     def add_user_to_team(self, user, team):
-        if user in self.list_team_members(cache=True):
+        if user in self.list_team_members(team, cache=True):
             return True
 
         url = "{}/organization/{}/team/{}/members/{}".format(
@@ -187,9 +187,9 @@ class QuayApi(object):
         if not r.ok:
             raise RequestsException(r)
 
-    def get_repo_team_permissions(self, repo_name, team_name):
+    def get_repo_team_permissions(self, repo_name, team):
         url = f"{self.API_URL}/repository/{self.organization}/" +\
-              f"{repo_name}/permissions/team/{team_name}"
+              f"{repo_name}/permissions/team/{team}"
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
             message = r.json()['message']
@@ -201,9 +201,9 @@ class QuayApi(object):
 
         return r.json().get('role') or None
 
-    def set_repo_team_permissions(self, repo_name, team_name, role):
+    def set_repo_team_permissions(self, repo_name, team, role):
         url = f"{self.API_URL}/repository/{self.organization}/" +\
-              f"{repo_name}/permissions/team/{team_name}"
+              f"{repo_name}/permissions/team/{team}"
         body = {'role': role}
         r = requests.put(url, json=body, headers=self.auth_header)
         if not r.ok:

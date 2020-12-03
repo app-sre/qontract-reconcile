@@ -45,8 +45,6 @@ class TestQuayMembership(object):
                 'api': QuayApiMock(quay_org_teams[name]),
                 'teams': org_data['managedTeams']
             }
-            # for team in org_data['managedTeams']:
-            #     store[name][team] = QuayApiMock(quay_org_teams[name][team])
 
         current_state = quay_membership.fetch_current_state(store)
         current_state = current_state.dump()
