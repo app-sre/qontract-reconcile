@@ -23,8 +23,8 @@ class QuayApiMock(object):
     def __init__(self, list_team_members_response):
         self.list_team_members_response = list_team_members_response
 
-    def list_team_members(self):
-        return self.list_team_members_response
+    def list_team_members(self, team):
+        return self.list_team_members_response[team]
 
 
 class TestQuayMembership(object):
@@ -41,9 +41,12 @@ class TestQuayMembership(object):
         store = {}
         for org_data in quay_org_catalog:
             name = org_data['name']
-            store[name] = {}
-            for team in org_data['managedTeams']:
-                store[name][team] = QuayApiMock(quay_org_teams[name][team])
+            store[name] = {
+                'api': QuayApiMock(quay_org_teams[name]),
+                'teams': org_data['managedTeams']
+            }
+            # for team in org_data['managedTeams']:
+            #     store[name][team] = QuayApiMock(quay_org_teams[name][team])
 
         current_state = quay_membership.fetch_current_state(store)
         current_state = current_state.dump()
