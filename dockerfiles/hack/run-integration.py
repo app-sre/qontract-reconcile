@@ -31,15 +31,15 @@ LOG = logging.getLogger(__name__)
 # Messages to stdout
 STREAM_HANDLER = logging.StreamHandler(sys.stdout)
 STREAM_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
-LOG.addHandler(STREAM_HANDLER)
 
 # Messages to the log file
 if LOG_FILE is not None:
     FILE_HANDLER = logging.FileHandler(LOG_FILE)
     FILE_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
-    LOG.addHandler(FILE_HANDLER)
 
-LOG.setLevel(logging.INFO)
+# Setting up the root logger
+logging.basicConfig(level=logging.INFO,
+                    handlers=(STREAM_HANDLER, FILE_HANDLER))
 
 
 def build_args():
