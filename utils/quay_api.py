@@ -11,24 +11,22 @@ class QuayApi(object):
     API_URL = 'https://quay.io/api/v1'
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, team=None, base_url=None):
+    def __init__(self, token, organization, base_url=None):
         self.token = token
         self.organization = organization
-        self.team = team
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
-        self.team_members = None
+        self.team_members = {}
         if base_url:
             self.API_URL = f"https://{base_url}/api/v1"
 
-    def list_team_members(self, **kwargs):
-        if self.team is None:
-            raise('Must define "team"')
-
-        if kwargs.get("cache") and self.team_members:
-            return self.team_members
+    def list_team_members(self, team, **kwargs):
+        if kwargs.get("cache"):
+            cache_members = self.team_members.get(team)
+            if cache_members:
+                return cache_members
 
         url = "{}/organization/{}/team/{}/members?includePending=true".format(
-            self.API_URL, self.organization, self.team)
+            self.API_URL, self.organization, team)
 
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
@@ -41,9 +39,10 @@ class QuayApi(object):
         for member in body[u'members']:
             members.add(member[u'name'])
 
-        self.team_members = list(members)
+        members_list = list(members)
+        self.team_members[team] = members_list
 
-        return self.team_members
+        return members_list
 
     def user_exists(self, user):
         url = "{}/users/{}".format(self.API_URL, user)
@@ -52,13 +51,10 @@ class QuayApi(object):
             return False
         return True
 
-    def remove_user(self, user):
-        if self.team is None:
-            raise('Must define "team"')
-
+    def remove_user_from_team(self, user, team):
         url_team = "{}/organization/{}/team/{}/members/{}".format(
             self.API_URL, self.organization,
-            self.team, user
+            team, user
         )
 
         r = requests.delete(url_team, headers=self.auth_header)
@@ -66,7 +62,7 @@ class QuayApi(object):
             message = r.json()['message']
 
             expected_message = "User {} does not belong to team {}".format(
-                user, self.team)
+                user, team)
 
             if message != expected_message:
                 raise RequestsException(r)
@@ -80,15 +76,12 @@ class QuayApi(object):
 
         return True
 
-    def add_user_team(self, user):
-        if self.team is None:
-            raise('Must define "team"')
-
+    def add_user_to_team(self, user, team):
         if user in self.list_team_members(cache=True):
             return True
 
         url = "{}/organization/{}/team/{}/members/{}".format(
-            self.API_URL, self.organization, self.team, user)
+            self.API_URL, self.organization, team, user)
         r = requests.put(url, headers=self.auth_header)
         if not r.ok:
             raise RequestsException(r)
