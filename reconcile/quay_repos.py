@@ -5,25 +5,10 @@ import utils.gql as gql
 
 from reconcile.status import ExitCodes
 
-from utils.quay_api import QuayApi
 from utils.aggregated_list import (AggregatedList,
                                    AggregatedDiffRunner)
 from reconcile.quay_base import get_quay_api_store
 
-QUAY_ORG_CATALOG_QUERY = """
-{
-  quay_orgs: quay_orgs_v1 {
-    name
-    serverUrl
-    automationToken {
-      path
-      field
-      format
-      version
-    }
-  }
-}
-"""
 
 QUAY_REPOS_QUERY = """
 {
