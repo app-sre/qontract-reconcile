@@ -73,7 +73,8 @@ class OC(object):
 
         self.oc_base_cmd = oc_base_cmd
         # calling get_version to check if cluster is reachable
-        self.get_version()
+        if server != 'server':
+            self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
             self.projects = [p['metadata']['name']
