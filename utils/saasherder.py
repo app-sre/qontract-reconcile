@@ -325,7 +325,7 @@ class SaasHerder():
                                 get_commit_sha_options)
                             consolidated_parameters['IMAGE_TAG'] = image_tag
 
-            oc = OC('server', 'token')
+            oc = OC('server', 'token', local=True)
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:
