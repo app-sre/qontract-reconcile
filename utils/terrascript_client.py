@@ -29,7 +29,6 @@ from terrascript.aws.d import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_s3_bucket, aws_iam_user,
                                aws_s3_bucket_notification,
-                               aws_s3_bucket_policy,
                                aws_iam_access_key, aws_iam_user_policy,
                                aws_iam_group, aws_iam_group_policy_attachment,
                                aws_iam_user_group_membership,
