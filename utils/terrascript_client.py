@@ -1092,7 +1092,7 @@ class TerrascriptClient(object):
         if bucket_policy:
             values = {
                 'bucket': identifier,
-                'policy': json.dumps(bucket_policy, sort_keys=True),
+                'policy': bucket_policy,
                 'depends_on': [bucket_tf_resource]
             }
             bucket_policy_tf_resource = \
