@@ -58,7 +58,8 @@ class JobNotRunningError(Exception):
 
 class OC(object):
     def __init__(self, server, token, jh=None, settings=None,
-                 init_projects=False, init_api_resources=False):
+                 init_projects=False, init_api_resources=False,
+                 local=False):
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -73,7 +74,8 @@ class OC(object):
 
         self.oc_base_cmd = oc_base_cmd
         # calling get_version to check if cluster is reachable
-        self.get_version()
+        if not local:
+            self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
             self.projects = [p['metadata']['name']
