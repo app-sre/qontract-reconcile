@@ -43,6 +43,7 @@ provider
   overrides
   sqs_identifier
   s3_events
+  bucket_policy
   output_resource_name
   storage_class
 }

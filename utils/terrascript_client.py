@@ -1087,6 +1087,17 @@ class TerrascriptClient(object):
                 sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
 
+        bucket_policy = common_values['bucket_policy']
+        if bucket_policy:
+            values = {
+                'bucket': identifier,
+                'policy': bucket_policy,
+                'depends_on': [bucket_tf_resource]
+            }
+            bucket_policy_tf_resource = \
+                aws_s3_bucket_policy(identifier, **values)
+            tf_resources.append(bucket_policy_tf_resource)
+
         # iam resources
         # Terraform resource reference:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
@@ -2242,6 +2253,7 @@ class TerrascriptClient(object):
         parameter_group = resource.get('parameter_group', None)
         sqs_identifier = resource.get('sqs_identifier', None)
         s3_events = resource.get('s3_events', None)
+        bucket_policy = resource.get('bucket_policy', None)
         sc = resource.get('storage_class', None)
         enhanced_monitoring = resource.get('enhanced_monitoring', None)
         replica_source = resource.get('replica_source', None)
@@ -2268,6 +2280,7 @@ class TerrascriptClient(object):
         values['parameter_group'] = parameter_group
         values['sqs_identifier'] = sqs_identifier
         values['s3_events'] = s3_events
+        values['bucket_policy'] = bucket_policy
         values['storage_class'] = sc
         values['enhanced_monitoring'] = enhanced_monitoring
         values['replica_source'] = replica_source
