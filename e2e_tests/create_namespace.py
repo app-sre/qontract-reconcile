@@ -15,7 +15,7 @@ def test_cluster(cluster, oc_map, ns_under_test):
     oc = oc_map.get(cluster)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
-        return
+        return None
     logging.info("[{}] Creating namespace '{}'".format(
         cluster, ns_under_test
     ))

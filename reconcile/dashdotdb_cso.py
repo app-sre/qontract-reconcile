@@ -65,7 +65,7 @@ class DashdotdbCSO:
         oc = oc_map.get(cluster)
         if not oc:
             LOG.log(level=oc.log_level, msg=oc.message)
-            return
+            return None
 
         try:
             imagemanifestvuln = oc.get_all('imagemanifestvuln',

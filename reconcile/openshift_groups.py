@@ -46,7 +46,7 @@ def get_cluster_state(group_items, oc_map):
     oc = oc_map.get(cluster)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
-        return
+        return None
     group_name = group_items["group_name"]
     group = oc.get_group_if_exists(group_name)
     if group is None:

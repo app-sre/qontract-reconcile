@@ -106,7 +106,7 @@ def create_new_project(spec, oc_map):
     oc = oc_map.get(cluster).new_project(namespace)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
-        return
+        return None
 
 
 @defer
