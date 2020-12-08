@@ -11,6 +11,9 @@ QONTRACT_E2E_TEST = 'default-project-labels'
 
 def test_cluster(cluster, oc_map, pattern):
     oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return
     logging.info("[{}] validating default Project labels".format(cluster))
 
     projects = [p for p in oc.get_all('Project')['items']

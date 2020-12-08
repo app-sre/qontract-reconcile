@@ -848,6 +848,7 @@ class TerrascriptClient(object):
                 return None
             oc = self.oc_map.get(cluster)
             if not oc:
+                logging.log(level=oc.log_level, msg=oc.message)
                 return None
             return oc.get(namespace, 'Secret', resource_name)
         except StatusCodeError as e:
