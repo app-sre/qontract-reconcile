@@ -31,7 +31,7 @@ class DashdotdbDVO:
         self.prom_user = secret_content['prom_username']
         self.prom_pass = secret_content['prom_password']
 
-### send metrics to dashdot
+# send metrics to dashdot
     def _post(self, deploymentvalidation):
         if deploymentvalidation is None:
             return None
@@ -54,22 +54,23 @@ class DashdotdbDVO:
         LOG.info('DV: cluster %s synced', cluster)
         return response
 
-### now just a simple json fetch, does a basic blob fetch
-### we can re-parse this in a future update, probably
-     def promql(url, query, auth=None):
-     """
-     Run an instant-query on the prometheus instance.
-     The returned structure is documented here:
-     https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-     :param url: base prometheus url (not the API endpoint).
-     :type url: string
-     :param query: this is a second value
-     :type query: string
-     :param auth: auth object
-     :type auth: requests.auth
-     :return: structure with the metrics
-     :rtype: dictionary
-     """
+# now just a simple json fetch, does a basic blob fetch
+# we can re-parse this in a future update, probably
+    def promql(url, query, auth=None):
+
+"""
+Run an instant-query on the prometheus instance.
+The returned structure is documented here:
+https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+:param url: base prometheus url (not the API endpoint).
+:type url: string
+:param query: this is a second value
+:type query: string
+:param auth: auth object
+:type auth: requests.auth
+:return: structure with the metrics
+:rtype: dictionary
+"""
         url = os.path.join(url, 'api/v1/query')
         if auth is None:
            auth = {}
@@ -81,13 +82,13 @@ class DashdotdbDVO:
         #return response['data']['result']
         return response
 
-### fetch data from prometheus
-    @staticmethod
+# fetch data from prometheus
+@staticmethod
     def _get_deploymentvalidation(cluster, validation, oc_map):
-## having issues getting dynamic list of metrics, timing out or occasionally
-## not being readable
-## uri: /api/v1/label/__name__/values
-## so for the moment, just making this static until i get that working right
+# having issues getting dynamic list of metrics, timing out or occasionally
+# not being readable
+# uri: /api/v1/label/__name__/values
+# so for the moment, just making this static until i get that working right
         LOG.info('DV: processing %s, %s', cluster, validation)
         oc_cli = oc_map.get(cluster)
         try:
@@ -107,7 +108,7 @@ class DashdotdbDVO:
                 'data': deploymentvalidation}
 
 
-### main run
+# main run
     def run(self):
         clusters = queries.get_clusters()
 
