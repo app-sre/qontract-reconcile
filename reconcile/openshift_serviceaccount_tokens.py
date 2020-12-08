@@ -1,6 +1,7 @@
 import sys
 import semver
 import base64
+import logging
 
 from utils.vault import VaultClient
 import reconcile.queries as queries
@@ -42,6 +43,11 @@ def fetch_desired_state(namespaces, ri, oc_map):
             sa_namespace_name = sa_namespace_info['name']
             sa_cluster_name = sa_namespace_info['cluster']['name']
             oc = oc_map.get(sa_cluster_name)
+            if not oc_map.get:
+                if oc.log_level >= logging.ERROR:
+                    ri.register_error()
+                logging.log(level=oc.log_level, msg=oc.message)
+                continue
             sa_token = oc.sa_get_token(sa_namespace_name, sa_name)
             oc_resource_name = \
                 f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
