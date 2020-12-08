@@ -69,7 +69,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
 
             if not desired_spec['spec'].get('id'):
-                clusters_updates[cluster_name]['cluster_id'] = \
+                clusters_updates[cluster_name]['id'] = \
                     current_spec['spec']['id']
 
             if not desired_spec['spec'].get('external_id'):
