@@ -241,7 +241,7 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
         logging.log(level=oc.log_level, msg=oc.message)
         return None
     if not dry_run:
-        oc_map.get(cluster).delete(namespace, resource_type, name)
+        oc.delete(namespace, resource_type, name)
 
 
 def check_unused_resource_types(ri):

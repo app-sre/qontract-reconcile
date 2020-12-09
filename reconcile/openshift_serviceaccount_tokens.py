@@ -43,7 +43,7 @@ def fetch_desired_state(namespaces, ri, oc_map):
             sa_namespace_name = sa_namespace_info['name']
             sa_cluster_name = sa_namespace_info['cluster']['name']
             oc = oc_map.get(sa_cluster_name)
-            if not oc_map.get:
+            if not oc:
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
                 logging.log(level=oc.log_level, msg=oc.message)

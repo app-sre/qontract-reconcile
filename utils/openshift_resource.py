@@ -411,7 +411,7 @@ class ResourceInventory(object):
                     (self._clusters[cluster][namespace][resource_type]
                         ['desired'])
             except KeyError:
-                return False
+                return None
             if name in desired:
                 raise ResourceKeyExistsError(name)
             desired[name] = value
@@ -423,7 +423,7 @@ class ResourceInventory(object):
                     (self._clusters[cluster][namespace][resource_type]
                         ['current'])
             except KeyError:
-                return False
+                return None
             current[name] = value
 
     def __iter__(self):
