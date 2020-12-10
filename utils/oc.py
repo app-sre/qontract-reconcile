@@ -209,6 +209,8 @@ class OC(object):
                 raise e
 
     def create_group(self, group):
+        if self.get_group_if_exists(group) is not None:
+            return
         cmd = ['adm', 'groups', 'new', group]
         self._run(cmd)
 
