@@ -44,6 +44,9 @@ def get_cluster_state(group_items, oc_map):
     results = []
     cluster = group_items["cluster"]
     oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return results
     group_name = group_items["group_name"]
     group = oc.get_group_if_exists(group_name)
     if group is None:
@@ -205,6 +208,9 @@ def act(diff, oc_map):
     user = diff['user']
     action = diff['action']
     oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
 
     if action == "create_group":
         oc.create_group(group)

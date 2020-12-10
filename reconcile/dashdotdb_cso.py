@@ -62,11 +62,14 @@ class DashdotdbCSO:
     @staticmethod
     def _get_imagemanifestvuln(cluster, oc_map):
         LOG.info('CSO: processing %s', cluster)
-        oc_cli = oc_map.get(cluster)
+        oc = oc_map.get(cluster)
+        if not oc:
+            LOG.log(level=oc.log_level, msg=oc.message)
+            return None
 
         try:
-            imagemanifestvuln = oc_cli.get_all('imagemanifestvuln',
-                                               all_namespaces=True)
+            imagemanifestvuln = oc.get_all('imagemanifestvuln',
+                                           all_namespaces=True)
         except StatusCodeError:
             LOG.info('CSO: not installed on %s', cluster)
             return None

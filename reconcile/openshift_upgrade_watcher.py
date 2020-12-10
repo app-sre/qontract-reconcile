@@ -36,6 +36,9 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
     now = datetime.utcnow()
     for cluster in oc_map.clusters():
         oc = oc_map.get(cluster)
+        if not oc:
+            logging.log(level=oc.log_level, msg=oc.message)
+            continue
         upgrade_config = oc.get(
             namespace='openshift-managed-upgrade-operator',
             kind='UpgradeConfig',

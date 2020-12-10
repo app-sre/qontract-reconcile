@@ -12,6 +12,9 @@ QONTRACT_E2E_TEST = 'default-network-policies'
 
 def test_cluster(cluster, oc_map, pattern):
     oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
     logging.info("[{}] validating default NetworkPolicies".format(cluster))
 
     projects = [p['metadata']['name']

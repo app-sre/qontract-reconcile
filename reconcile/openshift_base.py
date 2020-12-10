@@ -199,6 +199,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
     if not dry_run:
         annotated = resource.annotate()
         # skip if namespace does not exist (as it will soon)
@@ -233,8 +236,12 @@ def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
         logging.error('\'delete\' action is disabled due to previous errors.')
         return
 
+    oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
     if not dry_run:
-        oc_map.get(cluster).delete(namespace, resource_type, name)
+        oc.delete(namespace, resource_type, name)
 
 
 def check_unused_resource_types(ri):
@@ -398,6 +405,9 @@ def validate_data(oc_map, actions):
             logging.info(['validating', cluster, namespace, kind, name])
 
             oc = oc_map.get(cluster)
+            if not oc:
+                logging.log(level=oc.log_level, msg=oc.message)
+                continue
             resource = oc.get(namespace, kind, name=name)
             status = resource.get('status')
             if not status:
@@ -451,6 +461,9 @@ def follow_logs(oc_map, actions, io_dir):
             logging.info(['collecting', cluster, namespace, kind, name])
 
             oc = oc_map.get(cluster)
+            if not oc:
+                logging.log(level=oc.log_level, msg=oc.message)
+                continue
             oc.job_logs(namespace, name, follow=True, output=io_dir)
 
 

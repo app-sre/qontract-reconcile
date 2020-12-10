@@ -103,7 +103,11 @@ def create_new_project(spec, oc_map):
     cluster = spec['cluster']
     namespace = spec['namespace']
 
-    oc_map.get(cluster).new_project(namespace)
+    oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
+    oc.new_project(namespace)
 
 
 @defer

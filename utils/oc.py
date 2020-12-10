@@ -521,9 +521,9 @@ class OC_Map(object):
     def init_oc_client(self, cluster_info):
         cluster = cluster_info['name']
         if self.oc_map.get(cluster):
-            return
+            return None
         if self.cluster_disabled(cluster_info):
-            return
+            return None
         if self.internal is not None:
             # integration is executed with `--internal` or `--external`
             # filter out non matching clusters
