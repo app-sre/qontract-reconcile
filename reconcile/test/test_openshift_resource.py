@@ -3,8 +3,8 @@ from .fixtures import Fixtures
 
 import semver
 
-from utils.openshift_resource import (OpenshiftResource as OR,
-                                      ConstructResourceError)
+from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
+                                                ConstructResourceError)
 
 fxt = Fixtures('openshift_resource')
 

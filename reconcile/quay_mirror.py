@@ -12,8 +12,8 @@ from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
-from utils import gql
-from utils.secret_reader import SecretReader
+from reconcile.utils import gql
+from reconcile.utils.secret_reader import SecretReader
 
 
 _LOG = logging.getLogger(__name__)

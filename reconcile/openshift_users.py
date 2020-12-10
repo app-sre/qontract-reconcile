@@ -1,12 +1,12 @@
 import logging
 
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
 import reconcile.openshift_rolebindings as openshift_rolebindings
 import reconcile.queries as queries
 
-from utils.oc import OC_Map
-from utils.defer import defer
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-users'

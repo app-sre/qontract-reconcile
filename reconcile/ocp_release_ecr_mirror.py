@@ -6,12 +6,12 @@ from urllib.parse import urlparse
 
 from sretoolbox.container import Image
 
-from utils.oc import OC
-from utils.oc import OC_Map
-from utils.ocm import OCMMap
+from reconcile.utils.oc import OC
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.ocm import OCMMap
 
 from reconcile import queries
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 from reconcile.status import ExitCodes
 
 

@@ -5,7 +5,7 @@ import json
 import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
-from utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-external-configuration-labels'
 

@@ -2,10 +2,10 @@ import logging
 
 import reconcile.queries as queries
 
-from utils.unleash import get_feature_toggles
-from utils.slack_api import SlackApi
-from utils.secret_reader import SecretReader
-from utils.state import State
+from reconcile.utils.unleash import get_feature_toggles
+from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.state import State
 
 
 QONTRACT_INTEGRATION = 'unleash-watcher'

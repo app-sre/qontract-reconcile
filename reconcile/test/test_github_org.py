@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import reconcile.github_org as github_org
-from utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('github_org')
 

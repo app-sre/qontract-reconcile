@@ -4,10 +4,10 @@ import os
 import requests
 
 from reconcile import queries
-from utils import threaded
-from utils.oc import OC_Map
-from utils.oc import StatusCodeError
-from utils.secret_reader import SecretReader
+from reconcile.utils import threaded
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.secret_reader import SecretReader
 
 
 LOG = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 import sys
 import logging
 
-from utils.gpg import gpg_key_valid
+from reconcile.utils.gpg import gpg_key_valid
 import reconcile.queries as queries
 
 

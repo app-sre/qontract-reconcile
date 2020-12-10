@@ -1,12 +1,12 @@
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
-from utils.jira_client import JiraClient
-from utils.slack_api import SlackApi
-from utils.sharding import is_in_shard_round_robin
-from utils.state import State
+from reconcile.utils.jira_client import JiraClient
+from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.sharding import is_in_shard_round_robin
+from reconcile.utils.state import State
 
 
 QUERY = """

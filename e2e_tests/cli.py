@@ -2,14 +2,14 @@ import sys
 import logging
 import click
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import e2e_tests.create_namespace
 import e2e_tests.dedicated_admin_rolebindings
 import e2e_tests.default_network_policies
 import e2e_tests.default_project_labels
 
-from utils.aggregated_list import RunnerException
+from reconcile.utils.aggregated_list import RunnerException
 from reconcile.cli import threaded
 
 

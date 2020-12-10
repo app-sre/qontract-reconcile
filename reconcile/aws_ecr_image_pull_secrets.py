@@ -3,9 +3,9 @@ import json
 import logging
 
 import reconcile.queries as queries
-from utils.vault import VaultClient
+from reconcile.utils.vault import VaultClient
 
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 
 QONTRACT_INTEGRATION = 'aws-ecr-image-pull-secrets'
 

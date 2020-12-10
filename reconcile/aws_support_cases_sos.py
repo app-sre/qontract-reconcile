@@ -3,8 +3,8 @@ import logging
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
-from utils.mr import CreateDeleteAwsAccessKey
-from utils.aws_api import AWSApi
+from reconcile.utils.mr import CreateDeleteAwsAccessKey
+from reconcile.utils.aws_api import AWSApi
 
 
 QONTRACT_INTEGRATION = 'aws-support-cases-sos'

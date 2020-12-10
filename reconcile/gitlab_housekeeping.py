@@ -6,7 +6,7 @@ from sretoolbox.utils import retry
 
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 MERGE_LABELS_PRIORITY = ['bot/approved', 'lgtm', 'bot/automerge']

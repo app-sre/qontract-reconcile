@@ -6,10 +6,10 @@ import sys
 import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 
-from utils.aws.route53 import State, Account, Record, Zone
-from utils.aws.route53 import DuplicateException
+from reconcile.utils.aws.route53 import State, Account, Record, Zone
+from reconcile.utils.aws.route53 import DuplicateException
 
 
 QONTRACT_INTEGRATION = 'aws-route53'

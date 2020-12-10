@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import reconcile.quay_repos as quay_repos
-from utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('quay_repos')
 

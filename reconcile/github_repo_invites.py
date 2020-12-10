@@ -1,12 +1,13 @@
 import logging
 import os
 
-import utils.gql as gql
-import utils.raw_github_api
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+import reconcile.utils.raw_github_api
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.raw_github_api import RawGithubApi
 import reconcile.queries as queries
 
-from utils.config import get_config
+from reconcile.utils.config import get_config
 
 
 REPOS_QUERY = """
@@ -32,7 +33,7 @@ def run(dry_run):
     secret = {'path': config['secret_path'],
               'field': config['secret_field']}
     token = secret_reader.read(secret)
-    g = utils.raw_github_api.RawGithubApi(token)
+    g = RawGithubApi(token)
 
     urls = set()
     known_orgs = set()

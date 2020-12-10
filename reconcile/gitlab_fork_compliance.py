@@ -5,7 +5,7 @@ from gitlab import MAINTAINER_ACCESS
 from gitlab.exceptions import GitlabGetError
 
 from reconcile import queries
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 LOG = logging.getLogger(__name__)

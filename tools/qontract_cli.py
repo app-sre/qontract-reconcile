@@ -5,16 +5,16 @@ import click
 import requests
 import yaml
 
-import utils.gql as gql
-import utils.config as config
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+import reconcile.utils.config as config
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 
 from tabulate import tabulate
 
-from utils.state import State
-from utils.environ import environ
+from reconcile.utils.state import State
+from reconcile.utils.environ import environ
 from reconcile.cli import config_file
 
 

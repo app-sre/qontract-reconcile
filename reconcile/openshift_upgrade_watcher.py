@@ -5,9 +5,9 @@ import reconcile.queries as queries
 from datetime import datetime
 
 from reconcile.slack_base import init_slack_workspace
-from utils.oc import OC_Map
-from utils.state import State
-from utils.defer import defer
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.state import State
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-upgrade-watcher'

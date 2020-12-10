@@ -1,10 +1,10 @@
 import logging
 
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 import reconcile.openshift_groups as openshift_groups
 
-from utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-groups'
 
