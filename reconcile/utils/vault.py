@@ -48,7 +48,8 @@ class _VaultClient:
         # full, discarding connection: vault.devshift.net")
         session = requests.Session()
         adapter = HTTPAdapter(pool_connections=100,
-                              pool_maxsize=100)
+                              pool_maxsize=100,
+                              timeout=5)
         session.mount('https://', adapter)
         self._client = hvac.Client(url=server, session=session)
         self._cache = {}

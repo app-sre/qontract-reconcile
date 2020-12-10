@@ -25,8 +25,7 @@ class DashdotdbDVO:
         self.dashdotdb_url = secret_content['url']
         self.dashdotdb_user = secret_content['username']
         self.dashdotdb_pass = secret_content['password']
-        self.prom_user = secret_content['prom_username']
-        self.prom_pass = secret_content['prom_password']
+        # self.prom_pass = secret_content['prom_password']
 
     def _post(self, deploymentvalidation):
         if deploymentvalidation is None:
@@ -44,16 +43,19 @@ class DashdotdbDVO:
             try:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:
-                LOG.error('DVO: error posting %s - %s', cluster, details)
+                LOG.error('DV: error posting %s - %s', cluster, details)
 
         LOG.info('DV: cluster %s synced', cluster)
         return response
 
-    def promql(url, query, auth=None):
+    def promql(url, query, auth=None, token=None):
         url = os.path.join(url, 'api/v1/query')
         if auth is None:
             auth = {}
         params = {'query': query}
+        if token:
+            auth = requests.auth.AuthBase()
+            auth.headers["authorization"] = "Bearer " + token
         response = requests.get(url, params=params, auth=auth)
         response.raise_for_status()
         response = response.json()
@@ -81,20 +83,26 @@ class DashdotdbDVO:
                 'data': deploymentvalidation}
 
     def run(self):
+        LOG.debug('DV: zzzz')
         clusters = queries.get_clusters()
+        LOG.debug('DV: a1')
         oc_map = OC_Map(clusters=clusters,
                         integration=QONTRACT_INTEGRATION,
                         settings=self.settings, use_jump_host=True,
                         thread_pool_size=self.thread_pool_size)
-
+        print("%s".format(oc_map))
+        LOG.debug('DV: a2')
         validation_list = ('operator_replica', 'operator_request_limit')
+        LOG.debug('DV: a3')
         for validation in validation_list:
+            LOG.debug('Processing validation: %s', validation)
+            LOG.debug('DV: a4')
             validations = threaded.run(func=self._get_deploymentvalidation,
                                        iterable=oc_map.clusters(),
                                        thread_pool_size=self.thread_pool_size,
                                        validation=validation,
                                        oc_map=oc_map)
-
+            LOG.debug('DV: a5')
             threaded.run(func=self._post,
                          iterable=validations,
                          thread_pool_size=self.thread_pool_size)
