@@ -496,7 +496,7 @@ class OCM(object):
         for item in items:
             if schedule_type and item['schedule_type'] != schedule_type:
                 continue
-            desired_keys = ['id', 'schedule_type', 'schedule']
+            desired_keys = ['id', 'schedule_type', 'schedule', 'next_run']
             result = {k: v for k, v in item.items() if k in desired_keys}
             results.append(result)
 
