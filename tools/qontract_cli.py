@@ -15,6 +15,7 @@ from tabulate import tabulate
 
 from utils.state import State
 from utils.environ import environ
+from utils.ocm import OCMMap
 from reconcile.cli import config_file
 
 
@@ -88,24 +89,52 @@ def clusters(ctx, name):
 @click.argument('name', default='')
 @click.pass_context
 def cluster_upgrades(ctx, name):
-    clusters = queries.get_clusters()
-    if name:
-        clusters = [c for c in clusters if c['name'] == name]
+    settings = queries.get_app_interface_settings()
 
-    clusters_data = [
-        {
+    clusters = queries.get_clusters()
+
+    clusters_ocm = [c for c in clusters
+                    if c.get('ocm') is not None and c.get('auth') is not None]
+
+    ocm_map = OCMMap(clusters=clusters_ocm, settings=settings)
+
+    clusters_data = []
+    for c in clusters:
+        if name and c['name'] != name:
+            continue
+
+        if not c.get('spec'):
+            continue
+
+        data = {
             'name': c['name'],
             'upgrade': c['spec']['upgrade'],
             'id': c['spec']['id'],
-            'external_id': c['spec'].get('external_id')
+            'external_id': c['spec'].get('external_id'),
         }
-        for c in clusters
-        if c.get('spec')
-    ]
+
+        upgrade_policy = c['upgradePolicy']
+
+        if upgrade_policy:
+            data['upgradePolicy'] = upgrade_policy.get('schedule_type')
+
+        if data.get('upgradePolicy') == 'automatic':
+            data['schedule'] = c['upgradePolicy']['schedule']
+            ocm = ocm_map.get(c['name'])
+            if ocm:
+                upgrade_policy = ocm.get_upgrade_policies(c['name'])
+                next_run = upgrade_policy[0].get('next_run')
+                if next_run:
+                    data['next_run'] = next_run
+        else:
+            data['upgradePolicy'] = 'manual'
+
+        clusters_data.append(data)
 
     clusters_data = sorted(clusters_data, key=lambda k: k['upgrade'])
 
-    columns = ['name', 'id', 'external_id', 'upgrade']
+    columns = ['name', 'upgrade', 'upgradePolicy', 'schedule', 'next_run']
+
     print_output(ctx.obj['output'], clusters_data, columns)
 
 
