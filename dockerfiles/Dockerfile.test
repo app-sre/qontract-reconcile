@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/centos:7
+FROM quay.io/centos/centos:7
 
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
