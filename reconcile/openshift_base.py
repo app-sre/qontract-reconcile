@@ -392,7 +392,8 @@ def validate_data(oc_map, actions):
         'Deployment',
         'DeploymentConfig',
         'Subscription',
-        'Job'
+        'Job',
+        'ClowdApp'
     ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
@@ -435,6 +436,19 @@ def validate_data(oc_map, actions):
                 succeeded = status.get('succeeded')
                 if not succeeded:
                     logging.info('Job has not succeeded, status is invalid')
+                    raise ValidationError(name)
+            elif kind == 'ClowdApp':
+                deployments = status.get('deployments')
+                if not deployments:
+                    logging.info(
+                        'ClowdApp has no deployments, status is invalid')
+                    raise ValidationError(name)
+                managed_deployments = deployments.get('managedDeployments')
+                ready_deployments = deployments.get('readyDeployments')
+                if managed_deployments != ready_deployments:
+                    logging.info(
+                        'ClowdApp has not ready deployments, ' +
+                        'status is invalid')
                     raise ValidationError(name)
 
 
