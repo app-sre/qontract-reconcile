@@ -316,7 +316,7 @@ parameters:
 - name: IMAGE_TAG
   value: latest
 - name: BUSYBOX_IMAGE
-  value: quay.io/app-sre/busybox
+  value: quay.io/app-sre/ubi8-ubi-minimal
 - name: BUSYBOX_IMAGE_TAG
   value: latest
 - name: BUSYBOX_IMAGE_PULL_POLICY
