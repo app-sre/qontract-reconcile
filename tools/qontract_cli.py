@@ -378,6 +378,40 @@ def integrations(ctx):
     print_output(ctx.obj['output'], environments, columns)
 
 
+@get.command()
+@click.pass_context
+def mirrors(ctx):
+    apps = queries.get_quay_repos()
+
+    mirrors = []
+    for app in apps:
+        quay_repos = app['quayRepos']
+
+        if quay_repos is None:
+            continue
+
+        for qr in quay_repos:
+            org_name = qr['org']['name']
+            for item in qr['items']:
+                mirror = item['mirror']
+
+                if mirror is None:
+                    continue
+
+                name = item['name']
+                url = item['mirror']['url']
+                public = item['public']
+
+                mirrors.append({
+                    'repo': f'quay.io/{org_name}/{name}',
+                    'public': public,
+                    'upstream': url,
+                })
+
+    columns = ['repo', 'upstream', 'public']
+    print_output(ctx.obj['output'], mirrors, columns)
+
+
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)

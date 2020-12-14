@@ -1525,3 +1525,35 @@ def get_sendgrid_accounts():
     """ Returns SendGrid accounts """
     gqlapi = gql.get_api()
     return gqlapi.query(SENDGRID_ACCOUNTS_QUERY)['sendgrid_accounts']
+
+
+QUAY_REPOS_QUERY = """
+{
+  apps: apps_v1 {
+    quayRepos {
+      org {
+        name
+        serverUrl
+      }
+      items {
+        name
+        public
+        mirror {
+          url
+          pullCredentials {
+            path
+            field
+          }
+          tags
+          tagsExclude
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_quay_repos():
+    gqlapi = gql.get_api()
+    return gqlapi.query(QUAY_REPOS_QUERY)['apps']
