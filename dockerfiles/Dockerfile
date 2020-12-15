@@ -35,10 +35,7 @@ ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
-    # temp fix for mirror issues for container-commons and skopeo
-    # the original line: dnf install -y skopeo && \
-    dnf install -y https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/containers-common-1.2.0-12.el8.x86_64.rpm && \
-    dnf install -y https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/skopeo-1.2.0-12.el8.x86_64.rpm && \
+    dnf install -y skopeo && \
     dnf install -y python3 python3-pip python3-devel git unzip gcc gcc-c++ openssh-clients openssl glibc-langpack-en && \
     python3 -m pip install --upgrade pip setuptools && \
     dnf clean all
