@@ -17,6 +17,8 @@ endif
 build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
+
+build-dbs:
 	@docker build -t $(POSTGRES_IMAGE_NAME):latest -f dockerfiles/Dockerfile.postgres .
 	@docker tag $(POSTGRES_IMAGE_NAME):latest $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker build -t $(MDB_IMAGE_NAME):latest -f dockerfiles/Dockerfile.mariadb .
@@ -25,6 +27,8 @@ build:
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
+	
+push-dbs:	
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker --config=$(DOCKER_CONF) push $(MDB_IMAGE_NAME):latest
