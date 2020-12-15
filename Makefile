@@ -18,7 +18,7 @@ build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
-build-dbs:
+build-utility-images:
 	@docker build -t $(POSTGRES_IMAGE_NAME):latest -f dockerfiles/Dockerfile.postgres .
 	@docker tag $(POSTGRES_IMAGE_NAME):latest $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker build -t $(MARIADB_IMAGE_NAME):latest -f dockerfiles/Dockerfile.mariadb .
@@ -28,7 +28,7 @@ push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 	
-push-dbs:	
+push-utility-images:	
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker --config=$(DOCKER_CONF) push $(MARIADB_IMAGE_NAME):latest
