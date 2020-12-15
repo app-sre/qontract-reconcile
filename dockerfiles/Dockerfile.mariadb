@@ -1,0 +1,4 @@
+FROM centos:8
+
+RUN dnf install -y @mariadb:10.3 && \
+    dnf clean all

@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
       - name: {{ JOB_NAME }}
-        image: quay.io/app-sre/{{ ENGINE }}:{{ENGINE_VERSION}}
+        image: quay.io/app-sre/qontract-reconcile-{{ENGINE}}:{{ENGINE_VERSION}}
         command:
           - /bin/bash
         args:
