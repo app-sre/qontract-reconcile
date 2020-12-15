@@ -22,7 +22,6 @@ build:
 	@docker build -t $(MDB_IMAGE_NAME):latest -f dockerfiles/Dockerfile.mariadb .
 	@docker tag $(MDB_IMAGE_NAME):latest $(MDB_IMAGE_NAME):$(IMAGE_TAG)
 
-
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
