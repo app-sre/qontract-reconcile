@@ -6,7 +6,7 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 
 POSTGRES_IMAGE_NAME := quay.io/app-sre/qontract-reconcile-postgres
-MDB_IMAGE_NAME := quay.io/app-sre/qontract-reconcile-mariadb
+MARIADB_IMAGE_NAME := quay.io/app-sre/qontract-reconcile-mariadb
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -21,8 +21,8 @@ build:
 build-dbs:
 	@docker build -t $(POSTGRES_IMAGE_NAME):latest -f dockerfiles/Dockerfile.postgres .
 	@docker tag $(POSTGRES_IMAGE_NAME):latest $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
-	@docker build -t $(MDB_IMAGE_NAME):latest -f dockerfiles/Dockerfile.mariadb .
-	@docker tag $(MDB_IMAGE_NAME):latest $(MDB_IMAGE_NAME):$(IMAGE_TAG)
+	@docker build -t $(MARIADB_IMAGE_NAME):latest -f dockerfiles/Dockerfile.mariadb .
+	@docker tag $(MARIADB_IMAGE_NAME):latest $(MARIADB_IMAGE_NAME):$(IMAGE_TAG)
 
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
@@ -31,8 +31,8 @@ push:
 push-dbs:	
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
-	@docker --config=$(DOCKER_CONF) push $(MDB_IMAGE_NAME):latest
-	@docker --config=$(DOCKER_CONF) push $(MDB_IMAGE_NAME):$(IMAGE_TAG)
+	@docker --config=$(DOCKER_CONF) push $(MARIADB_IMAGE_NAME):latest
+	@docker --config=$(DOCKER_CONF) push $(MARIADB_IMAGE_NAME):$(IMAGE_TAG)
 
 rc:
 	@docker build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc -f dockerfiles/Dockerfile .
