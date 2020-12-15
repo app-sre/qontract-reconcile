@@ -1429,22 +1429,26 @@ DNS_ZONES_QUERY = """
     }
     unmanaged_record_names
     records {
+      name
       type
-      ... on DnsRecordCommon_v1 {
-        name
-        ttl
-        target
-        targets
-        target_cluster {
-          name
-          elbFQDN
-        }
+      ttl
+      weighted_routing_policy {
+        weight
       }
-      ... on DnsRecordMX_v1 {
+      set_identifier
+      records
+      _healthcheck {
+        fqdn
+        port
+        type
+        resource_path
+        failure_threshold
+        request_interval
+        search_string
+      }
+      _target_cluster {
         name
-        ttl
-        target
-        priority
+        elbFQDN
       }
     }
   }

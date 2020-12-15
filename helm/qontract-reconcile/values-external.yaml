@@ -1,15 +1,4 @@
 integrations:
-- name: aws-route53
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  logs:
-    slack: true
-    cloudwatch: true
 - name: aws-iam-keys
   resources:
     requests:
@@ -309,6 +298,17 @@ integrations:
   logs:
     cloudwatch: true
   shards: 2
+- name: terraform-aws-route53
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 100m
+    limits:
+      memory: 1000Mi
+      cpu: 500m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:

@@ -54,7 +54,10 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_lambda_function, aws_lambda_permission,
                                   aws_cloudwatch_log_subscription_filter,
                                   aws_acm_certificate,
-                                  aws_kinesis_stream)
+                                  aws_kinesis_stream,
+                                  aws_route53_zone,
+                                  aws_route53_record,
+                                  aws_route53_health_check)
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
@@ -65,6 +68,11 @@ class UnknownProviderError(Exception):
         super(UnknownProviderError, self).__init__(
             "unknown provider error: " + str(msg)
         )
+
+
+def safe_resource_id(s):
+    """Sanitize a string into a valid terraform resource id"""
+    return s.translate({ord(c): "_" for c in "."})
 
 
 class TerrascriptClient(object):
@@ -355,6 +363,58 @@ class TerrascriptClient(object):
                     region=account['assume_region'],
                     alias=alias,
                     assume_role={'role_arn': assume_role})
+
+    def populate_route53(self, desired_state, default_ttl=300):
+        for zone in desired_state:
+            acct_name = zone['account_name']
+
+            # Ensure zone is in the state for the given account
+            zone_id = safe_resource_id(f"{zone['name']}")
+            zone_values = {
+                'name': zone['name'],
+                'comment': 'Managed by Terraform'
+            }
+            zone_resource = aws_route53_zone(zone_id, **zone_values)
+            self.add_resource(acct_name, zone_resource)
+
+            counts = {}
+            for record in zone['records']:
+                record_fqdn = f"{record['name']}.{zone['name']}"
+                record_id = safe_resource_id(
+                    f"{record_fqdn}_{record['type'].upper()}")
+
+                # Count record names so we can generate unique IDs
+                if record_id not in counts:
+                    counts[record_id] = 0
+                counts[record_id] += 1
+
+                # If more than one record with a given name, append _{count}
+                if counts[record_id] > 1:
+                    record_id = f"{record_id}_{counts[record_id]}"
+
+                # Use default TTL if none is specified
+                # None/zero is accepted but not a good default
+                if record.get('ttl') is None:
+                    record['ttl'] = default_ttl
+
+                # Define healthcheck if needed
+                healthcheck = record.pop('healthcheck', None)
+                if healthcheck:
+                    healthcheck_id = record_id
+                    healthcheck_values = {**healthcheck}
+                    healthcheck_resource = aws_route53_health_check(
+                        healthcheck_id, **healthcheck_values)
+                    self.add_resource(acct_name, healthcheck_resource)
+                    # Assign the healthcheck resource ID to the record
+                    record['health_check_id'] = healthcheck_resource.id
+
+                record_values = {
+                    'zone_id': zone_resource.id,
+                    **record
+                }
+                record_resource = aws_route53_record(record_id,
+                                                     **record_values)
+                self.add_resource(acct_name, record_resource)
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:

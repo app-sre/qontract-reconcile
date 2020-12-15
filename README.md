@@ -65,6 +65,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
 - `slack-cluster-usergroups`: Manage Slack User Groups (channels and users) for OpenShift users notifications.
 - `sql-query`: Runs SQL Queries against app-interface RDS resources.
+- `terraform-aws-route53`: Manage AWS Route53 resources using Terraform.
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
 - `terraform-vpc-peerings`: Manage VPC peerings between OSDv4 clusters and AWS accounts.
