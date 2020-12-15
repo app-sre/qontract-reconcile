@@ -89,6 +89,7 @@ import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
+import reconcile.prometheus_rules_validator
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1135,3 +1136,13 @@ def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host):
 def integrations_validator(ctx):
     run_integration(reconcile.integrations_validator, ctx.obj,
                     reconcile.cli.integration.commands.keys())
+
+
+@integration.command()
+@threaded()
+@binary(['promtool'])
+@cluster_name
+@click.pass_context
+def prometheus_rules_validator(ctx, thread_pool_size, cluster_name):
+    run_integration(reconcile.prometheus_rules_validator, ctx.obj,
+                    thread_pool_size, cluster_name)
