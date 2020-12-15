@@ -26,10 +26,10 @@ build-dbs:
 
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
-	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
+	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 	
 push-dbs:	
-	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
+	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(POSTGRES_IMAGE_NAME):$(IMAGE_TAG)
 	@docker --config=$(DOCKER_CONF) push $(MDB_IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(MDB_IMAGE_NAME):$(IMAGE_TAG)
