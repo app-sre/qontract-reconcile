@@ -45,6 +45,7 @@ class QuayMirror:
           }
           items {
             name
+            public
             mirror {
               url
               pullCredentials {
@@ -96,6 +97,12 @@ class QuayMirror:
                 server_url = quay_repo['org'].get('serverUrl') or 'quay.io'
                 for item in quay_repo['items']:
                     if item['mirror'] is None:
+                        continue
+
+                    mirror_image = Image(item['mirror']['url'])
+                    if mirror_image.repository == 'library' and item['public']:
+                        _LOG.error("Image %s can't be mirrored to a public "
+                                   "quay repository.", mirror_image)
                         continue
 
                     summary[org].append({'name': item["name"],
