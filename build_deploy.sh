@@ -7,3 +7,5 @@ docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
 # build images
 make build push
 
+# build utility images
+make build-utility-images push-utility-images
