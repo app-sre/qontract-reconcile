@@ -138,7 +138,7 @@ class RepoOwners:
                 # Non-parsable OWNERS file
                 continue
 
-            approvers = owners.get('approvers', set())
+            approvers = owners.get('approvers') or set()
 
             # Approver might be an alias. Let's resolve them.
             resolved_approvers = set()
@@ -148,7 +148,7 @@ class RepoOwners:
                 else:
                     resolved_approvers.add(approver)
 
-            reviewers = owners.get('reviewers', set())
+            reviewers = owners.get('reviewers') or set()
 
             # Reviewer might be an alias. Let's resolve them.
             resolved_reviewers = set()
