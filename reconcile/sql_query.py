@@ -390,7 +390,6 @@ def run(dry_run, enable_deletion=False):
                         internal=None)
 
         if use_pull_secret:
-            print(secret_resource.body)
             openshift_base.apply(dry_run=dry_run,
                                  oc_map=oc_map,
                                  cluster=query['cluster'],
