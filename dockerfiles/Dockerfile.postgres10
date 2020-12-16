@@ -1,0 +1,4 @@
+FROM centos:8
+
+RUN dnf install -y @postgresql:10 && \
+    dnf clean all
