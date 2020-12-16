@@ -8,6 +8,7 @@ import ruamel.yaml as yaml
 from textwrap import indent
 
 from reconcile import openshift_base
+from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.status import ExitCodes
 
@@ -32,6 +33,10 @@ spec:
     metadata:
       name: {{ JOB_NAME }}
     spec:
+      {% if PULL_SECRET is not none %}
+      imagePullSecrets:
+      - name: {{ JOB_NAME }}
+      {% endif %}
       containers:
       - name: {{ JOB_NAME }}
         image: quay.io/app-sre/{{ ENGINE }}:{{ENGINE_VERSION}}
@@ -281,7 +286,7 @@ def filesystem_closing_message():
     ]
 
 
-def process_template(query):
+def process_template(query, use_pull_secret=False):
     """
     Renders the Jinja2 Job Template.
 
@@ -315,6 +320,8 @@ def process_template(query):
         'DB_CONN': query['db_conn'],
         'COMMAND': command
     }
+    if use_pull_secret:
+        render_kwargs['PULL_SECRET'] = query['name']
     schedule = query.get('schedule')
     if schedule:
         template_to_render = CRONJOB_TEMPLATE
@@ -352,7 +359,22 @@ def run(dry_run, enable_deletion=False):
         except KeyError:
             pass
 
-        job_yaml = process_template(query)
+        use_pull_secret = False
+        pull_secret = settings.get('sqlQueryPullSecret')
+        if pull_secret:
+            use_pull_secret = True
+            secret_resource = orb.fetch_provider_vault_secret(
+                path=pull_secret['path'],
+                version=pull_secret['version'],
+                name=query_name,
+                labels=pull_secret['labels'],
+                annotations=pull_secret['annotations'],
+                type=pull_secret['type'],
+                integration=QONTRACT_INTEGRATION,
+                integration_version=QONTRACT_INTEGRATION_VERSION
+            )
+
+        job_yaml = process_template(query, use_pull_secret=use_pull_secret)
         job = yaml.safe_load(job_yaml)
         job_resource = OpenshiftResource(job, QONTRACT_INTEGRATION,
                                          QONTRACT_INTEGRATION_VERSION)
@@ -360,6 +382,15 @@ def run(dry_run, enable_deletion=False):
                         integration=QONTRACT_INTEGRATION,
                         settings=queries.get_app_interface_settings(),
                         internal=None)
+
+        if use_pull_secret:
+            openshift_base.apply(dry_run=dry_run,
+                                 oc_map=oc_map,
+                                 cluster=query['cluster'],
+                                 namespace=query['namespace']['name'],
+                                 resource_type=secret_resource.kind,
+                                 resource=secret_resource,
+                                 wait_for_namespace=False)
 
         openshift_base.apply(dry_run=dry_run,
                              oc_map=oc_map,
@@ -399,6 +430,19 @@ def run(dry_run, enable_deletion=False):
                                   enable_deletion=enable_deletion)
         except StatusCodeError:
             LOG.exception("Error removing ['%s' '%s' 'job' '%s']",
+                          query['cluster'], query['namespace']['name'],
+                          query['name'])
+
+        try:
+            openshift_base.delete(dry_run=dry_run,
+                                  oc_map=oc_map,
+                                  cluster=query['cluster'],
+                                  namespace=query['namespace']['name'],
+                                  resource_type='Secret',
+                                  name=query['name'],
+                                  enable_deletion=enable_deletion)
+        except StatusCodeError:
+            LOG.exception("Error removing ['%s' '%s' 'Secret' '%s']",
                           query['cluster'], query['namespace']['name'],
                           query['name'])
 
