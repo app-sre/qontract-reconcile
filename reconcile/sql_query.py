@@ -286,7 +286,7 @@ def filesystem_closing_message():
     ]
 
 
-def process_template(query, use_pull_secret=False):
+def process_template(query, image_repository, use_pull_secret=False):
     """
     Renders the Jinja2 Job Template.
 
@@ -314,13 +314,12 @@ def process_template(query, use_pull_secret=False):
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
         'JOB_NAME': query['name'],
+        'IMAGE_REPOSITORY': image_repository,
         'SECRET_NAME': query['output_resource_name'],
         'ENGINE': engine,
         'ENGINE_VERSION': query['engine_version'],
         'DB_CONN': query['db_conn'],
-        'COMMAND': command,
-        # TODO(maorfr): consume this from query or from app-interface settings
-        'IMAGE_REPOSITORY': 'quay.io/app-sre'
+        'COMMAND': command
     }
     if use_pull_secret:
         render_kwargs['PULL_SECRET'] = query['name']
@@ -361,10 +360,13 @@ def run(dry_run, enable_deletion=False):
         except KeyError:
             pass
 
+        image_repository = 'quay.io/app-sre'
         use_pull_secret = False
-        pull_secret = settings.get('sqlQueryPullSecret')
-        if pull_secret:
+        sql_query_settings = settings.get('sqlQuery')
+        if sql_query_settings:
             use_pull_secret = True
+            image_repository = sql_query_settings['imageRepository']
+            pull_secret = sql_query_settings['pullSecret']
             secret_resource = orb.fetch_provider_vault_secret(
                 path=pull_secret['path'],
                 version=pull_secret['version'],
@@ -376,7 +378,9 @@ def run(dry_run, enable_deletion=False):
                 integration_version=QONTRACT_INTEGRATION_VERSION
             )
 
-        job_yaml = process_template(query, use_pull_secret=use_pull_secret)
+        job_yaml = process_template(query,
+                                    image_repository=image_repository,
+                                    use_pull_secret=use_pull_secret)
         job = yaml.safe_load(job_yaml)
         job_resource = OpenshiftResource(job, QONTRACT_INTEGRATION,
                                          QONTRACT_INTEGRATION_VERSION)

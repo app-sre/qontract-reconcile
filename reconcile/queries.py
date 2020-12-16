@@ -26,12 +26,15 @@ APP_INTERFACE_SETTINGS_QUERY = """
         field
       }
     }
-    sqlQueryPullSecret {
-      path
-      version
-      labels
-      annotations
-      type
+    sqlQuery {
+      imageRepository
+      sqlQueryPullSecret {
+        path
+        version
+        labels
+        annotations
+        type
+      }
     }
   }
 }
