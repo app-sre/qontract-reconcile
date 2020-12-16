@@ -28,7 +28,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     }
     sqlQuery {
       imageRepository
-      sqlQueryPullSecret {
+      pullSecret {
         path
         version
         labels
