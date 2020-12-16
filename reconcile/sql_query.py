@@ -39,7 +39,7 @@ spec:
       {% endif %}
       containers:
       - name: {{ JOB_NAME }}
-        image: quay.io/app-sre/{{ ENGINE }}:{{ENGINE_VERSION}}
+        image: {{ IMAGE_REPOSITORY }}/{{ ENGINE }}:{{ENGINE_VERSION}}
         command:
           - /bin/bash
         args:
@@ -318,7 +318,9 @@ def process_template(query, use_pull_secret=False):
         'ENGINE': engine,
         'ENGINE_VERSION': query['engine_version'],
         'DB_CONN': query['db_conn'],
-        'COMMAND': command
+        'COMMAND': command,
+        # TODO(maorfr): consume this from query or from app-interface settings
+        'IMAGE_REPOSITORY': 'quay.io/app-sre'
     }
     if use_pull_secret:
         render_kwargs['PULL_SECRET'] = query['name']
