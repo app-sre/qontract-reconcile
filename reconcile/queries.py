@@ -26,6 +26,16 @@ APP_INTERFACE_SETTINGS_QUERY = """
         field
       }
     }
+    sqlQuery {
+      imageRepository
+      pullSecret {
+        path
+        version
+        labels
+        annotations
+        type
+      }
+    }
   }
 }
 """
