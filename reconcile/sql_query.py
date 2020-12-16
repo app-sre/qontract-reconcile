@@ -371,8 +371,8 @@ def run(dry_run, enable_deletion=False):
                 path=pull_secret['path'],
                 version=pull_secret['version'],
                 name=query_name,
-                labels=pull_secret['labels'],
-                annotations=pull_secret['annotations'],
+                labels=pull_secret['labels'] or {},
+                annotations=pull_secret['annotations'] or {},
                 type=pull_secret['type'],
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION
@@ -390,6 +390,7 @@ def run(dry_run, enable_deletion=False):
                         internal=None)
 
         if use_pull_secret:
+            print(secret_resource.body)
             openshift_base.apply(dry_run=dry_run,
                                  oc_map=oc_map,
                                  cluster=query['cluster'],
