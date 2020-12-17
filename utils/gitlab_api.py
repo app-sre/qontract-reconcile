@@ -292,7 +292,8 @@ class GitLabApi(object):
             created_at = note.created_at
             comments.append({'username': username,
                              'body': body,
-                             'created_at': created_at})
+                             'created_at': created_at,
+                             'id': note.id})
         return comments
 
     def add_merge_request_comment(self, mr_id, comment):
