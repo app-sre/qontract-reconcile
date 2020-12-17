@@ -185,8 +185,8 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
 
     for url_ref in owners_from_repo:
         # allow passing repo_url:ref to select different branch
-        if ':' in url_ref:
-            url, ref = url_ref.split(':')
+        if url_ref.count(':') == 2:
+            url, ref = url_ref.rsplit(':', 1)
         else:
             url = url_ref
             ref = 'master'
