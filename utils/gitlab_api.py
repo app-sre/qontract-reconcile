@@ -296,6 +296,11 @@ class GitLabApi(object):
                              'id': note.id})
         return comments
 
+    def delete_gitlab_comment(self, mr_id, comment_id):
+        merge_request = self.project.mergerequests.get(mr_id)
+        note = merge_request.notes.get(comment_id)
+        note.delete()
+
     def add_merge_request_comment(self, mr_id, comment):
         merge_request = self.project.mergerequests.get(mr_id)
         merge_request.notes.create({'body': comment})
