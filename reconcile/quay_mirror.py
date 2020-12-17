@@ -140,7 +140,9 @@ class QuayMirror:
         sync_tasks = defaultdict(list)
         for org, data in summary.items():
             for item in data:
-                image = Image(f'{item["server_url"]}/{org}/{item["name"]}')
+                push_creds = self.push_creds[org].split(':')
+                image = Image(f'{item["server_url"]}/{org}/{item["name"]}',
+                              username=push_creds[0], password=push_creds[1])
 
                 mirror_url = item['mirror']['url']
 
