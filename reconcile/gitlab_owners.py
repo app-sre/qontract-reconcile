@@ -165,6 +165,53 @@ class MRApproval:
         labels = self.gitlab.get_merge_request_labels(self.mr.iid)
         return APPROVAL_LABEL in labels
 
+    @staticmethod
+    def format_report(report):
+        """
+        Gets a report dictionary and creates the corresponding Markdown
+        comment message.
+        """
+        markdown_report = ('[OWNERS] You will need a "/lgtm" from one person '
+                           'from each of these groups:\n\n')
+
+        approvers = list()
+        for _, owners in report.items():
+            new_group = list()
+
+            for owner in owners['approvers']:
+                there = False
+
+                for group in approvers:
+                    if owner in group:
+                        there = True
+
+                if not there:
+                    new_group.append(owner)
+
+            if new_group:
+                approvers.append(new_group)
+
+        for group in approvers:
+            markdown_report += f'* {", ".join(group)}\n'
+
+        markdown_report += '\nAdditional relevant reviewers are: '
+
+        reviewers = set()
+        for _, owners in report.items():
+            for reviewer in owners['reviewers']:
+
+                there = False
+                for group in approvers:
+                    if reviewer in group:
+                        there = True
+
+                if not there:
+                    reviewers.add(reviewer)
+
+        markdown_report += f'{", ".join(sorted(reviewers))}'
+
+        return markdown_report
+
 
 def act(repo, dry_run, instance, settings):
     gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
