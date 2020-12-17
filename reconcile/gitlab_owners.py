@@ -142,6 +142,13 @@ class MRApproval:
             # creation time
             comment_created_at = dateparser.parse(comment['created_at'])
             if comment_created_at < self.top_commit_created_at:
+                if body.startswith('[OWNERS]'):
+                    if not self.dry_run:
+                        _LOG.info([f'Project:{self.gitlab.project.id} '
+                                   f'Merge Request:{self.mr.iid} '
+                                   f'- removing stale comment'])
+                        self.gitlab.delete_gitlab_comment(self.mr.iid,
+                                                          comment['id'])
                 continue
 
             # If we find a comment equals to the report,
