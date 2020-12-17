@@ -17,6 +17,8 @@ from contextlib import contextmanager
 from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
+from jenkins_jobs.errors import JenkinsJobsException
+from sretoolbox.utils import retry
 
 from reconcile.exceptions import FetchResourceError
 
@@ -243,6 +245,7 @@ class JJB(object):
         for wd in self.working_dirs.values():
             shutil.rmtree(wd)
 
+    @retry(exceptions=(JenkinsJobsException))
     def get_jobs(self, wd, name):
         ini_path = '{}/{}.ini'.format(wd, name)
         config_path = '{}/config.yaml'.format(wd)
