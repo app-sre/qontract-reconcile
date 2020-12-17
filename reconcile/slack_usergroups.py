@@ -183,7 +183,14 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
 
     all_slack_usernames = []
 
-    for url in owners_from_repo:
+    for url_ref in owners_from_repo:
+        # allow passing repo_url:ref to select different branch
+        if ':' in url_ref:
+            url, ref = url_ref.split(':')
+        else:
+            url = url_ref
+            ref = 'master'
+
         repo_cli = GitApi(url)
 
         if isinstance(repo_cli, GitLabApi):
@@ -195,7 +202,7 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
         else:
             raise TypeError(f'{type(repo_cli)} not supported')
 
-        repo_owners = RepoOwners(git_cli=repo_cli)
+        repo_owners = RepoOwners(git_cli=repo_cli, ref=ref)
 
         owners = repo_owners.get_root_owners()
         all_owners = owners['approvers'] + owners['reviewers']
