@@ -1,4 +1,3 @@
-import json
 import logging
 
 from dateutil import parser as dateparser
@@ -130,11 +129,14 @@ class MRApproval:
 
         # Since we have a report, let's check if that report was already
         # used for a comment
+        formatted_report = self.format_report(report)
         comments = self.gitlab.get_merge_request_comments(self.mr.iid)
         for comment in comments:
             # Only interested on our own comments
             if comment['username'] != self.gitlab.user.username:
                 continue
+
+            body = comment['body']
 
             # Only interested in comments created after the top commit
             # creation time
@@ -142,23 +144,16 @@ class MRApproval:
             if comment_created_at < self.top_commit_created_at:
                 continue
 
-            # Removing the pre-formatted markdown from the comment
-            json_body = comment['body'].lstrip('```\n').rstrip('\n```')
-
-            try:
-                body = json.loads(json_body)
-                # If we find a comment equals to the report,
-                # we don't return the report
-                if body == report:
-                    return approval_status
-            except json.decoder.JSONDecodeError:
-                continue
+            # If we find a comment equals to the report,
+            # we don't return the report
+            if body == formatted_report:
+                return approval_status
 
         # At this point, the MR was not approved and the report
         # will be used for creating a comment in the MR.
-        json_report = json.dumps(report, indent=4)
-        markdown_json_report = f'```\n{json_report}\n```'
-        approval_status['report'] = markdown_json_report
+        # json_report = json.dumps(report, indent=4)
+        # markdown_json_report = f'```\n{json_report}\n```'
+        approval_status['report'] = formatted_report
         return approval_status
 
     def has_approval_label(self):
