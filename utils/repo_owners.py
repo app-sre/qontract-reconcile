@@ -120,7 +120,7 @@ class RepoOwners:
         """
         owners_map = dict()
 
-        repo_tree = self._git_cli.get_repository_tree(ref='master')
+        repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
 
         aliases = None
         owner_files = list()
