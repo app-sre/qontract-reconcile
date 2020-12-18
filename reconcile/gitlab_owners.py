@@ -129,38 +129,40 @@ class MRApproval:
 
         # Since we have a report, let's check if that report was already
         # used for a comment
-        formatted_report = self.format_report(report)
-        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
-        for comment in comments:
-            # Only interested on our own comments
-            if comment['username'] != self.gitlab.user.username:
-                continue
+        if report:
+            formatted_report = self.format_report(report)
 
-            body = comment['body']
+            comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+            for comment in comments:
+                # Only interested on our own comments
+                if comment['username'] != self.gitlab.user.username:
+                    continue
 
-            # Only interested in comments created after the top commit
-            # creation time
-            comment_created_at = dateparser.parse(comment['created_at'])
-            if comment_created_at < self.top_commit_created_at:
-                if body.startswith('[OWNERS]'):
-                    if not self.dry_run:
-                        _LOG.info([f'Project:{self.gitlab.project.id} '
-                                   f'Merge Request:{self.mr.iid} '
-                                   f'- removing stale comment'])
-                        self.gitlab.delete_gitlab_comment(self.mr.iid,
-                                                          comment['id'])
-                continue
+                body = comment['body']
 
-            # If we find a comment equals to the report,
-            # we don't return the report
-            if body == formatted_report:
-                return approval_status
+                # Only interested in comments created after the top commit
+                # creation time
+                comment_created_at = dateparser.parse(comment['created_at'])
+                if comment_created_at < self.top_commit_created_at:
+                    if body.startswith('[OWNERS]'):
+                        if not self.dry_run:
+                            _LOG.info([f'Project:{self.gitlab.project.id} '
+                                       f'Merge Request:{self.mr.iid} '
+                                       f'- removing stale comment'])
+                            self.gitlab.delete_gitlab_comment(self.mr.iid,
+                                                              comment['id'])
+                    continue
 
-        # At this point, the MR was not approved and the report
-        # will be used for creating a comment in the MR.
-        # json_report = json.dumps(report, indent=4)
-        # markdown_json_report = f'```\n{json_report}\n```'
-        approval_status['report'] = formatted_report
+                # If we find a comment equals to the report,
+                # we don't return the report
+                if body == formatted_report:
+                    return approval_status
+
+            # At this point, the MR was not approved and the report
+            # will be used for creating a comment in the MR.
+            # json_report = json.dumps(report, indent=4)
+            # markdown_json_report = f'```\n{json_report}\n```'
+            approval_status['report'] = formatted_report
         return approval_status
 
     def has_approval_label(self):
@@ -179,6 +181,9 @@ class MRApproval:
         approvers = list()
         for _, owners in report.items():
             new_group = list()
+
+            if 'approvers' not in owners:
+                continue
 
             for owner in owners['approvers']:
                 there = False
@@ -200,6 +205,9 @@ class MRApproval:
 
         reviewers = set()
         for _, owners in report.items():
+            if 'reviewers' not in owners:
+                continue
+
             for reviewer in owners['reviewers']:
 
                 there = False
