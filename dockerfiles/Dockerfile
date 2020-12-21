@@ -24,6 +24,17 @@ WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
     /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
+FROM registry.access.redhat.com/ubi8/ubi:8.2 AS terraform-providers-downloader
+
+ENV VERSIONS="2.3.0 2.58.0 2.68.0"
+
+RUN dnf -y install unzip; \
+    cd /tmp/; rm -rf /tmp/terraform-* ; rm -rf /tmp/package-* ;\
+    for version in ${VERSIONS}; do \
+    curl -o /tmp/package-${version}.zip https://releases.hashicorp.com/terraform-provider-aws/${version}/terraform-provider-aws_${version}_linux_amd64.zip; \
+    unzip /tmp/package-${version}.zip; \
+    done
+
 FROM registry.access.redhat.com/ubi8/ubi:8.2
 
 ENV LC_ALL=en_US.utf8
@@ -58,6 +69,11 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
 COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
 COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}
 RUN find ${JSONNET_VENDOR_DIR} -type d -exec chmod 0755 {} \;
+
+RUN mkdir -p /root/.terraform.d/plugins/linux_amd64
+COPY --from=terraform-providers-downloader /tmp/terraform-provider-* /root/.terraform.d/plugins/linux_amd64/
+RUN find /root/.terraform.d/ -type d -exec chmod 0755 {} \;
+
 
 WORKDIR /reconcile
 
