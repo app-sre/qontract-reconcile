@@ -152,7 +152,6 @@ class MRApproval:
             # we delete the comment and move on.
             comment_created_at = dateparser.parse(comment['created_at'])
             if comment_created_at < self.top_commit_created_at:
-
                 # Deleting stale comments
                 _LOG.info([f'Project:{self.gitlab.project.id} '
                            f'Merge Request:{self.mr.iid} '
@@ -186,8 +185,7 @@ class MRApproval:
         Gets a report dictionary and creates the corresponding Markdown
         comment message.
         """
-        markdown_report = (f'{COMMENT_PREFIX} You will need a "/lgtm" from'
-                           f'one person from each of these groups:\n\n')
+        markdown_report = ''
 
         approvers = list()
         for _, owners in report.items():
@@ -209,10 +207,12 @@ class MRApproval:
             if new_group:
                 approvers.append(new_group)
 
-        for group in approvers:
+        if approvers:
+            markdown_report += (f'{COMMENT_PREFIX} You will need a "/lgtm" '
+                                f'from one person from each of these '
+                                f'groups:\n\n')
+        for group in sorted(approvers):
             markdown_report += f'* {", ".join(group)}\n'
-
-        markdown_report += '\nAdditional relevant reviewers are: '
 
         reviewers = set()
         for _, owners in report.items():
@@ -229,9 +229,11 @@ class MRApproval:
                 if not there:
                     reviewers.add(reviewer)
 
-        markdown_report += f'{", ".join(sorted(reviewers))}'
+        if reviewers:
+            markdown_report += '\nAdditional relevant reviewers are:\n\n'
+            markdown_report += f'* {", ".join(sorted(reviewers))}'
 
-        return markdown_report
+        return markdown_report.rstrip()
 
 
 def act(repo, dry_run, instance, settings):
