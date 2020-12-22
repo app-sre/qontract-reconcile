@@ -11,7 +11,7 @@ def check_rule(yaml_spec):
     try:
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(yaml.dump(yaml_spec).encode())
-            fp.seek(0)
+            fp.flush()
             cmd = ['promtool', 'check', 'rules', fp.name]
             status = run(cmd, stdout=PIPE, stderr=PIPE)
     except Exception as e:
