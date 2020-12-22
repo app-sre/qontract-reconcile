@@ -3,8 +3,16 @@ import tempfile
 from subprocess import run, PIPE
 
 
-class PromtoolError(Exception):
-    pass
+class PromtoolResult(object):
+    def __init__(self, is_ok, message):
+        self.is_ok = is_ok
+        self.message = message
+
+    def __str__(self):
+        return str(self.message).replace('\n', '')
+
+    def __bool__(self):
+        return self.is_ok
 
 
 def check_rule(yaml_spec):
@@ -15,13 +23,13 @@ def check_rule(yaml_spec):
             cmd = ['promtool', 'check', 'rules', fp.name]
             status = run(cmd, stdout=PIPE, stderr=PIPE)
     except Exception as e:
-        raise PromtoolError(f'Error building promtool file: {e}')
+        return PromtoolResult(False, f'Error building promtool file: {e}')
 
     if status.returncode != 0:
         message = 'Error running promtool'
         if status.stderr:
             message += ": " + status.stderr.decode()
 
-        raise PromtoolError(message)
+        return PromtoolResult(False, message)
 
-    return status.stdout
+    return PromtoolResult(True, status.stdout.decode())

@@ -13,11 +13,8 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 
 def check_rule(rule):
-    try:
-        promtool.check_rule(rule['spec'])
-    except Exception as e:
-        rule['message'] = str(e).replace('\n', '')
-        return rule
+    rule['check_result'] = promtool.check_rule(rule['spec'])
+    return rule
 
 
 def run(dry_run, thread_pool_size=10, cluster_name=None):
@@ -48,13 +45,13 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
                           'namespace': n['name'],
                           'cluster': n['cluster']['name']})
 
-    failed = [f for f in threaded.run(check_rule, rules, thread_pool_size)
-              if f]
+    failed = [r for r in threaded.run(check_rule, rules, thread_pool_size)
+              if not r['check_result']]
 
     if failed:
         for f in failed:
             logging.warning(f"Error in rule {f['path']} from namespace "
                             f"{f['namespace']} in cluster {f['cluster']}: "
-                            f"{f['message']}")
+                            f"{f['check_result']}")
 
         sys.exit(1)
