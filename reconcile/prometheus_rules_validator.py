@@ -34,6 +34,10 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
             continue
 
         openshift_resources = n.get('openshiftResources')
+        if not openshift_resources:
+            logging.warning("No openshiftResources defined for namespace"
+                            f"{n['name']} in cluster {n['cluster']['name']}")
+            continue
 
         for r in openshift_resources:
             if r['path'] not in rules_paths:
