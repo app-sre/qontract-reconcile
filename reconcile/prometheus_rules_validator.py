@@ -16,7 +16,8 @@ def check_rule(rule):
     try:
         promtool.check_rule(rule['spec'])
     except Exception as e:
-        return {'path': rule['path'], 'message': str(e).replace('\n', '')}
+        rule['message'] = str(e).replace('\n', '')
+        return rule
 
 
 def run(dry_run, thread_pool_size=10, cluster_name=None):
@@ -28,10 +29,11 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
 
     rules = []
     for n in gqlapi.query(orb.NAMESPACES_QUERY)['namespaces']:
-        if n['name'] != 'openshift-customer-monitoring':
+        if cluster_name and n['cluster']['name'] != cluster_name:
             continue
 
-        if cluster_name and n['cluster']['name'] != cluster_name:
+        if not n['managedResourceTypes'] or \
+           'PrometheusRule' not in n['managedResourceTypes']:
             continue
 
         openshift_resources = n.get('openshiftResources')
@@ -42,13 +44,17 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
 
             openshift_resource = orb.fetch_openshift_resource(r, n)
             rules.append({'path': r['path'],
-                          'spec': openshift_resource.body['spec']})
+                          'spec': openshift_resource.body['spec'],
+                          'namespace': n['name'],
+                          'cluster': n['cluster']['name']})
 
     failed = [f for f in threaded.run(check_rule, rules, thread_pool_size)
               if f]
 
     if failed:
         for f in failed:
-            logging.warning(f"Error in rule {f['path']}: {f['message']}")
+            logging.warning(f"Error in rule {f['path']} from namespace "
+                            f"{f['namespace']} in cluster {f['cluster']}: "
+                            f"{f['message']}")
 
         sys.exit(1)
