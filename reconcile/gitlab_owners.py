@@ -12,6 +12,7 @@ from utils.repo_owners import RepoOwners
 QONTRACT_INTEGRATION = 'gitlab-owners'
 
 APPROVAL_LABEL = 'bot/approved'
+COMMENT_PREFIX = '[OWNERS]'
 
 _LOG = logging.getLogger(__name__)
 
@@ -110,9 +111,9 @@ class MRApproval:
                 if approver in lgtms:
                     change_approved = True
 
-            report[change_path] = {}
             # Each change that was not yet approved will generate
             # a report message
+            report[change_path] = {}
             if not change_approved:
                 approval_status['approved'] = False
                 approvers = change_owners['closest_approvers']
@@ -127,42 +128,52 @@ class MRApproval:
                 reviewers = change_owners['closest_reviewers']
                 report[change_path]['reviewers'] = reviewers
 
-        # Since we have a report, let's check if that report was already
-        # used for a comment
-        if report:
-            formatted_report = self.format_report(report)
+        # Returning earlier. No need to process comments if
+        # we got no report.
+        if not report:
+            return approval_status
 
-            comments = self.gitlab.get_merge_request_comments(self.mr.iid)
-            for comment in comments:
-                # Only interested on our own comments
-                if comment['username'] != self.gitlab.user.username:
-                    continue
+        # Now, since we have a report, let's check if that report was
+        # already used for a comment
+        formatted_report = self.format_report(report)
+        comments = self.gitlab.get_merge_request_comments(self.mr.iid)
+        for comment in comments:
+            # Only interested on our own comments
+            if comment['username'] != self.gitlab.user.username:
+                continue
 
-                body = comment['body']
+            # Ignoring non-approval comments
+            body = comment['body']
+            if not body.startswith(COMMENT_PREFIX):
+                continue
 
-                # Only interested in comments created after the top commit
-                # creation time
-                comment_created_at = dateparser.parse(comment['created_at'])
-                if comment_created_at < self.top_commit_created_at:
-                    if body.startswith('[OWNERS]'):
-                        if not self.dry_run:
-                            _LOG.info([f'Project:{self.gitlab.project.id} '
-                                       f'Merge Request:{self.mr.iid} '
-                                       f'- removing stale comment'])
-                            self.gitlab.delete_gitlab_comment(self.mr.iid,
-                                                              comment['id'])
-                    continue
+            # If the comment was created before the last commit,
+            # it means we had a push after the comment. In this case,
+            # we delete the comment and move on.
+            comment_created_at = dateparser.parse(comment['created_at'])
+            if comment_created_at < self.top_commit_created_at:
 
-                # If we find a comment equals to the report,
-                # we don't return the report
-                if body == formatted_report:
-                    return approval_status
+                # Deleting stale comments
+                _LOG.info([f'Project:{self.gitlab.project.id} '
+                           f'Merge Request:{self.mr.iid} '
+                           f'- removing stale comment'])
+                if not self.dry_run:
+                    self.gitlab.delete_gitlab_comment(self.mr.iid,
+                                                      comment['id'])
+                continue
 
-            # At this point, the MR was not approved and the report
-            # will be used for creating a comment in the MR.
-            # json_report = json.dumps(report, indent=4)
-            # markdown_json_report = f'```\n{json_report}\n```'
-            approval_status['report'] = formatted_report
+            # At this point, we've found an approval comment comment
+            # made after the last push. Now we just have to check
+            # whether the comment has the current report information.
+            # When that's the case, we return no report so no new comment
+            # will be posted.
+            if body == formatted_report:
+                return approval_status
+
+        # At this point, the MR was not fully approved and there's no
+        # comment reflecting the current approval status. The report will
+        # be used for creating a comment in the MR.
+        approval_status['report'] = formatted_report
         return approval_status
 
     def has_approval_label(self):
@@ -175,8 +186,8 @@ class MRApproval:
         Gets a report dictionary and creates the corresponding Markdown
         comment message.
         """
-        markdown_report = ('[OWNERS] You will need a "/lgtm" from one person '
-                           'from each of these groups:\n\n')
+        markdown_report = (f'{COMMENT_PREFIX} You will need a "/lgtm" from'
+                           f'one person from each of these groups:\n\n')
 
         approvers = list()
         for _, owners in report.items():
