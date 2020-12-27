@@ -1216,6 +1216,44 @@ def get_saas_files_minimal():
     return gqlapi.query(SAAS_FILES_MINIMAL_QUERY)['saas_files']
 
 
+JIRA_BOARDS_QUERY = """
+{
+  jira_boards: jira_boards_v1 {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        path
+      }
+    }
+    slack {
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+    }
+  }
+}
+"""
+
+
+def get_jira_boards():
+    """ Returns Jira boards resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
+
+
 PERFORMANCE_PARAMETERS_QUERY = """
 {
   performance_parameters_v1 {
