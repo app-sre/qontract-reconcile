@@ -24,7 +24,7 @@ from utils.elasticsearch_exceptions \
           ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 from threading import Lock
-from terrascript import Terrascript, provider, terraform, backend, output, data
+from terrascript import Terrascript, provider, Terraform, Backend, output, data
 from terrascript.aws.d import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_s3_bucket, aws_iam_user,
@@ -83,26 +83,26 @@ class TerrascriptClient(object):
             supported_regions = config['supportedDeploymentRegions']
             if supported_regions is not None:
                 for region in supported_regions:
-                    ts += provider('aws',
-                                   access_key=config['aws_access_key_id'],
-                                   secret_key=config['aws_secret_access_key'],
-                                   version=config['aws_provider_version'],
-                                   region=region,
-                                   alias=region)
+                    ts += provider.aws(
+                        access_key=config['aws_access_key_id'],
+                        secret_key=config['aws_secret_access_key'],
+                        version=config['aws_provider_version'],
+                        region=region,
+                        alias=region)
 
             # Add default region, which will always be region in the secret
-            ts += provider('aws',
-                           access_key=config['aws_access_key_id'],
-                           secret_key=config['aws_secret_access_key'],
-                           version=config['aws_provider_version'],
-                           region=config['region'])
-            b = backend("s3",
+            ts += provider.aws(
+                access_key=config['aws_access_key_id'],
+                secret_key=config['aws_secret_access_key'],
+                version=config['aws_provider_version'],
+                region=config['region'])
+            b = Backend("s3",
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
                         bucket=config['bucket'],
                         key=config['{}_key'.format(integration)],
                         region=config['region'])
-            ts += terraform(backend=b)
+            ts += Terraform(backend=b)
             tss[name] = ts
             locks[name] = Lock()
         self.tss = tss
@@ -534,7 +534,7 @@ class TerrascriptClient(object):
             values['provider'] = provider
 
         deps = []
-        parameter_group = values.pop('parameter_group')
+        parameter_group = values.pop('parameter_group', None)
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             # Parameter group name is not required by terraform.
@@ -545,7 +545,7 @@ class TerrascriptClient(object):
             pg_name = pg_values.get('name', values['identifier'] + "-pg")
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['name'] = pg_name
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_values['parameter'] = pg_values.pop('parameters', None)
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -554,7 +554,7 @@ class TerrascriptClient(object):
             deps = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
-        enhanced_monitoring = values.pop('enhanced_monitoring')
+        enhanced_monitoring = values.pop('enhanced_monitoring', None)
 
         # monitoring interval should only be set if enhanced monitoring
         # is true
@@ -562,7 +562,7 @@ class TerrascriptClient(object):
             not enhanced_monitoring and
             values.get('monitoring_interval', None)
         ):
-            values.pop('monitoring_interval')
+            values.pop('monitoring_interval', None)
 
         if enhanced_monitoring:
             # Set monitoring interval to 60s if it is not set.
@@ -720,25 +720,25 @@ class TerrascriptClient(object):
         # we want the outputs to be formed into an OpenShift Secret
         # with the following fields
         # db.host
-        output_name = output_prefix + '[db.host]'
-        output_value = '${' + tf_resource.fullname + '.address}'
-        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '__db_host'
+        # output_value = '${' + tf_resource.fullname + '.address}'
+        tf_resources.append(output(output_name, value=tf_resource.address))
         # db.port
-        output_name = output_prefix + '[db.port]'
-        output_value = '${' + tf_resource.fullname + '.port}'
-        tf_resources.append(output(output_name, value=output_value))
+        output_name = output_prefix + '__db_port'
+        # output_value = '${' + tf_resource.fullname + '.port}'
+        tf_resources.append(output(output_name, value=tf_resource.port))
         # db.name
-        output_name = output_prefix + '[db.name]'
+        output_name = output_prefix + '__db_name'
         output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(output(output_name, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
         if self._db_needs_auth_(values):
             # db.user
-            output_name = output_prefix + '[db.user]'
+            output_name = output_prefix + '__db_user'
             output_value = values['username']
             tf_resources.append(output(output_name, value=output_value))
             # db.password
-            output_name = output_prefix + '[db.password]'
+            output_name = output_prefix + '__db_password'
             output_value = values['password']
             tf_resources.append(output(output_name, value=output_value))
             # only add reset_password key to the terraform state
@@ -748,7 +748,7 @@ class TerrascriptClient(object):
             # removed from the state and from the output resource,
             # leading to a recycle of the pods using this resource.
             if reset_password_current_value:
-                output_name = output_prefix + '[reset_password]'
+                output_name = output_prefix + '__reset_password'
                 output_value = reset_password_current_value
                 tf_resources.append(output(output_name, value=output_value))
 
@@ -1173,7 +1173,7 @@ class TerrascriptClient(object):
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_values['parameter'] = pg_values.pop('parameters', None)
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -2226,13 +2226,13 @@ class TerrascriptClient(object):
         for name, ts in self.tss.items():
             if print_only:
                 print('##### {} #####'.format(name))
-                print(ts.dump())
+                print(str(ts))
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
                 wd = working_dirs[name]
-            with open(wd + '/config.tf', 'w') as f:
-                f.write(ts.dump())
+            with open(wd + '/config.tf.json', 'w') as f:
+                f.write(str(ts))
             working_dirs[name] = wd
 
         return working_dirs
@@ -2270,25 +2270,44 @@ class TerrascriptClient(object):
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        values['variables'] = variables
-        values['policies'] = policies
-        values['user_policy'] = user_policy
-        values['region'] = region
-        values['availability_zone'] = az
-        values['queues'] = queues
-        values['specs'] = specs
-        values['parameter_group'] = parameter_group
-        values['sqs_identifier'] = sqs_identifier
-        values['s3_events'] = s3_events
-        values['bucket_policy'] = bucket_policy
-        values['storage_class'] = sc
-        values['enhanced_monitoring'] = enhanced_monitoring
-        values['replica_source'] = replica_source
-        values['es_identifier'] = es_identifier
-        values['filter_pattern'] = filter_pattern
-        values['secret'] = secret
-        values['output_resource_db_name'] = output_resource_db_name
-        values['reset_password'] = reset_password
+        if variables:
+            values['variables'] = variables
+        if policies:
+            values['policies'] = policies
+        if user_policy:
+            values['user_policy'] = user_policy
+        if region:
+            values['region'] = region
+        if az:
+            values['availability_zone'] = az
+        if queues:
+            values['queues'] = queues
+        if specs:
+            values['specs'] = specs
+        if parameter_group:
+            values['parameter_group'] = parameter_group
+        if sqs_identifier:
+            values['sqs_identifier'] = sqs_identifier
+        if s3_events:
+            values['s3_events'] = s3_events
+        if bucket_policy:
+            values['bucket_policy'] = bucket_policy
+        if sc:
+            values['storage_class'] = sc
+        if enhanced_monitoring:
+            values['enhanced_monitoring'] = enhanced_monitoring
+        if replica_source:
+            values['replica_source'] = replica_source
+        if es_identifier:
+            values['es_identifier'] = es_identifier
+        if filter_pattern:
+            values['filter_pattern'] = filter_pattern
+        if secret:
+            values['secret'] = secret
+        if output_resource_db_name:
+            values['output_resource_db_name'] = output_resource_db_name
+        if reset_password:
+            values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
@@ -2319,7 +2338,7 @@ class TerrascriptClient(object):
 
     def init_common_outputs(self, tf_resources, namespace_info,
                             output_prefix, output_resource_name):
-        output_format = '{}[{}.{}]'
+        output_format = '{}__{}_{}'
         cluster, namespace = self.unpack_namespace_info(namespace_info)
         output_name = output_format.format(
             output_prefix, self.integration_prefix, 'cluster')
