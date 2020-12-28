@@ -1705,7 +1705,7 @@ class TerrascriptClient(object):
         tf_resources.append(cf_distribution_tf_resource)
 
         # outputs
-        ## cloud_front_origin_access_identity_id
+        # cloud_front_origin_access_identity_id
         output_name = output_prefix + \
             '[cloud_front_origin_access_identity_id]'
         output_name_0_13 = output_prefix + \
@@ -1714,7 +1714,7 @@ class TerrascriptClient(object):
             '.id}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## s3_canonical_user_id
+        # s3_canonical_user_id
         output_name = output_prefix + \
             '[s3_canonical_user_id]'
         output_name_0_13 = output_prefix + \
@@ -1723,7 +1723,7 @@ class TerrascriptClient(object):
             '.s3_canonical_user_id}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## distribution_domain
+        # distribution_domain
         output_name = output_prefix + \
             '[distribution_domain]'
         output_name_0_13 = output_prefix + \
@@ -1732,7 +1732,7 @@ class TerrascriptClient(object):
             '.domain_name}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## origin_access_identity
+        # origin_access_identity
         output_name = output_prefix + \
             '[origin_access_identity]'
         output_name_0_13 = output_prefix + \
@@ -1823,13 +1823,13 @@ class TerrascriptClient(object):
         access_key_tf_resource = aws_iam_access_key(sqs_identifier, **values)
         tf_resources.append(access_key_tf_resource)
         # outputs
-        ## sqs_aws_access_key_id
+        # sqs_aws_access_key_id
         output_name = output_prefix + '[sqs_aws_access_key_id]'
         output_name_0_13 = output_prefix + '__sqs_aws_access_key_id'
         output_value = '${' + access_key_tf_resource.fullname + '.id}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## sqs_aws_secret_access_key
+        # sqs_aws_secret_access_key
         output_name = output_prefix + '[sqs_aws_secret_access_key]'
         output_name_0_13 = output_prefix + '__sqs_aws_secret_access_key'
         output_value = '${' + access_key_tf_resource.fullname + '.secret}'
@@ -2192,12 +2192,12 @@ class TerrascriptClient(object):
         kinesis_tf_resource = aws_kinesis_stream(identifier, **values)
         tf_resources.append(kinesis_tf_resource)
         # outputs
-        ## stream_name
+        # stream_name
         output_name = output_prefix + '[stream_name]'
         output_name_0_13 = output_prefix + '__stream_name'
         tf_resources.append(output(output_name, value=identifier))
         tf_resources.append(output(output_name_0_13, value=identifier))
-        ## aws_region
+        # aws_region
         output_name = output_prefix + '[aws_region]'
         output_name_0_13 = output_prefix + '__aws_region'
         tf_resources.append(output(output_name, value=region))
@@ -2300,13 +2300,13 @@ class TerrascriptClient(object):
         tf_resource = aws_iam_access_key(identifier, **values)
         tf_resources.append(tf_resource)
         # outputs
-        ## aws_access_key_id
+        # aws_access_key_id
         output_name = output_prefix + '[aws_access_key_id]'
         output_name_0_13 = output_prefix + '__aws_access_key_id'
         output_value = '${' + tf_resource.fullname + '.id}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## aws_secret_access_key
+        # aws_secret_access_key
         output_name = output_prefix + '[aws_secret_access_key]'
         output_name_0_13 = output_prefix + '__aws_secret_access_key'
         output_value = '${' + tf_resource.fullname + '.secret}'
@@ -2331,7 +2331,7 @@ class TerrascriptClient(object):
             working_dirs = existing_dirs
         for name, ts in self.tss.items():
             if print_only:
-                print('##### {} #####'.format(name))
+                print('#### {} #####'.format(name))
                 print(ts.dump())
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
@@ -2701,39 +2701,39 @@ class TerrascriptClient(object):
         tf_resources.append(es_tf_resource)
 
         # Setup outputs
-        ## arn
+        # arn
         output_name = output_prefix + '[arn]'
         output_name_0_13 = output_prefix + '__arn'
         output_value = '${' + es_tf_resource.fullname + '.arn}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## domain_id
+        # domain_id
         output_name = output_prefix + '[domain_id]'
         output_name_0_13 = output_prefix + '__domain_id'
         output_value = '${' + es_tf_resource.fullname + '.domain_id}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## domain_name
+        # domain_name
         output_name = output_prefix + '[domain_name]'
         output_name_0_13 = output_prefix + '__domain_name'
         output_value = '${' + es_tf_resource.fullname + '.domain_name}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## endpoint
+        # endpoint
         output_name = output_prefix + '[endpoint]'
         output_name_0_13 = output_prefix + '__endpoint'
         output_value = 'https://' + \
             '${' + es_tf_resource.fullname + '.endpoint}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## kibana_endpoint
+        # kibana_endpoint
         output_name = output_prefix + '[kibana_endpoint]'
         output_name_0_13 = output_prefix + '__kibana_endpoint'
         output_value = 'https://' + \
             '${' + es_tf_resource.fullname + '.kibana_endpoint}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## vpc_id
+        # vpc_id
         output_name = output_prefix + '[vpc_id]'
         output_name_0_13 = output_prefix + '__vpc_id'
         output_value = '${' + es_tf_resource.fullname + \
@@ -2787,19 +2787,19 @@ class TerrascriptClient(object):
         tf_resources.append(acm_tf_resource)
 
         # outputs
-        ## arn
+        # arn
         output_name = output_prefix + '[arn]'
         output_name_0_13 = output_prefix + '__arn'
         output_value = '${' + acm_tf_resource.fullname + '.arn}'
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## key
+        # key
         output_name = output_prefix + '[key]'
         output_name_0_13 = output_prefix + '__key'
         output_value = key
         tf_resources.append(output(output_name, value=output_value))
         tf_resources.append(output(output_name_0_13, value=output_value))
-        ## certificate
+        # certificate
         output_name = output_prefix + '[certificate]'
         output_name_0_13 = output_prefix + '__certificate'
         output_value = certificate
