@@ -535,7 +535,7 @@ class TerrascriptClient(object):
             values['provider'] = provider
 
         deps = []
-        parameter_group = values.pop('parameter_group')
+        parameter_group = values.pop('parameter_group', None)
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             # Parameter group name is not required by terraform.
@@ -555,7 +555,7 @@ class TerrascriptClient(object):
             deps = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
-        enhanced_monitoring = values.pop('enhanced_monitoring')
+        enhanced_monitoring = values.pop('enhanced_monitoring', None)
 
         # monitoring interval should only be set if enhanced monitoring
         # is true
@@ -563,7 +563,7 @@ class TerrascriptClient(object):
             not enhanced_monitoring and
             values.get('monitoring_interval', None)
         ):
-            values.pop('monitoring_interval')
+            values.pop('monitoring_interval', None)
 
         if enhanced_monitoring:
             # Set monitoring interval to 60s if it is not set.
@@ -2271,25 +2271,44 @@ class TerrascriptClient(object):
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        values['variables'] = variables
-        values['policies'] = policies
-        values['user_policy'] = user_policy
-        values['region'] = region
-        values['availability_zone'] = az
-        values['queues'] = queues
-        values['specs'] = specs
-        values['parameter_group'] = parameter_group
-        values['sqs_identifier'] = sqs_identifier
-        values['s3_events'] = s3_events
-        values['bucket_policy'] = bucket_policy
-        values['storage_class'] = sc
-        values['enhanced_monitoring'] = enhanced_monitoring
-        values['replica_source'] = replica_source
-        values['es_identifier'] = es_identifier
-        values['filter_pattern'] = filter_pattern
-        values['secret'] = secret
-        values['output_resource_db_name'] = output_resource_db_name
-        values['reset_password'] = reset_password
+        if variables:
+            values['variables'] = variables
+        if policies:
+            values['policies'] = policies
+        if user_policy:
+            values['user_policy'] = user_policy
+        if region:
+            values['region'] = region
+        if az:
+            values['availability_zone'] = az
+        if queues:
+            values['queues'] = queues
+        if specs:
+            values['specs'] = specs
+        if parameter_group:
+            values['parameter_group'] = parameter_group
+        if sqs_identifier:
+            values['sqs_identifier'] = sqs_identifier
+        if s3_events:
+            values['s3_events'] = s3_events
+        if bucket_policy:
+            values['bucket_policy'] = bucket_policy
+        if sc:
+            values['storage_class'] = sc
+        if enhanced_monitoring:
+            values['enhanced_monitoring'] = enhanced_monitoring
+        if replica_source:
+            values['replica_source'] = replica_source
+        if es_identifier:
+            values['es_identifier'] = es_identifier
+        if filter_pattern:
+            values['filter_pattern'] = filter_pattern
+        if secret:
+            values['secret'] = secret
+        if output_resource_db_name:
+            values['output_resource_db_name'] = output_resource_db_name
+        if reset_password:
+            values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
