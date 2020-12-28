@@ -290,6 +290,8 @@ class TerraformClient(object):
             k_split = k.split('__')
             resource_name = k_split[0]
             field_key = k_split[1]
+            if field_key.startswith('db'):
+                field_key = field_key.replace('_', '.')
             field_value = v['value']
             if resource_name not in data:
                 data[resource_name] = {}
