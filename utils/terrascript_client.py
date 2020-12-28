@@ -2271,43 +2271,43 @@ class TerrascriptClient(object):
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        if variables:
+        if variables is not None:
             values['variables'] = variables
-        if policies:
+        if policies is not None:
             values['policies'] = policies
-        if user_policy:
+        if user_policy is not None:
             values['user_policy'] = user_policy
-        if region:
+        if region is not None:
             values['region'] = region
-        if az:
+        if az is not None:
             values['availability_zone'] = az
-        if queues:
+        if queues is not None:
             values['queues'] = queues
-        if specs:
+        if specs is not None:
             values['specs'] = specs
-        if parameter_group:
+        if parameter_group is not None:
             values['parameter_group'] = parameter_group
-        if sqs_identifier:
+        if sqs_identifier is not None:
             values['sqs_identifier'] = sqs_identifier
-        if s3_events:
+        if s3_events is not None:
             values['s3_events'] = s3_events
-        if bucket_policy:
+        if bucket_policy is not None:
             values['bucket_policy'] = bucket_policy
-        if sc:
+        if sc is not None:
             values['storage_class'] = sc
-        if enhanced_monitoring:
+        if enhanced_monitoring is not None:
             values['enhanced_monitoring'] = enhanced_monitoring
-        if replica_source:
+        if replica_source is not None:
             values['replica_source'] = replica_source
-        if es_identifier:
+        if es_identifier is not None:
             values['es_identifier'] = es_identifier
-        if filter_pattern:
+        if filter_pattern is not None:
             values['filter_pattern'] = filter_pattern
-        if secret:
+        if secret is not None:
             values['secret'] = secret
-        if output_resource_db_name:
+        if output_resource_db_name is not None:
             values['output_resource_db_name'] = output_resource_db_name
-        if reset_password:
+        if reset_password is not None:
             values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
