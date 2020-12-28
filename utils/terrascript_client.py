@@ -24,7 +24,7 @@ from utils.elasticsearch_exceptions \
           ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 from threading import Lock
-from terrascript import Terrascript, provider, terraform, backend, output, data
+from terrascript import Terrascript, provider, Terraform, Backend, output, data
 from terrascript.aws.d import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.aws.r import (aws_db_instance, aws_db_parameter_group,
                                aws_s3_bucket, aws_iam_user,
@@ -83,26 +83,26 @@ class TerrascriptClient(object):
             supported_regions = config['supportedDeploymentRegions']
             if supported_regions is not None:
                 for region in supported_regions:
-                    ts += provider('aws',
-                                   access_key=config['aws_access_key_id'],
-                                   secret_key=config['aws_secret_access_key'],
-                                   version=config['aws_provider_version'],
-                                   region=region,
-                                   alias=region)
+                    ts += provider.aws(
+                        access_key=config['aws_access_key_id'],
+                        secret_key=config['aws_secret_access_key'],
+                        version=config['aws_provider_version'],
+                        region=region,
+                        alias=region)
 
             # Add default region, which will always be region in the secret
-            ts += provider('aws',
-                           access_key=config['aws_access_key_id'],
-                           secret_key=config['aws_secret_access_key'],
-                           version=config['aws_provider_version'],
-                           region=config['region'])
-            b = backend("s3",
+            ts += provider.aws(
+                access_key=config['aws_access_key_id'],
+                secret_key=config['aws_secret_access_key'],
+                version=config['aws_provider_version'],
+                region=config['region'])
+            b = Backend("s3",
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
                         bucket=config['bucket'],
                         key=config['{}_key'.format(integration)],
                         region=config['region'])
-            ts += terraform(backend=b)
+            ts += Terraform(backend=b)
             tss[name] = ts
             locks[name] = Lock()
         self.tss = tss
@@ -546,7 +546,7 @@ class TerrascriptClient(object):
             pg_name = pg_values.get('name', values['identifier'] + "-pg")
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['name'] = pg_name
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_values['parameter'] = pg_values.pop('parameters', None)
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -563,7 +563,7 @@ class TerrascriptClient(object):
             not enhanced_monitoring and
             values.get('monitoring_interval', None)
         ):
-            values.pop('monitoring_interval')
+            values.pop('monitoring_interval', None)
 
         if enhanced_monitoring:
             # Set monitoring interval to 60s if it is not set.
@@ -1178,7 +1178,7 @@ class TerrascriptClient(object):
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_values['parameter'] = pg_values.pop('parameters', None)
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -2250,14 +2250,14 @@ class TerrascriptClient(object):
             working_dirs = existing_dirs
         for name, ts in self.tss.items():
             if print_only:
-                print('#### {} #####'.format(name))
-                print(ts.dump())
+                print('##### {} #####'.format(name))
+                print(str(ts))
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
                 wd = working_dirs[name]
-            with open(wd + '/config.tf', 'w') as f:
-                f.write(ts.dump())
+            with open(wd + '/config.tf.json', 'w') as f:
+                f.write(str(ts))
             working_dirs[name] = wd
 
         return working_dirs
