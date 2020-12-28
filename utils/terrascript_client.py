@@ -111,7 +111,6 @@ class TerrascriptClient(object):
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
         github_config = get_config()['github']
-        self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
 
     def get_logtoes_zip(self, release_url):
@@ -123,7 +122,8 @@ class TerrascriptClient(object):
             return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
-        headers = {'Authorization': 'token ' + self.token}
+        token = get_config()['github']['app-sre']['token']
+        headers = {'Authorization': 'token ' + token}
         r = requests.get(GH_BASE_URL + '/' + release_url, headers=headers)
         r.raise_for_status()
         data = r.json()
