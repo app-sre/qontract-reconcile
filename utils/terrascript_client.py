@@ -2577,7 +2577,8 @@ class TerrascriptClient(object):
         es_values['access_policies'] = json.dumps(
             access_policies, sort_keys=True)
 
-        region = values['region'] or self.default_regions.get(account)
+        region = values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             es_values['provider'] = 'aws.' + region
 
