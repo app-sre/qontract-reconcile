@@ -267,7 +267,9 @@ class SaasHerder():
                     for group in groups:
                         rules = group['rules']
                         for rule in rules:
-                            rule.setdefault('annotations', {})
+                            annotations = rule.get('annotations')
+                            if not annotations:
+                                continue
                             rule['annotations']['html_url'] = html_url
                 except Exception:
                     logging.warning(

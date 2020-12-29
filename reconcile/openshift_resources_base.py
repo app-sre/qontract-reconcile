@@ -266,7 +266,9 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                 for group in groups:
                     rules = group['rules']
                     for rule in rules:
-                        rule.setdefault('annotations', {})
+                        annotations = rule.get('annotations')
+                        if not annotations:
+                            continue
                         # TODO(mafriedm): make this better
                         rule['annotations']['html_url'] = \
                             f"{APP_INT_BASE_URL}/blob/master/resources{path}"
