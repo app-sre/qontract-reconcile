@@ -1047,7 +1047,6 @@ class TerrascriptClient(object):
             self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
-        values['region'] = region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name = output_prefix + '[bucket]'
