@@ -129,7 +129,7 @@ NAMESPACES_QUERY = """
 QONTRACT_INTEGRATION = 'openshift_resources_base'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
-
+APP_INT_BASE_URL = 'https://gitlab.cee.redhat.com/service/app-interface'
 
 _log_lock = Lock()
 
@@ -221,7 +221,8 @@ def process_extracurlyjinja2_template(body, vars={}):
 
 
 def fetch_provider_resource(path, tfunc=None, tvars=None,
-                            validate_json=False):
+                            validate_json=False,
+                            add_path_to_prom_rules=True):
     gqlapi = gql.get_api()
 
     # get resource data
@@ -256,6 +257,23 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
             except ValueError:
                 e_msg = f"invalid json in {path} under {file_name}"
                 raise FetchResourceError(e_msg)
+
+    if add_path_to_prom_rules:
+        body = resource['body']
+        if body['kind'] == 'PrometheusRule':
+            try:
+                groups = body['spec']['groups']
+                for group in groups:
+                    rules = group['rules']
+                    for rule in rules:
+                        rule.setdefault('annotations', {})
+                        # TODO(mafriedm): make this better
+                        rule['annotations']['html_url'] = \
+                            f"{APP_INT_BASE_URL}/blob/master/resources{path}"
+            except Exception:
+                logging.warning(
+                    'could not add html_url annotation to' +
+                    body['name'])
 
     try:
         return OR(resource['body'],
