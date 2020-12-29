@@ -129,7 +129,7 @@ NAMESPACES_QUERY = """
 QONTRACT_INTEGRATION = 'openshift_resources_base'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
-
+APP_INT_BASE_URL = 'https://gitlab.cee.redhat.com/service/app-interface'
 
 _log_lock = Lock()
 
@@ -267,7 +267,9 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                     rules = group['rules']
                     for rule in rules:
                         rule.setdefault('annotations', {})
-                        rule['annotations']['html_url'] = html_url
+                        # TODO(mafriedm): make this better
+                        rule['annotations']['html_url'] = \
+                            f"{APP_INT_BASE_URL}/blob/master/resources{path}"
             except Exception:
                 logging.warning(
                     'could not add html_url annotation to' +
