@@ -728,7 +728,7 @@ class TerrascriptClient(object):
         # db.port
         output_name = output_prefix + '__db_port'
         # output_value = '${' + tf_resource.fullname + '.port}'
-        output_value = '${' + tf_resource.port + '}'
+        output_value = '${' + str(tf_resource.port) + '}'
         tf_resources.append(Output(output_name, value=output_value))
         # db.name
         output_name = output_prefix + '__db_name'
