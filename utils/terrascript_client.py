@@ -1041,7 +1041,8 @@ class TerrascriptClient(object):
             values['replication_configuration'] = rc_configs
         if len(deps) > 0:
             values['depends_on'] = deps
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         values['region'] = region
@@ -1089,7 +1090,7 @@ class TerrascriptClient(object):
                 sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
 
-        bucket_policy = common_values['bucket_policy']
+        bucket_policy = common_values.get('bucket_policy')
         if bucket_policy:
             values = {
                 'bucket': identifier,
@@ -1245,7 +1246,7 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
-        for policy in common_values['policies'] or []:
+        for policy in common_values.get('policies') or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
@@ -1255,9 +1256,9 @@ class TerrascriptClient(object):
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
 
-        user_policy = common_values['user_policy']
+        user_policy = common_values.get('user_policy')
         if user_policy:
-            variables = common_values['variables']
+            variables = common_values.get('variables')
             # variables are replaced in the user_policy
             # and also added to the output resource
             if variables:
@@ -1288,8 +1289,9 @@ class TerrascriptClient(object):
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions.get(account)
-        specs = common_values['specs']
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        specs = common_values.get('specs')
         all_queues_per_spec = []
         kms_keys = set()
         for spec in specs:
@@ -1411,8 +1413,9 @@ class TerrascriptClient(object):
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions.get(account)
-        specs = common_values['specs']
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        specs = common_values.get('specs')
         all_tables = []
         for spec in specs:
             defaults = self.get_values(spec['defaults'])
@@ -1501,7 +1504,8 @@ class TerrascriptClient(object):
         values['name'] = identifier
         values['tags'] = common_values['tags']
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
@@ -1618,7 +1622,8 @@ class TerrascriptClient(object):
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
         values['depends_on'] = [bucket_tf_resource]
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
@@ -1703,7 +1708,8 @@ class TerrascriptClient(object):
         if kms_master_key_id is not None:
             sqs_values['kms_master_key_id'] = kms_master_key_id
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             sqs_values['provider'] = 'aws.' + region
 
@@ -1820,7 +1826,8 @@ class TerrascriptClient(object):
                     common_values, account, identifier)
         }
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         provider = ''
         if self._multiregion_account_(account):
             provider = 'aws.' + region
@@ -1891,8 +1898,8 @@ class TerrascriptClient(object):
             }
             if provider:
                 es_domain['provider'] = provider
-            tf_resources.append(data('aws_elasticsearch_domain',
-                                     es_identifier, **es_domain))
+            tf_resources.append(
+                data.aws_elasticsearch_domain(es_identifier, **es_domain))
 
             release_url = common_values.get('release_url', LOGTOES_RELEASE)
             zip_file = self.get_logtoes_zip(release_url)
@@ -2569,7 +2576,8 @@ class TerrascriptClient(object):
         es_values['access_policies'] = json.dumps(
             access_policies, sort_keys=True)
 
-        region = values['region'] or self.default_regions.get(account)
+        region = values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             es_values['provider'] = 'aws.' + region
 
@@ -2641,7 +2649,8 @@ class TerrascriptClient(object):
         if caCertificate is not None:
             values['certificate_chain'] = caCertificate
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
 
