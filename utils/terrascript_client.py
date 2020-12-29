@@ -1172,7 +1172,7 @@ class TerrascriptClient(object):
             provider = 'aws.' + region
             values['provider'] = provider
 
-        parameter_group = values['parameter_group']
+        parameter_group = values.get('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
