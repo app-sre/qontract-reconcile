@@ -182,7 +182,7 @@ class SaasHerder():
         path = options['path']
         ref = options['ref']
         github = options['github']
-        html_url = os.path.join(url, 'blob', ref, path)
+        html_url = f"{url}/blob/{ref}{path}"
         content = None
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
@@ -204,7 +204,7 @@ class SaasHerder():
         path = options['path']
         ref = options['ref']
         github = options['github']
-        html_url = os.path.join(url, 'tree', ref, path)
+        html_url = f"{url}/tree/{ref}{path}"
         resources = []
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
@@ -256,6 +256,23 @@ class SaasHerder():
         cluster = target['namespace']['cluster']['name']
         namespace = target['namespace']['name']
         return cluster, namespace
+
+    @staticmethod
+    def _additional_resource_process(resources, html_url):
+        for resource in resources:
+            # add a definition annotation to each PrometheusRule rule
+            if resource['kind'] == 'PrometheusRule':
+                try:
+                    groups = resource['spec']['groups']
+                    for group in groups:
+                        rules = group['rules']
+                        for rule in rules:
+                            rule.setdefault('annotations', {})
+                            rule['annotations']['html_url'] = html_url
+                except Exception:
+                    logging.warning(
+                        'could not add html_url annotation to' +
+                        resource['name'])
 
     def _process_template(self, options):
         saas_file_name = options['saas_file_name']
@@ -579,6 +596,8 @@ class SaasHerder():
         resources = [resource for resource in resources
                      if isinstance(resource, dict)
                      and resource['kind'] in managed_resource_types]
+        # additional processing of resources
+        self._additional_resource_process(resources, html_url)
         # check images
         skip_check_images = upstream and self.jenkins_map and \
             self.jenkins_map[instance_name].is_job_running(upstream)
