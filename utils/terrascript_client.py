@@ -2635,8 +2635,7 @@ class TerrascriptClient(object):
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # vpc_id
         output_name_0_13 = output_prefix + '__vpc_id'
-        # TODO: FIX ME
-        output_value = '${' + es_tf_resource.fullname + \
+        output_value = '${aws_elasticsearch_domain.' + identifier + \
             '.vpc_options.0.vpc_id}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
