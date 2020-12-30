@@ -563,7 +563,7 @@ class TerrascriptClient(object):
             not enhanced_monitoring and
             values.get('monitoring_interval', None)
         ):
-            values.pop('monitoring_interval', None)
+            values.pop('monitoring_interval')
 
         if enhanced_monitoring:
             # Set monitoring interval to 60s if it is not set.
@@ -2280,6 +2280,8 @@ class TerrascriptClient(object):
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
+        # checking explicitly for not None
+        # to allow passing empty strings, False, etc
         if variables is not None:
             values['variables'] = variables
         if policies is not None:
