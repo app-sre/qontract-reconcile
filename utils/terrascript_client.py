@@ -27,32 +27,32 @@ from threading import Lock
 from terrascript import Terrascript, provider, Terraform, Backend, Output, data
 from terrascript.data import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
-                               aws_s3_bucket, aws_iam_user,
-                               aws_s3_bucket_notification,
-                               aws_iam_access_key, aws_iam_user_policy,
-                               aws_iam_group, aws_iam_group_policy_attachment,
-                               aws_iam_user_group_membership,
-                               aws_iam_user_login_profile, aws_iam_policy,
-                               aws_iam_role, aws_iam_role_policy,
-                               aws_iam_role_policy_attachment,
-                               aws_elasticache_replication_group,
-                               aws_elasticache_parameter_group,
-                               aws_iam_user_policy_attachment,
-                               aws_sqs_queue, aws_dynamodb_table,
-                               aws_ecr_repository, aws_s3_bucket_policy,
-                               aws_cloudfront_origin_access_identity,
-                               aws_cloudfront_distribution,
-                               aws_vpc_peering_connection,
-                               aws_vpc_peering_connection_accepter,
-                               aws_route,
-                               aws_cloudwatch_log_group, aws_kms_key,
-                               aws_kms_alias,
-                               aws_elasticsearch_domain,
-                               aws_iam_service_linked_role,
-                               aws_lambda_function, aws_lambda_permission,
-                               aws_cloudwatch_log_subscription_filter,
-                               aws_acm_certificate,
-                               aws_kinesis_stream)
+                                  aws_s3_bucket, aws_iam_user,
+                                  aws_s3_bucket_notification,
+                                  aws_iam_access_key, aws_iam_user_policy,
+                                  aws_iam_group, aws_iam_group_policy_attachment,
+                                  aws_iam_user_group_membership,
+                                  aws_iam_user_login_profile, aws_iam_policy,
+                                  aws_iam_role, aws_iam_role_policy,
+                                  aws_iam_role_policy_attachment,
+                                  aws_elasticache_replication_group,
+                                  aws_elasticache_parameter_group,
+                                  aws_iam_user_policy_attachment,
+                                  aws_sqs_queue, aws_dynamodb_table,
+                                  aws_ecr_repository, aws_s3_bucket_policy,
+                                  aws_cloudfront_origin_access_identity,
+                                  aws_cloudfront_distribution,
+                                  aws_vpc_peering_connection,
+                                  aws_vpc_peering_connection_accepter,
+                                  aws_route,
+                                  aws_cloudwatch_log_group, aws_kms_key,
+                                  aws_kms_alias,
+                                  aws_elasticsearch_domain,
+                                  aws_iam_service_linked_role,
+                                  aws_lambda_function, aws_lambda_permission,
+                                  aws_cloudwatch_log_subscription_filter,
+                                  aws_acm_certificate,
+                                  aws_kinesis_stream)
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
@@ -1796,7 +1796,8 @@ class TerrascriptClient(object):
         values['user'] = sqs_identifier
         values['policy_arn'] = \
             '${' + policy_tf_resource.arn + '}'
-        values['depends_on'] = self.get_dependencies([user_tf_resource, policy_tf_resource])
+        values['depends_on'] = self.get_dependencies(
+            [user_tf_resource, policy_tf_resource])
         user_policy_attachment_tf_resource = \
             aws_iam_user_policy_attachment(sqs_identifier, **values)
         tf_resources.append(user_policy_attachment_tf_resource)
