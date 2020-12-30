@@ -2365,7 +2365,6 @@ class TerrascriptClient(object):
 
     def init_common_outputs(self, tf_resources, namespace_info,
                             output_prefix, output_resource_name):
-        output_format = '{}[{}.{}]'
         output_format_0_13 = '{}__{}_{}'
         cluster, namespace = self.unpack_namespace_info(namespace_info)
         # cluster
