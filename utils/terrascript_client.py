@@ -535,7 +535,7 @@ class TerrascriptClient(object):
             values['provider'] = provider
 
         deps = []
-        parameter_group = values.pop('parameter_group')
+        parameter_group = values.pop('parameter_group', None)
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             # Parameter group name is not required by terraform.
@@ -555,7 +555,7 @@ class TerrascriptClient(object):
             deps = [pg_tf_resource]
             values['parameter_group_name'] = pg_name
 
-        enhanced_monitoring = values.pop('enhanced_monitoring')
+        enhanced_monitoring = values.pop('enhanced_monitoring', None)
 
         # monitoring interval should only be set if enhanced monitoring
         # is true
@@ -883,9 +883,10 @@ class TerrascriptClient(object):
         values['acl'] = common_values.get('acl') or 'private'
         values['server_side_encryption_configuration'] = \
             common_values.get('server_side_encryption_configuration')
-        if common_values.get('lifecycle_rules'):
+        lifecycle_rules = common_values.get('lifecycle_rules')
+        if lifecycle_rules:
             # common_values['lifecycle_rules'] is a list of lifecycle_rules
-            values['lifecycle_rule'] = common_values['lifecycle_rules']
+            values['lifecycle_rule'] = lifecycle_rules
         if versioning:
             lrs = values.get('lifecycle_rule', [])
             expiration_rule = False
@@ -931,9 +932,10 @@ class TerrascriptClient(object):
                 values['lifecycle_rule'].append(rule)
             else:
                 values['lifecycle_rule'] = rule
-        if common_values.get('cors_rules'):
+        cors_rules = common_values.get('cors_rules')
+        if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
-            values['cors_rule'] = common_values['cors_rules']
+            values['cors_rule'] = cors_rules
         deps = []
         replication_configs = common_values.get('replication_configurations')
         if replication_configs:
@@ -1040,7 +1042,8 @@ class TerrascriptClient(object):
             values['replication_configuration'] = rc_configs
         if len(deps) > 0:
             values['depends_on'] = deps
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         values['region'] = region
@@ -1088,7 +1091,7 @@ class TerrascriptClient(object):
                 sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
 
-        bucket_policy = common_values['bucket_policy']
+        bucket_policy = common_values.get('bucket_policy')
         if bucket_policy:
             values = {
                 'bucket': identifier,
@@ -1170,7 +1173,7 @@ class TerrascriptClient(object):
             provider = 'aws.' + region
             values['provider'] = provider
 
-        parameter_group = values['parameter_group']
+        parameter_group = values.get('parameter_group')
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
@@ -1244,7 +1247,7 @@ class TerrascriptClient(object):
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
-        for policy in common_values['policies'] or []:
+        for policy in common_values.get('policies') or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
@@ -1254,9 +1257,9 @@ class TerrascriptClient(object):
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
 
-        user_policy = common_values['user_policy']
+        user_policy = common_values.get('user_policy')
         if user_policy:
-            variables = common_values['variables']
+            variables = common_values.get('variables')
             # variables are replaced in the user_policy
             # and also added to the output resource
             if variables:
@@ -1287,8 +1290,9 @@ class TerrascriptClient(object):
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions.get(account)
-        specs = common_values['specs']
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        specs = common_values.get('specs')
         all_queues_per_spec = []
         kms_keys = set()
         for spec in specs:
@@ -1410,8 +1414,9 @@ class TerrascriptClient(object):
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
-        region = common_values['region'] or self.default_regions.get(account)
-        specs = common_values['specs']
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        specs = common_values.get('specs')
         all_tables = []
         for spec in specs:
             defaults = self.get_values(spec['defaults'])
@@ -1500,7 +1505,8 @@ class TerrascriptClient(object):
         values['name'] = identifier
         values['tags'] = common_values['tags']
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
@@ -1617,7 +1623,8 @@ class TerrascriptClient(object):
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
         values['depends_on'] = [bucket_tf_resource]
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
@@ -1702,7 +1709,8 @@ class TerrascriptClient(object):
         if kms_master_key_id is not None:
             sqs_values['kms_master_key_id'] = kms_master_key_id
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             sqs_values['provider'] = 'aws.' + region
 
@@ -1819,7 +1827,8 @@ class TerrascriptClient(object):
                     common_values, account, identifier)
         }
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         provider = ''
         if self._multiregion_account_(account):
             provider = 'aws.' + region
@@ -2271,25 +2280,46 @@ class TerrascriptClient(object):
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        values['variables'] = variables
-        values['policies'] = policies
-        values['user_policy'] = user_policy
-        values['region'] = region
-        values['availability_zone'] = az
-        values['queues'] = queues
-        values['specs'] = specs
-        values['parameter_group'] = parameter_group
-        values['sqs_identifier'] = sqs_identifier
-        values['s3_events'] = s3_events
-        values['bucket_policy'] = bucket_policy
-        values['storage_class'] = sc
-        values['enhanced_monitoring'] = enhanced_monitoring
-        values['replica_source'] = replica_source
-        values['es_identifier'] = es_identifier
-        values['filter_pattern'] = filter_pattern
-        values['secret'] = secret
-        values['output_resource_db_name'] = output_resource_db_name
-        values['reset_password'] = reset_password
+        # checking explicitly for not None
+        # to allow passing empty strings, False, etc
+        if variables is not None:
+            values['variables'] = variables
+        if policies is not None:
+            values['policies'] = policies
+        if user_policy is not None:
+            values['user_policy'] = user_policy
+        if region is not None:
+            values['region'] = region
+        if az is not None:
+            values['availability_zone'] = az
+        if queues is not None:
+            values['queues'] = queues
+        if specs is not None:
+            values['specs'] = specs
+        if parameter_group is not None:
+            values['parameter_group'] = parameter_group
+        if sqs_identifier is not None:
+            values['sqs_identifier'] = sqs_identifier
+        if s3_events is not None:
+            values['s3_events'] = s3_events
+        if bucket_policy is not None:
+            values['bucket_policy'] = bucket_policy
+        if sc is not None:
+            values['storage_class'] = sc
+        if enhanced_monitoring is not None:
+            values['enhanced_monitoring'] = enhanced_monitoring
+        if replica_source is not None:
+            values['replica_source'] = replica_source
+        if es_identifier is not None:
+            values['es_identifier'] = es_identifier
+        if filter_pattern is not None:
+            values['filter_pattern'] = filter_pattern
+        if secret is not None:
+            values['secret'] = secret
+        if output_resource_db_name is not None:
+            values['output_resource_db_name'] = output_resource_db_name
+        if reset_password is not None:
+            values['reset_password'] = reset_password
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
@@ -2549,7 +2579,8 @@ class TerrascriptClient(object):
         es_values['access_policies'] = json.dumps(
             access_policies, sort_keys=True)
 
-        region = values['region'] or self.default_regions.get(account)
+        region = values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             es_values['provider'] = 'aws.' + region
 
@@ -2621,7 +2652,8 @@ class TerrascriptClient(object):
         if caCertificate is not None:
             values['certificate_chain'] = caCertificate
 
-        region = common_values['region'] or self.default_regions.get(account)
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
 
