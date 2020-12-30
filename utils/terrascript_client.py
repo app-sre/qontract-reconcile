@@ -2621,7 +2621,7 @@ class TerrascriptClient(object):
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # domain_name
         output_name_0_13 = output_prefix + '__domain_name'
-        output_value = '${' + es_tf_resource.domain_name + '}'
+        output_value = es_tf_resource.domain_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # endpoint
         output_name_0_13 = output_prefix + '__endpoint'
