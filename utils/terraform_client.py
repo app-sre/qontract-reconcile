@@ -265,11 +265,10 @@ class TerraformClient(object):
             # of the integration.
             if '[' not in k or ']' not in k:
                 continue
-            # this currently has no effect
-            # it will replace the above condition when we
+            # this will replace the above condition when we
             # upgrade to terraform 0.13
-            if '__' not in k:
-                continue
+            # if '__' not in k:
+            #     continue
 
             # if the output is of the form 'qrtf.enc-passwords[user_name]'
             # this is a user output and should not be formed to a Secret
