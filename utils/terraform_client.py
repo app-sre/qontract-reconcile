@@ -250,9 +250,9 @@ class TerraformClient(object):
         if output is None:
             return data
 
-        enc_pass_pfx = '{}.{}'.format(
+        enc_pass_pfx = '{}_{}'.format(
             self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS)
-        console_urls_pfx = '{}.{}'.format(
+        console_urls_pfx = '{}_{}'.format(
             self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS)
         for k, v in output.items():
             # the integration creates outputs of the form
@@ -263,12 +263,8 @@ class TerraformClient(object):
             # naming convention. as outputs are persisted to remote
             # state, we would not want them to affect any runs
             # of the integration.
-            if '[' not in k or ']' not in k:
+            if '__' not in k:
                 continue
-            # this will replace the above condition when we
-            # upgrade to terraform 0.13
-            # if '__' not in k:
-            #     continue
 
             # if the output is of the form 'qrtf.enc-passwords[user_name]'
             # this is a user output and should not be formed to a Secret
@@ -291,19 +287,14 @@ class TerraformClient(object):
             ):
                 continue
 
-            k_split = k.split('[')
+            k_split = k.split('__')
             resource_name = k_split[0]
-            field_key = k_split[1][:-1]
-            # the following section will replace
-            # the above section with terraform 0.13
-            # k_split = k.split('__')
-            # resource_name = k_split[0]
-            # field_key = k_split[1]
-            # if field_key.startswith('db'):
-            #     # since we can't use '.' in output keys
-            #     # and we want to maintain compatability
-            #     # replace '_' with '.' when this is a db secret
-            #     field_key = field_key.replace('_', '.')
+            field_key = k_split[1]
+            if field_key.startswith('db'):
+                # since we can't use '.' in output keys
+                # and we want to maintain compatability
+                # replace '_' with '.' when this is a db secret
+                field_key = field_key.replace('_', '.')
             field_value = v['value']
             if resource_name not in data:
                 data[resource_name] = {}
