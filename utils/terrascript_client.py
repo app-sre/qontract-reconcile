@@ -1931,6 +1931,7 @@ class TerrascriptClient(object):
             lambda_values["memory_size"] = \
                 common_values.get('memory_size', 128)
 
+            # TODO: fix this
             lambda_values["vpc_config"] = {
                 'subnet_ids': [
                     "${data.aws_elasticsearch_domain." + es_identifier +
