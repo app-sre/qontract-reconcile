@@ -229,7 +229,7 @@ class TerrascriptClient(object):
                 output_name = '{}.console-urls[{}]'.format(
                     self.integration_prefix, account_name
                 )
-                output_name_0_13 = '{}.console-urls__{}'.format(
+                output_name_0_13 = '{}_console-urls__{}'.format(
                     self.integration_prefix, account_name
                 )
                 output_value = account_console_url
@@ -297,7 +297,7 @@ class TerrascriptClient(object):
                     # 'qrtf.enc-passwords[user_name] = <encrypted password>
                     output_name = '{}.enc-passwords[{}]'.format(
                         self.integration_prefix, user_name)
-                    output_name_0_13 = '{}.enc-passwords__{}'.format(
+                    output_name_0_13 = '{}_enc-passwords__{}'.format(
                         self.integration_prefix, user_name)
                     output_value = '${' + tf_iam_user_login_profile.fullname \
                         + '.encrypted_password}'
@@ -1237,7 +1237,7 @@ class TerrascriptClient(object):
         # with the following fields
         # db.endpoint
         output_name = output_prefix + '[db.endpoint]'
-        output_name_0_13 = output_prefix + '__db.endpoint'
+        output_name_0_13 = output_prefix + '__db_endpoint'
         output_value = '${' + tf_resource.fullname + \
                        '.primary_endpoint_address}'
         tf_resources.append(output(output_name, value=output_value))
@@ -1709,7 +1709,7 @@ class TerrascriptClient(object):
         output_name = output_prefix + \
             '[cloud_front_origin_access_identity_id]'
         output_name_0_13 = output_prefix + \
-            '[cloud_front_origin_access_identity_id]'
+            '__cloud_front_origin_access_identity_id'
         output_value = '${' + cf_oai_tf_resource.fullname + \
             '.id}'
         tf_resources.append(output(output_name, value=output_value))
