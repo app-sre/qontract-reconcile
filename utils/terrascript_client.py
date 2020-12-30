@@ -1219,7 +1219,7 @@ class TerrascriptClient(object):
         tf_resources.append(output(output_name_0_13, value=output_value))
         # db.auth_token
         if values.get('transit_encryption_enabled', False):
-            output_name_0_13 = output_prefix + '__db_auth_token'
+            output_name_0_13 = output_prefix + '_db_auth_token'
             output_value = values['auth_token']
             tf_resources.append(output(output_name_0_13, value=output_value))
 
