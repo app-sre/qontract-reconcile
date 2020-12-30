@@ -1047,7 +1047,6 @@ class TerrascriptClient(object):
             self.default_regions.get(account)
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
-        values['region'] = region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name_0_13 = output_prefix + '__bucket'
@@ -1908,8 +1907,8 @@ class TerrascriptClient(object):
             }
             if provider:
                 es_domain['provider'] = provider
-            tf_resources.append(data('aws_elasticsearch_domain',
-                                     es_identifier, **es_domain))
+            tf_resources.append(
+                data.aws_elasticsearch_domain(es_identifier, **es_domain))
 
             release_url = common_values.get('release_url', LOGTOES_RELEASE)
             zip_file = self.get_logtoes_zip(release_url)
