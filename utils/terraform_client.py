@@ -286,9 +286,7 @@ class TerraformClient(object):
                 # replace '_' with '.' when this is a db secret
                 field_key = field_key.replace('db_', 'db.')
                 field_key = field_key.replace('_', '.')
-            # convert to str to maintain compatability
-            # as ports are now ints and not strs
-            field_value = str(v['value'])
+            field_value = v['value']
             if resource_name not in data:
                 data[resource_name] = {}
             data[resource_name][field_key] = field_value
@@ -320,7 +318,9 @@ class TerraformClient(object):
             if v == "":
                 v = None
             else:
-                v = base64.b64encode(v.encode()).decode('utf-8')
+                # convert to str to maintain compatability
+                # as ports are now ints and not strs
+                v = base64.b64encode(str(v).encode()).decode('utf-8')
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,
