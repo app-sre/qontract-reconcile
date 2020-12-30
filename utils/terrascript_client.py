@@ -24,13 +24,15 @@ from utils.elasticsearch_exceptions \
           ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 from threading import Lock
-from terrascript import Terrascript, provider, Terraform, Backend, Output, data
+from terrascript import (Terrascript, provider, Terraform,
+                         Backend, Output, data)
 from terrascript.data import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_s3_bucket, aws_iam_user,
                                   aws_s3_bucket_notification,
                                   aws_iam_access_key, aws_iam_user_policy,
-                                  aws_iam_group, aws_iam_group_policy_attachment,
+                                  aws_iam_group,
+                                  aws_iam_group_policy_attachment,
                                   aws_iam_user_group_membership,
                                   aws_iam_user_login_profile, aws_iam_policy,
                                   aws_iam_role, aws_iam_role_policy,
