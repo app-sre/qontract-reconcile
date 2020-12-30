@@ -294,7 +294,7 @@ class TerraformClient(object):
                 # since we can't use '.' in output keys
                 # and we want to maintain compatability
                 # replace '_' with '.' when this is a db secret
-                field_key = field_key.replace('_', '.')
+                field_key = field_key.replace('db_', 'db.')
             field_value = v['value']
             if resource_name not in data:
                 data[resource_name] = {}
