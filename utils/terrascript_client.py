@@ -2027,7 +2027,7 @@ class TerrascriptClient(object):
                     ],
                     "Effect": "Allow",
                     "Resource":
-                        "${" + log_group_tf_resource.arn + "}"
+                        "${" + log_group_tf_resource.arn + "}:*"
                 },
                 {
                     "Action": ["logs:DescribeLogGroups"],
