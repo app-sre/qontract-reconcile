@@ -1054,7 +1054,7 @@ class TerrascriptClient(object):
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
         output_name_0_13 = output_prefix + '__bucket'
-        output_value = '${' + bucket_tf_resource.bucket + '}'
+        output_value = bucket_tf_resource.bucket
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__aws_region'
         tf_resources.append(Output(output_name_0_13, value=region))
@@ -1221,7 +1221,7 @@ class TerrascriptClient(object):
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # db.auth_token
         if values.get('transit_encryption_enabled', False):
-            output_name_0_13 = output_prefix + '_db_auth_token'
+            output_name_0_13 = output_prefix + '__db_auth_token'
             output_value = values['auth_token']
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
@@ -1991,7 +1991,7 @@ class TerrascriptClient(object):
             tf_resources.append(subscription_tf_resource)
 
         output_name_0_13 = output_prefix + '__log_group_name'
-        output_value = '${' + log_group_tf_resource.name + '}'
+        output_value = log_group_tf_resource.name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__aws_region'
         tf_resources.append(Output(output_name_0_13, value=region))
@@ -2027,7 +2027,7 @@ class TerrascriptClient(object):
                     ],
                     "Effect": "Allow",
                     "Resource":
-                        "${" + log_group_tf_resource.arn + "}:*"
+                        "${" + log_group_tf_resource.arn + "}"
                 },
                 {
                     "Action": ["logs:DescribeLogGroups"],
