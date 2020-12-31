@@ -935,7 +935,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
-@enable_deletion(default=True)
+@enable_deletion(default=False)
 @send_mails(default=True)
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,
