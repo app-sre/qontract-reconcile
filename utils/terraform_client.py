@@ -331,10 +331,6 @@ class TerraformClient(object):
         stdout, stderr = self.split_to_lines(stdout, stderr)
         with self._log_lock:
             for line in stdout:
-                # this line will be present when performing 'terraform apply'
-                # as it will contain sensitive information, skip printing
-                if line.startswith('Outputs:'):
-                    break
                 logging.debug(line_format.format(name, line))
             if return_code == 0:
                 for line in stderr:
