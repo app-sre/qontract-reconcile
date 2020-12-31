@@ -1932,10 +1932,12 @@ class TerrascriptClient(object):
                 common_values.get('memory_size', 128)
 
             lambda_values["vpc_config"] = {
-                'subnet_ids': "${data.aws_elasticsearch_domain." + \
-                    es_identifier + ".vpc_options.0.subnet_ids}",
-                'security_group_ids': "${data.aws_elasticsearch_domain." + \
-                    es_identifier + ".vpc_options.0.security_group_ids}"
+                'subnet_ids':
+                    "${data.aws_elasticsearch_domain." + es_identifier +
+                    ".vpc_options.0.subnet_ids}",
+                'security_group_ids':
+                    "${data.aws_elasticsearch_domain." + es_identifier +
+                    ".vpc_options.0.security_group_ids}"
             }
 
             lambda_values["environment"] = {
