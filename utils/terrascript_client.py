@@ -550,7 +550,7 @@ class TerrascriptClient(object):
             pg_name = pg_values.get('name', values['identifier'] + "-pg")
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['name'] = pg_name
-            pg_values['parameter'] = pg_values.pop('parameters', None)
+            pg_values['parameter'] = pg_values.pop('parameters')
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -567,7 +567,7 @@ class TerrascriptClient(object):
             not enhanced_monitoring and
             values.get('monitoring_interval', None)
         ):
-            values.pop('monitoring_interval', None)
+            values.pop('monitoring_interval')
 
         if enhanced_monitoring:
             # Set monitoring interval to 60s if it is not set.
@@ -1181,7 +1181,7 @@ class TerrascriptClient(object):
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
-            pg_values['parameter'] = pg_values.pop('parameters', None)
+            pg_values['parameter'] = pg_values.pop('parameters')
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
