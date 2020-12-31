@@ -328,12 +328,17 @@ class TerrascriptClient(object):
         if err:
             return err
 
+    @staticmethod
+    def get_alias_name_from_assume_role(assume_role):
+        # arn:aws:iam::12345:role/role-1 --> 12345
+        uid = assume_role.split(':')[4]
+        return f"account-{uid}"
+
     def populate_additional_providers(self, accounts):
         for account in accounts:
             account_name = account['name']
             assume_role = account['assume_role']
-            # arn:aws:iam::12345:role/role-1 --> 12345
-            alias = assume_role.split(':')[4]
+            alias = self.get_alias_name_from_assume_role(assume_role)
             ts = self.tss[account_name]
             config = self.configs[account_name]
             ts += provider('aws',
@@ -356,8 +361,8 @@ class TerrascriptClient(object):
 
             req_account = requester['account']
             req_account_name = req_account['name']
-            # arn:aws:iam::12345:role/role-1 --> 12345
-            req_alias = req_account['assume_role'].split(':')[4]
+            req_alias = self.get_alias_name_from_assume_role(
+                req_account['assume_role'])
 
             # Requester's side of the connection - the cluster's account
             identifier = f"{requester['vpc_id']}-{accepter['vpc_id']}"
@@ -400,8 +405,8 @@ class TerrascriptClient(object):
 
             acc_account = accepter['account']
             acc_account_name = acc_account['name']
-            # arn:aws:iam::12345:role/role-1 --> 12345
-            acc_alias = acc_account['assume_role'].split(':')[4]
+            acc_alias = self.get_alias_name_from_assume_role(
+                acc_account['assume_role'])
 
             # Accepter's side of the connection.
             values = {
