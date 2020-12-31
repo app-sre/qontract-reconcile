@@ -195,7 +195,7 @@ def wait_for_namespace_exists(oc, namespace):
 
 
 def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
-          wait_for_namespace):
+          wait_for_namespace, recycle_pods=True):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
@@ -225,7 +225,8 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 UnsupportedMediaTypeError):
             oc.replace(namespace, annotated.toJSON())
 
-    oc.recycle_pods(dry_run, namespace, resource_type, resource)
+    if recycle_pods:
+        oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
@@ -257,7 +258,9 @@ def realize_data(dry_run, oc_map, ri,
                  take_over=False,
                  caller=None,
                  wait_for_namespace=False,
-                 no_dry_run_skip_compare=False):
+                 no_dry_run_skip_compare=False,
+                 override_enable_deletion=None,
+                 recycle_pods=True):
     """
     Realize the current state to the desired state.
 
@@ -270,9 +273,13 @@ def realize_data(dry_run, oc_map, ri,
                    to deploy to the same namespace
     :param wait_for_namespace: wait for namespace to exist before applying
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
+    :param override_enable_deletion: override calculated enable_deletion value
+    :param recycle_pods: should pods be recycled if a dependency changed
     """
     actions = []
     enable_deletion = False if ri.has_error_registered() else True
+    if override_enable_deletion is not None:
+        enable_deletion = override_enable_deletion
 
     for cluster, namespace, resource_type, data in ri:
         # desired items
@@ -333,7 +340,8 @@ def realize_data(dry_run, oc_map, ri,
 
             try:
                 apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item, wait_for_namespace)
+                      resource_type, d_item, wait_for_namespace,
+                      recycle_pods=recycle_pods)
                 action = {
                     'action': ACTION_APPLIED,
                     'cluster': cluster,
