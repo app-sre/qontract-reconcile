@@ -357,7 +357,13 @@ def run(dry_run, print_only=False,
 
     tf.populate_desired_state(ri, oc_map)
 
-    ob.realize_data(dry_run, oc_map, ri)
+    # temporarily not allowing resources to be deleted
+    # or for pods to be recycled
+    # this should be removed after we gained confidence
+    # following the terraform 0.13 upgrade
+    ob.realize_data(dry_run, oc_map, ri,
+                    override_enable_deletion=enable_deletion,
+                    recycle_pods=enable_deletion)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
