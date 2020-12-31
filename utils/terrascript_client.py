@@ -342,12 +342,12 @@ class TerrascriptClient(object):
             ts = self.tss[account_name]
             config = self.configs[account_name]
             ts += provider('aws',
-                access_key=config['aws_access_key_id'],
-                secret_key=config['aws_secret_access_key'],
-                version=config['aws_provider_version'],
-                region=account['assume_region'],
-                alias=alias,
-                assume_role={'role_arn': assume_role})
+                           access_key=config['aws_access_key_id'],
+                           secret_key=config['aws_secret_access_key'],
+                           version=config['aws_provider_version'],
+                           region=account['assume_region'],
+                           alias=alias,
+                           assume_role={'role_arn': assume_role})
 
     def populate_vpc_peerings(self, desired_state):
         for item in desired_state:
