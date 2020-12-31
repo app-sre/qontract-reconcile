@@ -366,6 +366,7 @@ def run(dry_run, print_only=False,
         write_outputs_to_vault(vault_output_path, ri)
 
     if ri.has_error_registered():
-        sys.exit(1)
+        err = True
+        cleanup_and_exit(tf, err)
 
     cleanup_and_exit(tf)
