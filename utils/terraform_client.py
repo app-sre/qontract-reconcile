@@ -226,13 +226,13 @@ class TerraformClient(object):
                 output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
-                cluster = data['{}.cluster'.format(self.integration_prefix)]
+                cluster = data['{}_cluster'.format(self.integration_prefix)]
                 if not oc_map.get(cluster):
                     continue
                 namespace = \
-                    data['{}.namespace'.format(self.integration_prefix)]
-                resource = data['{}.resource'.format(self.integration_prefix)]
-                output_resource_name = data['{}.output_resource_name'.format(
+                    data['{}_namespace'.format(self.integration_prefix)]
+                resource = data['{}_resource'.format(self.integration_prefix)]
+                output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data)
