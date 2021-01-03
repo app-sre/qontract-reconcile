@@ -159,6 +159,8 @@ class TerraformClient(object):
             actions = resource_change['actions']
             for action in actions:
                 if action == 'no-op':
+                    logging.debug(
+                        [action, name, resource_type, resource_name])
                     continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
@@ -196,7 +198,8 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True,
+        return_code, stdout, stderr = tf.apply(dir_or_plan=name,
+                                               auto_approve=True,
                                                skip_plan=True)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
@@ -216,13 +219,13 @@ class TerraformClient(object):
                 output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
-                cluster = data['{}.cluster'.format(self.integration_prefix)]
+                cluster = data['{}_cluster'.format(self.integration_prefix)]
                 if not oc_map.get(cluster):
                     continue
                 namespace = \
-                    data['{}.namespace'.format(self.integration_prefix)]
-                resource = data['{}.resource'.format(self.integration_prefix)]
-                output_resource_name = data['{}.output_resource_name'.format(
+                    data['{}_namespace'.format(self.integration_prefix)]
+                resource = data['{}_resource'.format(self.integration_prefix)]
+                output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data)
