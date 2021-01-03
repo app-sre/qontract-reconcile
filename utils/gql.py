@@ -6,6 +6,7 @@ import textwrap
 import logging
 
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 from graphqlclient import GraphQLClient
 from utils.config import get_config
@@ -88,6 +89,7 @@ class GqlApi(object):
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
+    @retry(exceptions=(GqlApiError))
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
