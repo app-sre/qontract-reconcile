@@ -14,6 +14,9 @@ from utils.openshift_resource import OpenshiftResource as OR
 import utils.lean_terraform_client as lean_tf
 
 
+ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
+
+
 class TerraformClient(object):
     def __init__(self, integration, integration_version,
                  integration_prefix, working_dirs, thread_pool_size,
@@ -147,6 +150,11 @@ class TerraformClient(object):
         deleted_users = []
 
         output = self.terraform_show(name, tf.working_dir)
+        format_version = output.get('format_version')
+        if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
+            raise NotImplementedError(
+                'terraform show untested format version')
+
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
             return deletions_detected, deleted_users
