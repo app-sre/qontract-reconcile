@@ -11,6 +11,10 @@ from sretoolbox.utils import retry
 
 from utils import threaded
 from utils.openshift_resource import OpenshiftResource as OR
+import utils.lean_terraform_client as lean_tf
+
+
+ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 
 class TerraformClient(object):
@@ -134,62 +138,58 @@ class TerraformClient(object):
         name = plan_spec['name']
         tf = plan_spec['tf']
         return_code, stdout, stderr = tf.plan(detailed_exitcode=False,
-                                              parallelism=self.parallelism)
+                                              parallelism=self.parallelism,
+                                              out=name)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected, deleted_users = \
-            self.log_plan_diff(name, stdout, enable_deletion)
+            self.log_plan_diff(name, tf, enable_deletion)
         return deletion_detected, deleted_users, error
 
-    def log_plan_diff(self, name, stdout, enable_deletion):
+    def log_plan_diff(self, name, tf, enable_deletion):
         deletions_detected = False
         deleted_users = []
-        stdout = self.split_to_lines(stdout)
-        with self._log_lock:
-            for line in stdout:
-                line = line.strip()
-                if line.startswith('+ aws'):
-                    resource_type, resource_name = \
-                        line.replace('+ ', '').split('.')
-                    logging.info(['create', name,
-                                  resource_type, resource_name])
-                if line.startswith('- aws'):
-                    resource_type, resource_name = \
-                        line.replace('- ', '').split('.')
-                    if enable_deletion:
-                        logging.info(['destroy', name,
-                                      resource_type, resource_name])
-                        if resource_type == 'aws_iam_user':
-                            deleted_users.append({
-                                'account': name,
-                                'user': resource_name
-                            })
-                    else:
-                        logging.error(['destroy', name,
-                                       resource_type, resource_name])
-                        logging.error('\'destroy\' action is not enabled. ' +
-                                      'Please run the integration manually ' +
-                                      'with the \'--enable-deletion\' flag.')
+
+        output = self.terraform_show(name, tf.working_dir)
+        format_version = output.get('format_version')
+        if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
+            raise NotImplementedError(
+                'terraform show untested format version')
+
+        resource_changes = output.get('resource_changes')
+        if resource_changes is None:
+            return deletions_detected, deleted_users
+
+        # https://www.terraform.io/docs/internals/json-format.html
+        for resource_change in resource_changes:
+            resource_type = resource_change['type']
+            resource_name = resource_change['name']
+            resource_change = resource_change['change']
+            actions = resource_change['actions']
+            for action in actions:
+                if action == 'no-op':
+                    logging.debug(
+                        [action, name, resource_type, resource_name])
+                    continue
+                with self._log_lock:
+                    logging.info([action, name, resource_type, resource_name])
+                if action == 'delete':
                     deletions_detected = True
-                if line.startswith('~ aws'):
-                    resource_type, resource_name = \
-                        line.replace('~ ', '').split('.')
-                    logging.info(['update', name,
-                                  resource_type, resource_name])
-                if line.startswith('-/+ aws'):
-                    resource_type, resource_name = \
-                        line.replace('-/+ ', '').split('.')
-                    resource_name = resource_name.split(' ', 1)[0]
-                    if enable_deletion:
-                        logging.info(['replace', name,
-                                      resource_type, resource_name])
-                    else:
-                        logging.error(['replace', name,
-                                       resource_type, resource_name])
-                        logging.error('\'replace\' action is not enabled. ' +
-                                      'Please run the integration manually ' +
-                                      'with the \'--enable-deletion\' flag.')
-                    deletions_detected = True
+                    if not enable_deletion:
+                        logging.error(
+                            '\'delete\' action is not enabled. ' +
+                            'Please run the integration manually ' +
+                            'with the \'--enable-deletion\' flag.'
+                        )
+                    if resource_type == 'aws_iam_user':
+                        deleted_users.append({
+                            'account': name,
+                            'user': resource_name
+                        })
+
         return deletions_detected, deleted_users
+
+    def terraform_show(self, name, working_dir):
+        return lean_tf.show_json(working_dir, name)
 
     # terraform apply
     def apply(self):
@@ -206,8 +206,7 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True,
-                                               skip_plan=True)
+        return_code, stdout, stderr = tf.apply(dir_or_plan=name)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
@@ -327,7 +326,9 @@ class TerraformClient(object):
             if v == "":
                 v = None
             else:
-                v = base64.b64encode(v.encode()).decode('utf-8')
+                # convert to str to maintain compatability
+                # as ports are now ints and not strs
+                v = base64.b64encode(str(v).encode()).decode('utf-8')
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,
@@ -339,10 +340,6 @@ class TerraformClient(object):
         stdout, stderr = self.split_to_lines(stdout, stderr)
         with self._log_lock:
             for line in stdout:
-                # this line will be present when performing 'terraform apply'
-                # as it will contain sensitive information, skip printing
-                if line.startswith('Outputs:'):
-                    break
                 logging.debug(line_format.format(name, line))
             if return_code == 0:
                 for line in stderr:
