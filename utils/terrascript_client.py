@@ -1078,8 +1078,9 @@ class TerrascriptClient(object):
             sqs_values = {
                 'name': sqs_identifier
             }
-            if values['provider']:
-                sqs_values['provider'] = values['provider']
+            sqs_provider = values.get('provider')
+            if sqs_provider:
+                sqs_values['provider'] = sqs_provider
             sqs_data = data_aws_sqs_queue(sqs_identifier, **sqs_values)
             tf_resources.append(sqs_data)
 
