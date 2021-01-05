@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import re
 
 import click
 import sentry_sdk
@@ -102,9 +103,23 @@ from utils.environ import environ
 from utils.unleash import get_feature_toggle_state
 
 
+def before_breadcrumb(crumb, hint):
+    # https://docs.sentry.io/platforms/python/configuration/filtering/
+    # Configure breadcrumb to filter error mesage
+    if crumb.category == 'subprocess':
+        # remove cluster token
+        crumb.message = re.sub(
+            r'--token \S*\b', '--token ***', crumb.message
+        )
+    return crumb
+
+
 # Enable Sentry
 if os.getenv('SENTRY_DSN'):
-    sentry_sdk.init(os.environ['SENTRY_DSN'])
+    sentry_sdk.init(
+        os.environ['SENTRY_DSN'],
+        before_breadcrumb=before_breadcrumb
+    )
 
 
 def config_file(function):
