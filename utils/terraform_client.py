@@ -206,7 +206,9 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(dir_or_plan=name)
+        # adding var=None to allow applying the saved plan
+        # https://github.com/beelit94/python-terraform/issues/67
+        return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
