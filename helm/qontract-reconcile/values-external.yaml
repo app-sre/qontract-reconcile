@@ -336,10 +336,10 @@ integrations:
 - name: terraform-vpc-peerings
   resources:
     requests:
-      memory: 600Mi
+      memory: 2000Mi
       cpu: 400m
     limits:
-      memory: 1000Mi
+      memory: 2600Mi
       cpu: 500m
   logs:
     slack: true
