@@ -106,7 +106,7 @@ from utils.unleash import get_feature_toggle_state
 def before_breadcrumb(crumb, hint):
     # https://docs.sentry.io/platforms/python/configuration/filtering/
     # Configure breadcrumb to filter error mesage
-    if crumb.category == 'subprocess':
+    if 'category' in crumb and crumb.category == 'subprocess':
         # remove cluster token
         crumb.message = re.sub(
             r'--token \S*\b', '--token ***', crumb.message
