@@ -9571,10 +9571,10 @@ objects:
           resources:
             limits:
               cpu: 300m
-              memory: 200Mi
+              memory: 330Mi
             requests:
               cpu: 200m
-              memory: 100Mi
+              memory: 250Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config

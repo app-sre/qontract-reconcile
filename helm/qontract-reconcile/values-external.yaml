@@ -468,10 +468,10 @@ integrations:
 - name: sql-query
   resources:
     requests:
-      memory: 100Mi
+      memory: 250Mi
       cpu: 200m
     limits:
-      memory: 200Mi
+      memory: 330Mi
       cpu: 300m
   logs:
     slack: true
