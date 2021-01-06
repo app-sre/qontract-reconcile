@@ -23,6 +23,6 @@ def show_json(working_dir, out_file):
                  cwd=working_dir, stdout=PIPE, stderr=PIPE)
     out, err = proc.communicate()
     if proc.returncode:
-        logging.error(err)
-        raise Exception('terraform show failed')
+        logging.warning(err)
+        raise Exception('terraform show failed: ' + str(err))
     return json.loads(out)
