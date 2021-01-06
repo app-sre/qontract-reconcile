@@ -134,6 +134,7 @@ class TerraformClient(object):
         with open(file_path, 'w') as f:
             f.write(json.dumps(self.deleted_users))
 
+    @retry()
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec['name']
         tf = plan_spec['tf']
