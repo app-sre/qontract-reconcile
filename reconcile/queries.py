@@ -1432,6 +1432,11 @@ DNS_ZONES_QUERY = """
       name
       type
       ttl
+      alias {
+        name
+        zone_id
+        evaluate_target_health
+      }
       weighted_routing_policy {
         weight
       }
