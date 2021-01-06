@@ -1971,7 +1971,7 @@ class TerrascriptClient(object):
                 'action': 'lambda:InvokeFunction',
                 'function_name': "${" + lambds_tf_resource.arn + "}",
                 'principal': 'logs.amazonaws.com',
-                'source_arn': "${" + log_group_tf_resource.arn + "}"
+                'source_arn': "${" + log_group_tf_resource.arn + "}:*"
             }
 
             if provider:
