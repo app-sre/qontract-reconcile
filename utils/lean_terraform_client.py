@@ -20,7 +20,8 @@ def state_rm_access_key(working_dirs, account, user):
 def show_json(working_dir, out_file):
     proc = Popen(['terraform', 'show', '-json', out_file],
                  cwd=working_dir, stdout=PIPE, stderr=PIPE)
-    out, _ = proc.communicate()
+    out, err = proc.communicate()
     if proc.returncode:
+        logging.error(err)
         raise Exception('terraform show failed')
     return json.loads(out)
