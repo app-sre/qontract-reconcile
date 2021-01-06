@@ -406,10 +406,11 @@ class TerrascriptClient(object):
                         healthcheck_id, **healthcheck_values)
                     self.add_resource(acct_name, healthcheck_resource)
                     # Assign the healthcheck resource ID to the record
-                    record['health_check_id'] = healthcheck_resource.id
+                    record['health_check_id'] = \
+                        f"${{{healthcheck_resource.id}}}"
 
                 record_values = {
-                    'zone_id': zone_resource.id,
+                    'zone_id': f"${{{zone_resource.id}}}",
                     **record
                 }
                 record_resource = aws_route53_record(record_id,
