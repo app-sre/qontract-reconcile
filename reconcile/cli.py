@@ -9,7 +9,6 @@ import sentry_sdk
 
 import utils.config as config
 import utils.gql as gql
-import reconcile.aws_route53
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -91,6 +90,7 @@ import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
 import reconcile.prometheus_rules_validator
+import reconcile.terraform_aws_route53
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -409,9 +409,15 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 
 
 @integration.command()
+@terraform
+@threaded()
+@binary(['terraform'])
+@enable_deletion(default=False)
 @click.pass_context
-def aws_route53(ctx):
-    run_integration(reconcile.aws_route53, ctx.obj)
+def terraform_aws_route53(ctx, print_only, enable_deletion,
+                          thread_pool_size):
+    run_integration(reconcile.terraform_aws_route53, ctx.obj,
+                    print_only, enable_deletion, thread_pool_size)
 
 
 @integration.command()
