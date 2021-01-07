@@ -89,8 +89,8 @@ import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
-import reconcile.prometheus_rules_validator
 import reconcile.terraform_aws_route53
+import reconcile.prometheus_rules_tester
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1164,6 +1164,6 @@ def integrations_validator(ctx):
 @binary(['promtool'])
 @cluster_name
 @click.pass_context
-def prometheus_rules_validator(ctx, thread_pool_size, cluster_name):
-    run_integration(reconcile.prometheus_rules_validator, ctx.obj,
+def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
+    run_integration(reconcile.prometheus_rules_tester, ctx.obj,
                     thread_pool_size, cluster_name)
