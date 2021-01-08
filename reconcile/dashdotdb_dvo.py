@@ -83,26 +83,19 @@ class DashdotdbDVO:
                 'data': deploymentvalidation}
 
     def run(self):
-        LOG.debug('DV: zzzz')
         clusters = queries.get_clusters()
-        LOG.debug('DV: a1')
         oc_map = OC_Map(clusters=clusters,
                         integration=QONTRACT_INTEGRATION,
                         settings=self.settings, use_jump_host=True,
                         thread_pool_size=self.thread_pool_size)
-        print("%s".format(oc_map))
-        LOG.debug('DV: a2')
         validation_list = ('operator_replica', 'operator_request_limit')
-        LOG.debug('DV: a3')
         for validation in validation_list:
             LOG.debug('Processing validation: %s', validation)
-            LOG.debug('DV: a4')
             validations = threaded.run(func=self._get_deploymentvalidation,
                                        iterable=oc_map.clusters(),
                                        thread_pool_size=self.thread_pool_size,
                                        validation=validation,
                                        oc_map=oc_map)
-            LOG.debug('DV: a5')
             threaded.run(func=self._post,
                          iterable=validations,
                          thread_pool_size=self.thread_pool_size)
