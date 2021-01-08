@@ -11,6 +11,10 @@ from sretoolbox.utils import retry
 
 from utils import threaded
 from utils.openshift_resource import OpenshiftResource as OR
+import utils.lean_terraform_client as lean_tf
+
+
+ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 
 class TerraformClient(object):
@@ -130,66 +134,63 @@ class TerraformClient(object):
         with open(file_path, 'w') as f:
             f.write(json.dumps(self.deleted_users))
 
+    @retry()
     def terraform_plan(self, plan_spec, enable_deletion):
         name = plan_spec['name']
         tf = plan_spec['tf']
         return_code, stdout, stderr = tf.plan(detailed_exitcode=False,
-                                              parallelism=self.parallelism)
+                                              parallelism=self.parallelism,
+                                              out=name)
         error = self.check_output(name, return_code, stdout, stderr)
         deletion_detected, deleted_users = \
-            self.log_plan_diff(name, stdout, enable_deletion)
+            self.log_plan_diff(name, tf, enable_deletion)
         return deletion_detected, deleted_users, error
 
-    def log_plan_diff(self, name, stdout, enable_deletion):
+    def log_plan_diff(self, name, tf, enable_deletion):
         deletions_detected = False
         deleted_users = []
-        stdout = self.split_to_lines(stdout)
-        with self._log_lock:
-            for line in stdout:
-                line = line.strip()
-                if line.startswith('+ aws'):
-                    resource_type, resource_name = \
-                        line.replace('+ ', '').split('.')
-                    logging.info(['create', name,
-                                  resource_type, resource_name])
-                if line.startswith('- aws'):
-                    resource_type, resource_name = \
-                        line.replace('- ', '').split('.')
-                    if enable_deletion:
-                        logging.info(['destroy', name,
-                                      resource_type, resource_name])
-                        if resource_type == 'aws_iam_user':
-                            deleted_users.append({
-                                'account': name,
-                                'user': resource_name
-                            })
-                    else:
-                        logging.error(['destroy', name,
-                                       resource_type, resource_name])
-                        logging.error('\'destroy\' action is not enabled. ' +
-                                      'Please run the integration manually ' +
-                                      'with the \'--enable-deletion\' flag.')
+
+        output = self.terraform_show(name, tf.working_dir)
+        format_version = output.get('format_version')
+        if format_version != ALLOWED_TF_SHOW_FORMAT_VERSION:
+            raise NotImplementedError(
+                'terraform show untested format version')
+
+        resource_changes = output.get('resource_changes')
+        if resource_changes is None:
+            return deletions_detected, deleted_users
+
+        # https://www.terraform.io/docs/internals/json-format.html
+        for resource_change in resource_changes:
+            resource_type = resource_change['type']
+            resource_name = resource_change['name']
+            resource_change = resource_change['change']
+            actions = resource_change['actions']
+            for action in actions:
+                if action == 'no-op':
+                    logging.debug(
+                        [action, name, resource_type, resource_name])
+                    continue
+                with self._log_lock:
+                    logging.info([action, name, resource_type, resource_name])
+                if action == 'delete':
                     deletions_detected = True
-                if line.startswith('~ aws'):
-                    resource_type, resource_name = \
-                        line.replace('~ ', '').split('.')
-                    logging.info(['update', name,
-                                  resource_type, resource_name])
-                if line.startswith('-/+ aws'):
-                    resource_type, resource_name = \
-                        line.replace('-/+ ', '').split('.')
-                    resource_name = resource_name.split(' ', 1)[0]
-                    if enable_deletion:
-                        logging.info(['replace', name,
-                                      resource_type, resource_name])
-                    else:
-                        logging.error(['replace', name,
-                                       resource_type, resource_name])
-                        logging.error('\'replace\' action is not enabled. ' +
-                                      'Please run the integration manually ' +
-                                      'with the \'--enable-deletion\' flag.')
-                    deletions_detected = True
+                    if not enable_deletion:
+                        logging.error(
+                            '\'delete\' action is not enabled. ' +
+                            'Please run the integration manually ' +
+                            'with the \'--enable-deletion\' flag.'
+                        )
+                    if resource_type == 'aws_iam_user':
+                        deleted_users.append({
+                            'account': name,
+                            'user': resource_name
+                        })
+
         return deletions_detected, deleted_users
+
+    def terraform_show(self, name, working_dir):
+        return lean_tf.show_json(working_dir, name)
 
     # terraform apply
     def apply(self):
@@ -206,8 +207,9 @@ class TerraformClient(object):
     def terraform_apply(self, apply_spec):
         name = apply_spec['name']
         tf = apply_spec['tf']
-        return_code, stdout, stderr = tf.apply(auto_approve=True,
-                                               skip_plan=True)
+        # adding var=None to allow applying the saved plan
+        # https://github.com/beelit94/python-terraform/issues/67
+        return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
         error = self.check_output(name, return_code, stdout, stderr)
         return error
 
@@ -226,13 +228,13 @@ class TerraformClient(object):
                 output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
-                cluster = data['{}.cluster'.format(self.integration_prefix)]
+                cluster = data['{}_cluster'.format(self.integration_prefix)]
                 if not oc_map.get(cluster):
                     continue
                 namespace = \
-                    data['{}.namespace'.format(self.integration_prefix)]
-                resource = data['{}.resource'.format(self.integration_prefix)]
-                output_resource_name = data['{}.output_resource_name'.format(
+                    data['{}_namespace'.format(self.integration_prefix)]
+                resource = data['{}_resource'.format(self.integration_prefix)]
+                output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data)
@@ -250,19 +252,20 @@ class TerraformClient(object):
         if output is None:
             return data
 
-        enc_pass_pfx = '{}.{}'.format(
+        enc_pass_pfx = '{}_{}'.format(
             self.integration_prefix, self.OUTPUT_TYPE_PASSWORDS)
-        console_urls_pfx = '{}.{}'.format(
+        console_urls_pfx = '{}_{}'.format(
             self.integration_prefix, self.OUTPUT_TYPE_CONSOLEURLS)
         for k, v in output.items():
             # the integration creates outputs of the form
-            # output_secret_name[secret_key] = secret_value
+            # 0.11: output_secret_name[secret_key] = secret_value
+            # 0.13: output_secret_name__secret_key = secret_value
             # in case of manual debugging, additional outputs
             # may be added, and may (should) not conform to this
             # naming convention. as outputs are persisted to remote
             # state, we would not want them to affect any runs
             # of the integration.
-            if '[' not in k or ']' not in k:
+            if '__' not in k:
                 continue
 
             # if the output is of the form 'qrtf.enc-passwords[user_name]'
@@ -286,9 +289,14 @@ class TerraformClient(object):
             ):
                 continue
 
-            k_split = k.split('[')
+            k_split = k.split('__')
             resource_name = k_split[0]
-            field_key = k_split[1][:-1]
+            field_key = k_split[1]
+            if field_key.startswith('db'):
+                # since we can't use '.' in output keys
+                # and we want to maintain compatability
+                # replace '_' with '.' when this is a db secret
+                field_key = field_key.replace('db_', 'db.')
             field_value = v['value']
             if resource_name not in data:
                 data[resource_name] = {}
@@ -321,7 +329,9 @@ class TerraformClient(object):
             if v == "":
                 v = None
             else:
-                v = base64.b64encode(v.encode()).decode('utf-8')
+                # convert to str to maintain compatability
+                # as ports are now ints and not strs
+                v = base64.b64encode(str(v).encode()).decode('utf-8')
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,
@@ -333,10 +343,6 @@ class TerraformClient(object):
         stdout, stderr = self.split_to_lines(stdout, stderr)
         with self._log_lock:
             for line in stdout:
-                # this line will be present when performing 'terraform apply'
-                # as it will contain sensitive information, skip printing
-                if line.startswith('Outputs:'):
-                    break
                 logging.debug(line_format.format(name, line))
             if return_code == 0:
                 for line in stderr:

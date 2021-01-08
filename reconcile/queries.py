@@ -1216,6 +1216,44 @@ def get_saas_files_minimal():
     return gqlapi.query(SAAS_FILES_MINIMAL_QUERY)['saas_files']
 
 
+JIRA_BOARDS_QUERY = """
+{
+  jira_boards: jira_boards_v1 {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        path
+      }
+    }
+    slack {
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+    }
+  }
+}
+"""
+
+
+def get_jira_boards():
+    """ Returns Jira boards resources defined in app-interface """
+    gqlapi = gql.get_api()
+    return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
+
+
 PERFORMANCE_PARAMETERS_QUERY = """
 {
   performance_parameters_v1 {
@@ -1391,22 +1429,31 @@ DNS_ZONES_QUERY = """
     }
     unmanaged_record_names
     records {
+      name
       type
-      ... on DnsRecordCommon_v1 {
+      ttl
+      alias {
         name
-        ttl
-        target
-        targets
-        target_cluster {
-          name
-          elbFQDN
-        }
+        zone_id
+        evaluate_target_health
       }
-      ... on DnsRecordMX_v1 {
+      weighted_routing_policy {
+        weight
+      }
+      set_identifier
+      records
+      _healthcheck {
+        fqdn
+        port
+        type
+        resource_path
+        failure_threshold
+        request_interval
+        search_string
+      }
+      _target_cluster {
         name
-        ttl
-        target
-        priority
+        elbFQDN
       }
     }
   }
@@ -1529,3 +1576,21 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
 def get_ocp_release_ecr_mirror():
     gqlapi = gql.get_api()
     return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_ecr_mirror']
+
+
+PROMETHEUS_RULES_PATHS_QUERY = """
+{
+  resources: resources_v1(schema: "/openshift/prometheus-rule-1.yml") {
+    path
+  }
+}
+"""
+
+
+def get_prometheus_rules_paths():
+    gqlapi = gql.get_api()
+    paths = set()
+    for r in gqlapi.query(PROMETHEUS_RULES_PATHS_QUERY)['resources']:
+        paths.add(r['path'])
+
+    return paths

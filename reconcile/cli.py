@@ -2,13 +2,13 @@ import json
 import logging
 import os
 import sys
+import re
 
 import click
 import sentry_sdk
 
 import utils.config as config
 import utils.gql as gql
-import reconcile.aws_route53
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -89,6 +89,8 @@ import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
+import reconcile.prometheus_rules_validator
+import reconcile.terraform_aws_route53
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -101,9 +103,23 @@ from utils.environ import environ
 from utils.unleash import get_feature_toggle_state
 
 
+def before_breadcrumb(crumb, hint):
+    # https://docs.sentry.io/platforms/python/configuration/filtering/
+    # Configure breadcrumb to filter error mesage
+    if 'category' in crumb and crumb['category'] == 'subprocess':
+        # remove cluster token
+        crumb['message'] = re.sub(
+            r'--token \S*\b', '--token ***', crumb['message']
+        )
+    return crumb
+
+
 # Enable Sentry
 if os.getenv('SENTRY_DSN'):
-    sentry_sdk.init(os.environ['SENTRY_DSN'])
+    sentry_sdk.init(
+        os.environ['SENTRY_DSN'],
+        before_breadcrumb=before_breadcrumb
+    )
 
 
 def config_file(function):
@@ -393,9 +409,15 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 
 
 @integration.command()
+@terraform
+@threaded()
+@binary(['terraform'])
+@enable_deletion(default=False)
 @click.pass_context
-def aws_route53(ctx):
-    run_integration(reconcile.aws_route53, ctx.obj)
+def terraform_aws_route53(ctx, print_only, enable_deletion,
+                          thread_pool_size):
+    run_integration(reconcile.terraform_aws_route53, ctx.obj,
+                    print_only, enable_deletion, thread_pool_size)
 
 
 @integration.command()
@@ -934,7 +956,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
-@enable_deletion(default=True)
+@enable_deletion(default=False)
 @send_mails(default=True)
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,
@@ -1135,3 +1157,13 @@ def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host):
 def integrations_validator(ctx):
     run_integration(reconcile.integrations_validator, ctx.obj,
                     reconcile.cli.integration.commands.keys())
+
+
+@integration.command()
+@threaded()
+@binary(['promtool'])
+@cluster_name
+@click.pass_context
+def prometheus_rules_validator(ctx, thread_pool_size, cluster_name):
+    run_integration(reconcile.prometheus_rules_validator, ctx.obj,
+                    thread_pool_size, cluster_name)

@@ -40,9 +40,10 @@ FROM registry.access.redhat.com/ubi8/ubi:8.2
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 ENV OC_VERSION=4.6.1
-ENV TF_VERSION=0.11.14
+ENV TF_VERSION=0.13.5
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
+ENV PROMETHEUS_VERSION=2.23.0
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
@@ -65,6 +66,8 @@ RUN curl https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.t
     tar -zvxf git-secrets.tar.gz git-secrets-${GIT_SECRETS_VERSION}/git-secrets && \
     mv git-secrets-${GIT_SECRETS_VERSION}/git-secrets /usr/local/bin/git-secrets && \
     rm -rf git-secrets*
+
+RUN curl -sfL https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz | tar -zxf - -C /usr/local/bin --strip-components=1 prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool
 
 COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
 COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}

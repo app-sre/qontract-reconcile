@@ -1,6 +1,5 @@
 import logging
 
-import utils.gql as gql
 import reconcile.queries as queries
 
 from utils.jira_client import JiraClient
@@ -8,37 +7,6 @@ from utils.slack_api import SlackApi
 from utils.sharding import is_in_shard_round_robin
 from utils.state import State
 
-
-QUERY = """
-{
-  jira_boards: jira_boards_v1 {
-    path
-    name
-    server {
-      serverUrl
-      token {
-        path
-      }
-    }
-    slack {
-      workspace {
-        name
-        integrations {
-          name
-          token {
-            path
-            field
-          }
-          channel
-          icon_emoji
-          username
-        }
-      }
-      channel
-    }
-  }
-}
-"""
 
 QONTRACT_INTEGRATION = 'jira-watcher'
 
@@ -132,8 +100,8 @@ def write_state(state, project, state_to_write):
 
 
 def run(dry_run):
-    gqlapi = gql.get_api()
-    jira_boards = gqlapi.query(QUERY)['jira_boards']
+    jira_boards = [j for j in queries.get_jira_boards()
+                   if j.get('slack')]
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     state = State(

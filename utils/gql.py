@@ -136,7 +136,10 @@ class GqlApi(object):
         """
 
         try:
-            resources = self.query(query, {'path': path})['resources']
+            # Do not validate schema in resources since schema support in the
+            # resources is not complete.
+            resources = self.query(query, {'path': path},
+                                   skip_validation=True)['resources']
         except GqlApiError as e:
             if '409' in str(e):
                 raise e
