@@ -1,4 +1,5 @@
 import logging
+import yaml
 
 import utils.threaded as threaded
 import reconcile.queries as queries
@@ -446,10 +447,12 @@ def validate_data(oc_map, actions):
                     raise ValidationError(name)
             elif kind == 'Job':
                 succeeded = status.get('succeeded')
-                conditions = status.get('conditions')
                 if not succeeded:
                     logging.info(f'Job {name} has not succeeded')
-                    logging.info(f'Job conditions are: {conditions}')
+                    conditions = status.get('conditions')
+                    if conditions:
+                        logging.info(f'Job conditions are: {conditions}')
+                        logging.info(yaml.safe_dump(conditions))
                     raise ValidationError(name)
             elif kind == 'ClowdApp':
                 deployments = status.get('deployments')
