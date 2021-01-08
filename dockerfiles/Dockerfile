@@ -26,7 +26,7 @@ RUN /go/bin/jb init && \
 
 FROM registry.access.redhat.com/ubi8/ubi:8.2 AS terraform-providers-downloader
 
-ENV VERSIONS="2.3.0 2.58.0 2.68.0"
+ENV VERSIONS="3.22.0"
 
 RUN dnf -y install unzip; \
     cd /tmp/; rm -rf /tmp/terraform-* ; rm -rf /tmp/package-* ;\
