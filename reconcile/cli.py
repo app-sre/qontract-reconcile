@@ -2,13 +2,13 @@ import json
 import logging
 import os
 import sys
+import re
 
 import click
 import sentry_sdk
 
 import utils.config as config
 import utils.gql as gql
-import reconcile.aws_route53
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -90,6 +90,7 @@ import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
 import reconcile.kafka_clusters
 import reconcile.prometheus_rules_validator
+import reconcile.terraform_aws_route53
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -102,9 +103,23 @@ from utils.environ import environ
 from utils.unleash import get_feature_toggle_state
 
 
+def before_breadcrumb(crumb, hint):
+    # https://docs.sentry.io/platforms/python/configuration/filtering/
+    # Configure breadcrumb to filter error mesage
+    if 'category' in crumb and crumb['category'] == 'subprocess':
+        # remove cluster token
+        crumb['message'] = re.sub(
+            r'--token \S*\b', '--token ***', crumb['message']
+        )
+    return crumb
+
+
 # Enable Sentry
 if os.getenv('SENTRY_DSN'):
-    sentry_sdk.init(os.environ['SENTRY_DSN'])
+    sentry_sdk.init(
+        os.environ['SENTRY_DSN'],
+        before_breadcrumb=before_breadcrumb
+    )
 
 
 def config_file(function):
@@ -394,9 +409,15 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 
 
 @integration.command()
+@terraform
+@threaded()
+@binary(['terraform'])
+@enable_deletion(default=False)
 @click.pass_context
-def aws_route53(ctx):
-    run_integration(reconcile.aws_route53, ctx.obj)
+def terraform_aws_route53(ctx, print_only, enable_deletion,
+                          thread_pool_size):
+    run_integration(reconcile.terraform_aws_route53, ctx.obj,
+                    print_only, enable_deletion, thread_pool_size)
 
 
 @integration.command()

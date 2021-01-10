@@ -29,14 +29,17 @@ FROM registry.access.redhat.com/ubi8/ubi:8.2
 ENV LC_ALL=en_US.utf8
 ENV LANG=en_US.utf8
 ENV OC_VERSION=4.6.1
-ENV TF_VERSION=0.11.14
+ENV TF_VERSION=0.13.5
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 ENV PROMETHEUS_VERSION=2.23.0
 
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
-    dnf install -y skopeo && \
+    CONT_COMMON_PKG=$(dnf list -q containers-common.x86_64 | tail -1 | awk '{print $1"-"$2}' | sed 's/\(.*\).x86_64-[0-9]:\(.*\)\(.el8\)$/\1-\2\3.x86_64.rpm/') && \
+    rpm -vi https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/${CONT_COMMON_PKG} && \
+    SKOPEO_PKG=$(dnf list -q skopeo.x86_64 | tail -1 | awk '{print $1"-"$2}' | sed 's/\(.*\).x86_64-[0-9]:\(.*\)\(.el8\)$/\1-\2\3.x86_64.rpm/') && \
+    rpm -vi https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/${SKOPEO_PKG} && \
     dnf install -y python3 python3-pip python3-devel git unzip gcc gcc-c++ openssh-clients openssl glibc-langpack-en && \
     python3 -m pip install --upgrade pip setuptools && \
     dnf clean all

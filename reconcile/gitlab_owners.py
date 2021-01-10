@@ -116,8 +116,10 @@ class MRApproval:
             report[change_path] = {}
             if not change_approved:
                 approval_status['approved'] = False
-                approvers = change_owners['closest_approvers']
+                approvers = change_owners['approvers']
                 report[change_path]['approvers'] = approvers
+                closest_approvers = change_owners['closest_approvers']
+                report[change_path]['closest_approvers'] = closest_approvers
 
             change_reviewed = False
             for reviewer in change_owners['reviewers']:
@@ -125,8 +127,10 @@ class MRApproval:
                     change_reviewed = True
 
             if not change_reviewed:
-                reviewers = change_owners['closest_reviewers']
+                reviewers = change_owners['reviewers']
                 report[change_path]['reviewers'] = reviewers
+                closest_reviewers = change_owners['closest_reviewers']
+                report[change_path]['closest_reviewers'] = closest_reviewers
 
         # Returning earlier. No need to process comments if
         # we got no report.
@@ -187,32 +191,82 @@ class MRApproval:
         """
         markdown_report = ''
 
-        approvers = list()
+        closest_approvers = list()
         for _, owners in report.items():
             new_group = list()
 
-            if 'approvers' not in owners:
+            if 'closest_approvers' not in owners:
                 continue
 
-            for owner in owners['approvers']:
+            for closest_approver in owners['closest_approvers']:
                 there = False
 
-                for group in approvers:
-                    if owner in group:
+                for group in closest_approvers:
+                    if closest_approver in group:
                         there = True
 
                 if not there:
-                    new_group.append(owner)
+                    new_group.append(closest_approver)
 
             if new_group:
-                approvers.append(new_group)
+                closest_approvers.append(new_group)
+
+        if closest_approvers:
+
+            if len(closest_approvers) == 1:
+                markdown_report += (f'{COMMENT_PREFIX} You will need a '
+                                    f'"/lgtm" from at least one person from '
+                                    f'the following group:\n\n')
+            else:
+                markdown_report += (f'{COMMENT_PREFIX} You will need a '
+                                    f'"/lgtm" from at least one person from '
+                                    f'each of the following groups:\n\n')
+
+        for group in sorted(closest_approvers):
+            markdown_report += f'* {", ".join(group)}\n'
+
+        approvers = set()
+        for _, owners in report.items():
+            if 'approvers' not in owners:
+                continue
+
+            for approver in owners['approvers']:
+                there = False
+
+                for group in closest_approvers:
+                    if approver in group:
+                        there = True
+
+                if not there:
+                    approvers.add(approver)
 
         if approvers:
-            markdown_report += (f'{COMMENT_PREFIX} You will need a "/lgtm" '
-                                f'from one person from each of these '
-                                f'groups:\n\n')
-        for group in sorted(approvers):
-            markdown_report += f'* {", ".join(group)}\n'
+            markdown_report += (f'\nOverride approvers, from parent '
+                                f'directories, are:\n\n')
+            markdown_report += f'* {", ".join(sorted(approvers))}\n'
+
+        closest_reviewers = set()
+        for _, owners in report.items():
+            if 'closest_reviewers' not in owners:
+                continue
+
+            for closest_reviewer in owners['closest_reviewers']:
+
+                there = False
+                for group in closest_approvers:
+                    if closest_reviewer in group:
+                        there = True
+
+                if closest_reviewer in approvers:
+                    there = True
+
+                if not there:
+                    closest_reviewers.add(closest_reviewer)
+
+        if closest_reviewers:
+            markdown_report += ('\nRelevant reviewers (with no '
+                                'merge rights) are:\n\n')
+            markdown_report += f'* {", ".join(sorted(closest_reviewers))}\n'
 
         reviewers = set()
         for _, owners in report.items():
@@ -222,16 +276,24 @@ class MRApproval:
             for reviewer in owners['reviewers']:
 
                 there = False
-                for group in approvers:
+                for group in closest_approvers:
                     if reviewer in group:
                         there = True
+
+                if reviewer in approvers:
+                    there = True
+
+                if reviewer in closest_reviewers:
+                    there = True
 
                 if not there:
                     reviewers.add(reviewer)
 
         if reviewers:
-            markdown_report += '\nAdditional relevant reviewers are:\n\n'
-            markdown_report += f'* {", ".join(sorted(reviewers))}'
+            markdown_report += ('\nOther reviewers (with no '
+                                'merge rights) from parent '
+                                'directories are:\n\n')
+            markdown_report += f'* {", ".join(sorted(reviewers))}\n'
 
         return markdown_report.rstrip()
 
