@@ -63,7 +63,7 @@ class TestQuayMembership(object):
     def do_desired_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch('utils.gql.GqlApi.query') as m_gql:
+        with patch('reconcile.utils.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
             desired_state = quay_membership.fetch_desired_state().dump()
