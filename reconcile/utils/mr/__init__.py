@@ -1,6 +1,7 @@
 from reconcile.utils.mr.base import MergeRequestBase
 
-from reconcile.utils.mr.app_interface_reporter import CreateAppInterfaceReporter
+from reconcile.utils.mr.app_interface_reporter \
+    import CreateAppInterfaceReporter
 from reconcile.utils.mr.aws_access import CreateDeleteAwsAccessKey
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile.utils.mr.notificator import CreateAppInterfaceNotificator
