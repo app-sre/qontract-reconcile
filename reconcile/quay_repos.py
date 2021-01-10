@@ -1,12 +1,12 @@
 import logging
 import sys
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 
 from reconcile.status import ExitCodes
 
-from utils.aggregated_list import (AggregatedList,
-                                   AggregatedDiffRunner)
+from reconcile.utils.aggregated_list import (AggregatedList,
+                                             AggregatedDiffRunner)
 from reconcile.quay_base import get_quay_api_store
 
 

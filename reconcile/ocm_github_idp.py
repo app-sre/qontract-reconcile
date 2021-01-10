@@ -3,8 +3,8 @@ import logging
 
 import reconcile.queries as queries
 
-from utils.ocm import OCMMap
-from utils.secret_reader import SecretReader
+from reconcile.utils.ocm import OCMMap
+from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = 'ocm-github-idp'
 

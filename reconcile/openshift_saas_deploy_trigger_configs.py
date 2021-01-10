@@ -6,8 +6,8 @@ import time
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
 
-from utils.gitlab_api import GitLabApi
-from utils.saasherder import SaasHerder
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.saasherder import SaasHerder
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 
 

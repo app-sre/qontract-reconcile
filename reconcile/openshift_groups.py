@@ -1,12 +1,12 @@
 import sys
 import logging
 
-import utils.gql as gql
-import utils.threaded as threaded
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
-from utils.oc import OC_Map
-from utils.defer import defer
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.defer import defer
 
 ROLES_QUERY = """
 {

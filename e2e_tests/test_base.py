@@ -1,9 +1,9 @@
 import datetime
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
-from utils.oc import OC_Map
+from reconcile.utils.oc import OC_Map
 
 CLUSTERS_QUERY = """
 {

@@ -6,23 +6,23 @@ import anymarkup
 import jinja2
 import semver
 
-import utils.gql as gql
-import utils.threaded as threaded
-from utils.vault import VaultClient
-from utils.vault import SecretVersionNotFound
-import utils.openssl as openssl
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+from reconcile.utils.vault import VaultClient
+from reconcile.utils.vault import SecretVersionNotFound
+import reconcile.utils.openssl as openssl
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from utils.oc import OC_Map
-from utils.oc import StatusCodeError
-from utils.defer import defer
-from utils.sharding import is_in_shard
-from utils.openshift_resource import (OpenshiftResource as OR,
-                                      ConstructResourceError,
-                                      ResourceInventory,
-                                      ResourceKeyExistsError)
-from utils.jinja2_ext import B64EncodeExtension
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.defer import defer
+from reconcile.utils.sharding import is_in_shard
+from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
+                                                ConstructResourceError,
+                                                ResourceInventory,
+                                                ResourceKeyExistsError)
+from reconcile.utils.jinja2_ext import B64EncodeExtension
 from reconcile.exceptions import FetchResourceError
 
 from threading import Lock

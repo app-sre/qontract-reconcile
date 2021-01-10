@@ -1,6 +1,6 @@
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 
 from textwrap import indent
 

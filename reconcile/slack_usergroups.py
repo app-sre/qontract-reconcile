@@ -2,12 +2,12 @@ import logging
 
 from urllib.parse import urlparse
 
-from utils import gql
-from utils.github_api import GithubApi
-from utils.gitlab_api import GitLabApi
-from utils.pagerduty_api import PagerDutyApi
-from utils.repo_owners import RepoOwners
-from utils.slack_api import SlackApi
+from reconcile.utils import gql
+from reconcile.utils.github_api import GithubApi
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.pagerduty_api import PagerDutyApi
+from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.slack_api import SlackApi
 from reconcile import queries
 
 

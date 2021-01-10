@@ -1,10 +1,10 @@
 import logging
 
-from utils.smtp_client import SmtpClient
+from reconcile.utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from reconcile.slack_base import init_slack_workspace
-from utils.state import State
+from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = 'sentry-helper'
 

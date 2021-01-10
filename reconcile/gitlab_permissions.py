@@ -1,9 +1,9 @@
 import logging
 
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = 'gitlab-permissions'
 

@@ -1,10 +1,10 @@
 import sys
 import logging
 
-from utils.smtp_client import SmtpClient
+from reconcile.utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
-from utils.state import State
+from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = 'email-sender'
 

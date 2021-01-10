@@ -1,9 +1,9 @@
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 USERS_QUERY = """
 {

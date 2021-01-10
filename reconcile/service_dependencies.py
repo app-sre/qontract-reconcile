@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
 

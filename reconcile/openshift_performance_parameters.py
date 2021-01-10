@@ -4,13 +4,13 @@ import semver
 import logging
 import traceback
 
-import utils.jsonnet as jsonnet
-import utils.template as template
+import reconcile.utils.jsonnet as jsonnet
+import reconcile.utils.template as template
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from utils.defer import defer
-from utils.openshift_resource import (OpenshiftResource as OR)
+from reconcile.utils.defer import defer
+from reconcile.utils.openshift_resource import (OpenshiftResource as OR)
 
 SLO_RULES = 'slo-rules.jsonnet.j2'
 QONTRACT_INTEGRATION = 'openshift-performance-parameters'
