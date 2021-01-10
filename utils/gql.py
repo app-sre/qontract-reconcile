@@ -89,7 +89,7 @@ class GqlApi(object):
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=(GqlApiError))
+    @retry(exceptions=GqlApiError)
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
