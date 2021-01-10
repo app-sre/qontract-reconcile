@@ -156,6 +156,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
         pd = PagerDutyApi(pd_token, settings=settings)
         pagerduty_names = pd.get_pagerduty_users(pd_resource_type,
                                                  pd_resource_id)
+        pagerduty_names = [name.split('+', 1)[0] for name in pagerduty_names]
         if not pagerduty_names:
             continue
         slack_usernames = [get_slack_username(u)
