@@ -1,4 +1,4 @@
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 from jira import JIRA
 

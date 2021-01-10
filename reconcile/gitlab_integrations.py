@@ -1,9 +1,9 @@
 import logging
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = 'gitlab-integrations'
 

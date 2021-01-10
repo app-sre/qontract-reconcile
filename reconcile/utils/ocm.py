@@ -3,7 +3,7 @@ import logging
 
 from sretoolbox.utils import retry
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 
 class OCM(object):

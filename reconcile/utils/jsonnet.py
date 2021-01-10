@@ -1,7 +1,7 @@
 import os
 import json
 import tempfile
-from utils.defer import defer
+from reconcile.utils.defer import defer
 from subprocess import run, PIPE
 
 

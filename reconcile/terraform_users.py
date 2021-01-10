@@ -1,12 +1,12 @@
 import sys
 import semver
 
-import utils.gql as gql
-from utils.smtp_client import SmtpClient
+import reconcile.utils.gql as gql
+from reconcile.utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
-from utils.terrascript_client import TerrascriptClient as Terrascript
-from utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import TerraformClient as Terraform
 
 TF_QUERY = """
 {

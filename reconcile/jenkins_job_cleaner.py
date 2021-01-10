@@ -3,7 +3,7 @@ import logging
 import reconcile.queries as queries
 
 from reconcile.jenkins_job_builder import init_jjb
-from utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi
 
 QONTRACT_INTEGRATION = 'jenkins-job-cleaner'
 

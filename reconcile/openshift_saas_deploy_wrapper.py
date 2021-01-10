@@ -2,7 +2,7 @@ import sys
 import semver
 
 import reconcile.openshift_saas_deploy as osd
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 
 from reconcile.saas_file_owners import read_diffs_from_file as \
     read_saas_file_owners_diffs

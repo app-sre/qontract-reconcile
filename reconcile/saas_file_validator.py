@@ -3,7 +3,7 @@ import semver
 
 import reconcile.queries as queries
 
-from utils.saasherder import SaasHerder
+from reconcile.utils.saasherder import SaasHerder
 
 QONTRACT_INTEGRATION = 'saas-file-validator'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)

@@ -3,10 +3,10 @@ import logging
 
 from github import Github
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 
 from reconcile.github_org import get_config
-from utils.raw_github_api import RawGithubApi
+from reconcile.utils.raw_github_api import RawGithubApi
 
 
 ROLES_QUERY = """

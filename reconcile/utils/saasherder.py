@@ -7,12 +7,12 @@ from github import Github
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
-import utils.threaded as threaded
-from utils.secret_reader import SecretReader
+import reconcile.utils.threaded as threaded
+from reconcile.utils.secret_reader import SecretReader
 
-from utils.oc import OC, StatusCodeError
-from utils.openshift_resource import OpenshiftResource as OR
-from utils.state import State
+from reconcile.utils.oc import OC, StatusCodeError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.state import State
 from reconcile.github_org import get_config
 
 

@@ -4,7 +4,7 @@ import urllib3
 
 from urllib.parse import urlparse
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 
 # The following line will suppress

@@ -1,8 +1,8 @@
 import ruamel.yaml as yaml
 
-from utils.mr.base import MergeRequestBase
-from utils.mr.labels import AUTO_MERGE
-from utils.mr.labels import SKIP_CI
+from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.labels import SKIP_CI
 
 
 class CreateClustersUpdates(MergeRequestBase):

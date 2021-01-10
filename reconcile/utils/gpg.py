@@ -4,7 +4,7 @@ import shutil
 
 from subprocess import PIPE, Popen, STDOUT
 
-from utils.defer import defer
+from reconcile.utils.defer import defer
 
 
 @defer

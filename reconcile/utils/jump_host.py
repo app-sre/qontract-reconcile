@@ -2,8 +2,8 @@ import tempfile
 import shutil
 import os
 
-import utils.gql as gql
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+from reconcile.utils.secret_reader import SecretReader
 
 from reconcile.exceptions import FetchResourceError
 

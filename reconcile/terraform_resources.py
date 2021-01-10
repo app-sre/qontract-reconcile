@@ -3,19 +3,19 @@ import shutil
 import semver
 import logging
 
-import utils.gql as gql
-import utils.threaded as threaded
-from utils.vault import VaultClient
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+from reconcile.utils.vault import VaultClient
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from utils.terrascript_client import TerrascriptClient as Terrascript
-from utils.terraform_client import OR, TerraformClient as Terraform
-from utils.openshift_resource import ResourceInventory
-from utils.oc import OC_Map
-from utils.defer import defer
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import OR, TerraformClient as Terraform
+from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.defer import defer
 from reconcile.aws_iam_keys import run as disable_keys
-from utils.oc import StatusCodeError
+from reconcile.utils.oc import StatusCodeError
 
 from textwrap import indent
 

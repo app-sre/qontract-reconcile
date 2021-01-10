@@ -5,7 +5,7 @@ import shutil
 
 from UnleashClient import UnleashClient
 
-from utils.defer import defer
+from reconcile.utils.defer import defer
 
 
 def get_feature_toggle_default(feature_name, context):

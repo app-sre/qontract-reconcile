@@ -6,10 +6,10 @@ from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
 
-from utils.gitlab_api import GitLabApi
-from utils.sqs_gateway import SQSGateway
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.sqs_gateway import SQSGateway
 
-from utils.mr.labels import DO_NOT_MERGE
+from reconcile.utils.mr.labels import DO_NOT_MERGE
 
 
 LOG = logging.getLogger(__name__)

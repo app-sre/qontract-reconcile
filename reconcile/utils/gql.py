@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
 from graphqlclient import GraphQLClient
-from utils.config import get_config
+from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 
 

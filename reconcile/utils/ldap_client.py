@@ -1,5 +1,5 @@
 from ldap3 import Server, Connection, ALL
-from utils.config import get_config
+from reconcile.utils.config import get_config
 
 _client = None
 _base_dn = None

@@ -1,11 +1,11 @@
 import logging
 
-import utils.threaded as threaded
-import utils.ldap_client as ldap_client
+import reconcile.utils.threaded as threaded
+import reconcile.utils.ldap_client as ldap_client
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
-from utils.mr import CreateDeleteUser
+from reconcile.utils.mr import CreateDeleteUser
 
 from collections import defaultdict
 

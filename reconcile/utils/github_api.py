@@ -5,7 +5,7 @@ from sretoolbox.utils import retry
 
 import github
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')

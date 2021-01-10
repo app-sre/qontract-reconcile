@@ -1,5 +1,5 @@
-from utils.mr.base import MergeRequestBase
-from utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 class CreateDeleteUser(MergeRequestBase):

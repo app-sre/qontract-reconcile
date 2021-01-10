@@ -2,7 +2,7 @@ import toml
 import requests
 import logging
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 
 class JenkinsApi(object):

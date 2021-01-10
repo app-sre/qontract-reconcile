@@ -3,9 +3,9 @@ import logging
 
 import e2e_tests.test_base as tb
 import e2e_tests.network_policy_test_base as npt
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 
-from utils.defer import defer
+from reconcile.utils.defer import defer
 
 QONTRACT_E2E_TEST = 'default-network-policies'
 

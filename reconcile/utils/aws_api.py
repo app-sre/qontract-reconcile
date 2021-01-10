@@ -5,10 +5,10 @@ import json
 import os
 import time
 
-import utils.threaded as threaded
-import utils.lean_terraform_client as terraform
+import reconcile.utils.threaded as threaded
+import reconcile.utils.lean_terraform_client as terraform
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 from datetime import datetime
 from threading import Lock

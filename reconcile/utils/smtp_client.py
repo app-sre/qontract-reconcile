@@ -1,9 +1,9 @@
 import smtplib
 import imaplib
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
-from utils.config import get_config
+from reconcile.utils.config import get_config
 
 from sretoolbox.utils import retry
 from email.mime.multipart import MIMEMultipart

@@ -1,6 +1,6 @@
 import reconcile.queries as queries
 
-from utils.slack_api import SlackApi
+from reconcile.utils.slack_api import SlackApi
 
 
 def init_slack(slack_info, integration, init_usergroups=True):

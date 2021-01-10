@@ -1,7 +1,7 @@
 import os
 import json
 
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 
 
 class SQSGatewayInitError(Exception):

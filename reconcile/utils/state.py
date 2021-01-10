@@ -3,7 +3,7 @@ import json
 
 from botocore.errorfactory import ClientError
 
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 
 
 class State(object):

@@ -1,13 +1,13 @@
 import logging
 
-import utils.threaded as threaded
-import utils.git_secrets as git_secrets
+import reconcile.utils.threaded as threaded
+import reconcile.utils.git_secrets as git_secrets
 import reconcile.aws_support_cases_sos as aws_sos
 import reconcile.queries as queries
 
 from github.GithubException import UnknownObjectException
 
-from utils.aws_api import AWSApi
+from reconcile.utils.aws_api import AWSApi
 from reconcile.github_users import init_github
 
 QONTRACT_INTEGRATION = 'github-scanner'

@@ -3,8 +3,8 @@ from pathlib import Path
 
 from jinja2 import Template
 
-from utils.mr.base import MergeRequestBase
-from utils.mr.labels import DO_NOT_MERGE
+from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import DO_NOT_MERGE
 
 
 PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()

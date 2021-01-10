@@ -4,13 +4,13 @@ from github import Github
 from github.GithubObject import NotSet
 from sretoolbox.utils import retry
 
-import utils.gql as gql
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.openshift_users as openshift_users
 import reconcile.queries as queries
 
-from utils.aggregated_list import AggregatedList, AggregatedDiffRunner
-from utils.raw_github_api import RawGithubApi
+from reconcile.utils.aggregated_list import AggregatedList, AggregatedDiffRunner
+from reconcile.utils.raw_github_api import RawGithubApi
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')

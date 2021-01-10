@@ -2,8 +2,8 @@ import os
 import re
 import logging
 
-import utils.threaded as threaded
-from utils.smtp_client import SmtpClient
+import reconcile.utils.threaded as threaded
+from reconcile.utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
 from reconcile import mr_client_gateway
@@ -15,7 +15,7 @@ from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
 
-from utils.mr import CreateDeleteUser
+from reconcile.utils.mr import CreateDeleteUser
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 

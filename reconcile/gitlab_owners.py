@@ -2,12 +2,12 @@ import logging
 
 from dateutil import parser as dateparser
 
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 
 from reconcile import queries
-from utils.gitlab_api import GitLabApi
-from utils.gitlab_api import MRState
-from utils.repo_owners import RepoOwners
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import MRState
+from reconcile.utils.repo_owners import RepoOwners
 
 QONTRACT_INTEGRATION = 'gitlab-owners'
 

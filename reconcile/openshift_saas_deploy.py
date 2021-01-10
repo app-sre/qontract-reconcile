@@ -7,9 +7,9 @@ import reconcile.openshift_base as ob
 import reconcile.jenkins_plugins as jenkins_base
 
 from reconcile.slack_base import init_slack
-from utils.gitlab_api import GitLabApi
-from utils.saasherder import SaasHerder
-from utils.defer import defer
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'

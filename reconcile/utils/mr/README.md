@@ -5,7 +5,7 @@ Module responsible for abstracting a Gitlab Merge Request.
 ## Creating New MergeRequest Classes
 
 Each type of merge request requires a class that inherits
-from utils.mr.base.MergeRequestBase.
+from reconcile.utils.mr.base.MergeRequestBase.
 
 That class has to comply with the specification below.
 
@@ -41,7 +41,7 @@ The minimum methods that have to be defined are:
 This is an example of a minimum implementation for a new MergeRequest class:
 
 ```python
-from utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import MergeRequestBase
 
 
 class CreateDeleteUser(MergeRequestBase):
@@ -73,7 +73,7 @@ class CreateDeleteUser(MergeRequestBase):
 To send a Merge Request to SQS, create the corresponding MergeRequest object:
 
 ```python
-from utils.mr import CreateAppInterfaceNotificator
+from reconcile.utils.mr import CreateAppInterfaceNotificator
 
 
 notification = {
@@ -91,7 +91,7 @@ then create the SQS Client instance:
 ```python
 import reconcile.queries as queries
 
-from utils.sqs_gateway import SQSGateway
+from reconcile.utils.sqs_gateway import SQSGateway
 
 
 accounts = queries.get_aws_accounts()
@@ -114,7 +114,7 @@ first get the SQS messages:
 ```python
 import reconcile.queries as queries
 
-from utils.sqs_gateway import SQSGateway
+from reconcile.utils.sqs_gateway import SQSGateway
 
 
 accounts = queries.get_aws_accounts()
@@ -127,7 +127,7 @@ messages = sqs_cli.receive_messages()
 then create the Gitlab client instance:
 
 ```python
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 instance = queries.get_gitlab_instance()
 saas_files = queries.get_saas_files_minimal()
@@ -139,7 +139,7 @@ and then loop the messages, creating the MergeRequest objects and submitting
 the merge requests:
 
 ```python
-from utils.mr import init_from_sqs_message
+from reconcile.utils.mr import init_from_sqs_message
 
 for message in messages:
     receipt_handle, body = message[0], message[1]
@@ -163,7 +163,7 @@ on of SQS or GitLab client, according to the App Interface settings. Example:
 
 ```python
 from reconcile import mr_client_gateway
-from utils.mr import CreateDeleteAwsAccessKey
+from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 
 def run(dry_run, gitlab_project_id):
@@ -178,7 +178,7 @@ say `gitlab`, we would:
 
 ```python
 from reconcile import mr_client_gateway
-from utils.mr import CreateDeleteAwsAccessKey
+from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
 
 def run(dry_run, gitlab_project_id):

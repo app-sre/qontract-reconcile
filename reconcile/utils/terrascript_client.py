@@ -9,15 +9,15 @@ import re
 import requests
 import os
 
-import utils.gql as gql
-import utils.threaded as threaded
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_org import get_config
 
-from utils.oc import StatusCodeError
-from utils.gpg import gpg_key_valid
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.gpg import gpg_key_valid
 from reconcile.exceptions import FetchResourceError
-from utils.elasticsearch_exceptions \
+from reconcile.utils.elasticsearch_exceptions \
   import (ElasticSearchResourceNameInvalidError,
           ElasticSearchResourceMissingSubnetIdError,
           ElasticSearchResourceVersionInvalidError,

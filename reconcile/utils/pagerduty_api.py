@@ -2,7 +2,7 @@ import pypd
 import datetime
 import requests
 
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 
 
 class PagerDutyUserNotFoundException(Exception):

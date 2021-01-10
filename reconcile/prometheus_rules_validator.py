@@ -2,9 +2,9 @@ import sys
 import semver
 import logging
 
-import utils.gql as gql
-import utils.threaded as threaded
-import utils.promtool as promtool
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+import reconcile.utils.promtool as promtool
 import reconcile.openshift_resources_base as orb
 import reconcile.queries as queries
 

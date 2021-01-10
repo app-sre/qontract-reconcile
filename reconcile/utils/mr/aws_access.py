@@ -4,8 +4,8 @@ from jinja2 import Template
 import ruamel.yaml as yaml
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
-from utils.mr.base import MergeRequestBase
-from utils.mr.labels import AUTO_MERGE
+from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.labels import AUTO_MERGE
 
 
 PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()

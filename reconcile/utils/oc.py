@@ -3,8 +3,8 @@ import json
 import logging
 import tempfile
 
-import utils.threaded as threaded
-from utils.qrtracking import elapsed_seconds_from_commit_metric
+import reconcile.utils.threaded as threaded
+from reconcile.utils.qrtracking import elapsed_seconds_from_commit_metric
 
 from subprocess import Popen, PIPE
 from datetime import datetime
@@ -12,8 +12,8 @@ from datetime import datetime
 from threading import Lock
 from sretoolbox.utils import retry
 
-from utils.secret_reader import SecretReader
-from utils.jump_host import JumpHostSSH
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.jump_host import JumpHostSSH
 
 
 class StatusCodeError(Exception):

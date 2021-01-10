@@ -9,8 +9,8 @@ from prometheus_client import start_http_server
 
 from reconcile.status import ExitCodes
 from reconcile.cli import integration
-from utils.metrics import run_time
-from utils.metrics import run_status
+from reconcile.utils.metrics import run_time
+from reconcile.utils.metrics import run_status
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))

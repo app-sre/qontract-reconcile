@@ -8,8 +8,8 @@ from subprocess import PIPE, Popen
 
 from sretoolbox.utils import retry
 
-from utils import git
-from utils.defer import defer
+from reconcile.utils import git
+from reconcile.utils.defer import defer
 
 
 @defer

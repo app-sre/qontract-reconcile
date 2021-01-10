@@ -4,11 +4,11 @@ import sys
 
 import reconcile.queries as queries
 
-from utils.terrascript_client import TerrascriptClient as Terrascript
-from utils.terraform_client import TerraformClient as Terraform
-from utils.aws_api import AWSApi
-from utils.ocm import OCMMap
-from utils.defer import defer
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.ocm import OCMMap
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'terraform_vpc_peerings'

@@ -9,9 +9,9 @@ from threading import Lock
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
 
-from utils import threaded
-from utils.openshift_resource import OpenshiftResource as OR
-import utils.lean_terraform_client as lean_tf
+from reconcile.utils import threaded
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+import reconcile.utils.lean_terraform_client as lean_tf
 
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"

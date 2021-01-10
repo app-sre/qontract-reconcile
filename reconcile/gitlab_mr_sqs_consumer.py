@@ -7,9 +7,9 @@ import logging
 
 import reconcile.queries as queries
 
-from utils import mr
-from utils.sqs_gateway import SQSGateway
-from utils.gitlab_api import GitLabApi
+from reconcile.utils import mr
+from reconcile.utils.sqs_gateway import SQSGateway
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 QONTRACT_INTEGRATION = 'gitlab-mr-sqs-consumer'

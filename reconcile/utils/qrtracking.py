@@ -3,7 +3,7 @@ import time
 from functools import wraps
 
 from reconcile.status import RunningState
-from utils.metrics import reconcile_time
+from reconcile.utils.metrics import reconcile_time
 
 
 def elapsed_seconds_from_commit_metric(function):

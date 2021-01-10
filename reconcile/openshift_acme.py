@@ -7,14 +7,14 @@ import reconcile.queries as queries
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
-from utils.openshift_resource import OpenshiftResource as OR
-from utils.openshift_resource import ConstructResourceError
-from utils.defer import defer
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ConstructResourceError
+from reconcile.utils.defer import defer
 
-from utils.openshift_acme import (ACME_DEPLOYMENT,
-                                  ACME_ROLE,
-                                  ACME_ROLEBINDING,
-                                  ACME_SERVICEACCOUNT)
+from reconcile.utils.openshift_acme import (ACME_DEPLOYMENT,
+                                            ACME_ROLE,
+                                            ACME_ROLEBINDING,
+                                            ACME_SERVICEACCOUNT)
 
 
 QONTRACT_INTEGRATION = 'openshift-acme'

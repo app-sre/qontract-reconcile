@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 
 from reconcile.status import ExitCodes
 from reconcile.quay_base import get_quay_api_store

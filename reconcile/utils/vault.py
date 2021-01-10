@@ -9,7 +9,7 @@ from requests.adapters import HTTPAdapter
 
 from sretoolbox.utils import retry
 
-from utils.config import get_config
+from reconcile.utils.config import get_config
 
 
 class SecretNotFound(Exception):

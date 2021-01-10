@@ -1,7 +1,7 @@
 import pytest
 
-from utils.aggregated_list import AggregatedList
-from utils.aggregated_list import AggregatedDiffRunner
+from reconcile.utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedDiffRunner
 
 
 class TestAggregatedList(object):

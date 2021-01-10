@@ -8,9 +8,9 @@ import subprocess
 import difflib
 import xml.etree.ElementTree as et
 
-from utils.secret_reader import SecretReader
-import utils.gql as gql
-import utils.throughput as throughput
+from reconcile.utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+import reconcile.utils.throughput as throughput
 
 from os import path
 from contextlib import contextmanager

@@ -2,7 +2,7 @@ import logging
 
 import reconcile.queries as queries
 
-from utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
 
