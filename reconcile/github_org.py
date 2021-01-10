@@ -9,7 +9,8 @@ from reconcile.utils.secret_reader import SecretReader
 import reconcile.openshift_users as openshift_users
 import reconcile.queries as queries
 
-from reconcile.utils.aggregated_list import AggregatedList, AggregatedDiffRunner
+from reconcile.utils.aggregated_list \
+    import AggregatedList, AggregatedDiffRunner
 from reconcile.utils.raw_github_api import RawGithubApi
 
 
