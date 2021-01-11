@@ -60,9 +60,9 @@ COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
 COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}
 RUN find ${JSONNET_VENDOR_DIR} -type d -exec chmod 0755 {} \;
 
-RUN mkdir -p /root/.terraform.d/plugin-cache
-COPY --from=terraform-providers-downloader /tmp/terraform-providers/ /root/.terraform.d/plugins/registry.terraform.io/hashicorp/aws/
-RUN find /root/.terraform.d/ -type d -exec chmod 0755 {} \;
+RUN mkdir -p /.terraform.d/plugin-cache
+COPY --from=terraform-providers-downloader /tmp/terraform-providers/ /.terraform.d/plugins/registry.terraform.io/hashicorp/aws/
+RUN find /.terraform.d/ -type d -exec chmod 0755 {} \;
 
 
 WORKDIR /reconcile
