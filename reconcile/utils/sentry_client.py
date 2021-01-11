@@ -52,7 +52,7 @@ class SentryClient:
             response = \
                 call(f"{url}?&cursor={cursor}", headers=headers, json=payload)
             response.raise_for_status()
-            # if there are pages, each response is a list to append
+            # if there are pages, each response is a list to extend
             all_results += response.json()
 
         return all_results
