@@ -20,7 +20,7 @@ WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
     /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
-FROM rquay.io/app-sre/qontract-base:6e1dd13 AS terraform-providers-downloader
+FROM quay.io/app-sre/qontract-base:6e1dd13 AS terraform-providers-downloader
 
 ENV VERSIONS="3.22.0"
 
