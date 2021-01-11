@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import reconcile.github_org as github_org
-from utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('github_org')
 
@@ -100,7 +100,7 @@ class TestGithubOrg(object):
     def do_desired_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch('utils.gql.GqlApi.query') as m_gql:
+        with patch('reconcile.utils.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
             desired_state = github_org.fetch_desired_state(

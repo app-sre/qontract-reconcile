@@ -1,7 +1,7 @@
-from utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
-from utils.quay_api import QuayApi
+from reconcile.utils.quay_api import QuayApi
 
 
 def get_quay_api_store():

@@ -7,10 +7,10 @@ import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
 
-from utils.terrascript_client import TerrascriptClient as Terrascript
-from utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import TerraformClient as Terraform
 
-from utils.defer import defer
+from reconcile.utils.defer import defer
 
 QONTRACT_INTEGRATION = 'terraform_aws_route53'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)

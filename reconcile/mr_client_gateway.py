@@ -1,7 +1,7 @@
 import reconcile.queries as queries
 
-from utils.sqs_gateway import SQSGateway
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.sqs_gateway import SQSGateway
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 class MRClientGatewayError(Exception):

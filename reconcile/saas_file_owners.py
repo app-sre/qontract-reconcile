@@ -3,9 +3,9 @@ import json
 import copy
 
 import reconcile.queries as queries
-import utils.throughput as throughput
+import reconcile.utils.throughput as throughput
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 QONTRACT_INTEGRATION = 'saas-file-owners'

@@ -1,9 +1,9 @@
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
-from utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi
 
 
 PERMISSIONS_QUERY = """

@@ -3,12 +3,12 @@ import semver
 import base64
 import logging
 
-from utils.vault import VaultClient
+from reconcile.utils.vault import VaultClient
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import OpenshiftResource as OR
-from utils.defer import defer
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-serviceaccount-tokens'

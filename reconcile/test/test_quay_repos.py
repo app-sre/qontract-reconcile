@@ -1,10 +1,10 @@
 from mock import patch
 from .fixtures import Fixtures
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import reconcile.quay_repos as quay_repos
-from utils.aggregated_list import AggregatedList
+from reconcile.utils.aggregated_list import AggregatedList
 
 fxt = Fixtures('quay_repos')
 
@@ -60,7 +60,7 @@ class TestQuayRepos(object):
     def do_desired_state_test(self, path):
         fixture = fxt.get_anymarkup(path)
 
-        with patch('utils.gql.GqlApi.query') as m_gql:
+        with patch('reconcile.utils.gql.GqlApi.query') as m_gql:
             m_gql.return_value = fixture['gql_response']
 
             desired_state = quay_repos.fetch_desired_state().dump()

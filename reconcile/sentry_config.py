@@ -1,13 +1,13 @@
 import logging
 import requests
 import reconcile.queries as queries
-import utils.gql as gql
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+from reconcile.utils.secret_reader import SecretReader
 
 from github.GithubException import UnknownObjectException
 
 from reconcile.github_users import init_github
-from utils.sentry_client import SentryClient
+from reconcile.utils.sentry_client import SentryClient
 
 
 SENTRY_PROJECTS_QUERY = """

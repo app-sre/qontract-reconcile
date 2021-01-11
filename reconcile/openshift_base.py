@@ -1,15 +1,16 @@
 import logging
+import yaml
 
-import utils.threaded as threaded
+import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
-from utils.oc import OC_Map
-from utils.oc import (StatusCodeError,
-                      InvalidValueApplyError,
-                      MetaDataAnnotationsTooLongApplyError,
-                      UnsupportedMediaTypeError)
-from utils.openshift_resource import (OpenshiftResource as OR,
-                                      ResourceInventory)
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import (StatusCodeError,
+                                InvalidValueApplyError,
+                                MetaDataAnnotationsTooLongApplyError,
+                                UnsupportedMediaTypeError)
+from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
+                                                ResourceInventory)
 
 from sretoolbox.utils import retry
 
@@ -433,17 +434,25 @@ def validate_data(oc_map, actions):
                 ready_replicas = status.get('readyReplicas')
                 if not desired_replicas == replicas == \
                         ready_replicas == updated_replicas:
-                    logging.info('new replicas not ready, status is invalid')
+                    logging.info(
+                        f'{kind} {name} has replicas that are not ready '
+                        f'({ready_replicas} ready / {desired_replicas} total)')
                     raise ValidationError(name)
             elif kind == 'Subscription':
                 state = status.get('state')
                 if state != 'AtLatestKnown':
-                    logging.info('Subscription status.state is invalid')
+                    logging.info(
+                        f'Subscription {name} state is invalid. '
+                        f'Current state: {state}')
                     raise ValidationError(name)
             elif kind == 'Job':
                 succeeded = status.get('succeeded')
                 if not succeeded:
-                    logging.info('Job has not succeeded, status is invalid')
+                    logging.info(f'Job {name} has not succeeded')
+                    conditions = status.get('conditions')
+                    if conditions:
+                        logging.info(f'Job conditions are: {conditions}')
+                        logging.info(yaml.safe_dump(conditions))
                     raise ValidationError(name)
             elif kind == 'ClowdApp':
                 deployments = status.get('deployments')
@@ -455,8 +464,9 @@ def validate_data(oc_map, actions):
                 ready_deployments = deployments.get('readyDeployments')
                 if managed_deployments != ready_deployments:
                     logging.info(
-                        'ClowdApp has not ready deployments, ' +
-                        'status is invalid')
+                        f'ClowdApp has deployments that are not ready '
+                        f'({ready_deployments} ready / '
+                        f'{managed_deployments} total)')
                     raise ValidationError(name)
 
 

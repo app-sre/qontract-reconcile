@@ -4,7 +4,7 @@ import logging
 import reconcile.queries as queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 QONTRACT_INTEGRATION = 'gitlab-labeler'

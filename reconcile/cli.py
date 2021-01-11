@@ -7,8 +7,8 @@ import re
 import click
 import sentry_sdk
 
-import utils.config as config
-import utils.gql as gql
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -95,12 +95,12 @@ import reconcile.terraform_aws_route53
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
 
-from utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
-                       GqlApiIntegrationNotFound)
-from utils.aggregated_list import RunnerException
-from utils.binary import binary
-from utils.environ import environ
-from utils.unleash import get_feature_toggle_state
+from reconcile.utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+                                 GqlApiIntegrationNotFound)
+from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.binary import binary
+from reconcile.utils.environ import environ
+from reconcile.utils.unleash import get_feature_toggle_state
 
 
 def before_breadcrumb(crumb, hint):
@@ -956,7 +956,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
-@enable_deletion(default=False)
+@enable_deletion(default=True)
 @send_mails(default=True)
 @click.pass_context
 def terraform_users(ctx, print_only, enable_deletion, io_dir,

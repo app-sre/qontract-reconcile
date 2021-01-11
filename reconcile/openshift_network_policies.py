@@ -2,12 +2,12 @@ import sys
 import logging
 import semver
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import OpenshiftResource as OR
-from utils.defer import defer
-from utils.sharding import is_in_shard
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.defer import defer
+from reconcile.utils.sharding import is_in_shard
 
 NAMESPACES_QUERY = """
 {

@@ -1,6 +1,7 @@
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.labels import SKIP_CI
 
 
 QONTRACT_INTEGRATION = 'gitlab-ci-skipper'
@@ -12,5 +13,5 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None):
     gl = GitLabApi(instance, project_id=gitlab_project_id,
                    settings=settings)
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)
-    output = 'yes' if 'skip-ci' in labels else 'no'
+    output = 'yes' if SKIP_CI in labels else 'no'
     print(output)

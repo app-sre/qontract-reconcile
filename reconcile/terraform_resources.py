@@ -3,19 +3,19 @@ import shutil
 import semver
 import logging
 
-import utils.gql as gql
-import utils.threaded as threaded
-from utils.vault import VaultClient
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+from reconcile.utils.vault import VaultClient
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from utils.terrascript_client import TerrascriptClient as Terrascript
-from utils.terraform_client import OR, TerraformClient as Terraform
-from utils.openshift_resource import ResourceInventory
-from utils.oc import OC_Map
-from utils.defer import defer
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import OR, TerraformClient as Terraform
+from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.defer import defer
 from reconcile.aws_iam_keys import run as disable_keys
-from utils.oc import StatusCodeError
+from reconcile.utils.oc import StatusCodeError
 
 from textwrap import indent
 
@@ -361,9 +361,7 @@ def run(dry_run, print_only=False,
     # or for pods to be recycled
     # this should be removed after we gained confidence
     # following the terraform 0.13 upgrade
-    ob.realize_data(dry_run, oc_map, ri,
-                    override_enable_deletion=enable_deletion,
-                    recycle_pods=enable_deletion)
+    ob.realize_data(dry_run, oc_map, ri)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)

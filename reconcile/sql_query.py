@@ -12,11 +12,11 @@ from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.status import ExitCodes
 
-from utils import gql
-from utils.oc import OC_Map
-from utils.oc import StatusCodeError
-from utils.state import State
-from utils.openshift_resource import OpenshiftResource
+from reconcile.utils import gql
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.state import State
+from reconcile.utils.openshift_resource import OpenshiftResource
 
 
 QONTRACT_INTEGRATION = 'sql-query'

@@ -6,9 +6,9 @@ import collections
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
-from utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
-from utils.defer import defer
+from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-resourcequotas'

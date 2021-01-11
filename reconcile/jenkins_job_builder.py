@@ -2,12 +2,12 @@ import sys
 import json
 import logging
 
-import utils.gql as gql
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
-from utils.defer import defer
-from utils.jjb_client import JJB
-from utils.state import State
+from reconcile.utils.defer import defer
+from reconcile.utils.jjb_client import JJB
+from reconcile.utils.state import State
 
 
 QUERY = """

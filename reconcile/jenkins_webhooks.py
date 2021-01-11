@@ -3,7 +3,7 @@ import logging
 
 import reconcile.queries as queries
 
-from utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.jenkins_job_builder import init_jjb
 
 QONTRACT_INTEGRATION = 'jenkins-webhooks'

@@ -13,13 +13,13 @@ import yaml
 
 from prometheus_client.parser import text_string_to_metric_families
 
-import utils.gql as gql
-import utils.config as config
-from utils.secret_reader import SecretReader
+import reconcile.utils.gql as gql
+import reconcile.utils.config as config
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
 
-from utils.mr import CreateAppInterfaceReporter
+from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile import mr_client_gateway
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.cli import (
