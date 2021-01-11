@@ -479,7 +479,7 @@ def run(dry_run, enable_deletion=False):
                                          QONTRACT_INTEGRATION_VERSION)
         oc_map = OC_Map(namespaces=[query['namespace']],
                         integration=QONTRACT_INTEGRATION,
-                        settings=queries.get_app_interface_settings(),
+                        settings=settings,
                         internal=None)
 
         if use_pull_secret:
@@ -517,7 +517,7 @@ def run(dry_run, enable_deletion=False):
 
         oc_map = OC_Map(namespaces=[query['namespace']],
                         integration=QONTRACT_INTEGRATION,
-                        settings=queries.get_app_interface_settings(),
+                        settings=settings,
                         internal=None)
 
         for resource_type in ['Job', 'Secret', 'ConfigMap']:
