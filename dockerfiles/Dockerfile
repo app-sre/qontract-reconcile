@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-base:xxxxxxx AS jsonnet-builder
+FROM quay.io/app-sre/qontract-base:6e1dd13 AS jsonnet-builder
 
 ENV GOPATH=/go
 ENV JSONNET_VERSION=v0.15.0
@@ -20,7 +20,7 @@ WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
     /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
-FROM rquay.io/app-sre/qontract-base:xxxxxxx AS terraform-providers-downloader
+FROM rquay.io/app-sre/qontract-base:6e1dd13 AS terraform-providers-downloader
 
 ENV VERSIONS="3.22.0"
 
@@ -31,7 +31,7 @@ RUN cd /tmp/; rm -rf /tmp/terraform-* ; rm -rf /tmp/package-* ;\
     unzip /tmp/package-${version}.zip -d /tmp/terraform-providers/${version}/linux_amd64/; \
     done
 
-FROM quay.io/app-sre/qontract-base:xxxxxxx
+FROM quay.io/app-sre/qontract-base:6e1dd13
 
 ENV OC_VERSION=4.6.1
 ENV TF_VERSION=0.13.5
