@@ -43,6 +43,9 @@ class SentryClient:
                 break
             # 2nd item is the next page
             next_item = link.split(', ')[1]
+            # copied with love from
+            # https://stackoverflow.com/questions/10663093/
+            # use-python-format-string-in-reverse-for-parsing
             _, rel, results, cursor = parse.parse(item_format, next_item)
             if rel != 'next' or results != 'true':
                 break
