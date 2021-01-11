@@ -35,7 +35,7 @@ spec:
     spec:
       {% if PULL_SECRET is not none %}
       imagePullSecrets:
-      - name: {{ JOB_NAME }}
+      - name: {{ PULL_SECRET }}
       {% endif %}
       containers:
       - name: {{ JOB_NAME }}
