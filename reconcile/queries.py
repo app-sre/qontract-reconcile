@@ -1028,6 +1028,10 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
       }
     }
     identifier
+    requestor{
+      org_username
+      public_gpg_key
+    }
     overrides
     {
       db_host
