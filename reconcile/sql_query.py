@@ -325,7 +325,7 @@ def filesystem_closing_message():
         'echo;',
         'echo Get the sql-query results with:;',
         'echo;',
-        'echo  oc cp ${HOSTNAME}:/tmp/query-result.txt ',
+        'echo  oc cp ${HOSTNAME}:tmp/query-result.txt ',
         '${HOSTNAME}-query-result.txt;',
         'echo;',
         f'echo Sleeping {POD_TTL}s...;',
