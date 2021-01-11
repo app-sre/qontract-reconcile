@@ -1,13 +1,9 @@
-FROM registry.access.redhat.com/ubi8/ubi:8.2 AS jsonnet-builder
+FROM quay.io/app-sre/qontract-base:xxxxxxx AS jsonnet-builder
 
 ENV GOPATH=/go
 ENV JSONNET_VERSION=v0.15.0
 ENV JSONNET_BUNDLER_VERSION=v0.3.1
 ENV VALET_LIBSONNET_VERSION=d2a774e73549a202f97982dd6982daccdde0035e
-
-RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    dnf install -y git make gcc gcc-c++ tar gzip unzip && \
-    dnf clean all
 
 RUN mkdir /jsonnet && \
     git clone https://github.com/google/jsonnet.git --depth 1 /jsonnet && \
@@ -24,37 +20,24 @@ WORKDIR /jsonnet-bundler
 RUN /go/bin/jb init && \
     /go/bin/jb install https://github.com/app-sre/valet-libsonnet@${VALET_LIBSONNET_VERSION}
 
-FROM registry.access.redhat.com/ubi8/ubi:8.2 AS terraform-providers-downloader
+FROM rquay.io/app-sre/qontract-base:xxxxxxx AS terraform-providers-downloader
 
 ENV VERSIONS="3.22.0"
 
-RUN dnf -y install unzip; \
-    cd /tmp/; rm -rf /tmp/terraform-* ; rm -rf /tmp/package-* ;\
+RUN cd /tmp/; rm -rf /tmp/terraform-* ; rm -rf /tmp/package-* ;\
     for version in ${VERSIONS}; do \
     mkdir -p /tmp/terraform-providers/${version}/linux_amd64 ;\
     curl -o /tmp/package-${version}.zip https://releases.hashicorp.com/terraform-provider-aws/${version}/terraform-provider-aws_${version}_linux_amd64.zip; \
     unzip /tmp/package-${version}.zip -d /tmp/terraform-providers/${version}/linux_amd64/; \
     done
 
-FROM registry.access.redhat.com/ubi8/ubi:8.2
+FROM quay.io/app-sre/qontract-base:xxxxxxx
 
-ENV LC_ALL=en_US.utf8
-ENV LANG=en_US.utf8
 ENV OC_VERSION=4.6.1
 ENV TF_VERSION=0.13.5
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 ENV PROMETHEUS_VERSION=2.23.0
-
-RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo && \
-    CONT_COMMON_PKG=$(dnf list -q containers-common.x86_64 | tail -1 | awk '{print $1"-"$2}' | sed 's/\(.*\).x86_64-[0-9]:\(.*\)\(.el8\)$/\1-\2\3.x86_64.rpm/') && \
-    rpm -vi https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/${CONT_COMMON_PKG} && \
-    SKOPEO_PKG=$(dnf list -q skopeo.x86_64 | tail -1 | awk '{print $1"-"$2}' | sed 's/\(.*\).x86_64-[0-9]:\(.*\)\(.el8\)$/\1-\2\3.x86_64.rpm/') && \
-    rpm -vi https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/x86_64/${SKOPEO_PKG} && \
-    dnf install -y python3 python3-pip python3-devel git unzip gcc gcc-c++ openssh-clients openssl glibc-langpack-en && \
-    python3 -m pip install --upgrade pip setuptools && \
-    dnf clean all
 
 RUN curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz -o oc.tar.gz &&\
     tar -zvxf oc.tar.gz && \
