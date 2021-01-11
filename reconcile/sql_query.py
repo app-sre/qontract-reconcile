@@ -333,6 +333,31 @@ def process_template(query, image_repository, use_pull_secret=False):
     return job_yaml
 
 
+def openshift_apply(dry_run, oc_map, query, resource):
+    openshift_base.apply(dry_run=dry_run,
+                         oc_map=oc_map,
+                         cluster=query['cluster'],
+                         namespace=query['namespace']['name'],
+                         resource_type=resource.kind,
+                         resource=resource,
+                         wait_for_namespace=False)
+
+
+def openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion):
+    try:
+        openshift_base.delete(dry_run=dry_run,
+                              oc_map=oc_map,
+                              cluster=query['cluster'],
+                              namespace=query['namespace']['name'],
+                              resource_type=resource_type,
+                              name=query['name'],
+                              enable_deletion=enable_deletion)
+    except StatusCodeError:
+        LOG.exception("Error removing ['%s' '%s' '%s' '%s']",
+                      query['cluster'], query['namespace']['name'],
+                      resource_type, query['name'])
+
+
 def run(dry_run, enable_deletion=False):
     settings = queries.get_app_interface_settings()
     accounts = queries.get_aws_accounts()
@@ -390,21 +415,9 @@ def run(dry_run, enable_deletion=False):
                         internal=None)
 
         if use_pull_secret:
-            openshift_base.apply(dry_run=dry_run,
-                                 oc_map=oc_map,
-                                 cluster=query['cluster'],
-                                 namespace=query['namespace']['name'],
-                                 resource_type=secret_resource.kind,
-                                 resource=secret_resource,
-                                 wait_for_namespace=False)
+            openshift_apply(dry_run, oc_map, query, secret_resource)
 
-        openshift_base.apply(dry_run=dry_run,
-                             oc_map=oc_map,
-                             cluster=query['cluster'],
-                             namespace=query['namespace']['name'],
-                             resource_type=job_resource.kind,
-                             resource=job_resource,
-                             wait_for_namespace=False)
+        openshift_apply(dry_run, oc_map, query, job_resource)
 
         if not dry_run:
             state[query_name] = time.time()
@@ -426,31 +439,9 @@ def run(dry_run, enable_deletion=False):
                         settings=queries.get_app_interface_settings(),
                         internal=None)
 
-        try:
-            openshift_base.delete(dry_run=dry_run,
-                                  oc_map=oc_map,
-                                  cluster=query['cluster'],
-                                  namespace=query['namespace']['name'],
-                                  resource_type='job',
-                                  name=query['name'],
-                                  enable_deletion=enable_deletion)
-        except StatusCodeError:
-            LOG.exception("Error removing ['%s' '%s' 'job' '%s']",
-                          query['cluster'], query['namespace']['name'],
-                          query['name'])
-
-        try:
-            openshift_base.delete(dry_run=dry_run,
-                                  oc_map=oc_map,
-                                  cluster=query['cluster'],
-                                  namespace=query['namespace']['name'],
-                                  resource_type='Secret',
-                                  name=query['name'],
-                                  enable_deletion=enable_deletion)
-        except StatusCodeError:
-            LOG.exception("Error removing ['%s' '%s' 'Secret' '%s']",
-                          query['cluster'], query['namespace']['name'],
-                          query['name'])
+        for resource_type in ['Job', 'Secret']:
+            openshift_delete(dry_run, oc_map, query,
+                             resource_type, enable_deletion)
 
         if not dry_run:
             state[candidate['name']] = 'DONE'
