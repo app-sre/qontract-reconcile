@@ -1,5 +1,6 @@
 import requests
 import json
+import parse
 
 from sretoolbox.utils import retry
 
@@ -28,9 +29,34 @@ class SentryClient:
         response.raise_for_status()
 
         try:
-            return response.json()
+            all_results = response.json()
         except json.decoder.JSONDecodeError:
             return
+
+        # there may be more pages if the response contains a link header
+        # link is a string of comma separated items
+        # with the following structure:
+        # <URL>; rel="previous/next"; results="false/true"; cursor="value"
+        item_format = '<{}>; rel="{}"; results="{}"; cursor="{}"'
+        while True:
+            link = response.headers.get('link')
+            if not link:
+                break
+            # 2nd item is the next page
+            next_item = link.split(', ')[1]
+            # copied with love from
+            # https://stackoverflow.com/questions/10663093/
+            # use-python-format-string-in-reverse-for-parsing
+            _, rel, results, cursor = parse.parse(item_format, next_item)
+            if rel != 'next' or results != 'true':
+                break
+            response = \
+                call(f"{url}?&cursor={cursor}", headers=headers, json=payload)
+            response.raise_for_status()
+            # if there are pages, each response is a list to extend
+            all_results += response.json()
+
+        return all_results
 
     # Organization functions
     def get_organizations(self):
