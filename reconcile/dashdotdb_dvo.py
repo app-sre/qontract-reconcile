@@ -1,8 +1,8 @@
 import logging
 import os
-
 import requests
 
+from urllib.parse import urljoin
 from reconcile import queries
 from utils import threaded
 from utils.oc import OC_Map
@@ -25,14 +25,14 @@ class DashdotdbDVO:
         self.dashdotdb_url = secret_content['url']
         self.dashdotdb_user = secret_content['username']
         self.dashdotdb_pass = secret_content['password']
-        # self.prom_pass = secret_content['prom_password']
+        self.logmarker = "DDDB_DVO:"
 
     def _post(self, deploymentvalidation):
         if deploymentvalidation is None:
             return None
-
         cluster = deploymentvalidation['cluster']
         dvdata = deploymentvalidation['data']
+        LOG.info('%s posting validations for %s', self.logmarker, cluster)
         response = None
         if not self.dry_run:
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
@@ -43,37 +43,56 @@ class DashdotdbDVO:
             try:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:
-                LOG.error('DV: error posting %s - %s', cluster, details)
+                LOG.error('%s error posting %s - %s',
+                          self.logmarker, cluster, details)
 
-        LOG.info('DV: cluster %s synced', cluster)
+        LOG.info('%s cluster %s synced', self.logmarker, cluster)
         return response
 
-    def promql(url, query, auth=None, token=None):
-        url = os.path.join(url, 'api/v1/query')
-        if auth is None:
-            auth = {}
+    def _promget(self, url, query, token=None):
+        uri = 'api/v1/query'
+        url = urljoin('https://'+url, uri)
+        headers = {
+            "accept": "application/json",
+            "Authorization": "Bearer " + token,
+        }
         params = {'query': query}
-        if token:
-            auth = requests.auth.AuthBase()
-            auth.headers["authorization"] = "Bearer " + token
-        response = requests.get(url, params=params, auth=auth)
-        response.raise_for_status()
+        LOG.info('%s Fetching prom payload from %s?%s',
+                 self.logmarker, url, query)
+        response = requests.get(url,
+                                params=params,
+                                headers=headers,
+                                timeout=(5, 30))
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as details:
+            LOG.error('%s error accessing prometheus - %s',
+                      self.logmarker, details)
+
         response = response.json()
         # TODO ensure len response == 1
         # return response['data']['result']
         return response
 
-    def _get_deploymentvalidation(self, cluster, validation, oc_map):
-        LOG.info('DV: processing %s, %s', cluster, validation)
+    def _get_automationtoken(self, cluster):
+        autotoken_reader = SecretReader(settings=self.settings)
+        autotoken = {'path': "app-sre/creds/kube-configs/" + cluster,
+                     'field': "token"}
+        token = autotoken_reader.read(autotoken)
+        return token
 
+    def _get_deploymentvalidation(self, cluster, validation, oc_map):
+        LOG.debug('%s processing %s, %s', self.logmarker, cluster, validation)
+        cluster_promurl = "prometheus." + cluster + ".devshift.net"
+        promquery = "deployment_validation_"+validation+"_validation"
+        cluster_promuri = "query=" + promquery
+        cluster_promtoken = self._get_automationtoken(cluster)
         try:
-            deploymentvalidation = self.promql("prometheus." + cluster +
-                                               ".devshift.net",
-                                               validation + "{}",
-                                               auth=(self.prom_user,
-                                                     self.prom_pass))
+            deploymentvalidation = self._promget(url=cluster_promurl,
+                                                 query=cluster_promuri,
+                                                 token=cluster_promtoken)
         except StatusCodeError:
-            LOG.info('DV: Unable to fetch data for %s', cluster)
+            LOG.info('%s Unable to fetch data for %s', self.logmarker, cluster)
             return None
 
         if not deploymentvalidation:
@@ -90,7 +109,8 @@ class DashdotdbDVO:
                         thread_pool_size=self.thread_pool_size)
         validation_list = ('operator_replica', 'operator_request_limit')
         for validation in validation_list:
-            LOG.debug('Processing validation: %s', validation)
+            LOG.debug('%s Processing validation: %s',
+                      self.logmarker, validation)
             validations = threaded.run(func=self._get_deploymentvalidation,
                                        iterable=oc_map.clusters(),
                                        thread_pool_size=self.thread_pool_size,
