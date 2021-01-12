@@ -45,10 +45,11 @@ def get_prometheus_tests():
 
 # returned structure:
 # rules = {
-#    'cluster_name': {
-#        'namespace': {
-#           'rule_spec': spec
-#           'variables: { ... } # openshift resource variables if any
+#    'path': {
+#        'cluster_name': {
+#            'namespace': {
+#                'rule_spec': spec
+#                'variables: { ... } # openshift resource variables if any
 #    (...)
 def get_prometheus_rules(cluster_name):
     '''Returns a dict of dicts indexed by path with rule data'''
