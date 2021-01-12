@@ -703,7 +703,7 @@ def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
 
 
 @integration.command()
-@threaded(default=20)
+@threaded()
 @binary(['oc', 'ssh'])
 @throughput
 @click.pass_context
