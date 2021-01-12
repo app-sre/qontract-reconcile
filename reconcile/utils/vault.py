@@ -6,6 +6,7 @@ import logging
 
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
+from requests.exceptions import ConnectionError
 
 from sretoolbox.utils import retry
 
@@ -186,7 +187,12 @@ class VaultClient:
             cls._instance = _VaultClient(*args, **kwargs)
             return cls._instance
 
-        if not cls._instance._client.is_authenticated():
+        try:
+            is_authenticated = cls._instance._client.is_authenticated()
+        except requests.exceptions.ConnectionError:
+            is_authenticated = False
+
+        if not is_authenticated:
             cls._instance = _VaultClient(*args, **kwargs)
             return cls._instance
 
