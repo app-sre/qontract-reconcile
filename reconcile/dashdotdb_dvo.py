@@ -1,13 +1,13 @@
 import logging
 import os
 import requests
-
 from urllib.parse import urljoin
-from reconcile import queries
-from utils import threaded
-from utils.oc import OC_Map
-from utils.oc import StatusCodeError
-from utils.secret_reader import SecretReader
+
+import reconcile.utils.threaded as threaded
+import reconcile.queries as queries
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.secret_reader import SecretReader
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'dashdotdb-dvo'
