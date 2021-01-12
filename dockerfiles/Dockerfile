@@ -63,7 +63,7 @@ RUN find ${JSONNET_VENDOR_DIR} -type d -exec chmod 0755 {} \;
 RUN mkdir -p /.terraform.d/plugin-cache
 COPY --from=terraform-providers-downloader /tmp/terraform-providers/ /.terraform.d/plugins/registry.terraform.io/hashicorp/aws/
 RUN find /.terraform.d/ -type d -exec chmod 0755 {} \;
-
+RUN chmod 0775 /.terraform.d/plugin-cache
 
 WORKDIR /reconcile
 
