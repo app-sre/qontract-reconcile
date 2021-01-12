@@ -252,7 +252,8 @@ def collect_queries(query_name=None, settings=None):
             smtp_client = SmtpClient(settings=settings)
             item['recipient'] = smtp_client.get_recipient(
                 sql_query['requestor']['org_username'])
-            item['public_gpg_key'] = sql_query['requestor']['public_gpg_key']
+            item['public_gpg_key'] = \
+                sql_query['requestor']['public_gpg_key'].replace('\n', '')
 
         # If schedule is defined
         # this should be a CronJob
