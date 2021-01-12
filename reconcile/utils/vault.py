@@ -6,7 +6,6 @@ import logging
 
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
-from requests.exceptions import ConnectionError
 
 from sretoolbox.utils import retry
 
