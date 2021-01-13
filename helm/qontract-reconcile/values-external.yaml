@@ -481,10 +481,10 @@ integrations:
 - name: openshift-performance-parameters
   resources:
     requests:
-      memory: 300Mi
+      memory: 400Mi
       cpu: 100m
     limits:
-      memory: 400Mi
+      memory: 600Mi
       cpu: 200m
   logs:
     slack: true
