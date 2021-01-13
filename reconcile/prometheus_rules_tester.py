@@ -11,6 +11,8 @@ import reconcile.utils.threaded as threaded
 import reconcile.utils.promtool as promtool
 import reconcile.openshift_resources_base as orb
 
+from reconcile.status import ExitCodes
+
 QONTRACT_INTEGRATION = 'prometheus_rules_tester'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
@@ -266,4 +268,4 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
             logging.error(msg)
 
     if invalid_rules or failed_tests:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
