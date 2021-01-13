@@ -65,7 +65,7 @@ def get_prometheus_rules(cluster_name):
         if cluster_name and cluster != cluster_name:
             continue
 
-        if not n['managedResourceTypes'] or \
+        if not n.get('managedResourceTypes') or \
            'PrometheusRule' not in n['managedResourceTypes']:
             continue
 
