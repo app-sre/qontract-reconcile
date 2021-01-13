@@ -1580,21 +1580,3 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
 def get_ocp_release_ecr_mirror():
     gqlapi = gql.get_api()
     return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_ecr_mirror']
-
-
-PROMETHEUS_RULES_PATHS_QUERY = """
-{
-  resources: resources_v1(schema: "/openshift/prometheus-rule-1.yml") {
-    path
-  }
-}
-"""
-
-
-def get_prometheus_rules_paths():
-    gqlapi = gql.get_api()
-    paths = set()
-    for r in gqlapi.query(PROMETHEUS_RULES_PATHS_QUERY)['resources']:
-        paths.add(r['path'])
-
-    return paths

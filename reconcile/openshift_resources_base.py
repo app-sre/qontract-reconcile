@@ -383,9 +383,15 @@ def fetch_openshift_resource(resource, parent):
 
     if provider == 'resource':
         validate_json = resource.get('validate_json') or False
-        openshift_resource = \
-            fetch_provider_resource(path, validate_json=validate_json)
+        add_path_to_prom_rules = \
+            resource.get('add_path_to_prom_rules', True)
+        openshift_resource = fetch_provider_resource(
+            path,
+            validate_json=validate_json,
+            add_path_to_prom_rules=add_path_to_prom_rules)
     elif provider == 'resource-template':
+        add_path_to_prom_rules = \
+            resource.get('add_path_to_prom_rules', True)
         tv = {}
         if resource['variables']:
             tv = anymarkup.parse(resource['variables'], force_types=None)
@@ -400,9 +406,11 @@ def fetch_openshift_resource(resource, parent):
         else:
             UnknownTemplateTypeError(tt)
         try:
-            openshift_resource = fetch_provider_resource(path,
-                                                         tfunc=tfunc,
-                                                         tvars=tv)
+            openshift_resource = fetch_provider_resource(
+                path,
+                tfunc=tfunc,
+                tvars=tv,
+                add_path_to_prom_rules=add_path_to_prom_rules)
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
             raise ResourceTemplateRenderError(msg)
