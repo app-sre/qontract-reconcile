@@ -71,7 +71,7 @@ def get_prometheus_rules(cluster_name):
 
         openshift_resources = n.get('openshiftResources')
         if not openshift_resources:
-            logging.warning('No openshiftResources defined for namespace'
+            logging.warning('No openshiftResources defined for namespace '
                             f'{namespace} in cluster {cluster}')
             continue
 
@@ -249,9 +249,9 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
     invalid_rules = check_prometheus_rules(rules, thread_pool_size)
     if invalid_rules:
         for i in invalid_rules:
-            logging.warning(f"Error in rule {i['path']} from namespace "
-                            f"{i['namespace']} in cluster "
-                            f"{i['cluster']}:  {i['check_result']}")
+            logging.error(f"Error in rule {i['path']} from namespace "
+                          f"{i['namespace']} in cluster "
+                          f"{i['cluster']}:  {i['check_result']}")
 
     tests = get_prometheus_tests()
     failed_tests = check_prometheus_tests(tests, rules, thread_pool_size)
@@ -263,7 +263,7 @@ def run(dry_run, thread_pool_size=10, cluster_name=None):
                        f"{f['cluster']}"
             msg += f":  {f['check_result']}"
 
-            logging.warning(msg)
+            logging.error(msg)
 
     if invalid_rules or failed_tests:
         sys.exit(1)
