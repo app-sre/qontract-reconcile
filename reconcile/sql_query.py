@@ -376,7 +376,7 @@ def process_template(query, image_repository, use_pull_secret=False):
 
     command = make_command(output=output,
                            sqlqueries=query['queries'],
-                           recipient=query['recipient'])
+                           recipient=query.get('recipient'))
 
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
