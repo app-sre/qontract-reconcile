@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.secret_reader import SecretReader
 
 LOG = logging.getLogger(__name__)
@@ -55,16 +54,16 @@ class DashdotdbDVO:
         url = urljoin('https://'+url, uri)
         params = {'query': query}
         LOG.debug('%s Fetching prom payload from %s?%s',
-                 self.logmarker, url, query)
+                  self.logmarker, url, query)
         if token:
             headers = {
-                "accept": "application/json",
-                "Authorization": "Bearer " + token,
-            }
+                       "accept": "application/json",
+                       "Authorization": "Bearer " + token,
+                      }
         else:
             headers = {
-                "accept": "application/json",
-            }
+                       "accept": "application/json",
+                      }
         response = requests.get(url,
                                 params=params,
                                 headers=headers,
