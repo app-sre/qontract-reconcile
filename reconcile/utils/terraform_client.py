@@ -4,12 +4,14 @@ import logging
 import json
 import os
 
+from ruamel import yaml
+
 from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from sretoolbox.utils import retry
 
-from reconcile.utils import threaded
+from reconcile.utils import threaded, gql
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 import reconcile.utils.lean_terraform_client as lean_tf
 
@@ -221,13 +223,30 @@ class TerraformClient(object):
 
         return data
 
-    def populate_desired_state(self, ri, oc_map):
+    def populate_desired_state(self, ri, oc_map, tf_namespaces):
         self.init_outputs()  # get updated output
+
+        # Dealing with credentials for RDS replicas
+        replicas_info = self.get_replicas_info(namespaces=tf_namespaces)
+
         for account, output in self.outputs.items():
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)
 
             for name, data in formatted_output.items():
+                # Grabbing the username/password from the
+                # replica_source and using them in the
+                # replica. This is needed because we can't
+                # set username/password for a replica in
+                # terraform.
+                if account in replicas_info:
+                    if name in replicas_info[account]:
+                        replica_src_name = replicas_info[account][name]
+                        data['db.user'] = \
+                            formatted_output[replica_src_name]['db.user']
+                        data['db.password'] = \
+                            formatted_output[replica_src_name]['db.password']
+
                 cluster = data['{}_cluster'.format(self.integration_prefix)]
                 if not oc_map.get(cluster):
                     continue
@@ -245,6 +264,68 @@ class TerraformClient(object):
                     output_resource_name,
                     oc_resource
                 )
+
+    @staticmethod
+    def get_replicas_info(namespaces):
+        replicas_info = {}
+
+        for tf_namespace in namespaces:
+            tf_resources = tf_namespace.get('terraformResources')
+            if tf_resources is None:
+                continue
+
+            for tf_resource in tf_namespace['terraformResources']:
+                # First, we have to find the terraform resources
+                # that have a replica_source defined in app-interface
+                replica_src = tf_resource.get('replica_source')
+
+                if replica_src is None:
+                    # When replica_source is not there, we look for
+                    # replicate_source_db in the defaults
+                    replica_src_db = None
+                    defaults_ref = tf_resource.get('defaults')
+                    if defaults_ref is not None:
+                        defaults_res = gql.get_api().get_resource(
+                            defaults_ref
+                        )
+                        defaults = yaml.safe_load(defaults_res['content'])
+                        replica_src_db = defaults.get('replicate_source_db')
+
+                    # Also, we look for replicate_source_db in the overrides
+                    override_replica_src_db = None
+                    overrides = tf_resource.get('overrides')
+                    if overrides is not None:
+                        override_replica_src_db = json.loads(overrides).get(
+                            'replicate_source_db'
+                        )
+                    if override_replica_src_db is not None:
+                        replica_src_db = override_replica_src_db
+
+                    # Getting whatever we probed here
+                    replica_src = replica_src_db
+
+                if replica_src is None:
+                    # No replica source information anywhere
+                    continue
+
+                # The replica name, as found in the
+                # self.format_output()
+                replica_name = (f'{tf_resource.get("identifier")}-'
+                                f'{tf_resource.get("provider")}')
+
+                # The replica source name, as found in the
+                # self.format_output()
+                replica_source_name = (f'{replica_src}-'
+                                       f'{tf_resource.get("provider")}')
+
+                # Creating a dict that is convenient to use inside the
+                # loop processing the formatted_output
+                tf_account = tf_resource.get('account')
+                replicas_info[tf_account] = {
+                    replica_name: replica_source_name
+                }
+
+        return replicas_info
 
     def format_output(self, output, type):
         # data is a dictionary of dictionaries
