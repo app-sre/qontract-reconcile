@@ -49,9 +49,9 @@ class DashdotdbDVO:
         return response
 
     def _promget(self, url, query, token=None):
-        uri = (f'/api/v1/query')
+        uri = '/api/v1/query'
         url = urljoin((f'{url}'), uri)
-        params = { 'query': (f'{query}') }
+        params = {'query': (f'{query}')}
         LOG.debug('%s Fetching prom payload from %s?%s',
                   self.logmarker, url, params)
         headers = {
@@ -96,8 +96,8 @@ class DashdotdbDVO:
     def _get_clusters(self):
         # 'cluster': 'fooname',
         # 'tokenpath':
-        #   'path': 'app-sre/creds/kubeube-configs/barpath',
-        #   'field': 'token', 'format': None}, 
+        #  'path': 'app-sre/creds/kubeube-configs/barpath',
+        #  'field': 'token', 'format': None},
         # 'prometheus': 'https://prometheus.baz.tld'
         results = []
         clusters = queries.get_clusters(minimal=True)
