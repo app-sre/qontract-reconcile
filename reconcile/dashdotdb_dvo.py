@@ -39,10 +39,11 @@ class DashdotdbDVO:
                         f'deploymentvalidation/{cluster}')
             response = requests.post(url=endpoint, json=dvdata,
                                      auth=(self.dashdotdb_user,
-                                           self.dashdotdb_pass))
+                                           self.dashdotdb_pass),
+                                     timeout=(5, 30))
             try:
                 response.raise_for_status()
-            except requests.exceptions.HTTPError as details:
+            except requests.exceptions.RequestException as details:
                 LOG.error('%s error posting %s - %s',
                           self.logmarker, cluster, details)
 
@@ -52,22 +53,23 @@ class DashdotdbDVO:
     def _promget(self, url, query, token=None):
         uri = 'api/v1/query'
         url = urljoin('https://'+url, uri)
-        headers = {
-            "accept": "application/json",
-            "Authorization": "Bearer " + token,
-        }
         params = {'query': query}
-        LOG.info('%s Fetching prom payload from %s?%s',
+        LOG.debug('%s Fetching prom payload from %s?%s',
                  self.logmarker, url, query)
+        if token:
+            headers = {
+                "accept": "application/json",
+                "Authorization": "Bearer " + token,
+            }
+        else:
+            headers = {
+                "accept": "application/json",
+            }
         response = requests.get(url,
                                 params=params,
                                 headers=headers,
                                 timeout=(5, 30))
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as details:
-            LOG.error('%s error accessing prometheus - %s',
-                      self.logmarker, details)
+        response.raise_for_status()
 
         response = response.json()
         # TODO ensure len response == 1
@@ -81,7 +83,7 @@ class DashdotdbDVO:
         token = autotoken_reader.read(autotoken)
         return token
 
-    def _get_deploymentvalidation(self, cluster, validation, oc_map):
+    def _get_deploymentvalidation(self, cluster, validation):
         LOG.debug('%s processing %s, %s', self.logmarker, cluster, validation)
         cluster_promurl = "prometheus." + cluster + ".devshift.net"
         promquery = "deployment_validation_"+validation+"_validation"
@@ -91,11 +93,9 @@ class DashdotdbDVO:
             deploymentvalidation = self._promget(url=cluster_promurl,
                                                  query=cluster_promuri,
                                                  token=cluster_promtoken)
-        except StatusCodeError:
-            LOG.info('%s Unable to fetch data for %s', self.logmarker, cluster)
-            return None
-
-        if not deploymentvalidation:
+        except requests.exceptions.RequestException as details:
+            LOG.error('%s error accessing prometheus - %s, %s',
+                      self.logmarker, cluster, details)
             return None
 
         return {'cluster': cluster,
@@ -114,8 +114,7 @@ class DashdotdbDVO:
             validations = threaded.run(func=self._get_deploymentvalidation,
                                        iterable=oc_map.clusters(),
                                        thread_pool_size=self.thread_pool_size,
-                                       validation=validation,
-                                       oc_map=oc_map)
+                                       validation=validation)
             threaded.run(func=self._post,
                          iterable=validations,
                          thread_pool_size=self.thread_pool_size)

@@ -268,6 +268,7 @@ CLUSTERS_QUERY = """
     serverUrl
     consoleUrl
     kibanaUrl
+    prometheusUrl
     managedGroups
     managedClusterRoles
     jumpHost {
