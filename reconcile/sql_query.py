@@ -449,7 +449,8 @@ def run(dry_run, enable_deletion=False):
             is_cronjob = query.get('schedule')
             if query_state != 'DONE' and not is_cronjob:
                 remove_candidates.append({'name': query_name,
-                                          'timestamp': query_state})
+                                          'timestamp': query_state,
+                                          'output': query['output']})
             continue
         except KeyError:
             pass
@@ -521,7 +522,10 @@ def run(dry_run, enable_deletion=False):
                         settings=settings,
                         internal=None)
 
-        for resource_type in ['Job', 'Secret', 'ConfigMap']:
+        resource_types = ['Job', 'Secret']
+        if candidate['output'] == 'encrypted':
+            resource_types.append('ConfigMap')
+        for resource_type in resource_types:
             openshift_delete(dry_run, oc_map, query,
                              resource_type, enable_deletion)
 
