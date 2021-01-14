@@ -61,7 +61,7 @@ spec:
             value: {{ value }}
           {% endif %}
           {% endfor %}
-      {% if GPG_KEY is not none %}
+      {% if GPG_KEY is defined %}
         volumeMounts:
         - name: gpg-key
           mountPath: /gpg
