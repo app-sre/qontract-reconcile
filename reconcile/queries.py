@@ -437,6 +437,9 @@ CLUSTERS_MINIMAL_QUERY = """
   clusters: clusters_v1 {
     name
     serverUrl
+    consoleUrl
+    kibanaUrl
+    prometheusUrl
     jumpHost {
       hostname
       knownHosts

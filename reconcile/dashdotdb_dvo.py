@@ -5,7 +5,6 @@ from urllib.parse import urljoin
 
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
-from reconcile.utils.oc import OC_Map
 from reconcile.utils.secret_reader import SecretReader
 
 LOG = logging.getLogger(__name__)
@@ -50,20 +49,16 @@ class DashdotdbDVO:
         return response
 
     def _promget(self, url, query, token=None):
-        uri = 'api/v1/query'
-        url = urljoin('https://'+url, uri)
-        params = {'query': query}
+        uri = (f'/api/v1/query')
+        url = urljoin((f'{url}'), uri)
+        params = { 'query': (f'{query}') }
         LOG.debug('%s Fetching prom payload from %s?%s',
-                  self.logmarker, url, query)
+                  self.logmarker, url, params)
+        headers = {
+                   "accept": "application/json",
+                  }
         if token:
-            headers = {
-                       "accept": "application/json",
-                       "Authorization": "Bearer " + token,
-                      }
-        else:
-            headers = {
-                       "accept": "application/json",
-                      }
+            headers["Authorization"] = (f"Bearer {token}")
         response = requests.get(url,
                                 params=params,
                                 headers=headers,
@@ -75,23 +70,21 @@ class DashdotdbDVO:
         # return response['data']['result']
         return response
 
-    def _get_automationtoken(self, cluster):
+    def _get_automationtoken(self, tokenpath):
         autotoken_reader = SecretReader(settings=self.settings)
-        autotoken = {'path': "app-sre/creds/kube-configs/" + cluster,
-                     'field': "token"}
-        token = autotoken_reader.read(autotoken)
+        token = autotoken_reader.read(tokenpath)
         return token
 
-    def _get_deploymentvalidation(self, cluster, validation):
+    def _get_deploymentvalidation(self, clusterinfo, validation):
+        cluster = clusterinfo['name']
         LOG.debug('%s processing %s, %s', self.logmarker, cluster, validation)
-        cluster_promurl = "prometheus." + cluster + ".devshift.net"
-        promquery = "deployment_validation_"+validation+"_validation"
-        cluster_promuri = "query=" + promquery
-        cluster_promtoken = self._get_automationtoken(cluster)
+        promurl = clusterinfo['prometheus']
+        promquery = (f'deployment_validation_{validation}_validation')
+        promtoken = self._get_automationtoken(clusterinfo['tokenpath'])
         try:
-            deploymentvalidation = self._promget(url=cluster_promurl,
-                                                 query=cluster_promuri,
-                                                 token=cluster_promtoken)
+            deploymentvalidation = self._promget(url=promurl,
+                                                 query=promquery,
+                                                 token=promtoken)
         except requests.exceptions.RequestException as details:
             LOG.error('%s error accessing prometheus - %s, %s',
                       self.logmarker, cluster, details)
@@ -100,18 +93,30 @@ class DashdotdbDVO:
         return {'cluster': cluster,
                 'data': deploymentvalidation}
 
+    def _get_clusters(self):
+        # 'cluster': 'fooname',
+        # 'tokenpath':
+        #   'path': 'app-sre/creds/kubeube-configs/barpath',
+        #   'field': 'token', 'format': None}, 
+        # 'prometheus': 'https://prometheus.baz.tld'
+        results = []
+        clusters = queries.get_clusters(minimal=True)
+        for i in clusters or []:
+            if i.get('ocm') is not None and i.get('prometheusUrl') is not None:
+                results.append({
+                    "name": i['name'],
+                    "tokenpath": i['automationToken'],
+                    "prometheus": i['prometheusUrl']
+                })
+        return results
+
     def run(self):
-        clusters = queries.get_clusters()
-        oc_map = OC_Map(clusters=clusters,
-                        integration=QONTRACT_INTEGRATION,
-                        settings=self.settings, use_jump_host=True,
-                        thread_pool_size=self.thread_pool_size)
         validation_list = ('operator_replica', 'operator_request_limit')
         for validation in validation_list:
             LOG.debug('%s Processing validation: %s',
                       self.logmarker, validation)
             validations = threaded.run(func=self._get_deploymentvalidation,
-                                       iterable=oc_map.clusters(),
+                                       iterable=self._get_clusters(),
                                        thread_pool_size=self.thread_pool_size,
                                        validation=validation)
             threaded.run(func=self._post,
