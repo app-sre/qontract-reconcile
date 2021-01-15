@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import sys
 import tempfile
 import time
 
@@ -12,6 +13,7 @@ from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
+from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
 
@@ -105,7 +107,7 @@ class QuayMirror:
                             and item['public']):
                         _LOG.error("Image %s can't be mirrored to a public "
                                    "quay repository.", mirror_image)
-                        continue
+                        sys.exit(ExitCodes.ERROR)
 
                     summary[org].append({'name': item["name"],
                                          'mirror': item['mirror'],
