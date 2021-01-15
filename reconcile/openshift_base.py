@@ -5,12 +5,12 @@ import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import (StatusCodeError,
-                                InvalidValueApplyError,
-                                MetaDataAnnotationsTooLongApplyError,
-                                UnsupportedMediaTypeError)
-from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
-                                                ResourceInventory)
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.oc import InvalidValueApplyError
+from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
+from reconcile.utils.oc import UnsupportedMediaTypeError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
 
 from sretoolbox.utils import retry
 
