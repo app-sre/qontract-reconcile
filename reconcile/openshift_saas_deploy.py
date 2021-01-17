@@ -65,7 +65,6 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     if not saasherder.validate_promotions():
         logging.error('invalid promotions')
         sys.exit(ExitCodes.ERROR)
-    sys.exit()
 
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
