@@ -794,3 +794,25 @@ class SaasHerder():
         key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
             f"{namespace_name}/{env_name}"
         self.state.add(key, value=target_config, force=True)
+
+    def validate_promotions(self):
+        """
+        If there were promotion sections in the participating saas files
+        validate that the conditions are met. """
+        for item in self.promotions:
+            # validate that the commit sha being promoted
+            # was succesfully published to the subscribed channel(s)
+            commit_sha = item['commit_sha']
+            subscribe = item.get('subscribe')
+            if subscribe:
+                for channel in subscribe:
+                    state_key = f"{channel}/{commit_sha}"
+                    success = self.state.get(state_key, None)
+                    if not success:
+                        logging.error(
+                            f'Commit {commit_sha} was not ' +
+                            f'published with success to channel {channel}'
+                        )
+                        return False
+
+        return True

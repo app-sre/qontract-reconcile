@@ -59,6 +59,14 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         init_api_resources=True)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
+
+    # validate that this deployment is valid
+    # based on promotion information in targets
+    if not saasherder.validate_promotions():
+        logging.error('invalid promotions')
+        sys.exit(ExitCodes.ERROR)
+    sys.exit()
+
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
