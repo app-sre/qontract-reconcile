@@ -685,6 +685,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
 
 
 @integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded(default=20)
 @throughput
 @binary(['oc', 'ssh'])

@@ -29,6 +29,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     jenkins_map = jenkins_base.get_jenkins_map(
         desired_instances=desired_jenkins_instances)
     settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
     try:
         gl = GitLabApi(instance, settings=settings)
     except Exception:
@@ -43,7 +44,8 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
-        jenkins_map=jenkins_map)
+        jenkins_map=jenkins_map,
+        accounts=accounts)
     if len(saasherder.namespaces) == 0:
         logging.warning('no targets found')
         sys.exit(0)
