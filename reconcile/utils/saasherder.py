@@ -515,7 +515,7 @@ class SaasHerder():
                                   desired_state_specs,
                                   self.thread_pool_size,
                                   ri=ri)
-        return promotions
+        self.promotions = promotions
 
     def init_populate_desired_state_specs(self, saas_file):
         specs = []

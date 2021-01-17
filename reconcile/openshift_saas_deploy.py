@@ -55,7 +55,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         integration_version=QONTRACT_INTEGRATION_VERSION,
         init_api_resources=True)
     defer(lambda: oc_map.cleanup())
-    promotions = saasherder.populate_desired_state(ri)
+    saasherder.populate_desired_state(ri)
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
