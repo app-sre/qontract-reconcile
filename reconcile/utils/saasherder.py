@@ -183,20 +183,21 @@ class SaasHerder():
         ref = options['ref']
         github = options['github']
         html_url = f"{url}/blob/{ref}{path}"
+        commit_sha = self._get_commit_sha(options)
         content = None
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            f = repo.get_contents(path, ref)
+            f = repo.get_contents(path, commit_sha)
             content = f.decoded_content
         elif 'gitlab' in url:
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
-            f = project.files.get(file_path=path.lstrip('/'), ref=ref)
+            f = project.files.get(file_path=path.lstrip('/'), ref=commit_sha)
             content = f.decode()
 
-        return yaml.safe_load(content), html_url
+        return yaml.safe_load(content), html_url, commit_sha
 
     @retry()
     def _get_directory_contents(self, options):
@@ -205,13 +206,14 @@ class SaasHerder():
         ref = options['ref']
         github = options['github']
         html_url = f"{url}/tree/{ref}{path}"
+        commit_sha = self._get_commit_sha(options)
         resources = []
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            for f in repo.get_contents(path, ref):
+            for f in repo.get_contents(path, commit_sha):
                 file_path = os.path.join(path, f.name)
-                file_contents = repo.get_contents(file_path, ref)
+                file_contents = repo.get_contents(file_path, commit_sha)
                 resource = yaml.safe_load(file_contents.decoded_content)
                 resources.append(resource)
         elif 'gitlab' in url:
@@ -219,13 +221,13 @@ class SaasHerder():
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             for f in project.repository_tree(path=path.lstrip('/'),
-                                             ref=ref, all=True):
+                                             ref=commit_sha, all=True):
                 file_contents = \
-                    project.files.get(file_path=f['path'], ref=ref)
+                    project.files.get(file_path=f['path'], ref=commit_sha)
                 resource = yaml.safe_load(file_contents.decode())
                 resources.append(resource)
 
-        return resources, html_url
+        return resources, html_url, commit_sha
 
     @retry()
     def _get_commit_sha(self, options):
@@ -288,6 +290,7 @@ class SaasHerder():
 
         resources = None
         html_url = None
+        commit_sha = None
 
         if provider == 'openshift-template':
             hash_length = options['hash_length']
@@ -320,7 +323,7 @@ class SaasHerder():
             }
 
             try:
-                template, html_url = \
+                template, html_url, commit_sha = \
                     self._get_file_contents(get_file_contents_options)
             except Exception as e:
                 logging.error(
@@ -334,14 +337,7 @@ class SaasHerder():
                     for template_parameter in template_parameters:
                         if template_parameter['name'] == 'IMAGE_TAG':
                             # add IMAGE_TAG only if it is required
-                            get_commit_sha_options = {
-                                'url': url,
-                                'ref': target_ref,
-                                'hash_length': hash_length,
-                                'github': github
-                            }
-                            image_tag = self._get_commit_sha(
-                                get_commit_sha_options)
+                            image_tag = commit_sha[:hash_length]
                             consolidated_parameters['IMAGE_TAG'] = image_tag
 
             oc = OC('server', 'token', local=True)
@@ -360,7 +356,7 @@ class SaasHerder():
                 'github': github
             }
             try:
-                resources, html_url = \
+                resources, html_url, commit_sha = \
                     self._get_directory_contents(
                         get_directory_contents_options)
             except Exception as e:
@@ -374,7 +370,7 @@ class SaasHerder():
                 f"[{saas_file_name}/{resource_template_name}] " +
                 f"unknown provider: {provider}")
 
-        return resources, html_url
+        return resources, html_url, commit_sha
 
     def _collect_images(self, resource):
         images = set()
@@ -589,7 +585,7 @@ class SaasHerder():
         instance_name = spec['instance_name']
         upstream = spec['upstream']
 
-        resources, html_url = \
+        resources, html_url, commit_sha = \
             self._process_template(process_template_options)
         if resources is None:
             ri.register_error()
