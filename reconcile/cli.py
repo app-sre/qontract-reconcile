@@ -704,6 +704,7 @@ def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
 
 
 @integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @binary(['oc', 'ssh'])
 @throughput
