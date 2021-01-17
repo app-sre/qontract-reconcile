@@ -62,6 +62,7 @@ class SaasHerder():
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
+        saas_file_promotion_publish_channels = []
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -79,6 +80,14 @@ class SaasHerder():
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
+                    # promotion publish channels
+                    promotion = target.get('promotion')
+                    if promotion:
+                        publish = promotion.get('publish')
+                        if publish:
+                            saas_file_promotion_publish_channels.extend(
+                                publish)
+                    # validate target parameters
                     target_parameters = target['parameters']
                     if not target_parameters:
                         continue
@@ -122,6 +131,7 @@ class SaasHerder():
                                     f'consider \"{t_key}: {replacement}\"'
                             logging.warning(f'{msg}: {details}')
 
+        # saas file name duplicates
         duplicates = {saas_file_name: saas_file_paths
                       for saas_file_name, saas_file_paths
                       in saas_file_name_path_map.items()
@@ -131,6 +141,15 @@ class SaasHerder():
             msg = 'saas file name {} is not unique: {}'
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
+
+        # promotion publish channel duplicates
+        duplicates = [p for p in saas_file_promotion_publish_channels
+                      if saas_file_promotion_publish_channels.count(p) > 1]
+        if duplicates:
+            self.valid = False
+            msg = 'saas file promotion publish channel is not unique: {}'
+            for duplicate in duplicates:
+                logging.error(msg.format(duplicate))
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
