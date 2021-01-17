@@ -287,6 +287,7 @@ class SaasHerder():
         target = options['target']
         github = options['github']
         target_ref = target['ref']
+        target_promotion = target.get('promotion')
 
         resources = None
         html_url = None
@@ -370,7 +371,8 @@ class SaasHerder():
                 f"[{saas_file_name}/{resource_template_name}] " +
                 f"unknown provider: {provider}")
 
-        return resources, html_url, commit_sha
+        target_promotion['commit_sha'] = commit_sha
+        return resources, html_url, target_promotion
 
     def _collect_images(self, resource):
         images = set()
@@ -509,10 +511,11 @@ class SaasHerder():
                                self.thread_pool_size)
         desired_state_specs = \
             [item for sublist in results for item in sublist]
-        threaded.run(self.populate_desired_state_saas_file,
-                     desired_state_specs,
-                     self.thread_pool_size,
-                     ri=ri)
+        promotions = threaded.run(self.populate_desired_state_saas_file,
+                                  desired_state_specs,
+                                  self.thread_pool_size,
+                                  ri=ri)
+        return promotions
 
     def init_populate_desired_state_specs(self, saas_file):
         specs = []
@@ -585,7 +588,7 @@ class SaasHerder():
         instance_name = spec['instance_name']
         upstream = spec['upstream']
 
-        resources, html_url, commit_sha = \
+        resources, html_url, promotion = \
             self._process_template(process_template_options)
         if resources is None:
             ri.register_error()
@@ -631,6 +634,8 @@ class SaasHerder():
                 resource_name,
                 oc_resource
             )
+
+        return promotion
 
     def get_moving_commits_diff(self, dry_run):
         results = threaded.run(self.get_moving_commits_diff_saas_file,

@@ -1151,6 +1151,10 @@ SAAS_FILES_QUERY = """
           }
         }
         ref
+        promotion {
+          publish
+          subscribe
+        }
         parameters
         upstream
         disable
