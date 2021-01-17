@@ -816,3 +816,15 @@ class SaasHerder():
                         return False
 
         return True
+
+    def publish_promotions(self, success):
+        """
+        If there were promotion sections in the participating saas files
+        publish the results for future promotion validations. """
+        for item in self.promotions:
+            commit_sha = item['commit_sha']
+            publish = item.get('publish')
+            if publish:
+                for channel in publish:
+                    state_key = f"{channel}/{commit_sha}"
+                    self.state.add(state_key, success, force=True)

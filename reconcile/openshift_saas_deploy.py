@@ -89,7 +89,12 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             logging.error(str(e))
             ri.register_error()
 
-    if ri.has_error_registered():
+    # publish results of this deployment
+    # based on promotion information in targets
+    success = not ri.has_error_registered()
+    saasherder.publish_promotions(success)
+
+    if not success:
         sys.exit(ExitCodes.ERROR)
 
     # send human readable notifications to slack
