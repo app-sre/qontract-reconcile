@@ -10,6 +10,7 @@ from reconcile.slack_base import init_slack
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.defer import defer
+from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
@@ -22,7 +23,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error('no saas files found')
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     instance = queries.get_gitlab_instance()
     desired_jenkins_instances = [s['instance']['name'] for s in saas_files]
@@ -48,7 +49,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         accounts=accounts)
     if len(saasherder.namespaces) == 0:
         logging.warning('no targets found')
-        sys.exit(0)
+        sys.exit(ExitCodes.SUCCESS)
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
@@ -82,7 +83,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             ri.register_error()
 
     if ri.has_error_registered():
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     # send human readable notifications to slack
     # we only do this if:
