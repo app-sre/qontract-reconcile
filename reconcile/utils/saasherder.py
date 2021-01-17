@@ -826,7 +826,8 @@ class SaasHerder():
             if subscribe:
                 for channel in subscribe:
                     state_key = f"{channel}/{commit_sha}"
-                    success = self.state.get(state_key, None)
+                    value = self.state.get(state_key, None)
+                    success = value.get('success')
                     if not success:
                         logging.error(
                             f'Commit {commit_sha} was not ' +
@@ -846,4 +847,7 @@ class SaasHerder():
             if publish:
                 for channel in publish:
                     state_key = f"{channel}/{commit_sha}"
-                    self.state.add(state_key, success, force=True)
+                    value = {
+                        'success': success
+                    }
+                    self.state.add(state_key, value, force=True)
