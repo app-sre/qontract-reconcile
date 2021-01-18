@@ -825,7 +825,7 @@ class SaasHerder():
             subscribe = item.get('subscribe')
             if subscribe:
                 for channel in subscribe:
-                    state_key = f"{channel}/{commit_sha}"
+                    state_key = f"promotions/{channel}/{commit_sha}"
                     value = self.state.get(state_key, None)
                     success = value.get('success')
                     if not success:
@@ -846,7 +846,7 @@ class SaasHerder():
             publish = item.get('publish')
             if publish:
                 for channel in publish:
-                    state_key = f"{channel}/{commit_sha}"
+                    state_key = f"promotions/{channel}/{commit_sha}"
                     value = {
                         'success': success
                     }
