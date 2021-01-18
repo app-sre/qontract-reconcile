@@ -1168,6 +1168,7 @@ SAAS_FILES_QUERY = """
         }
         ref
         promotion {
+          auto
           publish
           subscribe
         }
