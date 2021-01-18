@@ -287,7 +287,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     ts.populate_resources(tf_namespaces, existing_secrets, account_name)
     ts.dump(print_only, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf
+    return ri, oc_map, tf, tf_namespaces
 
 
 def cleanup_and_exit(tf=None, status=False, working_dirs={}):
@@ -317,7 +317,7 @@ def run(dry_run, print_only=False,
         light=False, vault_output_path='',
         account_name=None, defer=None):
 
-    ri, oc_map, tf = \
+    ri, oc_map, tf, tf_namespaces = \
         setup(dry_run, print_only, thread_pool_size, internal,
               use_jump_host, account_name)
 
@@ -355,7 +355,7 @@ def run(dry_run, print_only=False,
     if account_name:
         cleanup_and_exit(tf)
 
-    tf.populate_desired_state(ri, oc_map)
+    tf.populate_desired_state(ri, oc_map, tf_namespaces)
 
     # temporarily not allowing resources to be deleted
     # or for pods to be recycled
