@@ -306,7 +306,7 @@ class SaasHerder():
         target = options['target']
         github = options['github']
         target_ref = target['ref']
-        target_promotion = target.get('promotion')
+        target_promotion = target.get('promotion') or {}
 
         resources = None
         html_url = None
