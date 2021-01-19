@@ -81,7 +81,7 @@ def clusters(ctx, name):
     if name:
         clusters = [c for c in clusters if c['name'] == name]
 
-    columns = ['name', 'consoleUrl', 'kibanaUrl']
+    columns = ['name', 'consoleUrl', 'kibanaUrl', 'prometheusUrl']
     print_output(ctx.obj['output'], clusters, columns)
 
 

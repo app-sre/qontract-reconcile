@@ -15,6 +15,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `aws-ecr-image-pull-secrets`: Generate AWS ECR image pull secrets and store them in Vault.
 - `aws-support-cases-sos`: Scan AWS support cases for reports of leaked keys and remove them (only submits PR)
 - `dashdotdb-cso`: Collects the ImageManifestVuln CRs from all the clusters and posts them to Dashdotdb.
+- `dashdotdb-dvo`: Collects the DeploymentValidations from all the clusters and posts them to Dashdotdb.
 - `gcr-mirror`: Mirrors external images into Google Container Registry.
 - `github-repo-invites`: Accept GitHub repository invitations for known repositories.
 - `github-scanner`: Scan GitHub repositories for leaked keys and remove them (only submits PR).

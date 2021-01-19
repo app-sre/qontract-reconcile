@@ -271,7 +271,8 @@ class OC(object):
         return [r.split()[-1] for r in results]
 
     def get_version(self):
-        cmd = ['version']
+        # this is actually a 10 second timeout, because: oc reasons
+        cmd = ['version', '--request-timeout=5']
         return self._run(cmd)
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
