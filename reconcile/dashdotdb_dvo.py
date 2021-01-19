@@ -23,29 +23,48 @@ class DashdotdbDVO:
         self.dashdotdb_url = secret_content['url']
         self.dashdotdb_user = secret_content['username']
         self.dashdotdb_pass = secret_content['password']
+        self.chunksize = secret_content.get('chunksize') or '20'
         self.logmarker = "DDDB_DVO:"
+
+    def _chunkify(self, data, size):
+        for i in range(0, len(data), int(size)):
+            yield data[i:i+int(size)]
 
     def _post(self, deploymentvalidation):
         if deploymentvalidation is None:
-            return None
+            return
         cluster = deploymentvalidation['cluster']
-        dvdata = deploymentvalidation['data']
-        LOG.info('%s posting validations for %s', self.logmarker, cluster)
-        response = None
-        if not self.dry_run:
-            endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                        f'deploymentvalidation/{cluster}')
-            response = requests.post(url=endpoint, json=dvdata,
-                                     auth=(self.dashdotdb_user,
-                                           self.dashdotdb_pass),
-                                     timeout=(5, 30))
-            try:
-                response.raise_for_status()
-            except requests.exceptions.RequestException as details:
-                LOG.error('%s error posting %s - %s',
-                          self.logmarker, cluster, details)
+        # dvd.data.data.result.[{metric,values}]
+        dvresult = deploymentvalidation.get('data').get('data').get('result')
+        if dvresult is None:
+            return
+        LOG.info('%s Processing (%s) metrics for: %s', self.logmarker,
+                 len(dvresult),
+                 cluster)
+        metrics = list(self._chunkify(dvresult, self.chunksize))
+        # keep everything but metrics from prom blob
+        deploymentvalidation['data']['data']['result'] = []
+        for metric_chunk in metrics:
+            # to keep future-prom-format compatible,
+            # keeping entire prom blob but iterating on metrics by
+            # self.chunksize max metrics in one post
+            dvdata = deploymentvalidation['data']
+            dvdata['data']['result'] = metric_chunk
+            response = None
+            if not self.dry_run:
+                endpoint = (f'{self.dashdotdb_url}/api/v1/'
+                            f'deploymentvalidation/{cluster}')
+                response = requests.post(url=endpoint, json=dvdata,
+                                         auth=(self.dashdotdb_user,
+                                               self.dashdotdb_pass),
+                                         timeout=(5, 120))
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as details:
+                    LOG.error('%s error posting DVO data (%s): %s',
+                              self.logmarker, cluster, details)
 
-        LOG.info('%s cluster %s synced', self.logmarker, cluster)
+        LOG.info('%s DVO data for %s synced to dddb', self.logmarker, cluster)
         return response
 
     def _promget(self, url, query, token=None):
@@ -62,7 +81,7 @@ class DashdotdbDVO:
         response = requests.get(url,
                                 params=params,
                                 headers=headers,
-                                timeout=(5, 30))
+                                timeout=(5, 120))
         response.raise_for_status()
 
         response = response.json()
@@ -86,14 +105,14 @@ class DashdotdbDVO:
                                                  query=promquery,
                                                  token=promtoken)
         except requests.exceptions.RequestException as details:
-            LOG.error('%s error accessing prometheus - %s, %s',
+            LOG.error('%s error accessing prometheus (%s): %s',
                       self.logmarker, cluster, details)
             return None
 
         return {'cluster': cluster,
                 'data': deploymentvalidation}
 
-    def _get_clusters(self):
+    def _get_clusters(self, cnfilter=None):
         # 'cluster': 'fooname',
         # 'tokenpath':
         #  'path': 'app-sre/creds/kubeube-configs/barpath',
@@ -108,15 +127,17 @@ class DashdotdbDVO:
                     "tokenpath": i['automationToken'],
                     "prometheus": i['prometheusUrl']
                 })
+        if cnfilter:
+            return [result for result in results if result['name'] == cnfilter]
         return results
 
-    def run(self):
+    def run(self, cname=None):
         validation_list = ('operator_replica', 'operator_request_limit')
         for validation in validation_list:
             LOG.debug('%s Processing validation: %s',
                       self.logmarker, validation)
             validations = threaded.run(func=self._get_deploymentvalidation,
-                                       iterable=self._get_clusters(),
+                                       iterable=self._get_clusters(cname),
                                        thread_pool_size=self.thread_pool_size,
                                        validation=validation)
             threaded.run(func=self._post,
@@ -124,6 +145,6 @@ class DashdotdbDVO:
                          thread_pool_size=self.thread_pool_size)
 
 
-def run(dry_run=False, thread_pool_size=10):
+def run(dry_run=False, thread_pool_size=10, cluster_name=None):
     dashdotdb_dvo = DashdotdbDVO(dry_run, thread_pool_size)
-    dashdotdb_dvo.run()
+    dashdotdb_dvo.run(cluster_name)
