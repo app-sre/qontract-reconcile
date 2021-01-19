@@ -138,6 +138,14 @@ python3 setup.py develop
 
 Please see [setup.py](setup.py).
 
+### Image build
+
+In order to speed up frequent builds and avoid issues with dependencies, docker image makes use
+[`qontract-reconcile-build`](https://quay.io/repository/app-sre/qontract-reconcile-base?tag=latest&tab=tags)
+image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
+if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
+must only contain instructions related to the python code build.
+
 ## Licence
 
 [Apache License Version 2.0](LICENSE).
