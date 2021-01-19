@@ -62,6 +62,7 @@ class SaasHerder():
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
+        saas_file_promotion_publish_channels = []
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -79,6 +80,14 @@ class SaasHerder():
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
+                    # promotion publish channels
+                    promotion = target.get('promotion')
+                    if promotion:
+                        publish = promotion.get('publish')
+                        if publish:
+                            saas_file_promotion_publish_channels.extend(
+                                publish)
+                    # validate target parameters
                     target_parameters = target['parameters']
                     if not target_parameters:
                         continue
@@ -122,6 +131,7 @@ class SaasHerder():
                                     f'consider \"{t_key}: {replacement}\"'
                             logging.warning(f'{msg}: {details}')
 
+        # saas file name duplicates
         duplicates = {saas_file_name: saas_file_paths
                       for saas_file_name, saas_file_paths
                       in saas_file_name_path_map.items()
@@ -131,6 +141,15 @@ class SaasHerder():
             msg = 'saas file name {} is not unique: {}'
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
+
+        # promotion publish channel duplicates
+        duplicates = [p for p in saas_file_promotion_publish_channels
+                      if saas_file_promotion_publish_channels.count(p) > 1]
+        if duplicates:
+            self.valid = False
+            msg = 'saas file promotion publish channel is not unique: {}'
+            for duplicate in duplicates:
+                logging.error(msg.format(duplicate))
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
@@ -183,20 +202,21 @@ class SaasHerder():
         ref = options['ref']
         github = options['github']
         html_url = f"{url}/blob/{ref}{path}"
+        commit_sha = self._get_commit_sha(options)
         content = None
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            f = repo.get_contents(path, ref)
+            f = repo.get_contents(path, commit_sha)
             content = f.decoded_content
         elif 'gitlab' in url:
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
-            f = project.files.get(file_path=path.lstrip('/'), ref=ref)
+            f = project.files.get(file_path=path.lstrip('/'), ref=commit_sha)
             content = f.decode()
 
-        return yaml.safe_load(content), html_url
+        return yaml.safe_load(content), html_url, commit_sha
 
     @retry()
     def _get_directory_contents(self, options):
@@ -205,13 +225,14 @@ class SaasHerder():
         ref = options['ref']
         github = options['github']
         html_url = f"{url}/tree/{ref}{path}"
+        commit_sha = self._get_commit_sha(options)
         resources = []
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            for f in repo.get_contents(path, ref):
+            for f in repo.get_contents(path, commit_sha):
                 file_path = os.path.join(path, f.name)
-                file_contents = repo.get_contents(file_path, ref)
+                file_contents = repo.get_contents(file_path, commit_sha)
                 resource = yaml.safe_load(file_contents.decoded_content)
                 resources.append(resource)
         elif 'gitlab' in url:
@@ -219,13 +240,13 @@ class SaasHerder():
                 raise Exception('gitlab is not initialized')
             project = self.gitlab.get_project(url)
             for f in project.repository_tree(path=path.lstrip('/'),
-                                             ref=ref, all=True):
+                                             ref=commit_sha, all=True):
                 file_contents = \
-                    project.files.get(file_path=f['path'], ref=ref)
+                    project.files.get(file_path=f['path'], ref=commit_sha)
                 resource = yaml.safe_load(file_contents.decode())
                 resources.append(resource)
 
-        return resources, html_url
+        return resources, html_url, commit_sha
 
     @retry()
     def _get_commit_sha(self, options):
@@ -285,9 +306,11 @@ class SaasHerder():
         target = options['target']
         github = options['github']
         target_ref = target['ref']
+        target_promotion = target.get('promotion') or {}
 
         resources = None
         html_url = None
+        commit_sha = None
 
         if provider == 'openshift-template':
             hash_length = options['hash_length']
@@ -320,7 +343,7 @@ class SaasHerder():
             }
 
             try:
-                template, html_url = \
+                template, html_url, commit_sha = \
                     self._get_file_contents(get_file_contents_options)
             except Exception as e:
                 logging.error(
@@ -334,14 +357,7 @@ class SaasHerder():
                     for template_parameter in template_parameters:
                         if template_parameter['name'] == 'IMAGE_TAG':
                             # add IMAGE_TAG only if it is required
-                            get_commit_sha_options = {
-                                'url': url,
-                                'ref': target_ref,
-                                'hash_length': hash_length,
-                                'github': github
-                            }
-                            image_tag = self._get_commit_sha(
-                                get_commit_sha_options)
+                            image_tag = commit_sha[:hash_length]
                             consolidated_parameters['IMAGE_TAG'] = image_tag
 
             oc = OC('server', 'token', local=True)
@@ -360,7 +376,7 @@ class SaasHerder():
                 'github': github
             }
             try:
-                resources, html_url = \
+                resources, html_url, commit_sha = \
                     self._get_directory_contents(
                         get_directory_contents_options)
             except Exception as e:
@@ -374,7 +390,8 @@ class SaasHerder():
                 f"[{saas_file_name}/{resource_template_name}] " +
                 f"unknown provider: {provider}")
 
-        return resources, html_url
+        target_promotion['commit_sha'] = commit_sha
+        return resources, html_url, target_promotion
 
     def _collect_images(self, resource):
         images = set()
@@ -513,10 +530,11 @@ class SaasHerder():
                                self.thread_pool_size)
         desired_state_specs = \
             [item for sublist in results for item in sublist]
-        threaded.run(self.populate_desired_state_saas_file,
-                     desired_state_specs,
-                     self.thread_pool_size,
-                     ri=ri)
+        promotions = threaded.run(self.populate_desired_state_saas_file,
+                                  desired_state_specs,
+                                  self.thread_pool_size,
+                                  ri=ri)
+        self.promotions = promotions
 
     def init_populate_desired_state_specs(self, saas_file):
         specs = []
@@ -589,7 +607,7 @@ class SaasHerder():
         instance_name = spec['instance_name']
         upstream = spec['upstream']
 
-        resources, html_url = \
+        resources, html_url, promotion = \
             self._process_template(process_template_options)
         if resources is None:
             ri.register_error()
@@ -635,6 +653,8 @@ class SaasHerder():
                 resource_name,
                 oc_resource
             )
+
+        return promotion
 
     def get_moving_commits_diff(self, dry_run):
         results = threaded.run(self.get_moving_commits_diff_saas_file,
@@ -793,3 +813,41 @@ class SaasHerder():
         key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
             f"{namespace_name}/{env_name}"
         self.state.add(key, value=target_config, force=True)
+
+    def validate_promotions(self):
+        """
+        If there were promotion sections in the participating saas files
+        validate that the conditions are met. """
+        for item in self.promotions:
+            # validate that the commit sha being promoted
+            # was succesfully published to the subscribed channel(s)
+            commit_sha = item['commit_sha']
+            subscribe = item.get('subscribe')
+            if subscribe:
+                for channel in subscribe:
+                    state_key = f"promotions/{channel}/{commit_sha}"
+                    value = self.state.get(state_key, None)
+                    success = value.get('success')
+                    if not success:
+                        logging.error(
+                            f'Commit {commit_sha} was not ' +
+                            f'published with success to channel {channel}'
+                        )
+                        return False
+
+        return True
+
+    def publish_promotions(self, success):
+        """
+        If there were promotion sections in the participating saas files
+        publish the results for future promotion validations. """
+        for item in self.promotions:
+            commit_sha = item['commit_sha']
+            publish = item.get('publish')
+            if publish:
+                for channel in publish:
+                    state_key = f"promotions/{channel}/{commit_sha}"
+                    value = {
+                        'success': success
+                    }
+                    self.state.add(state_key, value, force=True)

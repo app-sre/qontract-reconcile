@@ -541,6 +541,18 @@ NAMESPACES_QUERY = """
     app {
       name
     }
+    terraformResources
+      {
+        provider
+        ... on NamespaceTerraformResourceRDS_v1
+        {
+          account
+          identifier
+          output_resource_name
+          defaults
+          replica_source
+        }
+      }
     cluster {
       name
       serverUrl
@@ -1155,6 +1167,10 @@ SAAS_FILES_QUERY = """
           }
         }
         ref
+        promotion {
+          publish
+          subscribe
+        }
         parameters
         upstream
         disable

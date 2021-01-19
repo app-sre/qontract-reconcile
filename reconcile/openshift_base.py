@@ -5,12 +5,13 @@ import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import (StatusCodeError,
-                                InvalidValueApplyError,
-                                MetaDataAnnotationsTooLongApplyError,
-                                UnsupportedMediaTypeError)
-from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
-                                                ResourceInventory)
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.oc import InvalidValueApplyError
+from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
+from reconcile.utils.oc import UnsupportedMediaTypeError
+from reconcile.utils.oc import FieldIsImmutableError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
 
 from sretoolbox.utils import retry
 
@@ -225,6 +226,15 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         except (MetaDataAnnotationsTooLongApplyError,
                 UnsupportedMediaTypeError):
             oc.replace(namespace, annotated.toJSON())
+        except FieldIsImmutableError:
+            # Add more resources types to the list when you're
+            # sure they're safe.
+            if resource_type not in ['Route']:
+                raise
+
+            oc.delete(namespace=namespace, kind=resource_type,
+                      name=resource.name)
+            oc.apply(namespace=namespace, resource=annotated.toJSON())
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)

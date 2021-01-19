@@ -38,6 +38,7 @@ ENV TF_VERSION=0.13.5
 ENV GIT_SECRETS_VERSION=1.3.0
 ENV JSONNET_VENDOR_DIR=/opt/jsonnet-bundler/vendor
 ENV PROMETHEUS_VERSION=2.23.0
+ENV TF_PLUGIN_CACHE_DIR=/.terraform.d/plugin-cache
 
 RUN curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OC_VERSION}/openshift-client-linux.tar.gz -o oc.tar.gz &&\
     tar -zvxf oc.tar.gz && \
@@ -60,10 +61,10 @@ COPY --from=jsonnet-builder /jsonnet/jsonnet /usr/local/bin/jsonnet
 COPY --from=jsonnet-builder /jsonnet-bundler/vendor ${JSONNET_VENDOR_DIR}
 RUN find ${JSONNET_VENDOR_DIR} -type d -exec chmod 0755 {} \;
 
-RUN mkdir -p /.terraform.d/plugin-cache
+RUN mkdir -p ${TF_PLUGIN_CACHE_DIR}
 COPY --from=terraform-providers-downloader /tmp/terraform-providers/ /.terraform.d/plugins/registry.terraform.io/hashicorp/aws/
 RUN find /.terraform.d/ -type d -exec chmod 0755 {} \;
-RUN chmod 0775 /.terraform.d/plugin-cache
+RUN chmod 0775 ${TF_PLUGIN_CACHE_DIR}
 
 WORKDIR /reconcile
 

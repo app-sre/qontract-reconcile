@@ -24,6 +24,10 @@ class InvalidValueApplyError(Exception):
     pass
 
 
+class FieldIsImmutableError(Exception):
+    pass
+
+
 class MetaDataAnnotationsTooLongApplyError(Exception):
     pass
 
@@ -457,6 +461,8 @@ class OC(object):
             if kwargs.get('apply'):
                 if 'Invalid value: 0x0' in err:
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
+                if 'Invalid value: ' in err and ': field is immutable' in err:
+                    raise FieldIsImmutableError(f"[{self.server}]: {err}")
                 if 'metadata.annotations: Too long' in err:
                     raise MetaDataAnnotationsTooLongApplyError(
                         f"[{self.server}]: {err}")

@@ -10,6 +10,7 @@ from reconcile.slack_base import init_slack
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.defer import defer
+from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
@@ -22,13 +23,14 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error('no saas files found')
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     instance = queries.get_gitlab_instance()
     desired_jenkins_instances = [s['instance']['name'] for s in saas_files]
     jenkins_map = jenkins_base.get_jenkins_map(
         desired_instances=desired_jenkins_instances)
     settings = queries.get_app_interface_settings()
+    accounts = queries.get_aws_accounts()
     try:
         gl = GitLabApi(instance, settings=settings)
     except Exception:
@@ -43,10 +45,11 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
-        jenkins_map=jenkins_map)
+        jenkins_map=jenkins_map,
+        accounts=accounts)
     if len(saasherder.namespaces) == 0:
         logging.warning('no targets found')
-        sys.exit(0)
+        sys.exit(ExitCodes.SUCCESS)
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=saasherder.namespaces,
@@ -56,6 +59,13 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         init_api_resources=True)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
+
+    # validate that this deployment is valid
+    # based on promotion information in targets
+    if not saasherder.validate_promotions():
+        logging.error('invalid promotions')
+        sys.exit(ExitCodes.ERROR)
+
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
@@ -79,8 +89,14 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             logging.error(str(e))
             ri.register_error()
 
-    if ri.has_error_registered():
-        sys.exit(1)
+    # publish results of this deployment
+    # based on promotion information in targets
+    success = not ri.has_error_registered()
+    if not dry_run:
+        saasherder.publish_promotions(success)
+
+    if not success:
+        sys.exit(ExitCodes.ERROR)
 
     # send human readable notifications to slack
     # we only do this if:
