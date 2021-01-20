@@ -41,16 +41,24 @@ class DashdotdbDVO:
         LOG.info('%s Processing (%s) metrics for: %s', self.logmarker,
                  len(dvresult),
                  cluster)
-        metrics = list(self._chunkify(dvresult, self.chunksize))
+        self.chunksize = len(dvresult) if not self.chunksize
+        if len(dvresult) <= int(self.chunksize):
+            metrics = dvresult
+        else:
+            metrics = list(self._chunkify(dvresult, self.chunksize))
+            LOG.info('%s Chunked metrics into (%s) elements for: %s',
+                     self.logmarker,
+                     len(metrics),
+                     cluster)
         # keep everything but metrics from prom blob
         deploymentvalidation['data']['data']['result'] = []
+        response = None
         for metric_chunk in metrics:
             # to keep future-prom-format compatible,
             # keeping entire prom blob but iterating on metrics by
             # self.chunksize max metrics in one post
             dvdata = deploymentvalidation['data']
             dvdata['data']['result'] = metric_chunk
-            response = None
             if not self.dry_run:
                 endpoint = (f'{self.dashdotdb_url}/api/v1/'
                             f'deploymentvalidation/{cluster}')
@@ -64,7 +72,7 @@ class DashdotdbDVO:
                     LOG.error('%s error posting DVO data (%s): %s',
                               self.logmarker, cluster, details)
 
-        LOG.info('%s DVO data for %s synced to dddb', self.logmarker, cluster)
+        LOG.info('%s DVO data for %s synced to DDDB', self.logmarker, cluster)
         return response
 
     def _promget(self, url, query, token=None):
