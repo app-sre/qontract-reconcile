@@ -41,7 +41,8 @@ class DashdotdbDVO:
         LOG.info('%s Processing (%s) metrics for: %s', self.logmarker,
                  len(dvresult),
                  cluster)
-        self.chunksize = len(dvresult) if not self.chunksize
+        if not self.chunksize:
+            self.chunksize = len(dvresult) 
         if len(dvresult) <= int(self.chunksize):
             metrics = dvresult
         else:
