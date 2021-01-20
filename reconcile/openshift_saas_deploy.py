@@ -95,7 +95,8 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # publish results of this deployment
     # based on promotion information in targets
     success = not ri.has_error_registered()
-    if not dry_run:
+    # only publish promotions for deployment jobs (a single saas file)
+    if not dry_run and len(saasherder.saas_files) == 1:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
         saasherder.publish_promotions(success, all_saas_files, mr_cli)
 

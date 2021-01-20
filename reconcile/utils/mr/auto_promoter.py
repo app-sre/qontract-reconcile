@@ -13,11 +13,13 @@ class AutoPromoter(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [] # TODO(mafriedm): add AUTO_MERGE
+        # TODO(mafriedm): add AUTO_MERGE
+        self.labels = []
 
     @property
     def title(self):
-        return (f'[{self.name}] clusters updates')
+        # TODO(mafriedm): update this to be more descriptive and unique
+        return (f'[{self.name}] openshift-saas-deploy automated promotion')
 
     def process(self, gitlab_cli):
         changes = False

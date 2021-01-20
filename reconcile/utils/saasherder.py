@@ -883,7 +883,7 @@ class SaasHerder():
         """
         subscribe_saas_file_path_map = {}
         for saas_file in saas_files:
-            saas_file_path = saas_file['path']
+            saas_file_path = 'data' + saas_file['path']
             for rt in saas_file['resourceTemplates']:
                 for target in rt['targets']:
                     target_promotion = target.get('promotion')
