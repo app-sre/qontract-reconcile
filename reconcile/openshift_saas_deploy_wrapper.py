@@ -27,7 +27,8 @@ def osd_run_wrapper(diff, dry_run, available_thread_pool_size,
     return exit_code
 
 
-def run(dry_run, thread_pool_size=10, io_dir='throughput/', gitlab_project_id=None):
+def run(dry_run, thread_pool_size=10, io_dir='throughput/',
+        gitlab_project_id=None):
     saas_file_owners_diffs = read_saas_file_owners_diffs(io_dir)
     if len(saas_file_owners_diffs) == 0:
         return

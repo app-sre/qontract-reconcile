@@ -38,7 +38,8 @@ class AutoPromoter(MergeRequestBase):
                     file_path=saas_file_path,
                     ref=self.main_branch
                 )
-                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                content = yaml.load(raw_file.decode(),
+                                    Loader=yaml.RoundTripLoader)
                 for rt in content['resourceTemplates']:
                     for target in rt['targets']:
                         target_promotion = target.get('promotion')
