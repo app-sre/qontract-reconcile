@@ -851,3 +851,7 @@ class SaasHerder():
                         'success': success
                     }
                     self.state.add(state_key, value, force=True)
+                    logging.info(
+                        f'Commit {commit_sha} was published ' +
+                        f'with success {success} to channel {channel}'
+                    )
