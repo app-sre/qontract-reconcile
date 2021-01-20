@@ -42,7 +42,7 @@ class DashdotdbDVO:
                  len(dvresult),
                  cluster)
         if not self.chunksize:
-            self.chunksize = len(dvresult) 
+            self.chunksize = len(dvresult)
         if len(dvresult) <= int(self.chunksize):
             metrics = dvresult
         else:
