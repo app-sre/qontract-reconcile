@@ -687,6 +687,8 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@environ(['gitlab_pr_submitter_queue_url'])
+@gitlab_project_id
 @threaded(default=20)
 @throughput
 @binary(['oc', 'ssh'])
@@ -698,21 +700,24 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
               help='environment to deploy to.')
 @click.pass_context
 def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
-                          saas_file_name, env_name):
+                          saas_file_name, env_name, gitlab_project_id):
     run_integration(reconcile.openshift_saas_deploy,
                     ctx.obj, thread_pool_size, io_dir,
-                    saas_file_name, env_name)
+                    saas_file_name, env_name, gitlab_project_id)
 
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@environ(['gitlab_pr_submitter_queue_url'])
+@gitlab_project_id
 @threaded()
 @binary(['oc', 'ssh'])
 @throughput
 @click.pass_context
-def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir):
+def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir,
+                                  gitlab_project_id):
     run_integration(reconcile.openshift_saas_deploy_wrapper,
-                    ctx.obj, thread_pool_size, io_dir)
+                    ctx.obj, thread_pool_size, io_dir, gitlab_project_id)
 
 
 @integration.command()
@@ -1141,8 +1146,10 @@ def dashdotdb_cso(ctx, thread_pool_size):
 @integration.command()
 @threaded(default=2)
 @click.pass_context
-def dashdotdb_dvo(ctx, thread_pool_size):
-    run_integration(reconcile.dashdotdb_dvo, ctx.obj, thread_pool_size)
+@cluster_name
+def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
+    run_integration(reconcile.dashdotdb_dvo, ctx.obj,
+                    thread_pool_size, cluster_name)
 
 
 @integration.command()

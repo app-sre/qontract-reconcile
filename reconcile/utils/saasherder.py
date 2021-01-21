@@ -14,6 +14,7 @@ from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.state import State
 from reconcile.github_org import get_config
+from reconcile.utils.mr.auto_promoter import AutoPromoter
 
 
 class SaasHerder():
@@ -837,17 +838,67 @@ class SaasHerder():
 
         return True
 
-    def publish_promotions(self, success):
+    def publish_promotions(self, success, saas_files, mr_cli):
         """
         If there were promotion sections in the participating saas files
         publish the results for future promotion validations. """
+        subscribe_saas_file_path_map = \
+            self._get_subscribe_saas_file_path_map(saas_files, auto_only=True)
+        trigger_promotion = False
         for item in self.promotions:
             commit_sha = item['commit_sha']
             publish = item.get('publish')
             if publish:
+                all_subscribed_saas_file_paths = set()
                 for channel in publish:
+                    # publish to state to pass promotion gate
                     state_key = f"promotions/{channel}/{commit_sha}"
                     value = {
                         'success': success
                     }
                     self.state.add(state_key, value, force=True)
+                    logging.info(
+                        f'Commit {commit_sha} was published ' +
+                        f'with success {success} to channel {channel}'
+                    )
+                    # collect data to trigger promotion
+                    subscribed_saas_file_paths = \
+                        subscribe_saas_file_path_map.get(channel)
+                    if subscribed_saas_file_paths:
+                        all_subscribed_saas_file_paths.update(
+                            subscribed_saas_file_paths)
+                item['saas_file_paths'] = all_subscribed_saas_file_paths
+                if all_subscribed_saas_file_paths:
+                    trigger_promotion = True
+
+        if trigger_promotion:
+            mr = AutoPromoter(self.promotions)
+            mr.submit(cli=mr_cli)
+
+    @staticmethod
+    def _get_subscribe_saas_file_path_map(saas_files, auto_only=False):
+        """
+        Returns a dict with subscribe channels as keys and a
+        list of paths of saas files containing these channels.
+        """
+        subscribe_saas_file_path_map = {}
+        for saas_file in saas_files:
+            saas_file_path = 'data' + saas_file['path']
+            for rt in saas_file['resourceTemplates']:
+                for target in rt['targets']:
+                    target_promotion = target.get('promotion')
+                    if not target_promotion:
+                        continue
+                    target_auto = target_promotion.get('auto')
+                    if auto_only and not target_auto:
+                        continue
+                    subscribe = target_promotion.get('subscribe')
+                    if not subscribe:
+                        continue
+                    for channel in subscribe:
+                        subscribe_saas_file_path_map.setdefault(
+                            channel, set())
+                        subscribe_saas_file_path_map[channel].add(
+                            saas_file_path)
+
+        return subscribe_saas_file_path_map
