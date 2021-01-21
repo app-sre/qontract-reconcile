@@ -867,7 +867,7 @@ class SaasHerder():
                     if subscribed_saas_file_paths:
                         all_subscribed_saas_file_paths.update(
                             subscribed_saas_file_paths)
-                item['saas_file_paths'] = all_subscribed_saas_file_paths
+                item['saas_file_paths'] = list(all_subscribed_saas_file_paths)
                 if all_subscribed_saas_file_paths:
                     trigger_promotion = True
 
