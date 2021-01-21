@@ -26,6 +26,36 @@ class TestOpenshiftResource(object):
             openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
             assert openshift_resource.verify_valid_k8s_object() is None
 
+    def test_invalid_name_format(self):
+        resource = fxt.get_anymarkup('invalid_resource_name_format.yml')
+
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+            assert openshift_resource.verify_valid_k8s_object() is None
+
+    def test_invalid_name_too_long(self):
+        resource = fxt.get_anymarkup('invalid_resource_name_too_long.yml')
+
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+            assert openshift_resource.verify_valid_k8s_object() is None
+
+    def test_invalid_container_name_format(self):
+        resource = fxt.get_anymarkup(
+            'invalid_resource_container_name_format.yml')
+
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+            assert openshift_resource.verify_valid_k8s_object() is None
+
+    def test_invalid_container_name_too_long(self):
+        resource = fxt.get_anymarkup(
+            'invalid_resource_container_name_too_long.yml')
+
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+            assert openshift_resource.verify_valid_k8s_object() is None
+
     def test_annotates_resource(self):
         resource = fxt.get_anymarkup('annotates_resource.yml')
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
