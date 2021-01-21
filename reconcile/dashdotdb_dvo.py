@@ -127,7 +127,7 @@ class DashdotdbDVO:
 
     def _get_clusters(self, cnfilter=None):
         # 'cluster': 'fooname'
-        # 'private': 'XX'
+        # 'private': False
         # 'prometheus': 'https://prometheus.baz.tld'
         # 'tokenpath':
         #  'path': 'app-sre/creds/kubeube-configs/barpath'
