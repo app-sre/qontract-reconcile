@@ -14,6 +14,7 @@ class SQSGateway(object):
     def __init__(self, accounts, settings=None):
         queue_url = os.environ['gitlab_pr_submitter_queue_url']
         account = self.get_queue_account(accounts, queue_url)
+        accounts = [a for a in accounts if a['name'] == account]
         aws_api = AWSApi(1, accounts, settings=settings)
         session = aws_api.get_session(account)
 
