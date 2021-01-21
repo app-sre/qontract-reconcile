@@ -22,7 +22,6 @@ class AutoPromoter(MergeRequestBase):
         return (f'[{self.name}] openshift-saas-deploy automated promotion')
 
     def process(self, gitlab_cli):
-        changes = False
         for item in self.promotions:
             saas_file_paths = item.get('saas_file_paths')
             if not saas_file_paths:
@@ -53,7 +52,6 @@ class AutoPromoter(MergeRequestBase):
                             continue
                         if any(c in subscribe for c in publish):
                             target['ref'] = commit_sha
-                            changes = True
 
                 new_content = '---\n'
                 new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
@@ -62,6 +60,3 @@ class AutoPromoter(MergeRequestBase):
                                        file_path=saas_file_path,
                                        commit_message=msg,
                                        content=new_content)
-
-        if not changes:
-            self.cancel('Saas files are up to date. Nothing to do.')
