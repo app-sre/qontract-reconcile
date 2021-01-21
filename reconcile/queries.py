@@ -455,6 +455,9 @@ CLUSTERS_MINIMAL_QUERY = """
     ocm {
       name
     }
+    spec {
+        private
+    }
     automationToken {
       path
       field

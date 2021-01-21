@@ -76,7 +76,7 @@ class DashdotdbDVO:
         LOG.info('%s DVO data for %s synced to DDDB', self.logmarker, cluster)
         return response
 
-    def _promget(self, url, query, token=None):
+    def _promget(self, url, query, token=None, is_private=None):
         uri = '/api/v1/query'
         url = urljoin((f'{url}'), uri)
         params = {'query': (f'{query}')}
@@ -87,9 +87,11 @@ class DashdotdbDVO:
                   }
         if token:
             headers["Authorization"] = (f"Bearer {token}")
+        ssl_verify = False if is_private else True
         response = requests.get(url,
                                 params=params,
                                 headers=headers,
+                                verify=ssl_verify,
                                 timeout=(5, 120))
         response.raise_for_status()
 
@@ -107,12 +109,14 @@ class DashdotdbDVO:
         cluster = clusterinfo['name']
         LOG.debug('%s processing %s, %s', self.logmarker, cluster, validation)
         promurl = clusterinfo['prometheus']
+        is_private = clusterinfo['private']
         promquery = (f'deployment_validation_{validation}_validation')
         promtoken = self._get_automationtoken(clusterinfo['tokenpath'])
         try:
             deploymentvalidation = self._promget(url=promurl,
                                                  query=promquery,
-                                                 token=promtoken)
+                                                 token=promtoken,
+                                                 is_private=is_private)
         except requests.exceptions.RequestException as details:
             LOG.error('%s error accessing prometheus (%s): %s',
                       self.logmarker, cluster, details)
@@ -122,11 +126,12 @@ class DashdotdbDVO:
                 'data': deploymentvalidation}
 
     def _get_clusters(self, cnfilter=None):
-        # 'cluster': 'fooname',
-        # 'tokenpath':
-        #  'path': 'app-sre/creds/kubeube-configs/barpath',
-        #  'field': 'token', 'format': None},
+        # 'cluster': 'fooname'
+        # 'private': 'XX'
         # 'prometheus': 'https://prometheus.baz.tld'
+        # 'tokenpath':
+        #  'path': 'app-sre/creds/kubeube-configs/barpath'
+        #  'field': 'token', 'format': None}
         results = []
         clusters = queries.get_clusters(minimal=True)
         for i in clusters or []:
@@ -134,6 +139,7 @@ class DashdotdbDVO:
                 results.append({
                     "name": i['name'],
                     "tokenpath": i['automationToken'],
+                    "private": i['spec']['private'] or False,
                     "prometheus": i['prometheusUrl']
                 })
         if cnfilter:
