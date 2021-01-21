@@ -289,8 +289,9 @@ def realize_data(dry_run, oc_map, ri,
     """
     actions = []
     enable_deletion = False if ri.has_error_registered() else True
-    if override_enable_deletion is not None:
-        enable_deletion = override_enable_deletion
+    # only allow to override enable_deletion if no errors were found
+    if enable_deletion is True and override_enable_deletion is False:
+        enable_deletion = False
 
     for cluster, namespace, resource_type, data in ri:
         # desired items
