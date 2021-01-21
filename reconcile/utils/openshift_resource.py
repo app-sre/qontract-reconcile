@@ -20,8 +20,10 @@ class ConstructResourceError(Exception):
 
 
 # Regexes for kubernetes objects fields which have to adhere to DNS-1123
+DNS_SUBDOMAIN_MAX_LENGTH = 253
 DNS_SUBDOMAIN_RE = re.compile(
     r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$')
+DNS_LABEL_MAX_LENGTH = 63
 DNS_LABEL_RE = re.compile(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
 DNS_NAMES_URL = \
     'https://kubernetes.io/docs/concepts/overview/working-with-objects/names/'
@@ -172,7 +174,8 @@ class OpenshiftResource(object):
 
         if self.kind not in \
                 ['Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding'] \
-                and not DNS_SUBDOMAIN_RE.match(self.name):
+                and (not DNS_SUBDOMAIN_RE.match(self.name) or
+                     not len(self.name) <= DNS_SUBDOMAIN_MAX_LENGTH):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                 f"metadata.name: Invalid value: \"{self.name}\". " + \
                 f"This field must adhere to DNS-1123 subdomain names spec." + \
@@ -193,7 +196,8 @@ class OpenshiftResource(object):
                         f"an item in spec.template.spec.containers was " + \
                         f"found without a required name field"
                     raise ConstructResourceError(msg)
-                if not DNS_LABEL_RE.match(cname):
+                if (not DNS_LABEL_RE.match(cname) or
+                        not len(cname) <= DNS_LABEL_MAX_LENGTH):
                     msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                         f"an container in spec.template.spec.containers " + \
                         f"was found with an invalid name ({cname}). More " + \
