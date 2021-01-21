@@ -11,6 +11,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.defer import defer
 from reconcile.status import ExitCodes
+from reconcile import mr_client_gateway
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
@@ -19,7 +20,9 @@ QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
 
 @defer
 def run(dry_run, thread_pool_size=10, io_dir='throughput/',
-        saas_file_name=None, env_name=None, defer=None):
+        saas_file_name=None, env_name=None,
+        gitlab_project_id=None, defer=None):
+    all_saas_files = queries.get_saas_files()
     saas_files = queries.get_saas_files(saas_file_name, env_name)
     if not saas_files:
         logging.error('no saas files found')
@@ -92,8 +95,10 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # publish results of this deployment
     # based on promotion information in targets
     success = not ri.has_error_registered()
-    if not dry_run:
-        saasherder.publish_promotions(success)
+    # only publish promotions for deployment jobs (a single saas file)
+    if not dry_run and len(saasherder.saas_files) == 1:
+        mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
+        saasherder.publish_promotions(success, all_saas_files, mr_cli)
 
     if not success:
         sys.exit(ExitCodes.ERROR)
