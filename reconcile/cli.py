@@ -92,6 +92,7 @@ import reconcile.kafka_clusters
 import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
 import reconcile.dashdotdb_dvo
+import reconcile.alertmanager_config_validator
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1183,4 +1184,14 @@ def integrations_validator(ctx):
 @click.pass_context
 def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
     run_integration(reconcile.prometheus_rules_tester, ctx.obj,
+                    thread_pool_size, cluster_name)
+
+
+@integration.command()
+@threaded()
+@binary(['amtool'])
+@cluster_name
+@click.pass_context
+def alertmanager_config_validator(ctx, thread_pool_size, cluster_name):
+    run_integration(reconcile.alertmanager_config_validator, ctx.obj,
                     thread_pool_size, cluster_name)
