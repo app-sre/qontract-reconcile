@@ -102,11 +102,11 @@ class Report(object):
                 self.app.get('container_vulnerabilities')
             )
         )
-        # Deployment Validations
+        # Post-deploy Jobs
         self.add_report_section(
-            'deployment_validations',
-            self.get_validations_content(
-                self.app_get('deployment_validations')
+            'post_deploy_jobs',
+            self.get_post_deploy_jobs_content(
+                self.app.get('post_deploy_jobs')
             )
         )
 
@@ -185,17 +185,17 @@ class Report(object):
         return parsed_metrics
 
     @staticmethod
-    def get_validations_content(deployment_validations):
-        parsed_metrics = []
-        if not deployment_validations:
-            return parsed_metrics
+    def get_post_deploy_jobs_content(post_deploy_jobs):
+        results = []
+        if not post_deploy_jobs:
+            return results
 
-        for cluster, namespaces in deployment_validations.items():
-            for namespace, validations in namespaces.items():
-                parsed_metrics.append({'cluster': cluster,
-                                       'namespace': namespace,
-                                       'validations': validations})
-        return parsed_metrics
+        for cluster, namespaces in post_deploy_jobs.items():
+            for namespace, post_deploy_job in namespaces.items():
+                results.append({'cluster': cluster,
+                                'namespace': namespace,
+                                'post_deploy_job': post_deploy_job})
+        return results
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
@@ -395,6 +395,7 @@ def get_performance_parameters():
 
 def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
+    saas_files = queries.get_saas_files()
     jjb, _ = init_jjb()
     saas_jobs = jjb.get_all_jobs(job_types=['saas-deploy', 'promote-to-prod'])
     build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
@@ -422,6 +423,56 @@ def get_apps_data(date, month_delta=1):
             continue
 
         app_name = app['name']
+
+        logging.info(f"collecting post-deploy jobs "
+                     f"information for {app_name}")
+        post_deploy_jobs = {}
+        for saas_file in saas_files:
+            if saas_file['app']['name'] != app_name:
+                continue
+            resource_types = saas_file['managedResourceTypes']
+
+            # Only jobs of these types are expected to have a
+            # further post-deploy job
+            if not any(['Deployment' in resource_types,
+                        'DeploymentConfig' not in resource_types]):
+                continue
+
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+                    cluster = target['namespace']['cluster']['name']
+                    namespace = target['namespace']['name']
+                    post_deploy_jobs[cluster] = {}
+                    post_deploy_jobs[cluster][namespace] = False
+
+        for saas_file in saas_files:
+            if saas_file['app']['name'] != app_name:
+                continue
+            resource_types = saas_file['managedResourceTypes']
+            if 'Job' not in resource_types:
+                continue
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+
+                    cluster = target['namespace']['cluster']['name']
+                    namespace = target['namespace']['name']
+
+                    # This block skips the check if the cluster/namespace
+                    # has no Deployment/DeploymentConfig job associated.
+                    if cluster not in post_deploy_jobs:
+                        continue
+                    if namespace not in post_deploy_jobs[cluster]:
+                        continue
+
+                    # Post-deploy job must depend on a openshift-saas-deploy
+                    # job
+                    if target['upstream'] is None:
+                        continue
+                    if target['upstream'].startswith('openshift-saas-deploy-'):
+                        post_deploy_jobs[cluster][namespace] = True
+
+        app['post_deploy_jobs'] = post_deploy_jobs
+
         logging.info(f"collecting promotions for {app_name}")
         app['promotions'] = {}
         saas_repos = [c['url'] for c in app['codeComponents']
@@ -444,57 +495,33 @@ def get_apps_data(date, month_delta=1):
             successes = [h for h in cr_history if h == 'SUCCESS']
             app['merge_activity'][cr] = (len(cr_history), len(successes))
 
-        logging.info(f"collecting dashdotdb information for {app_name}")
+        logging.info(f"collecting vulnerabilities information for {app_name}")
         app_namespaces = []
         for namespace in namespaces:
             if namespace['app']['name'] != app['name']:
                 continue
             app_namespaces.append(namespace)
-        vuln_mx = {}
-        validt_mx = {}
+        app_metrics = {}
         for family in text_string_to_metric_families(metrics):
             for sample in family.samples:
-                if sample.name == 'imagemanifestvuln_total':
-                    for app_namespace in app_namespaces:
-                        cluster = sample.labels['cluster']
-                        if app_namespace['cluster']['name'] != cluster:
-                            continue
-                        namespace = sample.labels['namespace']
-                        if app_namespace['name'] != namespace:
-                            continue
-                        severity = sample.labels['severity']
-                        if cluster not in vuln_mx:
-                            vuln_mx[cluster] = {}
-                        if namespace not in vuln_mx[cluster]:
-                            vuln_mx[cluster][namespace] = {}
-                        if severity not in vuln_mx[cluster][namespace]:
-                            value = int(sample.value)
-                            vuln_mx[cluster][namespace][severity] = value
-                if sample.name == 'deploymentvalidation_total':
-                    for app_namespace in app_namespaces:
-                        cluster = sample.labels['cluster']
-                        if app_namespace['cluster']['name'] != cluster:
-                            continue
-                        namespace = sample.labels['namespace']
-                        if app_namespace['name'] != namespace:
-                            continue
-                        validation = sample.labels['validation']
-                        # dvo: fail == 1, pass == 0, py: true == 1, false == 0
-                        # so: ({false|pass}, {true|fail})
-                        status = ('Passed', 'Failed')[sample.labels['status']]
-                        if cluster not in validt_mx:
-                            validt_mx[cluster] = {}
-                        if namespace not in validt_mx[cluster]:
-                            validt_mx[cluster][namespace] = {}
-                        if validation not in validt_mx[cluster][namespace]:
-                            validt_mx[cluster][namespace][validation] = {}
-                        if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
-                            validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
+                if sample.name != 'imagemanifestvuln_total':
+                    continue
+                for app_namespace in app_namespaces:
+                    cluster = sample.labels['cluster']
+                    if app_namespace['cluster']['name'] != cluster:
+                        continue
+                    namespace = sample.labels['namespace']
+                    if app_namespace['name'] != namespace:
+                        continue
+                    severity = sample.labels['severity']
+                    if cluster not in app_metrics:
+                        app_metrics[cluster] = {}
+                    if namespace not in app_metrics[cluster]:
+                        app_metrics[cluster][namespace] = {}
+                    if severity not in app_metrics[cluster][namespace]:
                         value = int(sample.value)
-                        validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
-
-        app['container_vulnerabilities'] = vuln_mx
-        app['deployment_validations'] = validt_mx
+                        app_metrics[cluster][namespace][severity] = value
+        app['container_vulnerabilities'] = app_metrics
 
     return apps
 
