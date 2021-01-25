@@ -107,6 +107,12 @@ class Report(object):
             'post_deploy_jobs',
             self.get_post_deploy_jobs_content(
                 self.app.get('post_deploy_jobs')
+
+        # Deployment Validations
+        self.add_report_section(
+            'deployment_validations',
+            self.get_validations_content(
+                self.app_get('deployment_validations')
             )
         )
 
@@ -196,6 +202,18 @@ class Report(object):
                                 'namespace': namespace,
                                 'post_deploy_job': post_deploy_job})
         return results
+
+    def get_validations_content(deployment_validations):
+        parsed_metrics = []
+        if not deployment_validations:
+            return parsed_metrics
+
+        for cluster, namespaces in deployment_validations.items():
+            for namespace, validations in namespaces.items():
+                parsed_metrics.append({'cluster': cluster,
+                                       'namespace': namespace,
+                                       'validations': validations})
+        return parsed_metrics
 
     def get_performance_metrics(self, performance_parameters, method, field):
         return [
@@ -495,33 +513,57 @@ def get_apps_data(date, month_delta=1):
             successes = [h for h in cr_history if h == 'SUCCESS']
             app['merge_activity'][cr] = (len(cr_history), len(successes))
 
-        logging.info(f"collecting vulnerabilities information for {app_name}")
+        logging.info(f"collecting dashdotdb information for {app_name}")
         app_namespaces = []
         for namespace in namespaces:
             if namespace['app']['name'] != app['name']:
                 continue
             app_namespaces.append(namespace)
-        app_metrics = {}
+        vuln_mx = {}
+        validt_mx = {}
         for family in text_string_to_metric_families(metrics):
             for sample in family.samples:
-                if sample.name != 'imagemanifestvuln_total':
-                    continue
-                for app_namespace in app_namespaces:
-                    cluster = sample.labels['cluster']
-                    if app_namespace['cluster']['name'] != cluster:
-                        continue
-                    namespace = sample.labels['namespace']
-                    if app_namespace['name'] != namespace:
-                        continue
-                    severity = sample.labels['severity']
-                    if cluster not in app_metrics:
-                        app_metrics[cluster] = {}
-                    if namespace not in app_metrics[cluster]:
-                        app_metrics[cluster][namespace] = {}
-                    if severity not in app_metrics[cluster][namespace]:
+                if sample.name == 'imagemanifestvuln_total':
+                    for app_namespace in app_namespaces:
+                        cluster = sample.labels['cluster']
+                        if app_namespace['cluster']['name'] != cluster:
+                            continue
+                        namespace = sample.labels['namespace']
+                        if app_namespace['name'] != namespace:
+                            continue
+                        severity = sample.labels['severity']
+                        if cluster not in vuln_mx:
+                            vuln_mx[cluster] = {}
+                        if namespace not in vuln_mx[cluster]:
+                            vuln_mx[cluster][namespace] = {}
+                        if severity not in vuln_mx[cluster][namespace]:
+                            value = int(sample.value)
+                            vuln_mx[cluster][namespace][severity] = value
+                if sample.name == 'deploymentvalidation_total':
+                    for app_namespace in app_namespaces:
+                        cluster = sample.labels['cluster']
+                        if app_namespace['cluster']['name'] != cluster:
+                            continue
+                        namespace = sample.labels['namespace']
+                        if app_namespace['name'] != namespace:
+                            continue
+                        validation = sample.labels['validation']
+                        # dvo: fail == 1, pass == 0, py: true == 1, false == 0
+                        # so: ({false|pass}, {true|fail})
+                        status = ('Passed', 'Failed')[sample.labels['status']]
+                        if cluster not in validt_mx:
+                            validt_mx[cluster] = {}
+                        if namespace not in validt_mx[cluster]:
+                            validt_mx[cluster][namespace] = {}
+                        if validation not in validt_mx[cluster][namespace]:
+                            validt_mx[cluster][namespace][validation] = {}
+                        if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
+                            validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
                         value = int(sample.value)
-                        app_metrics[cluster][namespace][severity] = value
-        app['container_vulnerabilities'] = app_metrics
+                        validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
+
+        app['container_vulnerabilities'] = vuln_mx
+        app['deployment_validations'] = validt_mx
 
     return apps
 
