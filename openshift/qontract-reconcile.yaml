@@ -11912,6 +11912,7 @@ objects:
     name: qontract-reconcile-dashdotdb-cso
   spec:
     schedule: "0 */6 * * *"
+    concurrencyPolicy: Replace
     jobTemplate:
       spec:
         template:
@@ -11970,7 +11971,10 @@ objects:
       app: qontract-reconcile-dashdotdb-dvo
     name: qontract-reconcile-dashdotdb-dvo
   spec:
-    schedule: "0 */1 * * *"
+    schedule: "0 */2 * * *"
+    concurrencyPolicy: Replace
+    successfulJobHistoryLimit: 12
+    failedJobHistoryLimit: 12
     jobTemplate:
       spec:
         template:
@@ -12017,7 +12021,7 @@ objects:
                 requests:
                   cpu: 100m
                   memory: 400Mi
-            restartPolicy: OnFailure
+            restartPolicy: Never
             volumes:
             - name: qontract-reconcile-toml
               secret:
