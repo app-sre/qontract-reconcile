@@ -241,6 +241,9 @@ objects:
     name: qontract-reconcile-{{ $integration.name }}
   spec:
     schedule: "{{ $integration.cron }}"
+    concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
+    successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit | default "3" }}
+    failedJobHistoryLimit: {{ $integration.failedJobHistoryLimit | default "1" }}
     jobTemplate:
       spec:
         template:
@@ -293,7 +296,7 @@ objects:
                 mountPath: /config
               resources:
 {{ toYaml $integration.resources | indent 16 }}
-            restartPolicy: OnFailure
+            restartPolicy: {{ $integration.restartPolicy | default "OnFailure" }}
             volumes:
             - name: qontract-reconcile-toml
               secret:
