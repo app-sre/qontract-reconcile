@@ -19,6 +19,15 @@ class ConstructResourceError(Exception):
         )
 
 
+# Regexes for kubernetes objects fields which have to adhere to DNS-1123
+DNS_SUBDOMAIN_MAX_LENGTH = 253
+DNS_SUBDOMAIN_RE = re.compile(
+    r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$')
+DNS_LABEL_MAX_LENGTH = 63
+DNS_LABEL_RE = re.compile(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+DNS_NAMES_URL = \
+    'https://kubernetes.io/docs/concepts/overview/working-with-objects/names/'
+
 IGNORABLE_DATA_FIELDS = ['service-ca.crt']
 
 
@@ -163,17 +172,39 @@ class OpenshiftResource(object):
                 e.__class__.__name__, self.error_details)
             raise ConstructResourceError(msg)
 
-        r = '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
         if self.kind not in \
                 ['Role', 'RoleBinding', 'ClusterRole', 'ClusterRoleBinding'] \
-                and not re.search(r'^{}$'.format(r), self.name):
+                and (not DNS_SUBDOMAIN_RE.match(self.name) or
+                     not len(self.name) <= DNS_SUBDOMAIN_MAX_LENGTH):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
-                f"metadata.name: Invalid value: \"{self.name}\": " + \
-                f"a DNS-1123 subdomain must consist of lower case " + \
-                f"alphanumeric characters, '-' or '.', and must start " + \
-                f"and end with an alphanumeric character (e.g. " + \
-                f"'example.com', regex used for validation is '{r}')"
+                f"metadata.name: Invalid value: \"{self.name}\". " + \
+                f"This field must adhere to DNS-1123 subdomain names spec." + \
+                f"More info can be found at {DNS_NAMES_URL}."
             raise ConstructResourceError(msg)
+
+        # All objects that have a spec.template.spec.containers[]
+        try:
+            containers = self.body['spec']['template']['spec']['containers']
+            if not isinstance(containers, list):
+                msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
+                      f"spec.template.spec.containers is not a list"
+                raise ConstructResourceError(msg)
+            for c in containers:
+                cname = c.get('name', None)
+                if cname is None:
+                    msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
+                        f"an item in spec.template.spec.containers was " + \
+                        f"found without a required name field"
+                    raise ConstructResourceError(msg)
+                if (not DNS_LABEL_RE.match(cname) or
+                        not len(cname) <= DNS_LABEL_MAX_LENGTH):
+                    msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
+                        f"an container in spec.template.spec.containers " + \
+                        f"was found with an invalid name ({cname}). More " + \
+                        f"info at {DNS_NAMES_URL}."
+                    raise ConstructResourceError(msg)
+        except KeyError:
+            pass
 
     def has_qontract_annotations(self):
         try:
