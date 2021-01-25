@@ -246,13 +246,13 @@ objects:
     {{- else }}
     concurrencyPolicy: Allow
     {{- end }}
-    {{- if $integration.concurrencyPolicy }}
-    successfulJobHistoryLimit: {{ $integration.concurrencyPolicy }}
+    {{- if $integration.successfulJobHistoryLimit }}
+    successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit }}
     {{- else }}
     successfulJobHistoryLimit: 3
     {{- end }}
-    {{- if $integration.concurrencyPolicy }}
-    failedJobHistoryLimit: {{ $integration.concurrencyPolicy }}
+    {{- if $integration.failedJobHistoryLimit }}
+    failedJobHistoryLimit: {{ $integration.failedJobHistoryLimit }}
     {{- else }}
     failedJobHistoryLimit: 1
     {{- end }}

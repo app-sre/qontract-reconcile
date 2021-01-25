@@ -11745,9 +11745,9 @@ objects:
     name: qontract-reconcile-aws-ecr-image-pull-secrets
   spec:
     schedule: "0 */2 * * *"
-    concurrencyPolicy: ""
-    successfulJobHistoryLimit: ""
-    failedJobHistoryLimit: ""
+    concurrencyPolicy: Allow
+    successfulJobHistoryLimit: 3
+    failedJobHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -11802,9 +11802,9 @@ objects:
     name: qontract-reconcile-aws-garbage-collector
   spec:
     schedule: "0 0 * * 0"
-    concurrencyPolicy: ""
-    successfulJobHistoryLimit: ""
-    failedJobHistoryLimit: ""
+    concurrencyPolicy: Allow
+    successfulJobHistoryLimit: 3
+    failedJobHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -11859,9 +11859,9 @@ objects:
     name: qontract-reconcile-github-users
   spec:
     schedule: "0 0 1 * *"
-    concurrencyPolicy: ""
-    successfulJobHistoryLimit: ""
-    failedJobHistoryLimit: ""
+    concurrencyPolicy: Allow
+    successfulJobHistoryLimit: 3
+    failedJobHistoryLimit: 1
     jobTemplate:
       spec:
         template:
@@ -11921,6 +11921,9 @@ objects:
     name: qontract-reconcile-dashdotdb-cso
   spec:
     schedule: "0 */6 * * *"
+    concurrencyPolicy: Replace
+    successfulJobHistoryLimit: Replace
+    failedJobHistoryLimit: Replace
     jobTemplate:
       spec:
         template:
@@ -11967,7 +11970,7 @@ objects:
                 requests:
                   cpu: 100m
                   memory: 400Mi
-            restartPolicy: onFailure
+            restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
               secret:
@@ -11980,6 +11983,9 @@ objects:
     name: qontract-reconcile-dashdotdb-dvo
   spec:
     schedule: "0 */1 * * *"
+    concurrencyPolicy: Replace
+    successfulJobHistoryLimit: Replace
+    failedJobHistoryLimit: Replace
     jobTemplate:
       spec:
         template:
