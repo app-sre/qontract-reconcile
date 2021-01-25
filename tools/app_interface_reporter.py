@@ -204,6 +204,7 @@ class Report(object):
                                 'post_deploy_job': post_deploy_job})
         return results
 
+    @staticmethod
     def get_validations_content(deployment_validations):
         parsed_metrics = []
         if not deployment_validations:
