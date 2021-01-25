@@ -11745,6 +11745,9 @@ objects:
     name: qontract-reconcile-aws-ecr-image-pull-secrets
   spec:
     schedule: "0 */2 * * *"
+    concurrencyPolicy: ""
+    successfulJobHistoryLimit: ""
+    failedJobHistoryLimit: ""
     jobTemplate:
       spec:
         template:
@@ -11799,6 +11802,9 @@ objects:
     name: qontract-reconcile-aws-garbage-collector
   spec:
     schedule: "0 0 * * 0"
+    concurrencyPolicy: ""
+    successfulJobHistoryLimit: ""
+    failedJobHistoryLimit: ""
     jobTemplate:
       spec:
         template:
@@ -11853,6 +11859,9 @@ objects:
     name: qontract-reconcile-github-users
   spec:
     schedule: "0 0 1 * *"
+    concurrencyPolicy: ""
+    successfulJobHistoryLimit: ""
+    failedJobHistoryLimit: ""
     jobTemplate:
       spec:
         template:
@@ -11958,7 +11967,7 @@ objects:
                 requests:
                   cpu: 100m
                   memory: 400Mi
-            restartPolicy: OnFailure
+            restartPolicy: onFailure
             volumes:
             - name: qontract-reconcile-toml
               secret:
@@ -12017,7 +12026,7 @@ objects:
                 requests:
                   cpu: 100m
                   memory: 400Mi
-            restartPolicy: OnFailure
+            restartPolicy: Never
             volumes:
             - name: qontract-reconcile-toml
               secret:

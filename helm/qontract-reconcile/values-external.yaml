@@ -556,15 +556,9 @@ cronjobs:
   dashdotdb: true
 - name: dashdotdb-dvo
   concurrencyPolicy: Replace
-  concurrencyPolicy: Replace
   successfulJobHistoryLimit: 12
   failedJobHistoryLimit: 12
-  spec:
-     jobTemplate:
-       spec:
-         template:
-           spec:
-             restartPolicy: Never
+  restartPolicy: Never
   resources:
     requests:
       memory: 400Mi
