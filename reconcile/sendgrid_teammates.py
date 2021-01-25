@@ -84,7 +84,7 @@ def run(dry_run):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
 
-    users = queries.get_roles()
+    users = queries.get_roles(aws=False, saas_files=False, sendgrid=True)
     desired_state_all = fetch_desired_state(users)
 
     sendgrid_accounts = queries.get_sendgrid_accounts()
