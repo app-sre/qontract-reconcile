@@ -552,7 +552,8 @@ def get_apps_data(date, month_delta=1):
                         validation = sample.labels['validation']
                         # dvo: fail == 1, pass == 0, py: true == 1, false == 0
                         # so: ({false|pass}, {true|fail})
-                        status = ('Passed', 'Failed')[int(sample.labels['status'])]
+                        status = ('Passed',
+                                  'Failed')[int(sample.labels['status'])]
                         if cluster not in validt_mx:
                             validt_mx[cluster] = {}
                         if namespace not in validt_mx[cluster]:
