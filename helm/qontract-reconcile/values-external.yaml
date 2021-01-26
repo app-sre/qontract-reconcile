@@ -506,6 +506,17 @@ integrations:
     limits:
       memory: 520Mi
       cpu: 300m
+- name: sendgrid-teammates
+  resources:
+    requests:
+      memory: 50Mi
+      cpu: 100m
+    limits:
+      memory: 150Mi
+      cpu: 200m
+  logs:
+    slack: true
+    cloudwatch: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
@@ -570,14 +581,3 @@ cronjobs:
   # once every 3 hours
   cron: '0 */3 * * *'
   dashdotdb: true
-- name: sendgrid-teammates
-  resources:
-    requests:
-      memory: 50Mi
-      cpu: 100m
-    limits:
-      memory: 150Mi
-      cpu: 200m
-  logs:
-    slack: true
-    cloudwatch: true
