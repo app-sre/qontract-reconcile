@@ -80,10 +80,16 @@ class _VaultClient:
         """
         secret_path = secret['path']
         secret_version = secret.get('version')
-        try:
+
+        data = None
+        if secret_version is not None:
             data = self._read_all_v2(secret_path, secret_version)
-        except Exception:
+        else:
             data = self._read_all_v1(secret_path)
+
+        if data is None:
+            raise SecretNotFound(secret_path, secret_version)
+
         return data
 
     def _read_all_v2(self, path, version):
