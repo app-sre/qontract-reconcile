@@ -16,6 +16,10 @@ class SecretNotFound(Exception):
     pass
 
 
+class SecretAccessForbidden(Exception):
+    pass
+
+
 class SecretVersionNotFound(Exception):
     pass
 
@@ -102,6 +106,9 @@ class _VaultClient:
             msg = (f'version \'{version}\' not found '
                    f'for secret with path \'{path}\'.')
             raise SecretVersionNotFound(msg)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
         if secret is None or 'data' not in secret \
                 or 'data' not in secret['data']:
             raise SecretNotFound(path)
@@ -111,9 +118,15 @@ class _VaultClient:
         return data
 
     def _read_all_v1(self, path):
-        secret = self._client.read(path)
+        try:
+            secret = self._client.read(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
+
         if secret is None or 'data' not in secret:
             raise SecretNotFound(path)
+
         return secret['data']
 
     @retry()
