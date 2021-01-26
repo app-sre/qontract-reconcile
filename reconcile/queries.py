@@ -1,4 +1,5 @@
 import logging
+from jinja2 import Template
 
 import reconcile.utils.gql as gql
 
@@ -951,6 +952,8 @@ ROLES_QUERY = """
         }
         role
       }
+
+      {% if aws %}
       aws_groups {
         name
         path
@@ -959,18 +962,32 @@ ROLES_QUERY = """
         }
         policies
       }
+      {% endif %}
+
+      {% if saas_files %}
       owned_saas_files {
         name
       }
+      {% endif %}
+
+      {% if sendgrid %}
+      sendgrid_accounts {
+        path
+        name
+      }
+      {% endif %}
     }
   }
 }
 """
 
 
-def get_roles():
+def get_roles(aws=True, saas_files=True, sendgrid=False):
     gqlapi = gql.get_api()
-    return gqlapi.query(ROLES_QUERY)['users']
+    query = Template(ROLES_QUERY).render(aws=aws,
+                                         saas_files=saas_files,
+                                         sendgrid=sendgrid)
+    return gqlapi.query(query)['users']
 
 
 def get_users():
@@ -1604,3 +1621,23 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
 def get_ocp_release_ecr_mirror():
     gqlapi = gql.get_api()
     return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_ecr_mirror']
+
+
+SENDGRID_ACCOUNTS_QUERY = """
+{
+  sendgrid_accounts: sendgrid_accounts_v1 {
+    path
+    name
+    token {
+      path
+      field
+    }
+  }
+}
+"""
+
+
+def get_sendgrid_accounts():
+    """ Returns SendGrid accounts """
+    gqlapi = gql.get_api()
+    return gqlapi.query(SENDGRID_ACCOUNTS_QUERY)['sendgrid_accounts']
