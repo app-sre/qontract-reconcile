@@ -96,7 +96,6 @@ class TerrascriptClient(object):
                     ts += provider.aws(
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
-                        version=config['aws_provider_version'],
                         region=region,
                         alias=region)
 
@@ -104,7 +103,6 @@ class TerrascriptClient(object):
             ts += provider.aws(
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
-                version=config['aws_provider_version'],
                 region=config['region'])
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
@@ -118,6 +116,8 @@ class TerrascriptClient(object):
         self.tss = tss
         self.locks = locks
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
+        self.versions = {a['name']: a['providerVersion']
+                         for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
         github_config = get_config()['github']
@@ -359,7 +359,6 @@ class TerrascriptClient(object):
                 ts += provider.aws(
                     access_key=config['aws_access_key_id'],
                     secret_key=config['aws_secret_access_key'],
-                    version=config['aws_provider_version'],
                     region=account['assume_region'],
                     alias=alias,
                     assume_role={'role_arn': assume_role})
