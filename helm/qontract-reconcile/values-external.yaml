@@ -519,6 +519,7 @@ cronjobs:
   cron: '0 */2 * * *'
   extraArgs: --vault-output-path app-sre/integrations-output
 - name: aws-garbage-collector
+  failedJobHistoryLimit: "0"
   resources:
     requests:
         memory: 200Mi

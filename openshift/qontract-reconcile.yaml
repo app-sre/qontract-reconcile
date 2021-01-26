@@ -11804,7 +11804,7 @@ objects:
     schedule: "0 0 * * 0"
     concurrencyPolicy: Allow
     successfulJobHistoryLimit: 3
-    failedJobHistoryLimit: 1
+    failedJobHistoryLimit: 0
     jobTemplate:
       spec:
         template:
