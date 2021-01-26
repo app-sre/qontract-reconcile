@@ -11,6 +11,7 @@ import reconcile.utils.threaded as threaded
 from reconcile.utils.vault import VaultClient
 from reconcile.utils.vault import SecretVersionNotFound
 import reconcile.utils.openssl as openssl
+import reconcile.utils.amtool as amtool
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
@@ -49,11 +50,15 @@ provider
 ... on NamespaceOpenshiftResourceResource_v1 {
   path
   validate_json
+  validate_alertmanager_config
+  alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
   path
   type
   variables
+  validate_alertmanager_config
+  alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceVaultSecret_v1 {
   path
@@ -62,6 +67,8 @@ provider
   labels
   annotations
   type
+  validate_alertmanager_config
+  alertmanager_config_key
 }
 ... on NamespaceOpenshiftResourceRoute_v1 {
   path
@@ -220,8 +227,28 @@ def process_extracurlyjinja2_template(body, vars={}):
     return process_jinja2_template(body, vars=vars, env=env)
 
 
+def check_alertmanager_config(data, path, alertmanager_config_key,
+                              decode_base64=False):
+    try:
+        config = data[alertmanager_config_key]
+    except KeyError:
+        e_msg = f"error validating alertmanager config in {path}: " \
+                f"missing key {alertmanager_config_key}"
+        raise FetchResourceError(e_msg)
+
+    if decode_base64:
+        config = base64.b64decode(config).decode('utf-8')
+
+    result = amtool.check_config(config)
+    if not result:
+        e_msg = f"error validating alertmanager config in {path}: {result}"
+        raise FetchResourceError(e_msg)
+
+
 def fetch_provider_resource(path, tfunc=None, tvars=None,
                             validate_json=False,
+                            validate_alertmanager_config=False,
+                            alertmanager_config_key='alertmanager.yaml',
                             add_path_to_prom_rules=True):
     gqlapi = gql.get_api()
 
@@ -258,6 +285,12 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                 e_msg = f"invalid json in {path} under {file_name}"
                 raise FetchResourceError(e_msg)
 
+    if validate_alertmanager_config:
+        decode_base64 = True if resource['body']['kind'] == 'Secret' else False
+        check_alertmanager_config(resource['body']['data'], path,
+                                  alertmanager_config_key,
+                                  decode_base64)
+
     if add_path_to_prom_rules:
         body = resource['body']
         if body['kind'] == 'PrometheusRule':
@@ -290,10 +323,15 @@ def fetch_provider_vault_secret(
         path, version, name,
         labels, annotations, type,
         integration,
-        integration_version):
+        integration_version,
+        validate_alertmanager_config=False,
+        alertmanager_config_key='alertmanager.yaml'):
     # get the fields from vault
     vault_client = VaultClient()
     raw_data = vault_client.read_all({'path': path, 'version': version})
+
+    if validate_alertmanager_config:
+        check_alertmanager_config(raw_data, path, alertmanager_config_key)
 
     # construct oc resource
     body = {
@@ -385,13 +423,23 @@ def fetch_openshift_resource(resource, parent):
         validate_json = resource.get('validate_json') or False
         add_path_to_prom_rules = \
             resource.get('add_path_to_prom_rules', True)
+        validate_alertmanager_config = \
+            resource.get('validate_alertmanager_config') or False
+        alertmanager_config_key = \
+            resource.get('alertmanager_config_key') or 'alertmanager.yaml'
         openshift_resource = fetch_provider_resource(
             path,
             validate_json=validate_json,
+            validate_alertmanager_config=validate_alertmanager_config,
+            alertmanager_config_key=alertmanager_config_key,
             add_path_to_prom_rules=add_path_to_prom_rules)
     elif provider == 'resource-template':
         add_path_to_prom_rules = \
             resource.get('add_path_to_prom_rules', True)
+        validate_alertmanager_config = \
+            resource.get('validate_alertmanager_config') or False
+        alertmanager_config_key = \
+            resource.get('alertmanager_config_key') or 'alertmanager.yaml'
         tv = {}
         if resource['variables']:
             tv = anymarkup.parse(resource['variables'], force_types=None)
@@ -410,6 +458,8 @@ def fetch_openshift_resource(resource, parent):
                 path,
                 tfunc=tfunc,
                 tvars=tv,
+                validate_alertmanager_config=validate_alertmanager_config,
+                alertmanager_config_key=alertmanager_config_key,
                 add_path_to_prom_rules=add_path_to_prom_rules)
         except Exception as e:
             msg = "could not render template at path {}\n{}".format(path, e)
@@ -424,12 +474,18 @@ def fetch_openshift_resource(resource, parent):
         annotations = {} if ra is None else json.loads(ra)
         rt = resource['type']
         type = 'Opaque' if rt is None else rt
+        validate_alertmanager_config = \
+            resource.get('validate_alertmanager_config') or False
+        alertmanager_config_key = \
+            resource.get('alertmanager_config_key') or 'alertmanager.yaml'
         try:
             openshift_resource = fetch_provider_vault_secret(
                 path, version, name,
                 labels, annotations, type,
                 integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION)
+                integration_version=QONTRACT_INTEGRATION_VERSION,
+                validate_alertmanager_config=validate_alertmanager_config,
+                alertmanager_config_key=alertmanager_config_key)
         except SecretVersionNotFound as e:
             raise FetchVaultSecretError(e)
     elif provider == 'route':
