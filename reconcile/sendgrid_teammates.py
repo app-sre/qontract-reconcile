@@ -1,9 +1,11 @@
 import logging
+import sys
 
 import sendgrid
 
 import reconcile.queries as queries
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.status import ExitCodes
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'sendgrid_teammates'
@@ -52,6 +54,13 @@ def fetch_current_state(sg_client):
 
 
 def act(dry_run, sg_client, desired_state, current_state):
+    """
+    Reconciles current state with desired state.
+
+    :return: whether there has been an error
+    :rtype: bool
+    """
+
     desired_emails = [e.email for e in desired_state]
     current_emails = [e.email for e in current_state]
 
@@ -59,6 +68,7 @@ def act(dry_run, sg_client, desired_state, current_state):
         if user.email not in desired_emails:
             LOG.info(['delete', user.email])
 
+    error = False
     for user in desired_state:
         if user.email not in current_emails:
             # ignore pending users
@@ -76,8 +86,11 @@ def act(dry_run, sg_client, desired_state, current_state):
 
                 response = sg_client.teammates.post(request_body=req)
                 if int(response.status_code / 100) != 2:
+                    error = True
                     LOG.error(['error inviting user',
                                response.body.decode('utf-8')])
+
+    return error
 
 
 def run(dry_run):
@@ -95,4 +108,6 @@ def run(dry_run):
         current_state = fetch_current_state(sg_client)
         desired_state = desired_state_all.get(sg_account['name'], [])
 
-        act(dry_run, sg_client, desired_state, current_state)
+        error = act(dry_run, sg_client, desired_state, current_state)
+        if error:
+            sys.exit(ExitCodes.ERROR)
