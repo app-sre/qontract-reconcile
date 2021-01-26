@@ -85,6 +85,8 @@ class TerrascriptClient(object):
         filtered_accounts = self.filter_disabled_accounts(accounts)
         self.secret_reader = SecretReader(settings=settings)
         self.populate_configs(filtered_accounts)
+        self.versions = {a['name']: a['providerVersion']
+                         for a in filtered_accounts}
         tss = {}
         locks = {}
         for name, config in self.configs.items():
@@ -96,7 +98,7 @@ class TerrascriptClient(object):
                     ts += provider.aws(
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
-                        version=config['providerVersion'],
+                        version=self.versions.get(name),
                         region=region,
                         alias=region)
 
@@ -104,7 +106,7 @@ class TerrascriptClient(object):
             ts += provider.aws(
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
-                version=config['providerVersion'],
+                version=self.versions.get(name),
                 region=config['region'])
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
@@ -359,7 +361,7 @@ class TerrascriptClient(object):
                 ts += provider.aws(
                     access_key=config['aws_access_key_id'],
                     secret_key=config['aws_secret_access_key'],
-                    version=config['providerVersion'],
+                    version=self.versions.get(account_name),
                     region=account['assume_region'],
                     alias=alias,
                     assume_role={'role_arn': assume_role})

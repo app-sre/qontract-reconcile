@@ -232,6 +232,7 @@ AWS_ACCOUNTS_QUERY = """
     consoleUrl
     resourcesDefaultRegion
     supportedDeploymentRegions
+    providerVersion
     accountOwners {
       name
       email
