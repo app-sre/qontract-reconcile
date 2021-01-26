@@ -670,7 +670,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 
 @integration.command()
 @threaded(default=20)
-@binary(['oc', 'ssh'])
+@binary(['oc', 'ssh', 'amtool'])
 @internal()
 @use_jump_host()
 @cluster_name
