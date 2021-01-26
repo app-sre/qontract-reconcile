@@ -81,16 +81,37 @@ class _VaultClient:
         secret_path = secret['path']
         secret_version = secret.get('version')
 
+        kv_version = self._get_mount_version(secret_path)
+
         data = None
-        if secret_version is not None:
+        if kv_version == 2:
             data = self._read_all_v2(secret_path, secret_version)
         else:
             data = self._read_all_v1(secret_path)
 
         if data is None:
-            raise SecretNotFound(secret_path, secret_version)
+            raise SecretNotFound
 
         return data
+
+    def _get_mount_version(self, path):
+        path_split = path.split('/')
+        mount_point = path_split[0]
+
+        cache_key = ('mountversion', mount_point)
+        cache_value = self._cache.get(cache_key)
+        if cache_value is not None:
+            logging.debug('Vault v2 cache hit')
+            return cache_value
+
+        try:
+            self._client.secrets.kv.v2.read_configuration(mount_point)
+            version = 2
+        except Exception:
+            version = 1
+
+        self._cache[cache_key] = version
+        return version
 
     def _read_all_v2(self, path, version):
         cache_key = (path, version)
