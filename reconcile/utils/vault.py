@@ -16,6 +16,10 @@ class SecretNotFound(Exception):
     pass
 
 
+class SecretAccessForbidden(Exception):
+    pass
+
+
 class SecretVersionNotFound(Exception):
     pass
 
@@ -76,11 +80,38 @@ class _VaultClient:
         """
         secret_path = secret['path']
         secret_version = secret.get('version')
-        try:
+
+        kv_version = self._get_mount_version(secret_path)
+
+        data = None
+        if kv_version == 2:
             data = self._read_all_v2(secret_path, secret_version)
-        except Exception:
+        else:
             data = self._read_all_v1(secret_path)
+
+        if data is None:
+            raise SecretNotFound
+
         return data
+
+    def _get_mount_version(self, path):
+        path_split = path.split('/')
+        mount_point = path_split[0]
+
+        cache_key = ('mountversion', mount_point)
+        cache_value = self._cache.get(cache_key)
+        if cache_value is not None:
+            logging.debug('Vault v2 cache hit')
+            return cache_value
+
+        try:
+            self._client.secrets.kv.v2.read_configuration(mount_point)
+            version = 2
+        except Exception:
+            version = 1
+
+        self._cache[cache_key] = version
+        return version
 
     def _read_all_v2(self, path, version):
         cache_key = (path, version)
@@ -102,6 +133,9 @@ class _VaultClient:
             msg = (f'version \'{version}\' not found '
                    f'for secret with path \'{path}\'.')
             raise SecretVersionNotFound(msg)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
         if secret is None or 'data' not in secret \
                 or 'data' not in secret['data']:
             raise SecretNotFound(path)
@@ -111,9 +145,15 @@ class _VaultClient:
         return data
 
     def _read_all_v1(self, path):
-        secret = self._client.read(path)
+        try:
+            secret = self._client.read(path)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
+
         if secret is None or 'data' not in secret:
             raise SecretNotFound(path)
+
         return secret['data']
 
     @retry()
