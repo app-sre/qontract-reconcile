@@ -64,7 +64,7 @@ def act(dry_run, sg_client, desired_state, current_state):
     desired_emails = [e.email for e in desired_state]
     current_emails = [e.email for e in current_state]
 
-    for user in current_emails:
+    for user in current_state:
         if user.email not in desired_emails:
             LOG.info(['delete', user.email])
 
