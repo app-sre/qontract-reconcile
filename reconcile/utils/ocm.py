@@ -75,7 +75,8 @@ class OCM(object):
                 'load_balancers': cluster['load_balancer_quota'],
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
-                    self.get_provision_shard(cluster['id'])['id']
+                    self.get_provision_shard(cluster['id'])['id'],
+                'autoscale': self._get_autoscale(cluster),
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -139,6 +140,10 @@ class OCM(object):
         if provision_shard_id:
             ocm_spec.setdefault('properties', {})
             ocm_spec['properties']['provision_shard_id'] = provision_shard_id
+
+        autoscale = cluster_spec.get('autoscale')
+        if autoscale is not None:
+            ocm_spec['nodes']['autoscale_compute'] = autoscale
 
         params = {}
         if dry_run:
@@ -542,6 +547,14 @@ class OCM(object):
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard'
         return self._get_json(api)
+
+    @staticmethod
+    def _get_autoscale(cluster):
+        autoscale = cluster['nodes'].get('autoscale_compute', None)
+        if autoscale is None:
+            return None
+        desired_keys = ['min_replicas', 'max_replicas']
+        return {k: v for k, v in autoscale.items() if k in desired_keys}
 
     def get_pull_secrets(self,):
         api = '/api/accounts_mgmt/v1/access_token'
