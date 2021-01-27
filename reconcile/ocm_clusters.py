@@ -92,13 +92,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
 
-            # validate specs
             if current_spec != desired_spec:
-                logging.error(
-                    '[%s] desired spec %s is different ' +
-                    'from current spec %s',
-                    cluster_name, desired_spec, current_spec)
-                error = True
+                # update cluster
+                logging.info(['update_cluster', cluster_name])
+                ocm = ocm_map.get(cluster_name)
+                ocm.update_cluster(cluster_name, desired_spec, dry_run)
         else:
             # create cluster
             if cluster_name in pending_state:

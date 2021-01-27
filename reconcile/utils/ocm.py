@@ -151,6 +151,51 @@ class OCM(object):
 
         self._post(api, ocm_spec, params)
 
+    def update_cluster(self, name, cluster, dry_run):
+        """
+        Updates a cluster.
+
+        :param name: name of the cluster
+        :param cluster: a dictionary representing a cluster desired state
+        :param dry_run: do not execute for real
+
+        :type name: string
+        :type cluster: dict
+        :type dry_run: bool
+        """
+        cluster_id = self.cluster_ids.get(name)
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}'
+        cluster_spec = cluster['spec']
+        cluster_network = cluster['network']
+        ocm_spec = {
+            'nodes': {
+                'compute_machine_type': {
+                    'id': cluster_spec['instance_type']
+                }
+            },
+            'storage_quota': {
+                'value': float(cluster_spec['storage'] * pow(1024, 3))
+            },
+            'load_balancer_quota': cluster_spec['load_balancers'],
+            'api': {
+                'listening':
+                    'internal' if cluster_spec['private']
+                    else 'external'
+            }
+        }
+
+        autoscale = cluster_spec.get('autoscale')
+        if autoscale is not None:
+            ocm_spec['nodes']['autoscale_compute'] = autoscale
+        else:
+            ocm_spec['nodes']['compute'] = cluster_spec['nodes']
+
+        params = {}
+        if dry_run:
+            params['dryRun'] = 'true'
+
+        self._patch(api, ocm_spec, params)
+
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
         If the group does not exist, None will be returned.
@@ -649,9 +694,13 @@ class OCM(object):
             return None
         return r.json()
 
-    def _patch(self, api, data):
+    def _patch(self, api, data, params=None):
         r = requests.patch(
-            f"{self.url}{api}", headers=self.headers, json=data)
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params,
+        )
         try:
             r.raise_for_status()
         except Exception as e:
