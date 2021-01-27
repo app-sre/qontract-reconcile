@@ -94,6 +94,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
             if current_spec != desired_spec:
                 # update cluster
+                logging.debug(
+                    '[%s] desired spec %s is different ' +
+                    'from current spec %s',
+                    cluster_name, desired_spec, current_spec)
                 logging.info(['update_cluster', cluster_name])
                 ocm = ocm_map.get(cluster_name)
                 ocm.update_cluster(cluster_name, desired_spec, dry_run)
