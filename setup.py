@@ -49,6 +49,7 @@ setup(
         "jenkins-job-builder==2.10.1",
         "tzlocal==2.1",
         "parse==1.18.0",
+        "sendgrid>=6.4.8,<6.5.0",
     ],
 
     test_suite="tests",
