@@ -81,6 +81,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `email-sender`: Send email notifications to app-interface audience.
 - `requests-sender`: Send emails to users based on requests submitted to app-interface.
 - `service-dependencies`: Validate dependencies are defined for each service.
+- `sendgrid-teammates`: Manages SendGrid teammates for a given account.
 - `sentry-config`: Configure and enforce sentry instance configuration.
 - `saas-file-owners`: Adds an `approved` label on merge requests based on approver schema for saas files.
 - `user-validator`: Validate user files.

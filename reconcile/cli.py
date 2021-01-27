@@ -92,6 +92,7 @@ import reconcile.kafka_clusters
 import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
 import reconcile.dashdotdb_dvo
+import reconcile.sendgrid_teammates
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -670,7 +671,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 
 @integration.command()
 @threaded(default=20)
-@binary(['oc', 'ssh'])
+@binary(['oc', 'ssh', 'amtool'])
 @internal()
 @use_jump_host()
 @cluster_name
@@ -1184,3 +1185,9 @@ def integrations_validator(ctx):
 def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
     run_integration(reconcile.prometheus_rules_tester, ctx.obj,
                     thread_pool_size, cluster_name)
+
+
+@integration.command()
+@click.pass_context
+def sendgrid_teammates(ctx):
+    run_integration(reconcile.sendgrid_teammates, ctx.obj)
