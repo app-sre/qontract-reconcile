@@ -12,7 +12,7 @@ from reconcile.utils.ocm import OCMMap
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
 
-def fetch_current_state(clusters):
+def fetch_desired_state(clusters):
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
     # remove unused keys
@@ -29,7 +29,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
     current_state, pending_state = ocm_map.cluster_specs()
-    desired_state = fetch_current_state(clusters)
+    desired_state = fetch_desired_state(clusters)
 
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
