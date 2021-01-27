@@ -67,7 +67,6 @@ class OCM(object):
                 'channel': cluster['version']['channel_group'],
                 'version': cluster['openshift_version'],
                 'multi_az': cluster['multi_az'],
-                'nodes': cluster['nodes']['compute'],
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
@@ -76,7 +75,6 @@ class OCM(object):
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
                     self.get_provision_shard(cluster['id'])['id'],
-                'autoscale': self._get_autoscale(cluster),
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -84,6 +82,14 @@ class OCM(object):
                 'pod': cluster['network']['pod_cidr']
             }
         }
+        cluster_nodes = cluster['nodes']
+        nodes_count = cluster_nodes.get('compute')
+        if nodes_count:
+            ocm_spec['spec']['nodes'] = nodes_count
+        else:
+            autoscale = cluster_nodes.get('autoscale_compute')
+            if autoscale:
+                ocm_spec['spec']['autoscale'] = self._get_autoscale(cluster)
         return ocm_spec
 
     def create_cluster(self, name, cluster, dry_run):
