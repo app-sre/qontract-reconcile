@@ -17,5 +17,5 @@ reconcile_time = Histogram(name='qontract_reconcile_function_'
                            documentation='Run time seconds for tracked '
                                          'functions',
                            labelnames=['name', 'integration'],
-                           buckets=(10.0, 30.0, 60.0, 150.0, 300.0, 600.0,
-                                    1200.0, 1800.0, float("inf")))
+                           buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0,
+                                    2400.0, 3000.0, float("inf")))
