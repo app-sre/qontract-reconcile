@@ -172,7 +172,6 @@ class OCM(object):
         cluster_id = self.cluster_ids.get(name)
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}'
         cluster_spec = cluster['spec']
-        cluster_network = cluster['network']
         ocm_spec = {
             'nodes': {
                 'compute_machine_type': {
