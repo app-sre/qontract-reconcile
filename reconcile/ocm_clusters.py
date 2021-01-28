@@ -19,9 +19,8 @@ def fetch_desired_state(clusters):
     for desired_spec in desired_state.values():
         desired_spec['spec'].pop('upgrade', None)
         # remove empty keys in spec
-        empty_keys = [k for k, v in desired_spec['spec'].items() if v is None]
-        for k in empty_keys:
-            desired_spec['spec'].pop(k)
+        desired_spec['spec'] = \
+            {k: v for k, v in desired_spec['spec'].items() if v is not None}
 
     return desired_state
 

@@ -70,7 +70,7 @@ class OCM(object):
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
-                    int(cluster['storage_quota']['value'] / pow(1024, 3)),
+                    int(cluster['storage_quota']['value'] / 1073741824),  # 1024^3
                 'load_balancers': cluster['load_balancer_quota'],
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
@@ -127,7 +127,7 @@ class OCM(object):
                 }
             },
             'storage_quota': {
-                'value': float(cluster_spec['storage'] * pow(1024, 3))
+                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
             },
             'load_balancer_quota': cluster_spec['load_balancers'],
             'network': {
@@ -179,7 +179,7 @@ class OCM(object):
                 }
             },
             'storage_quota': {
-                'value': float(cluster_spec['storage'] * pow(1024, 3))
+                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
             },
             'load_balancer_quota': cluster_spec['load_balancers'],
             'api': {
