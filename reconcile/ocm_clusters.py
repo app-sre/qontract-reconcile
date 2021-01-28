@@ -12,12 +12,15 @@ from reconcile.utils.ocm import OCMMap
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
 
-def fetch_current_state(clusters):
+def fetch_desired_state(clusters):
     desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
                      for c in clusters}
     # remove unused keys
     for desired_spec in desired_state.values():
         desired_spec['spec'].pop('upgrade', None)
+        # remove empty keys in spec
+        desired_spec['spec'] = \
+            {k: v for k, v in desired_spec['spec'].items() if v is not None}
 
     return desired_state
 
@@ -29,7 +32,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                      settings=settings)
     current_state, pending_state = ocm_map.cluster_specs()
-    desired_state = fetch_current_state(clusters)
+    desired_state = fetch_desired_state(clusters)
 
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
@@ -92,13 +95,17 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
 
-            # validate specs
             if current_spec != desired_spec:
-                logging.error(
+                # update cluster
+                logging.debug(
                     '[%s] desired spec %s is different ' +
                     'from current spec %s',
                     cluster_name, desired_spec, current_spec)
-                error = True
+                logging.info(['update_cluster', cluster_name])
+                # TODO(mafriedm): check dry_run in OCM API patch
+                if not dry_run:
+                    ocm = ocm_map.get(cluster_name)
+                    ocm.update_cluster(cluster_name, desired_spec, dry_run)
         else:
             # create cluster
             if cluster_name in pending_state:

@@ -336,6 +336,10 @@ CLUSTERS_QUERY = """
       private
       upgrade
       provision_shard_id
+      autoscale {
+        min_replicas
+        max_replicas
+      }
     }
     externalConfiguration {
       labels

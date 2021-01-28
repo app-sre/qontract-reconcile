@@ -67,15 +67,14 @@ class OCM(object):
                 'channel': cluster['version']['channel_group'],
                 'version': cluster['openshift_version'],
                 'multi_az': cluster['multi_az'],
-                'nodes': cluster['nodes']['compute'],
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
-                    int(cluster['storage_quota']['value'] / pow(1024, 3)),
+                    int(cluster['storage_quota']['value'] / 1073741824),
                 'load_balancers': cluster['load_balancer_quota'],
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
-                    self.get_provision_shard(cluster['id'])['id']
+                    self.get_provision_shard(cluster['id'])['id'],
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -83,6 +82,14 @@ class OCM(object):
                 'pod': cluster['network']['pod_cidr']
             }
         }
+        cluster_nodes = cluster['nodes']
+        nodes_count = cluster_nodes.get('compute')
+        if nodes_count:
+            ocm_spec['spec']['nodes'] = nodes_count
+        else:
+            autoscale = cluster_nodes.get('autoscale_compute')
+            if autoscale:
+                ocm_spec['spec']['autoscale'] = self._get_autoscale(cluster)
         return ocm_spec
 
     def create_cluster(self, name, cluster, dry_run):
@@ -120,7 +127,7 @@ class OCM(object):
                 }
             },
             'storage_quota': {
-                'value': float(cluster_spec['storage'] * pow(1024, 3))
+                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
             },
             'load_balancer_quota': cluster_spec['load_balancers'],
             'network': {
@@ -140,11 +147,59 @@ class OCM(object):
             ocm_spec.setdefault('properties', {})
             ocm_spec['properties']['provision_shard_id'] = provision_shard_id
 
+        autoscale = cluster_spec.get('autoscale')
+        if autoscale is not None:
+            ocm_spec['nodes']['autoscale_compute'] = autoscale
+
         params = {}
         if dry_run:
             params['dryRun'] = 'true'
 
         self._post(api, ocm_spec, params)
+
+    def update_cluster(self, name, cluster, dry_run):
+        """
+        Updates a cluster.
+
+        :param name: name of the cluster
+        :param cluster: a dictionary representing a cluster desired state
+        :param dry_run: do not execute for real
+
+        :type name: string
+        :type cluster: dict
+        :type dry_run: bool
+        """
+        cluster_id = self.cluster_ids.get(name)
+        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}'
+        cluster_spec = cluster['spec']
+        ocm_spec = {
+            'nodes': {
+                'compute_machine_type': {
+                    'id': cluster_spec['instance_type']
+                }
+            },
+            'storage_quota': {
+                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
+            },
+            'load_balancer_quota': cluster_spec['load_balancers'],
+            'api': {
+                'listening':
+                    'internal' if cluster_spec['private']
+                    else 'external'
+            }
+        }
+
+        autoscale = cluster_spec.get('autoscale')
+        if autoscale is not None:
+            ocm_spec['nodes']['autoscale_compute'] = autoscale
+        else:
+            ocm_spec['nodes']['compute'] = cluster_spec['nodes']
+
+        params = {}
+        if dry_run:
+            params['dryRun'] = 'true'
+
+        self._patch(api, ocm_spec, params)
 
     def get_group_if_exists(self, cluster, group_id):
         """Returns a list of users in a group in a cluster.
@@ -543,6 +598,14 @@ class OCM(object):
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard'
         return self._get_json(api)
 
+    @staticmethod
+    def _get_autoscale(cluster):
+        autoscale = cluster['nodes'].get('autoscale_compute', None)
+        if autoscale is None:
+            return None
+        desired_keys = ['min_replicas', 'max_replicas']
+        return {k: v for k, v in autoscale.items() if k in desired_keys}
+
     def get_pull_secrets(self,):
         api = '/api/accounts_mgmt/v1/access_token'
         return self._post(api)
@@ -636,9 +699,13 @@ class OCM(object):
             return None
         return r.json()
 
-    def _patch(self, api, data):
+    def _patch(self, api, data, params=None):
         r = requests.patch(
-            f"{self.url}{api}", headers=self.headers, json=data)
+            f"{self.url}{api}",
+            headers=self.headers,
+            json=data,
+            params=params,
+        )
         try:
             r.raise_for_status()
         except Exception as e:
