@@ -102,8 +102,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current spec %s',
                     cluster_name, desired_spec, current_spec)
                 logging.info(['update_cluster', cluster_name])
-                ocm = ocm_map.get(cluster_name)
-                ocm.update_cluster(cluster_name, desired_spec, dry_run)
+                # TODO(mafriedm): check dry_run in OCM API patch
+                if not dry_run:
+                    ocm = ocm_map.get(cluster_name)
+                    ocm.update_cluster(cluster_name, desired_spec, dry_run)
         else:
             # create cluster
             if cluster_name in pending_state:
