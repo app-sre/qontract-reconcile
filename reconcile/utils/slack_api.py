@@ -37,7 +37,7 @@ class SlackApi(object):
         usergroup = self.get_usergroup(handle)
         description = usergroup['description']
 
-        user_ids = usergroup['users']
+        user_ids = usergroup.get('users', [])
         users = self.get_users_by_ids(user_ids)
 
         channel_ids = usergroup['prefs']['channels']
