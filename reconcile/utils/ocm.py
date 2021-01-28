@@ -70,7 +70,7 @@ class OCM(object):
                 'instance_type':
                     cluster['nodes']['compute_machine_type']['id'],
                 'storage':
-                    int(cluster['storage_quota']['value'] / 1073741824),  # 1024^3
+                    int(cluster['storage_quota']['value'] / 1073741824),
                 'load_balancers': cluster['load_balancer_quota'],
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
