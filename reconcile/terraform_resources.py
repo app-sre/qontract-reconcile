@@ -248,14 +248,14 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
 
 
 def init_working_dirs(accounts, thread_pool_size,
-                      print_only=False, oc_map=None, settings=None):
+                      oc_map=None, settings=None):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
                      oc_map,
                      settings=settings)
-    working_dirs = ts.dump(print_only)
+    working_dirs = ts.dump()
     return ts, working_dirs
 
 
@@ -275,7 +275,6 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
-                                         print_only=print_only,
                                          oc_map=oc_map,
                                          settings=settings)
     tf = Terraform(QONTRACT_INTEGRATION,
