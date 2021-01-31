@@ -89,7 +89,9 @@ class SlackApi(object):
         )
 
     def get_random_deleted_user(self):
-        return ''
+        for user_id, user_data in self._get('users').items():
+            if user_data['deleted'] is True:
+                return user_id
 
     def get_channels_by_names(self, channels_names):
         return {k: v['name'] for k, v in self._get('channels').items()
