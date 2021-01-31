@@ -92,23 +92,23 @@ class SlackApi(object):
         return ''
 
     def get_channels_by_names(self, channels_names):
-        return {k: v for k, v in self.get('channels').items()
+        return {k: v['name'] for k, v in self._get('channels').items()
                 if v in channels_names}
 
     def get_channels_by_ids(self, channels_ids):
-        return {k: v for k, v in self.get('channels').items()
+        return {k: v['name'] for k, v in self._get('channels').items()
                 if k in channels_ids}
 
     def get_users_by_names(self, user_names):
-        return {k: v for k, v in self.get('users').items()
+        return {k: v['name'] for k, v in self._get('users').items()
                 if v in user_names}
 
     def get_users_by_ids(self, users_ids):
-        return {k: v for k, v in self.get('users').items()
+        return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
     @retry()
-    def get(self, type):
+    def _get(self, type):
         result_key = 'members' if type == 'users' else type
         results = {}
         cursor = ''
@@ -125,7 +125,7 @@ class SlackApi(object):
                 time.sleep(1)
                 continue
             for r in result[result_key]:
-                results[r['id']] = r['name']
+                results[r['id']] = r
             cursor = result['response_metadata']['next_cursor']
             if cursor == '':
                 break
