@@ -79,7 +79,7 @@ class SlackApi(object):
     def update_usergroup_users(self, id, users_list):
         # since Slack API does not support empty usergroups
         # we can trick it by passing a deleted user
-        if len(users) == 0:
+        if len(users_list) == 0:
             users = [self.get_random_deleted_user()]
         users = ','.join(users_list)
         self.sc.api_call(
