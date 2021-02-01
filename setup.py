@@ -16,7 +16,7 @@ setup(
 
     packages=find_packages(exclude=('tests',)),
 
-    data_files=[('templates', glob('templates/*.j2'))],
+    data_files=[('reconcile/templates', glob('reconcile/templates/*.j2'))],
 
     install_requires=[
         "sretoolbox==0.9.2",
