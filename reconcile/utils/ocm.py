@@ -121,7 +121,6 @@ class OCM(object):
             },
             'multi_az': cluster_spec['multi_az'],
             'nodes': {
-                'compute': cluster_spec['nodes'],
                 'compute_machine_type': {
                     'id': cluster_spec['instance_type']
                 }
@@ -150,6 +149,8 @@ class OCM(object):
         autoscale = cluster_spec.get('autoscale')
         if autoscale is not None:
             ocm_spec['nodes']['autoscale_compute'] = autoscale
+        else:
+            ocm_spec['nodes']['compute'] = cluster_spec['nodes']
 
         params = {}
         if dry_run:
