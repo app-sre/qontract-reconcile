@@ -5,7 +5,6 @@ WORKDIR /reconcile
 COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY tools tools
-COPY templates templates
 COPY setup.py .
 
 RUN python3 setup.py install
