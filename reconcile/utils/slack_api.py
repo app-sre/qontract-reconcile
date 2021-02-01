@@ -100,7 +100,7 @@ class SlackApi(object):
 
     def get_channels_by_names(self, channels_names):
         return {k: v['name'] for k, v in self._get('channels').items()
-                if v in channels_names}
+                if v['name'] in channels_names}
 
     def get_channels_by_ids(self, channels_ids):
         return {k: v['name'] for k, v in self._get('channels').items()
@@ -108,7 +108,7 @@ class SlackApi(object):
 
     def get_users_by_names(self, user_names):
         return {k: v['name'] for k, v in self._get('users').items()
-                if v in user_names}
+                if v['name'] in user_names}
 
     def get_users_by_ids(self, users_ids):
         return {k: v['name'] for k, v in self._get('users').items()
