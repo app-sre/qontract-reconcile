@@ -1,6 +1,6 @@
 import jinja2
 import os
-import reconcile.templates
+import reconcile.templates as templates
 
 
 def get_package_environment():
