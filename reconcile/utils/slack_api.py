@@ -93,6 +93,10 @@ class SlackApi(object):
             if user_data['deleted'] is True:
                 return user_id
 
+        logging.error('could not find a deleted user, ' +
+                      'empty usergroup will not work')
+        return ''
+
     def get_channels_by_names(self, channels_names):
         return {k: v['name'] for k, v in self._get('channels').items()
                 if v in channels_names}
