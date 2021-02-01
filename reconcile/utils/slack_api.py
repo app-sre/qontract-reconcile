@@ -1,4 +1,5 @@
 import time
+import logging
 
 from slackclient import SlackClient
 from sretoolbox.utils import retry
@@ -77,6 +78,10 @@ class SlackApi(object):
         )
 
     def update_usergroup_users(self, id, users_list):
+        # since Slack API does not support empty usergroups
+        # we can trick it by passing a deleted user
+        if len(users_list) == 0:
+            users_list = [self.get_random_deleted_user()]
         users = ','.join(users_list)
         self.sc.api_call(
             "usergroups.users.update",
@@ -84,24 +89,33 @@ class SlackApi(object):
             users=users,
         )
 
+    def get_random_deleted_user(self):
+        for user_id, user_data in self._get('users').items():
+            if user_data['deleted'] is True:
+                return user_id
+
+        logging.error('could not find a deleted user, ' +
+                      'empty usergroup will not work')
+        return ''
+
     def get_channels_by_names(self, channels_names):
-        return {k: v for k, v in self.get('channels').items()
+        return {k: v['name'] for k, v in self._get('channels').items()
                 if v in channels_names}
 
     def get_channels_by_ids(self, channels_ids):
-        return {k: v for k, v in self.get('channels').items()
+        return {k: v['name'] for k, v in self._get('channels').items()
                 if k in channels_ids}
 
     def get_users_by_names(self, user_names):
-        return {k: v for k, v in self.get('users').items()
+        return {k: v['name'] for k, v in self._get('users').items()
                 if v in user_names}
 
     def get_users_by_ids(self, users_ids):
-        return {k: v for k, v in self.get('users').items()
+        return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
     @retry()
-    def get(self, type):
+    def _get(self, type):
         result_key = 'members' if type == 'users' else type
         results = {}
         cursor = ''
@@ -118,7 +132,7 @@ class SlackApi(object):
                 time.sleep(1)
                 continue
             for r in result[result_key]:
-                results[r['id']] = r['name']
+                results[r['id']] = r
             cursor = result['response_metadata']['next_cursor']
             if cursor == '':
                 break
