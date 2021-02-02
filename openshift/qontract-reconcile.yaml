@@ -142,6 +142,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -330,6 +334,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -518,6 +526,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -706,6 +718,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -894,6 +910,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -1064,6 +1084,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -1234,6 +1258,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -1422,6 +1450,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -1610,6 +1642,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -1724,6 +1760,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -1801,6 +1841,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -1871,6 +1915,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -2009,6 +2057,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -2202,6 +2254,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 500m
@@ -2316,6 +2372,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 500m
@@ -2467,6 +2527,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -2655,6 +2719,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 500m
@@ -2843,6 +2911,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 250m
@@ -3031,6 +3103,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 800m
@@ -3219,6 +3295,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 800m
@@ -3407,6 +3487,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 800m
@@ -3595,6 +3679,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 800m
@@ -3783,6 +3871,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -3971,6 +4063,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -4159,6 +4255,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -4347,6 +4447,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -4535,6 +4639,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -4642,6 +4750,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -4793,6 +4905,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -4981,6 +5097,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -5169,6 +5289,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -5357,6 +5481,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -5545,6 +5673,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -5733,6 +5865,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -5921,6 +6057,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6109,6 +6249,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6297,6 +6441,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6485,6 +6633,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6655,6 +6807,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6825,6 +6981,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -6995,6 +7155,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -7165,6 +7329,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -7335,6 +7503,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -7505,6 +7677,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -7675,6 +7851,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -7845,6 +8025,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -8015,6 +8199,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -8185,6 +8373,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -8355,6 +8547,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -8525,6 +8721,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -8713,6 +8913,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 500m
@@ -8901,6 +9105,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 1200m
@@ -9089,6 +9297,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 400m
@@ -9277,6 +9489,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 500m
@@ -9447,6 +9663,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -9624,6 +9844,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -9790,6 +10014,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 100m
@@ -9944,6 +10172,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -10132,6 +10364,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -10320,6 +10556,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -10508,6 +10748,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -10703,6 +10947,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 50m
@@ -10898,6 +11146,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 50m
@@ -11086,6 +11338,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -11200,6 +11456,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 50m
@@ -11358,6 +11618,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -11546,6 +11810,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -11653,6 +11921,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -11723,6 +11995,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 300m
@@ -11874,6 +12150,10 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
               cpu: 200m
@@ -12278,3 +12558,7 @@ parameters:
   value: app-interface-cloudwatch
 - name: SENTRY_DSN
   value: ""
+- name: SLOW_OC_RECONCILE_THRESHOLD
+  value: "600"
+- name: LOG_SLOW_OC_RECONCILE
+  value: "false"

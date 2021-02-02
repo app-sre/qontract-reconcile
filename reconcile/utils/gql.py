@@ -199,6 +199,7 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False,
         runing_state = RunningState()
         git_commit_info = get_git_commit_info(sha, server_url, token)
         runing_state.timestamp = git_commit_info.get('timestamp')
+        runing_state.commit = git_commit_info.get('commit')
 
     if print_url:
         logging.info(f'using gql endpoint {server}')
