@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import logging
 import tempfile
 
@@ -14,6 +15,7 @@ from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.jump_host import JumpHostSSH
+from reconcile.status import RunningState
 
 
 class StatusCodeError(Exception):
@@ -89,6 +91,15 @@ class OC(object):
             self.api_resources = self.get_api_resources()
         else:
             self.api_resources = None
+
+        self.running_state = RunningState()
+
+        self.slow_oc_reconcile_threshold = \
+            float(os.environ.get('SLOW_OC_RECONCILE_THRESHOLD', 600))
+
+        self.is_log_slow_oc_reconcile = \
+            os.environ.get('LOG_SLOW_OC_RECONCILE', '').lower() \
+            in ['true', 'yes']
 
     def whoami(self):
         return self._run(['whoami'])
@@ -169,16 +180,20 @@ class OC(object):
 
     @elapsed_seconds_from_commit_metric
     def apply(self, namespace, resource):
+        self._log_slow_oc_reconcile(namespace, resource)
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource, apply=True)
 
     @elapsed_seconds_from_commit_metric
     def replace(self, namespace, resource):
+        self._log_slow_oc_reconcile(namespace, resource)
         cmd = ['replace', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource, apply=True)
 
     @elapsed_seconds_from_commit_metric
     def delete(self, namespace, kind, name):
+        self._log_slow_oc_reconcile(
+            namespace, {'kind': kind, 'metadata': {'name': name}})
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
 
@@ -488,6 +503,32 @@ class OC(object):
             raise JSONParsingError(out + "\n" + str(e))
 
         return out_json
+
+    def _log_slow_oc_reconcile(self, namespace, resource):
+        if not self.is_log_slow_oc_reconcile:
+            return
+
+        try:
+            if isinstance(resource, str):
+                # let's assume json here as it is what we actually have
+                r = json.loads(resource)
+                kind = r['kind']
+                name = r['metadata']['name']
+            else:
+                kind = resource['kind']
+                name = resource['metadata']['name']
+        except Exception as e:
+            logging.warning(f"Error in slow oc reconcile log: {e}")
+            return
+
+        commit_time = float(self.running_state.timestamp)
+        time_spent = time.time() - commit_time
+
+        if time_spent > self.slow_oc_reconcile_threshold:
+            logging.info(f"{kind} {name} in namespace {namespace} "
+                         f"from {self.server} took {time_spent} to reconcile. "
+                         f"Commit sha {self.running_state.commit} and "
+                         f"commit ts {self.running_state.timestamp}")
 
 
 class OC_Map(object):
