@@ -2,8 +2,9 @@ import os
 import yaml
 import json
 import logging
+import base64
 
-from github import Github
+from github import Github, GithubException
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
@@ -196,6 +197,38 @@ class SaasHerder():
                 parameters[k] = json.dumps(v)
         return parameters
 
+    @staticmethod
+    def _get_file_contents_github(repo, path, commit_sha):
+        try:
+            f = repo.get_contents(path, commit_sha)
+            return f.decoded_content
+        except GithubException as e:
+            # slightly copied with love from
+            # https://github.com/PyGithub/PyGithub/issues/661
+            errors = e.data['errors']
+            # example errors dict that we are looking for
+            # {
+            #    'message': '<text>',
+            #    'errors': [{
+            #                  'resource': 'Blob',
+            #                  'field': 'data',
+            #                  'code': 'too_large'
+            #               }],
+            #    'documentation_url': '<url>'
+            # }
+            for error in errors:
+                if error['code'] == 'too_large':
+                    # get large files
+                    tree = repo.get_git_tree(
+                        commit_sha, recursive='/' in path).tree
+                    for x in tree:
+                        if x.path != path.lstrip('/'):
+                            continue
+                        blob = repo.get_git_blob(x.sha)
+                        return base64.b64decode(blob.content).decode("utf8")
+
+            raise e
+
     @retry()
     def _get_file_contents(self, options):
         url = options['url']
@@ -208,8 +241,7 @@ class SaasHerder():
         if 'github' in url:
             repo_name = url.rstrip("/").replace('https://github.com/', '')
             repo = github.get_repo(repo_name)
-            f = repo.get_contents(path, commit_sha)
-            content = f.decoded_content
+            content = self._get_file_contents_github(repo, path, commit_sha)
         elif 'gitlab' in url:
             if not self.gitlab:
                 raise Exception('gitlab is not initialized')
@@ -233,8 +265,10 @@ class SaasHerder():
             repo = github.get_repo(repo_name)
             for f in repo.get_contents(path, commit_sha):
                 file_path = os.path.join(path, f.name)
-                file_contents = repo.get_contents(file_path, commit_sha)
-                resource = yaml.safe_load(file_contents.decoded_content)
+                file_contents_decoded = \
+                    self._get_file_contents_github(
+                        repo, file_path, commit_sha)
+                resource = yaml.safe_load(file_contents_decoded)
                 resources.append(resource)
         elif 'gitlab' in url:
             if not self.gitlab:
