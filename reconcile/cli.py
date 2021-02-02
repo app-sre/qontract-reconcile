@@ -100,9 +100,16 @@ from reconcile.status import RunningState
 from reconcile.utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
                                  GqlApiIntegrationNotFound)
 from reconcile.utils.aggregated_list import RunnerException
-from reconcile.utils.binary import binary
+from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ
 from reconcile.utils.unleash import get_feature_toggle_state
+
+
+TERRAFORM_VERSION = '0.13.5'
+TERRAFORM_VERSION_REGEX = r'^Terraform\sv([\d]+\.[\d]+\.[\d]+)$'
+
+OC_VERSION = '4.6.1'
+OC_VERSION_REGEX = r'^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$'
 
 
 def before_breadcrumb(crumb, hint):
@@ -414,6 +421,8 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 @terraform
 @threaded()
 @binary(['terraform'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_aws_route53(ctx, print_only, enable_deletion,
@@ -468,6 +477,7 @@ def github_validator(ctx):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -481,6 +491,7 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -492,6 +503,7 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -503,6 +515,7 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -514,6 +527,7 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @vault_output_path
@@ -580,6 +594,7 @@ def unleash_watcher(ctx):
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @threaded()
 @internal()
 @use_jump_host()
@@ -672,6 +687,7 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @integration.command()
 @threaded(default=20)
 @binary(['oc', 'ssh', 'amtool'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -693,6 +709,7 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
 @threaded(default=20)
 @throughput
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @click.option('--saas-file-name',
               default=None,
               help='saas-file to act on.')
@@ -713,6 +730,7 @@ def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
 @gitlab_project_id
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @throughput
 @click.pass_context
 def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir,
@@ -783,6 +801,7 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -795,6 +814,7 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -807,6 +827,7 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -820,6 +841,7 @@ def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -834,6 +856,7 @@ def openshift_limitranges(ctx, thread_pool_size, internal,
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -847,6 +870,7 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal,
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -863,6 +887,7 @@ def openshift_vault_secrets(ctx, thread_pool_size, internal, use_jump_host,
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @cluster_name
@@ -879,6 +904,7 @@ def openshift_routes(ctx, thread_pool_size, internal, use_jump_host,
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh', 'jsonnet'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
@@ -942,6 +968,9 @@ def user_validator(ctx):
 @vault_output_path
 @threaded(default=20)
 @binary(['terraform', 'oc'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
@@ -965,6 +994,8 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
 @send_mails(default=True)
 @click.pass_context
@@ -980,6 +1011,8 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 @terraform
 @threaded()
 @binary(['terraform'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_vpc_peerings(ctx, print_only, enable_deletion,
@@ -1162,6 +1195,7 @@ def ocp_release_ecr_mirror(ctx):
 @integration.command()
 @threaded()
 @binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
