@@ -386,14 +386,37 @@ class SaasHerder():
                     f"error fetching template: {str(e)}")
                 return None, None
 
+            template_parameters = template.get('parameters')
             if "IMAGE_TAG" not in consolidated_parameters:
-                template_parameters = template.get('parameters')
                 if template_parameters is not None:
                     for template_parameter in template_parameters:
                         if template_parameter['name'] == 'IMAGE_TAG':
                             # add IMAGE_TAG only if it is required
                             image_tag = commit_sha[:hash_length]
                             consolidated_parameters['IMAGE_TAG'] = image_tag
+
+            for template_parameter in template_parameters:
+                if template_parameters is not None:
+                    # Processing vault secrets. Whenever we find
+                    # in the template parameters something like:
+                    #
+                    # - name: vault-secret-foo-bar
+                    #   value: path/to/vault/secret
+                    #
+                    # we then use the value to read from vault
+                    # and populate the consolidated_parameters
+                    # with the vault content.
+                    if template_parameter['name'].startswith('vault-secret-'):
+                        vault_param_name = template_parameter['name']
+                        vault_param_value = ''
+                        secret_path = template_parameter.get('value')
+                        if secret_path is not None:
+                            vault_param_value = self.secret_reader.read(
+                                secret_path
+                            )
+                        consolidated_parameters[
+                            vault_param_name
+                        ] = vault_param_value
 
             oc = OC('server', 'token', local=True)
             try:
