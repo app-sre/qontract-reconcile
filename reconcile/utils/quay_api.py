@@ -208,3 +208,12 @@ class QuayApi(object):
         r = requests.put(url, json=body, headers=self.auth_header)
         if not r.ok:
             raise RequestsException(r)
+
+    def get_repo_notifications(self, repo_name):
+        url = f"{self.API_URL}/repository/{self.organization}/" +\
+              f"{repo_name}/notification"
+        r = requests.get(url, headers=self.auth_header)
+        if not r.ok:
+            raise RequestsException(r)
+
+        return r.json()['notifications']
