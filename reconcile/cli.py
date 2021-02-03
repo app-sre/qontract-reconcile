@@ -111,6 +111,10 @@ TERRAFORM_VERSION_REGEX = r'^Terraform\sv([\d]+\.[\d]+\.[\d]+)$'
 OC_VERSION = '4.6.1'
 OC_VERSION_REGEX = r'^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$'
 
+LOG_FMT = '[%(asctime)s] [%(levelname)s] ' \
+    '[%(filename)s:%(funcName)s:%(lineno)d] - %(message)s'
+LOG_DATEFMT = '%Y-%m-%d %H:%M:%S'
+
 
 def before_breadcrumb(crumb, hint):
     # https://docs.sentry.io/platforms/python/configuration/filtering/
@@ -387,12 +391,7 @@ def run_integration(func_container, ctx, *args, **kwargs):
 
 def init_log_level(log_level):
     level = getattr(logging, log_level) if log_level else logging.INFO
-    format = '[%(asctime)s] [%(levelname)s] '
-    format += '[%(filename)s:%(funcName)s:%(lineno)d] '
-    format += '- %(message)s'
-    logging.basicConfig(format=format,
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        level=level)
+    logging.basicConfig(format=LOG_FMT, datefmt=LOG_DATEFMT, level=level)
 
 
 @click.group()

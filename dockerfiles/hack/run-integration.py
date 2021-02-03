@@ -8,7 +8,7 @@ import time
 from prometheus_client import start_http_server
 
 from reconcile.status import ExitCodes
-from reconcile.cli import integration
+from reconcile.cli import integration, LOG_FMT, LOG_DATEFMT
 from reconcile.utils.metrics import run_time
 from reconcile.utils.metrics import run_status
 
@@ -30,7 +30,8 @@ LOG = logging.getLogger(__name__)
 
 # Messages to stdout
 STREAM_HANDLER = logging.StreamHandler(sys.stdout)
-STREAM_HANDLER.setFormatter(logging.Formatter(fmt='%(message)s'))
+STREAM_HANDLER.setFormatter(logging.Formatter(fmt=LOG_FMT,
+                                              datefmt=LOG_DATEFMT))
 HANDLERS = [STREAM_HANDLER]
 
 # Messages to the log file
