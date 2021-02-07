@@ -140,19 +140,22 @@ def populate_current_state(spec, ri, integration, integration_version):
         msg = f"[{spec.cluster}] cluster has no API resource {spec.resource}."
         logging.warning(msg)
         return
-    for item in oc.get_items(spec.resource,
-                             namespace=spec.namespace,
-                             resource_names=spec.resource_names):
-        openshift_resource = OR(item,
-                                integration,
-                                integration_version)
-        ri.add_current(
-            spec.cluster,
-            spec.namespace,
-            spec.resource,
-            openshift_resource.name,
-            openshift_resource
-        )
+    try:
+        for item in oc.get_items(spec.resource,
+                                 namespace=spec.namespace,
+                                 resource_names=spec.resource_names):
+            openshift_resource = OR(item,
+                                    integration,
+                                    integration_version)
+            ri.add_current(
+                spec.cluster,
+                spec.namespace,
+                spec.resource,
+                openshift_resource.name,
+                openshift_resource
+            )
+    except StatusCodeError as e:
+        ri.register_error(cluster=spec.cluster)
 
 
 def fetch_current_state(namespaces=None,

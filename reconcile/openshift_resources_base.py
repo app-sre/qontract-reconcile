@@ -603,7 +603,7 @@ def fetch_states(spec, ri):
                                 spec.parent)
 
     except StatusCodeError as e:
-        ri.register_error()
+        ri.register_error(cluster=spec.cluster)
         msg = 'cluster: {},'
         msg += 'namespace: {},'
         msg += 'resource_names: {},'
