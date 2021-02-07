@@ -297,6 +297,14 @@ def realize_data(dry_run, oc_map, ri,
         enable_deletion = False
 
     for cluster, namespace, resource_type, data in ri:
+        if ri.has_error_registered(cluster=cluster):
+            msg = (
+                "[{}] skipping realize_data for "
+                "cluster with errors"
+            ).format(cluster)
+            logging.error(msg)
+            continue
+
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)
