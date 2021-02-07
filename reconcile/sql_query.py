@@ -270,7 +270,7 @@ def make_postgres_command(output, sqlqueries, recipient=None):
     command = []
     for query in sqlqueries:
         command.extend([
-            '(PGPASSWORD=$(db.password)',
+            '(PGPASSWORD="$(db.password)"',
             'time psql',
             '--host=$(db.host)',
             '--port=$(db.port)',
@@ -301,7 +301,7 @@ def make_mysql_command(output, sqlqueries, recipient=None):
             '--port=$(db.port)',
             '--database=$(db.name)',
             '--user=$(db.user)',
-            '--password=$(db.password)',
+            '--password="$(db.password)"',
             f'--execute="{query}")',
         ])
 
