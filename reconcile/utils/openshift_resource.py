@@ -472,5 +472,5 @@ class ResourceInventory(object):
 
     def has_error_registered(self, cluster=None):
         if cluster is not None:
-            return self._error_registered_clusters.get(cluster) or False
+            return self._error_registered_clusters.get(cluster, False)
         return self._error_registered

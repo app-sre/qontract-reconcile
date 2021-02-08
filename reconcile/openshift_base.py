@@ -154,7 +154,7 @@ def populate_current_state(spec, ri, integration, integration_version):
                 openshift_resource.name,
                 openshift_resource
             )
-    except StatusCodeError as e:
+    except StatusCodeError:
         ri.register_error(cluster=spec.cluster)
 
 
