@@ -140,19 +140,22 @@ def populate_current_state(spec, ri, integration, integration_version):
         msg = f"[{spec.cluster}] cluster has no API resource {spec.resource}."
         logging.warning(msg)
         return
-    for item in oc.get_items(spec.resource,
-                             namespace=spec.namespace,
-                             resource_names=spec.resource_names):
-        openshift_resource = OR(item,
-                                integration,
-                                integration_version)
-        ri.add_current(
-            spec.cluster,
-            spec.namespace,
-            spec.resource,
-            openshift_resource.name,
-            openshift_resource
-        )
+    try:
+        for item in oc.get_items(spec.resource,
+                                 namespace=spec.namespace,
+                                 resource_names=spec.resource_names):
+            openshift_resource = OR(item,
+                                    integration,
+                                    integration_version)
+            ri.add_current(
+                spec.cluster,
+                spec.namespace,
+                spec.resource,
+                openshift_resource.name,
+                openshift_resource
+            )
+    except StatusCodeError:
+        ri.register_error(cluster=spec.cluster)
 
 
 def fetch_current_state(namespaces=None,
@@ -294,6 +297,14 @@ def realize_data(dry_run, oc_map, ri,
         enable_deletion = False
 
     for cluster, namespace, resource_type, data in ri:
+        if ri.has_error_registered(cluster=cluster):
+            msg = (
+                "[{}] skipping realize_data for "
+                "cluster with errors"
+            ).format(cluster)
+            logging.error(msg)
+            continue
+
         # desired items
         for name, d_item in data['desired'].items():
             c_item = data['current'].get(name)

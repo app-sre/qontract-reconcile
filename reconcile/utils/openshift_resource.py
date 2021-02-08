@@ -425,6 +425,7 @@ class ResourceInventory(object):
     def __init__(self):
         self._clusters = {}
         self._error_registered = False
+        self._error_registered_clusters = {}
         self._lock = Lock()
 
     def initialize_resource_type(self, cluster, namespace, resource_type):
@@ -464,8 +465,12 @@ class ResourceInventory(object):
                     data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
 
-    def register_error(self):
+    def register_error(self, cluster=None):
         self._error_registered = True
+        if cluster is not None:
+            self._error_registered_clusters[cluster] = True
 
-    def has_error_registered(self):
+    def has_error_registered(self, cluster=None):
+        if cluster is not None:
+            return self._error_registered_clusters.get(cluster, False)
         return self._error_registered
