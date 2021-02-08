@@ -187,7 +187,8 @@ class OCM(object):
                 'listening':
                     'internal' if cluster_spec['private']
                     else 'external'
-            }
+            },
+            'upgrade_channel_group': cluster_spec['channel'],
         }
 
         autoscale = cluster_spec.get('autoscale')
