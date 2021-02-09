@@ -270,12 +270,12 @@ def make_postgres_command(output, sqlqueries, recipient=None):
     command = []
     for query in sqlqueries:
         command.extend([
-            '(PGPASSWORD="$(db.password)"',
-            'time psql',
+            '(time PGPASSWORD="$(db.password)"',
+            'psql',
             '--host=$(db.host)',
             '--port=$(db.port)',
             '--username=$(db.user)',
-            '--dbname=$(db.name)'
+            '--dbname=$(db.name)',
             f'--command "{query}")',
         ])
 
