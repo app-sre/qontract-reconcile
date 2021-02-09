@@ -200,7 +200,8 @@ class AWSApi(object):
                                          key='repositories')
             self.set_resouces(account, 'ecr', repositories)
 
-    def paginate(self, client, method, key, params={}):
+    @staticmethod
+    def paginate(client, method, key, params={}):
         """ paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
         paginator = client.get_paginator(method)
@@ -313,7 +314,8 @@ class AWSApi(object):
 
         return False
 
-    def resource_has_special_name(self, account, type, resource):
+    @staticmethod
+    def resource_has_special_name(account, type, resource):
         skip_msg = '[{}] skipping {} '.format(account, type) + \
             '({} related) {}'
 
@@ -355,7 +357,8 @@ class AWSApi(object):
 
         return False
 
-    def get_tag_value(self, tags, tag):
+    @staticmethod
+    def get_tag_value(tags, tag):
         if isinstance(tags, dict):
             return tags.get(tag, '')
         elif isinstance(tags, list):
@@ -392,27 +395,32 @@ class AWSApi(object):
         else:
             raise InvalidResourceTypeError(resource_type)
 
-    def delete_bucket(self, s3, bucket_name):
+    @staticmethod
+    def delete_bucket(s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
         for key in bucket.objects.all():
             key.delete()
         bucket.delete()
 
-    def delete_queue(self, sqs, queue_url):
+    @staticmethod
+    def delete_queue(sqs, queue_url):
         sqs.delete_queue(QueueUrl=queue_url)
 
-    def delete_table(self, dynamodb, table_name):
+    @staticmethod
+    def delete_table(dynamodb, table_name):
         table = dynamodb.Table(table_name)
         table.delete()
 
-    def delete_instance(self, rds, instance_name):
+    @staticmethod
+    def delete_instance(rds, instance_name):
         rds.delete_db_instance(
             DBInstanceIdentifier=instance_name,
             SkipFinalSnapshot=True,
             DeleteAutomatedBackups=True
         )
 
-    def delete_snapshot(self, rds, snapshot_identifier):
+    @staticmethod
+    def delete_snapshot(rds, snapshot_identifier):
         rds.delete_db_snapshot(
             DBSnapshotIdentifier=snapshot_identifier
         )
@@ -543,7 +551,8 @@ class AWSApi(object):
 
         return users_keys
 
-    def get_user_keys(self, iam, user):
+    @staticmethod
+    def get_user_keys(iam, user):
         key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         return [uk['AccessKeyId'] for uk in key_list]
 

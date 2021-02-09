@@ -6,7 +6,8 @@ fxt = Fixtures('openshift_performance_parameters')
 
 
 class TestOpenShiftPerfParams(object):
-    def test_labels_to_selectors(self):
+    @staticmethod
+    def test_labels_to_selectors():
         items = [
             ([], ""),
             ({}, ""),
@@ -22,7 +23,8 @@ class TestOpenShiftPerfParams(object):
         for label_in, label_out in items:
             assert perf_params.labels_to_selectors(label_in) == label_out
 
-    def test_params(self):
+    @staticmethod
+    def test_params():
         t1_pp = fxt.get_anymarkup('t1-pp.yaml')
         t1_params = fxt.get_anymarkup('t1-params.yaml')
         t1_rendered = fxt.get('t1-rendered.txt')

@@ -191,7 +191,8 @@ class TerraformClient(object):
 
         return deletions_detected, deleted_users
 
-    def terraform_show(self, name, working_dir):
+    @staticmethod
+    def terraform_show(name, working_dir):
         return lean_tf.show_json(working_dir, name)
 
     # terraform apply
@@ -434,7 +435,8 @@ class TerraformClient(object):
                 error_occured = True
         return error_occured
 
-    def split_to_lines(self, *outputs):
+    @staticmethod
+    def split_to_lines(*outputs):
         split_outputs = []
         try:
             for output in outputs:

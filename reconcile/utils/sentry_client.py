@@ -124,14 +124,16 @@ class SentryClient:
                                              payload=params)
         return response
 
-    def required_project_fields(self):
+    @staticmethod
+    def required_project_fields():
         required_fields = {
             "platform": "platform",
             "subjectPrefix": "email_prefix"
         }
         return required_fields
 
-    def optional_project_fields(self):
+    @staticmethod
+    def optional_project_fields():
         optional_fields = {
             "sensitiveFields": "sensitive_fields",
             "safeFields": "safe_fields",

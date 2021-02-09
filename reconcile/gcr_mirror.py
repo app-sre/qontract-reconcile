@@ -104,7 +104,8 @@ class QuayMirror:
 
         return summary
 
-    def sync_tag(self, tags, tags_exclude, candidate):
+    @staticmethod
+    def sync_tag(tags, tags_exclude, candidate):
         if tags is not None:
             for tag in tags:
                 if re.match(tag, candidate):

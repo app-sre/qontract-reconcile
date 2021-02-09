@@ -4,7 +4,8 @@ import reconcile.cli as reconcile_cli
 
 
 class TestCli(object):
-    def test_config_is_required(self):
+    @staticmethod
+    def test_config_is_required():
         runner = CliRunner()
         result = runner.invoke(reconcile_cli.integration)
         assert result.exit_code == 0
