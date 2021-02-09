@@ -342,7 +342,8 @@ class SentryReconciler:
 
         return fields_to_update
 
-    def _is_same_list_(self, expected, actual):
+    @staticmethod
+    def _is_same_list_(expected, actual):
         if len(expected) != len(actual):
             return False
 

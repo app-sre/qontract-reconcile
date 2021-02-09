@@ -10,10 +10,12 @@ fxt = Fixtures('github_org')
 
 
 class RawGithubApiMock(object):
-    def org_invitations(self, org_name):
+    @staticmethod
+    def org_invitations(org_name):
         return []
 
-    def team_invitations(self, team_id):
+    @staticmethod
+    def team_invitations(team_id):
         return []
 
 
@@ -70,11 +72,13 @@ def get_items_by_params(state, params):
 
 
 class TestGithubOrg(object):
-    def setup_method(self, method):
+    @staticmethod
+    def setup_method(method):
         config.init_from_toml(fxt.path('config.toml'))
         gql.init_from_config(sha_url=False)
 
-    def do_current_state_test(self, path):
+    @staticmethod
+    def do_current_state_test(path):
         fixture = fxt.get_anymarkup(path)
 
         with patch('reconcile.github_org.RawGithubApi') as m_rga:
@@ -97,7 +101,8 @@ class TestGithubOrg(object):
                         params
                     )
 
-    def do_desired_state_test(self, path):
+    @staticmethod
+    def do_desired_state_test(path):
         fixture = fxt.get_anymarkup(path)
 
         with patch('reconcile.utils.gql.GqlApi.query') as m_gql:

@@ -428,7 +428,8 @@ class SaasHerder():
         target_promotion['commit_sha'] = commit_sha
         return resources, html_url, target_promotion
 
-    def _collect_images(self, resource):
+    @staticmethod
+    def _collect_images(resource):
         images = set()
         # resources with pod templates
         try:

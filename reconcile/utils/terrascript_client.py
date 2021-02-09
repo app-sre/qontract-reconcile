@@ -172,7 +172,8 @@ class TerrascriptClient(object):
             account['supportedDeploymentRegions']
         return (account_name, secret)
 
-    def get_tf_iam_group(self, group_name):
+    @staticmethod
+    def get_tf_iam_group(group_name):
         return aws_iam_group(
             group_name,
             name=group_name
@@ -932,7 +933,8 @@ class TerrascriptClient(object):
                 logging.debug(msg)
         return None
 
-    def generate_random_password(self, string_length=20):
+    @staticmethod
+    def generate_random_password(string_length=20):
         """Generate a random string of letters and digits """
         letters_and_digits = string.ascii_letters + string.digits
         return ''.join(random.choice(letters_and_digits)
@@ -2414,7 +2416,8 @@ class TerrascriptClient(object):
 
         return account, identifier, values, output_prefix, output_resource_name
 
-    def aggregate_values(self, values):
+    @staticmethod
+    def aggregate_values(values):
         split_char = '.'
         copy = values.copy()
         for k, v in copy.items():
@@ -2427,7 +2430,8 @@ class TerrascriptClient(object):
             values[primary_key][secondary_key] = v
             values.pop(k, None)
 
-    def override_values(self, values, overrides):
+    @staticmethod
+    def override_values(values, overrides):
         if overrides is None:
             return
         data = json.loads(overrides)
@@ -2459,7 +2463,8 @@ class TerrascriptClient(object):
         output_value = output_resource_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-    def get_values(self, path):
+    @staticmethod
+    def get_values(path):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
@@ -2484,7 +2489,8 @@ class TerrascriptClient(object):
             'namespace': namespace
         }
 
-    def unpack_namespace_info(self, namespace_info):
+    @staticmethod
+    def unpack_namespace_info(namespace_info):
         cluster = namespace_info['cluster']['name']
         namespace = namespace_info['name']
         return cluster, namespace

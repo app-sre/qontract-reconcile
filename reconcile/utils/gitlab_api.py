@@ -375,7 +375,8 @@ class GitLabApi(object):
         editable_item.labels = labels
         editable_item.save()
 
-    def close(self, item):
+    @staticmethod
+    def close(item):
         item.state_event = 'close'
         item.save()
 
