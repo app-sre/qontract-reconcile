@@ -23,7 +23,7 @@ from sretoolbox.utils import retry
 from reconcile.exceptions import FetchResourceError
 
 
-class JJB(object):
+class JJB:
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True, settings=None):

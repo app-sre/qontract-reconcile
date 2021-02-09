@@ -18,7 +18,7 @@ class InvalidResourceTypeError(Exception):
     pass
 
 
-class AWSApi(object):
+class AWSApi:
     """Wrapper around AWS SDK"""
 
     def __init__(self, thread_pool_size, accounts, settings=None,

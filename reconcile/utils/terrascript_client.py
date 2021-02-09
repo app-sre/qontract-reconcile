@@ -75,7 +75,7 @@ def safe_resource_id(s):
     return s.translate({ord(c): "_" for c in "."})
 
 
-class TerrascriptClient(object):
+class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
                  thread_pool_size, accounts, oc_map=None, settings=None):
         self.integration = integration

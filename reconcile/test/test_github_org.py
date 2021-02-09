@@ -9,7 +9,7 @@ from reconcile.utils.aggregated_list import AggregatedList
 fxt = Fixtures('github_org')
 
 
-class RawGithubApiMock(object):
+class RawGithubApiMock:
     @staticmethod
     def org_invitations(org_name):
         return []
@@ -25,15 +25,15 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-class GithubMock(object):
+class GithubMock:
     def __init__(self, spec):
         self.spec = spec
 
-    class GithubOrgMock(object):
+    class GithubOrgMock:
         def __init__(self, spec_org):
             self.spec_org = spec_org
 
-        class GithubTeamMock(object):
+        class GithubTeamMock:
             def __init__(self, spec_team):
                 self.spec_team = spec_team
 
@@ -71,7 +71,7 @@ def get_items_by_params(state, params):
     return False
 
 
-class TestGithubOrg(object):
+class TestGithubOrg:
     @staticmethod
     def setup_method(method):
         config.init_from_toml(fxt.path('config.toml'))

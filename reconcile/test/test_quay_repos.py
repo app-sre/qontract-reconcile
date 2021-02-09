@@ -19,7 +19,7 @@ def get_items_by_params(state, params):
     return False
 
 
-class QuayApiMock(object):
+class QuayApiMock:
     def __init__(self, list_images_response):
         self.list_images_response = list_images_response
 
@@ -27,7 +27,7 @@ class QuayApiMock(object):
         return self.list_images_response
 
 
-class TestQuayRepos(object):
+class TestQuayRepos:
     @staticmethod
     def setup_method(method):
         config.init_from_toml(fxt.path('config.toml'))

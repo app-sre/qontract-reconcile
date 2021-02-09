@@ -31,7 +31,7 @@ DNS_NAMES_URL = \
 IGNORABLE_DATA_FIELDS = ['service-ca.crt']
 
 
-class OpenshiftResource(object):
+class OpenshiftResource:
     def __init__(self, body, integration, integration_version,
                  error_details='', caller_name=None):
         self.body = body
@@ -421,7 +421,7 @@ class OpenshiftResource(object):
         return m.hexdigest()
 
 
-class ResourceInventory(object):
+class ResourceInventory:
     def __init__(self):
         self._clusters = {}
         self._error_registered = False

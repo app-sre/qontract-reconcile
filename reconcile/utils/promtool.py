@@ -6,7 +6,7 @@ from subprocess import run, PIPE
 from reconcile.utils.defer import defer
 
 
-class PromtoolResult(object):
+class PromtoolResult:
     '''This class represents a promtool command execution result'''
     def __init__(self, is_ok, message):
         self.is_ok = is_ok

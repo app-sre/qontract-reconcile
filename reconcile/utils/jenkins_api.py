@@ -5,7 +5,7 @@ import logging
 from reconcile.utils.secret_reader import SecretReader
 
 
-class JenkinsApi(object):
+class JenkinsApi:
     """Wrapper around Jenkins API calls"""
 
     def __init__(self, token, ssl_verify=True, settings=None):

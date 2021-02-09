@@ -3,7 +3,7 @@ from click.testing import CliRunner
 import reconcile.cli as reconcile_cli
 
 
-class TestCli(object):
+class TestCli:
     @staticmethod
     def test_config_is_required():
         runner = CliRunner()

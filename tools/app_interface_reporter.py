@@ -68,7 +68,7 @@ def promql(url, query, auth=None):
     return response['data']['result']
 
 
-class Report(object):
+class Report:
     def __init__(self, app, date):
         settings = queries.get_app_interface_settings()
         self.secret_reader = SecretReader(settings=settings)

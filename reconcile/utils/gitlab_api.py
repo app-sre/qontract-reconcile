@@ -24,7 +24,7 @@ class MRState:
     ALL = 'all'
 
 
-class GitLabApi(object):
+class GitLabApi:
     def __init__(self, instance, project_id=None, ssl_verify=True,
                  settings=None, project_url=None, saas_files=None):
         self.server = instance['url']

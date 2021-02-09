@@ -6,7 +6,7 @@ class RunnerException(Exception):
     pass
 
 
-class AggregatedList(object):
+class AggregatedList:
     def __init__(self):
         self._dict = {}
 
@@ -91,7 +91,7 @@ class AggregatedList(object):
         return hash(json.dumps(params, sort_keys=True))
 
 
-class AggregatedDiffRunner(object):
+class AggregatedDiffRunner:
     def __init__(self, diff):
         self.diff = diff
         self.actions = []

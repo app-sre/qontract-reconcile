@@ -60,7 +60,7 @@ class GqlGetResourceError(Exception):
         )
 
 
-class GqlApi(object):
+class GqlApi:
     _valid_schemas = None
     _queried_schemas = set()
 

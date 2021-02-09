@@ -9,7 +9,7 @@ class PagerDutyUserNotFoundException(Exception):
     pass
 
 
-class PagerDutyApi(object):
+class PagerDutyApi:
     """Wrapper around PagerDuty API calls"""
 
     def __init__(self, token, settings=None):
