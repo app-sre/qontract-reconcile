@@ -1,6 +1,5 @@
 [MESSAGES CONTROL]
-disable = anomalous-backslash-in-string,
-          assignment-from-no-return,
+disable = assignment-from-no-return,
           attribute-defined-outside-init,
           bad-super-call,
           broad-except,

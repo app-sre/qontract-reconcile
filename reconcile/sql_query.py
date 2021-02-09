@@ -345,7 +345,7 @@ def encrypted_closing_message(recipient):
         'echo;',
         'echo Get the sql-query results with:;',
         'echo;',
-        'echo cat \<\<EOF \> ${HOSTNAME}-query-result.txt;',
+        r'echo cat \<\<EOF \> ${HOSTNAME}-query-result.txt;',
         'cat /tmp/query-result.txt.asc;',
         'echo EOF;',
         'echo gpg -d ${HOSTNAME}-query-result.txt;'
