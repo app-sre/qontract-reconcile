@@ -228,6 +228,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             oc.apply(namespace, annotated.toJSON())
         except (MetaDataAnnotationsTooLongApplyError,
                 UnsupportedMediaTypeError):
+            if not oc.get(namespace, resource_type,
+                          resource.name, allow_not_found=True):
+                oc.create(namespace, annotated.toJSON())
             oc.replace(namespace, annotated.toJSON())
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
