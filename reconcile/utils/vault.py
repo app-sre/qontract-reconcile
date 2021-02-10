@@ -1,8 +1,8 @@
-import time
-import requests
-import hvac
 import base64
-import logging
+import functools
+import hvac
+import requests
+import time
 
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
@@ -55,7 +55,6 @@ class _VaultClient:
                               pool_maxsize=100)
         session.mount('https://', adapter)
         self._client = hvac.Client(url=server, session=session)
-        self._cache = {}
 
         authenticated = False
         for i in range(0, 3):
@@ -81,7 +80,7 @@ class _VaultClient:
         secret_path = secret['path']
         secret_version = secret.get('version')
 
-        kv_version = self._get_mount_version(secret_path)
+        kv_version = self._get_mount_version_by_secret_path(secret_path)
 
         data = None
         if kv_version == 2:
@@ -94,32 +93,23 @@ class _VaultClient:
 
         return data
 
-    def _get_mount_version(self, path):
+    def _get_mount_version_by_secret_path(self, path):
         path_split = path.split('/')
         mount_point = path_split[0]
+        return self._get_mount_version(mount_point)
 
-        cache_key = ('mountversion', mount_point)
-        cache_value = self._cache.get(cache_key)
-        if cache_value is not None:
-            logging.debug('Vault v2 cache hit')
-            return cache_value
-
+    @functools.lru_cache()
+    def _get_mount_version(self, mount_point):
         try:
             self._client.secrets.kv.v2.read_configuration(mount_point)
             version = 2
         except Exception:
             version = 1
 
-        self._cache[cache_key] = version
         return version
 
+    @functools.lru_cache()
     def _read_all_v2(self, path, version):
-        cache_key = (path, version)
-        cache_value = self._cache.get(cache_key)
-        if cache_value is not None:
-            logging.debug('Vault v2 cache hit')
-            return cache_value
-
         path_split = path.split('/')
         mount_point = path_split[0]
         read_path = '/'.join(path_split[1:])
@@ -141,7 +131,6 @@ class _VaultClient:
             raise SecretNotFound(path)
 
         data = secret['data']['data']
-        self._cache[cache_key] = data
         return data
 
     def _read_all_v1(self, path):
@@ -211,6 +200,8 @@ class _VaultClient:
             self._write_v2(secret_path, data)
 
     def _write_v2(self, path, data):
+        # do not forget to run `self._read_all_v2.cache_clear()`
+        # if this ever get's implemented
         raise NotImplementedError('vault_client write v2')
 
     def _write_v1(self, path, data):
