@@ -108,7 +108,7 @@ class _VaultClient:
 
         return version
 
-    @functools.lru_cache()
+    @functools.lru_cache(maxsize=None)
     def _read_all_v2(self, path, version):
         path_split = path.split('/')
         mount_point = path_split[0]
