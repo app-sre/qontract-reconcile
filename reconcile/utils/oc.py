@@ -185,6 +185,12 @@ class OC:
         self._run(cmd, stdin=resource, apply=True)
 
     @elapsed_seconds_from_commit_metric
+    def create(self, namespace, resource):
+        self._log_slow_oc_reconcile(namespace, resource)
+        cmd = ['create', '-n', namespace, '-f', '-']
+        self._run(cmd, stdin=resource, apply=True)
+
+    @elapsed_seconds_from_commit_metric
     def replace(self, namespace, resource):
         self._log_slow_oc_reconcile(namespace, resource)
         cmd = ['replace', '-n', namespace, '-f', '-']
