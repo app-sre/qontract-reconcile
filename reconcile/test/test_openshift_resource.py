@@ -12,7 +12,7 @@ TEST_INT = 'test_openshift_resources'
 TEST_INT_VER = semver.format_version(1, 9, 2)
 
 
-class TestOpenshiftResource(object):
+class TestOpenshiftResource:
     @staticmethod
     def test_verify_valid_k8s_object():
         resource = fxt.get_anymarkup('valid_resource.yml')

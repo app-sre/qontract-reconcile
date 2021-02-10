@@ -23,7 +23,7 @@ class ValidationError(Exception):
     pass
 
 
-class StateSpec(object):
+class StateSpec:
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
                  resource_type_override=None, resource_names=None):
         self.type = type

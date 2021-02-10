@@ -4,7 +4,7 @@ from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.aggregated_list import AggregatedDiffRunner
 
 
-class TestAggregatedList(object):
+class TestAggregatedList:
     @staticmethod
     def test_add_item():
         alist = AggregatedList()
@@ -154,7 +154,7 @@ class TestAggregatedList(object):
         ]
 
 
-class TestAggregatedDiffRunner(object):
+class TestAggregatedDiffRunner:
     @staticmethod
     def test_run():
         left = AggregatedList()

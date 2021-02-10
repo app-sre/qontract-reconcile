@@ -15,7 +15,7 @@ class HTTPStatusCodeError(Exception):
         )
 
 
-class JumpHostBase(object):
+class JumpHostBase:
     def __init__(self, jh, settings=None):
         self.hostname = jh['hostname']
         self.user = jh['user']

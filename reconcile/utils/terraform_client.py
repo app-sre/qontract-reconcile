@@ -19,7 +19,7 @@ import reconcile.utils.lean_terraform_client as lean_tf
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 
-class TerraformClient(object):
+class TerraformClient:
     def __init__(self, integration, integration_version,
                  integration_prefix, working_dirs, thread_pool_size,
                  init_users=False):

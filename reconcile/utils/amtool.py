@@ -2,7 +2,7 @@ import tempfile
 from subprocess import run, PIPE
 
 
-class AmtoolResult(object):
+class AmtoolResult:
     '''This class represents a amtool command execution result'''
     def __init__(self, is_ok, message):
         self.is_ok = is_ok

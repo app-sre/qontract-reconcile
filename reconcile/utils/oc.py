@@ -62,7 +62,7 @@ class JobNotRunningError(Exception):
     pass
 
 
-class OC(object):
+class OC:
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -531,7 +531,7 @@ class OC(object):
                          f"commit ts {self.running_state.timestamp}")
 
 
-class OC_Map(object):
+class OC_Map:
     """OC_Map gets a GraphQL query results list as input
     and initiates a dictionary of OC clients per cluster.
 

@@ -41,7 +41,7 @@ lol_key: lol_value
 '''
 
 
-class TestGetRuleFilesFromJinjaTestTemplate(object):
+class TestGetRuleFilesFromJinjaTestTemplate:
     @staticmethod
     def test_good_yaml():
         rule_files = prt.get_rule_files_from_jinja_test_template(GOOD_YAML)

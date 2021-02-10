@@ -6,7 +6,7 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
-class OCM(object):
+class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
@@ -719,7 +719,7 @@ class OCM(object):
         r.raise_for_status()
 
 
-class OCMMap(object):
+class OCMMap:
     """
     OCMMap gets a GraphQL query results list as input
     and initiates a dictionary of OCM clients per OCM.

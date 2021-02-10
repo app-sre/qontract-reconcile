@@ -5,7 +5,7 @@ import reconcile.openshift_performance_parameters as perf_params
 fxt = Fixtures('openshift_performance_parameters')
 
 
-class TestOpenShiftPerfParams(object):
+class TestOpenShiftPerfParams:
     @staticmethod
     def test_labels_to_selectors():
         items = [
