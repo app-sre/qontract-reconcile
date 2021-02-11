@@ -65,7 +65,7 @@ def raise_if_error(response):
     """
     Raises an SendGridAPIError if the request has returned an error
     """
-    if int(response.status_code / 100) != 2:
+    if response.status_code >= 300:
         raise SendGridAPIError(response.body.decode('utf-8'))
 
 
