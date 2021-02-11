@@ -5,10 +5,10 @@ import logging
 import tempfile
 
 import reconcile.utils.threaded as threaded
-from reconcile.utils.qrtracking import elapsed_seconds_from_commit_metric
 
 from subprocess import Popen, PIPE
 from datetime import datetime
+from functools import wraps
 
 from threading import Lock
 from sretoolbox.utils import retry
@@ -16,6 +16,7 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.status import RunningState
+from reconcile.utils.metrics import reconcile_time
 
 
 class StatusCodeError(Exception):
@@ -63,6 +64,58 @@ class JobNotRunningError(Exception):
 
 
 class OC:
+    class _Decorators:
+        @classmethod
+        def process_reconcile_time(cls, function):
+
+            @wraps(function)
+            def wrapper(*args, **kwargs):
+                result = function(*args, **kwargs)
+
+                running_state = RunningState()
+                commit_time = float(running_state.timestamp)
+                time_spent = time.time() - commit_time
+
+                try:
+                    kind = result['resource']['kind']
+                    name = result['resource']['metadata']['name']
+                    annotations = \
+                        result['resource']['metadata'].get('annotations')
+                except KeyError as e:
+                    logging.warning(f"Error processing metric: {e}")
+                    return
+
+                ignore_reconcile_time = \
+                    annotations.get('qontract.ignore_reconcile_time') == 'true'
+                if not ignore_reconcile_time:
+                    name = f'{function.__module__}.{function.__qualname__}'
+                    reconcile_time.labels(
+                        name=name,
+                        integration=running_state.integration
+                    ).observe(amount=time_spent)
+
+                if os.environ.get('LOG_SLOW_OC_RECONCILE') != 'true':
+                    return
+
+                slow_oc_reconcile_threshold = \
+                    float(os.environ.get('SLOW_OC_RECONCILE_THRESHOLD', 600))
+
+                if time_spent > slow_oc_reconcile_threshold:
+                    msg = f"{kind} {name} in namespace " \
+                          f"{result['namespace']} from " \
+                          f"{result['server']} took {time_spent} to " \
+                          f"reconcile. Commit sha {running_state.commit} " \
+                          f"and commit ts {running_state.timestamp}."
+
+                    if ignore_reconcile_time:
+                        msg += " Ignored in the metric published."
+
+                    logging.info(msg)
+
+                return
+
+            return wrapper
+
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -91,15 +144,6 @@ class OC:
             self.api_resources = self.get_api_resources()
         else:
             self.api_resources = None
-
-        self.running_state = RunningState()
-
-        self.slow_oc_reconcile_threshold = \
-            float(os.environ.get('SLOW_OC_RECONCILE_THRESHOLD', 600))
-
-        self.is_log_slow_oc_reconcile = \
-            os.environ.get('LOG_SLOW_OC_RECONCILE', '').lower() \
-            in ['true', 'yes']
 
     def whoami(self):
         return self._run(['whoami'])
@@ -178,30 +222,46 @@ class OC:
                'kubectl.kubernetes.io/last-applied-configuration-']
         self._run(cmd)
 
-    @elapsed_seconds_from_commit_metric
+    @_Decorators.process_reconcile_time
     def apply(self, namespace, resource):
-        self._log_slow_oc_reconcile(namespace, resource)
+        """ Runs oc apply. Returns nothing """
         cmd = ['apply', '-n', namespace, '-f', '-']
-        self._run(cmd, stdin=resource, apply=True)
+        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        # This return will be removed by the last decorator
+        return {'namespace': namespace,
+                'resource': resource.body,
+                'server': self.server}
 
-    @elapsed_seconds_from_commit_metric
+    @_Decorators.process_reconcile_time
     def create(self, namespace, resource):
-        self._log_slow_oc_reconcile(namespace, resource)
+        """ Runs oc create. Returns nothing """
         cmd = ['create', '-n', namespace, '-f', '-']
-        self._run(cmd, stdin=resource, apply=True)
+        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        # This return will be removed by the last decorator
+        return {'namespace': namespace,
+                'resource': resource.body,
+                'server': self.server}
 
-    @elapsed_seconds_from_commit_metric
+    @_Decorators.process_reconcile_time
     def replace(self, namespace, resource):
-        self._log_slow_oc_reconcile(namespace, resource)
+        """ Runs oc replace. Returns nothing """
         cmd = ['replace', '-n', namespace, '-f', '-']
-        self._run(cmd, stdin=resource, apply=True)
+        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        # This return will be removed by the last decorator
+        return {'namespace': namespace,
+                'resource': resource.body,
+                'server': self.server}
 
-    @elapsed_seconds_from_commit_metric
+    @_Decorators.process_reconcile_time
     def delete(self, namespace, kind, name):
-        self._log_slow_oc_reconcile(
-            namespace, {'kind': kind, 'metadata': {'name': name}})
+        """ Runs oc delete. Returns nothing """
+        resource = {'kind': kind, 'metadata': {'name': name}}
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
+        # This return will be removed by the last decorator
+        return {'namespace': namespace,
+                'resource': resource,
+                'server': self.server}
 
     def project_exists(self, name):
         if self.init_projects:
@@ -513,32 +573,6 @@ class OC:
             raise JSONParsingError(out + "\n" + str(e))
 
         return out_json
-
-    def _log_slow_oc_reconcile(self, namespace, resource):
-        if not self.is_log_slow_oc_reconcile:
-            return
-
-        try:
-            if isinstance(resource, str):
-                # let's assume json here as it is what we actually have
-                r = json.loads(resource)
-                kind = r['kind']
-                name = r['metadata']['name']
-            else:
-                kind = resource['kind']
-                name = resource['metadata']['name']
-        except Exception as e:
-            logging.warning(f"Error in slow oc reconcile log: {e}")
-            return
-
-        commit_time = float(self.running_state.timestamp)
-        time_spent = time.time() - commit_time
-
-        if time_spent > self.slow_oc_reconcile_threshold:
-            logging.info(f"{kind} {name} in namespace {namespace} "
-                         f"from {self.server} took {time_spent} to reconcile. "
-                         f"Commit sha {self.running_state.commit} and "
-                         f"commit ts {self.running_state.timestamp}")
 
 
 class OC_Map:
