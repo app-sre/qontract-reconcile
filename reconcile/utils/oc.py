@@ -94,13 +94,10 @@ class OC:
                         integration=running_state.integration
                     ).observe(amount=time_spent)
 
-                if os.environ.get('LOG_SLOW_OC_RECONCILE') != 'true':
+                if not result['is_log_slow_oc_reconcile']:
                     return
 
-                slow_oc_reconcile_threshold = \
-                    float(os.environ.get('SLOW_OC_RECONCILE_THRESHOLD', 600))
-
-                if time_spent > slow_oc_reconcile_threshold:
+                if time_spent > result['slow_oc_reconcile_threshold']:
                     msg = f"{kind} {name} in namespace " \
                           f"{result['namespace']} from " \
                           f"{result['server']} took {time_spent} to " \
@@ -144,6 +141,13 @@ class OC:
             self.api_resources = self.get_api_resources()
         else:
             self.api_resources = None
+
+        self.slow_oc_reconcile_threshold = \
+            float(os.environ.get('SLOW_OC_RECONCILE_THRESHOLD', 600))
+
+        self.is_log_slow_oc_reconcile = \
+            os.environ.get('LOG_SLOW_OC_RECONCILE', '').lower() \
+            in ['true', 'yes']
 
     def whoami(self):
         return self._run(['whoami'])
@@ -222,15 +226,22 @@ class OC:
                'kubectl.kubernetes.io/last-applied-configuration-']
         self._run(cmd)
 
+    def _msg_to_process_reconcile_time(self, namespace, resource):
+        return {
+            'namespace': namespace,
+            'resource': resource,
+            'server': self.server,
+            'slow_oc_reconcile_threshold': self.slow_oc_reconcile_threshold,
+            'is_log_slow_oc_reconcile': self.is_log_slow_oc_reconcile
+        }
+
     @_Decorators.process_reconcile_time
     def apply(self, namespace, resource):
         """ Runs oc apply. Returns nothing """
         cmd = ['apply', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource.toJSON(), apply=True)
         # This return will be removed by the last decorator
-        return {'namespace': namespace,
-                'resource': resource.body,
-                'server': self.server}
+        return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @_Decorators.process_reconcile_time
     def create(self, namespace, resource):
@@ -238,9 +249,7 @@ class OC:
         cmd = ['create', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource.toJSON(), apply=True)
         # This return will be removed by the last decorator
-        return {'namespace': namespace,
-                'resource': resource.body,
-                'server': self.server}
+        return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @_Decorators.process_reconcile_time
     def replace(self, namespace, resource):
@@ -248,9 +257,7 @@ class OC:
         cmd = ['replace', '-n', namespace, '-f', '-']
         self._run(cmd, stdin=resource.toJSON(), apply=True)
         # This return will be removed by the last decorator
-        return {'namespace': namespace,
-                'resource': resource.body,
-                'server': self.server}
+        return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @_Decorators.process_reconcile_time
     def delete(self, namespace, kind, name):
@@ -259,9 +266,7 @@ class OC:
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
         # This return will be removed by the last decorator
-        return {'namespace': namespace,
-                'resource': resource,
-                'server': self.server}
+        return self._msg_to_process_reconcile_time(namespace, resource)
 
     def project_exists(self, name):
         if self.init_projects:
