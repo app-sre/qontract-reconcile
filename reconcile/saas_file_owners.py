@@ -253,8 +253,9 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     desired_state = collect_state()
     diffs = [s for s in desired_state if s not in current_state]
 
+    rebased = gl.is_merge_request_rebased(gitlab_merge_request_id)
     compare_diffs = collect_compare_diffs(current_state, desired_state)
-    if compare_diffs:
+    if compare_diffs and rebased:
         compare_diffs_comment_body = 'Diffs:\n' + \
             '\n'.join([f'- {d}' for d in compare_diffs])
         gl.add_comment_to_merge_request(
@@ -314,7 +315,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
                          if not c.endswith(saas_file_path)]
 
     comment_body = '\n'.join(comment_lines.values())
-    if comment_body:
+    if comment_body and rebased:
         # if there are still entries in this list - they are not approved
         if not valid_saas_file_changes_only:
             comment_body = comment_body + \

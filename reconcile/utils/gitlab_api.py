@@ -296,6 +296,15 @@ class GitLabApi(object):
                              'id': note.id})
         return comments
 
+    def is_merge_request_rebased(self, mr_id):
+        merge_request = self.project.mergerequests.get(mr_id)
+        target_branch = merge_request.target_branch
+        head = self.project.commits.list(ref_name=target_branch)[0].id
+        result = self.project.repository_compare(merge_request.sha, head)
+        if len(result['commits']) == 0:  # rebased
+            return True
+        return False
+
     def delete_gitlab_comment(self, mr_id, comment_id):
         merge_request = self.project.mergerequests.get(mr_id)
         note = merge_request.notes.get(comment_id)
