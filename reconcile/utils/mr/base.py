@@ -129,7 +129,7 @@ class MergeRequestBase(metaclass=ABCMeta):
 
         # Avoiding empty MRs
         if not gitlab_cli.project.repository_compare(from_=self.main_branch,
-                                                     to=self.branch):
+                                                     to=self.branch)['diffs']:
             gitlab_cli.delete_branch(branch=self.branch)
             LOG.info('No changes when compared to %s. Aborting MR creation.',
                      self.main_branch)
