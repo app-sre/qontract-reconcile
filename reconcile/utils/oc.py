@@ -218,7 +218,11 @@ class OC:
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
-        self._run(cmd)
+        try:
+            self._run(cmd)
+        except StatusCodeError as e:
+            if 'AlreadyExists' not in str(e):
+                raise e
 
     def delete_project(self, namespace):
         cmd = ['delete', 'project', namespace]
