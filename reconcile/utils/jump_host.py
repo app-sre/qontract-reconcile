@@ -10,9 +10,7 @@ from reconcile.exceptions import FetchResourceError
 
 class HTTPStatusCodeError(Exception):
     def __init__(self, msg):
-        super(HTTPStatusCodeError, self).__init__(
-            "HTTP status code error: " + str(msg)
-        )
+        super().__init__("HTTP status code error: " + str(msg))
 
 
 class JumpHostBase:

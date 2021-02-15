@@ -65,9 +65,7 @@ LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
-        super(UnknownProviderError, self).__init__(
-            "unknown provider error: " + str(msg)
-        )
+        super().__init__("unknown provider error: " + str(msg))
 
 
 def safe_resource_id(s):

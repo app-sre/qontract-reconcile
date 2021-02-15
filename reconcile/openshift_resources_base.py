@@ -143,23 +143,17 @@ _log_lock = Lock()
 
 class FetchVaultSecretError(Exception):
     def __init__(self, msg):
-        super(FetchVaultSecretError, self).__init__(
-            "error fetching vault secret: " + str(msg)
-        )
+        super().__init__("error fetching vault secret: " + str(msg))
 
 
 class FetchRouteError(Exception):
     def __init__(self, msg):
-        super(FetchRouteError, self).__init__(
-            "error fetching route: " + str(msg)
-        )
+        super().__init__("error fetching route: " + str(msg))
 
 
 class Jinja2TemplateError(Exception):
     def __init__(self, msg):
-        super(Jinja2TemplateError, self).__init__(
-            "error processing jinja2 template: " + str(msg)
-        )
+        super().__init__("error processing jinja2 template: " + str(msg))
 
 
 class ResourceTemplateRenderError(Exception):
@@ -168,16 +162,12 @@ class ResourceTemplateRenderError(Exception):
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
-        super(UnknownProviderError, self).__init__(
-            "unknown provider error: " + str(msg)
-        )
+        super().__init__("unknown provider error: " + str(msg))
 
 
 class UnknownTemplateTypeError(Exception):
     def __init__(self, msg):
-        super(UnknownTemplateTypeError, self).__init__(
-            "unknown template type error: " + str(msg)
-        )
+        super().__init__("unknown template type error: " + str(msg))
 
 
 def lookup_vault_secret(path, key, version=None, tvars=None):
