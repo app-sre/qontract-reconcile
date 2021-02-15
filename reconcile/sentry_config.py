@@ -89,6 +89,7 @@ SENTRY_TEAMS_QUERY = """
 SENTRY_INSTANCES_QUERY = """
 {
   instances: sentry_instances_v1 {
+    name
     consoleUrl
     automationToken {
       path
@@ -562,13 +563,17 @@ def run(dry_run):
     github = init_github()
     secret_reader = SecretReader(settings=settings)
     # Reconcile against all sentry instances
-    result = gqlapi.query(SENTRY_INSTANCES_QUERY)
-    for instance in result['instances']:
-        token = secret_reader.read(instance['automationToken'])
+    instances = gqlapi.query(SENTRY_INSTANCES_QUERY)['instances']
+    tokens = {i['name']: secret_reader.read(i['automationToken'])
+              for i in instances}
+    skip_users = {i['name']: secret_reader.read(i['adminUser'])
+                  for i in instances}
+    for instance in instances:
+        instance_name = instance['name']
+        token = tokens[instance_name]
         host = instance['consoleUrl']
         sentry_client = SentryClient(host, token)
-
-        skip_user = secret_reader.read(instance['adminUser'])
+        skip_user = skip_users[instance_name]
         current_state = fetch_current_state(sentry_client, [skip_user])
         desired_state = fetch_desired_state(gqlapi, instance, github)
 
