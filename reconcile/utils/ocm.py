@@ -31,6 +31,7 @@ class OCM:
         self._init_clusters()
         self._init_addons()
 
+    @retry()
     def _init_access_token(self):
         data = {
             'grant_type': 'refresh_token',
