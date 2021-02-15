@@ -459,9 +459,9 @@ class ResourceInventory:
             current[name] = value
 
     def __iter__(self):
-        for cluster in self._clusters.keys():
-            for namespace in self._clusters[cluster].keys():
-                for resource_type in self._clusters[cluster][namespace].keys():
+        for cluster in self._clusters:
+            for namespace in self._clusters[cluster]:
+                for resource_type in self._clusters[cluster][namespace]:
                     data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
 
