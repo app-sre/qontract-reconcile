@@ -145,9 +145,9 @@ def subtract_states(from_state, subtract_state, user_action, group_action):
             found = True
             break
         if not found:
-            s_groups = set([s_user['group']
-                            for s_user in subtract_state
-                            if f_user['cluster'] == s_user['cluster']])
+            s_groups = {s_user['group']
+                        for s_user in subtract_state
+                        if f_user['cluster'] == s_user['cluster']}
             if f_user['group'] not in s_groups:
                 item = {
                     "action": group_action,

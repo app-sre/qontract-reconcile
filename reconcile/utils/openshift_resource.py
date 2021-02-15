@@ -86,8 +86,8 @@ class OpenshiftResource:
         elif isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
-            for i in range(len(obj1)):
-                if not self.obj_intersect_equal(obj1[i], obj2[i]):
+            for index, item in enumerate(obj1):
+                if not self.obj_intersect_equal(item, obj2[index]):
                     return False
 
         elif obj1 != obj2:
@@ -459,9 +459,9 @@ class ResourceInventory:
             current[name] = value
 
     def __iter__(self):
-        for cluster in self._clusters.keys():
-            for namespace in self._clusters[cluster].keys():
-                for resource_type in self._clusters[cluster][namespace].keys():
+        for cluster in self._clusters:
+            for namespace in self._clusters[cluster]:
+                for resource_type in self._clusters[cluster][namespace]:
                     data = self._clusters[cluster][namespace][resource_type]
                     yield (cluster, namespace, resource_type, data)
 
