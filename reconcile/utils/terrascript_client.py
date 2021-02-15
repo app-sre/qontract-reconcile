@@ -1460,7 +1460,7 @@ class TerrascriptClient:
                     }
                 ]
             }
-            if len(kms_keys):
+            if kms_keys:
                 kms_statement = {
                     "Effect": "Allow",
                     "Action": ["kms:Decrypt"],
