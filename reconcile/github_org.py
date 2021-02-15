@@ -370,15 +370,8 @@ def run(dry_run):
     desired_state = fetch_desired_state()
 
     # Ensure current_state and desired_state match orgs
-    current_orgs = set([
-        item["params"]["org"]
-        for item in current_state.dump()
-    ])
-
-    desired_orgs = set([
-        item["params"]["org"]
-        for item in desired_state.dump()
-    ])
+    current_orgs = {item["params"]["org"] for item in current_state.dump()}
+    desired_orgs = {item["params"]["org"] for item in desired_state.dump()}
 
     assert current_orgs == desired_orgs, \
         "Current orgs ({}) don't match desired orgs ({})".format(

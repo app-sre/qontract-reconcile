@@ -493,7 +493,7 @@ class SaasHerder():
 
         images_list = threaded.run(self._collect_images, resources,
                                    self.available_thread_pool_size)
-        images = set([item for sublist in images_list for item in sublist])
+        images = {item for sublist in images_list for item in sublist}
         if not images:
             return False  # no errors
         errors = threaded.run(self._check_image, images,

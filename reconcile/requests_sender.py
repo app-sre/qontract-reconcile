@@ -59,8 +59,7 @@ def run(dry_run):
     credentials_requests = queries.get_credentials_requests()
 
     # validate no 2 requests have the same name
-    credentials_requests_names = \
-        set([r['name'] for r in credentials_requests])
+    credentials_requests_names = {r['name'] for r in credentials_requests}
     if len(credentials_requests) != len(credentials_requests_names):
         logging.error('request names must be unique.')
         sys.exit(1)
