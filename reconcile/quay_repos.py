@@ -96,7 +96,7 @@ def fetch_desired_state():
     return state
 
 
-class RunnerAction(object):
+class RunnerAction:
     def __init__(self, dry_run, quay_api_store):
         self.dry_run = dry_run
         self.quay_api_store = quay_api_store

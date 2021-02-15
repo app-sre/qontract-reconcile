@@ -3,7 +3,7 @@ from reconcile.utils.secret_reader import SecretReader
 from jira import JIRA
 
 
-class JiraClient(object):
+class JiraClient:
     """Wrapper around Jira client"""
 
     def __init__(self, jira_board, settings=None):

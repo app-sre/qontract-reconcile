@@ -19,7 +19,8 @@ class B64EncodeExtension(Extension):
         return nodes.CallBlock(self.call_method('_b64encode', None),
                                [], [], body).set_lineno(lineno)
 
-    def _b64encode(self, caller):
+    @staticmethod
+    def _b64encode(caller):
         content = caller()
         content = textwrap.dedent(content)
         return base64.b64encode(content.encode()).decode('utf-8')

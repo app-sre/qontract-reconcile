@@ -6,7 +6,7 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
-class OCM(object):
+class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
@@ -31,6 +31,7 @@ class OCM(object):
         self._init_clusters()
         self._init_addons()
 
+    @retry()
     def _init_access_token(self):
         data = {
             'grant_type': 'refresh_token',
@@ -187,7 +188,8 @@ class OCM(object):
                 'listening':
                     'internal' if cluster_spec['private']
                     else 'external'
-            }
+            },
+            'upgrade_channel_group': cluster_spec['channel'],
         }
 
         autoscale = cluster_spec.get('autoscale')
@@ -718,7 +720,7 @@ class OCM(object):
         r.raise_for_status()
 
 
-class OCMMap(object):
+class OCMMap:
     """
     OCMMap gets a GraphQL query results list as input
     and initiates a dictionary of OCM clients per OCM.

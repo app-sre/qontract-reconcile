@@ -62,7 +62,7 @@ class JobNotRunningError(Exception):
     pass
 
 
-class OC(object):
+class OC:
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -185,6 +185,12 @@ class OC(object):
         self._run(cmd, stdin=resource, apply=True)
 
     @elapsed_seconds_from_commit_metric
+    def create(self, namespace, resource):
+        self._log_slow_oc_reconcile(namespace, resource)
+        cmd = ['create', '-n', namespace, '-f', '-']
+        self._run(cmd, stdin=resource, apply=True)
+
+    @elapsed_seconds_from_commit_metric
     def replace(self, namespace, resource):
         self._log_slow_oc_reconcile(namespace, resource)
         cmd = ['replace', '-n', namespace, '-f', '-']
@@ -212,7 +218,11 @@ class OC(object):
 
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
-        self._run(cmd)
+        try:
+            self._run(cmd)
+        except StatusCodeError as e:
+            if 'AlreadyExists' not in str(e):
+                raise e
 
     def delete_project(self, namespace):
         cmd = ['delete', 'project', namespace]
@@ -531,7 +541,7 @@ class OC(object):
                          f"commit ts {self.running_state.timestamp}")
 
 
-class OC_Map(object):
+class OC_Map:
     """OC_Map gets a GraphQL query results list as input
     and initiates a dictionary of OC clients per cluster.
 

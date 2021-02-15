@@ -4,7 +4,7 @@ import requests
 from sretoolbox.utils import retry
 
 
-class RawGithubApi(object):
+class RawGithubApi:
     """
     REST based GH interface
 

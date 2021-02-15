@@ -8,7 +8,7 @@ class SQSGatewayInitError(Exception):
     pass
 
 
-class SQSGateway(object):
+class SQSGateway:
     """Wrapper around SQS AWS SDK"""
 
     def __init__(self, accounts, settings=None):

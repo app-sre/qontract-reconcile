@@ -16,7 +16,8 @@ def has_uncommited_changes():
 
 
 class TestMake:
-    def test_make_generate(self):
+    @staticmethod
+    def test_make_generate():
         assert not has_uncommited_changes(), ('No uncommited changes must '
                                               'exists')
 

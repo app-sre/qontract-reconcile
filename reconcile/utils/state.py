@@ -6,7 +6,7 @@ from botocore.errorfactory import ClientError
 from reconcile.utils.aws_api import AWSApi
 
 
-class State(object):
+class State:
     """
     A state object to be used by stateful integrations.
     A stateful integration is one that has to do each action only once,

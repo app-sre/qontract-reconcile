@@ -3,7 +3,7 @@ import os
 import anymarkup
 
 
-class Fixtures(object):
+class Fixtures:
     def __init__(self, base_path):
         self.base_path = base_path
 

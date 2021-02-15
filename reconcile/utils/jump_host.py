@@ -15,7 +15,7 @@ class HTTPStatusCodeError(Exception):
         )
 
 
-class JumpHostBase(object):
+class JumpHostBase:
     def __init__(self, jh, settings=None):
         self.hostname = jh['hostname']
         self.user = jh['user']
@@ -44,7 +44,8 @@ class JumpHostSSH(JumpHostBase):
         self.known_hosts = self.get_known_hosts(jh)
         self.init_known_hosts_file()
 
-    def get_known_hosts(self, jh):
+    @staticmethod
+    def get_known_hosts(jh):
         known_hosts_path = jh['knownHosts']
         gqlapi = gql.get_api()
 

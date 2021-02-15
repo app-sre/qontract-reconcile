@@ -23,7 +23,7 @@ from sretoolbox.utils import retry
 from reconcile.exceptions import FetchResourceError
 
 
-class JJB(object):
+class JJB:
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True, settings=None):
@@ -98,7 +98,8 @@ class JJB(object):
         configs.sort(key=self.sort_by_name)
         configs.sort(key=self.sort_by_type)
 
-    def sort_by_type(self, config):
+    @staticmethod
+    def sort_by_type(config):
         if config['type'] == 'defaults':
             return 0
         elif config['type'] == 'global-defaults':
@@ -116,7 +117,8 @@ class JJB(object):
         elif config['type'] == 'jobs':
             return 50
 
-    def sort_by_name(self, config):
+    @staticmethod
+    def sort_by_name(config):
         return config['name']
 
     def get_configs(self):
@@ -193,12 +195,14 @@ class JJB(object):
         return [f for f in from_files
                 if (self.toggle_cd(f) in subtract_files) is in_op]
 
-    def get_files(self, search_path):
+    @staticmethod
+    def get_files(search_path):
         return [path.join(root, f)
                 for root, _, files in os.walk(search_path)
                 for f in files]
 
-    def toggle_cd(self, file_name):
+    @staticmethod
+    def toggle_cd(file_name):
         if 'desired' in file_name:
             return file_name.replace('desired', 'current')
         else:
@@ -217,7 +221,8 @@ class JJB(object):
                 cmd.append('--delete-old')
             subprocess.call(cmd)
 
-    def get_jjb(self, args):
+    @staticmethod
+    def get_jjb(args):
         from jenkins_jobs.cli.entry import JenkinsJobs
         return JenkinsJobs(args)
 

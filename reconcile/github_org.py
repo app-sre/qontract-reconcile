@@ -209,7 +209,7 @@ def fetch_desired_state(infer_clusters=True):
     return state
 
 
-class GHApiStore(object):
+class GHApiStore:
     _orgs = {}
 
     def __init__(self, config):
@@ -232,7 +232,7 @@ class GHApiStore(object):
         return self._orgs[org_name][2]
 
 
-class RunnerAction(object):
+class RunnerAction:
     def __init__(self, dry_run, gh_api_store):
         self.dry_run = dry_run
         self.gh_api_store = gh_api_store

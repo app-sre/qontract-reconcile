@@ -44,7 +44,8 @@ class MergeRequestBase(metaclass=ABCMeta):
         self.main_branch = 'master'
         self.remove_source_branch = True
 
-    def cancel(self, message):
+    @staticmethod
+    def cancel(message):
         raise CancelMergeRequest(message)
 
     @abstractmethod

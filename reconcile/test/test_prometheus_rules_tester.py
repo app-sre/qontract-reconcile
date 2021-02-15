@@ -41,22 +41,26 @@ lol_key: lol_value
 '''
 
 
-class TestGetRuleFilesFromJinjaTestTemplate(object):
-    def test_good_yaml(self):
+class TestGetRuleFilesFromJinjaTestTemplate:
+    @staticmethod
+    def test_good_yaml():
         rule_files = prt.get_rule_files_from_jinja_test_template(GOOD_YAML)
         assert rule_files == ['/kiss.yml']
 
-    def test_bad_yaml_parseable_1(self):
+    @staticmethod
+    def test_bad_yaml_parseable_1():
         rule_files = \
             prt.get_rule_files_from_jinja_test_template(BAD_YAML_PARSEABLE_1)
         assert rule_files == ['/smooth.yml', '/criminal.yml']
 
-    def test_bad_yaml_parseable_2(self):
+    @staticmethod
+    def test_bad_yaml_parseable_2():
         rule_files = \
             prt.get_rule_files_from_jinja_test_template(BAD_YAML_PARSEABLE_2)
         assert rule_files == ['/let.yml', '/love.yml', '/rule.yml']
 
-    def test_bad_yaml_non_parseable(self):
+    @staticmethod
+    def test_bad_yaml_non_parseable():
         rule_files = \
             prt.get_rule_files_from_jinja_test_template(BAD_YAML_NON_PARSEABLE)
         assert rule_files == []

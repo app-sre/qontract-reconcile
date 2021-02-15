@@ -7,7 +7,7 @@ class RequestsException(Exception):
         super(Exception, self).__init__(message)
 
 
-class QuayApi(object):
+class QuayApi:
     API_URL = 'https://quay.io/api/v1'
     LIMIT_FOLLOWS = 15
 

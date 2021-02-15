@@ -1,6 +1,7 @@
-import requests
+import functools
 import json
 import parse
+import requests
 
 from sretoolbox.utils import retry
 
@@ -11,7 +12,6 @@ class SentryClient:
     def __init__(self, host, token):
         self.host = host
         self.auth_token = token
-        self._cache = {}
 
     @retry()
     def _do_sentry_api_call_(self, method, path, slugs, payload=None):
@@ -59,12 +59,9 @@ class SentryClient:
         return all_results
 
     # Organization functions
+    @functools.lru_cache()
     def get_organizations(self):
-        organizations = self._cache.get('organizations')
-        if organizations:
-            return organizations
         response = self._do_sentry_api_call_("get", "organizations", [])
-        self._cache['organizations'] = response
         return response
 
     def get_organization(self, slug):
@@ -72,12 +69,9 @@ class SentryClient:
         return response
 
     # Project functions
+    @functools.lru_cache()
     def get_projects(self):
-        projects = self._cache.get('projects')
-        if projects:
-            return projects
         response = self._do_sentry_api_call_("get", "projects", [])
-        self._cache['projects'] = response
         return response
 
     def get_project(self, slug):
@@ -124,14 +118,16 @@ class SentryClient:
                                              payload=params)
         return response
 
-    def required_project_fields(self):
+    @staticmethod
+    def required_project_fields():
         required_fields = {
             "platform": "platform",
             "subjectPrefix": "email_prefix"
         }
         return required_fields
 
-    def optional_project_fields(self):
+    @staticmethod
+    def optional_project_fields():
         optional_fields = {
             "sensitiveFields": "sensitive_fields",
             "safeFields": "safe_fields",
@@ -226,13 +222,10 @@ class SentryClient:
         return response
 
     # User/Member functions
+    @functools.lru_cache()
     def get_users(self):
-        users = self._cache.get('users')
-        if users:
-            return users
         response = self._do_sentry_api_call_("get", "organizations",
                                              [self.ORGANIZATION, "members"])
-        self._cache['users'] = response
         return response
 
     def get_user(self, email):

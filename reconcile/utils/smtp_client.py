@@ -39,7 +39,8 @@ class SmtpClient:
             self._server.login(self.user, self.passwd)
         return self._server
 
-    def get_smtp_config(self, path, settings):
+    @staticmethod
+    def get_smtp_config(path, settings):
         config = {}
         required_keys = ('password', 'port', 'require_tls', 'server',
                          'username')

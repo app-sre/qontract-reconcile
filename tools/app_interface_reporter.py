@@ -68,7 +68,7 @@ def promql(url, query, auth=None):
     return response['data']['result']
 
 
-class Report(object):
+class Report:
     def __init__(self, app, date):
         settings = queries.get_app_interface_settings()
         self.secret_reader = SecretReader(settings=settings)
@@ -217,7 +217,8 @@ class Report(object):
                                        'validations': validations})
         return parsed_metrics
 
-    def get_performance_metrics(self, performance_parameters, method, field):
+    @staticmethod
+    def get_performance_metrics(performance_parameters, method, field):
         return [
             method(pp['component'], ns, metric)
             for pp in performance_parameters

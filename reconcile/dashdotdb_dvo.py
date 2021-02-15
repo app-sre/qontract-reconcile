@@ -26,7 +26,8 @@ class DashdotdbDVO:
         self.chunksize = secret_content.get('chunksize') or '20'
         self.logmarker = "DDDB_DVO:"
 
-    def _chunkify(self, data, size):
+    @staticmethod
+    def _chunkify(data, size):
         for i in range(0, len(data), int(size)):
             yield data[i:i+int(size)]
 
@@ -124,7 +125,8 @@ class DashdotdbDVO:
         return {'cluster': cluster,
                 'data': deploymentvalidation}
 
-    def _get_clusters(self, cnfilter=None):
+    @staticmethod
+    def _get_clusters(cnfilter=None):
         # 'cluster': 'fooname'
         # 'private': False
         # 'prometheus': 'https://prometheus.baz.tld'

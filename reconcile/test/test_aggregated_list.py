@@ -4,8 +4,9 @@ from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.aggregated_list import AggregatedDiffRunner
 
 
-class TestAggregatedList(object):
-    def test_add_item(self):
+class TestAggregatedList:
+    @staticmethod
+    def test_add_item():
         alist = AggregatedList()
 
         params = {'a': 1, 'b': 2}
@@ -17,7 +18,8 @@ class TestAggregatedList(object):
         assert alist.dump()[0]['items'] == items
         assert alist.dump()[0]['params'] == params
 
-    def test_add_repeated_item(self):
+    @staticmethod
+    def test_add_repeated_item():
         alist = AggregatedList()
 
         params = {'a': 1, 'b': 2}
@@ -30,7 +32,8 @@ class TestAggregatedList(object):
         assert alist.dump()[0]['items'] == [item]
         assert alist.dump()[0]['params'] == params
 
-    def test_add_different_params(self):
+    @staticmethod
+    def test_add_different_params():
         alist = AggregatedList()
 
         params1 = {'b': 1, 'a': 2}
@@ -50,7 +53,8 @@ class TestAggregatedList(object):
         assert alist.get_by_params_hash(hp1)['items'] == items1
         assert alist.get_by_params_hash(hp2)['items'] == items2
 
-    def test_get_py_params_hash(self):
+    @staticmethod
+    def test_get_py_params_hash():
         alist = AggregatedList()
 
         params1 = {'a': 1, 'b': 2, 'c': 3}
@@ -83,7 +87,8 @@ class TestAggregatedList(object):
         assert alist.get_by_params_hash(hp1)['items'] == items1
         assert alist.get_by_params_hash(hp5)['items'] == items2
 
-    def test_diff_insert(self):
+    @staticmethod
+    def test_diff_insert():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -97,7 +102,8 @@ class TestAggregatedList(object):
 
         assert diff['insert'] == [{'params': {'a': 1}, 'items': ['qwerty']}]
 
-    def test_diff_delete(self):
+    @staticmethod
+    def test_diff_delete():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -111,7 +117,8 @@ class TestAggregatedList(object):
 
         assert diff['delete'] == [{'params': {'a': 1}, 'items': ['qwerty']}]
 
-    def test_diff_update_insert(self):
+    @staticmethod
+    def test_diff_update_insert():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -128,7 +135,8 @@ class TestAggregatedList(object):
             {'items': ['qwerty2'], 'params': {'a': 1}}
         ]
 
-    def test_diff_update_delete(self):
+    @staticmethod
+    def test_diff_update_delete():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -146,8 +154,9 @@ class TestAggregatedList(object):
         ]
 
 
-class TestAggregatedDiffRunner(object):
-    def test_run(self):
+class TestAggregatedDiffRunner:
+    @staticmethod
+    def test_run():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -187,7 +196,8 @@ class TestAggregatedDiffRunner(object):
         assert on_update_insert == [[{'on': 'update-insert'}, ['ui2']]]
         assert on_update_delete == [[{'on': 'update-delete'}, ['ud2']]]
 
-    def test_run_cond_true(self):
+    @staticmethod
+    def test_run_cond_true():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -206,7 +216,8 @@ class TestAggregatedDiffRunner(object):
 
         assert recorder == ['True']
 
-    def test_run_cond_false(self):
+    @staticmethod
+    def test_run_cond_false():
         left = AggregatedList()
         right = AggregatedList()
 
@@ -225,7 +236,8 @@ class TestAggregatedDiffRunner(object):
 
         assert recorder == []
 
-    def test_unknown_diff_on(self):
+    @staticmethod
+    def test_unknown_diff_on():
         left = AggregatedList()
         right = AggregatedList()
 

@@ -11,7 +11,7 @@ class UsergroupNotFoundException(Exception):
     pass
 
 
-class SlackApi(object):
+class SlackApi:
     """Wrapper around Slack API calls"""
 
     def __init__(self, workspace_name, token,
