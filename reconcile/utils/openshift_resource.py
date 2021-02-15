@@ -86,8 +86,8 @@ class OpenshiftResource:
         elif isinstance(obj1, list):
             if len(obj1) != len(obj2):
                 return False
-            for i in range(len(obj1)):
-                if not self.obj_intersect_equal(obj1[i], obj2[i]):
+            for index, item in enumerate(obj1):
+                if not self.obj_intersect_equal(item, obj2[index]):
                     return False
 
         elif obj1 != obj2:
