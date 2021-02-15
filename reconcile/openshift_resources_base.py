@@ -163,8 +163,7 @@ class Jinja2TemplateError(Exception):
 
 
 class ResourceTemplateRenderError(Exception):
-    def __init__(self, msg):
-        super(ResourceTemplateRenderError, self).__init__(msg)
+    pass
 
 
 class UnknownProviderError(Exception):
