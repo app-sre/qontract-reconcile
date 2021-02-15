@@ -568,7 +568,7 @@ def run(dry_run):
               for i in instances}
     skip_users = {i['name']: secret_reader.read(i['adminUser'])
                   for i in instances}
-    for instance in result['instances']:
+    for instance in instances:
         instance_name = instance['name']
         token = tokens[instance_name]
         host = instance['consoleUrl']
