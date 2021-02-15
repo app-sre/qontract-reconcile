@@ -14,9 +14,7 @@ class ResourceKeyExistsError(Exception):
 
 class ConstructResourceError(Exception):
     def __init__(self, msg):
-        super(ConstructResourceError, self).__init__(
-            "error constructing openshift resource: " + str(msg)
-        )
+        super().__init__("error constructing openshift resource: " + str(msg))
 
 
 # Regexes for kubernetes objects fields which have to adhere to DNS-1123
