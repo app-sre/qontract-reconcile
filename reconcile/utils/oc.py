@@ -117,7 +117,7 @@ class OCDecorators:
                 ).observe(amount=time_spent)
 
             if not msg.is_log_slow_oc_reconcile:
-                return
+                return result
 
             if time_spent > msg.slow_oc_reconcile_threshold:
                 log_msg = f'Action {function_name} for {resource_kind} ' \
