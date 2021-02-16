@@ -84,8 +84,10 @@ class OC:
             self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
-            self.projects = [p['metadata']['name']
-                             for p in self.get_all('Project')['items']]
+            self.projects = \
+                [p['metadata']['name']
+                 for p
+                 in self.get_all('Project.project.openshift.io')['items']]
         self.init_api_resources = init_api_resources
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
@@ -208,7 +210,7 @@ class OC:
             return name in self.projects
 
         try:
-            self.get(None, 'Project', name)
+            self.get(None, 'Project.project.openshift.io', name)
         except StatusCodeError as e:
             if 'NotFound' in str(e):
                 return False
