@@ -499,7 +499,9 @@ class OC:
                         'annotations', {})
                     a['recycle.time'] = recycle_time
                     obj['spec']['template']['metadata']['annotations'] = a
-                    self.apply(namespace, json.dumps(obj, sort_keys=True))
+                    cmd = ['apply', '-n', namespace, '-f', '-']
+                    stdin = json.dumps(obj, sort_keys=True)
+                    self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(self, ns, obj):
         refs = obj['metadata'].get('ownerReferences', [])
