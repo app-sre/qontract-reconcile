@@ -63,56 +63,71 @@ class JobNotRunningError(Exception):
     pass
 
 
-class OC:
-    class _Decorators:
-        @classmethod
-        def process_reconcile_time(cls, function):
+class OCDecorators:
+    @classmethod
+    def process_reconcile_time(cls, function):
 
-            @wraps(function)
-            def wrapper(*args, **kwargs):
-                result = function(*args, **kwargs)
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            decorator_msg = function(*args, **kwargs)
 
-                running_state = RunningState()
-                commit_time = float(running_state.timestamp)
-                time_spent = time.time() - commit_time
-
-                try:
-                    kind = result['resource']['kind']
-                    name = result['resource']['metadata']['name']
-                    annotations = \
-                        result['resource']['metadata'].get('annotations')
-                except KeyError as e:
-                    logging.warning(f"Error processing metric: {e}")
-                    return
-
-                ignore_reconcile_time = \
-                    annotations.get('qontract.ignore_reconcile_time') == 'true'
-                if not ignore_reconcile_time:
-                    name = f'{function.__module__}.{function.__qualname__}'
-                    reconcile_time.labels(
-                        name=name,
-                        integration=running_state.integration
-                    ).observe(amount=time_spent)
-
-                if not result['is_log_slow_oc_reconcile']:
-                    return
-
-                if time_spent > result['slow_oc_reconcile_threshold']:
-                    msg = f"{kind} {name} in namespace " \
-                          f"{result['namespace']} from " \
-                          f"{result['server']} took {time_spent} to " \
-                          f"reconcile. Commit sha {running_state.commit} " \
-                          f"and commit ts {running_state.timestamp}."
-
-                    if ignore_reconcile_time:
-                        msg += " Ignored in the metric published."
-
-                    logging.info(msg)
-
+            if not isinstance(decorator_msg, OCDecoratorMsg):
                 return
 
-            return wrapper
+            running_state = RunningState()
+            commit_time = float(running_state.timestamp)
+            time_spent = time.time() - commit_time
 
+            try:
+                resource_kind = decorator_msg.resource['kind']
+                resource_name = decorator_msg.resource['metadata']['name']
+                annotations = \
+                    decorator_msg.resource['metadata'].get('annotations', {})
+            except KeyError as e:
+                logging.warning(f'Error processing metric: {e}')
+                return
+
+            function_name = f'{function.__module__}.{function.__qualname__}'
+            ignore_reconcile_time = \
+                annotations.get('qontract.ignore_reconcile_time') == 'true'
+            if not ignore_reconcile_time:
+                reconcile_time.labels(
+                    name=function_name,
+                    integration=running_state.integration
+                ).observe(amount=time_spent)
+
+            if not decorator_msg.is_log_slow_oc_reconcile:
+                return
+
+            if time_spent > decorator_msg.slow_oc_reconcile_threshold:
+                msg = f'Action {function_name} for {resource_kind} ' \
+                      f'{resource_name} in namespace ' \
+                      f'{decorator_msg.namespace} from ' \
+                      f'{decorator_msg.server} took {time_spent} to ' \
+                      f'reconcile. Commit sha {running_state.commit} ' \
+                      f'and commit ts {running_state.timestamp}.'
+
+                if ignore_reconcile_time:
+                    msg += ' Ignored in the metric published.'
+
+                logging.info(msg)
+
+            return
+
+        return wrapper
+
+
+class OCDecoratorMsg:
+    def __init__(self, namespace, resource, server,
+                 slow_oc_reconcile_threshold, is_log_slow_oc_reconcile):
+        self.namespace = namespace
+        self.resource = resource
+        self.server = server
+        self.slow_oc_reconcile_threshold = slow_oc_reconcile_threshold
+        self.is_log_slow_oc_reconcile = is_log_slow_oc_reconcile
+
+
+class OC:
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -227,15 +242,14 @@ class OC:
         self._run(cmd)
 
     def _msg_to_process_reconcile_time(self, namespace, resource):
-        return {
-            'namespace': namespace,
-            'resource': resource,
-            'server': self.server,
-            'slow_oc_reconcile_threshold': self.slow_oc_reconcile_threshold,
-            'is_log_slow_oc_reconcile': self.is_log_slow_oc_reconcile
-        }
+        return OCDecoratorMsg(
+            namespace=namespace,
+            resource=resource,
+            server=self.server,
+            slow_oc_reconcile_threshold=self.slow_oc_reconcile_threshold,
+            is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile)
 
-    @_Decorators.process_reconcile_time
+    @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):
         """ Runs oc apply. Returns nothing """
         cmd = ['apply', '-n', namespace, '-f', '-']
@@ -243,7 +257,7 @@ class OC:
         # This return will be removed by the last decorator
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
-    @_Decorators.process_reconcile_time
+    @OCDecorators.process_reconcile_time
     def create(self, namespace, resource):
         """ Runs oc create. Returns nothing """
         cmd = ['create', '-n', namespace, '-f', '-']
@@ -251,7 +265,7 @@ class OC:
         # This return will be removed by the last decorator
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
-    @_Decorators.process_reconcile_time
+    @OCDecorators.process_reconcile_time
     def replace(self, namespace, resource):
         """ Runs oc replace. Returns nothing """
         cmd = ['replace', '-n', namespace, '-f', '-']
@@ -259,7 +273,7 @@ class OC:
         # This return will be removed by the last decorator
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
-    @_Decorators.process_reconcile_time
+    @OCDecorators.process_reconcile_time
     def delete(self, namespace, kind, name):
         """ Runs oc delete. Returns nothing """
         resource = {'kind': kind, 'metadata': {'name': name}}
