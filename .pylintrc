@@ -1,6 +1,5 @@
 [MESSAGES CONTROL]
-disable = assignment-from-no-return,
-          attribute-defined-outside-init,
+disable = attribute-defined-outside-init,
           bad-super-call,
           broad-except,
           cell-var-from-loop,
