@@ -9756,6 +9756,11 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -9797,6 +9802,12 @@ objects:
                 username sd-app-sre-bot
                 flush_interval 10s
                 message "\`\`\`[ocm-clusters] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ocm-clusters
+                auto_create_stream true
               </store>
             </match>
             EOF
@@ -9868,6 +9879,22 @@ objects:
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
@@ -9926,6 +9953,11 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -9967,6 +9999,12 @@ objects:
                 username sd-app-sre-bot
                 flush_interval 10s
                 message "\`\`\`[ocm-aws-infrastructure-access] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ocm-aws-infrastructure-access
+                auto_create_stream true
               </store>
             </match>
             EOF
@@ -10033,6 +10071,22 @@ objects:
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
           resources:
             requests:
               memory: 30Mi
