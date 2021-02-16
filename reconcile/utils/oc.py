@@ -276,10 +276,10 @@ class OC:
     @OCDecorators.process_reconcile_time
     def delete(self, namespace, kind, name):
         """ Runs oc delete. Returns nothing """
-        resource = {'kind': kind, 'metadata': {'name': name}}
         cmd = ['delete', '-n', namespace, kind, name]
         self._run(cmd)
         # This return will be removed by the last decorator
+        resource = {'kind': kind, 'metadata': {'name': name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     def project_exists(self, name):
@@ -295,6 +295,7 @@ class OC:
                 raise e
         return True
 
+    @OCDecorators.process_reconcile_time
     def new_project(self, namespace):
         cmd = ['new-project', namespace]
         try:
@@ -303,9 +304,18 @@ class OC:
             if 'AlreadyExists' not in str(e):
                 raise e
 
+        # This return will be removed by the last decorator
+        resource = {'kind': 'Namespace', 'metadata': {'name': namespace}}
+        return self._msg_to_process_reconcile_time(namespace, resource)
+
+    @OCDecorators.process_reconcile_time
     def delete_project(self, namespace):
         cmd = ['delete', 'project', namespace]
         self._run(cmd)
+
+        # This return will be removed by the last decorator
+        resource = {'kind': 'Namespace', 'metadata': {'name': namespace}}
+        return self._msg_to_process_reconcile_time(namespace, resource)
 
     def get_group_if_exists(self, name):
         try:
