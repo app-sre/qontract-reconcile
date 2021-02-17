@@ -47,7 +47,7 @@ class DashdotdbCSO:
 
         for item in imagemanifestvuln['items']:
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                        f'imagemanifestvuln/{cluster}')
+                        f'ImageManifestVuln/{cluster}')
             response = requests.post(url=endpoint, json=item,
                                      auth=(self.dashdotdb_user,
                                            self.dashdotdb_pass))
@@ -68,7 +68,7 @@ class DashdotdbCSO:
             return None
 
         try:
-            imagemanifestvuln = oc.get_all('imagemanifestvuln',
+            imagemanifestvuln = oc.get_all('ImageManifestVuln',
                                            all_namespaces=True)
         except StatusCodeError:
             LOG.info('CSO: not installed on %s', cluster)

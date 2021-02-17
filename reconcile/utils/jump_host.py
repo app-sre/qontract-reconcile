@@ -1,6 +1,10 @@
 import tempfile
 import shutil
 import os
+import threading
+import logging
+
+import sshtunnel
 
 import reconcile.utils.gql as gql
 from reconcile.utils.secret_reader import SecretReader
@@ -36,6 +40,9 @@ class JumpHostBase:
 
 
 class JumpHostSSH(JumpHostBase):
+    bastion_tunnel = {}
+    tunnel_lock = threading.Lock()
+
     def __init__(self, jh, settings=None):
         JumpHostBase.__init__(self, jh, settings=settings)
 
@@ -71,3 +78,25 @@ class JumpHostSSH(JumpHostBase):
             '-o', 'StrictHostKeyChecking=yes',
             '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
             '-i', self.identity_file, '-p', str(self.port), user_host]
+
+    def create_ssh_tunnel(self, local_port, remote_port):
+        key = f'{self.hostname}-{local_port}-{remote_port}'
+        JumpHostSSH.tunnel_lock.acquire()
+        if key not in JumpHostSSH.bastion_tunnel:
+            # Hide connect messages from sshtunnel
+            logger = logging.getLogger()
+            default_log_level = logger.level
+            logger.setLevel(logging.ERROR)
+
+            tunnel = sshtunnel.SSHTunnelForwarder(
+                ssh_address_or_host=self.hostname,
+                ssh_port=self.port,
+                ssh_username=self.user,
+                ssh_pkey=self.identity_file,
+                remote_bind_address=(self.hostname, remote_port),
+                local_bind_address=('localhost', local_port)
+            )
+            tunnel.start()
+            logger.setLevel(default_log_level)
+            JumpHostSSH.bastion_tunnel[key] = tunnel
+        JumpHostSSH.tunnel_lock.release()
