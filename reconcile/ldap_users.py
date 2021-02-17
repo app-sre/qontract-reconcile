@@ -1,13 +1,14 @@
 import logging
 
-import reconcile.utils.threaded as threaded
-import reconcile.utils.ldap_client as ldap_client
+from collections import defaultdict
+
 import reconcile.queries as queries
+import reconcile.utils.ldap_client as ldap_client
+import reconcile.utils.threaded as threaded
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
 
-from collections import defaultdict
 
 QONTRACT_INTEGRATION = 'ldap-users'
 

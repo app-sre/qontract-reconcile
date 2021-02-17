@@ -4,7 +4,6 @@ import os
 import textwrap
 
 from datetime import datetime, timezone
-from dateutil.relativedelta import relativedelta
 from functools import lru_cache
 
 import click
@@ -12,6 +11,7 @@ import requests
 import yaml
 
 from prometheus_client.parser import text_string_to_metric_families
+from dateutil.relativedelta import relativedelta
 
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config

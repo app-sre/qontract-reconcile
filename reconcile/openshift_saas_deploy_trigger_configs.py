@@ -1,7 +1,8 @@
-import sys
-import semver
 import logging
+import sys
 import time
+
+import semver
 
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base

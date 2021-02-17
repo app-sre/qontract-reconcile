@@ -1,17 +1,18 @@
-import logging
-import boto3
-import botocore
 import json
+import logging
 import os
 import time
+
+from datetime import datetime
+from threading import Lock
+
+import boto3
+import botocore
 
 import reconcile.utils.threaded as threaded
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader
-
-from datetime import datetime
-from threading import Lock
 
 
 class InvalidResourceTypeError(Exception):

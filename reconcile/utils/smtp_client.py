@@ -1,15 +1,14 @@
-import smtplib
 import imaplib
+import smtplib
 
-from reconcile.utils.secret_reader import SecretReader
-
-from reconcile.utils.config import get_config
-
-from sretoolbox.utils import retry
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 from email.utils import formataddr
+from sretoolbox.utils import retry
+
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.config import get_config
 
 
 class SmtpClient:

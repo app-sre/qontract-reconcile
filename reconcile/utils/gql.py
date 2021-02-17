@@ -1,14 +1,16 @@
-import json
-import requests
-import os
 import contextlib
-import textwrap
+import json
 import logging
+import os
+import textwrap
 
 from urllib.parse import urlparse
-from sretoolbox.utils import retry
 
+import requests
+
+from sretoolbox.utils import retry
 from graphqlclient import GraphQLClient
+
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 

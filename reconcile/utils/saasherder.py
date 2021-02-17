@@ -1,21 +1,22 @@
-import os
-import yaml
+import base64
 import json
 import logging
-import base64
+import os
+
+import yaml
 
 from github import Github, GithubException
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
 import reconcile.utils.threaded as threaded
-from reconcile.utils.secret_reader import SecretReader
 
-from reconcile.utils.oc import OC, StatusCodeError
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.state import State
 from reconcile.github_org import get_config
 from reconcile.utils.mr.auto_promoter import AutoPromoter
+from reconcile.utils.oc import OC, StatusCodeError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.state import State
 
 
 class SaasHerder():

@@ -1,12 +1,14 @@
+import logging
 import os
 import sys
+
 import semver
-import logging
 
 from github import Github
 
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.github_org import get_config
+
 
 QONTRACT_INTEGRATION = 'github-repo-permissions-validator'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)

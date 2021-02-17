@@ -1,29 +1,17 @@
-import tempfile
-import random
-import string
 import base64
 import json
-import anymarkup
 import logging
-import re
-import requests
 import os
-
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.github_org import get_config
-
-from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.gpg import gpg_key_valid
-from reconcile.exceptions import FetchResourceError
-from reconcile.utils.elasticsearch_exceptions \
-  import (ElasticSearchResourceNameInvalidError,
-          ElasticSearchResourceMissingSubnetIdError,
-          ElasticSearchResourceVersionInvalidError,
-          ElasticSearchResourceZoneAwareSubnetInvalidError)
+import random
+import re
+import string
+import tempfile
 
 from threading import Lock
+
+import anymarkup
+import requests
+
 from terrascript import (Terrascript, provider, Terraform,
                          Backend, Output, data)
 from terrascript.data import aws_sqs_queue as data_aws_sqs_queue
@@ -58,6 +46,21 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_route53_zone,
                                   aws_route53_record,
                                   aws_route53_health_check)
+
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+
+from reconcile.utils.secret_reader import SecretReader
+from reconcile.github_org import get_config
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.gpg import gpg_key_valid
+from reconcile.exceptions import FetchResourceError
+from reconcile.utils.elasticsearch_exceptions \
+    import (ElasticSearchResourceNameInvalidError,
+            ElasticSearchResourceMissingSubnetIdError,
+            ElasticSearchResourceVersionInvalidError,
+            ElasticSearchResourceZoneAwareSubnetInvalidError)
+
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'

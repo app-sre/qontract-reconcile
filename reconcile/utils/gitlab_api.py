@@ -1,8 +1,9 @@
 import logging
-import gitlab
-import urllib3
 
 from urllib.parse import urlparse
+
+import gitlab
+import urllib3
 
 from reconcile.utils.secret_reader import SecretReader
 

@@ -1,12 +1,12 @@
 import base64
+import time
 import functools
+
 import hvac
 import requests
-import time
 
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
-
 from sretoolbox.utils import retry
 
 from reconcile.utils.config import get_config

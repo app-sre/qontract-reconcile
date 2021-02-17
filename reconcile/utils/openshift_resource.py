@@ -1,11 +1,12 @@
 import copy
+import datetime
 import hashlib
 import json
-import semver
-import datetime
 import re
 
 from threading import Lock
+
+import semver
 
 
 class ResourceKeyExistsError(Exception):

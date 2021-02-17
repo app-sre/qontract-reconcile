@@ -1,8 +1,10 @@
+import copy
 import os
-import yaml
 import subprocess
 import tempfile
-import copy
+
+import yaml
+
 from reconcile.utils.defer import defer
 
 

@@ -1,6 +1,7 @@
-import toml
-import requests
 import logging
+import toml
+
+import requests
 
 from reconcile.utils.secret_reader import SecretReader
 

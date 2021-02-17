@@ -1,13 +1,14 @@
 import sys
-import semver
 import logging
 
-import reconcile.queries as queries
-import reconcile.jenkins_plugins as jenkins_base
+import semver
 
+import reconcile.jenkins_plugins as jenkins_base
+import reconcile.queries as queries
+
+from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-moving-commits'

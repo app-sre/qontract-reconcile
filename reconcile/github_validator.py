@@ -1,11 +1,13 @@
+import logging
 import os
 import sys
-import logging
-
-from reconcile.utils.secret_reader import SecretReader
-import reconcile.queries as queries
 
 from github import Github
+
+import reconcile.queries as queries
+
+from reconcile.utils.secret_reader import SecretReader
+
 
 QONTRACT_INTEGRATION = 'github-validator'
 

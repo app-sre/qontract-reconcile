@@ -1,7 +1,9 @@
 import logging
-import gitlab
 
 from datetime import datetime, timedelta
+
+import gitlab
+
 from sretoolbox.utils import retry
 
 import reconcile.queries as queries

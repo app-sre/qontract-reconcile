@@ -1,9 +1,10 @@
 import logging
+
+from textwrap import indent
+
 from jinja2 import Template
 
 import reconcile.utils.gql as gql
-
-from textwrap import indent
 
 
 APP_INTERFACE_SETTINGS_QUERY = """

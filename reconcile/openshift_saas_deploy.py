@@ -1,17 +1,18 @@
-import sys
-import semver
 import logging
+import sys
 
-import reconcile.queries as queries
-import reconcile.openshift_base as ob
+import semver
+
 import reconcile.jenkins_plugins as jenkins_base
+import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
+from reconcile import mr_client_gateway
 from reconcile.slack_base import init_slack
+from reconcile.status import ExitCodes
+from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.defer import defer
-from reconcile.status import ExitCodes
-from reconcile import mr_client_gateway
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'

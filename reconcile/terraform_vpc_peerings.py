@@ -1,14 +1,15 @@
 import logging
-import semver
 import sys
+
+import semver
 
 import reconcile.queries as queries
 
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
-from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.ocm import OCMMap
 from reconcile.utils.defer import defer
+from reconcile.utils.ocm import OCMMap
+from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 
 
 QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
