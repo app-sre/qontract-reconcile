@@ -1,10 +1,11 @@
+import json
+import logging
 import re
 import sys
-import yaml
-import json
-import semver
-import logging
 import traceback
+
+import semver
+import yaml
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -12,6 +13,7 @@ import reconcile.utils.promtool as promtool
 import reconcile.openshift_resources_base as orb
 
 from reconcile.status import ExitCodes
+
 
 QONTRACT_INTEGRATION = 'prometheus_rules_tester'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)

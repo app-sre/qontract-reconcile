@@ -2,9 +2,10 @@ import os
 import tempfile
 import shutil
 import logging
-import requests
 
 from subprocess import PIPE, Popen
+
+import requests
 
 from sretoolbox.utils import retry
 

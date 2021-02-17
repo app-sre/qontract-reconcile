@@ -1,5 +1,7 @@
-import jinja2
 import os
+
+import jinja2
+
 import reconcile.templates as templates
 
 

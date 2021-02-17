@@ -1,6 +1,7 @@
+import reconcile.openshift_performance_parameters as perf_params
+
 from .fixtures import Fixtures
 
-import reconcile.openshift_performance_parameters as perf_params
 
 fxt = Fixtures('openshift_performance_parameters')
 

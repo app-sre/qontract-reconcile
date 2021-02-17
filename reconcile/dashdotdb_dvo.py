@@ -1,7 +1,9 @@
 import logging
 import os
-import requests
+
 from urllib.parse import urljoin
+
+import requests
 
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries

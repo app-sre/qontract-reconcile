@@ -1,14 +1,13 @@
-import shutil
 import base64
 import logging
 import json
 import os
-
-from ruamel import yaml
+import shutil
 
 from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
+from ruamel import yaml
 from sretoolbox.utils import retry
 
 from reconcile.utils import threaded, gql

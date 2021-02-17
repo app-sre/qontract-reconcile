@@ -1,7 +1,8 @@
-import os
 import json
+import os
 import subprocess
 import tempfile
+
 from reconcile.utils.defer import defer
 
 

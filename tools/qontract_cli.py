@@ -5,13 +5,13 @@ import click
 import requests
 import yaml
 
+from tabulate import tabulate
+
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
-
-from tabulate import tabulate
 
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ

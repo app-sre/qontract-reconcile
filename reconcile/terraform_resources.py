@@ -1,23 +1,24 @@
-import sys
-import shutil
-import semver
 import logging
-
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
-from reconcile.utils.vault import VaultClient
-import reconcile.openshift_base as ob
-import reconcile.queries as queries
-
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
-from reconcile.utils.terraform_client import OR, TerraformClient as Terraform
-from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.defer import defer
-from reconcile.aws_iam_keys import run as disable_keys
-from reconcile.utils.oc import StatusCodeError
+import shutil
+import sys
 
 from textwrap import indent
+
+import semver
+
+import reconcile.openshift_base as ob
+import reconcile.queries as queries
+import reconcile.utils.gql as gql
+import reconcile.utils.threaded as threaded
+
+from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.utils.defer import defer
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
+from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.terraform_client import OR, TerraformClient as Terraform
+from reconcile.utils.vault import VaultClient
 
 
 TF_RESOURCE = """

@@ -1,10 +1,10 @@
 import pytest
-from .fixtures import Fixtures
-
 import semver
 
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError)
+
+from .fixtures import Fixtures
 
 fxt = Fixtures('openshift_resource')
 

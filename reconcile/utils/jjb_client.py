@@ -1,25 +1,27 @@
+import difflib
+import logging
 import os
 import shutil
-import yaml
-import tempfile
-import logging
-import filecmp
 import subprocess
-import difflib
+import tempfile
 import xml.etree.ElementTree as et
-
-from reconcile.utils.secret_reader import SecretReader
-import reconcile.utils.gql as gql
-import reconcile.utils.throughput as throughput
 
 from os import path
 from contextlib import contextmanager
+
+import filecmp
+import yaml
+
 from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.parser import YamlParser
 from jenkins_jobs.registry import ModuleRegistry
 from jenkins_jobs.errors import JenkinsJobsException
 from sretoolbox.utils import retry
 
+import reconcile.utils.gql as gql
+import reconcile.utils.throughput as throughput
+
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.exceptions import FetchResourceError
 
 

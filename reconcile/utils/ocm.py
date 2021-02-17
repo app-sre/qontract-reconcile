@@ -1,5 +1,6 @@
-import requests
 import logging
+
+import requests
 
 from sretoolbox.utils import retry
 

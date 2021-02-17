@@ -1,19 +1,21 @@
 import logging
+
 import yaml
 
-import reconcile.utils.threaded as threaded
-import reconcile.queries as queries
+from sretoolbox.utils import retry
 
-from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import StatusCodeError
+import reconcile.queries as queries
+import reconcile.utils.threaded as threaded
+
+from reconcile.utils.oc import FieldIsImmutableError
 from reconcile.utils.oc import InvalidValueApplyError
 from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
+from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.oc import UnsupportedMediaTypeError
-from reconcile.utils.oc import FieldIsImmutableError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
-from sretoolbox.utils import retry
 
 ACTION_APPLIED = 'applied'
 ACTION_DELETED = 'deleted'

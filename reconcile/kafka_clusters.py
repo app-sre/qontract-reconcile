@@ -1,15 +1,17 @@
-import sys
-import logging
-import semver
 import base64
+import logging
+import sys
 
-import reconcile.queries as queries
+import semver
+
 import reconcile.openshift_base as ob
+import reconcile.queries as queries
 
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.ocm import OCMMap
 from reconcile.utils.defer import defer
+from reconcile.utils.ocm import OCMMap
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
+
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
 QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)

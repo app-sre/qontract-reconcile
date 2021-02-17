@@ -1,23 +1,23 @@
 import logging
-import semver
 import sys
 import time
-import jinja2
-import ruamel.yaml as yaml
 
 from textwrap import indent
+
+import jinja2
+import ruamel.yaml as yaml
+import semver
 
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
-from reconcile.status import ExitCodes
-
 from reconcile.utils import gql
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.state import State
 from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.smtp_client import SmtpClient
+from reconcile.utils.state import State
+from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'sql-query'
