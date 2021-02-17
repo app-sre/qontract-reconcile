@@ -176,7 +176,7 @@ class OpenshiftResource:
                      not len(self.name) <= DNS_SUBDOMAIN_MAX_LENGTH):
             msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
                 f"metadata.name: Invalid value: \"{self.name}\". " + \
-                f"This field must adhere to DNS-1123 subdomain names spec." + \
+                "This field must adhere to DNS-1123 subdomain names spec." + \
                 f"More info can be found at {DNS_NAMES_URL}."
             raise ConstructResourceError(msg)
 
@@ -185,19 +185,19 @@ class OpenshiftResource:
             containers = self.body['spec']['template']['spec']['containers']
             if not isinstance(containers, list):
                 msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
-                      f"spec.template.spec.containers is not a list"
+                      "spec.template.spec.containers is not a list"
                 raise ConstructResourceError(msg)
             for c in containers:
                 cname = c.get('name', None)
                 if cname is None:
                     msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
-                        f"an item in spec.template.spec.containers was " + \
-                        f"found without a required name field"
+                        "an item in spec.template.spec.containers was " + \
+                        "found without a required name field"
                     raise ConstructResourceError(msg)
                 if (not DNS_LABEL_RE.match(cname) or
                         not len(cname) <= DNS_LABEL_MAX_LENGTH):
                     msg = f"The {self.kind} \"{self.name}\" is invalid: " + \
-                        f"an container in spec.template.spec.containers " + \
+                        "an container in spec.template.spec.containers " + \
                         f"was found with an invalid name ({cname}). More " + \
                         f"info at {DNS_NAMES_URL}."
                     raise ConstructResourceError(msg)

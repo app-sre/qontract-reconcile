@@ -106,7 +106,7 @@ class SaasHerder():
                         json.loads(environment_parameters)
                     msg = \
                         f'[{saas_file_name}/{resource_template_name}] ' + \
-                        f'parameter found in target ' + \
+                        'parameter found in target ' + \
                         f'{cluster_name}/{namespace_name} ' + \
                         f'should be reused from env {environment_name}'
                     for t_key, t_value in target_parameters.items():
@@ -659,7 +659,7 @@ class SaasHerder():
             self.jenkins_map[instance_name].is_job_running(upstream)
         if skip_check_images:
             logging.warning(
-                f"skipping check_image since " +
+                "skipping check_image since " +
                 f"upstream job {upstream} is running"
             )
         else:

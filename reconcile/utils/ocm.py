@@ -105,7 +105,7 @@ class OCM:
         :type cluster: dict
         :type dry_run: bool
         """
-        api = f'/api/clusters_mgmt/v1/clusters'
+        api = '/api/clusters_mgmt/v1/clusters'
         cluster_spec = cluster['spec']
         cluster_network = cluster['network']
         ocm_spec = {
@@ -272,7 +272,7 @@ class OCM:
         if not cluster_id:
             return []
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
-              f'aws_infrastructure_access_role_grants'
+              'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         return [(r['user_arn'], r['role']['id']) for r in role_grants]
 
@@ -281,7 +281,7 @@ class OCM:
                                                             tf_user):
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
-              f'aws_infrastructure_access_role_grants'
+              'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
         for rg in role_grants:
@@ -313,7 +313,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
-              f'aws_infrastructure_access_role_grants'
+              'aws_infrastructure_access_role_grants'
         self._post(api, {'user_arn': user_arn, 'role': {'id': access_level}})
 
     def del_user_from_aws_infrastructure_access_role_grants(self, cluster,
@@ -332,7 +332,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
-              f'aws_infrastructure_access_role_grants'
+              'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         for rg in role_grants:
             if rg['user_arn'] != user_arn:
@@ -414,7 +414,7 @@ class OCM:
             return results
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
-            f'/external_configuration/labels'
+            '/external_configuration/labels'
         items = self._get_json(api).get('items')
         if not items:
             return results
@@ -438,7 +438,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
-            f'/external_configuration/labels'
+            '/external_configuration/labels'
         self._post(api, label)
 
     def delete_external_configuration_label(self, cluster, label):
@@ -453,7 +453,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
-            f'/external_configuration/labels'
+            '/external_configuration/labels'
         items = self._get_json(api).get('items')
         item = [item for item in items if label.items() <= item.items()]
         if not item:

@@ -241,8 +241,8 @@ class MRApproval:
                     approvers.add(approver)
 
         if approvers:
-            markdown_report += (f'\nOverride approvers, from parent '
-                                f'directories, are:\n\n')
+            markdown_report += ('\nOverride approvers, from parent '
+                                'directories, are:\n\n')
             markdown_report += f'* {", ".join(sorted(approvers))}\n'
 
         closest_reviewers = set()
