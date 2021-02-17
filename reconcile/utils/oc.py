@@ -852,8 +852,8 @@ class OCNative(OCDeprecated):
                             # add the kind and apigroup/version to the set
                             # of api kinds
                             kind_groupversion = self.add_group_kind(
-                                    kind, kind_groupversion,
-                                    r.group_version, obj.preferred)
+                                kind, kind_groupversion,
+                                r.group_version, obj.preferred)
         return kind_groupversion
 
     def get_items(self, kind, **kwargs):
