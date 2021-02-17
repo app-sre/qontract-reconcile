@@ -279,7 +279,7 @@ def make_postgres_command(output, sqlqueries, recipient=None):
             f'--command "{query}")',
         ])
 
-        if output == 'filesystem' or output == 'encrypted':
+        if output in ('filesystem', 'encrypted'):
             command.extend(filesystem_redir_stdout())
         else:
             command.append(';')
@@ -305,7 +305,7 @@ def make_mysql_command(output, sqlqueries, recipient=None):
             f'--execute="{query}")',
         ])
 
-        if output == 'filesystem' or output == 'encrypted':
+        if output in ('filesystem', 'encrypted'):
             command.extend(filesystem_redir_stdout())
         else:
             command.append(';')

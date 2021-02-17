@@ -31,6 +31,7 @@ class OCM:
         self._init_clusters()
         self._init_addons()
 
+    @retry()
     def _init_access_token(self):
         data = {
             'grant_type': 'refresh_token',
@@ -440,7 +441,7 @@ class OCM:
             f'/external_configuration/labels'
         self._post(api, label)
 
-    def delete_external_configuration_labels(self, cluster, label):
+    def delete_external_configuration_label(self, cluster, label):
         """Deletes an existing External Configuration label
 
         :param cluster: cluster name

@@ -65,9 +65,7 @@ LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
 
 class UnknownProviderError(Exception):
     def __init__(self, msg):
-        super(UnknownProviderError, self).__init__(
-            "unknown provider error: " + str(msg)
-        )
+        super().__init__("unknown provider error: " + str(msg))
 
 
 def safe_resource_id(s):
@@ -233,10 +231,10 @@ class TerrascriptClient:
                 continue
 
             aws_groups = role['aws_groups'] or []
-            for ig in range(len(aws_groups)):
-                group_name = aws_groups[ig]['name']
-                account_name = aws_groups[ig]['account']['name']
-                account_console_url = aws_groups[ig]['account']['consoleUrl']
+            for aws_group in aws_groups:
+                group_name = aws_group['name']
+                account_name = aws_group['account']['name']
+                account_console_url = aws_group['account']['consoleUrl']
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
@@ -247,8 +245,8 @@ class TerrascriptClient:
                 tf_output = Output(output_name_0_13, value=output_value)
                 self.add_resource(account_name, tf_output)
 
-                for iu in range(len(users)):
-                    user_name = users[iu]['org_username']
+                for user in users:
+                    user_name = user['org_username']
 
                     # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
@@ -271,7 +269,7 @@ class TerrascriptClient:
                     # a password will not be created.
                     # a gpg key may be added at a later time,
                     # and a password will be generated
-                    user_public_gpg_key = users[iu]['public_gpg_key']
+                    user_public_gpg_key = user['public_gpg_key']
                     if user_public_gpg_key is None:
                         msg = \
                             'user {} does not have a public gpg key ' \
@@ -313,14 +311,14 @@ class TerrascriptClient:
                     self.add_resource(account_name, tf_output)
 
             user_policies = role['user_policies'] or []
-            for ip in range(len(user_policies)):
-                policy_name = user_policies[ip]['name']
-                account_name = user_policies[ip]['account']['name']
-                account_uid = user_policies[ip]['account']['uid']
-                for iu in range(len(users)):
+            for user_policy in user_policies:
+                policy_name = user_policy['name']
+                account_name = user_policy['account']['name']
+                account_uid = user_policy['account']['uid']
+                for user in users:
                     # replace known keys with values
-                    user_name = users[iu]['org_username']
-                    policy = user_policies[ip]['policy']
+                    user_name = user['org_username']
+                    policy = user_policy['policy']
                     policy = policy.replace('${aws:username}', user_name)
                     policy = \
                         policy.replace('${aws:accountid}', account_uid)
@@ -1462,7 +1460,7 @@ class TerrascriptClient:
                     }
                 ]
             }
-            if len(kms_keys):
+            if kms_keys:
                 kms_statement = {
                     "Effect": "Allow",
                     "Action": ["kms:Decrypt"],

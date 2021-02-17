@@ -57,7 +57,7 @@ def check_data_consistency(pp):
 
     # check that rule names are unique
     # we'll also use sli_rules in slis validation
-    sli_rules = set([r['name'] for r in pp['SLIRecordingRules']])
+    sli_rules = {r['name'] for r in pp['SLIRecordingRules']}
     if len(sli_rules) != len(pp['SLIRecordingRules']):
         errors.append('SLIRecordingRules names are not unique')
 
@@ -72,7 +72,7 @@ def check_data_consistency(pp):
     # we'll also use it for the availability validation
     slis = {}
     for category in ['volume', 'latency', 'errors']:
-        slis[category] = set([s['name'] for s in pp[category]])
+        slis[category] = {s['name'] for s in pp[category]}
 
         if len(slis[category]) != len(pp[category]):
             errors.append(f'sli names are not unique for {category}')

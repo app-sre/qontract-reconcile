@@ -8,9 +8,6 @@ from jinja2.ext import Extension
 class B64EncodeExtension(Extension):
     tags = {'b64encode'}
 
-    def __init__(self, environment):
-        super(B64EncodeExtension, self).__init__(environment)
-
     def parse(self, parser):
         lineno = next(parser.stream).lineno
 

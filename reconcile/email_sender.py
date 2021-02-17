@@ -96,7 +96,7 @@ def run(dry_run):
     emails = queries.get_app_interface_emails()
     smtp_client = SmtpClient(settings=settings)
     # validate no 2 emails have the same name
-    email_names = set([e['name'] for e in emails])
+    email_names = {e['name'] for e in emails}
     if len(emails) != len(email_names):
         logging.error('email names must be unique.')
         sys.exit(1)

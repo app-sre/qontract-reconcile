@@ -221,17 +221,17 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 return
 
         try:
-            oc.apply(namespace, annotated.toJSON())
+            oc.apply(namespace, annotated)
         except InvalidValueApplyError:
             oc.remove_last_applied_configuration(
                 namespace, resource_type, resource.name)
-            oc.apply(namespace, annotated.toJSON())
+            oc.apply(namespace, annotated)
         except (MetaDataAnnotationsTooLongApplyError,
                 UnsupportedMediaTypeError):
             if not oc.get(namespace, resource_type,
                           resource.name, allow_not_found=True):
-                oc.create(namespace, annotated.toJSON())
-            oc.replace(namespace, annotated.toJSON())
+                oc.create(namespace, annotated)
+            oc.replace(namespace, annotated)
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
@@ -240,7 +240,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name)
-            oc.apply(namespace=namespace, resource=annotated.toJSON())
+            oc.apply(namespace=namespace, resource=annotated)
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
