@@ -106,9 +106,7 @@ def run(dry_run=False, print_only=False,
 
     desired_state = build_desired_state(zones)
 
-    error = ts.populate_route53(desired_state)
-    if error:
-        sys.exit(ExitCodes.ERROR)
+    ts.populate_route53(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
     if print_only:
