@@ -24,7 +24,7 @@ def generate_object(jsonnet_string):
         raise JsonnetError('JSONNET_VENDOR_DIR not set')
 
     cmd = ['jsonnet', '-J', jsonnet_bundler_dir, path]
-    status = run(cmd, stdout=PIPE, stderr=PIPE)
+    status = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
 
     if status.returncode != 0:
         message = 'Error building json doc'

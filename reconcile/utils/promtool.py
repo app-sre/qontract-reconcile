@@ -66,7 +66,7 @@ def _run_yaml_spec_cmd(cmd, yaml_spec):
             fp.write(yaml.dump(yaml_spec).encode())
             fp.flush()
             cmd.append(fp.name)
-            status = run(cmd, stdout=PIPE, stderr=PIPE)
+            status = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
     except Exception as e:
         return PromtoolResult(False, f'Error running promtool: {e}')
 

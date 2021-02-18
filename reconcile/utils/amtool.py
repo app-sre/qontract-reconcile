@@ -27,7 +27,7 @@ def _run_yaml_str_cmd(cmd, yaml_str):
             fp.write(yaml_str)
             fp.flush()
             cmd.append(fp.name)
-            status = run(cmd, stdout=PIPE, stderr=PIPE)
+            status = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
     except Exception as e:
         return AmtoolResult(False, f'Error running amtool: {e}')
 

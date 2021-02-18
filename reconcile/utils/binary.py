@@ -28,7 +28,7 @@ def binary_version(binary, version_args, search_regex, expected_version):
 
             cmd = [binary]
             cmd.extend(version_args)
-            res = run(cmd, stdout=PIPE, stderr=PIPE)
+            res = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
             if res.returncode != 0:
                 raise Exception(
                     f"Could not execute binary '{binary}' for binary version "
