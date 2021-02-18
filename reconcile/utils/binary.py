@@ -1,8 +1,8 @@
 import re
+import subprocess
 
 from functools import wraps
 from distutils.spawn import find_executable
-from subprocess import run, PIPE
 
 
 def binary(binaries=[]):
@@ -28,15 +28,17 @@ def binary_version(binary, version_args, search_regex, expected_version):
 
             cmd = [binary]
             cmd.extend(version_args)
-            res = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
-            if res.returncode != 0:
-                raise Exception(
-                    f"Could not execute binary '{binary}' for binary version "
-                    f"check: return code {res.returncode}")
+            try:
+                result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, check=True)
+            except subprocess.CalledProcessError as e:
+                msg = f"Could not execute binary '{binary}' " \
+                      f"for binary version check: {e}"
+                raise Exception(msg)
 
             found = False
             match = None
-            for line in res.stdout.splitlines():
+            for line in result.stdout.splitlines():
                 match = regex.search(line.decode("utf-8"))
                 if match is not None:
                     found = True
