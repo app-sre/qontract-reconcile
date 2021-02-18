@@ -1,8 +1,8 @@
 import os
 import yaml
+import subprocess
 import tempfile
 import copy
-from subprocess import run, PIPE
 from reconcile.utils.defer import defer
 
 
@@ -66,18 +66,16 @@ def _run_yaml_spec_cmd(cmd, yaml_spec):
             fp.write(yaml.dump(yaml_spec).encode())
             fp.flush()
             cmd.append(fp.name)
-            status = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
     except Exception as e:
+        return PromtoolResult(False, f'Error creating temporary file: {e}')
+
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError as e:
         return PromtoolResult(False, f'Error running promtool: {e}')
 
-    if status.returncode != 0:
-        message = 'Error running promtool'
-        if status.stderr:
-            message += ": " + status.stderr.decode()
-
-        return PromtoolResult(False, message)
-
-    return PromtoolResult(True, status.stdout.decode())
+    return PromtoolResult(True, result.stdout.decode())
 
 
 def _cleanup(paths):
