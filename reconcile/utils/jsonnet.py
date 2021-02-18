@@ -1,8 +1,8 @@
 import os
 import json
+import subprocess
 import tempfile
 from reconcile.utils.defer import defer
-from subprocess import run, PIPE
 
 
 class JsonnetError(Exception):
@@ -24,16 +24,13 @@ def generate_object(jsonnet_string):
         raise JsonnetError('JSONNET_VENDOR_DIR not set')
 
     cmd = ['jsonnet', '-J', jsonnet_bundler_dir, path]
-    status = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, check=True)
+    except subprocess.CalledProcessError as e:
+        raise JsonnetError(f'Error building json doc: {e}')
 
-    if status.returncode != 0:
-        message = 'Error building json doc'
-        if status.stderr:
-            message += ": " + status.stderr.decode()
-
-        raise JsonnetError(message)
-
-    return json.loads(status.stdout)
+    return json.loads(result.stdout)
 
 
 def cleanup(path):
