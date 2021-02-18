@@ -267,7 +267,7 @@ def check_unused_resource_types(ri):
         if not data['desired'].items():
             msg = f'[{cluster}/{namespace}] unused ' + \
                 f'resource type: {resource_type}. please remove it ' + \
-                f'in a following PR.'
+                'in a following PR.'
             logging.warning(msg)
 
 

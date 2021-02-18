@@ -595,8 +595,8 @@ class TerrascriptClient:
         if values.get('name') and not self.validate_db_name(values['name']):
             raise FetchResourceError(
                 f"[{account}] RDS name must contain 1 to 63 letters, " +
-                f"numbers, or underscores. RDS name must begin with a " +
-                f"letter. Subsequent characters can be letters, " +
+                "numbers, or underscores. RDS name must begin with a " +
+                "letter. Subsequent characters can be letters, " +
                 f"underscores, or digits (0-9): {values['name']}")
 
         az = values.get('availability_zone')
@@ -708,7 +708,7 @@ class TerrascriptClient:
         if replica_source:
             if 'replicate_source_db' in values:
                 raise ValueError(
-                    f"only one of replicate_source_db or replica_source " +
+                    "only one of replicate_source_db or replica_source " +
                     "can be defined")
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
@@ -738,14 +738,14 @@ class TerrascriptClient:
                     # in a different region
                     if 'db_subnet_group_name' not in values:
                         raise ValueError(
-                            f"db_subnet_group_name must be defined if " +
+                            "db_subnet_group_name must be defined if " +
                             "read replica source in different region")
 
                     # storage_encrypted is ignored for cross-region replicas
                     encrypt = values.get('storage_encrypted', None)
                     if encrypt and 'kms_key_id' not in values:
                         raise ValueError(
-                            f"storage_encrypted ignored for cross-region " +
+                            "storage_encrypted ignored for cross-region " +
                             "read replica.  Set kms_key_id")
 
                 # Read Replicas shouldn't set these values as they come from
@@ -2540,9 +2540,9 @@ class TerrascriptClient:
         if not self.is_elasticsearch_domain_name_valid(values['identifier']):
             raise ElasticSearchResourceNameInvalidError(
                 f"[{account}] ElasticSearch domain name must must start with" +
-                f" a lowercase letter and must be between 3 and 28 " +
-                f"characters. Valid characters are a-z (lowercase only), 0-9" +
-                f", and - (hyphen). " +
+                " a lowercase letter and must be between 3 and 28 " +
+                "characters. Valid characters are a-z (lowercase only), 0-9" +
+                ", and - (hyphen). " +
                 f"{values['identifier']}")
 
         elasticsearch_version = values.get('elasticsearch_version', 7.7)
@@ -2736,13 +2736,13 @@ class TerrascriptClient:
         if key is None:
             raise KeyError(
                     f"Vault secret '{secret['path']}' " +
-                    f"does not have required key [key]")
+                    "does not have required key [key]")
 
         certificate = secret_data.get('certificate', None)
         if certificate is None:
             raise KeyError(
                     f"Vault secret '{secret['path']}' " +
-                    f"does not have required key [certificate]")
+                    "does not have required key [certificate]")
 
         caCertificate = secret_data.get('caCertificate', None)
 
