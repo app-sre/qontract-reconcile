@@ -3,13 +3,13 @@ import subprocess
 
 def run_make(sub_command):
     cmd = ['make', sub_command]
-    return subprocess.run(cmd)
+    return subprocess.run(cmd, check=True)
 
 
 def has_uncommited_changes():
     cmd = ['git', 'diff']
     result = subprocess.run(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT, check=True)
     if result.stdout:
         return True
     return False
