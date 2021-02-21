@@ -23,13 +23,17 @@ class SmtpClient:
         self.passwd = smtp_config['password']
         self.mail_address = config['smtp']['mail_address']
 
-        self.client = smtplib.SMTP(host=self.host,
-                                   port=self.port)
-        self.client.send
-        self.client.starttls()
-        self.client.login(self.user, self.passwd)
-
+        self._client = None
         self._server = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = smtplib.SMTP(host=self.host, port=self.port)
+            self._client.send
+            self._client.starttls()
+            self._client.login(self.user, self.passwd)
+        return self._client
 
     @property
     def server(self):
