@@ -102,11 +102,24 @@ def collect_baseline():
     return {'owners': owners, 'state': state}
 
 
-def collect_compare_diffs(current_state, desired_state):
+def collect_compare_diffs(current_state, desired_state, changed_paths):
     """ Collect a list of URLs in a git diff format
     for each change in the merge request """
     compare_diffs = set()
     for d in desired_state:
+        # check if this diff was actually changed in the current MR
+        changed_path_matches = [c for c in changed_paths
+                                if c.endswith(d['saas_file_path'])]
+        if not changed_path_matches:
+            # this diff was found in the graphql endpoint comparisson
+            # but is not a part of the changed paths.
+            # the only knows case for this currently is if a previous MR
+            # that chages another saas file was merged but is not yet
+            # reflected in the baseline graphql endpoint.
+            # https://issues.redhat.com/browse/APPSRE-3029
+            logging.warning(
+                f'Diff not found in changed paths, skipping: {str(d)}')
+            continue
         for c in current_state:
             if d['saas_file_name'] != c['saas_file_name']:
                 continue
@@ -253,16 +266,17 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     current_state = baseline['state']
     desired_state = collect_state()
     diffs = [s for s in desired_state if s not in current_state]
+    changed_paths = \
+        gl.get_merge_request_changed_paths(gitlab_merge_request_id)
 
-    compare_diffs = collect_compare_diffs(current_state, desired_state)
+    compare_diffs = \
+        collect_compare_diffs(current_state, desired_state, changed_paths)
     if compare_diffs:
         compare_diffs_comment_body = 'Diffs:\n' + \
             '\n'.join([f'- {d}' for d in compare_diffs])
         gl.add_comment_to_merge_request(
             gitlab_merge_request_id, compare_diffs_comment_body)
 
-    changed_paths = \
-        gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     is_saas_file_changes_only = \
         check_saas_files_changes_only(changed_paths, diffs)
     is_valid_diff = valid_diff(current_state, desired_state)
