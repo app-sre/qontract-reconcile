@@ -120,7 +120,7 @@ def collect_compare_diffs(current_state, desired_state):
             if d['ref'] == c['ref']:
                 continue
             compare_diffs.add(
-                f"{d['url']}/compare/{c['ref']}...{d['ref']}")
+                f"{d['url']}/compare/{d['ref']}...{c['ref']}")
 
     return compare_diffs
 
