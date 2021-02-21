@@ -13,7 +13,8 @@ def binary(binaries=[]):
             for b in binaries:
                 if not find_executable(b):
                     raise Exception(
-                        "Aborting: Could not find binary: {}".format(b))
+                        f"Aborting: Could not find binary: {b}. " +
+                        f"Hint: https://command-not-found.com/{b}")
             f(*args, **kwargs)
         return f_binary
     return deco_binary
