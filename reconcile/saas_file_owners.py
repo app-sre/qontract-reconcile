@@ -1,6 +1,7 @@
 import os
 import json
 import copy
+import logging
 
 import reconcile.queries as queries
 import reconcile.utils.throughput as throughput
@@ -289,6 +290,20 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
     comment_lines = {}
     for diff in diffs:
+        # check if this diff was actually changed in the current MR
+        saas_file_path = diff['saas_file_path']
+        changed_path_matches = [c for c in changed_paths
+                                if c.endswith(saas_file_path)]
+        if not changed_path_matches:
+            # this diff was found in the graphql endpoint comparisson
+            # but is not a part of the changed paths.
+            # the only knows case for this currently is if a previous MR
+            # that chages another saas file was merged but is not yet
+            # reflected in the baseline graphql endpoint.
+            # https://issues.redhat.com/browse/APPSRE-3029
+            logging.warning(
+                f'Diff not found in changed paths, skipping: {str(diff)}')
+            continue
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
         saas_file_owners = owners.get(saas_file_name)
@@ -309,9 +324,8 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
             continue
 
         # this diff is approved - remove it from changed_paths
-        saas_file_path = diff['saas_file_path']
         changed_paths = [c for c in changed_paths
-                         if not c.endswith(saas_file_path)]
+                         if c not in changed_path_matches]
 
     comment_body = '\n'.join(comment_lines.values())
     if comment_body:
