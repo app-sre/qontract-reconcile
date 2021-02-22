@@ -63,19 +63,19 @@ def run_test(test_yaml_spec, rule_files):
 
 
 def _run_yaml_spec_cmd(cmd, yaml_spec):
-    try:
-        with tempfile.NamedTemporaryFile() as fp:
+    with tempfile.NamedTemporaryFile() as fp:
+        try:
             fp.write(yaml.dump(yaml_spec).encode())
             fp.flush()
             cmd.append(fp.name)
-    except Exception as e:
-        return PromtoolResult(False, f'Error creating temporary file: {e}')
+        except Exception as e:
+            return PromtoolResult(False, f'Error creating temporary file: {e}')
 
-    try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, check=True)
-    except subprocess.CalledProcessError as e:
-        return PromtoolResult(False, f'Error running promtool: {e}')
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, check=True)
+        except subprocess.CalledProcessError as e:
+            return PromtoolResult(False, f'Error running promtool: {e}')
 
     return PromtoolResult(True, result.stdout.decode())
 
