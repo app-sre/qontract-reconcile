@@ -111,10 +111,10 @@ def collect_compare_diffs(current_state, desired_state, changed_paths):
         changed_path_matches = [c for c in changed_paths
                                 if c.endswith(d['saas_file_path'])]
         if not changed_path_matches:
-            # this diff was found in the graphql endpoint comparisson
+            # this diff was found in the graphql endpoint comparison
             # but is not a part of the changed paths.
-            # the only knows case for this currently is if a previous MR
-            # that chages another saas file was merged but is not yet
+            # the only known case for this currently is if a previous MR
+            # that changes another saas file was merged but is not yet
             # reflected in the baseline graphql endpoint.
             # https://issues.redhat.com/browse/APPSRE-3029
             logging.warning(
@@ -310,7 +310,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         changed_path_matches = [c for c in changed_paths
                                 if c.endswith(saas_file_path)]
         if not changed_path_matches:
-            # this diff was found in the graphql endpoint comparisson
+            # this diff was found in the graphql endpoint comparison
             # but is not a part of the changed paths.
             # the only knows case for this currently is if a previous MR
             # that chages another saas file was merged but is not yet
