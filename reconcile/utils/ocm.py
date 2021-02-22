@@ -192,7 +192,7 @@ class OCM:
             },
             'version': {
                 'channel_group': cluster_spec['channel'],
-            }
+            },
         }
 
         autoscale = cluster_spec.get('autoscale')
