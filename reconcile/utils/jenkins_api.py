@@ -134,7 +134,7 @@ class JenkinsApi:
 
     def get_build_history(self, job_name, time_limit):
         url = f"{self.url}/job/{job_name}/api/json" + \
-            "?tree=builds[timestamp,result]"
+            "?tree=allBuilds[timestamp,result]"
         res = requests.get(
             url,
             verify=self.ssl_verify,
