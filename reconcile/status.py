@@ -20,3 +20,7 @@ class RunningState(_RunningState):
     the running state. Attributes will be populated
     by the callers.
     """
+    def __getattr__(self, item):
+        """
+        Default value for attributes not explicitly created is None.
+        """
