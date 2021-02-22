@@ -22,5 +22,5 @@ class RunningState(_RunningState):
     """
     def __getattr__(self, item):
         """
-        Default value for attributes not explicetly created is None.
+        Default value for attributes not explicitly created is None.
         """
