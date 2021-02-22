@@ -225,9 +225,10 @@ def check_if_lgtm(owners, comments):
             if line == '/hold':
                 hold = True
                 approved = False
-            if line == '/hold cancel' and lgtm_comment:
+            if line == '/hold cancel':
                 hold = False
-                approved = True
+                if lgtm_comment:
+                    approved = True
 
     return approved, hold
 
