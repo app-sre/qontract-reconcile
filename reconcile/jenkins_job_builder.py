@@ -31,6 +31,7 @@ QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'jenkins-job-builder'
+GENERATE_TYPE = ['jobs', 'views']
 
 
 def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
@@ -38,7 +39,7 @@ def get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings):
     return f"{job_template_name}-{saas_file_name}-{env_name}"
 
 
-def collect_saas_file_configs():
+def collect_saas_file_configs(settings, instance_name=None):
     # collect a list of jobs per saas file per environment.
     # each saas_file_config should have the structure described
     # in the above query.
@@ -47,11 +48,12 @@ def collect_saas_file_configs():
     saas_file_configs = []
     repo_urls = set()
     saas_files = queries.get_saas_files()
-    settings = queries.get_app_interface_settings()
     job_template_name = settings['saasDeployJobTemplate']
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         jc_instance = saas_file['instance']
+        if instance_name is not None and jc_instance['name'] != instance_name:
+            continue
         app_name = saas_file['app']['name']
         # currently ignoring the actual Slack workspace
         # as that is configured in Jenkins.
@@ -140,22 +142,36 @@ def collect_saas_file_configs():
         jc_data = saas_file_config.pop('data')
         saas_file_config['config'] = json.dumps([jc_data])
 
-    return saas_file_configs, settings, repo_urls
+    return saas_file_configs, repo_urls
 
 
-def collect_configs():
+def collect_configs(instance_name, config_name, settings):
     gqlapi = gql.get_api()
     raw_jjb_configs = gqlapi.query(QUERY)['jenkins_configs']
-    saas_file_configs, settings, saas_file_repo_urls = \
-        collect_saas_file_configs()
+    if instance_name is not None:
+        raw_jjb_configs = [n for n in raw_jjb_configs
+                           if n['instance']['name'] == instance_name]
+    if config_name is not None:
+        raw_jjb_configs = [n for n in raw_jjb_configs
+                           if n['type'] not in GENERATE_TYPE
+                           or n['name'] == config_name]
+        if not raw_jjb_configs:
+            raise ValueError(f"config name {config_name} is not found")
+        return raw_jjb_configs, {}
+    saas_file_configs, saas_file_repo_urls = \
+        collect_saas_file_configs(settings, instance_name)
     configs = raw_jjb_configs + saas_file_configs
+    if not configs:
+        raise ValueError(f"instance name {instance_name} is not found")
+    return configs, saas_file_repo_urls
 
-    return configs, settings, saas_file_repo_urls
 
-
-def init_jjb():
-    configs, settings, additional_repo_urls = collect_configs()
-    return JJB(configs, ssl_verify=False, settings=settings), \
+def init_jjb(instance_name=None, config_name=None, print_only=False):
+    settings = queries.get_app_interface_settings()
+    configs, additional_repo_urls = \
+        collect_configs(instance_name, config_name, settings)
+    return JJB(configs, ssl_verify=False,
+               settings=settings, print_only=print_only), \
         additional_repo_urls
 
 
@@ -182,9 +198,17 @@ def validate_repos_and_admins(jjb, additional_repo_urls):
 
 
 @defer
-def run(dry_run, io_dir='throughput/', defer=None):
-    jjb, additional_repo_urls = init_jjb()
+def run(dry_run, io_dir='throughput/', print_only=False,
+        config_name=None, job_name=None, instance_name=None, defer=None):
+    if not print_only and config_name is not None:
+        raise Exception("--config-name must works with --print-only mode")
+    jjb, additional_repo_urls = \
+        init_jjb(instance_name, config_name, print_only)
     defer(lambda: jjb.cleanup())
+
+    if print_only:
+        jjb.print_jobs(job_name=job_name)
+        sys.exit(0)
 
     accounts = queries.get_aws_accounts()
     state = State(
@@ -198,7 +222,7 @@ def run(dry_run, io_dir='throughput/', defer=None):
         jjb.generate(io_dir, 'desired')
         jjb.overwrite_configs(state)
         jjb.generate(io_dir, 'current')
-        jjb.print_diffs(io_dir)
+        jjb.print_diffs(io_dir, instance_name)
     else:
         jjb.update()
         configs = jjb.get_configs()
