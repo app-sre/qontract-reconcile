@@ -176,7 +176,7 @@ def get_sha(server, token=None):
     return sha
 
 
-@retry(exceptions=GqlApiError, max_attempts=5)
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f'/git-commit-info/{sha}')
     headers = {'Authorization': token} if token else None
