@@ -176,7 +176,7 @@ class _VaultClient:
         if data is None:
             self._refresh_client_auth()
             raise SecretNotFound
-            
+
         return base64.b64decode(data) if secret_format == 'base64' else data
 
     def _read_v2(self, path, field, version):
