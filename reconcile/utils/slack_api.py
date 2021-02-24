@@ -117,6 +117,7 @@ class SlackApi:
     @retry()
     def _get(self, type):
         result_key = 'members' if type == 'users' else type
+        api_key = 'conversations' if type == 'channels' else type
         results = {}
         cursor = ''
 
@@ -125,7 +126,7 @@ class SlackApi:
 
         while True:
             result = self.sc.api_call(
-                "{}.list".format(type),
+                "{}.list".format(api_key),
                 cursor=cursor
             )
             if 'error' in result and result['error'] == 'ratelimited':
