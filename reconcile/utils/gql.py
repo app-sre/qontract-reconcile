@@ -91,7 +91,7 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError)
+    @retry(exceptions=GqlApiError, max_attempts=5)
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
@@ -176,6 +176,7 @@ def get_sha(server, token=None):
     return sha
 
 
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_git_commit_info(sha, server, token=None):
     git_commit_info_endpoint = server._replace(path=f'/git-commit-info/{sha}')
     headers = {'Authorization': token} if token else None
