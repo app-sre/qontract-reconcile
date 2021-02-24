@@ -136,7 +136,8 @@ class SentryState:
                 if user not in self.users.keys():
                     self.users[user] = [team]
                 else:
-                    self.users[user].append(team)
+                    if team not in self.users[user]:
+                        self.users[user].append(team)
 
     def init_projects_from_current_state(self, client, projects):
         # Input is in the form of project:teams[]
