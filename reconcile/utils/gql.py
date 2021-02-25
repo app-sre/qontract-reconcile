@@ -1,8 +1,6 @@
 import logging
 import textwrap
 
-from sretoolbox.utils import retry
-
 from reconcile.utils.qontract_server_client import QontractServerClient
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
