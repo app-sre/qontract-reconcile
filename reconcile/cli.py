@@ -26,7 +26,6 @@ import reconcile.openshift_vault_secrets
 import reconcile.openshift_routes
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
-import reconcile.openshift_performance_parameters
 import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
 import reconcile.openshift_saas_deploy_wrapper
@@ -929,20 +928,6 @@ def openshift_routes(ctx, thread_pool_size, internal, use_jump_host,
                     ctx.obj, thread_pool_size, internal, use_jump_host,
                     cluster_name=cluster_name,
                     namespace_name=namespace_name)
-
-
-@integration.command()
-@threaded()
-@binary(['oc', 'ssh', 'jsonnet'])
-@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@click.pass_context
-def openshift_performance_parameters(ctx, thread_pool_size, internal,
-                                     use_jump_host):
-    run_integration(reconcile.openshift_performance_parameters,
-                    ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
 
 
 @integration.command()
