@@ -83,7 +83,6 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError, max_attempts=5)
     def query(self, query, variables=None, skip_validation=False):
         try:
             result = self.client.query(query, variables)
