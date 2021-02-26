@@ -11,16 +11,17 @@ class QontractServerClient:
                  sha_url=False):
         self.base_url = url
         self.token = token
-        self.use_sessions = use_sessions
         self.sha = None
+
+        if use_sessions:
+            self.session = requests.Session()
+        else:
+            self.session = None
 
         if sha_url:
             self.set_graphqlsha_url()
         else:
             self.query_url = url
-
-        if self.use_sessions:
-            self.session = requests.Session()
 
     def set_graphqlsha_url(self):
         """Fetches the latest sha and sets the query url to use it.
@@ -74,7 +75,7 @@ class QontractServerClient:
         if self.token:
             headers['Authorization'] = self.token
 
-        if self.use_sessions:
+        if self.session:
             post_method = self.session.post
         else:
             post_method = requests.post
