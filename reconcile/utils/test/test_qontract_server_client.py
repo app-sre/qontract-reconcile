@@ -6,29 +6,29 @@ import requests
 from reconcile.utils.qontract_server_client import QontractServerClient
 
 
-def mocked_requests_get(*args, **kwargs):
-    class MockResponse:
-        def __init__(self, content):
+class MockResponse:
+    content = ''
+
+    def __init__(self, content=None):
+        if content:
             self.content = content.encode('utf-8')
 
-        def raise_for_status(self):
-            pass
+    def raise_for_status(self):
+        # pylint: disable=no-self-use
+        pass
 
+    def json(self):
+        # pylint: disable=no-self-use
+        return '{}'
+
+
+def mocked_requests_get(*args, **kwargs):
     if args[0] == 'https://example.com/sha256':
         return MockResponse("abcdef")
-
     return MockResponse('')
 
 
 def mocked_requests_post(*args, **kwargs):
-    class MockResponse:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            # pylint: disable=no-self-use
-            return '{}'
-
     return MockResponse()
 
 
