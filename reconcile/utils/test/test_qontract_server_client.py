@@ -26,6 +26,7 @@ def mocked_requests_post(*args, **kwargs):
             pass
 
         def json(self):
+            # pylint: disable=no-self-use
             return '{}'
 
     return MockResponse()
