@@ -142,7 +142,7 @@ class JenkinsApi:
         )
 
         res.raise_for_status()
-        return [b['result'] for b in res.json()['builds']
+        return [b['result'] for b in res.json()['allBuilds']
                 if time_limit < self.timestamp_seconds(b['timestamp'])]
 
     def is_job_running(self, job_name):
