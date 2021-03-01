@@ -214,7 +214,7 @@ def get_apps_data(date, month_delta=1):
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
     promotion_build_history = \
-        get_build_history(jenkins_map, promotion_jobs, timestamp_limit)
+        get_promotion_build_history(jenkins_map, promotion_jobs, timestamp_limit)
     build_master_build_history = \
         get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
@@ -400,6 +400,30 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
             history[repo_url] = build_history
 
     return history
+
+
+def get_promotion_build_history(jenkins_map, jobs, timestamp_limit):
+    history = {} 
+    for instance, jobs in jobs.items():
+        jenkins = jenkins_map[instance]
+        for job in jobs:
+            logging.info(f"getting build history for {job['name']}")
+            build_history = \
+                jenkins.get_build_history(job['name'], timestamp_limit)
+            repo_url = get_repo_url(job)
+            job_env = get_promotion_job_env(job['name'])
+            if repo_url not in history:
+                history[repo_url] = {job_env: build_history}
+            else:
+                history[repo_url].update({job_env: build_history})
+
+    return history
+
+
+def get_promotion_job_env(job_name):
+    env_idx = job_name.find("promote-to-prod")
+    env_name = job_name[env_idx:]
+    return env_name
 
 
 def get_repo_url(job):
