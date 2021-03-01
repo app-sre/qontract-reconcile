@@ -43,8 +43,8 @@ class _VaultClient:
         config = get_config()
 
         server = config['vault']['server']
-        self.role_id = config['vault']['role_id']
-        self.secret_id = config['vault']['secret_id']
+        role_id = config['vault']['role_id']
+        secret_id = config['vault']['secret_id']
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
@@ -59,7 +59,7 @@ class _VaultClient:
         authenticated = False
         for i in range(0, 3):
             try:
-                self._refresh_client_auth()
+                self._client.auth_approle(role_id, secret_id)
                 authenticated = self._client.is_authenticated()
                 break
             except requests.exceptions.ConnectionError:
@@ -67,9 +67,6 @@ class _VaultClient:
 
         if not authenticated:
             raise VaultConnectionError()
-
-    def _refresh_client_auth(self):
-        self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
     def read_all(self, secret):
@@ -92,7 +89,6 @@ class _VaultClient:
             data = self._read_all_v1(secret_path)
 
         if data is None:
-            self._refresh_client_auth()
             raise SecretNotFound
 
         return data
@@ -164,19 +160,10 @@ class _VaultClient:
         secret_field = secret['field']
         secret_format = secret.get('format', 'plain')
         secret_version = secret.get('version')
-
-        kv_version = self._get_mount_version_by_secret_path(secret_path)
-
-        data = None
-        if kv_version == 2:
+        try:
             data = self._read_v2(secret_path, secret_field, secret_version)
-        else:
+        except Exception:
             data = self._read_v1(secret_path, secret_field)
-
-        if data is None:
-            self._refresh_client_auth()
-            raise SecretNotFound
-
         return base64.b64decode(data) if secret_format == 'base64' else data
 
     def _read_v2(self, path, field, version):
