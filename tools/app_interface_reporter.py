@@ -37,10 +37,8 @@ DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
 def promql(url, query, auth=None):
     """
     Run an instant-query on the prometheus instance.
-
     The returned structure is documented here:
     https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-
     :param url: base prometheus url (not the API endpoint).
     :type url: string
     :param query: this is a second value
@@ -213,8 +211,9 @@ def get_apps_data(date, month_delta=1):
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
-    promotion_build_history = \
-        get_promotion_build_history(jenkins_map, promotion_jobs, timestamp_limit)
+    promotion_build_history = get_promotion_build_history(
+        jenkins_map, promotion_jobs, timestamp_limit
+    )
     build_master_build_history = \
         get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
@@ -228,22 +227,33 @@ def get_apps_data(date, month_delta=1):
                            auth=(dashdotdb_user, dashdotdb_pass)).text
     namespaces = queries.get_namespaces()
 
-    saas_deploy_history = {} 
+    saas_deploy_history = {}
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         app_name = saas_file["app"]["name"]
-        instance_url = saas_file["instance"]["serverUrl"]
         instance_name = saas_file["instance"]["name"]
         for template in saas_file["resourceTemplates"]:
             for target in template["targets"]:
                 env_name = target["namespace"]["environment"]["name"]
-                job_name = get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings)
+                job_name = get_openshift_saas_deploy_job_name(
+                    saas_file_name, env_name, settings
+                )
                 logging.info(f"getting build history for {job_name}")
-                build_history = jenkins_map[instance_name].get_build_history(job_name, timestamp_limit)
-                if app_name not in saas_deploy_history:
-                    saas_deploy_history[app_name] = {env_name: build_history}
-                else:
-                    saas_deploy_history[app_name].update({env_name: build_history})
+                try:
+                    build_history = \
+                        jenkins_map[instance_name].get_build_history(
+                            job_name, timestamp_limit
+                        )
+                    if app_name not in saas_deploy_history:
+                        saas_deploy_history[app_name] = {
+                            env_name: build_history}
+                    else:
+                        saas_deploy_history[app_name].update(
+                            {env_name: build_history}
+                        )
+                except requests.exceptions.HTTPError:
+                    logging.info(f"getting build history failed \
+                        for {job_name}")
 
     for app in apps:
         if not app['codeComponents']:
@@ -310,9 +320,21 @@ def get_apps_data(date, month_delta=1):
                 for env, history in promotion_history.items():
                     successes = [h for h in history if h == 'SUCCESS']
                     if sr not in app["promotions"]:
-                        app["promotions"][sr] = {env: {"total": len(history), "success" : len(successes)}}
+                        app["promotions"][sr] = {
+                            env: {
+                                "total": len(history),
+                                "success": len(successes),
+                            }
+                        }
                     else:
-                        app["promotions"][sr].update({env: {"total": len(history), "success" : len(successes)}})
+                        app["promotions"][sr].update(
+                            {
+                                env: {
+                                    "total": len(history),
+                                    "success": len(successes),
+                                }
+                            }
+                        )
 
         logging.info(f"collecting saas deploy jobs for {app_name}")
         app["saas_deploy_jobs"] = {}
@@ -320,7 +342,10 @@ def get_apps_data(date, month_delta=1):
             for env, history in saas_deploy_history[app_name].items():
                 if history:
                     successes = [h for h in history if h == 'SUCCESS']
-                    app["saas_deploy_jobs"][env] = {"total": len(history), "success" : len(successes)}
+                    app["saas_deploy_jobs"][env] = {
+                        "total": len(history),
+                        "success": len(successes),
+                    }
 
         logging.info(f"collecting merge activity for {app_name}")
         app['merge_activity'] = {}
@@ -404,7 +429,7 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
 
 
 def get_promotion_build_history(jenkins_map, jobs, timestamp_limit):
-    history = {} 
+    history = {}
     for instance, jobs in jobs.items():
         jenkins = jenkins_map[instance]
         for job in jobs:
@@ -467,19 +492,12 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
     if not dry_run:
         email_body = """\
             Hello,
-
             A new report by the App SRE team is now available at:
             https://visual-app-interface.devshift.net/reports
-
             You can use the Search bar to search by App.
-
             You can also view reports per service here:
             https://visual-app-interface.devshift.net/services
-
-
             Having problems? Ping us on #sd-app-sre on Slack!
-
-
             You are receiving this message because you are a member
             of app-interface or subscribed to a mailing list specified
             as owning a service being run by the App SRE team:
