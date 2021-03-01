@@ -208,6 +208,8 @@ def run(dry_run, io_dir='throughput/', print_only=False,
 
     if print_only:
         jjb.print_jobs(job_name=job_name)
+        if config_name is not None:
+            jjb.generate(io_dir, 'printout')
         sys.exit(0)
 
     accounts = queries.get_aws_accounts()
