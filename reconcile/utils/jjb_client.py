@@ -165,13 +165,9 @@ class JJB:
         """ Print the diffs between the current and
         the desired job definitions """
         current_path = path.join(io_dir, 'jjb', 'current')
-        if instance_name is not None:
-            current_path = path.join(current_path, instance_name)
-        current_files = self.get_files(current_path)
+        current_files = self.get_files(current_path, instance_name)
         desired_path = path.join(io_dir, 'jjb', 'desired')
-        if instance_name is not None:
-            desired_path = path.join(desired_path, instance_name)
-        desired_files = self.get_files(desired_path)
+        desired_files = self.get_files(desired_path, instance_name)
 
         create = self.compare_files(desired_files, current_files)
         delete = self.compare_files(current_files, desired_files)
@@ -210,7 +206,9 @@ class JJB:
                 if (self.toggle_cd(f) in subtract_files) is in_op]
 
     @staticmethod
-    def get_files(search_path):
+    def get_files(search_path, instance_name=None):
+        if instance_name is not None:
+            search_path = path.join(search_path, instance_name)
         return [path.join(root, f)
                 for root, _, files in os.walk(search_path)
                 for f in files]
