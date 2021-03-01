@@ -238,6 +238,7 @@ def get_apps_data(date, month_delta=1):
             for target in template["targets"]:
                 env_name = target["namespace"]["environment"]["name"]
                 job_name = get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings)
+                logging.info(f"getting build history for {job_name}")
                 build_history = jenkins_map[instance_name].get_build_history(job_name, timestamp_limit)
                 if app_name not in saas_deploy_history:
                     saas_deploy_history[app_name] = {env_name: build_history}
