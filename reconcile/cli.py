@@ -242,10 +242,35 @@ def use_jump_host(**kwargs):
     return f
 
 
-def terraform(function):
+def print_only(function):
     function = click.option('--print-only/--no-print-only',
-                            help='only print the terraform config file.',
+                            help='only print the config file.',
                             default=False)(function)
+
+    return function
+
+
+def config_name(function):
+    function = click.option('--config-name',
+                            help='jenkins config name to print out.'
+                                 'must works with --print-only mode',
+                            default=None)(function)
+
+    return function
+
+
+def job_name(function):
+    function = click.option('--job-name',
+                            help='jenkins job name to print out.',
+                            default=None)(function)
+
+    return function
+
+
+def instance_name(function):
+    function = click.option('--instance-name',
+                            help='jenkins instance name to act on.',
+                            default=None)(function)
 
     return function
 
@@ -417,7 +442,7 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 
 
 @integration.command()
-@terraform
+@print_only
 @threaded()
 @binary(['terraform'])
 @binary_version('terraform', ['version'],
@@ -552,10 +577,16 @@ def jenkins_plugins(ctx):
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@print_only
+@config_name
+@job_name
+@instance_name
 @throughput
 @click.pass_context
-def jenkins_job_builder(ctx, io_dir):
-    run_integration(reconcile.jenkins_job_builder, ctx.obj, io_dir)
+def jenkins_job_builder(ctx, io_dir, print_only,
+                        config_name, job_name, instance_name):
+    run_integration(reconcile.jenkins_job_builder, ctx.obj, io_dir,
+                    print_only, config_name, job_name, instance_name)
 
 
 @integration.command()
@@ -962,7 +993,7 @@ def user_validator(ctx):
 
 
 @integration.command()
-@terraform
+@print_only
 @throughput
 @vault_output_path
 @threaded(default=20)
@@ -989,7 +1020,7 @@ def terraform_resources(ctx, print_only, enable_deletion,
 
 
 @integration.command()
-@terraform
+@print_only
 @throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
@@ -1007,7 +1038,7 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 
 
 @integration.command()
-@terraform
+@print_only
 @threaded()
 @binary(['terraform'])
 @binary_version('terraform', ['version'],

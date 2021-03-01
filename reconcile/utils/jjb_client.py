@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as et
+import json
 
 from os import path
 from contextlib import contextmanager
@@ -24,13 +25,18 @@ import reconcile.utils.throughput as throughput
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.exceptions import FetchResourceError
 
+JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
+
 
 class JJB:
     """Wrapper around Jenkins Jobs"""
 
-    def __init__(self, configs, ssl_verify=True, settings=None):
+    def __init__(self, configs, ssl_verify=True,
+                 settings=None, print_only=False):
         self.settings = settings
-        self.secret_reader = SecretReader(settings=settings)
+        self.print_only = print_only
+        if not print_only:
+            self.secret_reader = SecretReader(settings=settings)
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
@@ -50,9 +56,11 @@ class JJB:
             token = data['token']
             server_url = data['serverUrl']
             wd = tempfile.mkdtemp()
-            ini = self.secret_reader.read(token)
-            ini = ini.replace('"', '')
-            ini = ini.replace('false', 'False')
+            ini = JJB_INI
+            if not self.print_only:
+                ini = self.secret_reader.read(token)
+                ini = ini.replace('"', '')
+                ini = ini.replace('false', 'False')
             ini_file_path = '{}/{}.ini'.format(wd, name)
             with open(ini_file_path, 'w') as f:
                 f.write(ini)
@@ -153,12 +161,16 @@ class JJB:
             self.execute(args)
             throughput.change_files_ownership(io_dir)
 
-    def print_diffs(self, io_dir):
+    def print_diffs(self, io_dir, instance_name=None):
         """ Print the diffs between the current and
         the desired job definitions """
         current_path = path.join(io_dir, 'jjb', 'current')
+        if instance_name is not None:
+            current_path = path.join(current_path, instance_name)
         current_files = self.get_files(current_path)
         desired_path = path.join(io_dir, 'jjb', 'desired')
+        if instance_name is not None:
+            desired_path = path.join(desired_path, instance_name)
         desired_files = self.get_files(desired_path)
 
         create = self.compare_files(desired_files, current_files)
@@ -349,3 +361,19 @@ class JJB:
                 all_jobs[name].append(job)
 
         return all_jobs
+
+    def print_jobs(self, job_name=None):
+        all_jobs = {}
+        found = False
+        for name, wd in self.working_dirs.items():
+            logging.debug(f'getting jobs from {name}')
+            all_jobs[name] = []
+            jobs = self.get_jobs(wd, name)
+            for job in jobs:
+                if job_name is not None and job_name not in job['name']:
+                    continue
+                all_jobs[name].append(job)
+                found = True
+        if not found:
+            raise ValueError(f"job name {job_name} is not found")
+        print(json.dumps(all_jobs, indent=2))
