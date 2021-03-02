@@ -480,18 +480,6 @@ integrations:
     cloudwatch: true
   state: true
   extraArgs: --enable-deletion
-- name: openshift-performance-parameters
-  resources:
-    requests:
-      memory: 400Mi
-      cpu: 100m
-    limits:
-      memory: 600Mi
-      cpu: 200m
-  logs:
-    slack: true
-    cloudwatch: true
-  extraArgs: --no-use-jump-host
 - name: slack-cluster-usergroups
   resources:
     requests:

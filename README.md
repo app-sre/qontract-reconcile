@@ -48,7 +48,6 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-resourcequotas`: Manages OpenShift ResourceQuota objects.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
 - `openshift-network-policies`: Manages OpenShift NetworkPolicies.
-- `openshift-performance-parameters`: Manages Performance Parameters files from services.
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
 - `openshift-routes`: Manages OpenShift Routes.
