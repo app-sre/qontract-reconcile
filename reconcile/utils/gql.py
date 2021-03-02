@@ -58,13 +58,13 @@ class GqlApi:
     _queried_schemas = set()
 
     def __init__(self, url, token=None, int_name=None, validate_schemas=False,
-                 use_sessions=False, sha_url=False):
+                 sticky_session=False, sha_url=False):
         self.url = url
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
         self.client = QontractServerClient(
-            self.url, token=token, use_sessions=use_sessions, sha_url=sha_url)
+            self.url, token=token, sticky_session=sticky_session, sha_url=sha_url)
 
         if validate_schemas and not int_name:
             raise Exception('Cannot validate schemas if integration name '
@@ -146,7 +146,7 @@ class GqlApi:
 
 
 def init_from_config(sha_url=True, integration=None, validate_schemas=False,
-                     print_url=True, use_sessions=True):
+                     print_url=True, sticky_session=True):
     """Inits the GraphQL client based on the server url and token defined in the
     config. This method is a wrapper around `init`.
 
@@ -161,9 +161,9 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False,
     :param print_url: when a new sha is acquired, it will be printed,
         defaults to True
     :type print_url: bool, optional
-    :param use_sessions: reuse session for all the requests performed.
+    :param sticky_session: reuse session for all the requests performed.
         defaults to True
-    :type use_sessions: bool, optional
+    :type sticky_session: bool, optional
     """
 
     config = get_config()
@@ -171,11 +171,11 @@ def init_from_config(sha_url=True, integration=None, validate_schemas=False,
     token = config['graphql'].get('token')
     return init(server, token=token, sha_url=sha_url, integration=integration,
                 validate_schemas=validate_schemas, print_url=print_url,
-                use_sessions=use_sessions)
+                sticky_session=sticky_session)
 
 
 def init(url, token=None, sha_url=True, integration=None,
-         validate_schemas=False, print_url=True, use_sessions=True):
+         validate_schemas=False, print_url=True, sticky_session=True):
     """Inits the GraphQL client
 
 
@@ -193,14 +193,14 @@ def init(url, token=None, sha_url=True, integration=None,
     :param print_url: when a new sha is acquired, it will be printed,
         defaults to True
     :type print_url: bool, optional
-    :param use_sessions: reuse session for all the requests performed.
+    :param sticky_session: reuse session for all the requests performed.
         defaults to True
-    :type use_sessions: bool, optional
+    :type sticky_session: bool, optional
 
     """
     global _gqlapi
     _gqlapi = GqlApi(url, token, integration, validate_schemas,
-                     sha_url=sha_url, use_sessions=use_sessions)
+                     sha_url=sha_url, sticky_session=sticky_session)
 
     if print_url:
         url = _gqlapi.client.query_url

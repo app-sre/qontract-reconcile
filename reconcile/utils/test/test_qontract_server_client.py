@@ -61,7 +61,7 @@ class TestQontractServerClient:
                 side_effect=mocked_requests_post)
     def test_query_session(mock_post):
         client = QontractServerClient('https://example.com/graphql',
-                                      use_sessions=True)
+                                      sticky_session=True)
         client.query('TESTQUERY')
         first_call = mock_post.call_args_list[0]
         assert first_call.args[0] == 'https://example.com/graphql'

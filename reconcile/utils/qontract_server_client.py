@@ -7,13 +7,13 @@ class QontractServerClient:
     """REST API for Qontract Server """
 
     def __init__(self, url, token=None,
-                 use_sessions=False,
+                 sticky_session=False,
                  sha_url=False):
         self.base_url = url
         self.token = token
         self.sha = None
 
-        if use_sessions:
+        if sticky_session:
             self.session = requests.Session()
         else:
             self.session = None
