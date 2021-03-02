@@ -200,7 +200,7 @@ def init(url, token=None, sha_url=True, integration=None,
     """
     global _gqlapi
     _gqlapi = GqlApi(url, token, integration, validate_schemas,
-                     sha_url=sha_url, use_sessions=True)
+                     sha_url=sha_url, use_sessions=use_sessions)
 
     if print_url:
         url = _gqlapi.client.query_url
