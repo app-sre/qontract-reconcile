@@ -64,7 +64,8 @@ class GqlApi:
         self.integration = int_name
         self.validate_schemas = validate_schemas
         self.client = QontractServerClient(
-            self.url, token=token, sticky_session=sticky_session, sha_url=sha_url)
+            self.url, token=token, sticky_session=sticky_session,
+            sha_url=sha_url)
 
         if validate_schemas and not int_name:
             raise Exception('Cannot validate schemas if integration name '
