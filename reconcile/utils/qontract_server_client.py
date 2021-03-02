@@ -10,8 +10,11 @@ class QontractServerClient:
                  sticky_session=False,
                  sha_url=False):
         self.base_url = url
-        self.token = token
         self.sha = None
+        self.headers = {}
+
+        if token:
+            self.headers['Authorization'] = token
 
         if sticky_session:
             self.session = requests.Session()
@@ -19,15 +22,11 @@ class QontractServerClient:
             self.session = None
 
         if sha_url:
-            self.set_graphqlsha_url()
+            self.sha = self.get_sha()
+            self.query_url = self._base_url_path(
+                path=f'/graphqlsha/{self.sha}')
         else:
             self.query_url = url
-
-    def set_graphqlsha_url(self):
-        """Fetches the latest sha and sets the query url to use it.
-        """
-        self.sha = self.get_sha()
-        self.query_url = self._base_url_path(path=f'/graphqlsha/{self.sha}')
 
     def get_sha(self):
         """Get the sha of the last bundle.
@@ -70,26 +69,28 @@ class QontractServerClient:
         """
         data = {'query': query, 'variables': variables}
 
-        headers = {'Accept': 'application/json',
-                   'Content-Type': 'application/json'}
-        if self.token:
-            headers['Authorization'] = self.token
-
         if self.session:
             post_method = self.session.post
         else:
             post_method = requests.post
 
-        r = post_method(self.query_url, json=data, headers=headers)
+        r = post_method(self.query_url, json=data,
+                        headers=self._headers(json=True))
         r.raise_for_status()
         return r.json()
+
+    def _headers(self, json=False):
+        if json:
+            return {'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    **self.headers}
+        return self.headers
 
     def _base_url_path(self, path):
         return urlparse(self.base_url)._replace(path=path).geturl()
 
     def _get(self, path):
-        headers = {'Authorization': self.token} if self.token else None
         url = self._base_url_path(path)
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=self._headers())
         response.raise_for_status()
         return response
