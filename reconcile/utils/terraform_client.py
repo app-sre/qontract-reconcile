@@ -26,7 +26,7 @@ class TerraformClient:
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
-        self.accounts = accounts
+        self.accounts = {a['name']: a for a in accounts}
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()
