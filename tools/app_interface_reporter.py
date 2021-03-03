@@ -79,11 +79,6 @@ class Report:
         self.date = date
         self.report_sections = {}
 
-        # promotions
-        self.add_report_section(
-            'production_promotions',
-            self.app.get('promotions')
-        )
         # saas deploy jobs
         self.add_report_section(
             'saas_deploy_jobs',
@@ -207,15 +202,11 @@ def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
     jjb, _ = init_jjb()
-    promotion_jobs = jjb.get_all_jobs(job_types=['promote-to-prod'])
     build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
-    promotion_build_history = get_promotion_build_history(
-        jenkins_map, promotion_jobs, timestamp_limit
-    )
     build_master_build_history = \
         get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
 
@@ -312,32 +303,6 @@ def get_apps_data(date, month_delta=1):
 
         app['post_deploy_jobs'] = post_deploy_jobs
 
-        logging.info(f"collecting promotions for {app_name}")
-        app['promotions'] = {}
-        saas_repos = [c['url'] for c in app['codeComponents']
-                      if c['resource'] == 'saasrepo']
-        for sr in saas_repos:
-            promotion_history = promotion_build_history.get(sr)
-            if promotion_history:
-                for env, history in promotion_history.items():
-                    successes = [h for h in history if h == 'SUCCESS']
-                    if sr not in app["promotions"]:
-                        app["promotions"][sr] = {
-                            env: {
-                                "total": len(history),
-                                "success": len(successes),
-                            }
-                        }
-                    else:
-                        app["promotions"][sr].update(
-                            {
-                                env: {
-                                    "total": len(history),
-                                    "success": len(successes),
-                                }
-                            }
-                        )
-
         logging.info(f"collecting saas deploy jobs for {app_name}")
         app["saas_deploy_jobs"] = {}
         if app_name in saas_deploy_history:
@@ -428,30 +393,6 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
             history[repo_url] = build_history
 
     return history
-
-
-def get_promotion_build_history(jenkins_map, jobs, timestamp_limit):
-    history = {}
-    for instance, jobs in jobs.items():
-        jenkins = jenkins_map[instance]
-        for job in jobs:
-            logging.info(f"getting build history for {job['name']}")
-            build_history = \
-                jenkins.get_build_history(job['name'], timestamp_limit)
-            repo_url = get_repo_url(job)
-            job_env = get_promotion_job_env(job['name'])
-            if repo_url not in history:
-                history[repo_url] = {job_env: build_history}
-            else:
-                history[repo_url].update({job_env: build_history})
-
-    return history
-
-
-def get_promotion_job_env(job_name):
-    env_idx = job_name.find("promote-to-prod")
-    env_name = job_name[env_idx:]
-    return env_name
 
 
 def get_repo_url(job):
