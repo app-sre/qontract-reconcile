@@ -244,6 +244,7 @@ AWS_ACCOUNTS_QUERY = """
       field
     }
     garbageCollection
+    enableDeletion
     disable {
       integrations
     }
