@@ -150,6 +150,12 @@ class TerraformClient:
 
     def log_plan_diff(self, name, tf, enable_deletion):
         disabled_deletion_detected = False
+        account_enable_deletion = \
+            self.accounts[name].get('enableDeletion') or False
+        # deletions are alowed
+        # if enableDeletion is true for an account
+        # or if the integration's enable_deletion is true
+        deletions_allowed = enable_deletion or account_enable_deletion
         deleted_users = []
 
         output = self.terraform_show(name, tf.working_dir)
@@ -176,8 +182,8 @@ class TerraformClient:
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                 if action == 'delete':
-                    disabled_deletion_detected = True
-                    if not enable_deletion:
+                    if not deletions_allowed:
+                        disabled_deletion_detected = True
                         logging.error(
                             '\'delete\' action is not enabled. ' +
                             'Please run the integration manually ' +
