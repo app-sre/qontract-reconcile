@@ -113,19 +113,19 @@ class TerraformClient:
     # terraform plan
     def plan(self, enable_deletion):
         errors = False
-        deletions_detected = False
+        disabled_deletions_detected = False
         results = threaded.run(self.terraform_plan, self.specs,
                                self.thread_pool_size,
                                enable_deletion=enable_deletion)
 
         self.deleted_users = []
-        for deletion_detected, deleted_users, error in results:
+        for disabled_deletion_detected, deleted_users, error in results:
             if error:
                 errors = True
-            if deletion_detected:
-                deletions_detected = True
+            if disabled_deletion_detected:
+                disabled_deletions_detected = True
                 self.deleted_users.extend(deleted_users)
-        return deletions_detected, errors
+        return disabled_deletions_detected, errors
 
     def dump_deleted_users(self, io_dir):
         if not self.deleted_users:
@@ -144,9 +144,9 @@ class TerraformClient:
                                               parallelism=self.parallelism,
                                               out=name)
         error = self.check_output(name, return_code, stdout, stderr)
-        deletion_detected, deleted_users = \
+        disabled_deletion_detected, deleted_users = \
             self.log_plan_diff(name, tf, enable_deletion)
-        return deletion_detected, deleted_users, error
+        return disabled_deletion_detected, deleted_users, error
 
     def log_plan_diff(self, name, tf, enable_deletion):
         deletions_detected = False
@@ -176,7 +176,7 @@ class TerraformClient:
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                 if action == 'delete':
-                    deletions_detected = True
+                    disabled_deletion_detected = True
                     if not enable_deletion:
                         logging.error(
                             '\'delete\' action is not enabled. ' +
@@ -189,7 +189,7 @@ class TerraformClient:
                             'user': resource_name
                         })
 
-        return deletions_detected, deleted_users
+        return disabled_deletion_detected, deleted_users
 
     @staticmethod
     def terraform_show(name, working_dir):
