@@ -149,7 +149,7 @@ class TerraformClient:
         return disabled_deletion_detected, deleted_users, error
 
     def log_plan_diff(self, name, tf, enable_deletion):
-        deletions_detected = False
+        disabled_deletion_detected = False
         deleted_users = []
 
         output = self.terraform_show(name, tf.working_dir)
@@ -160,7 +160,7 @@ class TerraformClient:
 
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
-            return deletions_detected, deleted_users
+            return disabled_deletion_detected, deleted_users
 
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
