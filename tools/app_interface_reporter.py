@@ -79,10 +79,10 @@ class Report:
         self.date = date
         self.report_sections = {}
 
-        # saas deploy jobs
+        # promotions
         self.add_report_section(
-            'saas_deploy_jobs',
-            self.app.get('saas_deploy_jobs')
+            'promotions',
+            self.app.get('promotions')
         )
         # merges to master
         self.add_report_section(
@@ -303,13 +303,13 @@ def get_apps_data(date, month_delta=1):
 
         app['post_deploy_jobs'] = post_deploy_jobs
 
-        logging.info(f"collecting saas deploy jobs for {app_name}")
-        app["saas_deploy_jobs"] = {}
+        logging.info(f"collecting promotion history for {app_name}")
+        app["promotions"] = {}
         if app_name in saas_deploy_history:
             for env, history in saas_deploy_history[app_name].items():
                 if history:
                     successes = [h for h in history if h == 'SUCCESS']
-                    app["saas_deploy_jobs"][env] = {
+                    app["promotions"][env] = {
                         "total": len(history),
                         "success": len(successes),
                     }
