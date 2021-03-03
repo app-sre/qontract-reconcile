@@ -256,7 +256,7 @@ def environment(ctx, name):
 @click.pass_context
 def services(ctx):
     apps = queries.get_apps()
-    columns = ['name']
+    columns = ['name', 'path', 'onboardingStatus']
     print_output(ctx.obj['output'], apps, columns)
 
 

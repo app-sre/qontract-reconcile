@@ -791,6 +791,7 @@ APPS_QUERY = """
   apps: apps_v1 {
     path
     name
+    onboardingStatus
     serviceOwners {
       name
       email
