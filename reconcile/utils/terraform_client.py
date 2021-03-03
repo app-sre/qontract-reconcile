@@ -20,12 +20,13 @@ ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 class TerraformClient:
     def __init__(self, integration, integration_version,
-                 integration_prefix, working_dirs, thread_pool_size,
+                 integration_prefix, accounts, working_dirs, thread_pool_size,
                  init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.accounts = accounts
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()

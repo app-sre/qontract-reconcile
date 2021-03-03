@@ -60,7 +60,7 @@ def setup(print_only, thread_pool_size):
 
     working_dirs = ts.dump(print_only)
 
-    return working_dirs
+    return accounts, working_dirs
 
 
 def send_email_invites(new_users, settings):
@@ -101,7 +101,7 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
-    working_dirs = setup(print_only, thread_pool_size)
+    accounts, working_dirs = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
     if working_dirs is None:
@@ -111,6 +111,7 @@ def run(dry_run, print_only=False,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
+                   accounts,
                    working_dirs,
                    thread_pool_size,
                    init_users=True)

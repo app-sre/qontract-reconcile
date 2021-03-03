@@ -281,6 +281,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
+                   accounts,
                    working_dirs,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
