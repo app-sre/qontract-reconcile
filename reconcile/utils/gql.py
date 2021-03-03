@@ -1,16 +1,7 @@
-import contextlib
-import json
 import logging
-import os
 import textwrap
 
-from urllib.parse import urlparse
-
-import requests
-
-from sretoolbox.utils import retry
-from graphqlclient import GraphQLClient
-
+from reconcile.utils.qontract_server_client import QontractServerClient
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 
@@ -66,19 +57,19 @@ class GqlApi:
     _valid_schemas = None
     _queried_schemas = set()
 
-    def __init__(self, url, token=None, int_name=None, validate_schemas=False):
+    def __init__(self, url, token=None, int_name=None, validate_schemas=False,
+                 sticky_session=False, sha_url=False):
         self.url = url
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
-        self.client = GraphQLClient(self.url)
+        self.client = QontractServerClient(
+            self.url, token=token, sticky_session=sticky_session,
+            sha_url=sha_url)
 
         if validate_schemas and not int_name:
             raise Exception('Cannot validate schemas if integration name '
                             'is not supplied')
-
-        if token:
-            self.client.inject_token(token)
 
         if int_name:
             integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
@@ -91,19 +82,12 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError, max_attempts=5)
     def query(self, query, variables=None, skip_validation=False):
         try:
-            # supress print on HTTP error
-            # https://github.com/prisma-labs/python-graphql-client
-            # /blob/master/graphqlclient/client.py#L32-L33
-            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-                result_json = self.client.execute(query, variables)
+            result = self.client.query(query, variables)
         except Exception as e:
             raise GqlApiError(
                 'Could not connect to GraphQL server ({})'.format(e))
-
-        result = json.loads(result_json)
 
         # show schemas if log level is debug
         query_schemas = result.get('extensions', {}).get('schemas', [])
@@ -162,51 +146,74 @@ class GqlApi:
         return list(self._queried_schemas)
 
 
-def init(url, token=None, integration=None, validate_schemas=False):
-    global _gqlapi
-    _gqlapi = GqlApi(url, token, integration, validate_schemas)
-    return _gqlapi
-
-
-def get_sha(server, token=None):
-    sha_endpoint = server._replace(path='/sha256')
-    headers = {'Authorization': token} if token else None
-    response = requests.get(sha_endpoint.geturl(), headers=headers)
-    sha = response.content.decode('utf-8')
-    return sha
-
-
-@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
-def get_git_commit_info(sha, server, token=None):
-    git_commit_info_endpoint = server._replace(path=f'/git-commit-info/{sha}')
-    headers = {'Authorization': token} if token else None
-    response = requests.get(git_commit_info_endpoint.geturl(),
-                            headers=headers)
-    response.raise_for_status()
-    git_commit_info = response.json()
-    return git_commit_info
-
-
 def init_from_config(sha_url=True, integration=None, validate_schemas=False,
-                     print_url=True):
+                     print_url=True, sticky_session=True):
+    """Inits the GraphQL client based on the server url and token defined in the
+    config. This method is a wrapper around `init`.
+
+
+    :param sha_url: use the /graphqlsha/<sha> endpoint, defaults to True
+    :type sha_url: bool, optional
+    :param integration: name of the integration, required if validate_schemas
+    :type integration: [description], defaults to None
+    :param validate_schemas: raise error if non defined schemas are queried,
+        defaults to False
+    :type validate_schemas: bool, optional
+    :param print_url: when a new sha is acquired, it will be printed,
+        defaults to True
+    :type print_url: bool, optional
+    :param sticky_session: reuse session for all the requests performed.
+        defaults to True
+    :type sticky_session: bool, optional
+    """
+
     config = get_config()
-
-    server_url = urlparse(config['graphql']['server'])
-    server = server_url.geturl()
-
+    server = config['graphql']['server']
     token = config['graphql'].get('token')
-    if sha_url:
-        sha = get_sha(server_url, token)
-        server = server_url._replace(path=f'/graphqlsha/{sha}').geturl()
+    return init(server, token=token, sha_url=sha_url, integration=integration,
+                validate_schemas=validate_schemas, print_url=print_url,
+                sticky_session=sticky_session)
 
+
+def init(url, token=None, sha_url=True, integration=None,
+         validate_schemas=False, print_url=True, sticky_session=True):
+    """Inits the GraphQL client
+
+
+    :param url: Qontract Server url
+    :type url: str
+    :param token: authorization header, typically: `Bearer <user:pass|base64>`
+    :type token: str, optional
+    :param sha_url: use the /graphqlsha/<sha> endpoint, defaults to True
+    :type sha_url: bool, optional
+    :param integration: name of the integration, required if validate_schemas
+    :type integration: [description], defaults to None
+    :param validate_schemas: raise error if non defined schemas are queried,
+        defaults to False
+    :type validate_schemas: bool, optional
+    :param print_url: when a new sha is acquired, it will be printed,
+        defaults to True
+    :type print_url: bool, optional
+    :param sticky_session: reuse session for all the requests performed.
+        defaults to True
+    :type sticky_session: bool, optional
+
+    """
+    global _gqlapi
+    _gqlapi = GqlApi(url, token, integration, validate_schemas,
+                     sha_url=sha_url, sticky_session=sticky_session)
+
+    if print_url:
+        url = _gqlapi.client.query_url
+        logging.info(f'using gql endpoint {url}')
+
+    if sha_url:
         runing_state = RunningState()
-        git_commit_info = get_git_commit_info(sha, server_url, token)
+        git_commit_info = _gqlapi.client.get_git_commit_info()
         runing_state.timestamp = git_commit_info.get('timestamp')
         runing_state.commit = git_commit_info.get('commit')
 
-    if print_url:
-        logging.info(f'using gql endpoint {server}')
-    return init(server, token, integration, validate_schemas)
+    return _gqlapi
 
 
 def get_api():
