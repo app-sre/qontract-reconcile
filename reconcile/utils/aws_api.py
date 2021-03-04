@@ -668,6 +668,35 @@ class AWSApi:
 
         return vpc_id, route_table_ids
 
+    def get_vpcs_details(self, account, route_tables=False):
+        results = []
+        session = self.get_session(account['name'])
+        ec2 = session.client('ec2')
+        regions = [r['RegionName'] for r in ec2.describe_regions()['Regions']]
+        for region_name in regions:
+            ec2 = session.client('ec2', region_name=region_name)
+            vpcs = ec2.describe_vpcs()
+            for vpc in vpcs.get('Vpcs'):
+                vpc_id = vpc['VpcId']
+                cidr_block = vpc['cidrBlock']
+                route_table_ids = None
+                if route_tables:
+                    ec2.describe_route_tables(
+                        Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+                    )
+                    route_table_ids = [rt['RouteTableId']
+                                    for rt in route_tables['RouteTables']]
+                item = {
+                    'vpc_id': vpc_id,
+                    'region': region_name,
+                    'cidr_block': cidr_block,
+                    'route_table_ids': route_table_ids,
+                }
+                results.append(item)
+
+        return results
+
+
     def get_route53_zones(self):
         """
         Return a list of (str, dict) representing Route53 DNS zones per account
