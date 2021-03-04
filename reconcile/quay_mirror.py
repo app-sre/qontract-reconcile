@@ -37,32 +37,6 @@ class QuayMirror:
     }
     """
 
-    QUAY_REPOS_QUERY = """
-    {
-      apps: apps_v1 {
-        quayRepos {
-          org {
-            name
-            serverUrl
-          }
-          items {
-            name
-            public
-            mirror {
-              url
-              pullCredentials {
-                path
-                field
-              }
-              tags
-              tagsExclude
-            }
-          }
-        }
-      }
-    }
-    """
-
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
@@ -83,12 +57,13 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error('[%s]', details)
 
-    def process_repos_query(self):
-        result = self.gqlapi.query(self.QUAY_REPOS_QUERY)
+    @staticmethod
+    def process_repos_query():
+        apps = queries.get_quay_repos()
 
         summary = defaultdict(list)
 
-        for app in result['apps']:
+        for app in apps:
             quay_repos = app.get('quayRepos')
 
             if quay_repos is None:
