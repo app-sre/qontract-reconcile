@@ -685,7 +685,7 @@ class AWSApi:
                         Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
                     )
                     route_table_ids = [rt['RouteTableId']
-                                    for rt in route_tables['RouteTables']]
+                                       for rt in route_tables['RouteTables']]
                 item = {
                     'vpc_id': vpc_id,
                     'region': region_name,
@@ -695,7 +695,6 @@ class AWSApi:
                 results.append(item)
 
         return results
-
 
     def get_route53_zones(self):
         """
