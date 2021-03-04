@@ -57,7 +57,8 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error('[%s]', details)
 
-    def process_repos_query(self):
+    @staticmethod
+    def process_repos_query():
         apps = queries.get_quay_repos()
 
         summary = defaultdict(list)
