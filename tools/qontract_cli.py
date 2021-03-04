@@ -380,7 +380,7 @@ def integrations(ctx):
 
 @get.command()
 @click.pass_context
-def mirrors(ctx):
+def quay_mirrors(ctx):
     apps = queries.get_quay_repos()
 
     mirrors = []
