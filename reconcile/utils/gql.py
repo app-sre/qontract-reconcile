@@ -10,6 +10,7 @@ import requests
 
 from sretoolbox.utils import retry
 from graphqlclient import GraphQLClient
+from sentry_sdk import capture_exception
 
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
@@ -91,7 +92,7 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError, max_attempts=5)
+    @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_exception)
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
