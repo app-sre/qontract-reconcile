@@ -21,6 +21,7 @@ INTEGRATION_NAME = os.environ['INTEGRATION_NAME']
 RUN_ONCE = os.environ.get('RUN_ONCE')
 DRY_RUN = os.environ.get('DRY_RUN')
 INTEGRATION_EXTRA_ARGS = os.environ.get('INTEGRATION_EXTRA_ARGS')
+CONFIG = os.environ.get('CONFIG', '/config/config.toml')
 
 LOG_FILE = os.environ.get('LOG_FILE')
 SLEEP_DURATION_SECS = os.environ.get('SLEEP_DURATION_SECS', 600)
@@ -46,7 +47,7 @@ logging.basicConfig(level=logging.INFO,
 
 
 def build_args():
-    args = ['--config', '/config/config.toml']
+    args = ['--config', CONFIG]
     if DRY_RUN is not None:
         args.append(DRY_RUN)
     args.append(INTEGRATION_NAME)
