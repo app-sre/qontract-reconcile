@@ -359,6 +359,11 @@ CLUSTERS_QUERY = """
       instance_type
       replicas
       labels
+      taints {
+        key
+        value
+        effect
+      }
     }
     peering {
       connections {
