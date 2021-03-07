@@ -637,10 +637,10 @@ class OCM:
         api = '/api/clusters_mgmt/v1/addons'
         self.addons = self._get_json(api).get('items')
 
-    def get_addon(self, name):
+    def get_addon(self, id):
         for addon in self.addons:
-            resource_name = addon['resource_name']
-            if name == resource_name:
+            addon_id = addon['id']
+            if id == addon_id:
                 return addon
         return None
 
