@@ -233,7 +233,9 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
                 )
             for vpc in account_vpcs:
                 vpc_id = vpc['vpc_id']
-                connection_name = f"{peer_connection['name']}_{vpc_id}"
+                connection_name = \
+                    f"{peer_connection['name']}_" + \
+                    f"{account['name']}-{vpc_id}"
                 accepter = {
                     'vpc_id': vpc_id,
                     'region': vpc['region'],
