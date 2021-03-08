@@ -668,7 +668,7 @@ class AWSApi:
 
         return vpc_id, route_table_ids
 
-    def get_vpcs_details(self, account, route_tables=False):
+    def get_vpcs_details(self, account, tags=None, route_tables=False):
         results = []
         session = self.get_session(account['name'])
         ec2 = session.client('ec2')
@@ -677,6 +677,10 @@ class AWSApi:
             ec2 = session.client('ec2', region_name=region_name)
             vpcs = ec2.describe_vpcs()
             for vpc in vpcs.get('Vpcs'):
+                if tags:
+                    vpc_tags = {t['Key']: t['Value'] for t in vpc['Tags']}
+                    if tags not in vpc_tags:
+                        continue
                 vpc_id = vpc['VpcId']
                 cidr_block = vpc['cidrBlock']
                 route_table_ids = None
