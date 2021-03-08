@@ -296,6 +296,7 @@ def run(dry_run, print_only=False,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    "",
+                   accounts,
                    working_dirs,
                    thread_pool_size)
 
@@ -304,10 +305,10 @@ def run(dry_run, print_only=False,
 
     defer(lambda: tf.cleanup())
 
-    deletions_detected, err = tf.plan(enable_deletion)
+    disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         sys.exit(1)
-    if deletions_detected and not enable_deletion:
+    if disabled_deletions_detected:
         sys.exit(1)
 
     if dry_run:

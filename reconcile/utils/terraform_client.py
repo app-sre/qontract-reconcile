@@ -20,12 +20,13 @@ ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 class TerraformClient:
     def __init__(self, integration, integration_version,
-                 integration_prefix, working_dirs, thread_pool_size,
+                 integration_prefix, accounts, working_dirs, thread_pool_size,
                  init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
         self.working_dirs = working_dirs
+        self.accounts = {a['name']: a for a in accounts}
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()
@@ -112,19 +113,19 @@ class TerraformClient:
     # terraform plan
     def plan(self, enable_deletion):
         errors = False
-        deletions_detected = False
+        disabled_deletions_detected = False
         results = threaded.run(self.terraform_plan, self.specs,
                                self.thread_pool_size,
                                enable_deletion=enable_deletion)
 
         self.deleted_users = []
-        for deletion_detected, deleted_users, error in results:
+        for disabled_deletion_detected, deleted_users, error in results:
             if error:
                 errors = True
-            if deletion_detected:
-                deletions_detected = True
+            if disabled_deletion_detected:
+                disabled_deletions_detected = True
                 self.deleted_users.extend(deleted_users)
-        return deletions_detected, errors
+        return disabled_deletions_detected, errors
 
     def dump_deleted_users(self, io_dir):
         if not self.deleted_users:
@@ -143,12 +144,18 @@ class TerraformClient:
                                               parallelism=self.parallelism,
                                               out=name)
         error = self.check_output(name, return_code, stdout, stderr)
-        deletion_detected, deleted_users = \
+        disabled_deletion_detected, deleted_users = \
             self.log_plan_diff(name, tf, enable_deletion)
-        return deletion_detected, deleted_users, error
+        return disabled_deletion_detected, deleted_users, error
 
     def log_plan_diff(self, name, tf, enable_deletion):
-        deletions_detected = False
+        disabled_deletion_detected = False
+        account_enable_deletion = \
+            self.accounts[name].get('enableDeletion') or False
+        # deletions are alowed
+        # if enableDeletion is true for an account
+        # or if the integration's enable_deletion is true
+        deletions_allowed = enable_deletion or account_enable_deletion
         deleted_users = []
 
         output = self.terraform_show(name, tf.working_dir)
@@ -159,7 +166,7 @@ class TerraformClient:
 
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
-            return deletions_detected, deleted_users
+            return disabled_deletion_detected, deleted_users
 
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
@@ -175,8 +182,8 @@ class TerraformClient:
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                 if action == 'delete':
-                    deletions_detected = True
-                    if not enable_deletion:
+                    if not deletions_allowed:
+                        disabled_deletion_detected = True
                         logging.error(
                             '\'delete\' action is not enabled. ' +
                             'Please run the integration manually ' +
@@ -188,7 +195,7 @@ class TerraformClient:
                             'user': resource_name
                         })
 
-        return deletions_detected, deleted_users
+        return disabled_deletion_detected, deleted_users
 
     @staticmethod
     def terraform_show(name, working_dir):

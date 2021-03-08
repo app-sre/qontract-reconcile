@@ -60,7 +60,7 @@ def setup(print_only, thread_pool_size):
 
     working_dirs = ts.dump(print_only)
 
-    return working_dirs
+    return accounts, working_dirs
 
 
 def send_email_invites(new_users, settings):
@@ -101,7 +101,7 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
-    working_dirs = setup(print_only, thread_pool_size)
+    accounts, working_dirs = setup(print_only, thread_pool_size)
     if print_only:
         cleanup_and_exit()
     if working_dirs is None:
@@ -111,6 +111,7 @@ def run(dry_run, print_only=False,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
+                   accounts,
                    working_dirs,
                    thread_pool_size,
                    init_users=True)
@@ -118,14 +119,12 @@ def run(dry_run, print_only=False,
         err = True
         cleanup_and_exit(tf, err)
 
-    deletions_detected, err = tf.plan(enable_deletion)
+    disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         cleanup_and_exit(tf, err)
-    if deletions_detected:
-        if enable_deletion:
-            tf.dump_deleted_users(io_dir)
-        else:
-            cleanup_and_exit(tf, deletions_detected)
+    tf.dump_deleted_users(io_dir)
+    if disabled_deletions_detected:
+        cleanup_and_exit(tf, disabled_deletions_detected)
 
     if dry_run:
         cleanup_and_exit(tf)

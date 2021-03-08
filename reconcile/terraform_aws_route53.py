@@ -115,6 +115,7 @@ def run(dry_run=False, print_only=False,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    "",
+                   participating_accounts,
                    working_dirs,
                    thread_pool_size)
 

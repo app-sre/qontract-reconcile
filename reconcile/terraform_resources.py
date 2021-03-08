@@ -281,6 +281,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
+                   accounts,
                    working_dirs,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
@@ -331,14 +332,12 @@ def run(dry_run, print_only=False,
         cleanup_and_exit(tf, err)
 
     if not light:
-        deletions_detected, err = tf.plan(enable_deletion)
+        disabled_deletions_detected, err = tf.plan(enable_deletion)
         if err:
             cleanup_and_exit(tf, err)
-        if deletions_detected:
-            if enable_deletion:
-                tf.dump_deleted_users(io_dir)
-            else:
-                cleanup_and_exit(tf, deletions_detected)
+        tf.dump_deleted_users(io_dir)
+        if disabled_deletions_detected:
+            cleanup_and_exit(tf, disabled_deletions_detected)
 
     if dry_run:
         cleanup_and_exit(tf)
