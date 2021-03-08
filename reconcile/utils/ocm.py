@@ -662,8 +662,11 @@ class OCM:
             return results
 
         for item in items:
-            desired_keys = ['id']
+            desired_keys = ['id', 'parameters']
             result = {k: v for k, v in item.items() if k in desired_keys}
+            parameters = result.pop('parameters', None)
+            if parameters is not None:
+                result['parameters'] = parameters['items']
             results.append(result)
 
         return results
