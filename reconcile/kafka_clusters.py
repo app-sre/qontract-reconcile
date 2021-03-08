@@ -2,11 +2,11 @@ import base64
 import logging
 import sys
 
-import semver
 
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -14,7 +14,7 @@ from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def construct_oc_resource(data):
