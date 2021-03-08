@@ -680,7 +680,11 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        parameters = spec.pop('parameters', None)
         data = {'addon': spec}
+        if parameters is not None:
+            data['parameters'] = {}
+            data['parameters']['items'] = parameters
         self._post(api, data)
 
     @retry(max_attempts=10)
