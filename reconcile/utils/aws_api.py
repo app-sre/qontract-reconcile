@@ -675,13 +675,13 @@ class AWSApi:
         regions = [r['RegionName'] for r in ec2.describe_regions()['Regions']]
         for region_name in regions:
             ec2 = session.client('ec2', region_name=region_name)
-            vpcs = ec2.describe_vpcs()
+            vpcs = ec2.describe_vpcs(
+                Filters=[
+                    {'Name': f'tag:{k}', 'Values': [v]}
+                    for k, v in tags.items()
+                ]
+            )
             for vpc in vpcs.get('Vpcs'):
-                if tags:
-                    vpc_tags = \
-                        {t['Key']: t['Value'] for t in vpc.get('Tags', [])}
-                    if not tags.items() <= vpc_tags.items():
-                        continue
                 vpc_id = vpc['VpcId']
                 cidr_block = vpc['CidrBlock']
                 route_table_ids = None
