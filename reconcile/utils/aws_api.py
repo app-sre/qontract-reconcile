@@ -683,7 +683,7 @@ class AWSApi:
                     if not tags.items() <= vpc_tags.items():
                         continue
                 vpc_id = vpc['VpcId']
-                cidr_block = vpc['cidrBlock']
+                cidr_block = vpc['CidrBlock']
                 route_table_ids = None
                 if route_tables:
                     ec2.describe_route_tables(
