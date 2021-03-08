@@ -678,7 +678,8 @@ class AWSApi:
             vpcs = ec2.describe_vpcs()
             for vpc in vpcs.get('Vpcs'):
                 if tags:
-                    vpc_tags = {t['Key']: t['Value'] for t in vpc['Tags']}
+                    vpc_tags = \
+                        {t['Key']: t['Value'] for t in vpc.get('Tags', [])}
                     if tags not in vpc_tags:
                         continue
                 vpc_id = vpc['VpcId']
