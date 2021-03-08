@@ -336,7 +336,7 @@ def run(dry_run, print_only=False,
         if err:
             cleanup_and_exit(tf, err)
         tf.dump_deleted_users(io_dir)
-        if disabled_deletions_detected and not enable_deletion:
+        if disabled_deletions_detected:
             cleanup_and_exit(tf, disabled_deletions_detected)
 
     if dry_run:

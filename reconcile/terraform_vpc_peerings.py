@@ -308,7 +308,7 @@ def run(dry_run, print_only=False,
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
         sys.exit(1)
-    if disabled_deletions_detected and not enable_deletion:
+    if disabled_deletions_detected:
         sys.exit(1)
 
     if dry_run:
