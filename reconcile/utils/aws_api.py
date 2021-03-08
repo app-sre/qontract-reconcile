@@ -680,7 +680,7 @@ class AWSApi:
                 if tags:
                     vpc_tags = \
                         {t['Key']: t['Value'] for t in vpc.get('Tags', [])}
-                    if tags not in vpc_tags:
+                    if not tags.items() <= vpc_tags.items():
                         continue
                 vpc_id = vpc['VpcId']
                 cidr_block = vpc['cidrBlock']
