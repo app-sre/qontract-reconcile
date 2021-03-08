@@ -30,6 +30,19 @@ INTEGRATIONS_QUERY = """
 """
 
 
+def capture_and_forget(error):
+    """fire-and-forget an exception to sentry
+
+    :param error: exception to be captured and sent to sentry
+    :type error: Exception
+    """
+
+    try:
+        capture_exception(error)
+    except Exception:
+        pass
+
+
 class GqlApiError(Exception):
     pass
 
@@ -92,7 +105,7 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_exception)
+    @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error
