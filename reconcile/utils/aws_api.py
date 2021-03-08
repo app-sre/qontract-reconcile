@@ -660,11 +660,11 @@ class AWSApi:
 
         route_table_ids = None
         if route_tables and vpc_id:
-            route_tables = assumed_ec2.describe_route_tables(
+            vpc_route_tables = assumed_ec2.describe_route_tables(
                 Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
             )
             route_table_ids = [rt['RouteTableId']
-                               for rt in route_tables['RouteTables']]
+                               for rt in vpc_route_tables['RouteTables']]
 
         return vpc_id, route_table_ids
 
@@ -686,11 +686,12 @@ class AWSApi:
                 cidr_block = vpc['CidrBlock']
                 route_table_ids = None
                 if route_tables:
-                    ec2.describe_route_tables(
+                    vpc_route_tables = ec2.describe_route_tables(
                         Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
                     )
                     route_table_ids = [rt['RouteTableId']
-                                       for rt in route_tables['RouteTables']]
+                                       for rt
+                                       in vpc_route_tables['RouteTables']]
                 item = {
                     'vpc_id': vpc_id,
                     'region': region_name,
