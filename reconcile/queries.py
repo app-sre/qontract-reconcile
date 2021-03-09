@@ -425,6 +425,10 @@ CLUSTERS_QUERY = """
     }
     addons {
       name
+      parameters {
+        id
+        value
+      }
     }
     automationToken {
       path

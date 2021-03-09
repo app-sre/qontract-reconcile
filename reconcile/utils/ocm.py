@@ -662,8 +662,11 @@ class OCM:
             return results
 
         for item in items:
-            desired_keys = ['id']
+            desired_keys = ['id', 'parameters']
             result = {k: v for k, v in item.items() if k in desired_keys}
+            parameters = result.pop('parameters', None)
+            if parameters is not None:
+                result['parameters'] = parameters['items']
             results.append(result)
 
         return results
@@ -680,7 +683,11 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = \
             f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+        parameters = spec.pop('parameters', None)
         data = {'addon': spec}
+        if parameters is not None:
+            data['parameters'] = {}
+            data['parameters']['items'] = parameters
         self._post(api, data)
 
     @retry(max_attempts=10)
