@@ -219,7 +219,7 @@ integrations:
       memory: 900Mi
       cpu: 800m
   extraArgs: --no-use-jump-host
-  shards: 4
+  shards: 10
   logs:
     slack: true
     cloudwatch: true
@@ -234,7 +234,7 @@ integrations:
       memory: 1040Mi
       cpu: 200m
   extraArgs: --no-use-jump-host
-  shards: 4
+  shards: 10
   logs:
     slack: true
     cloudwatch: true
@@ -262,10 +262,10 @@ integrations:
 - name: openshift-resources
   resources:
     requests:
-      memory: 1000Mi
+      memory: 1400Mi
       cpu: 900m
     limits:
-      memory: 1300Mi
+      memory: 1800Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
   logs:
