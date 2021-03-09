@@ -18,7 +18,8 @@ def get_cluster_users(cluster, oc_map):
         logging.log(level=oc.log_level, msg=oc.message)
         return []
     users = [u['metadata']['name'] for u in oc.get_users()
-             if len(u['identities']) == 1
+             if u.get('identities', None) is not None
+             and len(u['identities']) == 1
              and u['identities'][0].startswith('github')
              and not u['metadata'].get('labels', {}).get('admin', '')]
 
