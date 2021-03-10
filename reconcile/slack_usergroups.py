@@ -277,14 +277,20 @@ def get_desired_state(slack_map):
             channel_names = [] if p['channels'] is None else p['channels']
             channels = slack.get_channels_by_names(channel_names)
 
-            desired_state.append({
-                "workspace": workspace_name,
-                "usergroup": usergroup,
-                "usergroup_id": ugid,
-                "users": users,
-                "channels": channels,
-                "description": description,
-            })
+            existing_items = [i for i in desired_state
+                              if i['workspace'] == workspace_name
+                              and i['usergroup'] == usergroup]
+            if len(existing_items) == 1:
+                existing_items[0]['users'].update(users)
+            else:
+                desired_state.append({
+                    "workspace": workspace_name,
+                    "usergroup": usergroup,
+                    "usergroup_id": ugid,
+                    "users": users,
+                    "channels": channels,
+                    "description": description,
+                })
 
     return desired_state
 
