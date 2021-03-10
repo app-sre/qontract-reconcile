@@ -84,10 +84,10 @@ class Report:
             'promotions',
             self.app.get('promotions')
         )
-        # merges to master
+        # merge activities
         self.add_report_section(
-            'merges_to_master',
-            self.get_activity_content(self.app.get('merge_activity'))
+            'merge_activities',
+            self.app.get('merge_activity')
         )
         # Container Vulnerabilities
         self.add_report_section(
@@ -202,13 +202,13 @@ def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
     jjb, _ = init_jjb()
-    build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
+    build_jobs = jjb.get_all_jobs(job_types=['build'])
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
-    build_master_build_history = \
-        get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
+    build_jobs_history = \
+        get_build_history(jenkins_map, build_jobs, timestamp_limit)
 
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
@@ -319,11 +319,27 @@ def get_apps_data(date, month_delta=1):
         code_repos = [c['url'] for c in app['codeComponents']
                       if c['resource'] == 'upstream']
         for cr in code_repos:
-            cr_history = build_master_build_history.get(cr)
+            cr_history = build_jobs_history.get(cr)
             if not cr_history:
                 continue
-            successes = [h for h in cr_history if h == 'SUCCESS']
-            app['merge_activity'][cr] = (len(cr_history), len(successes))
+            for env, history in cr_history.items():
+                if not history:
+                    continue
+                successes = [h for h in history if h == 'SUCCESS']
+                if cr not in app["merge_activity"]:
+                    app["merge_activity"][cr] = {
+                        env: {
+                            "total": len(history),
+                            "success": len(successes)
+                        }
+                    }
+                else:
+                    app["merge_activity"][cr].update({
+                        env: {
+                            "total": len(history),
+                            "success": len(successes)
+                        }
+                    })
 
         logging.info(f"collecting dashdotdb information for {app_name}")
         app_namespaces = []
@@ -387,10 +403,30 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
         jenkins = jenkins_map[instance]
         for job in jobs:
             logging.info(f"getting build history for {job['name']}")
-            build_history = \
-                jenkins.get_build_history(job['name'], timestamp_limit)
-            repo_url = get_repo_url(job)
-            history[repo_url] = build_history
+            # continue if no repo_url
+            if 'properties' not in job:
+                continue
+            if 'github' not in job['properties'][0]:
+                continue
+
+            if 'build_branch' in job:
+                job_env = job['build_branch']
+            elif 'id' in job:
+                job_env = job['id']
+            else:
+                continue
+
+            try:
+                build_history = \
+                    jenkins.get_build_history(job['name'], timestamp_limit)
+                repo_url = get_repo_url(job)
+                if repo_url not in history:
+                    history[repo_url] = {job_env: build_history}
+                else:
+                    history[repo_url].update({job_env: build_history})
+            except requests.exceptions.HTTPError:
+                logging.info(f"getting build history failed \
+                    for {job['name']}")
 
     return history
 
