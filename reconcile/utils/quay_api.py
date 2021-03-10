@@ -29,7 +29,12 @@ class QuayApi:
             self.API_URL, self.organization, team)
 
         r = requests.get(url, headers=self.auth_header)
-        if not r.ok:
+        if r.status_code == 404:
+            raise ValueError(f"team {team} is not found in "
+                             f"org {self.organization}. "
+                             f"contact org owner to create the "
+                             f"team manually.")
+        elif not r.ok:
             raise RequestsException(r)
 
         body = r.json()
