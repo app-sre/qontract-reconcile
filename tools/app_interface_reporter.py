@@ -403,19 +403,13 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
         jenkins = jenkins_map[instance]
         for job in jobs:
             logging.info(f"getting build history for {job['name']}")
-            # continue if no repo_url
-            if 'properties' not in job:
+            try:
+                repo_url = get_repo_url(job)
+            except KeyError:
+                logging.info(f"getting build history failed \
+                    for {job['name']}")
                 continue
-            if 'github' not in job['properties'][0]:
-                continue
-
-            if 'build_branch' in job:
-                job_env = job['build_branch']
-            elif 'id' in job:
-                job_env = job['id']
-            else:
-                continue
-
+            job_env = job['branch']
             try:
                 build_history = \
                     jenkins.get_build_history(job['name'], timestamp_limit)
@@ -427,6 +421,7 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
             except requests.exceptions.HTTPError:
                 logging.info(f"getting build history failed \
                     for {job['name']}")
+                continue
 
     return history
 
