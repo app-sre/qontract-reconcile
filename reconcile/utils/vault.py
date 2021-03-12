@@ -171,7 +171,14 @@ class _VaultClient:
         if kv_version == 2:
             data = self._read_v2(secret_path, secret_field, secret_version)
         else:
-            data = self._read_v1(secret_path, secret_field)
+            try:
+                data = self._read_v1(secret_path, secret_field)
+            except SecretAccessForbidden:
+                # setting data to None to be caught in the next
+                # section and to lead to a client auth refresh.
+                # even if this is a real problem of access forbidden,
+                # we just retry, and there is no harm in retrying.
+                data = None
 
         if data is None:
             self._refresh_client_auth()
