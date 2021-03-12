@@ -413,7 +413,6 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
             try:
                 build_history = \
                     jenkins.get_build_history(job['name'], timestamp_limit)
-                repo_url = get_repo_url(job)
                 if repo_url not in history:
                     history[repo_url] = {job_env: build_history}
                 else:
