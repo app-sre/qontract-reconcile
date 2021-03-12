@@ -38,8 +38,10 @@ DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
 def promql(url, query, auth=None):
     """
     Run an instant-query on the prometheus instance.
+
     The returned structure is documented here:
     https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+
     :param url: base prometheus url (not the API endpoint).
     :type url: string
     :param query: this is a second value
@@ -389,6 +391,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
 
         app['container_vulnerabilities'] = vuln_mx
         app['deployment_validations'] = validt_mx
+
     return apps
 
 
@@ -482,12 +485,19 @@ def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
     if not dry_run:
         email_body = """\
             Hello,
+
             A new report by the App SRE team is now available at:
             https://visual-app-interface.devshift.net/reports
+
             You can use the Search bar to search by App.
+
             You can also view reports per service here:
             https://visual-app-interface.devshift.net/services
+
+
             Having problems? Ping us on #sd-app-sre on Slack!
+
+
             You are receiving this message because you are a member
             of app-interface or subscribed to a mailing list specified
             as owning a service being run by the App SRE team:
