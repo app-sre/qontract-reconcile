@@ -434,6 +434,8 @@ def get_build_history_pool(jenkins_map, jobs,
     for job in result:
         if 'build_history' not in job:
             continue
+        if not job['build_history']:
+            continue
         successes = [h for h in job['build_history'] if h == 'SUCCESS']
         history[job['name']] = {
             "total": len(job['build_history']),
