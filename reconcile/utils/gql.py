@@ -10,6 +10,7 @@ import requests
 
 from sretoolbox.utils import retry
 from graphqlclient import GraphQLClient
+from sentry_sdk import capture_exception
 
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
@@ -27,6 +28,19 @@ INTEGRATIONS_QUERY = """
     }
 }
 """
+
+
+def capture_and_forget(error):
+    """fire-and-forget an exception to sentry
+
+    :param error: exception to be captured and sent to sentry
+    :type error: Exception
+    """
+
+    try:
+        capture_exception(error)
+    except Exception:
+        pass
 
 
 class GqlApiError(Exception):
@@ -91,7 +105,7 @@ class GqlApi:
             if not self._valid_schemas:
                 raise GqlApiIntegrationNotFound(int_name)
 
-    @retry(exceptions=GqlApiError, max_attempts=5)
+    @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(self, query, variables=None, skip_validation=False):
         try:
             # supress print on HTTP error

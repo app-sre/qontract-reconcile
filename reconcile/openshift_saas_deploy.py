@@ -1,7 +1,6 @@
 import logging
 import sys
 
-import semver
 
 import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as ob
@@ -10,13 +9,14 @@ import reconcile.queries as queries
 from reconcile import mr_client_gateway
 from reconcile.slack_base import init_slack
 from reconcile.status import ExitCodes
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 @defer

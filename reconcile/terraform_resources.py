@@ -4,7 +4,6 @@ import sys
 
 from textwrap import indent
 
-import semver
 
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
@@ -12,6 +11,7 @@ import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
 
 from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
@@ -191,7 +191,7 @@ TF_NAMESPACES_QUERY = """
 """ % (indent(TF_RESOURCE, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 5, 2)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 

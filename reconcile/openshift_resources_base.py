@@ -8,7 +8,6 @@ from textwrap import indent
 
 import anymarkup
 import jinja2
-import semver
 
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
@@ -18,6 +17,7 @@ import reconcile.utils.openssl as openssl
 import reconcile.utils.threaded as threaded
 
 from reconcile.exceptions import FetchResourceError
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.jinja2_ext import B64EncodeExtension
 from reconcile.utils.oc import OC_Map
@@ -136,7 +136,7 @@ NAMESPACES_QUERY = """
 """ % (indent(OPENSHIFT_RESOURCE, 8*' '), indent(OPENSHIFT_RESOURCE, 6*' '))
 
 QONTRACT_INTEGRATION = 'openshift_resources_base'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 2)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = '_qb64'
 APP_INT_BASE_URL = 'https://gitlab.cee.redhat.com/service/app-interface'
 

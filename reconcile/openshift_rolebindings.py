@@ -1,10 +1,10 @@
 import sys
-import semver
 
 import reconcile.utils.gql as gql
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.defer import defer
@@ -38,7 +38,7 @@ ROLES_QUERY = """
 
 
 QONTRACT_INTEGRATION = 'openshift-rolebindings'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 3, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
 def construct_user_oc_resource(role, user):
