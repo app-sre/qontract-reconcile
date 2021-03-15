@@ -33,9 +33,12 @@ def fetch_desired_state(clusters):
         machine_pools = cluster['machinePools']
         for machine_pool in machine_pools:
             machine_pool['cluster'] = cluster_name
-            labels = machine_pool.get('labels')
+            labels = machine_pool.pop('labels')
             if labels:
                 machine_pool['labels'] = json.loads(labels)
+            taints = machine_pool.pop('taints')
+            if taints:
+                machine_pool['taints'] = taints
             desired_state.append(machine_pool)
 
     return desired_state
@@ -57,9 +60,21 @@ def calculate_diff(current_state, desired_state):
             err = True
             continue
         c = c[0]
-        if d != c:
-            d['action'] = 'update'
-            diffs.append(d)
+        if c == d:
+            continue
+        if d['instance_type'] != c['instance_type']:
+            logging.error(f"can not update instance type for existing "
+                          f"machine pool {d['id']} in {d['cluster']}")
+            err = True
+            continue
+        d.pop('instance_type')
+        for key in ['labels', 'taints']:
+            if c.get(key, None) != d.get(key, None):
+                # https://github.com/openshift/machine-api-operator/blob/master/FAQ.md
+                logging.warning(f"update {key} for machine pool {d['id']} "
+                                f"will only be applied to new Nodes")
+        d['action'] = 'update'
+        diffs.append(d)
 
     for c in current_state:
         d = [d for d in desired_state

@@ -20,6 +20,7 @@ import reconcile.jenkins_plugins as jenkins_base
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile import mr_client_gateway
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.cli import (
     config_file,
     log_level,
@@ -80,14 +81,13 @@ class Report:
 
         # promotions
         self.add_report_section(
-            'production_promotions',
-            self.get_activity_content(self.app.get('promotions'))
+            'promotions',
+            self.app.get('promotions')
         )
-
-        # merges to master
+        # merge activities
         self.add_report_section(
-            'merges_to_master',
-            self.get_activity_content(self.app.get('merge_activity'))
+            'merge_activities',
+            self.app.get('merge_activity')
         )
         # Container Vulnerabilities
         self.add_report_section(
@@ -202,16 +202,13 @@ def get_apps_data(date, month_delta=1):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
     jjb, _ = init_jjb()
-    saas_jobs = jjb.get_all_jobs(job_types=['saas-deploy', 'promote-to-prod'])
-    build_master_jobs = jjb.get_all_jobs(job_types=['build-master'])
+    build_jobs = jjb.get_all_jobs(job_types=['build'])
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = \
         int(time_limit.replace(tzinfo=timezone.utc).timestamp())
-    saas_build_history = \
-        get_build_history(jenkins_map, saas_jobs, timestamp_limit)
-    build_master_build_history = \
-        get_build_history(jenkins_map, build_master_jobs, timestamp_limit)
+    build_jobs_history = \
+        get_build_history(jenkins_map, build_jobs, timestamp_limit)
 
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
@@ -222,6 +219,34 @@ def get_apps_data(date, month_delta=1):
     metrics = requests.get(f'{dashdotdb_url}/api/v1/metrics',
                            auth=(dashdotdb_user, dashdotdb_pass)).text
     namespaces = queries.get_namespaces()
+
+    saas_deploy_history = {}
+    for saas_file in saas_files:
+        saas_file_name = saas_file['name']
+        app_name = saas_file["app"]["name"]
+        instance_name = saas_file["instance"]["name"]
+        for template in saas_file["resourceTemplates"]:
+            for target in template["targets"]:
+                env_name = target["namespace"]["environment"]["name"]
+                job_name = get_openshift_saas_deploy_job_name(
+                    saas_file_name, env_name, settings
+                )
+                logging.info(f"getting build history for {job_name}")
+                try:
+                    build_history = \
+                        jenkins_map[instance_name].get_build_history(
+                            job_name, timestamp_limit
+                        )
+                    if app_name not in saas_deploy_history:
+                        saas_deploy_history[app_name] = {
+                            env_name: build_history}
+                    else:
+                        saas_deploy_history[app_name].update(
+                            {env_name: build_history}
+                        )
+                except requests.exceptions.HTTPError:
+                    logging.info(f"getting build history failed \
+                        for {job_name}")
 
     for app in apps:
         if not app['codeComponents']:
@@ -278,27 +303,41 @@ def get_apps_data(date, month_delta=1):
 
         app['post_deploy_jobs'] = post_deploy_jobs
 
-        logging.info(f"collecting promotions for {app_name}")
-        app['promotions'] = {}
-        saas_repos = [c['url'] for c in app['codeComponents']
-                      if c['resource'] == 'saasrepo']
-        for sr in saas_repos:
-            sr_history = saas_build_history.get(sr)
-            if not sr_history:
-                continue
-            successes = [h for h in sr_history if h == 'SUCCESS']
-            app['promotions'][sr] = (len(sr_history), len(successes))
+        logging.info(f"collecting promotion history for {app_name}")
+        app["promotions"] = {}
+        if app_name in saas_deploy_history:
+            for env, history in saas_deploy_history[app_name].items():
+                if history:
+                    successes = [h for h in history if h == 'SUCCESS']
+                    app["promotions"][env] = {
+                        "total": len(history),
+                        "success": len(successes),
+                    }
 
         logging.info(f"collecting merge activity for {app_name}")
         app['merge_activity'] = {}
         code_repos = [c['url'] for c in app['codeComponents']
                       if c['resource'] == 'upstream']
         for cr in code_repos:
-            cr_history = build_master_build_history.get(cr)
+            cr_history = build_jobs_history.get(cr)
             if not cr_history:
                 continue
-            successes = [h for h in cr_history if h == 'SUCCESS']
-            app['merge_activity'][cr] = (len(cr_history), len(successes))
+            for branch, history in cr_history.items():
+                if not history:
+                    continue
+                successes = [h for h in history if h == 'SUCCESS']
+                if cr not in app["merge_activity"]:
+                    app["merge_activity"][cr] = [{
+                        "branch": branch,
+                        "total": len(history),
+                        "success": len(successes)
+                        }]
+                else:
+                    app["merge_activity"][cr].append({
+                        "branch": branch,
+                        "total": len(history),
+                        "success": len(successes)
+                    })
 
         logging.info(f"collecting dashdotdb information for {app_name}")
         app_namespaces = []
@@ -362,10 +401,21 @@ def get_build_history(jenkins_map, jobs, timestamp_limit):
         jenkins = jenkins_map[instance]
         for job in jobs:
             logging.info(f"getting build history for {job['name']}")
-            build_history = \
-                jenkins.get_build_history(job['name'], timestamp_limit)
-            repo_url = get_repo_url(job)
-            history[repo_url] = build_history
+            try:
+                repo_url = get_repo_url(job)
+            except KeyError:
+                logging.debug(f"{job['name']}: no repo_url found")
+                continue
+            try:
+                build_history = \
+                    jenkins.get_build_history(job['name'], timestamp_limit)
+                if repo_url not in history:
+                    history[repo_url] = {job['branch']: build_history}
+                else:
+                    history[repo_url].update({job['branch']: build_history})
+            except requests.exceptions.HTTPError:
+                logging.debug(f"{job['name']}: get build history failed")
+                continue
 
     return history
 

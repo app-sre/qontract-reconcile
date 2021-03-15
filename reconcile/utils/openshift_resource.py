@@ -334,7 +334,12 @@ class OpenshiftResource:
 
         if body['kind'] == 'ServiceAccount':
             if 'imagePullSecrets' in body:
-                body.pop('imagePullSecrets')
+                # remove default pull secrets added by k8s
+                imagePullSecrets = \
+                    [s for s in body.pop('imagePullSecrets')
+                     if '-dockercfg-' not in s['name']]
+                if imagePullSecrets:
+                    body['imagePullSecrets'] = imagePullSecrets
             if 'secrets' in body:
                 body.pop('secrets')
 

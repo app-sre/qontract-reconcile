@@ -360,6 +360,11 @@ CLUSTERS_QUERY = """
       instance_type
       replicas
       labels
+      taints {
+        key
+        value
+        effect
+      }
     }
     peering {
       connections {
@@ -425,6 +430,10 @@ CLUSTERS_QUERY = """
     }
     addons {
       name
+      parameters {
+        id
+        value
+      }
     }
     automationToken {
       path
