@@ -491,7 +491,7 @@ class TerrascriptClient:
                     'Name': connection_name
                 }
             }
-            if connection_provider == 'account-vpc':
+            if connection_provider in ['account-vpc', 'account-vpc-mesh']:
                 if self._multiregion_account_(acc_account_name):
                     values['provider'] = 'aws.' + accepter['region']
             else:
@@ -511,7 +511,8 @@ class TerrascriptClient:
                             '${aws_vpc_peering_connection_accepter.' +
                             identifier + '.id}'
                     }
-                    if connection_provider == 'account-vpc':
+                    if connection_provider in \
+                            ['account-vpc', 'account-vpc-mesh']:
                         if self._multiregion_account_(acc_account_name):
                             values['provider'] = 'aws.' + accepter['region']
                     else:

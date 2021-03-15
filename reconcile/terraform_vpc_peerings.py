@@ -1,5 +1,6 @@
 import logging
 import sys
+import json
 
 
 import reconcile.queries as queries
@@ -175,6 +176,85 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
     return desired_state, error
 
 
+def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
+    """
+    Fetch state for VPC peerings between a cluster and all VPCs in an account
+    """
+    desired_state = []
+    error = False
+
+    for cluster_info in clusters:
+        cluster = cluster_info['name']
+        ocm = ocm_map.get(cluster)
+        peering_info = cluster_info['peering']
+        peer_connections = peering_info['connections']
+        for peer_connection in peer_connections:
+            # We only care about account-vpc-mesh peering providers
+            peer_connection_provider = peer_connection['provider']
+            if not peer_connection_provider == 'account-vpc-mesh':
+                continue
+            # requester is the cluster's AWS account
+            requester = {
+                'cidr_block': cluster_info['network']['vpc'],
+                'region': cluster_info['spec']['region']
+            }
+
+            account = peer_connection['account']
+            # assume_role is the role to assume to provision the
+            # peering connection request, through the accepter AWS account.
+            account['assume_role'] = \
+                ocm.get_aws_infrastructure_access_terraform_assume_role(
+                    cluster,
+                    account['uid'],
+                    account['terraformUsername']
+                )
+            account['assume_region'] = requester['region']
+            account['assume_cidr'] = requester['cidr_block']
+            aws_api = AWSApi(1, [account], settings=settings)
+            requester_vpc_id, requester_route_table_ids = \
+                aws_api.get_cluster_vpc_id(
+                    account,
+                    route_tables=peer_connection.get('manageRoutes')
+                )
+
+            if requester_vpc_id is None:
+                logging.error(f'[{cluster} could not find VPC ID for cluster')
+                error = True
+                continue
+            requester['vpc_id'] = requester_vpc_id
+            requester['route_table_ids'] = requester_route_table_ids
+            requester['account'] = account
+
+            account_vpcs = \
+                aws_api.get_vpcs_details(
+                    account,
+                    tags=json.loads(peer_connection.get('tags') or {}),
+                    route_tables=peer_connection.get('manageRoutes'),
+                )
+            for vpc in account_vpcs:
+                vpc_id = vpc['vpc_id']
+                connection_name = \
+                    f"{peer_connection['name']}_" + \
+                    f"{account['name']}-{vpc_id}"
+                accepter = {
+                    'vpc_id': vpc_id,
+                    'region': vpc['region'],
+                    'cidr_block': vpc['cidr_block'],
+                    'route_table_ids': vpc['route_table_ids'],
+                    'account': account,
+                }
+                item = {
+                    'connection_provider': peer_connection_provider,
+                    'connection_name': connection_name,
+                    'requester': requester,
+                    'accepter': accepter,
+                    'deleted': peer_connection.get('delete', False)
+                }
+                desired_state.append(item)
+
+    return desired_state, error
+
+
 def build_desired_state_vpc(clusters, ocm_map, settings):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
@@ -258,13 +338,22 @@ def run(dry_run, print_only=False,
     if err:
         sys.exit(1)
 
+    # Fetch desired state for cluster-to-account (vpc mesh) VPCs
+    desired_state_vpc_mesh, err = \
+        build_desired_state_vpc_mesh(clusters, ocm_map, settings)
+    if err:
+        sys.exit(1)
+
     # Fetch desired state for cluster-to-cluster VPCs
     desired_state_cluster, err = \
         build_desired_state_cluster(clusters, ocm_map, settings)
     if err:
         sys.exit(1)
 
-    desired_state = desired_state_vpc + desired_state_cluster
+    desired_state = \
+        desired_state_vpc + \
+        desired_state_vpc_mesh + \
+        desired_state_cluster
 
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]
