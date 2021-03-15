@@ -110,7 +110,6 @@ def cluster_upgrades(ctx, name):
 
         data = {
             'name': c['name'],
-            'upgrade': c['spec']['upgrade'],
             'id': c['spec']['id'],
             'external_id': c['spec'].get('external_id'),
         }
@@ -125,17 +124,16 @@ def cluster_upgrades(ctx, name):
             ocm = ocm_map.get(c['name'])
             if ocm:
                 upgrade_policy = ocm.get_upgrade_policies(c['name'])
-                next_run = upgrade_policy[0].get('next_run')
-                if next_run:
-                    data['next_run'] = next_run
+                if upgrade_policy and len(upgrade_policy) > 0:
+                    next_run = upgrade_policy[0].get('next_run')
+                    if next_run:
+                        data['next_run'] = next_run
         else:
             data['upgradePolicy'] = 'manual'
 
         clusters_data.append(data)
 
-    clusters_data = sorted(clusters_data, key=lambda k: k['upgrade'])
-
-    columns = ['name', 'upgrade', 'upgradePolicy', 'schedule', 'next_run']
+    columns = ['name', 'upgradePolicy', 'schedule', 'next_run']
 
     print_output(ctx.obj['output'], clusters_data, columns)
 
