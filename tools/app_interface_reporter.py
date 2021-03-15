@@ -228,12 +228,14 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
             for target in template["targets"]:
                 job = {}
                 job['env'] = target["namespace"]["environment"]["name"]
+                job['app'] = target["namespace"]["app"]["name"]
+                job['cluster'] = target['namespace']['cluster']['name']
+                job['namespace'] = target['namespace']['name']
                 job['name'] = get_openshift_saas_deploy_job_name(
                     saas_file_name, job['env'], settings
                 )
                 job['saas_file_name'] = saas_file_name
                 job['instance'] = saas_file["instance"]["name"]
-                job['app'] = saas_file["app"]["name"]
                 saas_deploy_jobs.append(job)
                 if job['instance'] not in jobs_to_get:
                     jobs_to_get[job['instance']] = [job]
@@ -314,11 +316,15 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
             if saas_file_name not in app["promotions"]:
                 app["promotions"][saas_file_name] = [{
                     "env": job["env"],
+                    "cluster": job["cluster"],
+                    "namespace": job["namespace"],
                     **history
                 }]
             else:
                 app["promotions"][saas_file_name].append({
                     "env": job["env"],
+                    "cluster": job["cluster"],
+                    "namespace": job["namespace"],
                     **history
                 })
 
