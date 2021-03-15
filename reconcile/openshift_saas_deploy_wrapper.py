@@ -1,14 +1,14 @@
 import sys
-import semver
 
 import reconcile.openshift_saas_deploy as osd
 import reconcile.utils.threaded as threaded
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.saas_file_owners import read_diffs_from_file as \
     read_saas_file_owners_diffs
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-wrapper'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def osd_run_wrapper(diff, dry_run, available_thread_pool_size,

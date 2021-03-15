@@ -2,7 +2,6 @@ import logging
 import sys
 import json
 
-import semver
 
 import reconcile.queries as queries
 
@@ -11,10 +10,11 @@ from reconcile.utils.defer import defer
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
+from reconcile.utils.semver_helper import make_semver
 
 
 QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):

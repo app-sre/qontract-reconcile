@@ -1,12 +1,12 @@
 import sys
-import semver
 
 import reconcile.queries as queries
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.saasherder import SaasHerder
 
 QONTRACT_INTEGRATION = 'saas-file-validator'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def run(dry_run):

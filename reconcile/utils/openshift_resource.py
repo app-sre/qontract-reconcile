@@ -212,8 +212,8 @@ class OpenshiftResource:
             assert annotations['qontract.integration'] == self.integration
 
             integration_version = annotations['qontract.integration_version']
-            assert semver.parse(integration_version)['major'] == \
-                semver.parse(self.integration_version)['major']
+            assert semver.VersionInfo.parse(integration_version).major == \
+                semver.VersionInfo.parse(self.integration_version).major
 
             assert annotations['qontract.sha256sum'] is not None
         except KeyError:
@@ -221,7 +221,7 @@ class OpenshiftResource:
         except AssertionError:
             return False
         except ValueError:
-            # raised by semver.parse
+            # raised by semver.VersionInfo.parse
             return False
 
         return True
@@ -334,7 +334,12 @@ class OpenshiftResource:
 
         if body['kind'] == 'ServiceAccount':
             if 'imagePullSecrets' in body:
-                body.pop('imagePullSecrets')
+                # remove default pull secrets added by k8s
+                imagePullSecrets = \
+                    [s for s in body.pop('imagePullSecrets')
+                     if '-dockercfg-' not in s['name']]
+                if imagePullSecrets:
+                    body['imagePullSecrets'] = imagePullSecrets
             if 'secrets' in body:
                 body.pop('secrets')
 

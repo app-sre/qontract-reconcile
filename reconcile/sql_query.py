@@ -6,12 +6,12 @@ from textwrap import indent
 
 import jinja2
 import ruamel.yaml as yaml
-import semver
 
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
 from reconcile.utils import gql
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource
@@ -21,7 +21,7 @@ from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'sql-query'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 LOG = logging.getLogger(__name__)
 
