@@ -312,10 +312,10 @@ integrations:
 - name: terraform-resources
   resources:
     requests:
-      memory: 1500Mi
+      memory: 2500Mi
       cpu: 900m
     limits:
-      memory: 1800Mi
+      memory: 3250Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
