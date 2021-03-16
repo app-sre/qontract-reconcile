@@ -660,13 +660,47 @@ class AWSApi:
 
         route_table_ids = None
         if route_tables and vpc_id:
-            route_tables = assumed_ec2.describe_route_tables(
+            vpc_route_tables = assumed_ec2.describe_route_tables(
                 Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
             )
             route_table_ids = [rt['RouteTableId']
-                               for rt in route_tables['RouteTables']]
+                               for rt in vpc_route_tables['RouteTables']]
 
         return vpc_id, route_table_ids
+
+    def get_vpcs_details(self, account, tags=None, route_tables=False):
+        results = []
+        session = self.get_session(account['name'])
+        ec2 = session.client('ec2')
+        regions = [r['RegionName'] for r in ec2.describe_regions()['Regions']]
+        for region_name in regions:
+            ec2 = session.client('ec2', region_name=region_name)
+            vpcs = ec2.describe_vpcs(
+                Filters=[
+                    {'Name': f'tag:{k}', 'Values': [v]}
+                    for k, v in tags.items()
+                ]
+            )
+            for vpc in vpcs.get('Vpcs'):
+                vpc_id = vpc['VpcId']
+                cidr_block = vpc['CidrBlock']
+                route_table_ids = None
+                if route_tables:
+                    vpc_route_tables = ec2.describe_route_tables(
+                        Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+                    )
+                    route_table_ids = [rt['RouteTableId']
+                                       for rt
+                                       in vpc_route_tables['RouteTables']]
+                item = {
+                    'vpc_id': vpc_id,
+                    'region': region_name,
+                    'cidr_block': cidr_block,
+                    'route_table_ids': route_table_ids,
+                }
+                results.append(item)
+
+        return results
 
     def get_route53_zones(self):
         """

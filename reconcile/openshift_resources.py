@@ -1,11 +1,11 @@
-import semver
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = 'openshift_resources'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(1, 9, 3)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
 
 
 def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,

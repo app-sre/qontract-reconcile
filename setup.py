@@ -19,7 +19,7 @@ setup(
     data_files=[('reconcile/templates', glob('reconcile/templates/*.j2'))],
 
     install_requires=[
-        "sretoolbox==0.9.2",
+        "sretoolbox==0.12.1",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
@@ -29,7 +29,7 @@ setup(
         "ldap3>=2.5.2,<2.6.0",
         "anymarkup>=0.7.0,<0.8.0",
         "python-gitlab>=1.11.0,<1.12.0",
-        "semver>=2.8.0,<2.9.0",
+        "semver~=2.13",
         "python-terraform>=0.10.0,<0.11.0",
         "boto3>=1.9.0,<=1.10.0",
         "botocore>=1.12.159,<=1.13.0",

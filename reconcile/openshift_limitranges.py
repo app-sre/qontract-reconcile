@@ -1,17 +1,17 @@
 import logging
 import sys
 
-import semver
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.defer import defer
 
 
 QONTRACT_INTEGRATION = 'openshift-limitranges'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 SUPPORTED_LIMITRANGE_TYPES = (
     'default',
