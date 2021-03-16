@@ -1,10 +1,10 @@
 import sys
 import logging
-import semver
 
 import reconcile.utils.gql as gql
 import reconcile.openshift_base as ob
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
@@ -48,7 +48,7 @@ NAMESPACES_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'openshift-network-policies'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def construct_oc_resource(name, source_ns):

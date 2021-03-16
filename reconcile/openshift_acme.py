@@ -1,12 +1,12 @@
 import sys
 import logging
-import semver
 
 import anymarkup
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ConstructResourceError
 from reconcile.utils.defer import defer
@@ -18,7 +18,7 @@ from reconcile.utils.openshift_acme import (ACME_DEPLOYMENT,
 
 
 QONTRACT_INTEGRATION = 'openshift-acme'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 2, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 2, 0)
 
 
 def process_template(template, values):
