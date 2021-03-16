@@ -195,6 +195,12 @@ class OcpReleaseEcrMirror:
             # Let's filter out everything not from quay.io
             if not release_image.startswith('quay.io'):
                 continue
+            # ClusterImagesSets may be enabled or disabled.
+            # Let's only mirror enabled ones
+            enabled_label = 'api.openshift.com/enabled'
+            enabled = clusterimageset['metadata']['labels'][enabled_label]
+            if enabled == 'false':
+                continue
             ocp_releases.append(release_image)
         return ocp_releases
 
