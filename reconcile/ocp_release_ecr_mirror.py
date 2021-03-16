@@ -201,6 +201,11 @@ class OcpReleaseEcrMirror:
             enabled = labels['api.openshift.com/enabled']
             if enabled == 'false':
                 continue
+            # ClusterImageSets may be in different channels.
+            # Let's only mirror stable
+            channel_group = labels['api.openshift.com/channel-group']
+            if channel_group != 'stable':
+                continue
             ocp_releases.append(release_image)
         return ocp_releases
 
