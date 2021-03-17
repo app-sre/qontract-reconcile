@@ -278,7 +278,7 @@ class OCM:
               'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         return [(r['user_arn'], r['role']['id'], r['console_url'])
-                 for r in role_grants]
+                for r in role_grants]
 
     def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
                                                             tf_account_id,
