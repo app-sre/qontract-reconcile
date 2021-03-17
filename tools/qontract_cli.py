@@ -151,6 +151,33 @@ def clusters_network(ctx, name):
 
 
 @get.command()
+@click.pass_context
+def ocm_aws_infrastructure_access_switch_role_links(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('ocm') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    results = []
+    for cluster in clusters:
+        cluster_name = cluster['name']
+        ocm = ocm_map.get(cluster_name)
+        role_grants = \
+            ocm.get_aws_infrastructure_access_role_grants(cluster_name)
+        for user_arn, access_level, switch_role_link in role_grants:
+            item = {
+                'cluster': cluster_name,
+                'user_arn': user_arn,
+                'access_level': access_level,
+                'switch_role_link': switch_role_link,
+            }
+            results.append(item)
+
+    columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
+    print_output(ctx.obj['output'], results, columns)
+
+
+@get.command()
 @click.argument('cluster_name')
 @click.pass_context
 def bot_login(ctx, cluster_name):

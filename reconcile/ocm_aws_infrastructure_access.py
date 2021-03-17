@@ -19,7 +19,7 @@ def fetch_current_state():
         cluster = cluster_info['name']
         ocm = ocm_map.get(cluster)
         role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster)
-        for user_arn, access_level in role_grants:
+        for user_arn, access_level, _ in role_grants:
             item = {
                 'cluster': cluster,
                 'user_arn': user_arn,
