@@ -364,7 +364,7 @@ def run(dry_run, print_only=False,
                      accounts,
                      settings=settings)
     ts.populate_additional_providers(participating_accounts)
-    ts.populate_vpc_peerings(desired_state)
+    ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
     if print_only:

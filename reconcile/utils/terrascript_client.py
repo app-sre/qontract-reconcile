@@ -521,6 +521,9 @@ class TerrascriptClient:
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
 
+    def populate_tgw_attachments(self, desired_state):
+        pass
+
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resources.values():
