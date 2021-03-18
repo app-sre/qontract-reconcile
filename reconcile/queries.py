@@ -400,6 +400,18 @@ CLUSTERS_QUERY = """
           }
           tags
         }
+        ... on ClusterPeeringConnectionAccountTGW_v1 {
+          account {
+            name
+            uid
+            terraformUsername
+            automationToken {
+              path
+              field
+            }
+          }
+          tags
+        }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
             name
