@@ -324,10 +324,10 @@ integrations:
 - name: terraform-users
   resources:
     requests:
-      memory: 1000Mi
+      memory: 2400Mi
       cpu: 200m
     limits:
-      memory: 1500Mi
+      memory: 3000Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   logs:
