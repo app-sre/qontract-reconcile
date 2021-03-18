@@ -219,7 +219,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     namespaces = queries.get_namespaces()
 
     build_jobs = jjb.get_all_jobs(job_types=['build'])
-    jobs_to_get = build_jobs
+    jobs_to_get = build_jobs.copy()
 
     saas_deploy_jobs = []
     for saas_file in saas_files:
@@ -438,13 +438,12 @@ def get_build_history_pool(jenkins_map, jobs,
 
     history = {}
     for job in result:
-        if 'build_history' not in job:
+        build_history = job.get('build_history')
+        if not build_history:
             continue
-        if not job['build_history']:
-            continue
-        successes = [h for h in job['build_history'] if h == 'SUCCESS']
+        successes = [_ for _ in build_history if _ == 'SUCCESS']
         history[job['name']] = {
-            "total": len(job['build_history']),
+            "total": len(build_history),
             "success": len(successes)
         }
     return history
