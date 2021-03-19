@@ -9,6 +9,7 @@ QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
 
 def fetch_current_state():
     current_state = []
+    current_failed = []
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('ocm') is not None]
@@ -19,15 +20,18 @@ def fetch_current_state():
         cluster = cluster_info['name']
         ocm = ocm_map.get(cluster)
         role_grants = ocm.get_aws_infrastructure_access_role_grants(cluster)
-        for user_arn, access_level, _ in role_grants:
+        for user_arn, access_level, state, _ in role_grants:
             item = {
                 'cluster': cluster,
                 'user_arn': user_arn,
                 'access_level': access_level
             }
-            current_state.append(item)
+            if state == 'failed':
+                current_failed.append(item)
+            else:
+                current_state.append(item)
 
-    return ocm_map, current_state
+    return ocm_map, current_state, current_failed
 
 
 def fetch_desired_state():
@@ -68,7 +72,19 @@ def fetch_desired_state():
     return desired_state
 
 
-def act(dry_run, ocm_map, current_state, desired_state):
+def act(dry_run, ocm_map, current_state, current_failed, desired_state):
+    to_delete = [c for c in current_state if c not in desired_state]
+    to_delete = to_delete + current_failed
+    for item in to_delete:
+        cluster = item['cluster']
+        user_arn = item['user_arn']
+        access_level = item['access_level']
+        logging.info(['del_user_from_aws_infrastructure_access_role_grants',
+                      cluster, user_arn, access_level])
+        if not dry_run:
+            ocm = ocm_map.get(cluster)
+            ocm.del_user_from_aws_infrastructure_access_role_grants(
+                cluster, user_arn, access_level)
     to_add = [d for d in desired_state if d not in current_state]
     for item in to_add:
         cluster = item['cluster']
@@ -80,20 +96,9 @@ def act(dry_run, ocm_map, current_state, desired_state):
             ocm = ocm_map.get(cluster)
             ocm.add_user_to_aws_infrastructure_access_role_grants(
                 cluster, user_arn, access_level)
-    to_delete = [c for c in current_state if c not in desired_state]
-    for item in to_delete:
-        cluster = item['cluster']
-        user_arn = item['user_arn']
-        access_level = item['access_level']
-        logging.info(['del_user_from_aws_infrastructure_access_role_grants',
-                      cluster, user_arn, access_level])
-        if not dry_run:
-            ocm = ocm_map.get(cluster)
-            ocm.del_user_from_aws_infrastructure_access_role_grants(
-                cluster, user_arn, access_level)
 
 
 def run(dry_run):
-    ocm_map, current_state = fetch_current_state()
+    ocm_map, current_state, current_failed = fetch_current_state()
     desired_state = fetch_desired_state()
-    act(dry_run, ocm_map, current_state, desired_state)
+    act(dry_run, ocm_map, current_state, current_failed, desired_state)
