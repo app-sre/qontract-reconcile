@@ -47,7 +47,7 @@ class DashdotdbCSO:
 
         for item in imagemanifestvuln['items']:
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                        f'ImageManifestVuln/{cluster}')
+                        f'imagemanifestvuln/{cluster}')
             response = requests.post(url=endpoint, json=item,
                                      auth=(self.dashdotdb_user,
                                            self.dashdotdb_pass))
