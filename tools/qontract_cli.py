@@ -7,6 +7,7 @@ import yaml
 
 from tabulate import tabulate
 
+import reconcile.utils.dnsutils as dnsutils
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config
 from reconcile.utils.secret_reader import SecretReader
@@ -175,6 +176,27 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
             results.append(item)
 
     columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
+    print_output(ctx.obj['output'], results, columns)
+
+
+@get.command()
+@click.pass_context
+def aws_route53_zones(ctx):
+    zones = queries.get_dns_zones()
+
+    results = []
+    for zone in zones:
+        zone_name = zone['name']
+        zone_records = zone['records']
+        zone_nameservers = dnsutils.get_nameservers(zone_name)
+        item = {
+            'domain': zone_name,
+            'records': len(zone_records),
+            'nameservers': zone_nameservers
+        }
+        results.append(item)
+
+    columns = ['domain', 'records', 'nameservers']
     print_output(ctx.obj['output'], results, columns)
 
 
