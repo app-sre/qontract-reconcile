@@ -488,6 +488,11 @@ def print_table(content, columns, table_format='simple'):
                 cell = cell.get(token) or {}
             if cell == {}:
                 cell = ''
+            if isinstance(cell, list):
+                if table_format == 'github':
+                    cell = '<br />'.join(cell)
+                else:
+                    cell = '\n'.join(cell)
             row_data.append(cell)
         table_data.append(row_data)
 
