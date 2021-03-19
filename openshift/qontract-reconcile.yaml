@@ -14790,7 +14790,7 @@ objects:
       app: qontract-reconcile-dashdotdb-dvo
     name: qontract-reconcile-dashdotdb-dvo
   spec:
-    schedule: "0 */3 * * *"
+    schedule: "0 0 * * *"
     concurrencyPolicy: Replace
     successfulJobHistoryLimit: 12
     failedJobHistoryLimit: 12
