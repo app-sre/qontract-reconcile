@@ -165,7 +165,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
         ocm = ocm_map.get(cluster_name)
         role_grants = \
             ocm.get_aws_infrastructure_access_role_grants(cluster_name)
-        for user_arn, access_level, switch_role_link in role_grants:
+        for user_arn, access_level, _, switch_role_link in role_grants:
             item = {
                 'cluster': cluster_name,
                 'user_arn': user_arn,
