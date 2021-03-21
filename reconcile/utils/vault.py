@@ -225,7 +225,6 @@ class _VaultClient:
                 self._refresh_client_auth()
                 raise SecretNotFound
 
-
     def _write_v2(self, path, data):
         # do not forget to run `self._read_all_v2.cache_clear()`
         # if this ever get's implemented
