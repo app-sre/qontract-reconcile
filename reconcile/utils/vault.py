@@ -202,6 +202,7 @@ class _VaultClient:
             raise SecretFieldNotFound("{}/{}".format(path, field))
         return secret_field
 
+    @retry()
     def write(self, secret):
         """Writes a dictionary of keys and values to a Vault secret.
 
@@ -214,10 +215,16 @@ class _VaultClient:
         data = {k: base64.b64decode(v or '').decode('utf-8')
                 for k, v in b64_data.items()}
 
-        try:
-            self._write_v1(secret_path, data)
-        except Exception:
+        kv_version = self._get_mount_version_by_secret_path(secret_path)
+        if kv_version == 2:
             self._write_v2(secret_path, data)
+        else:
+            try:
+                self._write_v1(secret_path, data)
+            except SecretAccessForbidden:
+                self._refresh_client_auth()
+                raise SecretNotFound
+
 
     def _write_v2(self, path, data):
         # do not forget to run `self._read_all_v2.cache_clear()`
@@ -225,7 +232,11 @@ class _VaultClient:
         raise NotImplementedError('vault_client write v2')
 
     def _write_v1(self, path, data):
-        self._client.write(path, **data)
+        try:
+            self._client.write(path, **data)
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
 
 
 class VaultClient:
