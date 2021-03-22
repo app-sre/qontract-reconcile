@@ -715,8 +715,10 @@ class AWSApi:
         )
         for tgw in tgws.get('TransitGateways'):
             tgw_id = tgw['TransitGatewayId']
+            tgw_arn = tgw['TransitGatewayArn']
             item = {
                 'tgw_id': tgw_id,
+                'tgw_arn': tgw_arn,
                 'region': region_name,
             }
             results.append(item)

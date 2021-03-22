@@ -82,6 +82,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     f"{account['name']}-{tgw_id}"
                 requester = {
                     'tgw_id': tgw_id,
+                    'tgw_arn': tgw['tgw_arn'],
                     'region': tgw['region'],
                     'account': account,
                 }
