@@ -578,6 +578,6 @@ cronjobs:
     limits:
       memory: 600Mi
       cpu: 200m
-  # once every 3 hours
-  cron: '0 */3 * * *'
+  # once a day
+  cron: '0 0 * * *'
   dashdotdb: true
