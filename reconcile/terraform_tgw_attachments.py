@@ -194,9 +194,9 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             peer_connection_provider = peer_connection['provider']
             if not peer_connection_provider == 'account-tgw':
                 continue
-            # requester is the cluster's AWS account
+            # accepter is the cluster's AWS account
             cluster_region = cluster_info['spec']['region']
-            requester = {
+            accepter = {
                 'cidr_block': cluster_info['network']['vpc'],
                 'region': cluster_region
             }
@@ -210,22 +210,22 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     account['uid'],
                     account['terraformUsername']
                 )
-            account['assume_region'] = requester['region']
-            account['assume_cidr'] = requester['cidr_block']
+            account['assume_region'] = accepter['region']
+            account['assume_cidr'] = accepter['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            requester_vpc_id, requester_route_table_ids = \
+            accepter_vpc_id, accepter_route_table_ids = \
                 aws_api.get_cluster_vpc_id(
                     account,
                     route_tables=peer_connection.get('manageRoutes')
                 )
 
-            if requester_vpc_id is None:
+            if accepter_vpc_id is None:
                 logging.error(f'[{cluster} could not find VPC ID for cluster')
                 error = True
                 continue
-            requester['vpc_id'] = requester_vpc_id
-            requester['route_table_ids'] = requester_route_table_ids
-            requester['account'] = account
+            accepter['vpc_id'] = accepter_vpc_id
+            accepter['route_table_ids'] = accepter_route_table_ids
+            accepter['account'] = account
 
             account_tgws = \
                 aws_api.get_tgws_details(
@@ -239,7 +239,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                 connection_name = \
                     f"{peer_connection['name']}_" + \
                     f"{account['name']}-{tgw_id}"
-                accepter = {
+                requester = {
                     'tgw_id': tgw_id,
                     'region': tgw['region'],
                     'account': account,
