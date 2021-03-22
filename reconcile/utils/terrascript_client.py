@@ -533,7 +533,6 @@ class TerrascriptClient:
             if item['deleted']:
                 continue
 
-            connection_provider = item['connection_provider']
             connection_name = item['connection_name']
             requester = item['requester']
             accepter = item['accepter']
@@ -541,8 +540,6 @@ class TerrascriptClient:
             # Requester's side of the connection - the AWS account
             req_account = requester['account']
             req_account_name = req_account['name']
-            req_alias = self.get_alias_name_from_assume_role(
-                req_account['assume_role'])
             # Accepter's side of the connection - the cluster's account
             acc_account = accepter['account']
             acc_account_name = acc_account['name']
@@ -602,7 +599,6 @@ class TerrascriptClient:
             tf_resource_association = \
                 aws_ram_resource_association(identifier, **values)
             self.add_resource(req_account_name, tf_resource_association)
-
 
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)
