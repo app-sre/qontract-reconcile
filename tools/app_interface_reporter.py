@@ -461,14 +461,16 @@ def get_repo_url(job):
 # TODO: @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @click.option('--reports-path', help='path to write reports')
-def main(configfile, dry_run, log_level, gitlab_project_id, reports_path):
+@click.option('--thread-pool-size', type=int, help='thread pool size')
+def main(configfile, dry_run, log_level,
+         gitlab_project_id, reports_path, thread_pool_size):
     config.init_from_toml(configfile)
     init_log_level(log_level)
     config.init_from_toml(configfile)
     gql.init_from_config()
 
     now = datetime.now()
-    apps = get_apps_data(now)
+    apps = get_apps_data(now, thread_pool_size=thread_pool_size)
 
     reports = [Report(app, now).to_message() for app in apps]
 
