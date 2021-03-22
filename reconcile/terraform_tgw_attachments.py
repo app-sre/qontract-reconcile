@@ -113,7 +113,6 @@ def run(dry_run, print_only=False,
     if err:
         sys.exit(1)
 
-
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]
     if len(set(connection_names)) != len(connection_names):
