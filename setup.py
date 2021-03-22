@@ -50,6 +50,7 @@ setup(
         "tzlocal==2.1",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
+        "dnspython~=2.1",
     ],
 
     test_suite="tests",
