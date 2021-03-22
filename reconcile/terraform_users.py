@@ -1,10 +1,10 @@
 import sys
-import semver
 
 import reconcile.utils.gql as gql
 from reconcile.utils.smtp_client import SmtpClient
 import reconcile.queries as queries
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 
@@ -37,7 +37,7 @@ TF_QUERY = """
 """
 
 QONTRACT_INTEGRATION = 'terraform_users'
-QONTRACT_INTEGRATION_VERSION = semver.format_version(0, 4, 2)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 

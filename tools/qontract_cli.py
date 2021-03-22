@@ -7,6 +7,7 @@ import yaml
 
 from tabulate import tabulate
 
+import reconcile.utils.dnsutils as dnsutils
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config
 from reconcile.utils.secret_reader import SecretReader
@@ -25,6 +26,7 @@ def output(function):
                             default='table',
                             type=click.Choice([
                                 'table',
+                                'md',
                                 'json',
                                 'yaml']))(function)
     return function
@@ -148,6 +150,54 @@ def clusters_network(ctx, name):
 
     columns = ['name', 'network.vpc', 'network.service', 'network.pod']
     print_output(ctx.obj['output'], clusters, columns)
+
+
+@get.command()
+@click.pass_context
+def ocm_aws_infrastructure_access_switch_role_links(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('ocm') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    results = []
+    for cluster in clusters:
+        cluster_name = cluster['name']
+        ocm = ocm_map.get(cluster_name)
+        role_grants = \
+            ocm.get_aws_infrastructure_access_role_grants(cluster_name)
+        for user_arn, access_level, _, switch_role_link in role_grants:
+            item = {
+                'cluster': cluster_name,
+                'user_arn': user_arn,
+                'access_level': access_level,
+                'switch_role_link': switch_role_link,
+            }
+            results.append(item)
+
+    columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
+    print_output(ctx.obj['output'], results, columns)
+
+
+@get.command()
+@click.pass_context
+def aws_route53_zones(ctx):
+    zones = queries.get_dns_zones()
+
+    results = []
+    for zone in zones:
+        zone_name = zone['name']
+        zone_records = zone['records']
+        zone_nameservers = dnsutils.get_nameservers(zone_name)
+        item = {
+            'domain': zone_name,
+            'records': len(zone_records),
+            'nameservers': zone_nameservers
+        }
+        results.append(item)
+
+    columns = ['domain', 'records', 'nameservers']
+    print_output(ctx.obj['output'], results, columns)
 
 
 @get.command()
@@ -415,6 +465,8 @@ def quay_mirrors(ctx):
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)
+    elif output == 'md':
+        print_table(content, columns, table_format='github')
     elif output == 'json':
         print(json.dumps(content))
     elif output == 'yaml':
@@ -423,7 +475,7 @@ def print_output(output, content, columns=[]):
         pass  # error
 
 
-def print_table(content, columns):
+def print_table(content, columns, table_format='simple'):
     headers = [column.upper() for column in columns]
     table_data = []
     for item in content:
@@ -436,10 +488,15 @@ def print_table(content, columns):
                 cell = cell.get(token) or {}
             if cell == {}:
                 cell = ''
+            if isinstance(cell, list):
+                if table_format == 'github':
+                    cell = '<br />'.join(cell)
+                else:
+                    cell = '\n'.join(cell)
             row_data.append(cell)
         table_data.append(row_data)
 
-    print(tabulate(table_data, headers=headers))
+    print(tabulate(table_data, headers=headers, tablefmt=table_format))
 
 
 @root.group()

@@ -312,10 +312,10 @@ integrations:
 - name: terraform-resources
   resources:
     requests:
-      memory: 1500Mi
+      memory: 2500Mi
       cpu: 900m
     limits:
-      memory: 1800Mi
+      memory: 3250Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
@@ -324,10 +324,10 @@ integrations:
 - name: terraform-users
   resources:
     requests:
-      memory: 1000Mi
+      memory: 2400Mi
       cpu: 200m
     limits:
-      memory: 1500Mi
+      memory: 3000Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   logs:
@@ -341,6 +341,17 @@ integrations:
     limits:
       memory: 2600Mi
       cpu: 500m
+  logs:
+    slack: true
+    cloudwatch: true
+- name: ocm-addons
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
   logs:
     slack: true
     cloudwatch: true
@@ -567,6 +578,6 @@ cronjobs:
     limits:
       memory: 600Mi
       cpu: 200m
-  # once every 3 hours
-  cron: '0 */3 * * *'
+  # once a day
+  cron: '0 0 * * *'
   dashdotdb: true

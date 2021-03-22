@@ -1,15 +1,16 @@
 import pytest
-import semver
 
+from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError)
+
 
 from .fixtures import Fixtures
 
 fxt = Fixtures('openshift_resource')
 
 TEST_INT = 'test_openshift_resources'
-TEST_INT_VER = semver.format_version(1, 9, 2)
+TEST_INT_VER = make_semver(1, 9, 2)
 
 
 class TestOpenshiftResource:
