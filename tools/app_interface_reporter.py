@@ -13,7 +13,8 @@ from dateutil.relativedelta import relativedelta
 
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config
-import reconcile.utils.threaded as threaded
+from reconcile.cli import threaded
+from reconcile.utils.threaded import run
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
@@ -432,9 +433,9 @@ def get_build_history_pool(jenkins_map, jobs,
             job['timestamp_limit'] = timestamp_limit
             history_to_get.append(job)
 
-    result = threaded.run(func=get_build_history,
-                          iterable=history_to_get,
-                          thread_pool_size=thread_pool_size)
+    result = run(func=get_build_history,
+                 iterable=history_to_get,
+                 thread_pool_size=thread_pool_size)
 
     history = {}
     for job in result:
@@ -455,13 +456,13 @@ def get_repo_url(job):
 
 
 @click.command()
+@threaded()
 @config_file
 @dry_run
 @log_level
 # TODO: @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @click.option('--reports-path', help='path to write reports')
-@click.option('--thread-pool-size', type=int, help='thread pool size')
 def main(configfile, dry_run, log_level,
          gitlab_project_id, reports_path, thread_pool_size):
     config.init_from_toml(configfile)
