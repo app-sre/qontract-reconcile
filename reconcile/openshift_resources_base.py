@@ -5,6 +5,7 @@ import sys
 
 from threading import Lock
 from textwrap import indent
+from sretoolbox.utils import retry
 
 import anymarkup
 import jinja2
@@ -172,6 +173,7 @@ class UnknownTemplateTypeError(Exception):
         super().__init__("unknown template type error: " + str(msg))
 
 
+@retry()
 def lookup_vault_secret(path, key, version=None, tvars=None):
     if tvars is not None:
         path = process_jinja2_template(path, vars=tvars)
