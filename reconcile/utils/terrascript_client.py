@@ -632,7 +632,8 @@ class TerrascriptClient:
                 'depends_on': [
                     'aws_ram_principal_association.' + connection_name,
                     'aws_ram_resource_association.' + identifier
-                ]
+                ],
+                'tags': tags
             }
             tf_resource_attachment = \
                 aws_ec2_transit_gateway_vpc_attachment(identifier, **values)
@@ -642,7 +643,8 @@ class TerrascriptClient:
             # and accept the attachment in the non cluster's aws account
             values = {
                 'transit_gateway_attachment_id': \
-                    '${' + tf_resource_attachment.id + '}'
+                    '${' + tf_resource_attachment.id + '}',
+                'tags': tags
             }
             if self._multiregion_account_(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
