@@ -1615,15 +1615,11 @@ SLO_DOCUMENTS_QUERY = """
     name
     namespaces {
       name
-      path
       app {
         name
       }
       cluster {
         name
-        ocm {
-          name
-        }
         automationToken {
           path
           field
@@ -1642,11 +1638,8 @@ SLO_DOCUMENTS_QUERY = """
       SLOParameters {
         window
       }
-      SLISpecification
       SLOTarget
       SLOTargetUnit
-      prometheusRules
-      prometheusRulesTests
     }
   }
 }
