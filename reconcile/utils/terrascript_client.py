@@ -621,9 +621,11 @@ class TerrascriptClient:
 
             # now that the tgw is shared to the cluster's aws account
             # we can create a vpc attachment to the tgw
+            subnets_id_az = accepter['subnets_id_az']
+            subnets = self.get_az_unique_subnet_ids(subnets_id_az)
             values = {
                 'provider': 'aws.' + acc_alias,
-                'subnet_ids': [], # TODO(mafriedm)
+                'subnet_ids': subnets,
                 'transit_gateway_id': requester['tgw_id'],
                 'vpc_id': accepter['vpc_id'],
                 'depends_on': [
@@ -647,6 +649,20 @@ class TerrascriptClient:
                 aws_ec2_transit_gateway_vpc_attachment_accepter(
                     identifier, **values)
             self.add_resource(req_account_name, tf_resource_attachment_accepter)
+
+    @staticmethod
+    def get_az_unique_subnet_ids(subnets_id_az):
+        """ returns a list of subnet ids which are unique per az """
+        results = []
+        azs = []
+        for subnet_id_az in subnets_id_az:
+            az = subnet_id_az['az']
+            if az in azs:
+                continue
+            results.append(subnet_id_az['id'])
+            azs.append(az)
+
+        return results
 
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)
