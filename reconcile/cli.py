@@ -44,6 +44,7 @@ import reconcile.ldap_users
 import reconcile.terraform_resources
 import reconcile.terraform_users
 import reconcile.terraform_vpc_peerings
+import reconcile.terraform_tgw_attachments
 import reconcile.github_repo_invites
 import reconcile.github_repo_permissions_validator
 import reconcile.jenkins_roles
@@ -1033,6 +1034,21 @@ def terraform_users(ctx, print_only, enable_deletion, io_dir,
 def terraform_vpc_peerings(ctx, print_only, enable_deletion,
                            thread_pool_size):
     run_integration(reconcile.terraform_vpc_peerings,
+                    ctx.obj, print_only,
+                    enable_deletion, thread_pool_size)
+
+
+@integration.command()
+@print_only
+@threaded()
+@binary(['terraform'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@enable_deletion(default=False)
+@click.pass_context
+def terraform_tgw_attachments(ctx, print_only, enable_deletion,
+                              thread_pool_size):
+    run_integration(reconcile.terraform_tgw_attachments,
                     ctx.obj, print_only,
                     enable_deletion, thread_pool_size)
 

@@ -34,6 +34,10 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_cloudfront_distribution,
                                   aws_vpc_peering_connection,
                                   aws_vpc_peering_connection_accepter,
+                                  aws_ram_resource_share,
+                                  aws_ram_principal_association,
+                                  aws_ram_resource_association,
+                                  aws_ram_resource_share_accepter,
                                   aws_route,
                                   aws_cloudwatch_log_group, aws_kms_key,
                                   aws_kms_alias,
@@ -345,9 +349,12 @@ class TerrascriptClient:
             return err
 
     @staticmethod
-    def get_alias_name_from_assume_role(assume_role):
+    def get_alias_uid_from_assume_role(assume_role):
         # arn:aws:iam::12345:role/role-1 --> 12345
-        uid = assume_role.split(':')[4]
+        return assume_role.split(':')[4]
+
+    def get_alias_name_from_assume_role(self, assume_role):
+        uid = self.get_alias_uid_from_assume_role(assume_role)
         return f"account-{uid}"
 
     def populate_additional_providers(self, accounts):
@@ -520,6 +527,81 @@ class TerrascriptClient:
                     route_identifier = f'{identifier}-{route_table_id}'
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
+
+    def populate_tgw_attachments(self, desired_state):
+        for item in desired_state:
+            if item['deleted']:
+                continue
+
+            connection_name = item['connection_name']
+            requester = item['requester']
+            accepter = item['accepter']
+
+            # Requester's side of the connection - the AWS account
+            req_account = requester['account']
+            req_account_name = req_account['name']
+            # Accepter's side of the connection - the cluster's account
+            acc_account = accepter['account']
+            acc_account_name = acc_account['name']
+            acc_alias = self.get_alias_name_from_assume_role(
+                acc_account['assume_role'])
+            acc_uid = self.get_alias_uid_from_assume_role(
+                acc_account['assume_role'])
+
+            # add resource share
+            values = {
+                'name': connection_name,
+                'allow_external_principals': True,
+                'tags': {
+                    'managed_by_integration': self.integration,
+                    'Name': connection_name
+                }
+            }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
+            tf_resource_share = \
+                aws_ram_resource_share(connection_name, **values)
+            self.add_resource(req_account_name, tf_resource_share)
+
+            # share with accepter aws account
+            values = {
+                'principal': acc_uid,
+                'resource_share_arn': '${' + tf_resource_share.arn + '}'
+            }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
+            tf_resource_association = \
+                aws_ram_principal_association(connection_name, **values)
+            self.add_resource(req_account_name, tf_resource_association)
+
+            # accept resource share from accepter aws account
+            values = {
+                'provider': 'aws.' + acc_alias,
+                'share_arn': '${' + tf_resource_share.arn + '}',
+                'depends_on': [
+                    'aws_ram_resource_share.' + connection_name,
+                    'aws_ram_principal_association.' + connection_name
+                ]
+            }
+            tf_resource_share_accepter = \
+                aws_ram_resource_share_accepter(connection_name, **values)
+            self.add_resource(acc_account_name, tf_resource_share_accepter)
+
+            # until now it was standard sharing
+            # from this line onwards we will be adding content
+            # specific for the TGW attachments integration
+
+            # tgw share association
+            identifier = f"{requester['tgw_id']}-{accepter['vpc_id']}"
+            values = {
+                'resource_arn': requester['tgw_arn'],
+                'resource_share_arn': '${' + tf_resource_share.arn + '}'
+            }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
+            tf_resource_association = \
+                aws_ram_resource_association(identifier, **values)
+            self.add_resource(req_account_name, tf_resource_association)
 
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)

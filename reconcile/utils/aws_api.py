@@ -702,6 +702,29 @@ class AWSApi:
 
         return results
 
+    def get_tgws_details(self, account, region_name,
+                         tags=None, route_tables=False):
+        results = []
+        session = self.get_session(account['name'])
+        ec2 = session.client('ec2', region_name=region_name)
+        tgws = ec2.describe_transit_gateways(
+            Filters=[
+                {'Name': f'tag:{k}', 'Values': [v]}
+                for k, v in tags.items()
+            ]
+        )
+        for tgw in tgws.get('TransitGateways'):
+            tgw_id = tgw['TransitGatewayId']
+            tgw_arn = tgw['TransitGatewayArn']
+            item = {
+                'tgw_id': tgw_id,
+                'tgw_arn': tgw_arn,
+                'region': region_name,
+            }
+            results.append(item)
+
+        return results
+
     def get_route53_zones(self):
         """
         Return a list of (str, dict) representing Route53 DNS zones per account
