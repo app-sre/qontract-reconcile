@@ -54,7 +54,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             account['assume_region'] = accepter['region']
             account['assume_cidr'] = accepter['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            accepter_vpc_id, accepter_route_table_ids = \
+            accepter_vpc_id, accepter_route_table_ids, _ = \
                 aws_api.get_cluster_vpc_id(
                     account,
                     route_tables=peer_connection.get('manageRoutes')
