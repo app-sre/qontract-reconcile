@@ -564,14 +564,15 @@ class TerrascriptClient:
             acc_uid = self.get_alias_uid_from_assume_role(
                 acc_account['assume_role'])
 
+            tags = {
+                'managed_by_integration': self.integration,
+                'Name': connection_name
+            }
             # add resource share
             values = {
                 'name': connection_name,
                 'allow_external_principals': True,
-                'tags': {
-                    'managed_by_integration': self.integration,
-                    'Name': connection_name
-                }
+                'tags': tags
             }
             if self._multiregion_account_(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
