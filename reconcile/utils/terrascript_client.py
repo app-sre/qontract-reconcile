@@ -37,6 +37,8 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_ram_principal_association,
                                   aws_ram_resource_association,
                                   aws_ram_resource_share_accepter,
+                                  aws_ec2_transit_gateway_vpc_attachment,
+                                  aws_ec2_transit_gateway_vpc_attachment_accepter,
                                   aws_route,
                                   aws_cloudwatch_log_group, aws_kms_key,
                                   aws_kms_alias,
@@ -616,6 +618,35 @@ class TerrascriptClient:
             tf_resource_association = \
                 aws_ram_resource_association(identifier, **values)
             self.add_resource(req_account_name, tf_resource_association)
+
+            # now that the tgw is shared to the cluster's aws account
+            # we can create a vpc attachment to the tgw
+            values = {
+                'provider': 'aws.' + acc_alias,
+                'subnet_ids': [], # TODO(mafriedm)
+                'transit_gateway_id': requester['tgw_id'],
+                'vpc_id': accepter['vpc_id'],
+                'depends_on': [
+                    'aws_ram_principal_association.' + connection_name,
+                    'aws_ram_resource_association.' + identifier
+                ]
+            }
+            tf_resource_attachment = \
+                aws_ec2_transit_gateway_vpc_attachment(identifier, **values)
+            # we send the attachment from the cluster's aws account
+            self.add_resource(acc_account_name, tf_resource_attachment)
+
+            # and accept the attachment in the non cluster's aws account
+            values = {
+                'transit_gateway_attachment_id': \
+                    '${' + tf_resource_attachment.id + '}'
+            }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
+            tf_resource_attachment_accepter = \
+                aws_ec2_transit_gateway_vpc_attachment_accepter(
+                    identifier, **values)
+            self.add_resource(req_account_name, tf_resource_attachment_accepter)
 
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)
