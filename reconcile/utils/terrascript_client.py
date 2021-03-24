@@ -579,6 +579,7 @@ class TerrascriptClient:
                 'provider': 'aws.' + acc_alias,
                 'share_arn': '${' + tf_resource_share.arn + '}',
                 'depends_on': [
+                    'aws_ram_resource_share.' + connection_name,
                     'aws_ram_principal_association.' + connection_name
                 ]
             }
