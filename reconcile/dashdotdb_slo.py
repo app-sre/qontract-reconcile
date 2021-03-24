@@ -1,8 +1,8 @@
 import logging
 import os
 
-import jinja2
 from urllib.parse import urljoin
+import jinja2
 import requests
 
 from reconcile import queries
