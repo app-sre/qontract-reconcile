@@ -1615,13 +1615,13 @@ SLO_DOCUMENTS_QUERY = """
     name
     namespaces {
       name
-      path 
+      path
       app {
         name
       }
       cluster {
         name
-    		ocm {
+        ocm {
           name
         }
         automationToken {
