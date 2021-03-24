@@ -596,6 +596,8 @@ class TerrascriptClient:
                 'resource_arn': requester['tgw_arn'],
                 'resource_share_arn': '${' + tf_resource_share.arn + '}'
             }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
             tf_resource_association = \
                 aws_ram_resource_association(identifier, **values)
             self.add_resource(req_account_name, tf_resource_association)
