@@ -668,7 +668,7 @@ class AWSApi:
                 route_table_ids = [rt['RouteTableId']
                                    for rt in vpc_route_tables['RouteTables']]
             if subnets:
-                vpc_subnets = ec2.describe_subnets(
+                vpc_subnets = assumed_ec2.describe_subnets(
                     Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
                 )
                 subnets_id_az = \
