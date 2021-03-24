@@ -659,12 +659,13 @@ class AWSApi:
                 break
 
         route_table_ids = None
-        if route_tables and vpc_id:
-            vpc_route_tables = assumed_ec2.describe_route_tables(
-                Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
-            )
-            route_table_ids = [rt['RouteTableId']
-                               for rt in vpc_route_tables['RouteTables']]
+        if vpc_id:
+            if route_tables:
+                vpc_route_tables = assumed_ec2.describe_route_tables(
+                    Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+                )
+                route_table_ids = [rt['RouteTableId']
+                                   for rt in vpc_route_tables['RouteTables']]
 
         return vpc_id, route_table_ids
 
