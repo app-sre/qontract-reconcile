@@ -56,7 +56,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             aws_api = AWSApi(1, [account], settings=settings)
             accepter_vpc_id, accepter_route_table_ids, \
                 accepter_subnets_id_az = \
-                aws_api.get_cluster_vpc_id(
+                aws_api.get_cluster_vpc_details(
                     account,
                     route_tables=peer_connection.get('manageRoutes'),
                     subnets=True,

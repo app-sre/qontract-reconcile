@@ -609,9 +609,12 @@ class AWSApi:
 
         self.auth_tokens = auth_tokens
 
-    def get_cluster_vpc_id(self, account, route_tables=False, subnets=False):
+    def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
         """
-        Returns a cluster VPC ID.
+        Returns a cluster VPC details:
+            - VPC ID
+            - Route table IDs (optional)
+            - Subnets list including Subnet ID and Subnet Availability zone
         :param account: a dictionary containing the following keys:
                         - name - name of the AWS account
                         - assume_role - role to assume to get access
