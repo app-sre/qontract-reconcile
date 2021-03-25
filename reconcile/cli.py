@@ -88,6 +88,7 @@ import reconcile.user_validator
 import reconcile.integrations_validator
 import reconcile.dashdotdb_cso
 import reconcile.ocp_release_ecr_mirror
+import reconcile.ecr_mirror
 import reconcile.kafka_clusters
 import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
@@ -1221,6 +1222,13 @@ def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
 @click.pass_context
 def ocp_release_ecr_mirror(ctx):
     run_integration(reconcile.ocp_release_ecr_mirror, ctx.obj)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def ecr_mirror(ctx, thread_pool_size):
+    run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
 
 
 @integration.command()
