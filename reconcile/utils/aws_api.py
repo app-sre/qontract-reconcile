@@ -672,11 +672,12 @@ class AWSApi:
                     Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
                 )
                 subnets_id_az = \
-                    [{
-                        'id': s['SubnetId'],
-                        'az': s['AvailabilityZone']
-                     }
-                     for s in vpc_subnets['Subnets']
+                    [
+                        {
+                            'id': s['SubnetId'],
+                            'az': s['AvailabilityZone']
+                        }
+                        for s in vpc_subnets['Subnets']
                     ]
 
         return vpc_id, route_table_ids, subnets_id_az
