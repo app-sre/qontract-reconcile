@@ -596,6 +596,22 @@ NAMESPACES_QUERY = """
           defaults
           replica_source
         }
+        ... on NamespaceTerraformResourceECR_v1
+        {
+          account
+          region
+          identifier
+          output_resource_name
+          mirror {
+            url
+            pullCredentials {
+              path
+              field
+            }
+            tags
+            tagsExclude
+          }
+        }
       }
     cluster {
       name
