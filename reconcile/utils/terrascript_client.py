@@ -29,6 +29,7 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_iam_user_policy_attachment,
                                   aws_sqs_queue, aws_dynamodb_table,
                                   aws_ecr_repository, aws_s3_bucket_policy,
+                                  aws_ecrpublic_repository,
                                   aws_cloudfront_origin_access_identity,
                                   aws_cloudfront_distribution,
                                   aws_vpc_peering_connection,
@@ -74,7 +75,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret']
+                 'specs', 'secret', 'public']
 
 
 class UnknownProviderError(Exception):
@@ -1681,6 +1682,14 @@ class TerrascriptClient:
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
+        public = common_values.get('public')
+        if public:
+            # ecr public repository
+            # does not support tags
+            values.pop('tags')
+            # uses repository_name and not name
+            values['repository_name'] = values.pop('name')
+            ecr_tf_resource = aws_ecrpublic_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
         output_name_0_13 = output_prefix + '__url'
         output_value = '${' + ecr_tf_resource.repository_url + '}'
@@ -2507,7 +2516,6 @@ class TerrascriptClient:
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
         overrides = resource.get('overrides', None)
-
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
