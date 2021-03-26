@@ -29,7 +29,6 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_iam_user_policy_attachment,
                                   aws_sqs_queue, aws_dynamodb_table,
                                   aws_ecr_repository, aws_s3_bucket_policy,
-                                  aws_ecrpublic_repository,
                                   aws_cloudfront_origin_access_identity,
                                   aws_cloudfront_distribution,
                                   aws_vpc_peering_connection,
@@ -50,6 +49,8 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_route53_zone,
                                   aws_route53_record,
                                   aws_route53_health_check)
+# temporary to create aws_ecrpublic_repository
+from terrascript import Resource
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -86,6 +87,11 @@ class UnknownProviderError(Exception):
 def safe_resource_id(s):
     """Sanitize a string into a valid terraform resource id"""
     return s.translate({ord(c): "_" for c in "."})
+
+
+# temporary pending https://github.com/mjuenema/python-terrascript/issues/160
+class aws_ecrpublic_repository(Resource):
+    pass
 
 
 class TerrascriptClient:
@@ -1693,6 +1699,8 @@ class TerrascriptClient:
         tf_resources.append(ecr_tf_resource)
         output_name_0_13 = output_prefix + '__url'
         output_value = '${' + ecr_tf_resource.repository_url + '}'
+        if public:
+            output_value = '${' + ecr_tf_resource.repository_uri + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__aws_region'
         tf_resources.append(Output(output_name_0_13, value=region))
