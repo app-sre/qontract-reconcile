@@ -79,10 +79,10 @@ integrations:
 - name: ecr-mirror
   resources:
     requests:
-      memory: 250Mi
+      memory: 350Mi
       cpu: 400m
     limits:
-      memory: 300Mi
+      memory: 500Mi
       cpu: 600m
   logs:
     cloudwatch: true
