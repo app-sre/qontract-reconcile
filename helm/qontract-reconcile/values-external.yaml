@@ -76,6 +76,16 @@ integrations:
       cpu: 300m
   logs:
     cloudwatch: true
+- name: ecr-mirror
+  resources:
+    requests:
+      memory: 250Mi
+      cpu: 400m
+    limits:
+      memory: 300Mi
+      cpu: 600m
+  logs:
+    cloudwatch: true
 - name: quay-repos
   resources:
     requests:
