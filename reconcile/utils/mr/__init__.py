@@ -7,6 +7,7 @@ from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile.utils.mr.notificator import CreateAppInterfaceNotificator
 from reconcile.utils.mr.user_maintenance import CreateDeleteUser
 from reconcile.utils.mr.auto_promoter import AutoPromoter
+from reconcile.utils.mr.cluster_service_install_config import CSInstallConfig
 
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     'CreateAppInterfaceNotificator',
     'CreateDeleteUser',
     'AutoPromoter',
+    'CSInstallConfig',
 ]
 
 
