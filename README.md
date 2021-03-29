@@ -59,6 +59,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `openshift-vault-secrets`: Manages OpenShift Secrets from Vault.
 - `openshift-upgrade-watcher`: Watches for OpenShift upgrades and sends notifications.
+- `osd-mirrors-data-updater`: Collects OSD mirror information and updates app-interface via MR.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-mirror`: Mirrors external images into Quay.
 - `quay-repos`: Creates and Manages Quay Repos.

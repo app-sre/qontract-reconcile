@@ -56,7 +56,7 @@ class CSInstallConfig(MergeRequestBase):
         )}
         yaml.scalarstring.walk_tree(config_map)
 
-        content = ("# This file is auto-generated via app-interface. \n"
+        content = ("# App-interface autogenerates this file. \n"
                    "# Do not manually edit it.\n")
         content += yaml.dump(config_map, Dumper=yaml.RoundTripDumper)
         path = 'resources/services/ocm/clusters-service.configmap.yaml'
