@@ -14,7 +14,6 @@ import requests
 
 from terrascript import (Terrascript, provider, Terraform,
                          Backend, Output, data)
-from terrascript.data import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_s3_bucket, aws_iam_user,
                                   aws_s3_bucket_notification,
@@ -657,11 +656,9 @@ class TerrascriptClient:
         elif provider == 'kms':
             self.populate_tf_resource_kms(resource, namespace_info)
         elif provider == 'elasticsearch':
-            self.populate_tf_resource_elasticsearch(resource, namespace_info,
-                                                    existing_secrets)
+            self.populate_tf_resource_elasticsearch(resource, namespace_info)
         elif provider == 'acm':
-            self.populate_tf_resource_acm(resource, namespace_info,
-                                          existing_secrets)
+            self.populate_tf_resource_acm(resource, namespace_info)
         elif provider == 'kinesis':
             self.populate_tf_resource_kinesis(resource, namespace_info)
         else:
@@ -854,14 +851,14 @@ class TerrascriptClient:
                     f"{identifier} not found")
 
         kms_key_id = values.pop('kms_key_id', None)
-        if kms_key_id:
-            if not kms_key_id.startswith("arn:", 0):
+        if kms_key_id is not None:
+            if not kms_key_id.startswith("arn:"):
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
-                    res = kms_key['resource']
-                    values['kms_key_id'] = "${aws_kms_key." + \
-                        res['identifier'] + ".arn}"
-                    deps.append("aws_kms_key." + res['identifier'])
+                    kms_res = "aws_kms_key." + \
+                        kms_key['resource']['identifier']
+                    values['kms_key_id'] = "${" + kms_res + ".arn}"
+                    deps.append(kms_res)
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
 
@@ -1230,7 +1227,7 @@ class TerrascriptClient:
             sqs_provider = values.get('provider')
             if sqs_provider:
                 sqs_values['provider'] = sqs_provider
-            sqs_data = data_aws_sqs_queue(sqs_identifier, **sqs_values)
+            sqs_data = data.aws_sqs_queue(sqs_identifier, **sqs_values)
             tf_resources.append(sqs_data)
 
             events = common_values.get('events', ["s3:ObjectCreated:*"])
@@ -2612,8 +2609,7 @@ class TerrascriptClient:
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
 
-    def populate_tf_resource_elasticsearch(self, resource, namespace_info,
-                                           existing_secrets):
+    def populate_tf_resource_elasticsearch(self, resource, namespace_info):
 
         account, identifier, values, output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
@@ -2805,8 +2801,7 @@ class TerrascriptClient:
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def populate_tf_resource_acm(self, resource, namespace_info,
-                                 existing_secrets):
+    def populate_tf_resource_acm(self, resource, namespace_info):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
