@@ -98,6 +98,7 @@ import reconcile.dashdotdb_dvo
 import reconcile.sendgrid_teammates
 import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
+import reconcile.jenkins_job_builds_cleaner
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -601,6 +602,12 @@ def jenkins_job_builder(ctx, io_dir, print_only,
                         config_name, job_name, instance_name):
     run_integration(reconcile.jenkins_job_builder, ctx.obj, io_dir,
                     print_only, config_name, job_name, instance_name)
+
+
+@integration.command()
+@click.pass_context
+def jenkins_job_builds_cleaner(ctx):
+    run_integration(reconcile.jenkins_job_builds_cleaner, ctx.obj)
 
 
 @integration.command()
