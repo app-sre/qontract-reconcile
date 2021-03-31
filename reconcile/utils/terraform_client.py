@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 
+from collections import defaultdict
 from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
@@ -274,7 +275,7 @@ class TerraformClient:
 
     @staticmethod
     def get_replicas_info(namespaces):
-        replicas_info = {}
+        replicas_info = defaultdict(dict)
 
         for tf_namespace in namespaces:
             tf_resources = tf_namespace.get('terraformResources')
@@ -328,9 +329,7 @@ class TerraformClient:
                 # Creating a dict that is convenient to use inside the
                 # loop processing the formatted_output
                 tf_account = tf_resource.get('account')
-                replicas_info[tf_account] = {
-                    replica_name: replica_source_name
-                }
+                replicas_info[tf_account][replica_name] = replica_source_name
 
         return replicas_info
 
