@@ -1230,14 +1230,14 @@ class TerrascriptClient:
             sqs_data = data.aws_sqs_queue(sqs_identifier, **sqs_values)
             tf_resources.append(sqs_data)
 
-            events = common_values.get('events', ["s3:ObjectCreated:*"])
+            s3_events = common_values.get('s3_events', ["s3:ObjectCreated:*"])
             notification_values = {
                 'bucket': '${' + bucket_tf_resource.id + '}',
                 'queue': [{
                     'id': sqs_identifier,
                     'queue_arn':
                         '${data.aws_sqs_queue.' + sqs_identifier + '.arn}',
-                    'events': events
+                    'events': s3_events
                 }]
             }
             filter_prefix = common_values.get('filter_prefix', None)
@@ -1849,44 +1849,112 @@ class TerrascriptClient:
         bucket_tf_resource = \
             self.populate_tf_resource_s3(resource, namespace_info)
 
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        provider = ''
+        if self._multiregion_account_(account):
+            provider = 'aws.' + region
         tf_resources = []
         sqs_identifier = f'{identifier}-sqs'
         sqs_values = {
             'name': sqs_identifier
         }
 
-        visibility_timeout_seconds = \
+        sqs_values['visibility_timeout_seconds'] = \
             int(common_values.get('visibility_timeout_seconds', 30))
-        if visibility_timeout_seconds in range(0, 43200):
-            sqs_values['visibility_timeout_seconds'] = \
-                visibility_timeout_seconds
-
-        message_retention_seconds = \
+        sqs_values['message_retention_seconds'] = \
             int(common_values.get('message_retention_seconds', 345600))
-        if visibility_timeout_seconds in range(60, 1209600):
-            sqs_values['message_retention_seconds'] = \
-                message_retention_seconds
 
-        kms_master_key_id = common_values.get('kms_master_key_id', None)
-        if kms_master_key_id is not None:
-            sqs_values['kms_master_key_id'] = kms_master_key_id
+        # https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#grant-destinations-permissions-to-s3
+        sqs_policy = {
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "sqs:SendMessage",
+                "Resource": "arn:aws:sqs:*:*:" + sqs_identifier,
+                "Condition": {
+                    "ArnEquals": {
+                        "aws:SourceArn":
+                            '${' + bucket_tf_resource.arn + '}'
+                    }
+                }
+            }]
+        }
+        sqs_values['policy'] = json.dumps(sqs_policy, sort_keys=True)
 
-        region = common_values.get('region') or \
-            self.default_regions.get(account)
-        if self._multiregion_account_(account):
-            sqs_values['provider'] = 'aws.' + region
+        kms_encryption = common_values.get('kms_encryption', False)
+        if kms_encryption:
+            kms_identifier = f'{identifier}-kms'
+            kms_values = {
+                'description':
+                    'app-interface created KMS key for' + sqs_identifier
+            }
+            kms_values['key_usage'] = \
+                str(common_values.get('key_usage', 'ENCRYPT_DECRYPT')).upper()
+            kms_values['customer_master_key_spec'] = \
+                str(common_values.get('customer_master_key_spec',
+                                      'SYMMETRIC_DEFAULT')).upper()
+            kms_values['is_enabled'] = common_values.get('is_enabled', True)
+
+            kms_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "AWS": "arn:aws:iam::" + uid + ":root"
+                        },
+                        "Action": "kms:*",
+                        "Resource": "*"
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "s3.amazonaws.com"
+                        },
+                        "Action": [
+                            "kms:GenerateDataKey",
+                            "kms:Decrypt"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+            kms_values['policy'] = json.dumps(kms_policy, sort_keys=True)
+            if provider:
+                kms_values['provider'] = provider
+
+            kms_tf_resource = aws_kms_key(kms_identifier, **kms_values)
+            tf_resources.append(kms_tf_resource)
+
+            alias_values = {
+                'name': 'alias/' + kms_identifier,
+                'target_key_id':
+                    '${' + kms_tf_resource.key_id + '}'
+            }
+            if provider:
+                alias_values['provider'] = provider
+            alias_tf_resource = aws_kms_alias(kms_identifier, **alias_values)
+            tf_resources.append(alias_tf_resource)
+
+            sqs_values['kms_master_key_id'] = '${' + kms_tf_resource.arn + '}'
+            sqs_values['depends_on'] = self.get_dependencies([kms_tf_resource])
+
+        if provider:
+            sqs_values['provider'] = provider
 
         sqs_tf_resource = aws_sqs_queue(sqs_identifier, **sqs_values)
         tf_resources.append(sqs_tf_resource)
 
-        events = common_values.get('events', ["s3:ObjectCreated:*"])
+        s3_events = common_values.get('s3_events', ["s3:ObjectCreated:*"])
         notification_values = {
             'bucket': '${' + bucket_tf_resource.id + '}',
             'queue': [{
                 'id': sqs_identifier,
                 'queue_arn':
                     '${' + sqs_tf_resource.arn + '}',
-                'events': events
+                'events': s3_events
             }]
         }
 
@@ -1947,6 +2015,15 @@ class TerrascriptClient:
                 }
             ]
         }
+        if kms_encryption:
+            kms_statement = {
+                "Effect": "Allow",
+                "Action": ["kms:Decrypt"],
+                "Resource": [
+                    sqs_values['kms_master_key_id']
+                ]
+            }
+            policy['Statement'].append(kms_statement)
         values['policy'] = json.dumps(policy, sort_keys=True)
         policy_tf_resource = aws_iam_policy(sqs_identifier, **values)
         tf_resources.append(policy_tf_resource)
@@ -2443,6 +2520,7 @@ class TerrascriptClient:
             resource.get('output_resource_db_name', None)
         reset_password = \
             resource.get('reset_password', None)
+        kms_encryption = resource.get('kms_encryption', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
@@ -2489,6 +2567,8 @@ class TerrascriptClient:
             values['output_resource_db_name'] = output_resource_db_name
         if reset_password is not None:
             values['reset_password'] = reset_password
+        if kms_encryption is not None:
+            values['kms_encryption'] = kms_encryption
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']

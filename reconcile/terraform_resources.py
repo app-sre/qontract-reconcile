@@ -110,6 +110,7 @@ provider
   region
   identifier
   defaults
+  kms_encryption
   output_resource_name
   storage_class
 }
