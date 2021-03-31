@@ -42,10 +42,10 @@ class DashdotdbSLO:
             return response
 
         for item in service_slo:
-            LOG.info('SLO: syncing slo %s', item['name'])
-            cluster = item['cluster']['name']
+            slo_name = item['name']
+            LOG.info('SLO: syncing slo %s', slo_name)
             endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                        f'serviceslometrics/{cluster}')
+                        f'serviceslometrics/{slo_name}')
             response = requests.post(url=endpoint,
                                      json=item,
                                      auth=(self.dashdotdb_user,
@@ -54,10 +54,10 @@ class DashdotdbSLO:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as details:
                 LOG.error('SLO: error posting %s - %s',
-                          item['name'],
+                          slo_name,
                           details)
 
-            LOG.info('SLO: slo %s synced', item['name'])
+            LOG.info('SLO: slo %s synced', slo_name)
         return response
 
     def _get_automationtoken(self, tokenpath):
