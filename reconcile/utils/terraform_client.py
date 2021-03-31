@@ -84,7 +84,7 @@ class TerraformClient:
         wd = init_spec['wd']
         tf = Terraform(working_dir=wd)
         return_code, stdout, stderr = tf.init()
-        error = self.check_output(name, return_code, stdout, stderr)
+        error = self.check_output(name, 'init', return_code, stdout, stderr)
         if error:
             raise TerraformCommandError(
                 return_code, 'init', out=stdout, err=stderr)
@@ -100,7 +100,7 @@ class TerraformClient:
         name = spec['name']
         tf = spec['tf']
         return_code, stdout, stderr = tf.output_cmd(json=IsFlagged)
-        error = self.check_output(name, return_code, stdout, stderr)
+        error = self.check_output(name, 'output', return_code, stdout, stderr)
         no_output_error = \
             'The module root could not be found. There is nothing to output.'
         if error:
@@ -144,7 +144,7 @@ class TerraformClient:
         return_code, stdout, stderr = tf.plan(detailed_exitcode=False,
                                               parallelism=self.parallelism,
                                               out=name)
-        error = self.check_output(name, return_code, stdout, stderr)
+        error = self.check_output(name, 'plan', return_code, stdout, stderr)
         disabled_deletion_detected, deleted_users = \
             self.log_plan_diff(name, tf, enable_deletion)
         return disabled_deletion_detected, deleted_users, error
@@ -220,7 +220,7 @@ class TerraformClient:
         # adding var=None to allow applying the saved plan
         # https://github.com/beelit94/python-terraform/issues/67
         return_code, stdout, stderr = tf.apply(dir_or_plan=name, var=None)
-        error = self.check_output(name, return_code, stdout, stderr)
+        error = self.check_output(name, 'apply', return_code, stdout, stderr)
         return error
 
     def get_terraform_output_secrets(self):
@@ -424,19 +424,19 @@ class TerraformClient:
         return OR(body, self.integration, self.integration_version,
                   error_details=name)
 
-    def check_output(self, name, return_code, stdout, stderr):
+    def check_output(self, name, cmd, return_code, stdout, stderr):
         error_occured = False
-        line_format = '[{}] {}'
+        line_format = '[{} - {}] {}'
         stdout, stderr = self.split_to_lines(stdout, stderr)
         with self._log_lock:
             for line in stdout:
-                logging.debug(line_format.format(name, line))
+                logging.debug(line_format.format(name, cmd, line))
             if return_code == 0:
                 for line in stderr:
-                    logging.warning(line_format.format(name, line))
+                    logging.warning(line_format.format(name, cmd, line))
             else:
                 for line in stderr:
-                    logging.error(line_format.format(name, line))
+                    logging.error(line_format.format(name, cmd, line))
                 error_occured = True
         return error_occured
 
