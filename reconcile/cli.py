@@ -94,6 +94,8 @@ import reconcile.terraform_aws_route53
 import reconcile.prometheus_rules_tester
 import reconcile.dashdotdb_dvo
 import reconcile.sendgrid_teammates
+import reconcile.osd_mirrors_data_updater
+import reconcile.dashdotdb_slo
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1219,9 +1221,24 @@ def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
 
 
 @integration.command()
+@threaded(default=2)
+@click.pass_context
+def dashdotdb_slo(ctx, thread_pool_size):
+    run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
+
+
+@integration.command()
 @click.pass_context
 def ocp_release_ecr_mirror(ctx):
     run_integration(reconcile.ocp_release_ecr_mirror, ctx.obj)
+
+
+@integration.command()
+@gitlab_project_id
+@click.pass_context
+def osd_mirrors_data_updater(ctx, gitlab_project_id):
+    run_integration(reconcile.osd_mirrors_data_updater, ctx.obj,
+                    gitlab_project_id)
 
 
 @integration.command()
