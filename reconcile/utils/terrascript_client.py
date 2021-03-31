@@ -67,6 +67,14 @@ from reconcile.utils.elasticsearch_exceptions \
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
+VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
+                 'enhanced_monitoring', 'replica_source',
+                 'output_resource_db_name', 'reset_password',
+                 'sqs_identifier', 's3_events', 'bucket_policy',
+                 'storage_class', 'kms_encryption',
+                 'variables', 'policies', 'user_policy',
+                 'es_identifier', 'filter_pattern',
+                 'specs', 'secret']
 
 
 class UnknownProviderError(Exception):
@@ -2499,76 +2507,19 @@ class TerrascriptClient:
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
         overrides = resource.get('overrides', None)
-        variables = resource.get('variables', None)
-        policies = resource.get('policies', None)
-        user_policy = resource.get('user_policy', None)
-        region = resource.get('region', None)
-        az = resource.get('availability_zone', None)
-        queues = resource.get('queues', None)
-        specs = resource.get('specs', None)
-        parameter_group = resource.get('parameter_group', None)
-        sqs_identifier = resource.get('sqs_identifier', None)
-        s3_events = resource.get('s3_events', None)
-        bucket_policy = resource.get('bucket_policy', None)
-        sc = resource.get('storage_class', None)
-        enhanced_monitoring = resource.get('enhanced_monitoring', None)
-        replica_source = resource.get('replica_source', None)
-        es_identifier = resource.get('es_identifier', None)
-        filter_pattern = resource.get('filter_pattern', None)
-        secret = resource.get('secret', None)
-        output_resource_db_name = \
-            resource.get('output_resource_db_name', None)
-        reset_password = \
-            resource.get('reset_password', None)
-        kms_encryption = resource.get('kms_encryption', None)
 
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
         values['identifier'] = identifier
         values['tags'] = self.get_resource_tags(namespace_info)
-        # checking explicitly for not None
-        # to allow passing empty strings, False, etc
-        if variables is not None:
-            values['variables'] = variables
-        if policies is not None:
-            values['policies'] = policies
-        if user_policy is not None:
-            values['user_policy'] = user_policy
-        if region is not None:
-            values['region'] = region
-        if az is not None:
-            values['availability_zone'] = az
-        if queues is not None:
-            values['queues'] = queues
-        if specs is not None:
-            values['specs'] = specs
-        if parameter_group is not None:
-            values['parameter_group'] = parameter_group
-        if sqs_identifier is not None:
-            values['sqs_identifier'] = sqs_identifier
-        if s3_events is not None:
-            values['s3_events'] = s3_events
-        if bucket_policy is not None:
-            values['bucket_policy'] = bucket_policy
-        if sc is not None:
-            values['storage_class'] = sc
-        if enhanced_monitoring is not None:
-            values['enhanced_monitoring'] = enhanced_monitoring
-        if replica_source is not None:
-            values['replica_source'] = replica_source
-        if es_identifier is not None:
-            values['es_identifier'] = es_identifier
-        if filter_pattern is not None:
-            values['filter_pattern'] = filter_pattern
-        if secret is not None:
-            values['secret'] = secret
-        if output_resource_db_name is not None:
-            values['output_resource_db_name'] = output_resource_db_name
-        if reset_password is not None:
-            values['reset_password'] = reset_password
-        if kms_encryption is not None:
-            values['kms_encryption'] = kms_encryption
+
+        for key in VARIABLE_KEYS:
+            val = resource.get(key, None)
+            # checking explicitly for not None
+            # to allow passing empty strings, False, etc
+            if val is not None:
+                values[key] = val
 
         output_prefix = '{}-{}'.format(identifier, provider)
         output_resource_name = resource['output_resource_name']
