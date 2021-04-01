@@ -336,7 +336,6 @@ CLUSTERS_QUERY = """
       storage
       load_balancers
       private
-      upgrade
       provision_shard_id
       autoscale {
         min_replicas
