@@ -6,6 +6,7 @@ import sys
 import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
+from reconcile.utils import dnsutils
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
@@ -46,6 +47,7 @@ def build_desired_state(zones):
 
         for record in zone['records']:
             record_name = record['name']
+            record_type = record['type']
 
             # Check if this record should be ignored
             # as per 'unmanaged_record_names'
@@ -69,10 +71,31 @@ def build_desired_state(zones):
             target_cluster = record.pop('_target_cluster', None)
             if target_cluster:
                 target_cluster_elb = target_cluster['elbFQDN']
-                logging.debug(f'{zone_name}: field `_target_cluster` found '
-                              f'for record {record_name}. Value will be '
-                              f'{target_cluster_elb}')
-                record['records'] = [target_cluster_elb]
+                record_values = []
+                if record_type == 'A':
+                    record_values = dnsutils.get_a_records(target_cluster_elb)
+                elif record_type == 'CNAME':
+                    record_values = [target_cluster_elb]
+                else:
+                    msg = f'{zone_name}: field `_target_cluster` found ' \
+                          f'for record {record_name} of type {record_type}. ' \
+                          f'The use of _target_cluster on this record type ' \
+                          f'is not supported by the integration.'
+                    logging.error(msg)
+                    sys.exit(ExitCodes.ERROR)
+
+                if not record_values:
+                    msg = f'{zone_name}: field `_target_cluster` found ' \
+                          f'for record {record_name} of type {record_type} ' \
+                          f'has no values! (invalid elb FQDN?)'
+                    logging.error(msg)
+                    sys.exit(ExitCodes.ERROR)
+
+                msg = f'{zone_name}: field `_target_cluster` found ' \
+                      f'for record {record_name} of type {record_type}. ' \
+                      f'Value will be set to {record_values}'
+                logging.debug(msg)
+                record['records'] = record_values
 
             # Process '_healthcheck'
             healthcheck = record.pop('_healthcheck', None)

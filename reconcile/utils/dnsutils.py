@@ -7,3 +7,11 @@ def get_nameservers(domain):
     for rdata in answers:
         records.append(rdata.to_text())
     return records
+
+
+def get_a_records(host):
+    records = []
+    answers = resolver.query(host, 'A')
+    for rdata in answers:
+        records.append(rdata.to_text())
+    return records
