@@ -272,8 +272,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
             raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
-    tf_namespaces = [namespace_info for namespace_info in namespaces
-                     if namespace_info.get('managedTerraformResources')]
+    tf_namespaces = filter_tf_namespaces(namespaces, account_name)
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
@@ -290,6 +289,25 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     ts.dump(print_only, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, tf_namespaces
+
+
+def filter_tf_namespaces(namespaces, account_name):
+    tf_namespaces = []
+    for namespace_info in namespaces:
+        if not namespace_info.get('managedTerraformResources'):
+            continue
+        if account_name is None:
+            tf_namespaces.append(namespace_info)
+            continue
+        tf_resources = namespace_info.get('terraformResources')
+        if not tf_resources:
+            tf_namespaces.append(namespace_info)
+            continue
+        for resource in tf_resources:
+            if resource['account'] == account_name:
+                tf_namespaces.append(namespace_info)
+                break
+    return tf_namespaces
 
 
 def cleanup_and_exit(tf=None, status=False, working_dirs={}):
