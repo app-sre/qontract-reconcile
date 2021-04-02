@@ -71,6 +71,14 @@ def build_desired_state(zones):
             target_cluster = record.pop('_target_cluster', None)
             if target_cluster:
                 target_cluster_elb = target_cluster['elbFQDN']
+
+                if target_cluster_elb is None or target_cluster_elb == '':
+                    msg = f'{zone_name}: field `_target_cluster` for record ' \
+                          f'{record_name} of type {record_type} points to a ' \
+                          f'cluster that has an empty elbFQDN field.'
+                    logging.error(msg)
+                    sys.exit(ExitCodes.ERROR)
+
                 record_values = []
                 if record_type == 'A':
                     record_values = dnsutils.get_a_records(target_cluster_elb)
