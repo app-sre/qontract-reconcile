@@ -2524,6 +2524,7 @@ class TerrascriptClient:
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
         overrides = resource.get('overrides', None)
+
         values = self.get_values(defaults_path) if defaults_path else {}
         self.aggregate_values(values)
         self.override_values(values, overrides)
