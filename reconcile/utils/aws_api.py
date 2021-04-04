@@ -609,7 +609,8 @@ class AWSApi:
 
         self.auth_tokens = auth_tokens
 
-    def get_cluster_vpc_details(self, account, route_tables=False, subnets=False):
+    def get_cluster_vpc_details(self, account, route_tables=False,
+                                subnets=False):
         """
         Returns a cluster VPC details:
             - VPC ID

@@ -14,7 +14,6 @@ import requests
 
 from terrascript import (Terrascript, provider, Terraform,
                          Backend, Output, data)
-from terrascript.data import aws_sqs_queue as data_aws_sqs_queue
 from terrascript.resource import (
     aws_db_instance, aws_db_parameter_group,
     aws_s3_bucket, aws_iam_user,
