@@ -410,6 +410,7 @@ CLUSTERS_QUERY = """
             }
           }
           tags
+          cidrBlock
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {

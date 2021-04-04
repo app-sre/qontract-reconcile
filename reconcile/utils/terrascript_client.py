@@ -656,6 +656,21 @@ class TerrascriptClient:
             self.add_resource(
                 req_account_name, tf_resource_attachment_accepter)
 
+            # add routes to existing route tables
+            route_table_ids = accepter.get('route_table_ids')
+            req_cidr_block = requester.get('cidr_block')
+            if route_table_ids and req_cidr_block:
+                for route_table_id in route_table_ids:
+                    values = {
+                        'provider': 'aws.' + acc_alias,
+                        'route_table_id': route_table_id,
+                        'destination_cidr_block': req_cidr_block,
+                        'transit_gateway_id': requester['tgw_id']
+                    }
+                    route_identifier = f'{identifier}-{route_table_id}'
+                    tf_resource = aws_route(route_identifier, **values)
+                    self.add_resource(acc_account_name, tf_resource)
+
     @staticmethod
     def get_az_unique_subnet_ids(subnets_id_az):
         """ returns a list of subnet ids which are unique per az """

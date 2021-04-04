@@ -87,6 +87,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     'tgw_id': tgw_id,
                     'tgw_arn': tgw['tgw_arn'],
                     'region': tgw['region'],
+                    'cidr_block': peer_connection.get('cidrBlock'),
                     'account': account,
                 }
                 item = {
