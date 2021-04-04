@@ -96,6 +96,7 @@ provider
   identifier
   region
   output_resource_name
+  public
 }
 ... on NamespaceTerraformResourceS3CloudFront_v1 {
   account

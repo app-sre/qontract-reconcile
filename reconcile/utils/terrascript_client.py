@@ -49,6 +49,8 @@ from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
                                   aws_route53_zone,
                                   aws_route53_record,
                                   aws_route53_health_check)
+# temporary to create aws_ecrpublic_repository
+from terrascript import Resource
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -74,7 +76,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret']
+                 'specs', 'secret', 'public']
 
 
 class UnknownProviderError(Exception):
@@ -85,6 +87,11 @@ class UnknownProviderError(Exception):
 def safe_resource_id(s):
     """Sanitize a string into a valid terraform resource id"""
     return s.translate({ord(c): "_" for c in "."})
+
+
+# temporary pending https://github.com/mjuenema/python-terrascript/issues/160
+class aws_ecrpublic_repository(Resource):
+    pass
 
 
 class TerrascriptClient:
@@ -1681,9 +1688,19 @@ class TerrascriptClient:
         if self._multiregion_account_(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
+        public = common_values.get('public')
+        if public:
+            # ecr public repository
+            # does not support tags
+            values.pop('tags')
+            # uses repository_name and not name
+            values['repository_name'] = values.pop('name')
+            ecr_tf_resource = aws_ecrpublic_repository(identifier, **values)
         tf_resources.append(ecr_tf_resource)
         output_name_0_13 = output_prefix + '__url'
         output_value = '${' + ecr_tf_resource.repository_url + '}'
+        if public:
+            output_value = '${' + ecr_tf_resource.repository_uri + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__aws_region'
         tf_resources.append(Output(output_name_0_13, value=region))
