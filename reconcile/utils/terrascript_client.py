@@ -14,41 +14,45 @@ import requests
 
 from terrascript import (Terrascript, provider, Terraform,
                          Backend, Output, data)
-from terrascript.resource import (aws_db_instance, aws_db_parameter_group,
-                                  aws_s3_bucket, aws_iam_user,
-                                  aws_s3_bucket_notification,
-                                  aws_iam_access_key, aws_iam_user_policy,
-                                  aws_iam_group,
-                                  aws_iam_group_policy_attachment,
-                                  aws_iam_user_group_membership,
-                                  aws_iam_user_login_profile, aws_iam_policy,
-                                  aws_iam_role, aws_iam_role_policy,
-                                  aws_iam_role_policy_attachment,
-                                  aws_elasticache_replication_group,
-                                  aws_elasticache_parameter_group,
-                                  aws_iam_user_policy_attachment,
-                                  aws_sqs_queue, aws_dynamodb_table,
-                                  aws_ecr_repository, aws_s3_bucket_policy,
-                                  aws_cloudfront_origin_access_identity,
-                                  aws_cloudfront_distribution,
-                                  aws_vpc_peering_connection,
-                                  aws_vpc_peering_connection_accepter,
-                                  aws_ram_resource_share,
-                                  aws_ram_principal_association,
-                                  aws_ram_resource_association,
-                                  aws_ram_resource_share_accepter,
-                                  aws_route,
-                                  aws_cloudwatch_log_group, aws_kms_key,
-                                  aws_kms_alias,
-                                  aws_elasticsearch_domain,
-                                  aws_iam_service_linked_role,
-                                  aws_lambda_function, aws_lambda_permission,
-                                  aws_cloudwatch_log_subscription_filter,
-                                  aws_acm_certificate,
-                                  aws_kinesis_stream,
-                                  aws_route53_zone,
-                                  aws_route53_record,
-                                  aws_route53_health_check)
+from terrascript.resource import (
+    aws_db_instance, aws_db_parameter_group,
+    aws_s3_bucket, aws_iam_user,
+    aws_s3_bucket_notification,
+    aws_iam_access_key, aws_iam_user_policy,
+    aws_iam_group,
+    aws_iam_group_policy_attachment,
+    aws_iam_user_group_membership,
+    aws_iam_user_login_profile, aws_iam_policy,
+    aws_iam_role, aws_iam_role_policy,
+    aws_iam_role_policy_attachment,
+    aws_elasticache_replication_group,
+    aws_elasticache_parameter_group,
+    aws_iam_user_policy_attachment,
+    aws_sqs_queue, aws_dynamodb_table,
+    aws_ecr_repository, aws_s3_bucket_policy,
+    aws_cloudfront_origin_access_identity,
+    aws_cloudfront_distribution,
+    aws_vpc_peering_connection,
+    aws_vpc_peering_connection_accepter,
+    aws_ram_resource_share,
+    aws_ram_principal_association,
+    aws_ram_resource_association,
+    aws_ram_resource_share_accepter,
+    aws_ec2_transit_gateway_vpc_attachment,
+    aws_ec2_transit_gateway_vpc_attachment_accepter,
+    aws_route,
+    aws_cloudwatch_log_group, aws_kms_key,
+    aws_kms_alias,
+    aws_elasticsearch_domain,
+    aws_iam_service_linked_role,
+    aws_lambda_function, aws_lambda_permission,
+    aws_cloudwatch_log_subscription_filter,
+    aws_acm_certificate,
+    aws_kinesis_stream,
+    aws_route53_zone,
+    aws_route53_record,
+    aws_route53_health_check
+)
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
 
@@ -562,14 +566,15 @@ class TerrascriptClient:
             acc_uid = self.get_alias_uid_from_assume_role(
                 acc_account['assume_role'])
 
+            tags = {
+                'managed_by_integration': self.integration,
+                'Name': connection_name
+            }
             # add resource share
             values = {
                 'name': connection_name,
                 'allow_external_principals': True,
-                'tags': {
-                    'managed_by_integration': self.integration,
-                    'Name': connection_name
-                }
+                'tags': tags
             }
             if self._multiregion_account_(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
@@ -616,6 +621,54 @@ class TerrascriptClient:
             tf_resource_association = \
                 aws_ram_resource_association(identifier, **values)
             self.add_resource(req_account_name, tf_resource_association)
+
+            # now that the tgw is shared to the cluster's aws account
+            # we can create a vpc attachment to the tgw
+            subnets_id_az = accepter['subnets_id_az']
+            subnets = self.get_az_unique_subnet_ids(subnets_id_az)
+            values = {
+                'provider': 'aws.' + acc_alias,
+                'subnet_ids': subnets,
+                'transit_gateway_id': requester['tgw_id'],
+                'vpc_id': accepter['vpc_id'],
+                'depends_on': [
+                    'aws_ram_principal_association.' + connection_name,
+                    'aws_ram_resource_association.' + identifier
+                ],
+                'tags': tags
+            }
+            tf_resource_attachment = \
+                aws_ec2_transit_gateway_vpc_attachment(identifier, **values)
+            # we send the attachment from the cluster's aws account
+            self.add_resource(acc_account_name, tf_resource_attachment)
+
+            # and accept the attachment in the non cluster's aws account
+            values = {
+                'transit_gateway_attachment_id':
+                    '${' + tf_resource_attachment.id + '}',
+                'tags': tags
+            }
+            if self._multiregion_account_(req_account_name):
+                values['provider'] = 'aws.' + requester['region']
+            tf_resource_attachment_accepter = \
+                aws_ec2_transit_gateway_vpc_attachment_accepter(
+                    identifier, **values)
+            self.add_resource(
+                req_account_name, tf_resource_attachment_accepter)
+
+    @staticmethod
+    def get_az_unique_subnet_ids(subnets_id_az):
+        """ returns a list of subnet ids which are unique per az """
+        results = []
+        azs = []
+        for subnet_id_az in subnets_id_az:
+            az = subnet_id_az['az']
+            if az in azs:
+                continue
+            results.append(subnet_id_az['id'])
+            azs.append(az)
+
+        return results
 
     def populate_resources(self, namespaces, existing_secrets, account_name):
         self.init_populate_specs(namespaces, account_name)

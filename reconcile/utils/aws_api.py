@@ -609,9 +609,13 @@ class AWSApi:
 
         self.auth_tokens = auth_tokens
 
-    def get_cluster_vpc_id(self, account, route_tables=False):
+    def get_cluster_vpc_details(self, account, route_tables=False,
+                                subnets=False):
         """
-        Returns a cluster VPC ID.
+        Returns a cluster VPC details:
+            - VPC ID
+            - Route table IDs (optional)
+            - Subnets list including Subnet ID and Subnet Availability zone
         :param account: a dictionary containing the following keys:
                         - name - name of the AWS account
                         - assume_role - role to assume to get access
@@ -659,14 +663,28 @@ class AWSApi:
                 break
 
         route_table_ids = None
-        if route_tables and vpc_id:
-            vpc_route_tables = assumed_ec2.describe_route_tables(
-                Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
-            )
-            route_table_ids = [rt['RouteTableId']
-                               for rt in vpc_route_tables['RouteTables']]
+        subnets_id_az = None
+        if vpc_id:
+            if route_tables:
+                vpc_route_tables = assumed_ec2.describe_route_tables(
+                    Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+                )
+                route_table_ids = [rt['RouteTableId']
+                                   for rt in vpc_route_tables['RouteTables']]
+            if subnets:
+                vpc_subnets = assumed_ec2.describe_subnets(
+                    Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}]
+                )
+                subnets_id_az = \
+                    [
+                        {
+                            'id': s['SubnetId'],
+                            'az': s['AvailabilityZone']
+                        }
+                        for s in vpc_subnets['Subnets']
+                    ]
 
-        return vpc_id, route_table_ids
+        return vpc_id, route_table_ids, subnets_id_az
 
     def get_vpcs_details(self, account, tags=None, route_tables=False):
         results = []

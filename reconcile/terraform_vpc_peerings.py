@@ -112,8 +112,8 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             accepter_manage_routes = peer_info.get('manageRoutes')
 
             aws_api = AWSApi(1, [req_aws], settings=settings)
-            requester_vpc_id, requester_route_table_ids = \
-                aws_api.get_cluster_vpc_id(
+            requester_vpc_id, requester_route_table_ids, _ = \
+                aws_api.get_cluster_vpc_details(
                     req_aws,
                     route_tables=requester_manage_routes
                 )
@@ -145,8 +145,8 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             acc_aws['assume_cidr'] = peer_cluster['network']['vpc']
 
             aws_api = AWSApi(1, [acc_aws], settings=settings)
-            accepter_vpc_id, accepter_route_table_ids = \
-                aws_api.get_cluster_vpc_id(
+            accepter_vpc_id, accepter_route_table_ids, _ = \
+                aws_api.get_cluster_vpc_details(
                     acc_aws,
                     route_tables=accepter_manage_routes
                 )
@@ -211,8 +211,8 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
             account['assume_region'] = requester['region']
             account['assume_cidr'] = requester['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            requester_vpc_id, requester_route_table_ids = \
-                aws_api.get_cluster_vpc_id(
+            requester_vpc_id, requester_route_table_ids, _ = \
+                aws_api.get_cluster_vpc_details(
                     account,
                     route_tables=peer_connection.get('manageRoutes')
                 )
@@ -298,8 +298,8 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
             account['assume_region'] = requester['region']
             account['assume_cidr'] = requester['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            requester_vpc_id, requester_route_table_ids = \
-                aws_api.get_cluster_vpc_id(
+            requester_vpc_id, requester_route_table_ids, _ = \
+                aws_api.get_cluster_vpc_details(
                     account,
                     route_tables=peer_connection.get('manageRoutes')
                 )
