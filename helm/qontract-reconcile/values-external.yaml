@@ -354,6 +354,17 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: terraform-tgw-attachments
+  resources:
+    requests:
+      memory: 700Mi
+      cpu: 200m
+    limits:
+      memory: 900Mi
+      cpu: 400m
+  logs:
+    slack: true
+    cloudwatch: true
 - name: ocm-addons
   resources:
     requests:
