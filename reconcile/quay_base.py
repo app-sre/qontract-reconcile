@@ -16,10 +16,10 @@ def get_quay_api_store():
     store = {}
     for org_data in quay_orgs:
         name = org_data['name']
-        server_url = org_data.get('serverUrl')
+        api_url = org_data['instance']['url']
         token = secret_reader.read(org_data['automationToken'])
         store[name] = {
-            'api': QuayApi(token, name, base_url=server_url),
+            'api': QuayApi(token, name, api_url=api_url),
             'teams': org_data.get('managedTeams')
         }
 

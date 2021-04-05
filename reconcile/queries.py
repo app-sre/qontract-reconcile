@@ -935,7 +935,9 @@ QUAY_ORGS_QUERY = """
 {
   quay_orgs: quay_orgs_v1 {
     name
-    serverUrl
+    instance {
+      url
+    }
     managedTeams
     automationToken {
       path
