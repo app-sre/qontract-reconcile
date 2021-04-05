@@ -1556,6 +1556,28 @@ class TerrascriptClient:
                 if self._multiregion_account_(account):
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
+                fifo_queue = values.get('fifo_queue', False)
+                if fifo_queue:
+                    values['name'] += '.fifo'
+                sqs_policy = values.pop('sqs_policy', None)
+                if sqs_policy is not None:
+                    values['policy'] = json.dumps(sqs_policy, sort_keys=True)
+                dl_queue = values.pop('dl_queue', None)
+                if dl_queue is not None:
+                    max_receive_count = \
+                        int(values.pop('max_receive_count', 10))
+                    dl_values = {}
+                    dl_values['name'] = dl_queue
+                    if fifo_queue:
+                        dl_values['name'] += '.fifo'
+                    dl_data = data.aws_sqs_queue(dl_queue, **dl_values)
+                    tf_resources.append(dl_data)
+                    redrive_policy = {
+                        'deadLetterTargetArn': '${' + dl_data.arn + '}',
+                        'maxReceiveCount': max_receive_count
+                    }
+                    values['redrive_policy'] = \
+                        json.dumps(redrive_policy, sort_keys=True)
                 kms_master_key_id = values.pop('kms_master_key_id', None)
                 if kms_master_key_id is not None:
                     if not kms_master_key_id.startswith("arn:"):
