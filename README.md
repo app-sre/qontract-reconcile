@@ -154,4 +154,4 @@ must only contain instructions related to the python code build.
 
 ## Authors
 
-These tools have been written by the [Red Hat App-SRE Team](sd-app-sre@redhat.com).
+These tools have been written by the [Red Hat App-SRE Team](mailto:sd-app-sre@redhat.com).
