@@ -1191,6 +1191,7 @@ SAAS_FILES_QUERY = """
     timeout
     publishJobLogs
     imagePatterns
+    use_channel_in_image_tag
     authentication {
       code {
         path

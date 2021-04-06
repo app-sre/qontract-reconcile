@@ -411,10 +411,27 @@ class SaasHerder():
                     f"error fetching template: {str(e)}")
                 return None, None, None
 
+            # add IMAGE_TAG only if it is required and unspecified
             if self._parameter_value_needed(
                     "IMAGE_TAG", consolidated_parameters, template):
-                # add IMAGE_TAG only if it is required
-                image_tag = commit_sha[:hash_length]
+                sha_substring = commit_sha[:hash_length]
+                # IMAGE_TAG takes one of two forms:
+                # - If saas file attribute 'use_channel_in_image_tag' is true,
+                #   it is {CHANNEL}-{SHA}
+                # - Otherwise it is just {SHA}
+                if self._get_saas_file_attribute("use_channel_in_image_tag"):
+                    try:
+                        channel = consolidated_parameters["CHANNEL"]
+                    except KeyError:
+                        logging.error(
+                            f"[{saas_file_name}/{resource_template_name}] "
+                            + f"{html_url}: CHANNEL is required when "
+                            + "'use_channel_in_image_tag' is true."
+                        )
+                        return None, None, None
+                    image_tag = f"{channel}-{sha_substring}"
+                else:
+                    image_tag = sha_substring
                 consolidated_parameters['IMAGE_TAG'] = image_tag
 
             # Do this in a separate loop, since it relies on IMAGE_TAG already
