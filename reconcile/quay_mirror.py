@@ -33,6 +33,10 @@ class QuayMirror:
           path
           field
         }
+        instance {
+            name
+            url
+        }
       }
     }
     """
@@ -71,7 +75,9 @@ class QuayMirror:
 
             for quay_repo in quay_repos:
                 org = quay_repo['org']['name']
-                server_url = quay_repo['org'].get('serverUrl') or 'quay.io'
+                instance = quay_repo['org']['instance']['name']
+                server_url = quay_repo['org']['instance']['url']
+
                 for item in quay_repo['items']:
                     if item['mirror'] is None:
                         continue
@@ -84,9 +90,9 @@ class QuayMirror:
                                    "quay repository.", mirror_image)
                         sys.exit(ExitCodes.ERROR)
 
-                    summary[org].append({'name': item["name"],
-                                         'mirror': item['mirror'],
-                                         'server_url': server_url})
+                    summary[(instance, org)].append({'name': item["name"],
+                                                     'mirror': item['mirror'],
+                                                     'server_url': server_url})
 
         return summary
 
@@ -116,9 +122,10 @@ class QuayMirror:
 
         summary = self.process_repos_query()
         sync_tasks = defaultdict(list)
-        for org, data in summary.items():
+        for org_key, data in summary.items():
+            org = org_key[1]
             for item in data:
-                push_creds = self.push_creds[org].split(':')
+                push_creds = self.push_creds[org_key].split(':')
                 image = Image(f'{item["server_url"]}/{org}/{item["name"]}',
                               username=push_creds[0], password=push_creds[1])
 
@@ -150,9 +157,10 @@ class QuayMirror:
                     if tag not in image:
                         _LOG.debug('Image %s and mirror %s are out off sync',
                                    downstream, upstream)
-                        sync_tasks[org].append({'mirror_url': str(upstream),
-                                                'mirror_creds': mirror_creds,
-                                                'image_url': str(downstream)})
+                        task = {'mirror_url': str(upstream),
+                                'mirror_creds': mirror_creds,
+                                'image_url': str(downstream)}
+                        sync_tasks[org_key].append(task)
                         continue
 
                     # Deep (slow) check only in non dry-run mode
@@ -178,9 +186,9 @@ class QuayMirror:
 
                     _LOG.debug('Image %s and mirror %s are out of sync',
                                downstream, upstream)
-                    sync_tasks[org].append({'mirror_url': str(upstream),
-                                            'mirror_creds': mirror_creds,
-                                            'image_url': str(downstream)})
+                    sync_tasks[org_key].append({'mirror_url': str(upstream),
+                                                'mirror_creds': mirror_creds,
+                                                'image_url': str(downstream)})
 
         return sync_tasks
 
@@ -218,7 +226,8 @@ class QuayMirror:
 
             raw_data = self.secret_reader.read_all(push_secret)
             org = org_data['name']
-            creds[org] = f'{raw_data["user"]}:{raw_data["token"]}'
+            instance = org_data['instance']['name']
+            creds[(instance, org)] = f'{raw_data["user"]}:{raw_data["token"]}'
 
         return creds
 

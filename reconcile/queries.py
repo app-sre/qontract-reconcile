@@ -1587,7 +1587,10 @@ QUAY_REPOS_QUERY = """
     quayRepos {
       org {
         name
-        serverUrl
+        instance {
+          name
+          url
+        }
       }
       items {
         name
