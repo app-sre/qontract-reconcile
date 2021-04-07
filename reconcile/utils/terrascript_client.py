@@ -765,7 +765,12 @@ class TerrascriptClient:
                 "letter. Subsequent characters can be letters, " +
                 f"underscores, or digits (0-9): {values['name']}")
 
-        az = values.get('availability_zone')
+        # we can't specify the availability_zone for an multi_az
+        # rds instance
+        if values.get('multi_az'):
+            az = values.pop('availability_zone')
+        else:
+            az = values.get('availability_zone')
         provider = ''
         if az is not None and self._multiregion_account_(account):
             values['availability_zone'] = az
