@@ -10,12 +10,12 @@ class RequestsException(Exception):
 class QuayApi:
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, api_url='https://quay.io/api/v1'):
+    def __init__(self, token, organization, base_url='quay.io'):
         self.token = token
         self.organization = organization
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
         self.team_members = {}
-        self.api_url = api_url
+        self.api_url = f"https://{base_url}/api/v1"
 
     def list_team_members(self, team, **kwargs):
         if kwargs.get("cache"):
