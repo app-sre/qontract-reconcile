@@ -6,6 +6,7 @@ import os
 import yaml
 
 from github import Github, GithubException
+from requests import exceptions as rqexc
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
@@ -336,6 +337,7 @@ class SaasHerder():
     def _process_template(self, options):
         saas_file_name = options['saas_file_name']
         resource_template_name = options['resource_template_name']
+        image_auth = options['image_auth']
         url = options['url']
         path = options['path']
         provider = options['provider']
@@ -395,6 +397,38 @@ class SaasHerder():
                             # add IMAGE_TAG only if it is required
                             image_tag = commit_sha[:hash_length]
                             consolidated_parameters['IMAGE_TAG'] = image_tag
+
+            # Do this in a separate loop, since it relies on IMAGE_TAG already
+            # being calculated.
+            # This should almost never already be set in
+            # consolidated_parameters, but just in case...
+            if "REPO_DIGEST" not in consolidated_parameters:
+                for template_parameter in template.get("parameters", {}):
+                    if template_parameter["name"] == "REPO_DIGEST":
+                        try:
+                            logging.debug("Generating REPO_DIGEST.")
+                            registry_image = consolidated_parameters[
+                                "REGISTRY_IMG"]
+                            image_tag = consolidated_parameters["IMAGE_TAG"]
+                        except KeyError as e:
+                            logging.error(
+                                f"[{saas_file_name}/{resource_template_name}] "
+                                + f"{html_url}: error generating REPO_DIGEST. "
+                                + "Is REGISTRY_IMG or IMAGE_TAG missing? "
+                                + f"{str(e)}")
+                            return None, None
+                        try:
+                            img = Image(
+                                f"{registry_image}:{image_tag}", **image_auth)
+                            consolidated_parameters[
+                                "REPO_DIGEST"] = f"{img.url_digest}"
+                        except (rqexc.ConnectionError, rqexc.HTTPError) as e:
+                            logging.error(
+                                f"[{saas_file_name}/{resource_template_name}] "
+                                + f"{html_url}: error generating REPO_DIGEST. "
+                                + "Couldn't talk to the registry: "
+                                + f"{str(e)}")
+                            return None, None
 
             oc = OC('server', 'token', local=True)
             try:
@@ -606,6 +640,7 @@ class SaasHerder():
                 process_template_options = {
                     'saas_file_name': saas_file_name,
                     'resource_template_name': rt_name,
+                    'image_auth': image_auth,
                     'url': url,
                     'path': path,
                     'provider': provider,
