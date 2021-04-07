@@ -75,6 +75,10 @@ def run(dry_run):
         current_github_usernames = [m.login for m in gh_org_members]
         invitations = raw_gh.org_invitations(github_org_name)
         current_github_usernames.extend(invitations)
+        current_github_usernames = \
+            [m.lower() for m in current_github_usernames]
+        desired_github_usernames = \
+            [m.lower() for m in desired_github_usernames]
         for github_username in desired_github_usernames:
             if github_username not in current_github_usernames:
                 logging.info(['add_owner', github_org_name, github_username])

@@ -765,10 +765,14 @@ class TerrascriptClient:
                 "letter. Subsequent characters can be letters, " +
                 f"underscores, or digits (0-9): {values['name']}")
 
-        az = values.get('availability_zone')
+        # we can't specify the availability_zone for an multi_az
+        # rds instance
+        if values.get('multi_az'):
+            az = values.pop('availability_zone', None)
+        else:
+            az = values.get('availability_zone', None)
         provider = ''
         if az is not None and self._multiregion_account_(account):
-            values['availability_zone'] = az
             # To get the provider we should use, we get the region
             # and use that as an alias in the provider definition
             provider = 'aws.' + self._region_from_availability_zone_(az)
@@ -935,7 +939,9 @@ class TerrascriptClient:
 
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
-            if not kms_key_id.startswith("arn:"):
+            if kms_key_id.startswith("arn:"):
+                values['kms_key_id'] = kms_key_id
+            else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
@@ -1581,7 +1587,9 @@ class TerrascriptClient:
                         json.dumps(redrive_policy, sort_keys=True)
                 kms_master_key_id = values.pop('kms_master_key_id', None)
                 if kms_master_key_id is not None:
-                    if not kms_master_key_id.startswith("arn:"):
+                    if kms_master_key_id.startswith("arn:"):
+                        values['kms_master_key_id'] = kms_master_key_id
+                    else:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
