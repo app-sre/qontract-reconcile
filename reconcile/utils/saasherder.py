@@ -334,6 +334,28 @@ class SaasHerder():
                         'could not add html_url annotation to' +
                         resource['name'])
 
+    @staticmethod
+    def _parameter_value_needed(
+            parameter_name, consolidated_parameters, template):
+        """Is a parameter named in the template but unspecified?
+
+        NOTE: This is currently "parameter *named* and absent" -- i.e. we
+        don't care about `required: true`. This is for backward compatibility.
+
+        :param parameter_name: The name (key) of the parameter.
+        :param consolidated_parameters: Dict of parameters already specified/
+                calculated.
+        :param template: The template file in dict form.
+        :return bool: True if the named parameter is named in the template,
+                but not already present in consolidated_parameters.
+        """
+        if parameter_name in consolidated_parameters:
+            return False
+        for template_parameter in template.get("parameters", {}):
+            if template_parameter["name"] == parameter_name:
+                return True
+        return False
+
     def _process_template(self, options):
         saas_file_name = options['saas_file_name']
         resource_template_name = options['resource_template_name']
@@ -387,48 +409,58 @@ class SaasHerder():
                 logging.error(
                     f"[{url}/{path}:{target_ref}] " +
                     f"error fetching template: {str(e)}")
-                return None, None
+                return None, None, None
 
-            if "IMAGE_TAG" not in consolidated_parameters:
-                template_parameters = template.get('parameters')
-                if template_parameters is not None:
-                    for template_parameter in template_parameters:
-                        if template_parameter['name'] == 'IMAGE_TAG':
-                            # add IMAGE_TAG only if it is required
-                            image_tag = commit_sha[:hash_length]
-                            consolidated_parameters['IMAGE_TAG'] = image_tag
+            # add IMAGE_TAG only if it is required and unspecified
+            if self._parameter_value_needed(
+                    "IMAGE_TAG", consolidated_parameters, template):
+                sha_substring = commit_sha[:hash_length]
+                # IMAGE_TAG takes one of two forms:
+                # - If saas file attribute 'use_channel_in_image_tag' is true,
+                #   it is {CHANNEL}-{SHA}
+                # - Otherwise it is just {SHA}
+                if self._get_saas_file_attribute("use_channel_in_image_tag"):
+                    try:
+                        channel = consolidated_parameters["CHANNEL"]
+                    except KeyError:
+                        logging.error(
+                            f"[{saas_file_name}/{resource_template_name}] "
+                            + f"{html_url}: CHANNEL is required when "
+                            + "'use_channel_in_image_tag' is true."
+                        )
+                        return None, None, None
+                    image_tag = f"{channel}-{sha_substring}"
+                else:
+                    image_tag = sha_substring
+                consolidated_parameters['IMAGE_TAG'] = image_tag
 
             # Do this in a separate loop, since it relies on IMAGE_TAG already
             # being calculated.
-            # This should almost never already be set in
-            # consolidated_parameters, but just in case...
-            if "REPO_DIGEST" not in consolidated_parameters:
-                for template_parameter in template.get("parameters", {}):
-                    if template_parameter["name"] == "REPO_DIGEST":
-                        try:
-                            logging.debug("Generating REPO_DIGEST.")
-                            registry_image = consolidated_parameters[
-                                "REGISTRY_IMG"]
-                            image_tag = consolidated_parameters["IMAGE_TAG"]
-                        except KeyError as e:
-                            logging.error(
-                                f"[{saas_file_name}/{resource_template_name}] "
-                                + f"{html_url}: error generating REPO_DIGEST. "
-                                + "Is REGISTRY_IMG or IMAGE_TAG missing? "
-                                + f"{str(e)}")
-                            return None, None
-                        try:
-                            img = Image(
-                                f"{registry_image}:{image_tag}", **image_auth)
-                            consolidated_parameters[
-                                "REPO_DIGEST"] = f"{img.url_digest}"
-                        except (rqexc.ConnectionError, rqexc.HTTPError) as e:
-                            logging.error(
-                                f"[{saas_file_name}/{resource_template_name}] "
-                                + f"{html_url}: error generating REPO_DIGEST. "
-                                + "Couldn't talk to the registry: "
-                                + f"{str(e)}")
-                            return None, None
+            if self._parameter_value_needed(
+                    "REPO_DIGEST", consolidated_parameters, template):
+                try:
+                    logging.debug("Generating REPO_DIGEST.")
+                    registry_image = consolidated_parameters["REGISTRY_IMG"]
+                    image_tag = consolidated_parameters["IMAGE_TAG"]
+                except KeyError as e:
+                    logging.error(
+                        f"[{saas_file_name}/{resource_template_name}] "
+                        + f"{html_url}: error generating REPO_DIGEST. "
+                        + "Is REGISTRY_IMG or IMAGE_TAG missing? "
+                        + f"{str(e)}")
+                    return None, None, None
+                try:
+                    img = Image(
+                        f"{registry_image}:{image_tag}", **image_auth)
+                    consolidated_parameters[
+                        "REPO_DIGEST"] = f"{img.url_digest}"
+                except (rqexc.ConnectionError, rqexc.HTTPError) as e:
+                    logging.error(
+                        f"[{saas_file_name}/{resource_template_name}] "
+                        + f"{html_url}: error generating REPO_DIGEST. "
+                        + "Couldn't talk to the registry: "
+                        + f"{str(e)}")
+                    return None, None, None
 
             oc = OC('server', 'token', local=True)
             try:
@@ -453,7 +485,7 @@ class SaasHerder():
                 logging.error(
                     f"[{url}/{path}:{target_ref}] " +
                     f"error fetching directory: {str(e)}")
-                return None, None
+                return None, None, None
 
         else:
             logging.error(
