@@ -935,7 +935,9 @@ class TerrascriptClient:
 
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
-            if not kms_key_id.startswith("arn:"):
+            if kms_key_id.startswith("arn:"):
+                values['kms_key_id'] = kms_key_id
+            else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
@@ -1581,7 +1583,9 @@ class TerrascriptClient:
                         json.dumps(redrive_policy, sort_keys=True)
                 kms_master_key_id = values.pop('kms_master_key_id', None)
                 if kms_master_key_id is not None:
-                    if not kms_master_key_id.startswith("arn:"):
+                    if kms_master_key_id.startswith("arn:"):
+                        values['kms_master_key_id'] = kms_master_key_id
+                    else:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
