@@ -7,7 +7,10 @@ gql_response:
     name: role1
     permissions:
     - service: quay-membership
-      org: my_org
+      quayOrg:
+        name: my_org
+        instance:
+          name: my_instance
       team: my_team
 
 state:
@@ -16,6 +19,6 @@ state:
   - user2
   params:
     service: quay-membership
-    org: my_org
+    org: [my_instance, my_org]
     team: my_team
 

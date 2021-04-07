@@ -1,5 +1,8 @@
 quay_org_catalog:
   - name: org1
+    instance:
+      name: quay.io
+      url: quay.io
     repos:
     - name: repo1
       is_public: true
