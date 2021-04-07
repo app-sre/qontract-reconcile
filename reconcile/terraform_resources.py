@@ -147,6 +147,10 @@ provider
     path
     field
   }
+  domain {
+    domain_name
+    alternate_names
+  }
   output_resource_name
 }
 ... on NamespaceTerraformResourceKinesis_v1 {

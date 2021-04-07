@@ -80,7 +80,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret', 'public']
+                 'specs', 'secret', 'public', 'domain']
 
 
 class UnknownProviderError(Exception):
@@ -2957,29 +2957,38 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info,
                                  output_prefix, output_resource_name)
 
+        values = {}
         secret = common_values.get('secret', None)
-        secret_data = self.secret_reader.read_all(secret)
+        if secret is not None:
+            secret_data = self.secret_reader.read_all(secret)
 
-        key = secret_data.get('key', None)
-        if key is None:
-            raise KeyError(
+            key = secret_data.get('key', None)
+            if key is None:
+                raise KeyError(
                     f"Vault secret '{secret['path']}' " +
                     "does not have required key [key]")
 
-        certificate = secret_data.get('certificate', None)
-        if certificate is None:
-            raise KeyError(
+            certificate = secret_data.get('certificate', None)
+            if certificate is None:
+                raise KeyError(
                     f"Vault secret '{secret['path']}' " +
                     "does not have required key [certificate]")
 
-        caCertificate = secret_data.get('caCertificate', None)
+            caCertificate = secret_data.get('caCertificate', None)
 
-        values = {
-            'private_key': key,
-            'certificate_body': certificate
-        }
-        if caCertificate is not None:
-            values['certificate_chain'] = caCertificate
+            values['private_key'] = key
+            values['certificate_body'] = certificate
+            if caCertificate is not None:
+                values['certificate_chain'] = caCertificate
+
+        domain = common_values.get('domain', None)
+        if domain is not None:
+            values['domain_name'] = domain['domain_name']
+            values['validation_method'] = 'DNS'
+
+            alt_names = domain.get('alternate_names', None)
+            if alt_names is not None:
+                values['subject_alternative_names'] = alt_names
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
@@ -2994,18 +3003,32 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__arn'
         output_value = '${' + acm_tf_resource.arn + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
-        # key
-        output_name_0_13 = output_prefix + '__key'
-        output_value = key
+        # domain name
+        output_name_0_13 = output_prefix + '__domain_name'
+        output_value = '${' + acm_tf_resource.domain_name + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
-        # certificate
-        output_name_0_13 = output_prefix + '__certificate'
-        output_value = certificate
+        # status
+        output_name_0_13 = output_prefix + '__status'
+        output_value = '${' + acm_tf_resource.status + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
-        if caCertificate is not None:
-            output_name_0_13 = output_prefix + '__caCertificate'
-            output_value = caCertificate
+        # domain_validation_options
+        output_name_0_13 = output_prefix + '__domain_validation_options'
+        output_value = '${' + acm_tf_resource.domain_validation_options + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        if secret is not None:
+            # key
+            output_name_0_13 = output_prefix + '__key'
+            output_value = key
             tf_resources.append(Output(output_name_0_13, value=output_value))
+            # certificate
+            output_name_0_13 = output_prefix + '__certificate'
+            output_value = certificate
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+            if caCertificate is not None:
+                output_name_0_13 = output_prefix + '__caCertificate'
+                output_value = caCertificate
+                tf_resources.append(
+                    Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
