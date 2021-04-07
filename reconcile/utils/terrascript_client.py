@@ -768,12 +768,11 @@ class TerrascriptClient:
         # we can't specify the availability_zone for an multi_az
         # rds instance
         if values.get('multi_az'):
-            az = values.pop('availability_zone')
+            az = values.pop('availability_zone', None)
         else:
-            az = values.get('availability_zone')
+            az = values.get('availability_zone', None)
         provider = ''
         if az is not None and self._multiregion_account_(account):
-            values['availability_zone'] = az
             # To get the provider we should use, we get the region
             # and use that as an alias in the provider definition
             provider = 'aws.' + self._region_from_availability_zone_(az)
