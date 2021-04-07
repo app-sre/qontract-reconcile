@@ -935,7 +935,9 @@ class TerrascriptClient:
 
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
-            if not kms_key_id.startswith("arn:"):
+            if kms_key_id.startswith("arn:"):
+                values['kms_key_id'] = kms_key_id
+            else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
@@ -1546,19 +1548,20 @@ class TerrascriptClient:
             for queue_kv in queues:
                 queue_key = queue_kv['key']
                 queue = queue_kv['value']
-                all_queues.append(queue)
                 # sqs queue
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/sqs_queue.html
                 values = {}
-                values['name'] = queue
+                queue_name = queue
                 values['tags'] = common_values['tags']
                 if self._multiregion_account_(account):
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
                 fifo_queue = values.get('fifo_queue', False)
                 if fifo_queue:
-                    values['name'] += '.fifo'
+                    queue_name += '.fifo'
+                values['name'] = queue_name
+                all_queues.append(queue_name)
                 sqs_policy = values.pop('sqs_policy', None)
                 if sqs_policy is not None:
                     values['policy'] = json.dumps(sqs_policy, sort_keys=True)
@@ -1580,7 +1583,9 @@ class TerrascriptClient:
                         json.dumps(redrive_policy, sort_keys=True)
                 kms_master_key_id = values.pop('kms_master_key_id', None)
                 if kms_master_key_id is not None:
-                    if not kms_master_key_id.startswith("arn:"):
+                    if kms_master_key_id.startswith("arn:"):
+                        values['kms_master_key_id'] = kms_master_key_id
+                    else:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
@@ -1600,7 +1605,7 @@ class TerrascriptClient:
                 output_name_0_13 = '{}__{}'.format(output_prefix, queue_key)
                 output_value = \
                     'https://sqs.{}.amazonaws.com/{}/{}'.format(
-                        region, uid, queue)
+                        region, uid, queue_name)
                 tf_resources.append(
                     Output(output_name_0_13, value=output_value))
             all_queues_per_spec.append(all_queues)
