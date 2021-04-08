@@ -101,8 +101,8 @@ def fetch_desired_state():
             for bot in role['bots']:
                 append_quay_username_members(bot)
 
-            for permission in permissions:
-                state.add(permission, members)
+            for p in permissions:
+                state.add(p, members)
 
     return state
 

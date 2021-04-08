@@ -5,7 +5,7 @@ import sys
 import tempfile
 import time
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError
@@ -22,6 +22,7 @@ _LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = 'quay-mirror'
 
+OrgKey = namedtuple('OrgKey', ['instance', 'org_name'])
 
 class QuayMirror:
 
@@ -90,7 +91,8 @@ class QuayMirror:
                                    "quay repository.", mirror_image)
                         sys.exit(ExitCodes.ERROR)
 
-                    summary[(instance, org)].append({'name': item["name"],
+                    org_key = OrgKey(instance, org)
+                    summary[org_key].append({'name': item["name"],
                                                      'mirror': item['mirror'],
                                                      'server_url': server_url})
 
@@ -123,7 +125,7 @@ class QuayMirror:
         summary = self.process_repos_query()
         sync_tasks = defaultdict(list)
         for org_key, data in summary.items():
-            org = org_key[1]
+            org = org_key.org_name
             for item in data:
                 push_creds = self.push_creds[org_key].split(':')
                 image = Image(f'{item["server_url"]}/{org}/{item["name"]}',
@@ -227,7 +229,8 @@ class QuayMirror:
             raw_data = self.secret_reader.read_all(push_secret)
             org = org_data['name']
             instance = org_data['instance']['name']
-            creds[(instance, org)] = f'{raw_data["user"]}:{raw_data["token"]}'
+            org_key = OrgKey(instance, org)
+            creds[org_key] = f'{raw_data["user"]}:{raw_data["token"]}'
 
         return creds
 
