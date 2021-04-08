@@ -16,6 +16,9 @@ QUAY_REPOS_QUERY = """
     quayRepos {
       org {
         name
+        instance {
+          name
+        }
       }
       items {
         name
@@ -33,11 +36,11 @@ QONTRACT_INTEGRATION = 'quay-repos'
 def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
-    for name, data in quay_api_store.items():
+    for key, data in quay_api_store.items():
         quay_api = data['api']
         for repo in quay_api.list_images():
             params = {
-                'org': name,
+                'org': key,
                 'repo': repo['name']
             }
 
@@ -70,10 +73,12 @@ def fetch_desired_state():
             continue
 
         for quay_repo in quay_repos:
-            name = quay_repo['org']['name']
+            instance_name = quay_repo['org']['instance']['name']
+            org_name = quay_repo['org']['name']
+            org_key = (instance_name, org_name)
             for repo in quay_repo['items']:
                 params = {
-                    'org': name,
+                    'org': org_key,
                     'repo': repo['name']
                 }
 

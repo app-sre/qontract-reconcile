@@ -8,16 +8,14 @@ class RequestsException(Exception):
 
 
 class QuayApi:
-    API_URL = 'https://quay.io/api/v1'
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, base_url=None):
+    def __init__(self, token, organization, base_url='quay.io'):
         self.token = token
         self.organization = organization
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
         self.team_members = {}
-        if base_url:
-            self.API_URL = f"https://{base_url}/api/v1"
+        self.api_url = f"https://{base_url}/api/v1"
 
     def list_team_members(self, team, **kwargs):
         if kwargs.get("cache"):
@@ -26,7 +24,7 @@ class QuayApi:
                 return cache_members
 
         url = "{}/organization/{}/team/{}/members?includePending=true".format(
-            self.API_URL, self.organization, team)
+            self.api_url, self.organization, team)
 
         r = requests.get(url, headers=self.auth_header)
         if r.status_code == 404:
@@ -50,7 +48,7 @@ class QuayApi:
         return members_list
 
     def user_exists(self, user):
-        url = "{}/users/{}".format(self.API_URL, user)
+        url = "{}/users/{}".format(self.api_url, user)
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
             return False
@@ -58,7 +56,7 @@ class QuayApi:
 
     def remove_user_from_team(self, user, team):
         url_team = "{}/organization/{}/team/{}/members/{}".format(
-            self.API_URL, self.organization,
+            self.api_url, self.organization,
             team, user
         )
 
@@ -73,7 +71,7 @@ class QuayApi:
                 raise RequestsException(r)
 
         url_org = "{}/organization/{}/members/{}".format(
-            self.API_URL, self.organization, user)
+            self.api_url, self.organization, user)
 
         r = requests.delete(url_org, headers=self.auth_header)
         if not r.ok:
@@ -86,7 +84,7 @@ class QuayApi:
             return True
 
         url = "{}/organization/{}/team/{}/members/{}".format(
-            self.API_URL, self.organization, team, user)
+            self.api_url, self.organization, team, user)
         r = requests.put(url, headers=self.auth_header)
         if not r.ok:
             raise RequestsException(r)
@@ -100,7 +98,7 @@ class QuayApi:
         if count > self.LIMIT_FOLLOWS:
             raise("Too many page follows")
 
-        url = "{}/repository".format(self.API_URL)
+        url = "{}/repository".format(self.api_url)
 
         # params
         params = {'namespace': self.organization}
@@ -131,7 +129,7 @@ class QuayApi:
     def repo_create(self, repo_name, description, public):
         visibility = "public" if public else "private"
 
-        url = "{}/repository".format(self.API_URL)
+        url = "{}/repository".format(self.api_url)
 
         params = {
             "repo_kind": "image",
@@ -148,7 +146,7 @@ class QuayApi:
 
     def repo_delete(self, repo_name):
         url = "{}/repository/{}/{}".format(
-            self.API_URL, self.organization, repo_name
+            self.api_url, self.organization, repo_name
         )
 
         # perform request
@@ -158,7 +156,7 @@ class QuayApi:
 
     def repo_update_description(self, repo_name, description):
         url = "{}/repository/{}/{}".format(
-            self.API_URL,
+            self.api_url,
             self.organization,
             repo_name
         )
@@ -180,7 +178,7 @@ class QuayApi:
 
     def _repo_change_visibility(self, repo_name, visibility):
         url = "{}/repository/{}/{}/changevisibility".format(
-            self.API_URL, self.organization, repo_name
+            self.api_url, self.organization, repo_name
         )
 
         params = {
@@ -193,7 +191,7 @@ class QuayApi:
             raise RequestsException(r)
 
     def get_repo_team_permissions(self, repo_name, team):
-        url = f"{self.API_URL}/repository/{self.organization}/" +\
+        url = f"{self.api_url}/repository/{self.organization}/" +\
               f"{repo_name}/permissions/team/{team}"
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
@@ -207,7 +205,7 @@ class QuayApi:
         return r.json().get('role') or None
 
     def set_repo_team_permissions(self, repo_name, team, role):
-        url = f"{self.API_URL}/repository/{self.organization}/" +\
+        url = f"{self.api_url}/repository/{self.organization}/" +\
               f"{repo_name}/permissions/team/{team}"
         body = {'role': role}
         r = requests.put(url, json=body, headers=self.auth_header)

@@ -935,7 +935,10 @@ QUAY_ORGS_QUERY = """
 {
   quay_orgs: quay_orgs_v1 {
     name
-    serverUrl
+    instance {
+      name
+      url
+    }
     managedTeams
     automationToken {
       path
@@ -990,7 +993,13 @@ ROLES_QUERY = """
           team
         }
         ... on PermissionQuayOrgTeam_v1 {
-          org
+          quayOrg {
+            name
+            instance {
+              name
+              url
+            }
+          }
           team
         }
       }
@@ -1584,7 +1593,10 @@ QUAY_REPOS_QUERY = """
     quayRepos {
       org {
         name
-        serverUrl
+        instance {
+          name
+          url
+        }
       }
       items {
         name

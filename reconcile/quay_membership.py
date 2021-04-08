@@ -23,7 +23,12 @@ QUAY_ORG_QUERY = """
     permissions {
       service
       ...on PermissionQuayOrgTeam_v1 {
-        org
+        quayOrg {
+          name
+          instance {
+            name
+          }
+        }
         team
       }
     }
@@ -34,10 +39,27 @@ QUAY_ORG_QUERY = """
 QONTRACT_INTEGRATION = 'quay-membership'
 
 
+def process_permission(permission):
+    """Returns a new permission object with the right keys
+
+    State needs these fields: service, org, team.
+
+    But the input (coming from QUAY_ORG_QUERY) will have:
+    service, quayOrg, team
+    """
+
+    return {
+        'service': permission['service'],
+        'team': permission['team'],
+        'org': (permission['quayOrg']['instance']['name'],
+                permission['quayOrg']['name'])
+    }
+
+
 def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
-    for name, org_data in quay_api_store.items():
+    for org_key, org_data in quay_api_store.items():
         quay_api = org_data['api']
         teams = org_data['teams']
         if not teams:
@@ -46,7 +68,7 @@ def fetch_current_state(quay_api_store):
             members = quay_api.list_team_members(team)
             state.add({
                 'service': 'quay-membership',
-                'org': name,
+                'org': org_key,
                 'team': team
             }, members)
     return state
@@ -59,10 +81,11 @@ def fetch_desired_state():
     state = AggregatedList()
 
     for role in result['roles']:
-        permissions = list(filter(
-            lambda p: p.get('service') == 'quay-membership',
-            role['permissions']
-        ))
+        permissions = [
+            process_permission(p)
+            for p in role['permissions']
+            if p.get('service') == 'quay-membership'
+        ]
 
         if permissions:
             members = []
@@ -78,7 +101,8 @@ def fetch_desired_state():
             for bot in role['bots']:
                 append_quay_username_members(bot)
 
-            list(map(lambda p: state.add(p, members), permissions))
+            for p in permissions:
+                state.add(p, members)
 
     return state
 

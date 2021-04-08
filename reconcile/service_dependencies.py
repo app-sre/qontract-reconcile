@@ -28,6 +28,9 @@ APPS_QUERY = """
     quayRepos {
       org {
         name
+        instance {
+          name
+        }
       }
     }
     namespaces {

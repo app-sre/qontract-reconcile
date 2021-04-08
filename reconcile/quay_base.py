@@ -1,7 +1,11 @@
+from collections import namedtuple
+
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from reconcile.utils.quay_api import QuayApi
+
+OrgKey = namedtuple('OrgKey', ['instance', 'org_name'])
 
 
 def get_quay_api_store():
@@ -15,11 +19,13 @@ def get_quay_api_store():
     secret_reader = SecretReader(settings=settings)
     store = {}
     for org_data in quay_orgs:
-        name = org_data['name']
-        server_url = org_data.get('serverUrl')
+        instance_name = org_data['instance']['name']
+        org_name = org_data['name']
+        org_key = OrgKey(instance_name, org_name)
+        base_url = org_data['instance']['url']
         token = secret_reader.read(org_data['automationToken'])
-        store[name] = {
-            'api': QuayApi(token, name, base_url=server_url),
+        store[org_key] = {
+            'api': QuayApi(token, org_name, base_url=base_url),
             'teams': org_data.get('managedTeams')
         }
 
