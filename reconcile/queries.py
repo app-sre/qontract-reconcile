@@ -993,7 +993,13 @@ ROLES_QUERY = """
           team
         }
         ... on PermissionQuayOrgTeam_v1 {
-          org
+          quayOrg {
+            name
+            instance {
+              name
+              url
+            }
+          }
           team
         }
       }
