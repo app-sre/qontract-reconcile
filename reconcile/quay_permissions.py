@@ -81,7 +81,7 @@ def run(dry_run):
                     role = team['role']
                     for permission in permissions:
                         if permission['service'] != 'quay-membership':
-                            logging.warning('wrong service kind, ' +
+                            logging.warning('wrong service kind, '
                                             'should be quay-membership')
                             continue
 
@@ -91,8 +91,7 @@ def run(dry_run):
                         )
 
                         if perm_org_key != org_key:
-                            logging.warning('wrong org, ' +
-                                            f'should be {org_key}')
+                            logging.warning('wrong org, should be %s', org_key)
                             continue
 
                         team_name = permission['team']
@@ -114,10 +113,11 @@ def run(dry_run):
                                 except Exception as e:
                                     error = True
                                     logging.error(
-                                        'could not set repo permissions: ' +
-                                        f'repo name: {repo_name}, ' +
-                                        f'team name: {team_name}. ' +
-                                        f'details: {str(e)}'
+                                        'could not set repo permissions: '
+                                        'repo name: %s, '
+                                        'team name: %s. '
+                                        'details: {%s}',
+                                        repo_name, team_name, e
                                     )
 
     if error:
