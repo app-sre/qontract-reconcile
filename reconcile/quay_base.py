@@ -7,6 +7,7 @@ from reconcile.utils.quay_api import QuayApi
 
 OrgKey = namedtuple('OrgKey', ['instance', 'org_name'])
 
+
 def get_quay_api_store():
     """
     Returns a dictionary with a key for each Quay organization

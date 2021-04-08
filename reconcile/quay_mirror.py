@@ -24,6 +24,7 @@ QONTRACT_INTEGRATION = 'quay-mirror'
 
 OrgKey = namedtuple('OrgKey', ['instance', 'org_name'])
 
+
 class QuayMirror:
 
     QUAY_ORG_CATALOG_QUERY = """
@@ -93,8 +94,8 @@ class QuayMirror:
 
                     org_key = OrgKey(instance, org)
                     summary[org_key].append({'name': item["name"],
-                                                     'mirror': item['mirror'],
-                                                     'server_url': server_url})
+                                             'mirror': item['mirror'],
+                                             'server_url': server_url})
 
         return summary
 
