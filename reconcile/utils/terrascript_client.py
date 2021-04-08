@@ -80,7 +80,8 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret', 'public', 'domain']
+                 'specs', 'secret', 'public', 'domain_name',
+                 'subject_alternative_names']
 
 
 class UnknownProviderError(Exception):
