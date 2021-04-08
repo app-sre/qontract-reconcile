@@ -80,8 +80,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret', 'public', 'domain_name',
-                 'subject_alternative_names']
+                 'specs', 'secret', 'public', 'domain']
 
 
 class UnknownProviderError(Exception):
@@ -3005,9 +3004,9 @@ class TerrascriptClient:
         output_value = '${' + acm_tf_resource.arn + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # domain name
-        output_name_0_13 = output_prefix + '__domain_name'
-        output_value = '${' + acm_tf_resource.domain_name + '}'
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # output_name_0_13 = output_prefix + '__domain_name'
+        # output_value = '${' + acm_tf_resource.domain_name + '}'
+        # tf_resources.append(Output(output_name_0_13, value=output_value))
         # status
         output_name_0_13 = output_prefix + '__status'
         output_value = '${' + acm_tf_resource.status + '}'
