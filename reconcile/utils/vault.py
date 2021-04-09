@@ -1,6 +1,9 @@
+import os
 import base64
 import time
 import functools
+import threading
+import logging
 
 import hvac
 import requests
@@ -10,6 +13,10 @@ from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
 
 from reconcile.utils.config import get_config
+
+LOG = logging.getLogger(__name__)
+VAULT_AUTO_REFRESH_INTERVAL = int(
+    os.getenv('VAULT_AUTO_REFRESH_INTERVAL') or 600)
 
 
 class SecretNotFound(Exception):
@@ -39,7 +46,8 @@ class _VaultClient:
     to a versioned KV engine (v2), since that includes both a path
     and a version (no invalidation required).
     """
-    def __init__(self):
+
+    def __init__(self, auto_refresh=True):
         config = get_config()
 
         server = config['vault']['server']
@@ -67,6 +75,20 @@ class _VaultClient:
 
         if not authenticated:
             raise VaultConnectionError()
+
+        if auto_refresh:
+            t = threading.Thread(target=self._auto_refresh_client_auth,
+                                 daemon=True)
+            t.start()
+
+    def _auto_refresh_client_auth(self):
+        """
+        Thread that periodically refreshes the vault token
+        """
+        while True:
+            time.sleep(VAULT_AUTO_REFRESH_INTERVAL)
+            LOG.debug('auto refresh client auth')
+            self._refresh_client_auth()
 
     def _refresh_client_auth(self):
         self._client.auth_approle(self.role_id, self.secret_id)
