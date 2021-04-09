@@ -21,7 +21,7 @@ state:
   - description: desc1
     public: true
 - params:
-    org: [false, my_instance, org1]
+    org: [true, my_instance, org1]
     repo: repo2
   items:
   - description: desc2
