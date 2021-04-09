@@ -3,7 +3,6 @@ gql_response:
   - quayRepos:
     - org:
         name: org1
-        managedRepos: true
         instance:
           name: my_instance
       items:
