@@ -3,9 +3,9 @@ gql_response:
   - quayRepos:
     - org:
         name: org1
-        managedRepos: true
         instance:
           name: my_instance
+        managedRepos: true
       items:
       - name: repo1
         description: desc1
@@ -15,13 +15,13 @@ gql_response:
         public: false
 state:
 - params:
-    org: [my_instance, true, org1]
+    org: [true, my_instance, org1]
     repo: repo1
   items:
   - description: desc1
     public: true
 - params:
-    org: [my_instance, false, org1]
+    org: [false, my_instance, org1]
     repo: repo2
   items:
   - description: desc2
