@@ -8,6 +8,8 @@ import reconcile.queries as queries
 import reconcile.utils.threaded as threaded
 
 from reconcile.utils.oc import FieldIsImmutableError
+from reconcile.utils.oc import MayNotChangeOnceSetError
+from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
 from reconcile.utils.oc import InvalidValueApplyError
 from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
 from reconcile.utils.oc import OC_Map
@@ -238,6 +240,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             # Add more resources types to the list when you're
             # sure they're safe.
             if resource_type not in ['Route', 'Service']:
+                raise
+        except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
+            if resource_type not in ['Service']:
                 raise
 
             oc.delete(namespace=namespace, kind=resource_type,
