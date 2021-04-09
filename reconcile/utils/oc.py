@@ -31,6 +31,14 @@ class FieldIsImmutableError(Exception):
     pass
 
 
+class MayNotChangeOnceSetError(Exception):
+    pass
+
+
+class PrimaryClusterIPCanNotBeUnsetError(Exception):
+    pass
+
+
 class MetaDataAnnotationsTooLongApplyError(Exception):
     pass
 
@@ -591,8 +599,15 @@ class OC:
             if kwargs.get('apply'):
                 if 'Invalid value: 0x0' in err:
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
-                if 'Invalid value: ' in err and ': field is immutable' in err:
-                    raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                if 'Invalid value: ' in err:
+                    if ': field is immutable' in err:
+                        raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                    if ': may not change once set' in err:
+                        raise MayNotChangeOnceSetError(
+                            f"[{self.server}]: {err}")
+                    if ': primary clusterIP can not be unset' in err:
+                        raise PrimaryClusterIPCanNotBeUnsetError(
+                            f"[{self.server}]: {err}")
                 if 'metadata.annotations: Too long' in err:
                     raise MetaDataAnnotationsTooLongApplyError(
                         f"[{self.server}]: {err}")
