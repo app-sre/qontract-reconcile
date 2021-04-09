@@ -16,6 +16,7 @@ QUAY_REPOS_QUERY = """
     quayRepos {
       org {
         name
+        managedRepos
         instance {
           name
         }
@@ -73,6 +74,9 @@ def fetch_desired_state():
             continue
 
         for quay_repo in quay_repos:
+            if not quay_repo['org']['managedRepos']:
+                continue
+
             instance_name = quay_repo['org']['instance']['name']
             org_name = quay_repo['org']['name']
             org_key = (instance_name, org_name)
@@ -183,7 +187,7 @@ class RunnerAction:
 
 
 def run(dry_run):
-    quay_api_store = get_quay_api_store()
+    quay_api_store = get_quay_api_store(managed_repos=True)
 
     current_state = fetch_current_state(quay_api_store)
     desired_state = fetch_desired_state()

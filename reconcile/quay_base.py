@@ -8,7 +8,7 @@ from reconcile.utils.quay_api import QuayApi
 OrgKey = namedtuple('OrgKey', ['instance', 'org_name'])
 
 
-def get_quay_api_store():
+def get_quay_api_store(managed_repos=False):
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
@@ -19,6 +19,8 @@ def get_quay_api_store():
     secret_reader = SecretReader(settings=settings)
     store = {}
     for org_data in quay_orgs:
+        if managed_repos and not org_data['managedRepos']:
+            continue
         instance_name = org_data['instance']['name']
         org_name = org_data['name']
         org_key = OrgKey(instance_name, org_name)
