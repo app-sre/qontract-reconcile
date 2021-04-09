@@ -9,7 +9,6 @@ gql_response:
     - service: quay-membership
       quayOrg:
         name: my_org
-        managedRepos: true
         instance:
           name: my_instance
       team: my_team
@@ -20,6 +19,6 @@ state:
   - user2
   params:
     service: quay-membership
-    org: [my_instance, true, my_org]
+    org: [my_instance, my_org]
     team: my_team
 
