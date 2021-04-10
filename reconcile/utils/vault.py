@@ -111,17 +111,9 @@ class _VaultClient:
         if kv_version == 2:
             data = self._read_all_v2(secret_path, secret_version)
         else:
-            try:
-                data = self._read_all_v1(secret_path)
-            except SecretAccessForbidden:
-                # setting data to None to be caught in the next
-                # section and to lead to a client auth refresh.
-                # even if this is a real problem of access forbidden,
-                # we just retry, and there is no harm in retrying.
-                data = None
+            data = self._read_all_v1(secret_path)
 
         if data is None:
-            self._refresh_client_auth()
             raise SecretNotFound
 
         return data
@@ -200,17 +192,9 @@ class _VaultClient:
         if kv_version == 2:
             data = self._read_v2(secret_path, secret_field, secret_version)
         else:
-            try:
-                data = self._read_v1(secret_path, secret_field)
-            except SecretAccessForbidden:
-                # setting data to None to be caught in the next
-                # section and to lead to a client auth refresh.
-                # even if this is a real problem of access forbidden,
-                # we just retry, and there is no harm in retrying.
-                data = None
+            data = self._read_v1(secret_path, secret_field)
 
         if data is None:
-            self._refresh_client_auth()
             raise SecretNotFound
 
         return base64.b64decode(data) if secret_format == 'base64' else data
@@ -248,11 +232,7 @@ class _VaultClient:
         if kv_version == 2:
             self._write_v2(secret_path, data)
         else:
-            try:
-                self._write_v1(secret_path, data)
-            except SecretAccessForbidden:
-                self._refresh_client_auth()
-                raise SecretNotFound
+            self._write_v1(secret_path, data)
 
     def _write_v2(self, path, data):
         # do not forget to run `self._read_all_v2.cache_clear()`
