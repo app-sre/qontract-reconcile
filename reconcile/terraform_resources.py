@@ -64,6 +64,12 @@ provider
   policies
   user_policy
   output_resource_name
+  aws_infrastructure_access {
+    cluster {
+      name
+    }
+    access_level
+  }
 }
 ... on NamespaceTerraformResourceSQS_v1 {
   account
