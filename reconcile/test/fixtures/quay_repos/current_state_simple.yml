@@ -1,5 +1,6 @@
 quay_org_catalog:
   - name: org1
+    managedRepos: true
     instance:
       name: quay.io
       url: quay.io
