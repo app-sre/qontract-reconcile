@@ -45,7 +45,8 @@ class TestQuayRepos:
         store = {}
         for org_data in quay_org_catalog:
             name = org_data['name']
-            store[name] = {'api': QuayApiMock(org_data['repos'])}
+            store[name] = {'api': QuayApiMock(org_data['repos']),
+                           'managedRepos': org_data['managedRepos']}
 
         current_state = quay_repos.fetch_current_state(store)
         current_state = current_state.dump()

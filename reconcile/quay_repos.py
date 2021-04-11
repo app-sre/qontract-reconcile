@@ -38,6 +38,9 @@ def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
     for key, data in quay_api_store.items():
+        if not data['managedRepos']:
+            continue
+
         quay_api = data['api']
         for repo in quay_api.list_images():
             params = {
@@ -187,7 +190,7 @@ class RunnerAction:
 
 
 def run(dry_run):
-    quay_api_store = get_quay_api_store(managed_repos=True)
+    quay_api_store = get_quay_api_store()
 
     current_state = fetch_current_state(quay_api_store)
     desired_state = fetch_desired_state()
