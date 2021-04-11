@@ -396,12 +396,12 @@ def run(dry_run, print_only=False,
     # or for pods to be recycled
     # this should be removed after we gained confidence
     # following the terraform 0.13 upgrade
-    ob.realize_data(dry_run, oc_map, ri)
+    actions = ob.realize_data(dry_run, oc_map, ri)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
 
-    if vault_output_path:
+    if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
 
     if ri.has_error_registered():
