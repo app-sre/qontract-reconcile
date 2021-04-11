@@ -14,6 +14,7 @@ from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map
+from reconcile.utils.ocm import OCMMap
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
@@ -296,7 +297,12 @@ def setup(dry_run, print_only, thread_pool_size, internal,
                    working_dirs,
                    thread_pool_size)
     existing_secrets = tf.get_terraform_output_secrets()
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name)
+    clusters = [c for c in queries.get_clusters()
+                if c.get('ocm') is not None]
+    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                     settings=settings)
+    ts.populate_resources(tf_namespaces, existing_secrets, account_name,
+                          ocm_map=ocm_map)
     ts.dump(print_only, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, tf_namespaces
