@@ -1,8 +1,10 @@
 import logging
 
+import reconcile.utils.gql as gql
 import reconcile.queries as queries
 
 from reconcile.utils.ocm import OCMMap
+from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 
 QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
 
@@ -36,6 +38,9 @@ def fetch_current_state():
 
 def fetch_desired_state():
     desired_state = []
+
+    # get desired state defined in awsInfrastructureAccess
+    # section of cluster files
     clusters = [c for c in queries.get_clusters()
                 if c.get('awsInfrastructureAccess') is not None]
     for cluster_info in clusters:
@@ -68,6 +73,36 @@ def fetch_desired_state():
                     'access_level': 'network-mgmt'
                 }
                 desired_state.append(item)
+
+    # get desired state defined in terraformResources
+    # section for aws-iam-service-account resources
+    # of namespace files
+    aws_accounts = queries.get_aws_accounts()
+    gqlapi = gql.get_api()
+    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
+    for namespace_info in namespaces:
+        terraform_resources = namespace_info.get('terraformResources') or None
+        if terraform_resources is None:
+            continue
+        for tf_resource in terraform_resources:
+            provider = tf_resource['provider']
+            if provider != 'aws-iam-service-account':
+                continue
+            aws_infrastructure_access = \
+                tf_resource.get('aws_infrastructure_access') or None
+            if aws_infrastructure_access is None:
+                continue
+            aws_account_uid = [a['uid'] for a in aws_accounts
+                               if a['name'] == tf_resource['account']][0]
+            user = tf_resource['identifier']
+            cluster = aws_infrastructure_access['cluster']['name']
+            access_level = aws_infrastructure_access['access_level']
+            item = {
+                'cluster': cluster,
+                'user_arn': f"arn:aws:iam::{aws_account_uid}:user/{user}",
+                'access_level': access_level
+            }
+            desired_state.append(item)
 
     return desired_state
 

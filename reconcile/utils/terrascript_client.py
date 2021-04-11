@@ -80,7 +80,8 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
-                 'specs', 'secret', 'public', 'domain']
+                 'specs', 'secret', 'public', 'domain',
+                 'aws_infrastructure_access']
 
 
 class UnknownProviderError(Exception):
@@ -365,6 +366,21 @@ class TerrascriptClient:
         err = self.populate_iam_users(roles)
         if err:
             return err
+
+    @staticmethod
+    def get_user_id_from_arn(assume_role):
+        # arn:aws:iam::12345:user/id --> id
+        return assume_role.split('/')[1]
+
+    @staticmethod
+    def get_role_arn_from_role_link(role_link):
+        # https://signin.aws.amazon.com/switchrole?
+        # account=<uid>&roleName=<role_name> -->
+        # arn:aws:iam::12345:role/role-1
+        details = role_link.split('?')[1].split('&')
+        uid = details[0].split('=')[1]
+        role_name = details[1].split('=')[1]
+        return f"arn:aws:iam::{uid}:role/{role_name}"
 
     @staticmethod
     def get_alias_uid_from_assume_role(assume_role):
@@ -685,11 +701,13 @@ class TerrascriptClient:
 
         return results
 
-    def populate_resources(self, namespaces, existing_secrets, account_name):
+    def populate_resources(self, namespaces, existing_secrets, account_name,
+                           ocm_map=None):
         self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resources.values():
             for spec in specs:
-                self.populate_tf_resources(spec, existing_secrets)
+                self.populate_tf_resources(spec, existing_secrets,
+                                           ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces, account_name):
         self.account_resources = {}
@@ -709,7 +727,8 @@ class TerrascriptClient:
                     self.account_resources[account] = []
                 self.account_resources[account].append(populate_spec)
 
-    def populate_tf_resources(self, populate_spec, existing_secrets):
+    def populate_tf_resources(self, populate_spec, existing_secrets,
+                              ocm_map=None):
         resource = populate_spec['resource']
         namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
@@ -723,7 +742,8 @@ class TerrascriptClient:
                                                   existing_secrets)
         elif provider == 'aws-iam-service-account':
             self.populate_tf_resource_service_account(resource,
-                                                      namespace_info)
+                                                      namespace_info,
+                                                      ocm_map=ocm_map)
         elif provider == 'sqs':
             self.populate_tf_resource_sqs(resource, namespace_info)
         elif provider == 'dynamodb':
@@ -1475,7 +1495,8 @@ class TerrascriptClient:
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def populate_tf_resource_service_account(self, resource, namespace_info):
+    def populate_tf_resource_service_account(self, resource, namespace_info,
+                                             ocm_map=None):
         account, identifier, common_values, \
             output_prefix, output_resource_name = \
             self.init_values(resource, namespace_info)
@@ -1527,6 +1548,26 @@ class TerrascriptClient:
                 depends_on=self.get_dependencies([user_tf_resource])
             )
             tf_resources.append(tf_aws_iam_user_policy)
+
+        aws_infrastructure_access = \
+            common_values.get('aws_infrastructure_access') or None
+        if aws_infrastructure_access and ocm_map:
+            cluster = aws_infrastructure_access['cluster']['name']
+            ocm = ocm_map.get(cluster)
+            role_grants = \
+                ocm.get_aws_infrastructure_access_role_grants(cluster)
+            for user_arn, _, state, switch_role_link in role_grants:
+                # find correct user by identifier
+                user_id = self.get_user_id_from_arn(user_arn)
+                # output will only be added once
+                # terraform-resources created the user
+                # and ocm-aws-infrastructure-access granted it the role
+                if identifier == user_id and state != 'failed':
+                    switch_role_arn = \
+                        self.get_role_arn_from_role_link(switch_role_link)
+                    output_name_0_13 = output_prefix + '__role_arn'
+                    tf_resources.append(
+                        Output(output_name_0_13, value=switch_role_arn))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
