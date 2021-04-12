@@ -759,7 +759,7 @@ class AWSApi:
                     ec2.describe_transit_gateway_peering_attachments(
                         Filters=[
                             {'Name': 'transit-gateway-id',
-                            'Values': [tgw_id]}
+                             'Values': [tgw_id]}
                         ]
                     )
                 for a in attachments.get('TransitGatewayPeeringAttachments'):

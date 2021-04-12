@@ -704,9 +704,9 @@ class TerrascriptClient:
                         continue
                     values = {
                         'destination_cidr_block': route['cidr_block'],
-                        'transit_gateway_attachment_id': \
+                        'transit_gateway_attachment_id':
                             route['tgw_attachment_id'],
-                        'transit_gateway_route_table_id': \
+                        'transit_gateway_route_table_id':
                             route['tgw_route_table_id'],
                     }
                     if self._multiregion_account_(req_account_name):
