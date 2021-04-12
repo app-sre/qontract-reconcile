@@ -720,7 +720,7 @@ class AWSApi:
 
         return results
 
-    def get_tgws_details(self, account, region_name,
+    def get_tgws_details(self, account, region_name, routes_cidr_block,
                          tags=None, route_tables=False):
         results = []
         session = self.get_session(account['name'])
@@ -739,6 +739,85 @@ class AWSApi:
                 'tgw_arn': tgw_arn,
                 'region': region_name,
             }
+
+            if route_tables:
+                # the TGW route table is automatically populated
+                # with the peered VPC cidr block.
+                # however, to achieve global routing across peered
+                # TGWs in different regions, we need to find all
+                # peering attachments in different regions and collect
+                # the data to later create a route in each peered TGW
+                # in a different region. this will require getting:
+                # - cluster cidr block
+                # - transit gateway attachment id
+                # - transit gateway route table id
+                # we will also pass some additional information:
+                # - transit gateway id
+                # - transit gateway region
+                routes = []
+                attachments = \
+                    ec2.describe_transit_gateway_peering_attachments(
+                        Filters=[
+                            {'Name': 'transit-gateway-id',
+                            'Values': [tgw_id]}
+                        ]
+                    )
+                for a in attachments.get('TransitGatewayPeeringAttachments'):
+                    tgw_attachment_id = a['TransitGatewayAttachmentId']
+                    tgw_attachment_state = a['State']
+                    if tgw_attachment_state != 'available':
+                        continue
+                    # we don't care who is who, so let's iterate over parties
+                    attachment_parties = \
+                        [a['RequesterTgwInfo'], a['AccepterTgwInfo']]
+                    for party in attachment_parties:
+                        party_tgw_id = party['TransitGatewayId']
+                        if party_tgw_id == tgw_id:
+                            # don't act on yourself
+                            continue
+                        party_region = party['Region']
+                        if party_region == region_name:
+                            # routes are propogated within the same region
+                            continue
+
+                        # we now have a TGW we want to work with
+                        party_ec2 = \
+                            session.client('ec2', region_name=party_region)
+                        # we know the party TGW exists, so we can be
+                        # a little less catious about getting it
+                        party_tgw = party_ec2.describe_transit_gateways(
+                            TransitGatewayIds=[party_tgw_id],
+                            Filters=[
+                                {'Name': f'tag:{k}', 'Values': [v]}
+                                for k, v in tags.items()
+                            ]
+                        )['TransitGateways'][0]
+                        party_tgw_options = party_tgw['Options']
+                        party_tgw_has_route_table = \
+                            party_tgw_options[
+                                'DefaultRouteTableAssociation'
+                            ] == 'enable'
+                        if not party_tgw_has_route_table:
+                            # currently only adding routes
+                            # to the default route table
+                            continue
+
+                        party_tgw_route_table_id = \
+                            party_tgw_options[
+                                'AssociationDefaultRouteTableId'
+                            ]
+                        # that's it, we have all the information we need
+                        route_item = {
+                            'cidr_block': routes_cidr_block,
+                            'tgw_attachment_id': tgw_attachment_id,
+                            'tgw_id': party_tgw_id,
+                            'tgw_route_table_id': party_tgw_route_table_id,
+                            'region': party_region
+                        }
+                        routes.append(route_item)
+
+                item['routes'] = routes
+
             results.append(item)
 
         return results

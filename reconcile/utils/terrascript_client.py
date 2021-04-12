@@ -40,6 +40,7 @@ from terrascript.resource import (
     aws_ram_resource_share_accepter,
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
+    aws_ec2_transit_gateway_route,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
     aws_kms_alias,
@@ -685,6 +686,25 @@ class TerrascriptClient:
                     }
                     route_identifier = f'{identifier}-{route_table_id}'
                     tf_resource = aws_route(route_identifier, **values)
+                    self.add_resource(acc_account_name, tf_resource)
+
+            # add routes to peered transit gateways in the requester's
+            # account to achieve global routing from all regions
+            requester_routes = requester.get('routes')
+            if requester_routes:
+                for route in requester_routes:
+                    values = {
+                        'destination_cidr_block': route['cidr_block'],
+                        'transit_gateway_attachment_id': \
+                            route['tgw_attachment_id'],
+                        'transit_gateway_route_table_id': \
+                            route['tgw_route_table_id'],
+                    }
+                    if self._multiregion_account_(req_account_name):
+                        values['provider'] = 'aws.' + route['region']
+                    route_identifier = f"{identifier}-{route['tgw_id']}"
+                    tf_resource = aws_ec2_transit_gateway_route(
+                        route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
 
     @staticmethod

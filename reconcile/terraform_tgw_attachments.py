@@ -76,6 +76,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                 aws_api.get_tgws_details(
                     account,
                     cluster_region,
+                    cluster_cidr_block,
                     tags=json.loads(peer_connection.get('tags') or {}),
                     route_tables=peer_connection.get('manageRoutes'),
                 )
@@ -88,6 +89,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     'tgw_id': tgw_id,
                     'tgw_arn': tgw['tgw_arn'],
                     'region': tgw['region'],
+                    'routes': tgw.get('routes'),
                     'cidr_block': peer_connection.get('cidrBlock'),
                     'account': account,
                 }
