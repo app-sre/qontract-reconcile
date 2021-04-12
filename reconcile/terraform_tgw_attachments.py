@@ -37,8 +37,9 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                 continue
             # accepter is the cluster's AWS account
             cluster_region = cluster_info['spec']['region']
+            cluster_cidr_block = cluster_info['network']['vpc']
             accepter = {
-                'cidr_block': cluster_info['network']['vpc'],
+                'cidr_block': cluster_cidr_block,
                 'region': cluster_region
             }
 
