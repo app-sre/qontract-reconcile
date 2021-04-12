@@ -148,11 +148,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
+              cpu: 400m
+              memory: 400Mi
+            requests:
               cpu: 200m
               memory: 200Mi
-            requests:
-              cpu: 100m
-              memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2242,11 +2242,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
+              cpu: 400m
+              memory: 400Mi
+            requests:
               cpu: 200m
               memory: 200Mi
-            requests:
-              cpu: 100m
-              memory: 100Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
