@@ -79,6 +79,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -268,6 +276,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -463,6 +479,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -652,6 +676,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -847,6 +879,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -1030,6 +1070,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -1204,6 +1252,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -1375,6 +1431,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -1558,6 +1622,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -1750,6 +1822,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -2177,6 +2257,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -2362,6 +2450,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -2638,6 +2734,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -2827,6 +2931,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -3022,6 +3134,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -3211,6 +3331,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -3406,6 +3534,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -3595,6 +3731,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -3790,6 +3934,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -3979,6 +4131,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -4174,6 +4334,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -4363,6 +4531,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -4558,6 +4734,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -4747,6 +4931,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -4942,6 +5134,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -5131,6 +5331,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -5326,6 +5534,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -5515,6 +5731,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -5710,6 +5934,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -5899,6 +6131,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -6094,6 +6334,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -6283,6 +6531,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -6478,6 +6734,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -6667,6 +6931,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -6862,6 +7134,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -7051,6 +7331,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -7320,6 +7608,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -7509,6 +7805,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -7704,6 +8008,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -7893,6 +8205,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -8088,6 +8408,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -8277,6 +8605,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -8472,6 +8808,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -8661,6 +9005,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -8856,6 +9208,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -9048,6 +9408,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -9231,6 +9599,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -9402,6 +9778,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -9579,6 +9963,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -9750,6 +10142,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -9927,6 +10327,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -10098,6 +10506,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -10275,6 +10691,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -10446,6 +10870,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -10623,6 +11055,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -10794,6 +11234,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -10971,6 +11419,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -11142,6 +11598,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -11325,6 +11789,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -11520,6 +11992,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -11709,6 +12189,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -11904,6 +12392,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -12093,6 +12589,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -12288,6 +12792,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -12471,6 +12983,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -12651,6 +13171,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -12851,6 +13379,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -13034,6 +13570,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -13214,6 +13758,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -13409,6 +13961,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -13601,6 +14161,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -13790,6 +14358,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -13992,6 +14568,14 @@ objects:
               </exclude>
             </filter>
 
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
             <match integration>
               @type copy
               <store>
@@ -14179,6 +14763,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -14443,6 +15035,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
@@ -14790,6 +15390,14 @@ objects:
               <exclude>
                 key message
                 pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
 
