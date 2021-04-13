@@ -40,6 +40,7 @@ from terrascript.resource import (
     aws_ram_resource_share_accepter,
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
+    aws_ec2_transit_gateway_route,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
     aws_kms_alias,
@@ -113,10 +114,12 @@ class TerrascriptClient:
                          for a in filtered_accounts}
         tss = {}
         locks = {}
+        self.supported_regions = {}
         for name, config in self.configs.items():
             # Ref: https://github.com/mjuenema/python-terrascript#example
             ts = Terrascript()
             supported_regions = config['supportedDeploymentRegions']
+            self.supported_regions[name] = supported_regions
             if supported_regions is not None:
                 for region in supported_regions:
                     ts += provider.aws(
@@ -686,6 +689,32 @@ class TerrascriptClient:
                     route_identifier = f'{identifier}-{route_table_id}'
                     tf_resource = aws_route(route_identifier, **values)
                     self.add_resource(acc_account_name, tf_resource)
+
+            # add routes to peered transit gateways in the requester's
+            # account to achieve global routing from all regions
+            requester_routes = requester.get('routes')
+            if requester_routes:
+                for route in requester_routes:
+                    route_region = route['region']
+                    if route_region not in \
+                            self.supported_regions[req_account_name]:
+                        logging.warning(
+                            f'[{req_account_name}] TGW in ' +
+                            f'unsupported region: {route_region}')
+                        continue
+                    values = {
+                        'destination_cidr_block': route['cidr_block'],
+                        'transit_gateway_attachment_id':
+                            route['tgw_attachment_id'],
+                        'transit_gateway_route_table_id':
+                            route['tgw_route_table_id'],
+                    }
+                    if self._multiregion_account_(req_account_name):
+                        values['provider'] = 'aws.' + route_region
+                    route_identifier = f"{identifier}-{route['tgw_id']}"
+                    tf_resource = aws_ec2_transit_gateway_route(
+                        route_identifier, **values)
+                    self.add_resource(req_account_name, tf_resource)
 
     @staticmethod
     def get_az_unique_subnet_ids(subnets_id_az):
