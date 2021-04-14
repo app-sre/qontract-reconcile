@@ -519,7 +519,7 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-- name: ocp-release-ecr-mirror
+- name: ocp-release-mirror
   resources:
     requests:
       memory: 400Mi

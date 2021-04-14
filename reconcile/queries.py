@@ -1488,7 +1488,7 @@ def get_slack_workspace():
 
 OCP_RELEASE_ECR_MIRROR_QUERY = """
 {
-  ocp_release_ecr_mirror: ocp_release_ecr_mirror_v1 {
+  ocp_release_mirror: ocp_release_mirror_v1 {
     hiveCluster {
       name
       serverUrl
@@ -1563,9 +1563,9 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
 """
 
 
-def get_ocp_release_ecr_mirror():
+def get_ocp_release_mirror():
     gqlapi = gql.get_api()
-    return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_ecr_mirror']
+    return gqlapi.query(OCP_RELEASE_ECR_MIRROR_QUERY)['ocp_release_mirror']
 
 
 SENDGRID_ACCOUNTS_QUERY = """
