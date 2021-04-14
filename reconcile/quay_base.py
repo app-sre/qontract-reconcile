@@ -26,8 +26,16 @@ def get_quay_api_store(managed_repos=False):
         org_key = OrgKey(instance_name, org_name)
         base_url = org_data['instance']['url']
         token = secret_reader.read(org_data['automationToken'])
+
+        if org_data.get('pushCredentials'):
+            push_token = secret_reader.read_all(org_data['pushCredentials'])
+        else:
+            push_token = None
+
         store[org_key] = {
+            'url': base_url,
             'api': QuayApi(token, org_name, base_url=base_url),
+            'push_token': push_token,
             'teams': org_data.get('managedTeams')
         }
 
