@@ -15,18 +15,18 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.status import ExitCodes
 
 
-QONTRACT_INTEGRATION = 'ocp-release-ecr-mirror'
+QONTRACT_INTEGRATION = 'ocp-release-mirror'
 
 LOG = logging.getLogger(__name__)
 
 
-class OcpReleaseEcrMirrorError(Exception):
+class OcpReleaseMirrorError(Exception):
     """
-    Used by the OcpReleaseEcrMirror.
+    Used by the OcpReleaseMirror.
     """
 
 
-class OcpReleaseEcrMirror:
+class OcpReleaseMirror:
     def __init__(self, dry_run, instance):
         self.dry_run = dry_run
         self.settings = queries.get_app_interface_settings()
@@ -41,8 +41,8 @@ class OcpReleaseEcrMirror:
 
         self.ocm_cli = ocm_map.get(hive_cluster)
         if not self.ocm_cli:
-            raise OcpReleaseEcrMirrorError(f"Can't create ocm client for "
-                                           f"cluster {hive_cluster}")
+            raise OcpReleaseMirrorError(f"Can't create ocm client for "
+                                        f"cluster {hive_cluster}")
 
         # Getting the OC Client for the hive cluster
         oc_map = OC_Map(clusters=[cluster_info],
@@ -50,8 +50,8 @@ class OcpReleaseEcrMirror:
                         settings=self.settings)
         self.oc_cli = oc_map.get(hive_cluster)
         if not self.oc_cli:
-            raise OcpReleaseEcrMirrorError(f"Can't create oc client for "
-                                           f"cluster {hive_cluster}")
+            raise OcpReleaseMirrorError(f"Can't create oc client for "
+                                        f"cluster {hive_cluster}")
 
         namespace = instance['ecrResourcesNamespace']
         ocp_release_identifier = instance['ocpReleaseEcrIdentifier']
@@ -60,17 +60,17 @@ class OcpReleaseEcrMirror:
         ocp_release_info = self._get_tf_resource_info(namespace,
                                                       ocp_release_identifier)
         if ocp_release_info is None:
-            raise OcpReleaseEcrMirrorError(f"Could not find rds "
-                                           f"identifier "
-                                           f"{ocp_release_identifier} in "
-                                           f"namespace {namespace['name']}")
+            raise OcpReleaseMirrorError(f"Could not find rds "
+                                        f"identifier "
+                                        f"{ocp_release_identifier} in "
+                                        f"namespace {namespace['name']}")
 
         ocp_art_dev_info = self._get_tf_resource_info(namespace,
                                                       ocp_art_dev_identifier)
         if ocp_art_dev_info is None:
-            raise OcpReleaseEcrMirrorError(f"Could not find rds identifier"
-                                           f" {ocp_art_dev_identifier} in"
-                                           f"namespace {namespace['name']}")
+            raise OcpReleaseMirrorError(f"Could not find rds identifier"
+                                        f" {ocp_art_dev_identifier} in"
+                                        f"namespace {namespace['name']}")
 
         # Getting the AWS Client for the accounts
         aws_accounts = [
@@ -88,18 +88,18 @@ class OcpReleaseEcrMirror:
             repository=ocp_release_identifier
         )
         if self.ocp_release_ecr_uri is None:
-            raise OcpReleaseEcrMirrorError(f"Could not find the "
-                                           f"ECR repository "
-                                           f"{ocp_release_identifier}")
+            raise OcpReleaseMirrorError(f"Could not find the "
+                                        f"ECR repository "
+                                        f"{ocp_release_identifier}")
 
         self.ocp_art_dev_ecr_uri = self._get_image_uri(
             account=ocp_art_dev_info['account'],
             repository=ocp_art_dev_identifier
         )
         if self.ocp_art_dev_ecr_uri is None:
-            raise OcpReleaseEcrMirrorError(f"Could not find the "
-                                           f"ECR repository "
-                                           f"{ocp_art_dev_identifier}")
+            raise OcpReleaseMirrorError(f"Could not find the "
+                                        f"ECR repository "
+                                        f"{ocp_art_dev_identifier}")
 
         # Getting all the credentials
         quay_creds = self._get_quay_creds()
@@ -258,12 +258,12 @@ class OcpReleaseEcrMirror:
 
 
 def run(dry_run):
-    instances = queries.get_ocp_release_ecr_mirror()
+    instances = queries.get_ocp_release_mirror()
     for instance in instances:
         try:
-            quay_mirror = OcpReleaseEcrMirror(dry_run,
-                                              instance=instance)
+            quay_mirror = OcpReleaseMirror(dry_run,
+                                           instance=instance)
             quay_mirror.run()
-        except OcpReleaseEcrMirrorError as details:
+        except OcpReleaseMirrorError as details:
             LOG.error(str(details))
             sys.exit(ExitCodes.ERROR)

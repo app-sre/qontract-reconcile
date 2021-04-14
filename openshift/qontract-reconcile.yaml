@@ -15249,17 +15249,17 @@ objects:
   kind: Deployment
   metadata:
     labels:
-      app: qontract-reconcile-ocp-release-ecr-mirror
-    name: qontract-reconcile-ocp-release-ecr-mirror
+      app: qontract-reconcile-ocp-release-mirror
+    name: qontract-reconcile-ocp-release-mirror
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: qontract-reconcile-ocp-release-ecr-mirror
+        app: qontract-reconcile-ocp-release-mirror
     template:
       metadata:
         labels:
-          app: qontract-reconcile-ocp-release-ecr-mirror
+          app: qontract-reconcile-ocp-release-mirror
           component: qontract-reconcile
       spec:
         containers:
@@ -15276,7 +15276,7 @@ objects:
           - name: DRY_RUN
             value: ${DRY_RUN}
           - name: INTEGRATION_NAME
-            value: ocp-release-ecr-mirror
+            value: ocp-release-mirror
           - name: INTEGRATION_EXTRA_ARGS
             value: ""
           - name: SLEEP_DURATION_SECS

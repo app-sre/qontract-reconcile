@@ -79,7 +79,7 @@ def run(dry_run, gitlab_project_id=None):
     # Now the tricky part. The "OCP Release ECR Mirror" is a stand-alone
     # object in app-interface. We have to process it so we get the
     # upstream and the mirror repositories
-    instances = queries.get_ocp_release_ecr_mirror()
+    instances = queries.get_ocp_release_mirror()
     for instance in instances:
         namespace = instance['ecrResourcesNamespace']
         ocp_release_identifier = instance['ocpReleaseEcrIdentifier']
@@ -90,7 +90,7 @@ def run(dry_run, gitlab_project_id=None):
 
         # We get an ECR resource from app-interface, but it has
         # no mirror property as the mirroring is done differently
-        # there (see qontract-reconcile-ocp-release-ecr-mirror).
+        # there (see qontract-reconcile-ocp-release-mirror).
         # The quay repositories are not managed in app-interface, but
         # we know where they are by looking at the ClusterImageSets
         # in Hive.
