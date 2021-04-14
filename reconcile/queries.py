@@ -947,6 +947,12 @@ QUAY_ORGS_QUERY = """
       format
       version
     }
+    pushCredentials {
+      path
+      field
+      format
+      version
+    }
   }
 }
 """
@@ -1554,6 +1560,12 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
           format
         }
         internal
+      }
+    }
+    quayTargetOrgs {
+      name
+      instance {
+        name
       }
     }
     ocpReleaseEcrIdentifier

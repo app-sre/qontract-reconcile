@@ -13,6 +13,7 @@ from reconcile.utils.ocm import OCMMap
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 from reconcile.status import ExitCodes
+from reconcile.quay_base import get_quay_api_store, OrgKey
 
 
 QONTRACT_INTEGRATION = 'ocp-release-mirror'
@@ -101,6 +102,30 @@ class OcpReleaseMirror:
                                         f"ECR repository "
                                         f"{ocp_art_dev_identifier}")
 
+        # Process all the quayOrgTargets
+        quay_api_store = get_quay_api_store()
+        self.quay_target_orgs = []
+        for quayTargetOrg in instance['quayTargetOrgs']:
+            org_name = quayTargetOrg['name']
+            instance_name = quayTargetOrg['instance']['name']
+            org_key = OrgKey(instance_name, org_name)
+            org_info = quay_api_store[org_key]
+
+            if not org_info['push_token']:
+                raise OcpReleaseMirrorError(
+                    f'{org_key} has no push_token defined.')
+
+            url = org_info['url']
+            user = org_info['push_token']['user']
+            token = org_info['push_token']['token']
+
+            self.quay_target_orgs.append({
+                'url': url,
+                'dest_ocp_release': f"{url}/{org_name}/ocp-release",
+                'dest_ocp_art_dev': f"{url}/{org_name}/ocp-v4.0-art-dev",
+                'auths': self._build_quay_auths(url, user, token)
+            })
+
         # Getting all the credentials
         quay_creds = self._get_quay_creds()
         ocp_release_creds = self._get_ecr_creds(
@@ -123,6 +148,16 @@ class OcpReleaseMirror:
                 }
         }
 
+        # Append quay_target_orgs auths to registry_creds
+        for quay_target_org in self.quay_target_orgs:
+            url = quay_target_org['url']
+
+            if url in self.registry_creds['auths'].keys():
+                OcpReleaseMirrorError('Cannot mirror to the same Quay '
+                                      f'instance multiple times: {url}')
+
+            self.registry_creds['auths'].update(quay_target_org['auths'])
+
     def run(self):
         ocp_releases = self._get_ocp_releases()
         if not ocp_releases:
@@ -130,10 +165,21 @@ class OcpReleaseMirror:
 
         for ocp_release in ocp_releases:
             tag = ocp_release.split(':')[-1]
+
+            # mirror to ecr
             dest_ocp_release = f'{self.ocp_release_ecr_uri}:{tag}'
             self._run_mirror(ocp_release=ocp_release,
                              dest_ocp_release=dest_ocp_release,
                              dest_ocp_art_dev=self.ocp_art_dev_ecr_uri)
+
+            # mirror to all quay target orgs
+            for quay_target_org in self.quay_target_orgs:
+                dest_ocp_release = (f'{quay_target_org["dest_ocp_release"]}:'
+                                    f'{tag}')
+                dest_ocp_art_dev = quay_target_org["dest_ocp_art_dev"]
+                self._run_mirror(ocp_release=ocp_release,
+                                 dest_ocp_release=dest_ocp_release,
+                                 dest_ocp_art_dev=dest_ocp_art_dev)
 
     def _run_mirror(self, ocp_release, dest_ocp_release, dest_ocp_art_dev):
         # Checking if the image is already there
@@ -255,6 +301,12 @@ class OcpReleaseMirror:
         for repo in self.aws_cli.resources[account]['ecr']:
             if repo['repositoryName'] == repository:
                 return repo['repositoryUri']
+
+    @staticmethod
+    def _build_quay_auths(url, user, token):
+        auth_bytes = bytes(f"{user}:{token}", 'utf-8')
+        auth = base64.b64encode(auth_bytes).decode('utf-8')
+        return {url: {"auth": auth, "email": ""}}
 
 
 def run(dry_run):
