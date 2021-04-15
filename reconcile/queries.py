@@ -953,6 +953,12 @@ QUAY_ORGS_QUERY = """
       format
       version
     }
+    mirror {
+      name
+      instance {
+        name
+      }
+    }
   }
 }
 """
