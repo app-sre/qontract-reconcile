@@ -3,6 +3,7 @@ import logging
 import sys
 
 from urllib.parse import urlparse
+from collections import namedtuple
 
 from sretoolbox.container import Image
 
@@ -19,6 +20,8 @@ from reconcile.quay_base import get_quay_api_store, OrgKey
 QONTRACT_INTEGRATION = 'ocp-release-mirror'
 
 LOG = logging.getLogger(__name__)
+
+OcpReleaseInfo = namedtuple('OcpReleaseInfo', ['ocp_release', 'tag'])
 
 
 class OcpReleaseMirrorError(Exception):
@@ -163,8 +166,9 @@ class OcpReleaseMirror:
         if not ocp_releases:
             raise RuntimeError('No OCP Releases found')
 
-        for ocp_release in ocp_releases:
-            tag = ocp_release.split(':')[-1]
+        for ocp_release_info in ocp_releases:
+            ocp_release = ocp_release_info.ocp_release
+            tag = ocp_release_info.tag
 
             # mirror to ecr
             dest_ocp_release = f'{self.ocp_release_ecr_uri}:{tag}'
@@ -242,6 +246,7 @@ class OcpReleaseMirror:
             if not release_image.startswith('quay.io'):
                 continue
             labels = clusterimageset['metadata']['labels']
+            name = clusterimageset['metadata']['name']
             # ClusterImagesSets may be enabled or disabled.
             # Let's only mirror enabled ones
             enabled = labels['api.openshift.com/enabled']
@@ -252,7 +257,7 @@ class OcpReleaseMirror:
             channel_group = labels['api.openshift.com/channel-group']
             if channel_group != 'stable':
                 continue
-            ocp_releases.append(release_image)
+            ocp_releases.append(OcpReleaseInfo(release_image, name))
         return ocp_releases
 
     def _get_quay_creds(self):
