@@ -1,10 +1,7 @@
-from mock import patch
+import mock
 
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
-import reconcile.quay_repos as quay_repos
-
-from reconcile.utils.aggregated_list import AggregatedList
+from reconcile.quay_repos import RepoInfo, act
+from reconcile.quay_base import OrgKey
 
 from .fixtures import Fixtures
 
@@ -12,80 +9,49 @@ from .fixtures import Fixtures
 fxt = Fixtures('quay_repos')
 
 
-def get_items_by_params(state, params):
-    h = AggregatedList.hash_params(params)
-    for group in state:
-        this_h = AggregatedList.hash_params(group['params'])
-
-        if h == this_h:
-            return sorted(group['items'])
-    return False
+def build_state(fixture_state):
+    return [
+        RepoInfo(org_key=OrgKey('instance', 'org'),
+                 name=item[0], public=item[1], description=item[2])
+        for item in fixture_state
+    ]
 
 
-class QuayApiMock:
-    def __init__(self, list_images_response):
-        self.list_images_response = list_images_response
-
-    def list_images(self):
-        return self.list_images_response
+def get_test_repo_from_state(state, name):
+    for item in state:
+        if item.name == name:
+            return item
+    return None
 
 
 class TestQuayRepos:
     @staticmethod
-    def setup_method(method):
-        config.init_from_toml(fxt.path('config.toml'))
-        gql.init_from_config(sha_url=False)
+    @mock.patch('reconcile.quay_repos.act_public')
+    @mock.patch('reconcile.quay_repos.act_description')
+    @mock.patch('reconcile.quay_repos.act_delete')
+    @mock.patch('reconcile.quay_repos.act_create')
+    def test_act(act_create, act_delete, act_description, act_public):
+        fixture = fxt.get_anymarkup('state.yml')
 
-    @staticmethod
-    def do_current_state_test(path):
-        fixture = fxt.get_anymarkup(path)
+        current_state = build_state(fixture['current_state'])
+        desired_state = build_state(fixture['desired_state'])
 
-        quay_org_catalog = fixture['quay_org_catalog']
+        quay_api_store = {}
+        dry_run = True
+        act(dry_run, quay_api_store, current_state, desired_state)
 
-        store = {}
-        for org_data in quay_org_catalog:
-            name = org_data['name']
-            store[name] = {'api': QuayApiMock(org_data['repos']),
-                           'managedRepos': org_data['managedRepos']}
+        repo_delete = get_test_repo_from_state(current_state, 'repo_delete')
+        act_delete.assert_called_once_with(dry_run, quay_api_store,
+                                           repo_delete)
 
-        current_state = quay_repos.fetch_current_state(store)
-        current_state = current_state.dump()
+        repo_create = get_test_repo_from_state(desired_state, 'repo_create')
+        act_create.assert_called_once_with(dry_run, quay_api_store,
+                                           repo_create)
 
-        expected_current_state = fixture['state']
+        repo_desc = get_test_repo_from_state(desired_state, 'repo_desc')
+        act_description.assert_called_once_with(dry_run, quay_api_store,
+                                                repo_desc)
 
-        assert len(current_state) == len(expected_current_state)
-
-        for group in current_state:
-            params = group['params']
-            items = sorted(group['items'])
-            assert items == get_items_by_params(
-                expected_current_state,
-                params
-            )
-
-    @staticmethod
-    def do_desired_state_test(path):
-        fixture = fxt.get_anymarkup(path)
-
-        with patch('reconcile.utils.gql.GqlApi.query') as m_gql:
-            m_gql.return_value = fixture['gql_response']
-
-            desired_state = quay_repos.fetch_desired_state().dump()
-
-            expected_desired_state = fixture['state']
-
-            assert len(desired_state) == len(expected_desired_state)
-
-            for group in desired_state:
-                params = group['params']
-                items = sorted(group['items'])
-                assert items == get_items_by_params(
-                    expected_desired_state,
-                    params
-                )
-
-    def test_current_state_simple(self):
-        self.do_current_state_test('current_state_simple.yml')
-
-    def test_desired_state_simple(self):
-        self.do_desired_state_test('desired_state_simple.yml')
+        repo_public = get_test_repo_from_state(desired_state, 'repo_public')
+        act_public.assert_called_once_with(dry_run, quay_api_store,
+                                           repo_public)
