@@ -1,4 +1,5 @@
 import logging
+from collections import namedtuple
 
 from textwrap import indent
 
@@ -897,13 +898,15 @@ def get_repos(server=''):
 
 
 def get_repos_gitlab_owner(server=''):
-    """ Returns all repos defined under codeComponents that have gitlabOwner
-    enabled.
+    """ Returns all repos defined under codeComponents that have
+    gitlabRepoOwners defined.
     Optional arguments:
-    server: url of the server to return. for example: https://github.com
+    server: url of the server to return.
     """
     code_components = get_code_components()
-    return [c['url'] for c in code_components
+    GitlabRepoOwners = namedtuple('GitlabRepoOwners', ['url', 'branch'])
+    return [GitlabRepoOwners(c['url'], c['gitlabRepoOwners'])
+            for c in code_components
             if c['url'].startswith(server) and
             c['gitlabRepoOwners']]
 

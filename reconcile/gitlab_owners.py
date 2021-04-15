@@ -299,8 +299,8 @@ class MRApproval:
 
 
 def act(repo, dry_run, instance, settings):
-    gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
-    project_owners = RepoOwners(git_cli=gitlab_cli)
+    gitlab_cli = GitLabApi(instance, project_url=repo.url, settings=settings)
+    project_owners = RepoOwners(git_cli=gitlab_cli, ref=repo.branch)
 
     for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
         mr_approval = MRApproval(gitlab_client=gitlab_cli,
@@ -356,8 +356,8 @@ def act(repo, dry_run, instance, settings):
 def run(dry_run, thread_pool_size=10):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    repos = queries.get_repos_gitlab_owner(server=instance['url'])
-    threaded.run(act, repos, thread_pool_size,
+    gl_repo_owners = queries.get_repos_gitlab_owner(server=instance['url'])
+    threaded.run(act, gl_repo_owners, thread_pool_size,
                  dry_run=dry_run,
                  instance=instance,
                  settings=settings)
