@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import tempfile
 import time
 
@@ -11,10 +10,7 @@ from sretoolbox.container.image import ImageComparisonError
 from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-from reconcile import queries
 from reconcile.quay_base import get_quay_api_store
-from reconcile.utils import gql
-from reconcile.utils.secret_reader import SecretReader
 
 
 _LOG = logging.getLogger(__name__)
@@ -25,9 +21,6 @@ QONTRACT_INTEGRATION = 'quay-mirror-org'
 class QuayMirrorOrg:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        self.gqlapi = gql.get_api()
-        settings = queries.get_app_interface_settings()
-        self.secret_reader = SecretReader(settings=settings)
         self.skopeo_cli = Skopeo(dry_run)
         self.quay_api_store = get_quay_api_store()
 
@@ -86,26 +79,6 @@ class QuayMirrorOrg:
 
         return summary
 
-    @staticmethod
-    def sync_tag(tags, tags_exclude, candidate):
-        if tags is not None:
-            for tag in tags:
-                if re.match(tag, candidate):
-                    return True
-            # When tags is defined, we don't look at
-            # tags_exclude
-            return False
-
-        if tags_exclude is not None:
-            for tag_exclude in tags_exclude:
-                if re.match(tag_exclude, candidate):
-                    return False
-            return True
-
-        # Both tags and tags_exclude are None, so
-        # tag must be synced
-        return True
-
     def process_sync_tasks(self):
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
@@ -136,26 +109,12 @@ class QuayMirrorOrg:
                         item['mirror'].get('token'):
                     mirror_username = item['mirror']['username']
                     mirror_password = item['mirror']['token']
-                elif item['mirror'].get('pullCredentials'):
-                    pull_credentials = item['mirror']['pullCredentials']
-                    raw_data = self.secret_reader.read_all(pull_credentials)
-                    mirror_username = raw_data["user"]
-                    mirror_password = raw_data["token"]
-
-                if mirror_username and mirror_password:
                     mirror_creds = f'{mirror_username}:{mirror_password}'
 
                 image_mirror = Image(mirror_url, username=mirror_username,
                                      password=password)
 
-                tags = item['mirror'].get('tags')
-                tags_exclude = item['mirror'].get('tagsExclude')
-
                 for tag in image_mirror:
-                    if not self.sync_tag(tags=tags, tags_exclude=tags_exclude,
-                                         candidate=tag):
-                        continue
-
                     upstream = image_mirror[tag]
                     downstream = image[tag]
                     if tag not in image:
