@@ -45,7 +45,7 @@ def fetch_current_state(quay_api_store):
     state = []
 
     for org_key, org_info in quay_api_store.items():
-        if not org_info['managedRepos']:
+        if not org_info['managedRepos'] and not org_info['mirror']:
             continue
 
         quay_api = org_info['api']
@@ -64,13 +64,15 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def fetch_desired_state():
+def fetch_desired_state(quay_api_store):
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_REPOS_QUERY)
 
     state = []
 
     seen_repos = set()
+
+    # fetch from quayRepos
     for app in result['apps']:
         quay_repos = app.get('quayRepos')
 
@@ -84,6 +86,7 @@ def fetch_desired_state():
             instance_name = quay_repo['org']['instance']['name']
             org_name = quay_repo['org']['name']
             org_key = OrgKey(instance_name, org_name)
+
             for repo_item in quay_repo['items']:
                 name = repo_item['name']
                 public = repo_item['public']
@@ -98,7 +101,23 @@ def fetch_desired_state():
                 seen_repos.add((org_key, name))
                 state.append(repo)
 
+                # downstream orgs
+                downstream_orgs = get_downstream_orgs(quay_api_store, org_key)
+                for downstream_org_key in downstream_orgs:
+                    downstream_repo = RepoInfo(downstream_org_key, name,
+                                               public, description)
+                    state.append(downstream_repo)
+
     return state
+
+
+def get_downstream_orgs(quay_api_store, upstream_org_key):
+    downstream_orgs = []
+    for org_key, org_info in quay_api_store.items():
+        if org_info.get('mirror') == upstream_org_key:
+            downstream_orgs.append(org_key)
+
+    return downstream_orgs
 
 
 def get_repo_from_state(state, repo_info):
@@ -185,5 +204,5 @@ def run(dry_run):
 
     # run integration
     current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state()
+    desired_state = fetch_desired_state(quay_api_store)
     act(dry_run, quay_api_store, current_state, desired_state)
