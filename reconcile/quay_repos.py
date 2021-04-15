@@ -165,6 +165,25 @@ def act(dry_run, quay_api_store, current_state, desired_state):
 
 def run(dry_run):
     quay_api_store = get_quay_api_store()
+
+    # consistency checks
+    for org_key, org_info in quay_api_store.items():
+        if org_info.get('mirror'):
+            # ensure there are no circular mirror dependencies
+            mirror_org_key = org_info['mirror']
+            mirror_org = quay_api_store[mirror_org_key]
+            if mirror_org.get('mirror'):
+                logging.error('%s can\'t have mirrors and be a mirror',
+                              mirror_org_key)
+                sys.exit(ExitCodes.ERROR)
+
+            # ensure no org defines `managedRepos` and `mirror` at the same
+            if org_info.get('managedRepos'):
+                logging.error('%s has defined mirror and managedRepos',
+                              org_key)
+                sys.exit(ExitCodes.ERROR)
+
+    # run integration
     current_state = fetch_current_state(quay_api_store)
     desired_state = fetch_desired_state()
     act(dry_run, quay_api_store, current_state, desired_state)
