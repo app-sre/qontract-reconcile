@@ -62,6 +62,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `osd-mirrors-data-updater`: Collects OSD mirror information and updates app-interface via MR.
 - `quay-membership`: Configures the teams and members in Quay.
 - `quay-mirror`: Mirrors external images into Quay.
+- `quay-mirror-org`: Mirrors entire Quay orgs.
 - `quay-repos`: Creates and Manages Quay Repos.
 - `quay-permissions`: Manage Quay Repos permissions.
 - `slack-usergroups`: Manage Slack User Groups (channels and users).
