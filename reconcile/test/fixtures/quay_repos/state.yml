@@ -1,0 +1,12 @@
+current_state:
+- ['repo1', True, 'desc1']
+- ['repo_public', True, 'desc1']
+- ['repo_desc', True, 'desc1']
+- ['repo_delete', True, 'desc1']
+
+desired_state:
+- ['repo1', True, 'desc1']
+- ['repo_public', False, 'desc1']
+- ['repo_desc', True, 'desc2']
+- ['repo_create', True, 'desc1']
+

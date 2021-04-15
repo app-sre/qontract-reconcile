@@ -1,13 +1,12 @@
 import logging
 import sys
 
+from collections import namedtuple
+
 import reconcile.utils.gql as gql
 
+from reconcile.quay_base import get_quay_api_store, OrgKey
 from reconcile.status import ExitCodes
-
-from reconcile.utils.aggregated_list import (AggregatedList,
-                                             AggregatedDiffRunner)
-from reconcile.quay_base import get_quay_api_store
 
 
 QUAY_REPOS_QUERY = """
@@ -34,32 +33,33 @@ QUAY_REPOS_QUERY = """
 QONTRACT_INTEGRATION = 'quay-repos'
 
 
-def fetch_current_state(quay_api_store):
-    state = AggregatedList()
+RepoInfo = namedtuple('RepoInfo', [
+    'org_key',
+    'name',
+    'public',
+    'description'
+])
 
-    for key, data in quay_api_store.items():
-        if not data['managedRepos']:
+
+def fetch_current_state(quay_api_store):
+    state = []
+
+    for org_key, org_info in quay_api_store.items():
+        if not org_info['managedRepos']:
             continue
 
-        quay_api = data['api']
-        for repo in quay_api.list_images():
-            params = {
-                'org': key,
-                'repo': repo['name']
-            }
+        quay_api = org_info['api']
 
+        for repo in quay_api.list_images():
+            name = repo['name']
             public = repo['is_public']
             description = repo['description']
 
             if description is None:
                 description = ''
 
-            item = {
-                'public': public,
-                'description': description.strip()
-            }
-
-            state.add(params, item)
+            repo_info = RepoInfo(org_key, name, public, description)
+            state.append(repo_info)
 
     return state
 
@@ -68,8 +68,9 @@ def fetch_desired_state():
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_REPOS_QUERY)
 
-    state = AggregatedList()
+    state = []
 
+    seen_repos = set()
     for app in result['apps']:
         quay_repos = app.get('quayRepos')
 
@@ -82,134 +83,88 @@ def fetch_desired_state():
 
             instance_name = quay_repo['org']['instance']['name']
             org_name = quay_repo['org']['name']
-            org_key = (instance_name, org_name)
-            for repo in quay_repo['items']:
-                params = {
-                    'org': org_key,
-                    'repo': repo['name']
-                }
+            org_key = OrgKey(instance_name, org_name)
+            for repo_item in quay_repo['items']:
+                name = repo_item['name']
+                public = repo_item['public']
+                description = repo_item['description'].strip()
 
-                # Avoiding duplicates
-                try:
-                    state.get(params)
-                    logging.error(['Repository %s/%s defined more than once'],
-                                  params['org'], params['repo'])
+                repo = RepoInfo(org_key, name, public, description)
+
+                if (org_key, name) in seen_repos:
+                    logging.error('Repo %s/%s is duplicated', org_key, name)
                     sys.exit(ExitCodes.ERROR)
-                except KeyError:
-                    pass
 
-                item = {
-                    'public': repo['public'],
-                    'description': repo['description'].strip()
-                }
-
-                state.add(params, item)
+                seen_repos.add((org_key, name))
+                state.append(repo)
 
     return state
 
 
-class RunnerAction:
-    def __init__(self, dry_run, quay_api_store):
-        self.dry_run = dry_run
-        self.quay_api_store = quay_api_store
+def get_repo_from_state(state, repo_info):
+    for item in state:
+        if item.org_key == repo_info.org_key and item.name == repo_info.name:
+            return item
+    return None
 
-    def update_fields(self, current_state):
-        def action(params, items):
-            org = params["org"]
-            repo = params["repo"]
 
-            quay_api = self.quay_api_store[org]['api']
+def act_delete(dry_run, quay_api_store, current_repo):
+    logging.info(['delete_repo', current_repo.org_key,
+                  current_repo.name])
+    if not dry_run:
+        api = quay_api_store[current_repo.org_key]
+        api.repo_delete(current_repo.name)
 
-            params_hash = {
-                'org': org,
-                'repo': repo
-            }
 
-            current_state.get(params_hash)
-            cur_info = current_state.get(params_hash)['items'][0]
+def act_create(dry_run, quay_api_store, desired_repo):
+    logging.info(['create_repo', desired_repo.org_key,
+                  desired_repo.name])
+    if not dry_run:
+        api = quay_api_store[desired_repo.org_key]
+        api.repo_create(desired_repo.name,
+                        desired_repo.description,
+                        desired_repo.public)
 
-            try:
-                cur_desc = cur_info['description'].strip()
-            except AttributeError:
-                # sometimes Quay returns None as the description
-                cur_desc = ''
 
-            cur_public = cur_info['public']
+def act_description(dry_run, quay_api_store, desired_repo):
+    api = quay_api_store[desired_repo.org_key]
+    logging.info(['update_desc', desired_repo.org_key,
+                  desired_repo.description])
+    if not dry_run:
+        api.repo_update_description(desired_repo.name,
+                                    desired_repo.description)
 
-            public = items[0]['public']
-            desc = items[0]['description'].strip()
 
-            if cur_public != public:
-                logging.info(['update_public', org, repo, public])
+def act_public(dry_run, quay_api_store, desired_repo):
+    api = quay_api_store[desired_repo.org_key]
+    logging.info(['update_public', desired_repo.org_key,
+                  desired_repo.name])
+    if not dry_run:
+        if desired_repo.public:
+            api.repo_make_public(desired_repo.name)
+        else:
+            api.repo_make_private(desired_repo.name)
 
-                if not self.dry_run:
-                    if public:
-                        quay_api.repo_make_public(repo)
-                    else:
-                        quay_api.repo_make_private(repo)
 
-            if cur_desc != desc:
-                logging.info(['update_desc', org, repo, desc])
+def act(dry_run, quay_api_store, current_state, desired_state):
+    for current_repo in current_state:
+        desired_repo = get_repo_from_state(desired_state, current_repo)
+        if not desired_repo:
+            act_delete(dry_run, quay_api_store, current_repo)
 
-                if not self.dry_run:
-                    quay_api.repo_update_description(repo, desc)
-
-        return action
-
-    def create_repo(self):
-        label = "create_repo"
-
-        def action(params, items):
-            org = params["org"]
-            repo = params["repo"]
-            description = items[0]["description"]
-            public = items[0]["public"]
-
-            logging.info([label, org, repo, description, public])
-
-            if not self.dry_run:
-                quay_api = self.quay_api_store[org]['api']
-                quay_api.repo_create(repo, description, public)
-
-        return action
-
-    def delete_repo(self):
-        label = "delete_repo"
-
-        def action(params, items):
-            org = params["org"]
-            repo = params["repo"]
-
-            logging.info([label, org, repo])
-
-            if not self.dry_run:
-                quay_api = self.quay_api_store[org]['api']
-                quay_api.repo_delete(repo)
-
-        return action
+    for desired_repo in desired_state:
+        current_repo = get_repo_from_state(current_state, desired_repo)
+        if not current_repo:
+            act_create(dry_run, quay_api_store, desired_repo)
+        else:
+            if current_repo.public != desired_repo.public:
+                act_public(dry_run, quay_api_store, desired_repo)
+            if current_repo.description != desired_repo.description:
+                act_description(dry_run, quay_api_store, desired_repo)
 
 
 def run(dry_run):
     quay_api_store = get_quay_api_store()
-
     current_state = fetch_current_state(quay_api_store)
     desired_state = fetch_desired_state()
-
-    # calculate diff
-    diff = current_state.diff(desired_state)
-
-    # Verify that there are no repeated repo declarations
-    for items in diff.values():
-        for repo in items:
-            assert len(repo['items']) == 1
-
-    # Run actions
-    runner_action = RunnerAction(dry_run, quay_api_store)
-    runner = AggregatedDiffRunner(diff)
-
-    runner.register("update-insert",
-                    runner_action.update_fields(current_state))
-    runner.register("insert", runner_action.create_repo())
-    runner.register("delete", runner_action.delete_repo())
-
-    runner.run()
+    act(dry_run, quay_api_store, current_state, desired_state)
