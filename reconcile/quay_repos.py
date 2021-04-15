@@ -146,19 +146,19 @@ def act_create(dry_run, quay_api_store, desired_repo):
 
 
 def act_description(dry_run, quay_api_store, desired_repo):
-    api = quay_api_store[desired_repo.org_key]["api"]
     logging.info(['update_desc', desired_repo.org_key,
                   desired_repo.description])
     if not dry_run:
+        api = quay_api_store[desired_repo.org_key]["api"]
         api.repo_update_description(desired_repo.name,
                                     desired_repo.description)
 
 
 def act_public(dry_run, quay_api_store, desired_repo):
-    api = quay_api_store[desired_repo.org_key]["api"]
     logging.info(['update_public', desired_repo.org_key,
                   desired_repo.name])
     if not dry_run:
+        api = quay_api_store[desired_repo.org_key]["api"]
         if desired_repo.public:
             api.repo_make_public(desired_repo.name)
         else:
