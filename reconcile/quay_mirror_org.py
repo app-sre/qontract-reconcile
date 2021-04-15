@@ -118,7 +118,7 @@ class QuayMirrorOrg:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
                     if tag not in image:
-                        _LOG.debug('Image %s and mirror %s are out off sync',
+                        _LOG.debug('Image %s and mirror %s are out of sync',
                                    downstream, upstream)
                         task = {'mirror_url': str(upstream),
                                 'mirror_creds': mirror_creds,
