@@ -25,6 +25,12 @@ def get_quay_api_store():
         base_url = org_data['instance']['url']
         token = secret_reader.read(org_data['automationToken'])
 
+        if org_data.get('mirror'):
+            mirror = OrgKey(org_data['mirror']['instance']['name'],
+                            org_data['mirror']['name'])
+        else:
+            mirror = None
+
         if org_data.get('pushCredentials'):
             push_token = secret_reader.read_all(org_data['pushCredentials'])
         else:
@@ -36,6 +42,7 @@ def get_quay_api_store():
             'push_token': push_token,
             'teams': org_data.get('managedTeams'),
             'managedRepos': org_data.get('managedRepos'),
+            'mirror': mirror,
         }
 
     return store
