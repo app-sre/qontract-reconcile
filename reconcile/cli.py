@@ -38,6 +38,7 @@ import reconcile.saas_file_validator
 import reconcile.quay_membership
 import reconcile.gcr_mirror
 import reconcile.quay_mirror
+import reconcile.quay_mirror_org
 import reconcile.quay_repos
 import reconcile.quay_permissions
 import reconcile.ldap_users
@@ -952,6 +953,13 @@ def gcr_mirror(ctx):
 @binary(['skopeo'])
 def quay_mirror(ctx):
     run_integration(reconcile.quay_mirror, ctx.obj)
+
+
+@integration.command()
+@click.pass_context
+@binary(['skopeo'])
+def quay_mirror_org(ctx):
+    run_integration(reconcile.quay_mirror_org, ctx.obj)
 
 
 @integration.command()
