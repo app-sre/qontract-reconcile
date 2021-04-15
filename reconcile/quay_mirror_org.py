@@ -32,7 +32,7 @@ class QuayMirrorOrg:
                     self.skopeo_cli.copy(src_image=item['mirror_url'],
                                          src_creds=item['mirror_creds'],
                                          dst_image=item['image_url'],
-                                         dest_creds=self.push_creds[org])
+                                         dest_creds=self.get_push_creds(org))
                 except SkopeoCmdError as details:
                     _LOG.error('[%s]', details)
 
@@ -190,7 +190,7 @@ class QuayMirrorOrg:
         push_token = self.quay_api_store[org_key]['push_token']
         username = push_token['user']
         password = push_token['token']
-        return (username, password)
+        return f"{username}:{password}"
 
 
 def run(dry_run):
