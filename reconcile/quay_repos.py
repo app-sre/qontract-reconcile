@@ -108,55 +108,63 @@ def get_repo_from_state(state, repo_info):
     return None
 
 
-def run(dry_run):
-    quay_api_store = get_quay_api_store()
+def act_delete(dry_run, quay_api_store, current_repo):
+    logging.info(['delete_repo', current_repo.org_key,
+                  current_repo.name])
+    if not dry_run:
+        api = quay_api_store[current_repo.org_key]
+        api.repo_delete(current_repo.name)
 
-    current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state()
 
-    # delete repos
+def act_create(dry_run, quay_api_store, desired_repo):
+    logging.info(['create_repo', desired_repo.org_key,
+                  desired_repo.name])
+    if not dry_run:
+        api = quay_api_store[desired_repo.org_key]
+        api.repo_create(desired_repo.name,
+                        desired_repo.description,
+                        desired_repo.public)
+
+
+def act_description(dry_run, quay_api_store, desired_repo):
+    api = quay_api_store[desired_repo.org_key]
+    logging.info(['update_desc', desired_repo.org_key,
+                  desired_repo.description])
+    if not dry_run:
+        api.repo_update_description(desired_repo.name,
+                                    desired_repo.description)
+
+
+def act_public(dry_run, quay_api_store, desired_repo):
+    api = quay_api_store[desired_repo.org_key]
+    logging.info(['update_public', desired_repo.org_key,
+                  desired_repo.name])
+    if not dry_run:
+        if desired_repo.public:
+            api.repo_make_public(desired_repo.name)
+        else:
+            api.repo_make_private(desired_repo.name)
+
+
+def act(dry_run, quay_api_store, current_state, desired_state):
     for current_repo in current_state:
         desired_repo = get_repo_from_state(desired_state, current_repo)
         if not desired_repo:
-            logging.info(['delete_repo', current_repo.org_key,
-                          current_repo.name])
-            if not dry_run:
-                api = quay_api_store[current_repo.org_key]
-                api.repo_delete(current_repo.name)
+            act_delete(dry_run, quay_api_store, current_repo)
 
     for desired_repo in desired_state:
         current_repo = get_repo_from_state(current_state, desired_repo)
-
-        # create repo
         if not current_repo:
-            logging.info(['create_repo', desired_repo.org_key,
-                          desired_repo.name])
-            if not dry_run:
-                api = quay_api_store[desired_repo.org_key]
-                api.repo_create(desired_repo.name,
-                                desired_repo.description,
-                                desired_repo.public)
-
-        # check parameters
+            act_create(dry_run, quay_api_store, desired_repo)
         else:
-            # public parameter
             if current_repo.public != desired_repo.public:
-                api = quay_api_store[desired_repo.org_key]
-                logging.info(['update_public', current_repo.org_key,
-                              current_repo.name])
-                if not dry_run:
-                    if desired_repo.public:
-                        api.repo_make_public(desired_repo.name)
-                    else:
-                        api.repo_make_private(desired_repo.name)
-
-            # description parameter
+                act_public(dry_run, quay_api_store, desired_repo)
             if current_repo.description != desired_repo.description:
-                api = quay_api_store[desired_repo.org_key]
-                logging.info(['update_desc', desired_repo.org_key,
-                              desired_repo.description])
-                if not dry_run:
-                    api.repo_update_description(desired_repo.name,
-                                                desired_repo.description)
+                act_description(dry_run, quay_api_store, desired_repo)
 
-    # modify repos
+
+def run(dry_run):
+    quay_api_store = get_quay_api_store()
+    current_state = fetch_current_state(quay_api_store)
+    desired_state = fetch_desired_state()
+    act(dry_run, quay_api_store, current_state, desired_state)
