@@ -112,7 +112,7 @@ class QuayMirrorOrg:
                     mirror_creds = f'{mirror_username}:{mirror_password}'
 
                 image_mirror = Image(mirror_url, username=mirror_username,
-                                     password=password)
+                                     password=mirror_password)
 
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
