@@ -79,6 +79,8 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     cluster_cidr_block,
                     tags=json.loads(peer_connection.get('tags') or {}),
                     route_tables=peer_connection.get('manageRoutes'),
+                    security_groups=peer_connection.get(
+                        'manageSecurityGroups'),
                 )
             for tgw in account_tgws:
                 tgw_id = tgw['tgw_id']
@@ -90,6 +92,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     'tgw_arn': tgw['tgw_arn'],
                     'region': tgw['region'],
                     'routes': tgw.get('routes'),
+                    'rules': tgw.get('rules'),
                     'cidr_block': peer_connection.get('cidrBlock'),
                     'account': account,
                 }

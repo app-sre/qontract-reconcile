@@ -721,7 +721,8 @@ class AWSApi:
         return results
 
     def get_tgws_details(self, account, region_name, routes_cidr_block,
-                         tags=None, route_tables=False):
+                         tags=None, route_tables=False,
+                         security_groups=False):
         results = []
         session = self.get_session(account['name'])
         ec2 = session.client('ec2', region_name=region_name)
@@ -817,6 +818,53 @@ class AWSApi:
                         routes.append(route_item)
 
                 item['routes'] = routes
+
+            if security_groups:
+                # once all the routing is in place, we need to allow
+                # connections in security groups.
+                # in TGW, we need to allow the rules in the VPCs
+                # associated to the TGW that need to accept the traffic.
+                # we need to collect data about the vpc attachments for
+                # the TGW, and for each VPC get the details of it's default
+                # securiry group. this will require getting:
+                # - cluster cidr block
+                # - security group id
+                # we will also pass some additional information:
+                # - vpc id
+                # - vpc region
+                rules = []
+                attachments = \
+                    ec2.describe_transit_gateway_vpc_attachments(
+                        Filters=[
+                            {'Name': 'transit-gateway-id',
+                             'Values': [tgw_id]}
+                        ]
+                    )
+                for a in attachments.get('TransitGatewayVpcAttachments'):
+                    vpc_attachment_vpc_id = a['VpcId']
+                    vpc_attachment_state = a['State']
+                    if vpc_attachment_state != 'available':
+                        continue
+                    vpc_security_groups = ec2.describe_security_groups(
+                        Filters=[
+                            {'Name': 'vpc-id',
+                             'Values': [vpc_attachment_vpc_id]},
+                            {'Name': 'group-name',
+                             'Values': ['default']}
+                        ]
+                    )
+                    for sg in vpc_security_groups.get('SecurityGroups'):
+                        sg_id = sg['GroupId']
+                        # that's it, we have all the information we need
+                        rule_item = {
+                            'cidr_block': routes_cidr_block,
+                            'security_group_id': sg_id,
+                            'vpc_id': vpc_attachment_vpc_id,
+                            'region': region_name
+                        }
+                        rules.append(rule_item)
+
+                item['rules'] = rules
 
             results.append(item)
 

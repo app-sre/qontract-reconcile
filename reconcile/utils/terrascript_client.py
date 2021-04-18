@@ -41,6 +41,7 @@ from terrascript.resource import (
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
     aws_ec2_transit_gateway_route,
+    aws_security_group_rule,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
     aws_kms_alias,
@@ -715,6 +716,33 @@ class TerrascriptClient:
                     route_identifier = f"{identifier}-{route['tgw_id']}"
                     tf_resource = aws_ec2_transit_gateway_route(
                         route_identifier, **values)
+                    self.add_resource(req_account_name, tf_resource)
+
+            # add rules to security groups of VPCs which are attached
+            # to the transit gateway to allow traffic through the routes
+            requester_rules = requester.get('rules')
+            if requester_rules:
+                for rule in requester_rules:
+                    rule_region = rule['region']
+                    if rule_region not in \
+                            self.supported_regions[req_account_name]:
+                        logging.warning(
+                            f'[{req_account_name}] TGW in ' +
+                            f'unsupported region: {rule_region}')
+                        continue
+                    values = {
+                        'type': 'ingress',
+                        'from_port': 0,
+                        'to_port': 65535,
+                        'protocol': 'tcp',
+                        'cidr_blocks': [rule['cidr_block']],
+                        'security_group_id': rule['security_group_id']
+                    }
+                    if self._multiregion_account_(req_account_name):
+                        values['provider'] = 'aws.' + rule_region
+                    rule_identifier = f"{identifier}-{rule['vpc_id']}"
+                    tf_resource = aws_security_group_rule(
+                        rule_identifier, **values)
                     self.add_resource(req_account_name, tf_resource)
 
     @staticmethod

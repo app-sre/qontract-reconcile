@@ -411,6 +411,7 @@ CLUSTERS_QUERY = """
           }
           tags
           cidrBlock
+          manageSecurityGroups
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
