@@ -13,7 +13,9 @@ import reconcile.utils.config as config
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
+import reconcile.terraform_users as tfu
 
+from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
 from reconcile.utils.ocm import OCMMap
@@ -175,6 +177,36 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
 
     columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
     print_output(ctx.obj['output'], results, columns)
+
+
+@get.command()
+@click.pass_context
+def terraform_users_credentials(ctx):
+    accounts, working_dirs = tfu.setup(False, 1)
+    tf = Terraform(tfu.QONTRACT_INTEGRATION,
+                   tfu.QONTRACT_INTEGRATION_VERSION,
+                   tfu.QONTRACT_TF_PREFIX,
+                   accounts,
+                   working_dirs,
+                   10,
+                   init_users=True)
+    credentials = []
+    for account, output in tf.outputs.items():
+        user_passwords = tf.format_output(
+            output, tf.OUTPUT_TYPE_PASSWORDS)
+        console_urls = tf.format_output(
+            output, tf.OUTPUT_TYPE_CONSOLEURLS)
+        for user_name, enc_password in user_passwords.items():
+            item = {
+                'account': account,
+                'console_url': console_urls[account],
+                'user_name': user_name,
+                'encrypted_password': enc_password
+            }
+            credentials.append(item)
+
+    columns = ['account', 'console_url', 'user_name', 'encrypted_password']
+    print_output(ctx.obj['output'], credentials, columns)
 
 
 @get.command()
