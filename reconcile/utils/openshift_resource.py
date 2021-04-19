@@ -358,6 +358,9 @@ class OpenshiftResource:
             if body['apiVersion'] == 'authorization.openshift.io/v1':
                 body['apiVersion'] = 'rbac.authorization.k8s.io/v1'
 
+        if body['kind'] == 'OperatorGroup':
+            annotations.pop('olm.providedAPIs', None)
+
         if body['kind'] == 'RoleBinding':
             if 'groupNames' in body:
                 body.pop('groupNames')
