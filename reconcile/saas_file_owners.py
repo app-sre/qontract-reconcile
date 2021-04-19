@@ -63,7 +63,7 @@ def collect_state():
             'managed_resource_types': saas_file['managedResourceTypes'],
             'image_patterns': saas_file['imagePatterns'],
             'use_channel_in_image_tag':
-                saas_file.get('use_channel_in_image_tag', False),
+                saas_file.get('use_channel_in_image_tag') or False,
         }
         resource_templates = saas_file['resourceTemplates']
         for resource_template in resource_templates:
@@ -93,7 +93,8 @@ def collect_state():
                     'url': resource_template_url,
                     'ref': target_ref,
                     'parameters': parameters,
-                    'saas_file_definitions': saas_file_definitions
+                    'saas_file_definitions':
+                        copy.deepcopy(saas_file_definitions)
                 })
     return state
 
