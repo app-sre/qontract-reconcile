@@ -923,6 +923,8 @@ class SaasHerder():
         If there were promotion sections in the participating saas files
         validate that the conditions are met. """
         for item in self.promotions:
+            if item is None:
+                continue
             # validate that the commit sha being promoted
             # was succesfully published to the subscribed channel(s)
             commit_sha = item['commit_sha']
