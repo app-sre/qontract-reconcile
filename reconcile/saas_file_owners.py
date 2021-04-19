@@ -62,7 +62,8 @@ def collect_state():
         saas_file_definitions = {
             'managed_resource_types': saas_file['managedResourceTypes'],
             'image_patterns': saas_file['imagePatterns'],
-            'use_channel_in_image_tag': saas_file['use_channel_in_image_tag'],
+            'use_channel_in_image_tag':
+                saas_file.get('use_channel_in_image_tag', False),
         }
         resource_templates = saas_file['resourceTemplates']
         for resource_template in resource_templates:
