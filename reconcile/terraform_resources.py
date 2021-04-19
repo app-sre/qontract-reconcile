@@ -167,6 +167,17 @@ provider
   defaults
   output_resource_name
 }
+... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
+  account
+  region
+  identifier
+  secret {
+    path
+    field
+    version
+  }
+  output_resource_name
+}
 """
 
 

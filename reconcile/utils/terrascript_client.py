@@ -52,7 +52,8 @@ from terrascript.resource import (
     aws_kinesis_stream,
     aws_route53_zone,
     aws_route53_record,
-    aws_route53_health_check
+    aws_route53_health_check,
+    aws_cloudfront_public_key
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -793,6 +794,9 @@ class TerrascriptClient:
             self.populate_tf_resource_acm(resource, namespace_info)
         elif provider == 'kinesis':
             self.populate_tf_resource_kinesis(resource, namespace_info)
+        elif provider == 's3-cloudfront-public-key':
+            self.populate_tf_resource_s3_cloudfront_public_key(resource,
+                                                               namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3099,6 +3103,53 @@ class TerrascriptClient:
                 output_value = caCertificate
                 tf_resources.append(
                     Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_s3_cloudfront_public_key(self, resource,
+                                                      namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info,
+                                 output_prefix, output_resource_name)
+
+        values = {'name': identifier, 'comment': 'managed by app-interface'}
+        secret = common_values.get('secret', None)
+        if secret is None:
+            raise KeyError('no secret defined for s3_cloudfront_public_key '
+                           f'{identifier}')
+
+        secret_data = self.secret_reader.read_all(secret)
+
+        secret_key = 'cloudfront_public_key'
+        key = secret_data.get(secret_key, None)
+        if key is None:
+            raise KeyError(
+                f"vault secret '{secret['path']}' " +
+                f"does not have required key [{secret_key}]")
+
+        values['encoded_key'] = key
+
+        pk_tf_resource = aws_cloudfront_public_key(identifier, **values)
+        tf_resources.append(pk_tf_resource)
+
+        # outputs
+        # etag
+        output_name_0_13 = output_prefix + '_etag'
+        output_value = '${' + pk_tf_resource.etag + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # id
+        output_name_0_13 = output_prefix + '__id'
+        output_value = '${' + pk_tf_resource.id + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # key
+        output_name_0_13 = output_prefix + '__key'
+        output_value = key
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
