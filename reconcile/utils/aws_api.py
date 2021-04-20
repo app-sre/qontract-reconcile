@@ -720,6 +720,25 @@ class AWSApi:
 
         return results
 
+    @staticmethod
+    def get_vpc_default_sg_id(ec2, vpc_id):
+        vpc_security_groups = ec2.describe_security_groups(
+            Filters=[
+                {
+                    'Name': 'vpc-id',
+                    'Values': [vpc_id]
+                },
+                {
+                    'Name': 'group-name',
+                    'Values': ['default']
+                }]
+            )
+        # there is only one default
+        for sg in vpc_security_groups.get('SecurityGroups'):
+            return sg['GroupId']
+
+        return None
+
     def get_tgws_details(self, account, region_name, routes_cidr_block,
                          tags=None, route_tables=False,
                          security_groups=False):
@@ -857,20 +876,9 @@ class AWSApi:
                                 vpc_attachment_state = va['State']
                                 if vpc_attachment_state != 'available':
                                     continue
-                                vpc_security_groups = \
-                                    party_ec2.describe_security_groups(Filters=[
-                                        {
-                                            'Name': 'vpc-id',
-                                            'Values': [vpc_attachment_vpc_id]
-                                        },
-                                        {
-                                            'Name': 'group-name',
-                                            'Values': ['default']
-                                        }]
-                                    )
-                                for sg in vpc_security_groups.get(
-                                        'SecurityGroups'):
-                                    sg_id = sg['GroupId']
+                                sg_id = self.get_vpc_default_sg_id(
+                                    party_ec2, vpc_attachment_vpc_id)
+                                if sg_id is not None:
                                     # that's it, we have all
                                     # the information we need
                                     rule_item = {
