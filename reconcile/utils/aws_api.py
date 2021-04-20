@@ -739,6 +739,30 @@ class AWSApi:
 
         return None
 
+    @staticmethod
+    def get_tgw_default_route_table_id(ec2, tgw_id, tags):
+        # we know the party TGW exists, so we can be
+        # a little less catious about getting it
+        tgw = ec2.describe_transit_gateways(
+            TransitGatewayIds=[tgw_id],
+            Filters=[
+                {
+                    'Name': f'tag:{k}',
+                    'Values': [v]
+                }
+                for k, v in tags.items()
+            ]
+        )['TransitGateways'][0]
+        tgw_options = tgw['Options']
+        tgw_has_route_table = \
+            tgw_options['DefaultRouteTableAssociation'] == 'enable'
+        # currently only adding routes
+        # to the default route table
+        if tgw_has_route_table:
+            return tgw_options['AssociationDefaultRouteTableId']
+
+        return None
+
     def get_tgws_details(self, account, region_name, routes_cidr_block,
                          tags=None, route_tables=False,
                          security_groups=False):
@@ -811,32 +835,10 @@ class AWSApi:
                             # routes are propogated within the same region
                             if party_tgw_id != tgw_id and \
                                     party_region != region_name:
-                                # we now have a TGW we want to work with
-                                # we know the party TGW exists, so we can be
-                                # a little less catious about getting it
-                                party_tgw = \
-                                    party_ec2.describe_transit_gateways(
-                                        TransitGatewayIds=[party_tgw_id],
-                                        Filters=[
-                                            {
-                                                'Name': f'tag:{k}',
-                                                'Values': [v]
-                                            }
-                                            for k, v in tags.items()
-                                        ]
-                                    )['TransitGateways'][0]
-                                party_tgw_options = party_tgw['Options']
-                                party_tgw_has_route_table = \
-                                    party_tgw_options[
-                                        'DefaultRouteTableAssociation'
-                                    ] == 'enable'
-                                # currently only adding routes
-                                # to the default route table
-                                if party_tgw_has_route_table:
-                                    party_tgw_route_table_id = \
-                                        party_tgw_options[
-                                            'AssociationDefaultRouteTableId'
-                                        ]
+                                party_tgw_route_table_id = \
+                                    self.get_tgw_default_route_table_id(
+                                        party_ec2, party_tgw_id, tags)
+                                if party_tgw_route_table_id is not None:
                                     # that's it, we have all
                                     # the information we need
                                     route_item = {
@@ -853,10 +855,11 @@ class AWSApi:
                         # once all the routing is in place, we need to allow
                         # connections in security groups.
                         # in TGW, we need to allow the rules in the VPCs
-                        # associated to the TGWs that need to accept the traffic.
-                        # we need to collect data about the vpc attachments for
-                        # the TGWs, and for each VPC get the details of it's default
-                        # securiry group. this will require getting:
+                        # associated to the TGWs that need to accept the
+                        # traffic. we need to collect data about the vpc
+                        # attachments for the TGWs, and for each VPC get
+                        # the details of it's default securiry group.
+                        # this will require getting:
                         # - cluster cidr block
                         # - security group id
                         # we will also pass some additional information:
