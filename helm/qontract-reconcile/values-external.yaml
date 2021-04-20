@@ -367,10 +367,10 @@ integrations:
 - name: terraform-tgw-attachments
   resources:
     requests:
-      memory: 700Mi
+      memory: 2300Mi
       cpu: 200m
     limits:
-      memory: 900Mi
+      memory: 3000Mi
       cpu: 400m
   logs:
     slack: true
