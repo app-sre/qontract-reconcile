@@ -741,21 +741,18 @@ class AWSApi:
                 'region': region_name,
             }
 
-            if route_tables:
-                # the TGW route table is automatically populated
-                # with the peered VPC cidr block.
-                # however, to achieve global routing across peered
-                # TGWs in different regions, we need to find all
-                # peering attachments in different regions and collect
-                # the data to later create a route in each peered TGW
-                # in a different region. this will require getting:
-                # - cluster cidr block
-                # - transit gateway attachment id
-                # - transit gateway route table id
-                # we will also pass some additional information:
-                # - transit gateway id
-                # - transit gateway region
+            if route_tables or security_groups:
+                # both routes and rules are provisioned for resources
+                # that are indirectly attached to the TGW.
+                # routes are provisioned for route tables that belong
+                # to TGWs which are peered to the TGW we are currently
+                # handling.
                 routes = []
+                # rules are provisioned for security groups that belong
+                # to VPCs which are attached to the TGW we are currently
+                # handling AND to TGWs which are peered to it.
+                rules = []
+                # this will require to iterate over all reachable TGWs
                 attachments = \
                     ec2.describe_transit_gateway_peering_attachments(
                         Filters=[
@@ -773,98 +770,121 @@ class AWSApi:
                         [a['RequesterTgwInfo'], a['AccepterTgwInfo']]
                     for party in attachment_parties:
                         party_tgw_id = party['TransitGatewayId']
-                        if party_tgw_id == tgw_id:
-                            # don't act on yourself
-                            continue
                         party_region = party['Region']
-                        if party_region == region_name:
+
+                        # the TGW route table is automatically populated
+                        # with the peered VPC cidr block.
+                        # however, to achieve global routing across peered
+                        # TGWs in different regions, we need to find all
+                        # peering attachments in different regions and collect
+                        # the data to later create a route in each peered TGW
+                        # in a different region. this will require getting:
+                        # - cluster cidr block
+                        # - transit gateway attachment id
+                        # - transit gateway route table id
+                        # we will also pass some additional information:
+                        # - transit gateway id
+                        # - transit gateway region
+                        if route_tables:
+                            # don't act on yourself and
                             # routes are propogated within the same region
-                            continue
+                            if party_tgw_id != tgw_id and \
+                                    party_region != region_name:
+                                # we now have a TGW we want to work with
+                                party_ec2 = session.client(
+                                    'ec2', region_name=party_region)
+                                # we know the party TGW exists, so we can be
+                                # a little less catious about getting it
+                                party_tgw = \
+                                    party_ec2.describe_transit_gateways(
+                                        TransitGatewayIds=[party_tgw_id],
+                                        Filters=[
+                                            {
+                                                'Name': f'tag:{k}',
+                                                'Values': [v]
+                                            }
+                                            for k, v in tags.items()
+                                        ]
+                                    )['TransitGateways'][0]
+                                party_tgw_options = party_tgw['Options']
+                                party_tgw_has_route_table = \
+                                    party_tgw_options[
+                                        'DefaultRouteTableAssociation'
+                                    ] == 'enable'
+                                # currently only adding routes
+                                # to the default route table
+                                if party_tgw_has_route_table:
+                                    party_tgw_route_table_id = \
+                                        party_tgw_options[
+                                            'AssociationDefaultRouteTableId'
+                                        ]
+                                    # that's it, we have all
+                                    # the information we need
+                                    route_item = {
+                                        'cidr_block': routes_cidr_block,
+                                        'tgw_attachment_id':
+                                            tgw_attachment_id,
+                                        'tgw_id': party_tgw_id,
+                                        'tgw_route_table_id':
+                                            party_tgw_route_table_id,
+                                        'region': party_region
+                                    }
+                                    routes.append(route_item)
 
-                        # we now have a TGW we want to work with
-                        party_ec2 = \
-                            session.client('ec2', region_name=party_region)
-                        # we know the party TGW exists, so we can be
-                        # a little less catious about getting it
-                        party_tgw = party_ec2.describe_transit_gateways(
-                            TransitGatewayIds=[party_tgw_id],
-                            Filters=[
-                                {'Name': f'tag:{k}', 'Values': [v]}
-                                for k, v in tags.items()
-                            ]
-                        )['TransitGateways'][0]
-                        party_tgw_options = party_tgw['Options']
-                        party_tgw_has_route_table = \
-                            party_tgw_options[
-                                'DefaultRouteTableAssociation'
-                            ] == 'enable'
-                        if not party_tgw_has_route_table:
-                            # currently only adding routes
-                            # to the default route table
-                            continue
+                        # once all the routing is in place, we need to allow
+                        # connections in security groups.
+                        # in TGW, we need to allow the rules in the VPCs
+                        # associated to the TGWs that need to accept the traffic.
+                        # we need to collect data about the vpc attachments for
+                        # the TGWs, and for each VPC get the details of it's default
+                        # securiry group. this will require getting:
+                        # - cluster cidr block
+                        # - security group id
+                        # we will also pass some additional information:
+                        # - vpc id
+                        # - vpc region
+                        if security_groups:
+                            vpc_attachments = \
+                                ec2.describe_transit_gateway_vpc_attachments(
+                                    Filters=[
+                                        {'Name': 'transit-gateway-id',
+                                         'Values': [party_tgw_id]}
+                                    ]
+                                )
+                            for va in vpc_attachments.get(
+                                    'TransitGatewayVpcAttachments'):
+                                vpc_attachment_vpc_id = va['VpcId']
+                                vpc_attachment_state = va['State']
+                                if vpc_attachment_state != 'available':
+                                    continue
+                                vpc_security_groups = \
+                                    ec2.describe_security_groups(Filters=[
+                                        {
+                                            'Name': 'vpc-id',
+                                            'Values': [vpc_attachment_vpc_id]
+                                        },
+                                        {
+                                            'Name': 'group-name',
+                                            'Values': ['default']
+                                        }]
+                                    )
+                                for sg in vpc_security_groups.get(
+                                        'SecurityGroups'):
+                                    sg_id = sg['GroupId']
+                                    # that's it, we have all
+                                    # the information we need
+                                    rule_item = {
+                                        'cidr_block': routes_cidr_block,
+                                        'security_group_id': sg_id,
+                                        'vpc_id': vpc_attachment_vpc_id,
+                                        'region': party_region
+                                    }
+                                    rules.append(rule_item)
 
-                        party_tgw_route_table_id = \
-                            party_tgw_options[
-                                'AssociationDefaultRouteTableId'
-                            ]
-                        # that's it, we have all the information we need
-                        route_item = {
-                            'cidr_block': routes_cidr_block,
-                            'tgw_attachment_id': tgw_attachment_id,
-                            'tgw_id': party_tgw_id,
-                            'tgw_route_table_id': party_tgw_route_table_id,
-                            'region': party_region
-                        }
-                        routes.append(route_item)
-
-                item['routes'] = routes
-
-            if security_groups:
-                # once all the routing is in place, we need to allow
-                # connections in security groups.
-                # in TGW, we need to allow the rules in the VPCs
-                # associated to the TGW that need to accept the traffic.
-                # we need to collect data about the vpc attachments for
-                # the TGW, and for each VPC get the details of it's default
-                # securiry group. this will require getting:
-                # - cluster cidr block
-                # - security group id
-                # we will also pass some additional information:
-                # - vpc id
-                # - vpc region
-                rules = []
-                attachments = \
-                    ec2.describe_transit_gateway_vpc_attachments(
-                        Filters=[
-                            {'Name': 'transit-gateway-id',
-                             'Values': [tgw_id]}
-                        ]
-                    )
-                for a in attachments.get('TransitGatewayVpcAttachments'):
-                    vpc_attachment_vpc_id = a['VpcId']
-                    vpc_attachment_state = a['State']
-                    if vpc_attachment_state != 'available':
-                        continue
-                    vpc_security_groups = ec2.describe_security_groups(
-                        Filters=[
-                            {'Name': 'vpc-id',
-                             'Values': [vpc_attachment_vpc_id]},
-                            {'Name': 'group-name',
-                             'Values': ['default']}
-                        ]
-                    )
-                    for sg in vpc_security_groups.get('SecurityGroups'):
-                        sg_id = sg['GroupId']
-                        # that's it, we have all the information we need
-                        rule_item = {
-                            'cidr_block': routes_cidr_block,
-                            'security_group_id': sg_id,
-                            'vpc_id': vpc_attachment_vpc_id,
-                            'region': region_name
-                        }
-                        rules.append(rule_item)
-
-                item['rules'] = rules
+                if route_tables:
+                    item['routes'] = routes
+                if security_groups:
+                    item['rules'] = rules
 
             results.append(item)
 
