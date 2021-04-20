@@ -771,6 +771,8 @@ class AWSApi:
                     for party in attachment_parties:
                         party_tgw_id = party['TransitGatewayId']
                         party_region = party['Region']
+                        party_ec2 = \
+                            session.client('ec2', region_name=party_region)
 
                         # the TGW route table is automatically populated
                         # with the peered VPC cidr block.
@@ -791,8 +793,6 @@ class AWSApi:
                             if party_tgw_id != tgw_id and \
                                     party_region != region_name:
                                 # we now have a TGW we want to work with
-                                party_ec2 = session.client(
-                                    'ec2', region_name=party_region)
                                 # we know the party TGW exists, so we can be
                                 # a little less catious about getting it
                                 party_tgw = \
@@ -845,7 +845,7 @@ class AWSApi:
                         # - vpc region
                         if security_groups:
                             vpc_attachments = \
-                                ec2.describe_transit_gateway_vpc_attachments(
+                                party_ec2.describe_transit_gateway_vpc_attachments(
                                     Filters=[
                                         {'Name': 'transit-gateway-id',
                                          'Values': [party_tgw_id]}
@@ -858,7 +858,7 @@ class AWSApi:
                                 if vpc_attachment_state != 'available':
                                     continue
                                 vpc_security_groups = \
-                                    ec2.describe_security_groups(Filters=[
+                                    party_ec2.describe_security_groups(Filters=[
                                         {
                                             'Name': 'vpc-id',
                                             'Values': [vpc_attachment_vpc_id]
