@@ -866,8 +866,8 @@ class AWSApi:
                         # - vpc id
                         # - vpc region
                         if security_groups:
-                            vpc_attachments = \
-                                party_ec2.describe_transit_gateway_vpc_attachments(
+                            vpc_attachments = party_ec2.\
+                                describe_transit_gateway_vpc_attachments(
                                     Filters=[
                                         {'Name': 'transit-gateway-id',
                                          'Values': [party_tgw_id]}
