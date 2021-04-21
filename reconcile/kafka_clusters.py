@@ -74,8 +74,6 @@ def run(dry_run, thread_pool_size=10,
         use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
 
-    current_state = {}
-    desired_state = {}
     current_state = ocm_map.kafka_cluster_specs()
     desired_state = fetch_desired_state(kafka_clusters)
     kafka_service_accounts = ocm_map.kafka_service_account_specs()
@@ -96,6 +94,8 @@ def run(dry_run, thread_pool_size=10,
                 ocm = ocm_map.get(kafka_cluster_name)
                 service_account = \
                     ocm.create_kafka_service_account(kafka_cluster_name)
+        # the name was only needed for matching
+        service_account.pop('name', None)
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
