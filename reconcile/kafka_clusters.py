@@ -76,15 +76,15 @@ def run(dry_run, thread_pool_size=10,
 
     current_state = {}
     desired_state = {}
-    current_state['clusters'] = ocm_map.kafka_cluster_specs()
-    desired_state['clusters'] = fetch_desired_state(kafka_clusters)
+    current_state = ocm_map.kafka_cluster_specs()
+    desired_state = fetch_desired_state(kafka_clusters)
 
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
-        desired_cluster = [c for c in desired_state['clusters']
+        desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
-        current_cluster = [c for c in current_state['clusters']
+        current_cluster = [c for c in current_state
                            if kafka_cluster_name == c['name']]
         # check if cluster exists. if not - create it
         if not current_cluster:
