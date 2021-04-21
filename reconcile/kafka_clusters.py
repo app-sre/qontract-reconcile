@@ -78,6 +78,7 @@ def run(dry_run, thread_pool_size=10,
     desired_state = {}
     current_state = ocm_map.kafka_cluster_specs()
     desired_state = fetch_desired_state(kafka_clusters)
+    kafka_service_accounts = ocm_map.kafka_service_account_specs()
 
     error = False
     for kafka_cluster in kafka_clusters:
@@ -108,11 +109,26 @@ def run(dry_run, thread_pool_size=10,
         if current_cluster['status'] != 'ready':
             continue
         # we have a ready cluster!
+        # let's get/create a service account for it
+        # we match cluster to service account by name
+        service_accounts = [sa for sa in kafka_service_accounts
+                            if sa['name'] == kafka_cluster_name]
+        if service_accounts:
+            service_account = service_accounts[0]
+        else:
+            service_account = {}
+            logging.info(['create_service_account', kafka_cluster_name])
+            if not dry_run:
+                ocm = ocm_map.get(kafka_cluster_name)
+                service_account = \
+                    ocm.create_kafka_service_account(kafka_cluster_name)
+        
         # let's create a Secret in all referencing namespaces
         kafka_namespaces = kafka_cluster['namespaces']
         secret_fields = ['bootstrapServerHost']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
+        data.update(service_account)
         resource = construct_oc_resource(data)
         for namespace_info in kafka_namespaces:
             ri.add_desired(

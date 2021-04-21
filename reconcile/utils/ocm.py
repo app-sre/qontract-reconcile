@@ -633,11 +633,34 @@ class OCM:
                         for cluster in clusters]
         return clusters
 
+    def get_kafka_service_accounts(self, fields=None):
+        """Returns details of the Kafka service accounts """
+        results = []
+        api = '/api/managed-services-api/v1/serviceaccounts'
+        service_accounts = self._get_json(api)['items']
+        for sa in service_accounts:
+            sa_id = sa['id']
+            id_api = f'{api}/{sa_id}'
+            sa_details = self._get_json(id_api)
+            item = {k: v for k, v in sa_details.items() if k in fields}
+            results.append(item)
+        return results
+
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
         api = '/api/managed-services-api/v1/kafkas'
         params = {'async': 'true'}
         self._post(api, data, params)
+
+    def create_kafka_service_account(self, name):
+        """ Creates a Kafka service account """
+        api = '/api/managed-services-api/v1/serviceaccounts'
+        result = self._post(api, {'name': name})
+        return {
+            'name': result['name'],
+            'client_id': result['clientID'],
+            'client_secret': result['clientSecret'],
+        }
 
     def _init_addons(self):
         """Returns a list of Addons """
@@ -864,3 +887,12 @@ class OCMMap:
             clusters = ocm.get_kafka_clusters(fields=fields)
             cluster_specs.extend(clusters)
         return cluster_specs
+
+    def kafka_service_account_specs(self):
+        """ Get dictionary of Kafka service account specs in the OCM map. """
+        fields = ['name', 'clientID', 'clientSecret']
+        service_account_specs = []
+        for ocm in self.ocm_map.values():
+            service_accounts = ocm.get_kafka_service_accounts(fields=fields)
+            service_account_specs.extend(service_accounts)
+        return service_account_specs
