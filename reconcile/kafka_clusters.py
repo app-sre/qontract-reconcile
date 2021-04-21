@@ -83,6 +83,19 @@ def run(dry_run, thread_pool_size=10,
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
+        # get a service account for the cluster
+        # we match cluster to service account by name
+        service_accounts = [sa for sa in kafka_service_accounts
+                            if sa['name'] == kafka_cluster_name]
+        if service_accounts:
+            service_account = service_accounts[0]
+        else:
+            service_account = {}
+            logging.info(['create_service_account', kafka_cluster_name])
+            if not dry_run:
+                ocm = ocm_map.get(kafka_cluster_name)
+                service_account = \
+                    ocm.create_kafka_service_account(kafka_cluster_name)
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
@@ -109,20 +122,6 @@ def run(dry_run, thread_pool_size=10,
         if current_cluster['status'] != 'ready':
             continue
         # we have a ready cluster!
-        # let's get/create a service account for it
-        # we match cluster to service account by name
-        service_accounts = [sa for sa in kafka_service_accounts
-                            if sa['name'] == kafka_cluster_name]
-        if service_accounts:
-            service_account = service_accounts[0]
-        else:
-            service_account = {}
-            logging.info(['create_service_account', kafka_cluster_name])
-            if not dry_run:
-                ocm = ocm_map.get(kafka_cluster_name)
-                service_account = \
-                    ocm.create_kafka_service_account(kafka_cluster_name)
-        
         # let's create a Secret in all referencing namespaces
         kafka_namespaces = kafka_cluster['namespaces']
         secret_fields = ['bootstrapServerHost']
