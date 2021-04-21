@@ -103,7 +103,7 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        if current_cluster['status'] != 'complete':
+        if current_cluster['status'] != 'ready':
             continue
         # we have a ready cluster!
         # let's create a Secret in all referencing namespaces
