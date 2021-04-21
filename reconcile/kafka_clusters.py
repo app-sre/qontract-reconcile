@@ -42,7 +42,8 @@ def fetch_desired_state(clusters):
         item = {
             'name': cluster_info['name'],
             'cloud_provider': cluster_info['spec']['provider'],
-            'region': cluster_info['spec']['region']
+            'region': cluster_info['spec']['region'],
+            'multi_az': cluster_info['spec']['multi_az'],
         }
         desired_state.append(item)
     return desired_state

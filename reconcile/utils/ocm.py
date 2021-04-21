@@ -857,7 +857,7 @@ class OCMMap:
 
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
-        fields = ['id', 'status', 'cloud_provider', 'region',
+        fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
                   'name', 'bootstrapServerHost']
         cluster_specs = []
         for ocm in self.ocm_map.values():
