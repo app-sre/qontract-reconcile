@@ -130,16 +130,21 @@ def run(dry_run, gitlab_project_id=None):
     # install-config.yaml compatible format
     mirrors_info = []
     for tfr in osd_mirrors:
-        image_url = get_image_uri(
-            aws_cli=aws_cli,
-            account=tfr['account'],
-            repository=tfr['identifier']
-        )
+        # ecr image is not in use for now
+        # image_url = get_image_uri(
+        #     aws_cli=aws_cli,
+        #     account=tfr['account'],
+        #     repository=tfr['identifier']
+        # )
+        quayio_url = tfr['mirror']['url']
+        ocmquay_url = quayio_url.\
+            replace('quay.io', 'pull.q1w2.quay.rhcloud.com')
         mirrors_info.append(
             {
-                'source': tfr['mirror']['url'],
+                'source': quayio_url,
                 'mirrors': [
-                    image_url,
+                    quayio_url,
+                    ocmquay_url
                 ]
             }
         )
