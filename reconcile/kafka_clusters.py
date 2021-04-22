@@ -8,9 +8,10 @@ import reconcile.queries as queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap, STATUS_READY
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
+from reconcile.utils.vault import VaultClient
 
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
@@ -42,15 +43,37 @@ def fetch_desired_state(clusters):
         item = {
             'name': cluster_info['name'],
             'cloud_provider': cluster_info['spec']['provider'],
-            'region': cluster_info['spec']['region']
+            'region': cluster_info['spec']['region'],
+            'multi_az': cluster_info['spec']['multi_az'],
         }
         desired_state.append(item)
     return desired_state
 
 
+def read_input_from_vault(vault_path, name, field):
+    integration_name = QONTRACT_INTEGRATION
+    vault_client = VaultClient()
+    secret_path = f"{vault_path}/{integration_name}/{name}"
+    secret = {'path': secret_path, 'field': field}
+    return vault_client.read(secret)
+
+
+def write_output_to_vault(vault_path, name, data):
+    integration_name = QONTRACT_INTEGRATION
+    vault_client = VaultClient()
+    secret_path = f"{vault_path}/{integration_name}/{name}"
+    secret = {'path': secret_path, 'data': data}
+    vault_client.write(secret)
+
+
 @defer
 def run(dry_run, thread_pool_size=10,
-        internal=None, use_jump_host=True, defer=None):
+        internal=None, use_jump_host=True,
+        vault_throughput_path=None, defer=None):
+    if not vault_throughput_path:
+        logging.error('must supply vault throughput path')
+        sys.exit(ExitCodes.ERROR)
+
     kafka_clusters = queries.get_kafka_clusters()
     if not kafka_clusters:
         logging.debug("No Kafka clusters found in app-interface")
@@ -75,10 +98,35 @@ def run(dry_run, thread_pool_size=10,
 
     current_state = ocm_map.kafka_cluster_specs()
     desired_state = fetch_desired_state(kafka_clusters)
+    kafka_service_accounts = ocm_map.kafka_service_account_specs()
 
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
+        # get a service account for the cluster
+        # we match cluster to service account by name
+        service_accounts = [sa for sa in kafka_service_accounts
+                            if sa['name'] == kafka_cluster_name]
+        if service_accounts:
+            result_sa = service_accounts[0]
+            # since this is an existing service account
+            # we do not get it's clientSecret. read it from vault
+            cs_key = 'clientSecret'
+            result_sa[cs_key] = \
+                read_input_from_vault(
+                    vault_throughput_path, kafka_cluster_name, cs_key)
+            # the name was only needed for matching
+            result_sa.pop('name', None)
+        else:
+            result_sa = {}
+            logging.info(['create_service_account', kafka_cluster_name])
+            if not dry_run:
+                ocm = ocm_map.get(kafka_cluster_name)
+                sa_fields = ['clientID', 'clientSecret']
+                result_sa = \
+                    ocm.create_kafka_service_account(
+                        kafka_cluster_name, fields=sa_fields)
+
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
@@ -102,7 +150,7 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        if current_cluster['status'] != 'complete':
+        if current_cluster['status'] != STATUS_READY:
             continue
         # we have a ready cluster!
         # let's create a Secret in all referencing namespaces
@@ -110,6 +158,7 @@ def run(dry_run, thread_pool_size=10,
         secret_fields = ['bootstrapServerHost']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
+        data.update(result_sa)
         resource = construct_oc_resource(data)
         for namespace_info in kafka_namespaces:
             ri.add_desired(
@@ -119,6 +168,10 @@ def run(dry_run, thread_pool_size=10,
                 resource.name,
                 resource
             )
+        if not dry_run:
+            write_output_to_vault(vault_throughput_path,
+                                  kafka_cluster_name,
+                                  resource.body['data'])
 
     ob.realize_data(dry_run, oc_map, ri)
 

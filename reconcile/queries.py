@@ -543,6 +543,7 @@ KAFKA_CLUSTERS_QUERY = """
     spec {
       provider
       region
+      multi_az
     }
     namespaces {
       name

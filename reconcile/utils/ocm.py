@@ -7,6 +7,13 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
+STATUS_READY = 'ready'
+
+AMS_API_BASE = '/api/accounts_mgmt'
+CS_API_BASE = '/api/clusters_mgmt'
+KAS_API_BASE = '/api/managed-services-api'
+
+
 class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
@@ -50,16 +57,17 @@ class OCM:
         }
 
     def _init_clusters(self, skip_provision_shards):
-        api = '/api/clusters_mgmt/v1/clusters'
+        api = f'{CS_API_BASE}/v1/clusters'
         clusters = self._get_json(api)['items']
         self.cluster_ids = {c['name']: c['id'] for c in clusters}
         self.clusters = {
             c['name']: self._get_cluster_ocm_spec(c, skip_provision_shards)
             for c in clusters if c['managed']
-            and c['state'] == 'ready'
+            and c['state'] == STATUS_READY
         }
         self.not_ready_clusters = [c['name'] for c in clusters
-                                   if c['managed'] and c['state'] != 'ready']
+                                   if c['managed']
+                                   and c['state'] != STATUS_READY]
 
     def _get_cluster_ocm_spec(self, cluster, skip_provision_shards):
         ocm_spec = {
@@ -109,7 +117,7 @@ class OCM:
         :type cluster: dict
         :type dry_run: bool
         """
-        api = '/api/clusters_mgmt/v1/clusters'
+        api = f'{CS_API_BASE}/v1/clusters'
         cluster_spec = cluster['spec']
         cluster_network = cluster['network']
         ocm_spec = {
@@ -176,7 +184,7 @@ class OCM:
         :type dry_run: bool
         """
         cluster_id = self.cluster_ids.get(name)
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}'
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}'
         cluster_spec = cluster['spec']
         ocm_spec = {
             'nodes': {
@@ -223,12 +231,12 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return None
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/groups'
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/groups'
         groups = self._get_json(api)['items']
         if group_id not in [g['id'] for g in groups]:
             return None
 
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               f'groups/{group_id}/users'
         users = self._get_json(api)['items']
         return {'users': [u['id'] for u in users]}
@@ -246,7 +254,7 @@ class OCM:
         :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               f'groups/{group_id}/users'
         self._post(api, {'id': user})
 
@@ -262,7 +270,7 @@ class OCM:
         :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
@@ -277,7 +285,7 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         return [(r['user_arn'], r['role']['id'], r['state'], r['console_url'])
@@ -287,7 +295,7 @@ class OCM:
                                                             tf_account_id,
                                                             tf_user):
         cluster_id = self.cluster_ids[cluster]
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
@@ -319,7 +327,7 @@ class OCM:
         :type access_level: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
         self._post(api, {'user_arn': user_arn, 'role': {'id': access_level}})
 
@@ -338,7 +346,7 @@ class OCM:
         :type access_level: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
         role_grants = self._get_json(api)['items']
         for rg in role_grants:
@@ -361,7 +369,7 @@ class OCM:
         if not cluster_id:
             return result_idps
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers'
         idps = self._get_json(api).get('items')
         if not idps:
             return result_idps
@@ -395,7 +403,7 @@ class OCM:
         cluster = spec['cluster']
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/identity_providers'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers'
         payload = {
             'type': 'GithubIdentityProvider',
             'mapping_method': 'claim',
@@ -420,7 +428,7 @@ class OCM:
         if not cluster_id:
             return results
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
             '/external_configuration/labels'
         items = self._get_json(api).get('items')
         if not items:
@@ -444,7 +452,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
             '/external_configuration/labels'
         self._post(api, label)
 
@@ -459,7 +467,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
             '/external_configuration/labels'
         items = self._get_json(api).get('items')
         item = [item for item in items if label.items() <= item.items()]
@@ -467,7 +475,7 @@ class OCM:
             return
         label_id = item[0]['id']
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
             f'/external_configuration/labels/{label_id}'
         self._delete(api)
 
@@ -483,7 +491,7 @@ class OCM:
         if not cluster_id:
             return results
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools'
         items = self._get_json(api).get('items')
         if not items:
             return results
@@ -507,7 +515,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools'
         self._post(api, spec)
 
     def update_machine_pool(self, cluster, spec):
@@ -524,7 +532,7 @@ class OCM:
         labels = spec.get('labels', {})
         spec['labels'] = labels
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/' + \
             f'{machine_pool_id}'
         self._patch(api, spec)
 
@@ -540,7 +548,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         machine_pool_id = spec['id']
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/machine_pools/' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/' + \
             f'{machine_pool_id}'
         self._delete(api)
 
@@ -556,7 +564,7 @@ class OCM:
         if not cluster_id:
             return results
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/upgrade_policies'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies'
         items = self._get_json(api).get('items')
         if not items:
             return results
@@ -581,7 +589,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/upgrade_policies'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies'
         self._post(api, spec)
 
     def delete_upgrade_policy(self, cluster, spec):
@@ -596,7 +604,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         upgrade_policy_id = spec['id']
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/' + \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
             f'upgrade_policies/{upgrade_policy_id}'
         self._delete(api)
 
@@ -608,7 +616,7 @@ class OCM:
         :type cluster: string
         """
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/provision_shard'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/provision_shard'
         return self._get_json(api)
 
     @staticmethod
@@ -620,12 +628,12 @@ class OCM:
         return {k: v for k, v in autoscale.items() if k in desired_keys}
 
     def get_pull_secrets(self,):
-        api = '/api/accounts_mgmt/v1/access_token'
+        api = f'{AMS_API_BASE}/v1/access_token'
         return self._post(api)
 
     def get_kafka_clusters(self, fields=None):
         """Returns details of the Kafka clusters """
-        api = '/api/managed-services-api/v1/kafkas'
+        api = f'{KAS_API_BASE}/v1/kafkas'
         clusters = self._get_json(api)['items']
         if fields:
             clusters = [{k: v for k, v in cluster.items()
@@ -633,15 +641,38 @@ class OCM:
                         for cluster in clusters]
         return clusters
 
+    def get_kafka_service_accounts(self, fields=None):
+        """Returns details of the Kafka service accounts """
+        results = []
+        api = f'{KAS_API_BASE}/v1/serviceaccounts'
+        service_accounts = self._get_json(api)['items']
+        for sa in service_accounts:
+            sa_id = sa['id']
+            id_api = f'{api}/{sa_id}'
+            sa_details = self._get_json(id_api)
+            if fields:
+                sa_details = {k: v for k, v in sa_details.items()
+                              if k in fields}
+            results.append(sa_details)
+        return results
+
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
-        api = '/api/managed-services-api/v1/kafkas'
+        api = f'{KAS_API_BASE}/v1/kafkas'
         params = {'async': 'true'}
         self._post(api, data, params)
 
+    def create_kafka_service_account(self, name, fields=None):
+        """ Creates a Kafka service account """
+        api = f'{KAS_API_BASE}/v1/serviceaccounts'
+        result = self._post(api, {'name': name})
+        if fields:
+            result = {k: v for k, v in result.items() if k in fields}
+        return result
+
     def _init_addons(self):
         """Returns a list of Addons """
-        api = '/api/clusters_mgmt/v1/addons'
+        api = f'{CS_API_BASE}/v1/addons'
         self.addons = self._get_json(api).get('items')
 
     def get_addon(self, id):
@@ -663,7 +694,7 @@ class OCM:
         if not cluster_id:
             return results
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/addons'
         items = self._get_json(api).get('items')
         if not items:
             return results
@@ -689,7 +720,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         api = \
-            f'/api/clusters_mgmt/v1/clusters/{cluster_id}/addons'
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/addons'
         parameters = spec.pop('parameters', None)
         data = {'addon': spec}
         if parameters is not None:
@@ -857,10 +888,19 @@ class OCMMap:
 
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
-        fields = ['id', 'status', 'cloud_provider', 'region',
+        fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
                   'name', 'bootstrapServerHost']
         cluster_specs = []
         for ocm in self.ocm_map.values():
             clusters = ocm.get_kafka_clusters(fields=fields)
             cluster_specs.extend(clusters)
         return cluster_specs
+
+    def kafka_service_account_specs(self):
+        """ Get dictionary of Kafka service account specs in the OCM map. """
+        fields = ['name', 'clientID']
+        service_account_specs = []
+        for ocm in self.ocm_map.values():
+            service_accounts = ocm.get_kafka_service_accounts(fields=fields)
+            service_account_specs.extend(service_accounts)
+        return service_account_specs

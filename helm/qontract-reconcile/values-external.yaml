@@ -465,6 +465,18 @@ integrations:
   logs:
     cloudwatch: true
     slack: true
+- name: kafka-clusters
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  extraArgs: --vault-throughput-path app-sre/integrations-throughput
+  logs:
+    cloudwatch: true
+    slack: true
 - name: email-sender
   resources:
     requests:
