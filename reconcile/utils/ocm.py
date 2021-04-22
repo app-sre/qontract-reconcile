@@ -7,6 +7,9 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
+STATUS_READY = 'ready'
+
+
 class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
@@ -56,10 +59,10 @@ class OCM:
         self.clusters = {
             c['name']: self._get_cluster_ocm_spec(c, skip_provision_shards)
             for c in clusters if c['managed']
-            and c['state'] == 'ready'
+            and c['state'] == STATUS_READY
         }
         self.not_ready_clusters = [c['name'] for c in clusters
-                                   if c['managed'] and c['state'] != 'ready']
+                                   if c['managed'] and c['state'] != STATUS_READY]
 
     def _get_cluster_ocm_spec(self, cluster, skip_provision_shards):
         ocm_spec = {

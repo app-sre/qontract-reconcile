@@ -8,7 +8,7 @@ import reconcile.queries as queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCMMap, STATUS_READY
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
 
@@ -119,7 +119,7 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        if current_cluster['status'] != 'ready':
+        if current_cluster['status'] != STATUS_READY:
             continue
         # we have a ready cluster!
         # let's create a Secret in all referencing namespaces
