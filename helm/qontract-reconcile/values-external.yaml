@@ -468,10 +468,10 @@ integrations:
 - name: kafka-clusters
   resources:
     requests:
-      memory: 200Mi
+      memory: 800Mi
       cpu: 100m
     limits:
-      memory: 400Mi
+      memory: 1000Mi
       cpu: 200m
   extraArgs: --vault-throughput-path app-sre/integrations-throughput
   logs:
