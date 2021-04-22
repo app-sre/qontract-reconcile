@@ -50,6 +50,14 @@ def fetch_desired_state(clusters):
     return desired_state
 
 
+def read_input_from_vault(vault_path, name, field):
+    integration_name = QONTRACT_INTEGRATION
+    vault_client = VaultClient()
+    secret_path = f"{vault_path}/{integration_name}/{name}"
+    secret = {'path': secret_path, 'field': field}
+    return vault_client.read(secret)
+
+
 def write_output_to_vault(vault_path, name, data):
     integration_name = QONTRACT_INTEGRATION
     vault_client = VaultClient()
@@ -101,6 +109,14 @@ def run(dry_run, thread_pool_size=10,
                             if sa['name'] == kafka_cluster_name]
         if service_accounts:
             result_sa = service_accounts[0]
+            # since this is an existing service account
+            # we do not get it's clientSecret. read it from vault
+            cs_key = 'clientSecret'
+            result_sa[cs_key] = \
+                read_input_from_vault(
+                    vault_throughput_path, kafka_cluster_name, cs_key)
+            # the name was only needed for matching
+            result_sa.pop('name', None)
         else:
             result_sa = {}
             logging.info(['create_service_account', kafka_cluster_name])
@@ -114,8 +130,7 @@ def run(dry_run, thread_pool_size=10,
                 # so we write it to vault to be able to get it again
                 write_output_to_vault(
                     vault_throughput_path, kafka_cluster_name, result_sa)
-        # the name was only needed for matching
-        result_sa.pop('name', None)
+        
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
