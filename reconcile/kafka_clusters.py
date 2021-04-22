@@ -126,7 +126,7 @@ def run(dry_run, thread_pool_size=10,
                 result_sa = \
                     ocm.create_kafka_service_account(
                         kafka_cluster_name, fields=sa_fields)
-        
+
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
