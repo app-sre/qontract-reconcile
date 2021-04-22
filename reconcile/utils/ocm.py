@@ -66,7 +66,8 @@ class OCM:
             and c['state'] == STATUS_READY
         }
         self.not_ready_clusters = [c['name'] for c in clusters
-                                   if c['managed'] and c['state'] != STATUS_READY]
+                                   if c['managed']
+                                   and c['state'] != STATUS_READY]
 
     def _get_cluster_ocm_spec(self, cluster, skip_provision_shards):
         ocm_spec = {
