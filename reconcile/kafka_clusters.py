@@ -86,16 +86,16 @@ def run(dry_run, thread_pool_size=10,
         service_accounts = [sa for sa in kafka_service_accounts
                             if sa['name'] == kafka_cluster_name]
         if service_accounts:
-            service_account = service_accounts[0]
+            result_sa = service_accounts[0]
         else:
-            service_account = {}
+            result_sa = {}
             logging.info(['create_service_account', kafka_cluster_name])
             if not dry_run:
                 ocm = ocm_map.get(kafka_cluster_name)
-                service_account = \
+                result_sa = \
                     ocm.create_kafka_service_account(kafka_cluster_name)
         # the name was only needed for matching
-        service_account.pop('name', None)
+        result_sa.pop('name', None)
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
@@ -127,7 +127,7 @@ def run(dry_run, thread_pool_size=10,
         secret_fields = ['bootstrapServerHost']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
-        data.update(service_account)
+        data.update(result_sa)
         resource = construct_oc_resource(data)
         for namespace_info in kafka_namespaces:
             ri.add_desired(
