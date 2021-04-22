@@ -122,7 +122,7 @@ def run(dry_run, thread_pool_size=10,
             logging.info(['create_service_account', kafka_cluster_name])
             if not dry_run:
                 ocm = ocm_map.get(kafka_cluster_name)
-                sa_fields = ['clientId', 'clientSecret']
+                sa_fields = ['clientID', 'clientSecret']
                 result_sa = \
                     ocm.create_kafka_service_account(
                         kafka_cluster_name, fields=sa_fields)
