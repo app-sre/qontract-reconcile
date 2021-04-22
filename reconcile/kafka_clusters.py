@@ -126,10 +126,6 @@ def run(dry_run, thread_pool_size=10,
                 result_sa = \
                     ocm.create_kafka_service_account(
                         kafka_cluster_name, fields=sa_fields)
-                # this is the only time we will get the clientSecret
-                # so we write it to vault to be able to get it again
-                write_output_to_vault(
-                    vault_throughput_path, kafka_cluster_name, result_sa)
         
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
@@ -172,6 +168,10 @@ def run(dry_run, thread_pool_size=10,
                 resource.name,
                 resource
             )
+        if not dry_run:
+            write_output_to_vault(vault_throughput_path,
+                                  kafka_cluster_name,
+                                  resource.body['data'])
 
     ob.realize_data(dry_run, oc_map, ri)
 
