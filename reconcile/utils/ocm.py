@@ -662,15 +662,13 @@ class OCM:
         params = {'async': 'true'}
         self._post(api, data, params)
 
-    def create_kafka_service_account(self, name):
+    def create_kafka_service_account(self, name, fields=None):
         """ Creates a Kafka service account """
         api = f'{KAS_API_BASE}/v1/serviceaccounts'
         result = self._post(api, {'name': name})
-        return {
-            'name': result['name'],
-            'client_id': result['clientID'],
-            'client_secret': result['clientSecret'],
-        }
+        if fields:
+            result = {k: v for k, v in result.items() if k in fields}
+        return result
 
     def _init_addons(self):
         """Returns a list of Addons """

@@ -106,8 +106,10 @@ def run(dry_run, thread_pool_size=10,
             logging.info(['create_service_account', kafka_cluster_name])
             if not dry_run:
                 ocm = ocm_map.get(kafka_cluster_name)
+                sa_fields = ['clientId', 'clientSecret']
                 result_sa = \
-                    ocm.create_kafka_service_account(kafka_cluster_name)
+                    ocm.create_kafka_service_account(
+                        kafka_cluster_name, fields=sa_fields)
                 # this is the only time we will get the clientSecret
                 # so we write it to vault to be able to get it again
                 write_output_to_vault(
