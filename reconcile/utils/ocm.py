@@ -9,6 +9,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 STATUS_READY = 'ready'
 
+AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
 
 
@@ -625,7 +626,7 @@ class OCM:
         return {k: v for k, v in autoscale.items() if k in desired_keys}
 
     def get_pull_secrets(self,):
-        api = '/api/accounts_mgmt/v1/access_token'
+        api = f'{AMS_API_BASE}/v1/access_token'
         return self._post(api)
 
     def get_kafka_clusters(self, fields=None):
