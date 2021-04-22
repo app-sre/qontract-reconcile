@@ -11,6 +11,7 @@ STATUS_READY = 'ready'
 
 AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
+KAS_API_BASE = '/api/managed-services-api'
 
 
 class OCM:
@@ -631,7 +632,7 @@ class OCM:
 
     def get_kafka_clusters(self, fields=None):
         """Returns details of the Kafka clusters """
-        api = '/api/managed-services-api/v1/kafkas'
+        api = f'{KAS_API_BASE}/v1/kafkas'
         clusters = self._get_json(api)['items']
         if fields:
             clusters = [{k: v for k, v in cluster.items()
@@ -642,7 +643,7 @@ class OCM:
     def get_kafka_service_accounts(self, fields=None):
         """Returns details of the Kafka service accounts """
         results = []
-        api = '/api/managed-services-api/v1/serviceaccounts'
+        api = f'{KAS_API_BASE}/v1/serviceaccounts'
         service_accounts = self._get_json(api)['items']
         for sa in service_accounts:
             sa_id = sa['id']
@@ -656,13 +657,13 @@ class OCM:
 
     def create_kafka_cluster(self, data):
         """Creates (async) a Kafka cluster """
-        api = '/api/managed-services-api/v1/kafkas'
+        api = f'{KAS_API_BASE}/v1/kafkas'
         params = {'async': 'true'}
         self._post(api, data, params)
 
     def create_kafka_service_account(self, name):
         """ Creates a Kafka service account """
-        api = '/api/managed-services-api/v1/serviceaccounts'
+        api = f'{KAS_API_BASE}/v1/serviceaccounts'
         result = self._post(api, {'name': name})
         return {
             'name': result['name'],
