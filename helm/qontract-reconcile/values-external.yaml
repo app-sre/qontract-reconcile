@@ -473,6 +473,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  extraArgs: --vault-throughput-path app-sre/integrations-throughput
   logs:
     cloudwatch: true
     slack: true

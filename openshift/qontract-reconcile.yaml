@@ -14589,7 +14589,7 @@ objects:
           - name: INTEGRATION_NAME
             value: kafka-clusters
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--vault-throughput-path app-sre/integrations-throughput"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
