@@ -672,7 +672,7 @@ class OCM:
 
     def _init_addons(self):
         """Returns a list of Addons """
-        api = '{CS_API_BASE}/v1/addons'
+        api = f'{CS_API_BASE}/v1/addons'
         self.addons = self._get_json(api).get('items')
 
     def get_addon(self, id):
