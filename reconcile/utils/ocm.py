@@ -645,8 +645,10 @@ class OCM:
             sa_id = sa['id']
             id_api = f'{api}/{sa_id}'
             sa_details = self._get_json(id_api)
-            item = {k: v for k, v in sa_details.items() if k in fields}
-            results.append(item)
+            if fields:
+                sa_details = {k: v for k, v in sa_details.items()
+                              if k in fields}
+            results.append(sa_details)
         return results
 
     def create_kafka_cluster(self, data):
