@@ -303,6 +303,15 @@ def vault_output_path(function):
     return function
 
 
+def vault_throughput_path(function):
+    function = click.option('--vault-throughput-path',
+                            help='path in Vault to find input resources '
+                                 'and store output resources.',
+                            default='')(function)
+
+    return function
+
+
 def cluster_name(function):
     function = click.option('--cluster-name',
                             help='cluster name to act on.',
@@ -1262,10 +1271,12 @@ def ecr_mirror(ctx, thread_pool_size):
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
+@vault_throughput_path
 @click.pass_context
-def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host):
+def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host,
+                   vault_throughput_path):
     run_integration(reconcile.kafka_clusters, ctx.obj, thread_pool_size,
-                    internal, use_jump_host)
+                    internal, use_jump_host, vault_throughput_path)
 
 
 @integration.command()

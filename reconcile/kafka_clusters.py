@@ -51,7 +51,12 @@ def fetch_desired_state(clusters):
 
 @defer
 def run(dry_run, thread_pool_size=10,
-        internal=None, use_jump_host=True, defer=None):
+        internal=None, use_jump_host=True,
+        vault_throughput_path=None, defer=None):
+    if not vault_throughput_path:
+        logging.error('must supply vault throughput path')
+        sys.exit(ExitCodes.ERROR)
+
     kafka_clusters = queries.get_kafka_clusters()
     if not kafka_clusters:
         logging.debug("No Kafka clusters found in app-interface")
