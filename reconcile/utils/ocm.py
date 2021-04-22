@@ -900,7 +900,7 @@ class OCMMap:
 
     def kafka_service_account_specs(self):
         """ Get dictionary of Kafka service account specs in the OCM map. """
-        fields = ['name', 'clientID', 'clientSecret']
+        fields = ['name', 'clientID']
         service_account_specs = []
         for ocm in self.ocm_map.values():
             service_accounts = ocm.get_kafka_service_accounts(fields=fields)

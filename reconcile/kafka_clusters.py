@@ -11,6 +11,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.ocm import OCMMap, STATUS_READY
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
+from reconcile.utils.vault import VaultClient
 
 
 QONTRACT_INTEGRATION = 'kafka-clusters'
@@ -47,6 +48,14 @@ def fetch_desired_state(clusters):
         }
         desired_state.append(item)
     return desired_state
+
+
+def write_output_to_vault(vault_path, name, data):
+    integration_name = QONTRACT_INTEGRATION
+    vault_client = VaultClient()
+    secret_path = f"{vault_path}/{integration_name}/{name}"
+    secret = {'path': secret_path, 'data': data}
+    vault_client.write(secret)
 
 
 @defer
@@ -99,6 +108,10 @@ def run(dry_run, thread_pool_size=10,
                 ocm = ocm_map.get(kafka_cluster_name)
                 result_sa = \
                     ocm.create_kafka_service_account(kafka_cluster_name)
+                # this is the only time we will get the clientSecret
+                # so we write it to vault to be able to get it again
+                write_output_to_vault(
+                    vault_throughput_path, kafka_cluster_name, result_sa)
         # the name was only needed for matching
         result_sa.pop('name', None)
         desired_cluster = [c for c in desired_state
