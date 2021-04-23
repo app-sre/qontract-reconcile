@@ -450,16 +450,15 @@ class SaasHerder():
                         + f"{str(e)}")
                     return None, None, None
                 try:
-                    img = Image(
-                        f"{registry_image}:{image_tag}", **image_auth)
+                    image_uri = f"{registry_image}:{image_tag}"
+                    img = Image(image_uri, **image_auth)
                     consolidated_parameters[
                         "REPO_DIGEST"] = f"{img.url_digest}"
                 except (rqexc.ConnectionError, rqexc.HTTPError) as e:
                     logging.error(
                         f"[{saas_file_name}/{resource_template_name}] "
-                        + f"{html_url}: error generating REPO_DIGEST. "
-                        + "Couldn't talk to the registry: "
-                        + f"{str(e)}")
+                        + f"{html_url}: error generating REPO_DIGEST for "
+                        + f"{image_uri}: {str(e)}")
                     return None, None, None
 
             oc = OC('server', 'token', local=True)
