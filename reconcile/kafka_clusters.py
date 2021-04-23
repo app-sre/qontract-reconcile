@@ -1,6 +1,7 @@
 import base64
 import logging
 import sys
+import copy
 
 
 import reconcile.openshift_base as ob
@@ -108,7 +109,7 @@ def run(dry_run, thread_pool_size=10,
         service_accounts = [sa for sa in kafka_service_accounts
                             if sa['name'] == kafka_cluster_name]
         if service_accounts:
-            result_sa = service_accounts[0]
+            result_sa = copy.deepcopy(service_accounts[0])
             # since this is an existing service account
             # we do not get it's clientSecret. read it from vault
             cs_key = 'clientSecret'
