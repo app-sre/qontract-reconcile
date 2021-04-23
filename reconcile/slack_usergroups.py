@@ -1,6 +1,7 @@
 import logging
 
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 from reconcile.utils import gql
 from reconcile.utils.github_api import GithubApi
@@ -180,6 +181,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
     return all_slack_usernames
 
 
+@retry()
 def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
     if owners_from_repo is None:
         return []
