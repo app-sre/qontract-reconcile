@@ -3,6 +3,8 @@ import sys
 
 import sendgrid
 
+from sretoolbox.utils import retry
+
 import reconcile.queries as queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.status import ExitCodes
@@ -39,6 +41,7 @@ def fetch_desired_state(users):
     return desired_state
 
 
+@retry()
 def fetch_current_state(sg_client):
     state = []
 
