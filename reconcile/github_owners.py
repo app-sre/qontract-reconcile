@@ -61,6 +61,16 @@ def fetch_desired_state():
     return desired_state
 
 
+def get_current_github_usernames(github_org_name, github, raw_github):
+    gh_org = github.get_organization(github_org_name)
+    gh_org_members = gh_org.get_members(role='admin')
+    current_github_usernames = [m.login for m in gh_org_members]
+    invitations = raw_github.org_invitations(github_org_name)
+    current_github_usernames.extend(invitations)
+
+    return current_github_usernames
+
+
 def run(dry_run):
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
     desired_state = fetch_desired_state()
@@ -70,11 +80,8 @@ def run(dry_run):
         token = config['github'][github_org_name]['token']
         gh = Github(token, base_url=base_url)
         raw_gh = RawGithubApi(token)
-        gh_org = gh.get_organization(github_org_name)
-        gh_org_members = gh_org.get_members(role='admin')
-        current_github_usernames = [m.login for m in gh_org_members]
-        invitations = raw_gh.org_invitations(github_org_name)
-        current_github_usernames.extend(invitations)
+        current_github_usernames = \
+            get_current_github_usernames(github_org_name, gh, raw_gh)
         current_github_usernames = \
             [m.lower() for m in current_github_usernames]
         desired_github_usernames = \
