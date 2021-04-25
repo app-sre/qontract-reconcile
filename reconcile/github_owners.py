@@ -70,7 +70,7 @@ def get_current_github_usernames(github_org_name, github, raw_github):
     invitations = raw_github.org_invitations(github_org_name)
     current_github_usernames.extend(invitations)
 
-    return current_github_usernames
+    return gh_org, current_github_usernames
 
 
 def run(dry_run):
@@ -82,7 +82,7 @@ def run(dry_run):
         token = config['github'][github_org_name]['token']
         gh = Github(token, base_url=base_url)
         raw_gh = RawGithubApi(token)
-        current_github_usernames = \
+        gh_org, current_github_usernames = \
             get_current_github_usernames(github_org_name, gh, raw_gh)
         current_github_usernames = \
             [m.lower() for m in current_github_usernames]
