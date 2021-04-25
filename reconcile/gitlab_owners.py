@@ -301,7 +301,7 @@ class MRApproval:
 def act(repo, dry_run, instance, settings):
     gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
     project_owners = RepoOwners(git_cli=gitlab_cli,
-                                ref=gitlab_cli.default_branch)
+                                ref=gitlab_cli.project.default_branch)
 
     for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
         mr_approval = MRApproval(gitlab_client=gitlab_cli,
