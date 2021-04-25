@@ -3,11 +3,11 @@ import sys
 
 import sendgrid
 
+from sretoolbox.utils import retry
+
 import reconcile.queries as queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.status import ExitCodes
-
-from sretoolbox.utils import retry
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'sendgrid_teammates'
