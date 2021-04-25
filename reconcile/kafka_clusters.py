@@ -138,14 +138,6 @@ def run(dry_run, thread_pool_size=10,
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
-        kafka_service_account = get_kafa_service_account(
-            kafka_service_accounts,
-            kafka_cluster_name,
-            vault_throughput_path,
-            dry_run,
-            ocm_map,
-        )
-
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
@@ -172,6 +164,14 @@ def run(dry_run, thread_pool_size=10,
         if current_cluster['status'] != STATUS_READY:
             continue
         # we have a ready cluster!
+        # get a service account for the cluster
+        kafka_service_account = get_kafa_service_account(
+            kafka_service_accounts,
+            kafka_cluster_name,
+            vault_throughput_path,
+            dry_run,
+            ocm_map,
+        )
         # let's create a Secret in all referencing namespaces
         kafka_namespaces = kafka_cluster['namespaces']
         secret_fields = ['bootstrapServerHost']
