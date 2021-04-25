@@ -2,6 +2,7 @@ import os
 import logging
 
 from github import Github
+from sretoolbox.utils import retry
 
 import reconcile.utils.gql as gql
 
@@ -61,6 +62,7 @@ def fetch_desired_state():
     return desired_state
 
 
+@retry()
 def get_current_github_usernames(github_org_name, github, raw_github):
     gh_org = github.get_organization(github_org_name)
     gh_org_members = gh_org.get_members(role='admin')
