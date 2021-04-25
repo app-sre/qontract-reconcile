@@ -7,6 +7,8 @@ import reconcile.queries as queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.status import ExitCodes
 
+from sretoolbox.utils import retry
+
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'sendgrid_teammates'
 
@@ -39,6 +41,7 @@ def fetch_desired_state(users):
     return desired_state
 
 
+@retry()
 def fetch_current_state(sg_client):
     state = []
 
