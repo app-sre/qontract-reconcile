@@ -411,9 +411,9 @@ class SaasHerder():
                     f"error fetching template: {str(e)}")
                 return None, None, None
 
-            # add IMAGE_TAG only if it is required and unspecified
-            if self._parameter_value_needed(
-                    "IMAGE_TAG", consolidated_parameters, template):
+            # add IMAGE_TAG only if it is unspecified
+            image_tag = consolidated_parameters.get('IMAGE_TAG')
+            if not image_tag:
                 sha_substring = commit_sha[:hash_length]
                 # IMAGE_TAG takes one of two forms:
                 # - If saas file attribute 'use_channel_in_image_tag' is true,
@@ -441,12 +441,11 @@ class SaasHerder():
                 try:
                     logging.debug("Generating REPO_DIGEST.")
                     registry_image = consolidated_parameters["REGISTRY_IMG"]
-                    image_tag = consolidated_parameters["IMAGE_TAG"]
                 except KeyError as e:
                     logging.error(
                         f"[{saas_file_name}/{resource_template_name}] "
                         + f"{html_url}: error generating REPO_DIGEST. "
-                        + "Is REGISTRY_IMG or IMAGE_TAG missing? "
+                        + "Is REGISTRY_IMG missing? "
                         + f"{str(e)}")
                     return None, None, None
                 try:
