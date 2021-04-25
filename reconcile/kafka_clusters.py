@@ -54,6 +54,7 @@ def fetch_desired_state(clusters):
 def get_kafa_service_account(kafka_service_accounts,
                              kafka_cluster_name,
                              vault_throughput_path,
+                             dry_run,
                              ocm_map):
     """
     get a service account for the cluster
@@ -141,6 +142,7 @@ def run(dry_run, thread_pool_size=10,
             kafka_service_accounts,
             kafka_cluster_name,
             vault_throughput_path,
+            dry_run,
             ocm_map,
         )
 
