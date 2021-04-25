@@ -137,7 +137,7 @@ def run(dry_run, thread_pool_size=10,
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
-        result_sa = get_kafa_service_account(
+        kafka_service_account = get_kafa_service_account(
             kafka_service_accounts,
             kafka_cluster_name,
             vault_throughput_path,
@@ -175,7 +175,7 @@ def run(dry_run, thread_pool_size=10,
         secret_fields = ['bootstrapServerHost']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
-        data.update(result_sa)
+        data.update(kafka_service_account)
         resource = construct_oc_resource(data)
         for namespace_info in kafka_namespaces:
             ri.add_desired(
