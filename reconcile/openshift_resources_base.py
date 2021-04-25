@@ -192,7 +192,11 @@ def lookup_vault_secret(path, key, version=None, tvars=None):
         raise FetchVaultSecretError(e)
 
 
-def process_jinja2_template(body, vars={}, env={}):
+def process_jinja2_template(body, vars=None, env=None):
+    if vars is None:
+        vars = {}
+    if env is None:
+        env = {}
     vars.update({'vault': lambda p, k, v=None:
                  lookup_vault_secret(p, k, v, vars)})
     try:
