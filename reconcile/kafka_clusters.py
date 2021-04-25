@@ -51,6 +51,40 @@ def fetch_desired_state(clusters):
     return desired_state
 
 
+def get_kafa_service_account(kafka_service_accounts,
+                             kafka_cluster_name,
+                             vault_throughput_path,
+                             dry_run,
+                             ocm_map):
+    """
+    get a service account for the cluster
+    we match cluster to service account by name
+    """
+    service_accounts = [sa for sa in kafka_service_accounts
+                        if sa['name'] == kafka_cluster_name]
+    if service_accounts:
+        result_sa = copy.deepcopy(service_accounts[0])
+        # since this is an existing service account
+        # we do not get it's clientSecret. read it from vault
+        cs_key = 'clientSecret'
+        result_sa[cs_key] = \
+            read_input_from_vault(
+                vault_throughput_path, kafka_cluster_name, cs_key)
+        # the name was only needed for matching
+        result_sa.pop('name', None)
+    else:
+        result_sa = {}
+        logging.info(['create_service_account', kafka_cluster_name])
+        if not dry_run:
+            ocm = ocm_map.get(kafka_cluster_name)
+            sa_fields = ['clientID', 'clientSecret']
+            result_sa = \
+                ocm.create_kafka_service_account(
+                    kafka_cluster_name, fields=sa_fields)
+
+    return result_sa
+
+
 def read_input_from_vault(vault_path, name, field):
     integration_name = QONTRACT_INTEGRATION
     vault_client = VaultClient()
@@ -104,30 +138,6 @@ def run(dry_run, thread_pool_size=10,
     error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
-        # get a service account for the cluster
-        # we match cluster to service account by name
-        service_accounts = [sa for sa in kafka_service_accounts
-                            if sa['name'] == kafka_cluster_name]
-        if service_accounts:
-            result_sa = copy.deepcopy(service_accounts[0])
-            # since this is an existing service account
-            # we do not get it's clientSecret. read it from vault
-            cs_key = 'clientSecret'
-            result_sa[cs_key] = \
-                read_input_from_vault(
-                    vault_throughput_path, kafka_cluster_name, cs_key)
-            # the name was only needed for matching
-            result_sa.pop('name', None)
-        else:
-            result_sa = {}
-            logging.info(['create_service_account', kafka_cluster_name])
-            if not dry_run:
-                ocm = ocm_map.get(kafka_cluster_name)
-                sa_fields = ['clientID', 'clientSecret']
-                result_sa = \
-                    ocm.create_kafka_service_account(
-                        kafka_cluster_name, fields=sa_fields)
-
         desired_cluster = [c for c in desired_state
                            if kafka_cluster_name == c['name']][0]
         current_cluster = [c for c in current_state
@@ -154,12 +164,20 @@ def run(dry_run, thread_pool_size=10,
         if current_cluster['status'] != STATUS_READY:
             continue
         # we have a ready cluster!
+        # get a service account for the cluster
+        kafka_service_account = get_kafa_service_account(
+            kafka_service_accounts,
+            kafka_cluster_name,
+            vault_throughput_path,
+            dry_run,
+            ocm_map,
+        )
         # let's create a Secret in all referencing namespaces
         kafka_namespaces = kafka_cluster['namespaces']
         secret_fields = ['bootstrapServerHost']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
-        data.update(result_sa)
+        data.update(kafka_service_account)
         resource = construct_oc_resource(data)
         for namespace_info in kafka_namespaces:
             ri.add_desired(
