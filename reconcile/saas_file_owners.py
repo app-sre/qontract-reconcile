@@ -309,6 +309,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
 
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
     comment_lines = {}
+    hold = False
     for diff in diffs:
         # check if this diff was actually changed in the current MR
         saas_file_path = diff['saas_file_path']
@@ -327,7 +328,8 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         # check for a lgtm by an owner of this app
         saas_file_name = diff['saas_file_name']
         saas_file_owners = owners.get(saas_file_name)
-        valid_lgtm, hold = check_if_lgtm(saas_file_owners, comments)
+        valid_lgtm, current_hold = check_if_lgtm(saas_file_owners, comments)
+        hold = hold or current_hold
         if hold:
             gl.add_label_to_merge_request(
                 gitlab_merge_request_id, hold_label)
