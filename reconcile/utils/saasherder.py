@@ -434,8 +434,7 @@ class SaasHerder():
                     image_tag = sha_substring
                 consolidated_parameters['IMAGE_TAG'] = image_tag
 
-            # Do this in a separate loop, since it relies on IMAGE_TAG already
-            # being calculated.
+            # This relies on IMAGE_TAG already being calculated.
             if self._parameter_value_needed(
                     "REPO_DIGEST", consolidated_parameters, template):
                 try:
