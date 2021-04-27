@@ -207,7 +207,8 @@ def check_prometheus_tests(tests, rules, thread_pool_size):
             continue
 
         if rule_files[0] not in rules:
-            msg = f'rule file {rule_files[0]} does not exist'
+            msg = f'rule file {rule_files[0]} does not exist or is not ' \
+                  'referenced in any namespace file'
             failed_tests.append({**test_to_run, 'check_result': msg})
             continue
 
