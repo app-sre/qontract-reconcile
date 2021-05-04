@@ -494,9 +494,9 @@ def quay_mirrors(ctx):
 
 @get.command()
 @click.argument('aws_account')
-@click.argument('db_instance_name')
+@click.argument('identifier')
 @click.pass_context
-def service_owners_for_rds_instance(ctx, aws_account, db_instance_name):
+def service_owners_for_rds_instance(ctx, aws_account, identifier):
     namespaces = queries.get_namespaces()
     service_owners = []
     for namespace_info in namespaces:
@@ -505,7 +505,7 @@ def service_owners_for_rds_instance(ctx, aws_account, db_instance_name):
 
         for tf in namespace_info.get('terraformResources'):
             if tf['provider'] == 'rds' and tf['account'] == aws_account and \
-               tf['identifier'] == db_instance_name:
+               tf['identifier'] == identifier:
                 service_owners = namespace_info['app']['serviceOwners']
                 break
 
