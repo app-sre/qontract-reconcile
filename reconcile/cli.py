@@ -109,7 +109,7 @@ from reconcile.utils.environ import environ
 from reconcile.utils.unleash import get_feature_toggle_state
 
 
-TERRAFORM_VERSION = '0.13.5'
+TERRAFORM_VERSION = '0.13.7'
 TERRAFORM_VERSION_REGEX = r'^Terraform\sv([\d]+\.[\d]+\.[\d]+)$'
 
 OC_VERSION = '4.6.1'
