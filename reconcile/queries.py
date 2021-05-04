@@ -586,6 +586,10 @@ NAMESPACES_QUERY = """
     managedRoles
     app {
       name
+      serviceOwners {
+        name
+        email
+      }
     }
     terraformResources
       {
