@@ -41,7 +41,6 @@ import reconcile.quay_mirror
 import reconcile.quay_mirror_org
 import reconcile.quay_repos
 import reconcile.quay_permissions
-import reconcile.quay_notifications
 import reconcile.ldap_users
 import reconcile.terraform_resources
 import reconcile.terraform_users
@@ -982,12 +981,6 @@ def quay_repos(ctx):
 @click.pass_context
 def quay_permissions(ctx):
     run_integration(reconcile.quay_permissions, ctx.obj)
-
-
-@integration.command()
-@click.pass_context
-def quay_notifications(ctx):
-    run_integration(reconcile.quay_notifications, ctx.obj)
 
 
 @integration.command()
