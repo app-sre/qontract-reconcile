@@ -491,6 +491,57 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
     print_output(ctx.obj['output'], service_owners, columns)
 
 
+@get.command()
+@click.pass_context
+def sre_checkpoints(ctx):
+    sre_checkpoints_raw = queries.get_sre_checkpoints()
+    apps = queries.get_apps()
+
+    def full_name(app):
+        name = app['name']
+        if app.get('parentApp'):
+            parent_app = app['parentApp']['name']
+            name = f"{parent_app}/{name}"
+        return name
+
+    sre_checkpoints = {}
+    for checkpoint in sre_checkpoints_raw:
+        app = checkpoint['app']
+        name = full_name(app)
+
+        if name not in sre_checkpoints:
+            sre_checkpoints[name] = checkpoint['date']
+        else:
+            if checkpoint['date'] > sre_checkpoints[name]:
+                sre_checkpoints[name] = checkpoint['date']
+
+    parent_apps = {
+        app['parentApp']['path']
+        for app in apps
+        if app.get('parentApp')
+    }
+
+    app_checkpoints = []
+    for app in apps:
+        # skip parent apps
+        if app['path'] in parent_apps:
+            continue
+
+        # consider only onboardedApps
+        if app['onboardingStatus'] != 'OnBoarded':
+            continue
+
+        app_checkpoints.append({
+            'name': full_name(app),
+            'last_checkpoint': sre_checkpoints.get(app['name'], '')
+        })
+
+    app_checkpoints.sort(key=lambda c: c['last_checkpoint'], reverse=True)
+
+    columns = ['name', 'last checkpoint']
+    print_output(ctx.obj['output'], app_checkpoints, columns)
+
+
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)
