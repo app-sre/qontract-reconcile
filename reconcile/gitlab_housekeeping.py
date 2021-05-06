@@ -10,9 +10,10 @@ import reconcile.queries as queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 
-
-MERGE_LABELS_PRIORITY = ['bot/approved', 'lgtm', 'bot/automerge']
-REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY + ['saas-file-update']
+LGTM_LABEL = 'lgtm'
+MERGE_LABELS_PRIORITY = ['bot/approved', LGTM_LABEL, 'bot/automerge']
+SAAS_FILE_LABEL = 'saas-file-update'
+REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY + [SAAS_FILE_LABEL]
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
@@ -160,6 +161,14 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
 
             good_to_merge = is_good_to_merge(merge_label, labels)
             if not good_to_merge:
+                continue
+
+            if SAAS_FILE_LABEL in labels and LGTM_LABEL in labels:
+                logging.warning(
+                    f"[{gl.project.name}/{mr.iid}] 'lgtm' label not " +
+                    f"suitable for saas file update. removing 'lgtm' label"
+                )
+                gl.remove_label_from_merge_request(mr.iid, LGTM_LABEL)
                 continue
 
             target_branch = mr.target_branch
