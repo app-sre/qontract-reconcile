@@ -166,7 +166,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
             if SAAS_FILE_LABEL in labels and LGTM_LABEL in labels:
                 logging.warning(
                     f"[{gl.project.name}/{mr.iid}] 'lgtm' label not " +
-                    f"suitable for saas file update. removing 'lgtm' label"
+                    "suitable for saas file update. removing 'lgtm' label"
                 )
                 gl.remove_label_from_merge_request(mr.iid, LGTM_LABEL)
                 continue
