@@ -29,7 +29,12 @@ def _run_yaml_str_cmd(cmd, yaml_str):
             cmd.append(fp.name)
             result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
     except Exception as e:
-        msg = f'Error running amtool: {e}'
+        msg = f'Error running amtool command [{" ".join(cmd)}]'
+        if e.stdout:
+            msg += f' {e.stdout.decode()}'
+        if e.stderr:
+            msg += f' {e.stderr.decode()}'
+
         return AmtoolResult(False, msg)
 
     return AmtoolResult(True, result.stdout.decode())
