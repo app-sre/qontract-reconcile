@@ -168,7 +168,8 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
                     f"[{gl.project.name}/{mr.iid}] 'lgtm' label not " +
                     "suitable for saas file update. removing 'lgtm' label"
                 )
-                gl.remove_label_from_merge_request(mr.iid, LGTM_LABEL)
+                if not dry_run:
+                    gl.remove_label_from_merge_request(mr.iid, LGTM_LABEL)
                 continue
 
             target_branch = mr.target_branch
