@@ -479,6 +479,7 @@ class OC:
             'Deployment',
             'DeploymentConfig',
             'StatefulSet',
+            'DaemonSet',
         ]
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod)
