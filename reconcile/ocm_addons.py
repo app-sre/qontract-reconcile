@@ -1,6 +1,8 @@
 import sys
 import logging
 
+from operator import itemgetter
+
 import reconcile.queries as queries
 
 from reconcile.status import ExitCodes
@@ -22,6 +24,7 @@ def fetch_current_state(clusters):
         if addons:
             for addon in addons:
                 addon['cluster'] = cluster_name
+                sort_parameters(addon)
                 current_state.append(addon)
 
     return ocm_map, current_state
@@ -35,9 +38,16 @@ def fetch_desired_state(clusters):
         for addon in addons:
             addon['id'] = addon.pop('name')
             addon['cluster'] = cluster_name
+            sort_parameters(addon)
             desired_state.append(addon)
 
     return desired_state
+
+
+def sort_parameters(addon):
+    addon_parameters = addon.get('parameters')
+    if addon_parameters:
+        addon['parameters'] = sorted(addon_parameters, key=itemgetter('id'))
 
 
 def calculate_diff(current_state, desired_state):

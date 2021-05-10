@@ -435,8 +435,11 @@ class SaasHerder():
                 consolidated_parameters['IMAGE_TAG'] = image_tag
 
             # This relies on IMAGE_TAG already being calculated.
-            if self._parameter_value_needed(
-                    "REPO_DIGEST", consolidated_parameters, template):
+            need_repo_digest = self._parameter_value_needed(
+                "REPO_DIGEST", consolidated_parameters, template)
+            need_image_digest = self._parameter_value_needed(
+                "IMAGE_DIGEST", consolidated_parameters, template)
+            if need_repo_digest or need_image_digest:
                 try:
                     logging.debug("Generating REPO_DIGEST.")
                     registry_image = consolidated_parameters["REGISTRY_IMG"]
@@ -450,8 +453,11 @@ class SaasHerder():
                 try:
                     image_uri = f"{registry_image}:{image_tag}"
                     img = Image(image_uri, **image_auth)
-                    consolidated_parameters[
-                        "REPO_DIGEST"] = f"{img.url_digest}"
+                    if need_repo_digest:
+                        consolidated_parameters[
+                            "REPO_DIGEST"] = img.url_digest
+                    if need_image_digest:
+                        consolidated_parameters["IMAGE_DIGEST"] = img.digest
                 except (rqexc.ConnectionError, rqexc.HTTPError) as e:
                     logging.error(
                         f"[{saas_file_name}/{resource_template_name}] "

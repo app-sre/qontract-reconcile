@@ -21,6 +21,7 @@ from reconcile.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.jinja2_ext import B64EncodeExtension
+from reconcile.utils.jinja2_ext import RaiseErrorExtension
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.sharding import is_in_shard
@@ -201,7 +202,7 @@ def process_jinja2_template(body, vars=None, env=None):
                  lookup_vault_secret(p, k, v, vars)})
     try:
         env = jinja2.Environment(
-            extensions=[B64EncodeExtension],
+            extensions=[B64EncodeExtension, RaiseErrorExtension],
             undefined=jinja2.StrictUndefined,
             **env
         )

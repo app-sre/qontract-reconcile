@@ -113,6 +113,12 @@ def run(dry_run):
         if not is_in_shard_round_robin(jira_board['name'], index):
             continue
         jira, current_state = fetch_current_state(jira_board, settings)
+        if not current_state:
+            logging.warning(
+                'not acting on empty Jira boards. ' +
+                'please create a ticket to get started.'
+            )
+            continue
         previous_state = fetch_previous_state(state, jira.project)
         if previous_state:
             diffs = calculate_diff(jira.server, current_state, previous_state)

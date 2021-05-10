@@ -492,6 +492,27 @@ def quay_mirrors(ctx):
     print_output(ctx.obj['output'], mirrors, columns)
 
 
+@get.command()
+@click.argument('aws_account')
+@click.argument('identifier')
+@click.pass_context
+def service_owners_for_rds_instance(ctx, aws_account, identifier):
+    namespaces = queries.get_namespaces()
+    service_owners = []
+    for namespace_info in namespaces:
+        if namespace_info.get('terraformResources') is None:
+            continue
+
+        for tf in namespace_info.get('terraformResources'):
+            if tf['provider'] == 'rds' and tf['account'] == aws_account and \
+               tf['identifier'] == identifier:
+                service_owners = namespace_info['app']['serviceOwners']
+                break
+
+    columns = ['name', 'email']
+    print_output(ctx.obj['output'], service_owners, columns)
+
+
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)
