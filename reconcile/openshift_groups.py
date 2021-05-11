@@ -13,11 +13,13 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     access {
       cluster {
         name
+        internal
       }
       group
     }
@@ -108,13 +110,19 @@ def fetch_desired_state(oc_map):
                 continue
 
             for u in r['users']:
-                if u['github_username'] is None:
-                    continue
+                if a['cluster']['internal']:
+                    username = u.get('org_username')
+                    if username is None:
+                        continue
+                else:
+                    username = u.get('github_username')
+                    if username is None:
+                        continue
 
                 desired_state.append({
                     "cluster": a['cluster']['name'],
                     "group": a['group'],
-                    "user": u['github_username']
+                    "user": username
                 })
 
     return desired_state
