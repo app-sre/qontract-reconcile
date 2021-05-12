@@ -230,5 +230,4 @@ integrations:
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   logs:
     cloudwatch: true
-    slack: true
   state: true
