@@ -238,7 +238,7 @@ integrations:
       # Limits 30% above requests
       memory: 900Mi
       cpu: 800m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   shards: 10
   logs:
     slack: true

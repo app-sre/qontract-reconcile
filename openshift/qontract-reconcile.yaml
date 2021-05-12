@@ -3562,7 +3562,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -3762,7 +3762,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -3962,7 +3962,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -4162,7 +4162,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -4362,7 +4362,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -4562,7 +4562,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -4762,7 +4762,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -4962,7 +4962,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -5162,7 +5162,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -5362,7 +5362,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -16302,6 +16302,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
+- name: APP_INTERFACE_PROJECT_ID
+  value: "0"
 - name: USER_ID
   value: dummy
 - name: LOG_FILE
