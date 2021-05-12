@@ -10,3 +10,225 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: openshift-rolebindings
+  resources:
+    requests:
+      memory: 150Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --internal
+  logs:
+    slack: true
+    cloudwatch: true
+- name: openshift-namespaces
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 100m
+    limits:
+      memory: 800Mi
+      cpu: 200m
+  extraArgs: --internal
+  logs:
+    slack: true
+    cloudwatch: true
+- name: openshift-resources
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
+  extraArgs: --internal
+  logs:
+    cloudwatch: true
+    slack: true
+- name: openshift-vault-secrets
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 400m
+  extraArgs: --internal
+  logs:
+    cloudwatch: true
+- name: openshift-serviceaccount-tokens
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
+  extraArgs: --vault-output-path app-sre/integrations-output
+  logs:
+    cloudwatch: true
+    slack: true
+- name: openshift-saas-deploy-trigger-configs
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 400m
+  logs:
+    cloudwatch: true
+    slack: true
+  state: true
+- name: openshift-saas-deploy-trigger-moving-commits
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 400m
+  logs:
+    cloudwatch: true
+    slack: true
+  state: true
+- name: terraform-resources
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 300m
+    limits:
+      memory: 1200Mi
+      cpu: 600m
+  extraArgs: --internal --light --vault-output-path app-sre/integrations-output
+  logs:
+    slack: true
+    cloudwatch: true
+- name: gitlab-projects
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-members
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-permissions
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-integrations
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-owners
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-housekeeping
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --wait-for-pipeline
+  logs:
+    cloudwatch: true
+- name: jenkins-roles
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: jenkins-webhooks
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: jenkins-webhooks-cleaner
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+- name: ldap-users
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: ${{APP_INTERFACE_PROJECT_ID}}
+  logs:
+    cloudwatch: true
+    slack: true
+- name: gitlab-mr-sqs-consumer
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 400m
+  extraEnv:
+  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
+    secretKey: gitlab_pr_submitter_queue_url
+  extraArgs: ${{APP_INTERFACE_PROJECT_ID}}
+  logs:
+    cloudwatch: true
+    slack: true
+  state: true
