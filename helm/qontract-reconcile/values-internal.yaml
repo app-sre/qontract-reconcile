@@ -22,6 +22,18 @@ integrations:
   logs:
     slack: true
     cloudwatch: true
+- name: openshift-clusterrolebindings
+  resources:
+    requests:
+      memory: 350Mi
+      cpu: 100m
+    limits:
+      memory: 500Mi
+      cpu: 200m
+  extraArgs: --internal
+  logs:
+    slack: true
+    cloudwatch: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -30,6 +42,18 @@ integrations:
     limits:
       memory: 800Mi
       cpu: 200m
+  extraArgs: --internal
+  logs:
+    slack: true
+    cloudwatch: true
+- name: openshift-network-policies
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 150m
+    limits:
+      memory: 700Mi
+      cpu: 250m
   extraArgs: --internal
   logs:
     slack: true
