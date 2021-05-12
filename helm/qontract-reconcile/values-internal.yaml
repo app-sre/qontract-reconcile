@@ -13,10 +13,10 @@ integrations:
 - name: openshift-rolebindings
   resources:
     requests:
-      memory: 150Mi
+      memory: 550Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 720Mi
       cpu: 200m
   extraArgs: --internal
   logs:
