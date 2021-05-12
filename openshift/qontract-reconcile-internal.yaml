@@ -3703,7 +3703,7 @@ objects:
           - name: INTEGRATION_NAME
             value: ldap-users
           - name: INTEGRATION_EXTRA_ARGS
-            value: "${{APP_INTERFACE_PROJECT_ID}}"
+            value: "${APP_INTERFACE_PROJECT_ID}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -3903,7 +3903,7 @@ objects:
           - name: INTEGRATION_NAME
             value: gitlab-mr-sqs-consumer
           - name: INTEGRATION_EXTRA_ARGS
-            value: "${{APP_INTERFACE_PROJECT_ID}}"
+            value: "${APP_INTERFACE_PROJECT_ID}"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
