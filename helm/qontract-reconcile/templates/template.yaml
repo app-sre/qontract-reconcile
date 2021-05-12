@@ -353,6 +353,8 @@ parameters:
   value: app-interface-sqs
 - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
   value: app-sre
+- name: APP_INTERFACE_PROJECT_ID
+  value: "0"
 - name: USER_ID
   value: dummy
 - name: LOG_FILE
