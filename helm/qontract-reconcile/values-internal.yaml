@@ -183,7 +183,6 @@ integrations:
       cpu: 200m
   logs:
     cloudwatch: true
-    slack: true
 - name: gitlab-housekeeping
   resources:
     requests:
