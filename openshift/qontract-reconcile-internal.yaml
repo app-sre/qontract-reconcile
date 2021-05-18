@@ -3389,16 +3389,16 @@ objects:
     labels:
       app: qontract-reconcile-jenkins-job-builder
     name: qontract-reconcile-jenkins-job-builder
-  volumeClaimTemplates:
-  - metadata:
-      name: cache
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: gp2
-      resources:
-        requests:
-          storage: 1Gi
   spec:
+    volumeClaimTemplates:
+    - metadata:
+        name: cache
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 1Gi
     replicas: 1
     selector:
       matchLabels:
@@ -3551,10 +3551,10 @@ objects:
           resources:
             limits:
               cpu: 200m
-              memory: 200Mi
+              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 100Mi
+              memory: 200Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3807,16 +3807,16 @@ objects:
     labels:
       app: qontract-reconcile-jenkins-webhooks
     name: qontract-reconcile-jenkins-webhooks
-  volumeClaimTemplates:
-  - metadata:
-      name: cache
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: gp2
-      resources:
-        requests:
-          storage: 1Gi
   spec:
+    volumeClaimTemplates:
+    - metadata:
+        name: cache
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 1Gi
     replicas: 1
     selector:
       matchLabels:
