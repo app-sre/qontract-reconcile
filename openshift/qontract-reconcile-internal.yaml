@@ -22,6 +22,7 @@ objects:
           app: qontract-reconcile-slack-usergroups
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -222,6 +223,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -436,6 +438,7 @@ objects:
           app: qontract-reconcile-openshift-clusterrolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -650,6 +653,7 @@ objects:
           app: qontract-reconcile-openshift-namespaces
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -864,6 +868,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -1078,6 +1083,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -1292,6 +1298,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -1488,6 +1495,7 @@ objects:
           app: qontract-reconcile-openshift-serviceaccount-tokens
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -1702,6 +1710,7 @@ objects:
           app: qontract-reconcile-openshift-saas-deploy-trigger-configs
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1909,6 +1918,7 @@ objects:
           app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2116,6 +2126,7 @@ objects:
           app: qontract-reconcile-terraform-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: internal-certificates
           image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
@@ -2330,6 +2341,7 @@ objects:
           app: qontract-reconcile-gitlab-projects
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2530,6 +2542,7 @@ objects:
           app: qontract-reconcile-gitlab-members
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2730,6 +2743,7 @@ objects:
           app: qontract-reconcile-gitlab-permissions
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2930,6 +2944,7 @@ objects:
           app: qontract-reconcile-gitlab-integrations
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3130,6 +3145,7 @@ objects:
           app: qontract-reconcile-gitlab-owners
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3330,6 +3346,7 @@ objects:
           app: qontract-reconcile-gitlab-housekeeping
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3521,6 +3538,7 @@ objects:
           app: qontract-reconcile-jenkins-job-builder
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3730,6 +3748,7 @@ objects:
           app: qontract-reconcile-jenkins-roles
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3939,6 +3958,7 @@ objects:
           app: qontract-reconcile-jenkins-webhooks
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4141,6 +4161,7 @@ objects:
           app: qontract-reconcile-jenkins-webhooks-cleaner
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4341,6 +4362,7 @@ objects:
           app: qontract-reconcile-ldap-users
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4541,6 +4563,7 @@ objects:
           app: qontract-reconcile-gitlab-mr-sqs-consumer
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}

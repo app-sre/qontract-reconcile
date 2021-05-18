@@ -44,6 +44,7 @@ objects:
           app: qontract-reconcile-{{ $integration.name }}
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         {{- if $integration.internalCertificates }}
         - name: internal-certificates
