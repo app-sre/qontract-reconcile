@@ -195,6 +195,19 @@ integrations:
   extraArgs: --wait-for-pipeline
   logs:
     cloudwatch: true
+- name: jenkins-job-builder
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  logs:
+    cloudwatch: true
+    slack: true
+  state: true
+  cache: true
 - name: jenkins-roles
   resources:
     requests:
