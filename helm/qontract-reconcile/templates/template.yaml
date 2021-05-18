@@ -53,7 +53,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
