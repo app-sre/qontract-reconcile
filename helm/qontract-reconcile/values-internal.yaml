@@ -72,10 +72,10 @@ integrations:
 - name: openshift-vault-secrets
   resources:
     requests:
-      memory: 300Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
   extraArgs: --internal
   internalCertificates: true
