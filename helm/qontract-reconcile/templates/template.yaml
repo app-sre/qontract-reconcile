@@ -44,7 +44,20 @@ objects:
           app: qontract-reconcile-{{ $integration.name }}
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
+        {{- if $integration.internalCertificates }}
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
+        {{- end }}
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -240,6 +253,10 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          {{- if $integration.internalCertificates }}
+          - name: internal-certificates
+            mountPath: /etc/pki/
+          {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -248,6 +265,10 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+        {{- if $integration.internalCertificates }}
+        - name: internal-certificates
+          emptyDir: {}
+        {{- end }}
 {{- end }}
 {{- end }}
 {{- range $i, $integration := .Values.cronjobs }}
@@ -379,3 +400,7 @@ parameters:
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
