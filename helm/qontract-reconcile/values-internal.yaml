@@ -217,6 +217,7 @@ integrations:
   logs:
     cloudwatch: true
     slack: true
+  cache: true
 - name: jenkins-webhooks-cleaner
   resources:
     requests:

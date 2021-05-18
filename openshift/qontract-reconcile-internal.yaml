@@ -3584,7 +3584,7 @@ objects:
         - name: fluentd-config
           emptyDir: {}
 - apiVersion: apps/v1
-  kind: Deployment
+  kind: StatefulSet
   metadata:
     labels:
       app: qontract-reconcile-jenkins-webhooks
@@ -3599,6 +3599,15 @@ objects:
         labels:
           app: qontract-reconcile-jenkins-webhooks
           component: qontract-reconcile
+      volumeClaimTemplates:
+      - metadata:
+          name: cache
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          storageClassName: gp2
+          resources:
+            requests:
+              storage: 1Gi
       spec:
         initContainers:
         - name: config
@@ -3742,6 +3751,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: cache
+            mountPath: /.cache
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
