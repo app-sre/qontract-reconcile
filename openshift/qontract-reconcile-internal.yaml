@@ -223,6 +223,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -397,6 +407,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -404,6 +416,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -423,6 +437,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -597,6 +621,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -604,6 +630,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -623,6 +651,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -797,6 +835,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -804,6 +844,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -823,6 +865,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -997,6 +1049,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1004,6 +1058,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -1023,6 +1079,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -1197,6 +1263,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1204,6 +1272,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -1223,6 +1293,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -1379,6 +1459,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1386,6 +1468,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -1405,6 +1489,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -1579,6 +1673,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1586,6 +1682,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
@@ -2019,6 +2117,16 @@ objects:
           component: qontract-reconcile
       spec:
         initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/ /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -2193,6 +2301,8 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
+          - name: internal-certificates
+            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -2200,6 +2310,8 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment

@@ -20,6 +20,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -31,6 +32,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -42,6 +44,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -53,6 +56,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-resources
   resources:
     requests:
@@ -64,6 +68,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -73,6 +78,7 @@ integrations:
       memory: 400Mi
       cpu: 400m
   extraArgs: --internal
+  internalCertificates: true
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -84,6 +90,7 @@ integrations:
   extraArgs: --vault-output-path app-sre/integrations-output
   logs:
     slack: true
+  internalCertificates: true
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
@@ -117,6 +124,7 @@ integrations:
   extraArgs: --internal --light --vault-output-path app-sre/integrations-output
   logs:
     slack: true
+  internalCertificates: true
 - name: gitlab-projects
   resources:
     requests:
