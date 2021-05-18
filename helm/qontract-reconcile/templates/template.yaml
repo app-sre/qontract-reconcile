@@ -220,6 +220,10 @@ objects:
           - name: cache
             mountPath: /.cache
           {{- end }}
+          {{- if $integration.internalCertificates }}
+          - name: internal-certificates
+            mountPath: /etc/pki/
+          {{- end }}
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -253,10 +257,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          {{- if $integration.internalCertificates }}
-          - name: internal-certificates
-            mountPath: /etc/pki/
-          {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
