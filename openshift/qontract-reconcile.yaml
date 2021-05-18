@@ -17186,3 +17186,7 @@ parameters:
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
