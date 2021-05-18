@@ -404,3 +404,5 @@ parameters:
   value: quay.io/app-sre/internal-redhat-ca
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
   value: latest
+- name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+  value: Always
