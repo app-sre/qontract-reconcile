@@ -21,6 +21,17 @@ objects:
     {{- else }}
     name: qontract-reconcile-{{ $integration.name }}
     {{- end }}
+  {{- if $integration.cache }}
+  volumeClaimTemplates:
+  - metadata:
+      name: cache
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: {{ default "1Gi" $integration.storage }}
+  {{- end }}
   spec:
     replicas: 1
     selector:
@@ -31,17 +42,6 @@ objects:
         labels:
           app: qontract-reconcile-{{ $integration.name }}
           component: qontract-reconcile
-      {{- if $integration.cache }}
-      volumeClaimTemplates:
-      - metadata:
-          name: cache
-        spec:
-          accessModes: [ "ReadWriteOnce" ]
-          storageClassName: gp2
-          resources:
-            requests:
-              storage: {{ default "1Gi" $integration.storage }}
-      {{- end }}
       spec:
         {{- if $integration.logs }}
         initContainers:

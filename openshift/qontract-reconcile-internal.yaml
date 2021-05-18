@@ -3589,6 +3589,15 @@ objects:
     labels:
       app: qontract-reconcile-jenkins-webhooks
     name: qontract-reconcile-jenkins-webhooks
+  volumeClaimTemplates:
+  - metadata:
+      name: cache
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: gp2
+      resources:
+        requests:
+          storage: 1Gi
   spec:
     replicas: 1
     selector:
@@ -3599,15 +3608,6 @@ objects:
         labels:
           app: qontract-reconcile-jenkins-webhooks
           component: qontract-reconcile
-      volumeClaimTemplates:
-      - metadata:
-          name: cache
-        spec:
-          accessModes: [ "ReadWriteOnce" ]
-          storageClassName: gp2
-          resources:
-            requests:
-              storage: 1Gi
       spec:
         initContainers:
         - name: config
