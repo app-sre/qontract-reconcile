@@ -231,7 +231,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -376,6 +376,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -409,8 +411,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -446,7 +446,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -591,6 +591,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -624,8 +626,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -661,7 +661,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -806,6 +806,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -839,8 +841,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -876,7 +876,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -1021,6 +1021,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -1054,8 +1056,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1091,7 +1091,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -1236,6 +1236,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -1269,8 +1271,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1306,7 +1306,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -1433,6 +1433,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -1466,8 +1468,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -1503,7 +1503,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -1648,6 +1648,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -1681,8 +1683,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
@@ -2134,7 +2134,7 @@ objects:
           command: ["/bin/sh", "-c"]
           args:
           - |
-            cp -r /etc/pki/ /tmp/etc-pki/
+            cp -r /etc/pki/. /tmp/etc-pki/
           volumeMounts:
           - name: internal-certificates
             mountPath: /tmp/etc-pki/
@@ -2279,6 +2279,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -2312,8 +2314,6 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-          - name: internal-certificates
-            mountPath: /etc/pki/
         volumes:
         - name: qontract-reconcile-toml
           secret:
