@@ -1417,11 +1417,11 @@ def get_saas_files(saas_file_name=None, env_name=None, app_name=None,
     gqlapi = gql.get_api()
     saas_files = []
     if v1:
-      saas_files_v1 = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
-      saas_files.extend(saas_files_v1)
+        saas_files_v1 = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
+        saas_files.extend(saas_files_v1)
     if v2:
-      saas_files_v2 = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
-      saas_files.extend(saas_files_v2)
+        saas_files_v2 = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
+        saas_files.extend(saas_files_v2)
 
     if saas_file_name is None and env_name is None and app_name is None:
         return saas_files
@@ -1485,7 +1485,7 @@ def get_saas_files_minimal(v1=True, v2=False):
         saas_files.extend(saas_files_v1)
     if v2:
         saas_files_v2 = gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V2)['saas_files']
-        saas_files.extend(saas_files_v1)
+        saas_files.extend(saas_files_v2)
 
     return saas_files
 
