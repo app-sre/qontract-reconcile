@@ -1176,14 +1176,95 @@ def get_app_interface_sql_queries():
     return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
 
 
+SAAS_FILE_QUERY_COMMON = """
+path
+name
+app {
+  name
+}
+managedResourceTypes
+takeover
+compare
+timeout
+publishJobLogs
+imagePatterns
+use_channel_in_image_tag
+authentication {
+  code {
+    path
+    field
+  }
+  image {
+    path
+  }
+}
+parameters
+resourceTemplates {
+  name
+  url
+  path
+  provider
+  hash_length
+  parameters
+  targets {
+    namespace {
+      name
+      environment {
+        name
+        parameters
+      }
+      app {
+        name
+      }
+      cluster {
+        name
+        serverUrl
+        jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+        }
+        automationToken {
+          path
+          field
+          format
+        }
+        internal
+        disable {
+          integrations
+        }
+      }
+    }
+    ref
+    promotion {
+      auto
+      publish
+      subscribe
+    }
+    parameters
+    upstream
+    disable
+  }
+}
+roles {
+  users {
+    org_username
+    tag_on_merge_requests
+  }
+}
+"""
+
+
 SAAS_FILES_QUERY_V1 = """
 {
   saas_files: saas_files_v1 {
-    path
-    name
-    app {
-      name
-    }
+    %s
     instance {
       name
       serverUrl
@@ -1213,95 +1294,15 @@ SAAS_FILES_QUERY_V1 = """
         start
       }
     }
-    managedResourceTypes
-    takeover
-    compare
-    timeout
-    publishJobLogs
-    imagePatterns
-    use_channel_in_image_tag
-    authentication {
-      code {
-        path
-        field
-      }
-      image {
-        path
-      }
-    }
-    parameters
-    resourceTemplates {
-      name
-      url
-      path
-      provider
-      hash_length
-      parameters
-      targets {
-        namespace {
-          name
-          environment {
-            name
-            parameters
-          }
-          app {
-            name
-          }
-          cluster {
-            name
-            serverUrl
-            jumpHost {
-                hostname
-                knownHosts
-                user
-                port
-                identity {
-                    path
-                    field
-                    format
-                }
-            }
-            automationToken {
-              path
-              field
-              format
-            }
-            internal
-            disable {
-              integrations
-            }
-          }
-        }
-        ref
-        promotion {
-          auto
-          publish
-          subscribe
-        }
-        parameters
-        upstream
-        disable
-      }
-    }
-    roles {
-      users {
-        org_username
-        tag_on_merge_requests
-      }
-    }
   }
 }
-"""
+""" % (indent(SAAS_FILE_QUERY_COMMON, 4*' '))
 
 
 SAAS_FILES_QUERY_V2 = """
 {
-  saas_files: saas_files_v1 {
-    path
-    name
-    app {
-      name
-    }
+  saas_files: saas_files_v2 {
+    %s
     pipelinesNamespace {
       name
       cluster {
@@ -1329,85 +1330,9 @@ SAAS_FILES_QUERY_V2 = """
         }
       }
     }
-    managedResourceTypes
-    takeover
-    compare
-    timeout
-    publishJobLogs
-    imagePatterns
-    use_channel_in_image_tag
-    authentication {
-      code {
-        path
-        field
-      }
-      image {
-        path
-      }
-    }
-    parameters
-    resourceTemplates {
-      name
-      url
-      path
-      provider
-      hash_length
-      parameters
-      targets {
-        namespace {
-          name
-          environment {
-            name
-            parameters
-          }
-          app {
-            name
-          }
-          cluster {
-            name
-            serverUrl
-            jumpHost {
-                hostname
-                knownHosts
-                user
-                port
-                identity {
-                    path
-                    field
-                    format
-                }
-            }
-            automationToken {
-              path
-              field
-              format
-            }
-            internal
-            disable {
-              integrations
-            }
-          }
-        }
-        ref
-        promotion {
-          auto
-          publish
-          subscribe
-        }
-        parameters
-        upstream
-        disable
-      }
-    }
-    roles {
-      users {
-        org_username
-        tag_on_merge_requests
-      }
-    }
   }
 }
-"""
+""" % (indent(SAAS_FILE_QUERY_COMMON, 4*' '))
 
 
 def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
