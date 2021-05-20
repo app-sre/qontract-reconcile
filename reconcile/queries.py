@@ -1395,7 +1395,6 @@ SAAS_FILES_QUERY_V2 = """
           subscribe
         }
         parameters
-        upstream
         disable
       }
     }
