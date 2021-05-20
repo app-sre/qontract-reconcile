@@ -5,6 +5,7 @@ metadata:
   name: qontract-reconcile
 objects:
 {{- range $i, $integration := .Values.integrations }}
+{{- $logs := $integration.logs | default dict -}}
 {{- $shards := int $integration.shards | default 1 }}
 {{- range $shard_id := until $shards }}
 - apiVersion: apps/v1
@@ -43,8 +44,20 @@ objects:
           app: qontract-reconcile-{{ $integration.name }}
           component: qontract-reconcile
       spec:
-        {{- if $integration.logs }}
+        serviceAccountName: qontract-reconcile
         initContainers:
+        {{- if $integration.internalCertificates }}
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/. /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
+        {{- end }}
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -56,7 +69,7 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          {{- if $integration.logs.slack }}
+          {{- if $logs.slack }}
           - name: SLACK_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -67,13 +80,11 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
-          {{- if $integration.logs.cloudwatch }}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
                 name: ${CLOUDWATCH_SECRET}
                 key: log_group_name
-          {{- end }}
           command: ["/bin/sh", "-c"]
           args:
           - |
@@ -115,7 +126,7 @@ objects:
 
             <match integration>
               @type copy
-              {{- if $integration.logs.slack }}
+              {{- if $logs.slack }}
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
@@ -126,20 +137,17 @@ objects:
                 message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
               </store>
               {{- end }}
-              {{- if $integration.logs.cloudwatch }}
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
                 log_stream_name {{ $integration.name }}
                 auto_create_stream true
               </store>
-              {{- end }}
             </match>
             EOF
           volumeMounts:
           - name: fluentd-config
             mountPath: /fluentd/etc/
-        {{- end }}
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -169,10 +177,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
-          {{- if $integration.logs }}
           - name: LOG_FILE
             value: "${LOG_FILE}"
-          {{- end }}
           {{- if $integration.state }}
           - name: APP_INTERFACE_STATE_BUCKET
             valueFrom:
@@ -214,13 +220,15 @@ objects:
           - name: cache
             mountPath: /.cache
           {{- end }}
-        {{- if $integration.logs }}
+          {{- if $integration.internalCertificates }}
+          - name: internal-certificates
+            mountPath: /etc/pki/
+          {{- end }}
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
           image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
           imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
-          {{- if $integration.logs.cloudwatch }}
           env:
           - name: AWS_REGION
             valueFrom:
@@ -237,7 +245,6 @@ objects:
               secretKeyRef:
                 name: ${CLOUDWATCH_SECRET}
                 key: aws_secret_access_key
-          {{- end }}
           resources:
             requests:
               memory: 30Mi
@@ -250,15 +257,16 @@ objects:
             mountPath: /fluentd/log/
           - name: fluentd-config
             mountPath: /fluentd/etc/
-        {{- end }}
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
-        {{- if $integration.logs }}
         - name: logs
           emptyDir: {}
         - name: fluentd-config
+          emptyDir: {}
+        {{- if $integration.internalCertificates }}
+        - name: internal-certificates
           emptyDir: {}
         {{- end }}
 {{- end }}
@@ -392,3 +400,9 @@ parameters:
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
+- name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+  value: Always

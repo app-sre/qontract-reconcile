@@ -22,6 +22,7 @@ objects:
           app: qontract-reconcile-aws-iam-keys
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -222,6 +223,7 @@ objects:
           app: qontract-reconcile-github
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -422,6 +424,7 @@ objects:
           app: qontract-reconcile-github-owners
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -622,6 +625,7 @@ objects:
           app: qontract-reconcile-github-repo-invites
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -822,6 +826,7 @@ objects:
           app: qontract-reconcile-quay-membership
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1022,6 +1027,7 @@ objects:
           app: qontract-reconcile-quay-mirror
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1204,6 +1210,7 @@ objects:
           app: qontract-reconcile-quay-mirror-org
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1386,6 +1393,7 @@ objects:
           app: qontract-reconcile-gcr-mirror
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1568,6 +1576,7 @@ objects:
           app: qontract-reconcile-ecr-mirror
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1750,6 +1759,7 @@ objects:
           app: qontract-reconcile-quay-repos
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -1950,6 +1960,7 @@ objects:
           app: qontract-reconcile-quay-permissions
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2150,6 +2161,76 @@ objects:
           app: qontract-reconcile-jira-watcher
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name jira-watcher
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2179,6 +2260,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
             valueFrom:
               secretKeyRef:
@@ -2210,10 +2293,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -2231,6 +2351,76 @@ objects:
           app: qontract-reconcile-unleash-watcher
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name unleash-watcher
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2260,6 +2450,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
             valueFrom:
               secretKeyRef:
@@ -2291,10 +2483,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -2312,6 +2541,76 @@ objects:
           app: qontract-reconcile-github-scanner
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name github-scanner
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2341,6 +2640,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -2370,10 +2671,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -2391,6 +2729,7 @@ objects:
           app: qontract-reconcile-aws-support-cases-sos
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2578,6 +2917,7 @@ objects:
           app: qontract-reconcile-openshift-users
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -2778,6 +3118,76 @@ objects:
           app: qontract-reconcile-openshift-upgrade-watcher
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-upgrade-watcher
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -2807,6 +3217,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
             valueFrom:
               secretKeyRef:
@@ -2838,10 +3250,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -2859,6 +3308,7 @@ objects:
           app: qontract-reconcile-openshift-groups
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3059,6 +3509,7 @@ objects:
           app: qontract-reconcile-openshift-namespaces
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3259,6 +3710,7 @@ objects:
           app: qontract-reconcile-openshift-clusterrolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3459,6 +3911,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3659,6 +4112,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -3859,6 +4313,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4059,6 +4514,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4259,6 +4715,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4459,6 +4916,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4659,6 +5117,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -4859,6 +5318,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -5059,6 +5519,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -5259,6 +5720,7 @@ objects:
           app: qontract-reconcile-openshift-rolebindings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -5459,6 +5921,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -5659,6 +6122,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -5859,6 +6323,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -6059,6 +6524,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -6259,6 +6725,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -6459,6 +6926,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -6659,6 +7127,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -6859,6 +7328,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -7059,6 +7529,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -7259,6 +7730,7 @@ objects:
           app: qontract-reconcile-openshift-network-policies
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -7459,6 +7931,7 @@ objects:
           app: qontract-reconcile-openshift-limitranges
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -7659,6 +8132,76 @@ objects:
           app: qontract-reconcile-openshift-resourcequotas
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-resourcequotas
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -7688,6 +8231,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -7712,10 +8257,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -7733,6 +8315,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -7933,6 +8516,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -8133,6 +8717,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -8333,6 +8918,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -8533,6 +9119,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -8733,6 +9320,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -8933,6 +9521,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -9133,6 +9722,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -9333,6 +9923,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -9533,6 +10124,7 @@ objects:
           app: qontract-reconcile-openshift-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -9733,6 +10325,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -9915,6 +10508,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -10097,6 +10691,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -10279,6 +10874,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -10461,6 +11057,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -10643,6 +11240,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -10825,6 +11423,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11007,6 +11606,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11189,6 +11789,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11371,6 +11972,7 @@ objects:
           app: qontract-reconcile-openshift-vault-secrets
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11553,6 +12155,7 @@ objects:
           app: qontract-reconcile-openshift-routes
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11735,6 +12338,7 @@ objects:
           app: qontract-reconcile-openshift-routes
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -11917,6 +12521,7 @@ objects:
           app: qontract-reconcile-terraform-aws-route53
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -12117,6 +12722,7 @@ objects:
           app: qontract-reconcile-terraform-resources
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -12317,6 +12923,7 @@ objects:
           app: qontract-reconcile-terraform-users
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -12517,6 +13124,7 @@ objects:
           app: qontract-reconcile-terraform-vpc-peerings
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -12717,6 +13325,7 @@ objects:
           app: qontract-reconcile-terraform-tgw-attachments
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -12917,6 +13526,7 @@ objects:
           app: qontract-reconcile-ocm-addons
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -13117,6 +13727,7 @@ objects:
           app: qontract-reconcile-ocm-groups
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -13299,6 +13910,7 @@ objects:
           app: qontract-reconcile-ocm-clusters
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -13504,6 +14116,7 @@ objects:
           app: qontract-reconcile-ocm-aws-infrastructure-access
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -13704,6 +14317,7 @@ objects:
           app: qontract-reconcile-ocm-github-idp
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -13886,6 +14500,7 @@ objects:
           app: qontract-reconcile-ocm-machine-pools
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -14086,6 +14701,7 @@ objects:
           app: qontract-reconcile-ocm-upgrade-scheduler
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -14286,6 +14902,7 @@ objects:
           app: qontract-reconcile-ocm-external-configuration-labels
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -14486,6 +15103,7 @@ objects:
           app: qontract-reconcile-kafka-clusters
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -14686,6 +15304,7 @@ objects:
           app: qontract-reconcile-email-sender
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -14893,6 +15512,7 @@ objects:
           app: qontract-reconcile-requests-sender
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -15100,6 +15720,7 @@ objects:
           app: qontract-reconcile-sentry-config
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -15282,6 +15903,76 @@ objects:
           app: qontract-reconcile-sentry-helper
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name sentry-helper
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -15311,6 +16002,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: APP_INTERFACE_STATE_BUCKET
             valueFrom:
               secretKeyRef:
@@ -15342,10 +16035,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -15363,6 +16093,7 @@ objects:
           app: qontract-reconcile-sql-query
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -15570,6 +16301,76 @@ objects:
           app: qontract-reconcile-slack-cluster-usergroups
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name slack-cluster-usergroups
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -15599,6 +16400,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -15623,10 +16426,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -15644,6 +16484,76 @@ objects:
           app: qontract-reconcile-ocp-release-mirror
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /HTTP Error 409: Conflict/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ocp-release-mirror
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         containers:
         - name: int
           image: ${IMAGE}:${IMAGE_TAG}
@@ -15673,6 +16583,8 @@ objects:
               configMapKeyRef:
                 name: app-interface
                 key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -15697,10 +16609,47 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
         volumes:
         - name: qontract-reconcile-toml
           secret:
             secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
@@ -15718,6 +16667,7 @@ objects:
           app: qontract-reconcile-sendgrid-teammates
           component: qontract-reconcile
       spec:
+        serviceAccountName: qontract-reconcile
         initContainers:
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
@@ -16322,3 +17272,9 @@ parameters:
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
+- name: INTERNAL_CERTIFICATES_IMAGE
+  value: quay.io/app-sre/internal-redhat-ca
+- name: INTERNAL_CERTIFICATES_IMAGE_TAG
+  value: latest
+- name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
+  value: Always

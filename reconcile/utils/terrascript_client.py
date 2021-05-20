@@ -1457,6 +1457,8 @@ class TerrascriptClient:
         values['name'] = identifier
 
         action = ["s3:*Object"]
+        if common_values.get('acl', 'private') == 'public-read':
+            action.append("s3:PutObjectAcl")
         allow_object_tagging = common_values.get('allow_object_tagging', False)
         if allow_object_tagging:
             action.append("s3:*ObjectTagging")
