@@ -1296,7 +1296,7 @@ SAAS_FILES_QUERY_V1 = """
 
 SAAS_FILES_QUERY_V2 = """
 {
-  saas_files: saas_files_v1 {
+  saas_files: saas_files_v2 {
     path
     name
     app {
