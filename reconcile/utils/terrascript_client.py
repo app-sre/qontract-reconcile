@@ -2684,11 +2684,19 @@ class TerrascriptClient:
         # outputs
         # aws_access_key_id
         output_name_0_13 = output_prefix + '__aws_access_key_id'
-        output_value = '${' + tf_resource.id + '}'
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        output_value_id = '${' + tf_resource.id + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value_id))
         # aws_secret_access_key
         output_name_0_13 = output_prefix + '__aws_secret_access_key'
-        output_value = '${' + tf_resource.secret + '}'
+        output_value_secret = '${' + tf_resource.secret + '}'
+        tf_resources.append(
+            Output(output_name_0_13, value=output_value_secret))
+        # aws credentials file
+        output_name_0_13 = output_prefix + '__credentials'
+        output_value = \
+            '[default]\n' + \
+            f'aws_access_key_id = {output_value_id}\n' + \
+            f'aws_secret_access_key = {output_value_secret}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         return tf_resources
