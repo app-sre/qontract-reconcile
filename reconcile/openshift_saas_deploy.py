@@ -23,14 +23,17 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         saas_file_name=None, env_name=None,
         gitlab_project_id=None, defer=None):
-    all_saas_files = queries.get_saas_files()
-    saas_files = queries.get_saas_files(saas_file_name, env_name)
+    all_saas_files = queries.get_saas_files(v1=True, v2=True)
+    saas_files = queries.get_saas_files(saas_file_name, env_name,
+                                        v1=True, v2=True)
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
 
     instance = queries.get_gitlab_instance()
-    desired_jenkins_instances = [s['instance']['name'] for s in saas_files]
+    # intsance exists in v1 saas files only
+    desired_jenkins_instances = [s['instance']['name'] for s in saas_files
+                                 if s.get('instance')]
     jenkins_map = jenkins_base.get_jenkins_map(
         desired_instances=desired_jenkins_instances)
     settings = queries.get_app_interface_settings()
