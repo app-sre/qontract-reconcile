@@ -1176,7 +1176,7 @@ def get_app_interface_sql_queries():
     return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
 
 
-SAAS_FILES_QUERY = """
+SAAS_FILES_QUERY_V1 = """
 {
   saas_files: saas_files_v1 {
     path
@@ -1297,7 +1297,7 @@ SAAS_FILES_QUERY = """
 def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
     """ Returns SaasFile resources defined in app-interface """
     gqlapi = gql.get_api()
-    saas_files = gqlapi.query(SAAS_FILES_QUERY)['saas_files']
+    saas_files = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
 
     if saas_file_name is None and env_name is None and app_name is None:
         return saas_files
