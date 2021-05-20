@@ -1455,7 +1455,7 @@ def get_saas_files(saas_file_name=None, env_name=None, app_name=None,
     return saas_files
 
 
-SAAS_FILES_MINIMAL_QUERY = """
+SAAS_FILES_MINIMAL_QUERY_V1 = """
 {
   saas_files: saas_files_v1 {
     path
@@ -1465,10 +1465,29 @@ SAAS_FILES_MINIMAL_QUERY = """
 """
 
 
-def get_saas_files_minimal():
-    """ Returns SaasFile resources defined in app-interface """
+SAAS_FILES_MINIMAL_QUERY_V2 = """
+{
+  saas_files: saas_files_v2 {
+    path
+    name
+  }
+}
+"""
+
+
+def get_saas_files_minimal(v1=True, v2=False):
+    """ Returns SaasFile resources defined in app-interface.
+    Returns v1 saas files by default. """
     gqlapi = gql.get_api()
-    return gqlapi.query(SAAS_FILES_MINIMAL_QUERY)['saas_files']
+    saas_files = []
+    if v1:
+        saas_files_v1 = gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V1)['saas_files']
+        saas_files.extend(saas_files_v1)
+    if v2:
+        saas_files_v2 = gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V2)['saas_files']
+        saas_files.extend(saas_files_v1)
+
+    return saas_files
 
 
 JIRA_BOARDS_QUERY = """

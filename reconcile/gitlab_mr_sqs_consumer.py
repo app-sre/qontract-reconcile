@@ -22,7 +22,7 @@ def run(dry_run, gitlab_project_id):
     sqs_cli = SQSGateway(accounts, settings=settings)
 
     instance = queries.get_gitlab_instance()
-    saas_files = queries.get_saas_files_minimal()
+    saas_files = queries.get_saas_files_minimal(v1=True, v2=True)
     gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id,
                            settings=settings, saas_files=saas_files)
 
