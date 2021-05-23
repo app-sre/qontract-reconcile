@@ -133,7 +133,8 @@ class SaasHerder():
                                     f'target: \"{t_key}: {t_value}\". ' + \
                                     f'env: \"{e_key}: {e_value}\". ' + \
                                     f'consider \"{t_key}: {replacement}\"'
-                            logging.warning(f'{msg}: {details}')
+                            logging.error(f'{msg}: {details}')
+                            self.valid = False
 
         # saas file name duplicates
         duplicates = {saas_file_name: saas_file_paths
