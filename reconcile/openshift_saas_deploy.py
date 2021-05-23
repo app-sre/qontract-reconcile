@@ -31,7 +31,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         sys.exit(ExitCodes.ERROR)
 
     instance = queries.get_gitlab_instance()
-    # intsance exists in v1 saas files only
+    # instance exists in v1 saas files only
     desired_jenkins_instances = [s['instance']['name'] for s in saas_files
                                  if s.get('instance')]
     jenkins_map = jenkins_base.get_jenkins_map(
