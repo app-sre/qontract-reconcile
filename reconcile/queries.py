@@ -1305,30 +1305,32 @@ SAAS_FILES_QUERY_V2 = """
     pipelinesProvider {
       name
       provider
-      namespace {
-        name
-        cluster {
+      ...on PipelinesProviderTekton_v1 {
+        namespace {
           name
-          serverUrl
-          jumpHost {
-            hostname
-            knownHosts
-            user
-            port
-            identity {
+          cluster {
+            name
+            serverUrl
+            jumpHost {
+              hostname
+              knownHosts
+              user
+              port
+              identity {
+                path
+                field
+                format
+              }
+            }
+            automationToken {
               path
               field
               format
             }
-          }
-          automationToken {
-            path
-            field
-            format
-          }
-          internal
-          disable {
-            integrations
+            internal
+            disable {
+              integrations
+            }
           }
         }
       }
