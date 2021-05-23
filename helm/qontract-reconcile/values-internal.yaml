@@ -9,7 +9,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-rolebindings
   resources:
     requests:
@@ -21,7 +20,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
-    cloudwatch: true
+  internalCertificates: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -33,7 +32,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
-    cloudwatch: true
+  internalCertificates: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -45,7 +44,7 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
-    cloudwatch: true
+  internalCertificates: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -57,30 +56,29 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
-    cloudwatch: true
+  internalCertificates: true
 - name: openshift-resources
   resources:
     requests:
-      memory: 800Mi
+      memory: 1000Mi
       cpu: 200m
     limits:
-      memory: 1000Mi
+      memory: 1200Mi
       cpu: 400m
   extraArgs: --internal
   logs:
-    cloudwatch: true
     slack: true
+  internalCertificates: true
 - name: openshift-vault-secrets
   resources:
     requests:
-      memory: 300Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
   extraArgs: --internal
-  logs:
-    cloudwatch: true
+  internalCertificates: true
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -91,8 +89,8 @@ integrations:
       cpu: 400m
   extraArgs: --vault-output-path app-sre/integrations-output
   logs:
-    cloudwatch: true
     slack: true
+  internalCertificates: true
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
@@ -102,7 +100,6 @@ integrations:
       memory: 400Mi
       cpu: 400m
   logs:
-    cloudwatch: true
     slack: true
   state: true
 - name: openshift-saas-deploy-trigger-moving-commits
@@ -114,7 +111,6 @@ integrations:
       memory: 400Mi
       cpu: 400m
   logs:
-    cloudwatch: true
     slack: true
   state: true
 - name: terraform-resources
@@ -128,7 +124,7 @@ integrations:
   extraArgs: --internal --light --vault-output-path app-sre/integrations-output
   logs:
     slack: true
-    cloudwatch: true
+  internalCertificates: true
 - name: gitlab-projects
   resources:
     requests:
@@ -138,7 +134,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: gitlab-members
   resources:
@@ -149,7 +144,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: gitlab-permissions
   resources:
@@ -160,7 +154,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: gitlab-integrations
   resources:
@@ -171,7 +164,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: gitlab-owners
   resources:
@@ -181,9 +173,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    cloudwatch: true
-    slack: true
 - name: gitlab-housekeeping
   resources:
     requests:
@@ -193,8 +182,19 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --wait-for-pipeline
+- name: jenkins-job-builder
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
   logs:
     cloudwatch: true
+    slack: true
+  state: true
+  cache: true
 - name: jenkins-roles
   resources:
     requests:
@@ -204,7 +204,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: jenkins-webhooks
   resources:
@@ -215,7 +214,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
   cache: true
 - name: jenkins-webhooks-cleaner
@@ -227,7 +225,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: ldap-users
   resources:
@@ -239,7 +236,6 @@ integrations:
       cpu: 200m
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   logs:
-    cloudwatch: true
     slack: true
 - name: gitlab-mr-sqs-consumer
   resources:
@@ -253,6 +249,4 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
-  logs:
-    cloudwatch: true
   state: true

@@ -9,7 +9,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: github
   resources:
     requests:
@@ -22,7 +21,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: github-owners
   resources:
     requests:
@@ -33,7 +31,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: github-repo-invites
   resources:
     requests:
@@ -44,7 +41,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: quay-membership
   resources:
     requests:
@@ -55,7 +51,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: quay-mirror
   resources:
     requests:
@@ -64,8 +59,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 300m
-  logs:
-    cloudwatch: true
 - name: quay-mirror-org
   resources:
     requests:
@@ -74,8 +67,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 300m
-  logs:
-    cloudwatch: true
 - name: gcr-mirror
   resources:
     requests:
@@ -84,8 +75,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 300m
-  logs:
-    cloudwatch: true
 - name: ecr-mirror
   resources:
     requests:
@@ -94,8 +83,6 @@ integrations:
     limits:
       memory: 500Mi
       cpu: 600m
-  logs:
-    cloudwatch: true
 - name: quay-repos
   resources:
     requests:
@@ -106,7 +93,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: quay-permissions
   resources:
     requests:
@@ -117,7 +103,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: jira-watcher
   resources:
     requests:
@@ -161,7 +146,6 @@ integrations:
     secretKey: gitlab_pr_submitter_queue_url
   logs:
     slack: false
-    cloudwatch: true
 - name: openshift-users
   resources:
     requests:
@@ -175,7 +159,6 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-upgrade-watcher
   resources:
     requests:
@@ -199,7 +182,6 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -213,7 +195,6 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-clusterrolebindings
   resources:
     requests:
@@ -227,7 +208,6 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-rolebindings
   resources:
     requests:
@@ -242,7 +222,6 @@ integrations:
   shards: 10
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -257,7 +236,6 @@ integrations:
   shards: 10
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-limitranges
   resources:
     requests:
@@ -269,7 +247,6 @@ integrations:
   extraArgs: --no-use-jump-host
   logs:
     slack: true
-    cloudwatch: true
 - name: openshift-resourcequotas
   resources:
     requests:
@@ -289,7 +266,6 @@ integrations:
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
   logs:
-    cloudwatch: true
     slack: true
   shards: 10
 - name: openshift-vault-secrets
@@ -301,8 +277,6 @@ integrations:
       memory: 800Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
-  logs:
-    cloudwatch: true
   shards: 10
 - name: openshift-routes
   resources:
@@ -315,8 +289,6 @@ integrations:
       memory: 1040Mi
       cpu: 300m
   extraArgs: --no-use-jump-host
-  logs:
-    cloudwatch: true
   shards: 2
 - name: terraform-aws-route53
   resources:
@@ -328,7 +300,6 @@ integrations:
       cpu: 500m
   logs:
     slack: true
-    cloudwatch: true
 - name: terraform-resources
   resources:
     requests:
@@ -340,7 +311,6 @@ integrations:
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
-    cloudwatch: true
 - name: terraform-users
   resources:
     requests:
@@ -352,7 +322,6 @@ integrations:
   extraArgs: --io-dir /tmp/throughput/
   logs:
     slack: true
-    cloudwatch: true
 - name: terraform-vpc-peerings
   resources:
     requests:
@@ -363,7 +332,6 @@ integrations:
       cpu: 500m
   logs:
     slack: true
-    cloudwatch: true
 - name: terraform-tgw-attachments
   resources:
     requests:
@@ -374,7 +342,6 @@ integrations:
       cpu: 400m
   logs:
     slack: true
-    cloudwatch: true
 - name: ocm-addons
   resources:
     requests:
@@ -385,7 +352,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 - name: ocm-groups
   resources:
     requests:
@@ -394,8 +360,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    cloudwatch: true
 - name: ocm-clusters
   resources:
     requests:
@@ -406,7 +370,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
   extraEnv:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
@@ -420,7 +383,6 @@ integrations:
       cpu: 100m
   logs:
     slack: true
-    cloudwatch: true
 - name: ocm-github-idp
   resources:
     requests:
@@ -430,8 +392,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --vault-input-path app-sre/integrations-input
-  logs:
-    cloudwatch: true
 - name: ocm-machine-pools
   resources:
     requests:
@@ -441,7 +401,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: ocm-upgrade-scheduler
   resources:
@@ -452,7 +411,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: ocm-external-configuration-labels
   resources:
@@ -463,7 +421,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   logs:
-    cloudwatch: true
     slack: true
 - name: kafka-clusters
   resources:
@@ -475,7 +432,6 @@ integrations:
       cpu: 200m
   extraArgs: --vault-throughput-path app-sre/integrations-throughput
   logs:
-    cloudwatch: true
     slack: true
 - name: email-sender
   resources:
@@ -487,7 +443,6 @@ integrations:
       cpu: 50m
   logs:
     slack: true
-    cloudwatch: true
   state: true
 - name: requests-sender
   resources:
@@ -499,7 +454,6 @@ integrations:
       cpu: 50m
   logs:
     slack: true
-    cloudwatch: true
   state: true
 - name: sentry-config
   resources:
@@ -509,8 +463,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    cloudwatch: true
 - name: sentry-helper
   resources:
     requests:
@@ -530,7 +482,6 @@ integrations:
       cpu: 300m
   logs:
     slack: true
-    cloudwatch: true
   state: true
   extraArgs: --enable-deletion
 - name: slack-cluster-usergroups
@@ -559,7 +510,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-    cloudwatch: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:
