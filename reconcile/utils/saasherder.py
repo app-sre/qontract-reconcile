@@ -653,7 +653,9 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
-        instance_name = saas_file['instance']['name']
+        instance = saas_file.get('instance')
+        # instance exists in v1 saas files only
+        instance_name = instance['name'] if instance else None
         managed_resource_types = saas_file['managedResourceTypes']
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']

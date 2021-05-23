@@ -1176,7 +1176,7 @@ def get_app_interface_sql_queries():
     return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
 
 
-SAAS_FILES_QUERY = """
+SAAS_FILES_QUERY_V1 = """
 {
   saas_files: saas_files_v1 {
     path
@@ -1294,10 +1294,140 @@ SAAS_FILES_QUERY = """
 """
 
 
-def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
-    """ Returns SaasFile resources defined in app-interface """
+SAAS_FILES_QUERY_V2 = """
+{
+  saas_files: saas_files_v2 {
+    path
+    name
+    app {
+      name
+    }
+    pipelinesProvider {
+      name
+      provider
+      ...on PipelinesProviderTekton_v1 {
+        namespace {
+          name
+          cluster {
+            name
+            serverUrl
+            jumpHost {
+              hostname
+              knownHosts
+              user
+              port
+              identity {
+                path
+                field
+                format
+              }
+            }
+            automationToken {
+              path
+              field
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+      }
+    }
+    managedResourceTypes
+    takeover
+    compare
+    timeout
+    publishJobLogs
+    imagePatterns
+    use_channel_in_image_tag
+    authentication {
+      code {
+        path
+        field
+      }
+      image {
+        path
+      }
+    }
+    parameters
+    resourceTemplates {
+      name
+      url
+      path
+      provider
+      hash_length
+      parameters
+      targets {
+        namespace {
+          name
+          environment {
+            name
+            parameters
+          }
+          app {
+            name
+          }
+          cluster {
+            name
+            serverUrl
+            jumpHost {
+                hostname
+                knownHosts
+                user
+                port
+                identity {
+                    path
+                    field
+                    format
+                }
+            }
+            automationToken {
+              path
+              field
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        ref
+        promotion {
+          auto
+          publish
+          subscribe
+        }
+        parameters
+        disable
+      }
+    }
+    roles {
+      users {
+        org_username
+        tag_on_merge_requests
+      }
+    }
+  }
+}
+"""
+
+
+def get_saas_files(saas_file_name=None, env_name=None, app_name=None,
+                   v1=True,
+                   v2=False):
+    """ Returns SaasFile resources defined in app-interface.
+    Returns v1 saas files by default. """
     gqlapi = gql.get_api()
-    saas_files = gqlapi.query(SAAS_FILES_QUERY)['saas_files']
+    saas_files = []
+    if v1:
+        saas_files_v1 = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
+        saas_files.extend(saas_files_v1)
+    if v2:
+        saas_files_v2 = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
+        saas_files.extend(saas_files_v2)
 
     if saas_file_name is None and env_name is None and app_name is None:
         return saas_files
@@ -1331,7 +1461,7 @@ def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
     return saas_files
 
 
-SAAS_FILES_MINIMAL_QUERY = """
+SAAS_FILES_MINIMAL_QUERY_V1 = """
 {
   saas_files: saas_files_v1 {
     path
@@ -1341,10 +1471,29 @@ SAAS_FILES_MINIMAL_QUERY = """
 """
 
 
-def get_saas_files_minimal():
-    """ Returns SaasFile resources defined in app-interface """
+SAAS_FILES_MINIMAL_QUERY_V2 = """
+{
+  saas_files: saas_files_v2 {
+    path
+    name
+  }
+}
+"""
+
+
+def get_saas_files_minimal(v1=True, v2=False):
+    """ Returns SaasFile resources defined in app-interface.
+    Returns v1 saas files by default. """
     gqlapi = gql.get_api()
-    return gqlapi.query(SAAS_FILES_MINIMAL_QUERY)['saas_files']
+    saas_files = []
+    if v1:
+        saas_files_v1 = gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V1)['saas_files']
+        saas_files.extend(saas_files_v1)
+    if v2:
+        saas_files_v2 = gqlapi.query(SAAS_FILES_MINIMAL_QUERY_V2)['saas_files']
+        saas_files.extend(saas_files_v2)
+
+    return saas_files
 
 
 JIRA_BOARDS_QUERY = """

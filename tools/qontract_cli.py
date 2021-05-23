@@ -662,7 +662,8 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
     if env_name in [None, '']:
         print('env-name must be defined')
         return
-    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
+    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name,
+                                        v1=True, v2=True)
     if not saas_files:
         print('no saas files found')
         sys.exit(1)
