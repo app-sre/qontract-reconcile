@@ -1302,30 +1302,34 @@ SAAS_FILES_QUERY_V2 = """
     app {
       name
     }
-    pipelinesNamespace {
+    pipelinesProvider {
       name
-      cluster {
+      provider
+      namespace {
         name
-        serverUrl
-        jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
+        cluster {
+          name
+          serverUrl
+          jumpHost {
+            hostname
+            knownHosts
+            user
+            port
+            identity {
               path
               field
               format
+            }
           }
-        }
-        automationToken {
-          path
-          field
-          format
-        }
-        internal
-        disable {
-          integrations
+          automationToken {
+            path
+            field
+            format
+          }
+          internal
+          disable {
+            integrations
+          }
         }
       }
     }
