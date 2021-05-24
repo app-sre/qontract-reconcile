@@ -781,6 +781,7 @@ class SaasHerder():
     def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
         saas_file_name = saas_file['name']
         instace_name = saas_file['instance']['name']
+        pipelines_provider = self._get_pipelines_provider(saas_file)
         github = self._initiate_github(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
@@ -825,6 +826,7 @@ class SaasHerder():
                     'saas_file_name': saas_file_name,
                     'env_name': env_name,
                     'instance_name': instace_name,
+                    'pipelines_provider': pipelines_provider,
                     'rt_name': rt_name,
                     'cluster_name': cluster_name,
                     'namespace_name': namespace_name,
@@ -858,6 +860,7 @@ class SaasHerder():
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
         instace_name = saas_file['instance']['name']
+        pipelines_provider = self._get_pipelines_provider(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
@@ -891,6 +894,7 @@ class SaasHerder():
                     'saas_file_name': saas_file_name,
                     'env_name': env_name,
                     'instance_name': instace_name,
+                    'pipelines_provider': pipelines_provider,
                     'rt_name': rt_name,
                     'cluster_name': cluster_name,
                     'namespace_name': namespace_name,
@@ -899,6 +903,29 @@ class SaasHerder():
                 trigger_specs.append(job_spec)
 
         return trigger_specs
+
+    @staticmethod
+    def _get_pipelines_provider(saas_file):
+        """Returns the Pipelines Provider for a SaaS file.
+
+        Args:
+            saas_file (dict): SaaS file GQL query result with apiVersion key
+
+        Returns:
+            dict: Pipelines Provider details
+        """
+        saas_file_api_version = saas_file['apiVersion']
+        if saas_file_api_version == 'v1':
+            # wrapping the instance in a pipelines provider structure
+            # for backwards compatibility
+            pipelines_provider = {
+                'provider': 'jenkins',
+                'instance': saas_file['instance'],
+            }
+        if saas_file_api_version == 'v2':
+            pipelines_provider = saas_file['pipelinesProvider']
+
+        return pipelines_provider
 
     @staticmethod
     def sanitize_namespace(namespace):

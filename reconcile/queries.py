@@ -1424,9 +1424,13 @@ def get_saas_files(saas_file_name=None, env_name=None, app_name=None,
     saas_files = []
     if v1:
         saas_files_v1 = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
+        for sf in saas_files_v1:
+            sf['apiVersion'] = 'v1'
         saas_files.extend(saas_files_v1)
     if v2:
         saas_files_v2 = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
+        for sf in saas_files_v2:
+            sf['apiVersion'] = 'v2'
         saas_files.extend(saas_files_v2)
 
     if saas_file_name is None and env_name is None and app_name is None:
