@@ -34,7 +34,7 @@ def trigger(options):
 
     error = False
     if provider_name == 'jenkins':
-        instance_name = spec['instance_name']
+        instance_name = pipelines_provider['instance']['name']
         job_name = get_openshift_saas_deploy_job_name(
             saas_file_name, env_name, settings)
         if job_name not in already_triggered:
