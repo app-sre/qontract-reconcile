@@ -9,7 +9,6 @@ def trigger(options):
     Args:
         options (dict): A dictionary containing:
             dry_run (bool): Is this a dry run
-            saasherder (SaasHerder): a SaasHerder class instance
             spec (dict): A trigger spec as created by saasherder
             jenkins_map (dict): Instance names with JenkinsApi instances
             already_triggered (list): A list of already triggered deployments
@@ -20,7 +19,6 @@ def trigger(options):
         bool: True if there was an error, False otherwise
     """
     dry_run = options['dry_run']
-    saasherder = options['saasherder']
     spec = options['spec']
     jenkins_map = options['jenkins_map']
     already_triggered = options['already_triggered']

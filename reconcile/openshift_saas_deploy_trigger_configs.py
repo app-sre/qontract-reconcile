@@ -46,7 +46,6 @@ def run(dry_run, thread_pool_size=10):
         for job_spec in trigger_specs:
             trigger_options = {
                 'dry_run': dry_run,
-                'saasherder': saasherder,
                 'spec': job_spec,
                 'jenkins_map': jenkins_map,
                 'already_triggered': already_triggered,
