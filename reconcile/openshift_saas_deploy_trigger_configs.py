@@ -17,7 +17,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 @defer
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    saas_files = queries.get_saas_files(v1=False, v2=True)
+    saas_files = queries.get_saas_files(v1=True, v2=True)
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(1)
