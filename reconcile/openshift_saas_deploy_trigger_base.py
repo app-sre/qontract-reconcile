@@ -119,7 +119,8 @@ def trigger(options):
             spec (dict): A trigger spec as created by saasherder
             jenkins_map (dict): Instance names with JenkinsApi instances
             oc_map (OC_Map): a dictionary of OC clients per cluster
-            already_triggered (list): A list of already triggered deployments
+            already_triggered (list): A list of already triggered deployments.
+                                      It will get populated by this function.
             settings (dict): App-interface settings
             state_update_method (function): A method to call to update state
             integration (string): Name of calling integration
