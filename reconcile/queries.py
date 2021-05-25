@@ -1500,6 +1500,51 @@ def get_saas_files_minimal(v1=True, v2=False):
     return saas_files
 
 
+PIPELINES_PROVIDERS_QUERY = """
+{
+  pipelines_providers: pipelines_providers_v1 {
+    name
+    provider
+    ...on PipelinesProviderTekton_v1 {
+      namespace {
+        name
+        cluster {
+          name
+          serverUrl
+          jumpHost {
+            hostname
+            knownHosts
+            user
+            port
+            identity {
+              path
+              field
+              format
+            }
+          }
+          automationToken {
+            path
+            field
+            format
+          }
+          internal
+          disable {
+            integrations
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_pipelines_providers():
+    """ Returns PipelinesProvider resources defined in app-interface."""
+    gqlapi = gql.get_api()
+    return gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+
+
 JIRA_BOARDS_QUERY = """
 {
   jira_boards: jira_boards_v1 {
