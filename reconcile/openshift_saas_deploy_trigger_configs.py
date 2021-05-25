@@ -5,11 +5,11 @@ import time
 
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
+import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-configs'
@@ -44,29 +44,17 @@ def run(dry_run, thread_pool_size=10):
     while error:
         error = False
         for job_spec in trigger_specs:
-            saas_file_name = job_spec['saas_file_name']
-            env_name = job_spec['env_name']
-            instance_name = job_spec['instance_name']
-            job_name = get_openshift_saas_deploy_job_name(
-                saas_file_name, env_name, settings)
-            if job_name not in already_triggered:
-                logging.info(['trigger_job', instance_name, job_name])
-                if dry_run:
-                    already_triggered.append(job_name)
-
-            if not dry_run:
-                jenkins = jenkins_map[instance_name]
-                try:
-                    if job_name not in already_triggered:
-                        jenkins.trigger_job(job_name)
-                        already_triggered.append(job_name)
-                    saasherder.update_config(job_spec)
-                except Exception as e:
-                    error = True
-                    logging.error(
-                        f"could not trigger job {job_name} " +
-                        f"in {instance_name}. details: {str(e)}"
-                    )
+            trigger_options = {
+                'dry_run': dry_run,
+                'spec': job_spec,
+                'jenkins_map': jenkins_map,
+                'already_triggered': already_triggered,
+                'settings': settings,
+                'state_update_method': saasherder.update_config,
+            }
+            trigger_error = osdt_base.trigger(trigger_options)
+            if trigger_error:
+                error = True
 
         if error:
             time.sleep(10)  # add to contants module once created
