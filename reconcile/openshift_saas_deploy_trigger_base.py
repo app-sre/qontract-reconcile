@@ -193,7 +193,7 @@ def trigger(options):
             error = True
             logging.error(
                 f"could not trigger pipeline {tkn_name} " +
-                f"in {tkn_cluster_name}\{tkn_namespace_name}. " +
+                f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
                 f"details: {str(e)}"
             )
     else:
