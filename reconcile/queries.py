@@ -1335,6 +1335,26 @@ SAAS_FILES_QUERY_V2 = """
         }
       }
     }
+    slack {
+      output
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+      notifications {
+        start
+      }
+    }
     managedResourceTypes
     takeover
     compare
