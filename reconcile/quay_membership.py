@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import reconcile.utils.gql as gql
 
@@ -6,6 +7,7 @@ from reconcile.utils.aggregated_list import (AggregatedList,
                                              AggregatedDiffRunner,
                                              RunnerException)
 from reconcile.quay_base import get_quay_api_store
+from reconcile.status import ExitCodes
 
 
 QUAY_ORG_QUERY = """
@@ -119,17 +121,21 @@ class RunnerAction:
             org = params["org"]
             team = params["team"]
 
+            missing_users = False
             quay_api = self.quay_api_store[org]['api']
             for member in items:
                 logging.info([label, member, org, team])
                 user_exists = quay_api.user_exists(member)
-                if not user_exists:
-                    logging.warning((
-                        'quay user {} does not exist.'
-                    ).format(member))
-                    continue
-                if not self.dry_run:
-                    quay_api.add_user_to_team(member, team)
+                if user_exists:
+                    if not self.dry_run:
+                        quay_api.add_user_to_team(member, team)
+                else:
+                    missing_users = True
+                    logging.error(f'quay user {member} does not exist.')
+
+            if missing_users:
+                return False
+
         return action
 
     def del_from_team(self):
@@ -186,4 +192,6 @@ def run(dry_run):
     runner.register("update-delete", runner_action.del_from_team())
     runner.register("delete", runner_action.del_from_team())
 
-    runner.run()
+    status = runner.run()
+    if not status:
+        sys.exit(ExitCodes.ERROR)
