@@ -63,6 +63,53 @@ def setup(options):
     return saasherder, jenkins_map, oc_map, settings
 
 
+def construct_tekton_trigger_resource(saas_file_name, env_name, settings,
+                                      integration, integration_version):
+    """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
+
+    Args:
+        saas_file_name (string): SaaS file name
+        env_name (string): Environment name
+        settings (dict): App-interface settings
+        integration (string): Name of calling integration
+        integration_version (string): Version of calling integration
+
+    Returns:
+        OpenshiftResource: OpenShift resource to be applied
+    """
+    long_name = f"{saas_file_name}-{env_name}".lower()
+    # using a timestamp to make the resource name unique.
+    # we may want to revisit traceability, but this is compatible
+    # with what we currently have in Jenkins.
+    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
+    # max name length can be 63. leaving 12 for the timestamp - 51
+    name = f"{long_name[:50]}-{ts}"
+    body = {
+        "apiVersion": "tekton.dev/v1beta1",
+        "kind": "PipelineRun",
+        "metadata": {
+            "name": name
+        },
+        "spec": {
+            "pipelineRef": {
+                "name": settings['saasDeployJobTemplate']
+            },
+            "params": [
+                {
+                    "name": "saas_file_name",
+                    "value": saas_file_name
+                },
+                {
+                    "name": "env_name",
+                    "value": env_name
+                }
+            ]
+        }
+    }
+    return OR(body, integration, integration_version,
+              error_details=name), long_name
+
+
 def trigger(options):
     """Trigger a deployment according to the specified pipelines provider
 
@@ -120,7 +167,35 @@ def trigger(options):
                     f"in {instance_name}. details: {str(e)}"
                 )
     elif provider_name == 'tekton':
-        raise NotImplementedError('trigger base tekton provider')
+        tkn_namespace_info = pipelines_provider['namespace']
+        tkn_namespace_name = tkn_namespace_info['name']
+        tkn_cluster_name = tkn_namespace_info['cluster']['name']
+        tkn_trigger_resource, tkn_name = construct_tekton_trigger_resource(
+            saas_file_name,
+            env_name,
+            settings,
+            integration,
+            integration_version
+        )
+        try:
+            if tkn_name not in already_triggered:
+                osb.apply(dry_run=dry_run,
+                          oc_map=oc_map,
+                          cluster=tkn_cluster_name,
+                          namespace=tkn_namespace_name,
+                          resource_type=tkn_trigger_resource.kind,
+                          resource=tkn_trigger_resource,
+                          wait_for_namespace=False)
+                already_triggered.append(tkn_name)
+            if not dry_run:
+                state_update_method(spec)
+        except Exception as e:
+            error = True
+            logging.error(
+                f"could not trigger pipeline {tkn_name} " +
+                f"in {tkn_cluster_name}\{tkn_namespace_name}. " +
+                f"details: {str(e)}"
+            )
     else:
         logging.error(
             f'[{saas_file_name}] unsupported provider: ' +
