@@ -99,6 +99,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 400m
+  extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
@@ -110,6 +111,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 400m
+  extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true

@@ -1814,7 +1814,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-saas-deploy-trigger-configs
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2022,7 +2022,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-saas-deploy-trigger-moving-commits
           - name: INTEGRATION_EXTRA_ARGS
-            value: ""
+            value: "--no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
