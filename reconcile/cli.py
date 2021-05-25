@@ -791,21 +791,31 @@ def saas_file_validator(ctx):
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
 @click.pass_context
-def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size):
+def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size,
+                                                 internal, use_jump_host):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_moving_commits,
-        ctx.obj, thread_pool_size)
+        ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
 @click.pass_context
-def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size):
+def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size,
+                                          internal, use_jump_host):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_configs,
-        ctx.obj, thread_pool_size)
+        ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
 @integration.command()
