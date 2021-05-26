@@ -67,7 +67,8 @@ class AWSApi:
         self.users = {}
         for account, s in self.sessions.items():
             iam = s.client('iam')
-            users = [u['UserName'] for u in iam.list_users()['Users']]
+            users = self.paginate(iam, 'list_users', 'Users')
+            users = [u['UserName'] for u in users]
             self.users[account] = users
 
     def simulate_deleted_users(self, io_dir):
