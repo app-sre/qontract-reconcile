@@ -26,7 +26,7 @@ def fetch_desired_state(clusters):
 
 def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     """ Get a cluster spec to update. Returns an error if diff is invalid """
-    allowed_spec_update_fields = [
+    allowed_spec_update_fields = {
         'instance_type',
         'storage',
         'load_balancers',
@@ -34,7 +34,7 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
         'channel',
         'autoscale',
         'nodes'
-    ]
+    }
     error = False
     if current_spec['network'] != desired_spec['network']:
         error = True
@@ -52,10 +52,10 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     diffs = deleted
     diffs.update(updated)
 
-    for k in diffs:
-        if k not in allowed_spec_update_fields:
-            error = True
-            logging.error(f'[{cluster_name}] invalid update: {k}')
+    invalid_fields = set(diffs.keys()) - allowed_spec_update_fields
+    if invalid_fields:
+        error = True
+        logging.error(f'[{cluster_name}] invalid updates: {invalid_fields}')
 
     return updated, error
 
