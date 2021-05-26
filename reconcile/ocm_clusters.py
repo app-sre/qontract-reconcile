@@ -24,6 +24,42 @@ def fetch_desired_state(clusters):
     return desired_state
 
 
+def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
+    """ Get a cluster spec to update. Returns an error if diff is invalid """
+    allowed_spec_update_fields = {
+        'instance_type',
+        'storage',
+        'load_balancers',
+        'private',
+        'channel',
+        'autoscale',
+        'nodes'
+    }
+    error = False
+    if current_spec['network'] != desired_spec['network']:
+        error = True
+        logging.error(f'[{cluster_name}] invalid update: network')
+    current_spec_spec = current_spec['spec']
+    desired_spec_spec = desired_spec['spec']
+    updated = {k: desired_spec_spec[k] for k in desired_spec_spec
+               if current_spec_spec[k] != desired_spec_spec[k]}
+
+    # we only need deleted to check if a field removal is valid
+    # we really want to check updated + deleted, and since
+    # we have no further use for deleted -
+    deleted = {k: current_spec_spec[k] for k in current_spec_spec
+               if k not in desired_spec_spec}
+    diffs = deleted
+    diffs.update(updated)
+
+    invalid_fields = set(diffs.keys()) - allowed_spec_update_fields
+    if invalid_fields:
+        error = True
+        logging.error(f'[{cluster_name}] invalid updates: {invalid_fields}')
+
+    return updated, error
+
+
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
@@ -95,6 +131,15 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 desired_spec['spec'].pop(k, None)
 
             if current_spec != desired_spec:
+                # check if cluster update is valid
+                update_spec, err = get_cluster_update_spec(
+                    cluster_name,
+                    current_spec,
+                    desired_spec,
+                )
+                if err:
+                    error = True
+                    continue
                 # update cluster
                 logging.debug(
                     '[%s] desired spec %s is different ' +
@@ -104,7 +149,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 # TODO(mafriedm): check dry_run in OCM API patch
                 if not dry_run:
                     ocm = ocm_map.get(cluster_name)
-                    ocm.update_cluster(cluster_name, desired_spec, dry_run)
+                    ocm.update_cluster(cluster_name, update_spec, dry_run)
         else:
             # create cluster
             if cluster_name in pending_state:

@@ -171,12 +171,12 @@ class OCM:
 
         self._post(api, ocm_spec, params)
 
-    def update_cluster(self, name, cluster, dry_run):
+    def update_cluster(self, name, cluster_spec, dry_run):
         """
         Updates a cluster.
 
         :param name: name of the cluster
-        :param cluster: a dictionary representing a cluster desired state
+        :param cluster_spec: a dictionary representing cluster updates
         :param dry_run: do not execute for real
 
         :type name: string
@@ -185,26 +185,35 @@ class OCM:
         """
         cluster_id = self.cluster_ids.get(name)
         api = f'{CS_API_BASE}/v1/clusters/{cluster_id}'
-        cluster_spec = cluster['spec']
-        ocm_spec = {
-            'nodes': {
-                'compute_machine_type': {
-                    'id': cluster_spec['instance_type']
-                }
-            },
-            'storage_quota': {
+        ocm_spec = {}
+
+        instance_type = cluster_spec.get('instance_type')
+        if instance_type is not None:
+            ocm_spec['nodes'] = {
+                'compute_machine_type': {'id': instance_type}
+            }
+
+        storage_quota = cluster_spec.get('storage_quota')
+        if storage_quota is not None:
+            ocm_spec['storage_quota'] = {
                 'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
-            },
-            'load_balancer_quota': cluster_spec['load_balancers'],
-            'api': {
-                'listening':
-                    'internal' if cluster_spec['private']
-                    else 'external'
-            },
-            'version': {
-                'channel_group': cluster_spec['channel'],
-            },
-        }
+            }
+
+        load_balancers = cluster_spec.get('load_balancers')
+        if load_balancers is not None:
+            ocm_spec['load_balancer_quota'] = load_balancers
+
+        private = cluster_spec.get('private')
+        if private is not None:
+            ocm_spec['api'] = {
+                'listening': 'internal' if private else 'external'
+            }
+
+        channel = cluster_spec.get('channel')
+        if channel is not None:
+            ocm_spec['version'] = {
+                'channel_group': channel
+            }
 
         autoscale = cluster_spec.get('autoscale')
         if autoscale is not None:
