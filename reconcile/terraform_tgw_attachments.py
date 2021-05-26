@@ -55,13 +55,17 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             account['assume_region'] = accepter['region']
             account['assume_cidr'] = accepter['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
-            accepter_vpc_id, accepter_route_table_ids, \
-                accepter_subnets_id_az = \
-                aws_api.get_cluster_vpc_details(
-                    account,
-                    route_tables=peer_connection.get('manageRoutes'),
-                    subnets=True,
-                )
+            try:
+                accepter_vpc_id, accepter_route_table_ids, \
+                    accepter_subnets_id_az = \
+                    aws_api.get_cluster_vpc_details(
+                        account,
+                        route_tables=peer_connection.get('manageRoutes'),
+                        subnets=True,
+                    )
+            except aws_api.MissingRoleARNError as e:
+                logging.error(str(e))
+                continue
 
             if accepter_vpc_id is None:
                 logging.error(f'[{cluster} could not find VPC ID for cluster')
