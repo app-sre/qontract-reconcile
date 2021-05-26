@@ -114,6 +114,16 @@ class SaasHerder():
                     for t_key, t_value in target_parameters.items():
                         if not isinstance(t_value, str):
                             continue
+                        # Check for recursivity. Ex: PARAM: "foo.${PARAM}"
+                        replace_pattern = '${' + t_key + '}'
+                        if replace_pattern in t_value:
+                            logging.error(
+                                f'[{saas_file_name}/{resource_template_name}] '
+                                f'recursivity in parameter name and value '
+                                f'found: {t_key}: "{t_value}" - this will '
+                                f'likely not work as expected. Please consider'
+                                f' changing the parameter name')
+                            self.valid = False
                         for e_key, e_value in environment_parameters.items():
                             if not isinstance(e_value, str):
                                 continue
