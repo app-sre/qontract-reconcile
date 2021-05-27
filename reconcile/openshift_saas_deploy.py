@@ -13,10 +13,24 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.openshift_resource import ResourceInventory
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+def slack_notify_result(saas_file_name, env_name, slack, ri):
+    success = not ri.has_error_registered()
+    if success:
+        icon = ":green_jenkins_circle:"
+        description = "Success"
+    else:
+        icon = ":red_jenkins_circle:"
+        description = "Failure"
+    message = f"{icon} SaaS file *{saas_file_name}* " + \
+        f"deployment to environment *{env_name}* - {description}"
+    slack.chat_post_message(message)
 
 
 @defer
@@ -40,6 +54,8 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         if slack_info:
             slack = init_slack(slack_info, QONTRACT_INTEGRATION,
                                init_usergroups=False)
+            ri = ResourceInventory()
+            defer(lambda: slack_notify_result(saas_file_name, env_name, slack, ri))
         else:
             slack = None
 
