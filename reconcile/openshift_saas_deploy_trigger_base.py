@@ -63,13 +63,18 @@ def setup(options):
     return saasherder, jenkins_map, oc_map, settings
 
 
-def construct_tekton_trigger_resource(saas_file_name, env_name, settings,
-                                      integration, integration_version):
+def construct_tekton_trigger_resource(saas_file_name,
+                                      env_name,
+                                      timeout,
+                                      settings,
+                                      integration,
+                                      integration_version):
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
     Args:
         saas_file_name (string): SaaS file name
         env_name (string): Environment name
+        timeout (Duration): Specifies the timeout before the PipelineRun fails
         settings (dict): App-interface settings
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
@@ -106,6 +111,10 @@ def construct_tekton_trigger_resource(saas_file_name, env_name, settings,
             ]
         }
     }
+    if timeout:
+        # conforming to Go’s ParseDuration format
+        body['spec']['timeout'] = f"{timeout}m"
+
     return OR(body, integration, integration_version,
               error_details=name), long_name
 
@@ -141,6 +150,7 @@ def trigger(options):
 
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
+    timeout = spec['timeout']
     pipelines_provider = spec['pipelines_provider']
     provider_name = pipelines_provider['provider']
 
@@ -174,6 +184,7 @@ def trigger(options):
         tkn_trigger_resource, tkn_name = construct_tekton_trigger_resource(
             saas_file_name,
             env_name,
+            timeout,
             settings,
             integration,
             integration_version
