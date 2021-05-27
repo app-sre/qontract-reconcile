@@ -30,6 +30,19 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
 
+    # notify different outputs (publish results, slack notifications)
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    notify = not dry_run and len(saas_files) == 1
+    if notify:
+        slack_info = saas_files[0].get('slack')
+        if slack_info:
+            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
+                               init_usergroups=False)
+        else:
+            slack = None
+
     instance = queries.get_gitlab_instance()
     # instance exists in v1 saas files only
     desired_jenkins_instances = [s['instance']['name'] for s in saas_files
@@ -100,7 +113,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # based on promotion information in targets
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
-    if not dry_run and len(saasherder.saas_files) == 1:
+    if notify:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
         saasherder.publish_promotions(success, all_saas_files, mr_cli)
 
@@ -113,14 +126,9 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # - there is a single saas file deployed
     # - output is 'events'
     # - no errors were registered
-    if not dry_run and len(saasherder.saas_files) == 1:
-        saas_file = saasherder.saas_files[0]
-        slack_info = saas_file.get('slack')
-        if slack_info and actions and slack_info.get('output') == 'events':
-            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
-                               init_usergroups=False)
-            for action in actions:
-                message = \
-                    f"[{action['cluster']}] " + \
-                    f"{action['kind']} {action['name']} {action['action']}"
-                slack.chat_post_message(message)
+    if notify and slack and actions and slack_info.get('output') == 'events':
+        for action in actions:
+            message = \
+                f"[{action['cluster']}] " + \
+                f"{action['kind']} {action['name']} {action['action']}"
+            slack.chat_post_message(message)
