@@ -4,6 +4,7 @@ import logging
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 import reconcile.queries as queries
 
+from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
 from reconcile.utils.semver_helper import make_semver
 
@@ -18,7 +19,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     saas_files = queries.get_saas_files(v1=True, v2=True)
     if not saas_files:
         logging.error('no saas files found')
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
 
     # Remove saas-file targets that are disabled
     for saas_file in saas_files[:]:
@@ -60,4 +61,4 @@ def run(dry_run, thread_pool_size=10, internal=None,
             error = True
 
     if error:
-        sys.exit(1)
+        sys.exit(ExitCodes.ERROR)
