@@ -133,8 +133,9 @@ class RunnerAction:
                     missing_users = True
                     logging.error(f'quay user {member} does not exist.')
 
-            if missing_users:
-                return False
+            # This will be evaluated by AggregatedDiffRunner.run(). The happy
+            # case is to return True: no missing users
+            return not missing_users
 
         return action
 
@@ -153,6 +154,8 @@ class RunnerAction:
                 for member in items:
                     logging.info([label, member, org, team])
                     quay_api.remove_user_from_team(member, team)
+
+            return True
 
         return action
 
