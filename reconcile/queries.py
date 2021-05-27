@@ -1310,6 +1310,7 @@ SAAS_FILES_QUERY_V2 = """
           name
           cluster {
             name
+            consoleUrl
             serverUrl
             jumpHost {
               hostname

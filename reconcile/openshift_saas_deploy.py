@@ -20,7 +20,18 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def slack_notify(saas_file_name, env_name, slack, ri, in_progress):
+def compose_console_url(saas_file, saas_file_name, env_name):
+    pp_ns = saas_file['pipelinesProvider']['namespace']
+    pp_ns_name = pp_ns['name']
+    pp_cluster = pp_ns['cluster']
+    pp_cluster_console_url = pp_cluster['consoleUrl']
+    return f"{pp_cluster_console_url}/k8s/ns/{pp_ns_name}/" +\
+        "tekton.dev~v1beta1~Pipeline/" + \
+        f"openshift-saas-deploy/Runs?name={saas_file_name}-{env_name}"
+
+
+def slack_notify(saas_file_name, env_name, slack, ri, console_url,
+                 in_progress):
     success = not ri.has_error_registered()
     if in_progress:
         icon = ":yellow_jenkins_circle:"
@@ -32,7 +43,8 @@ def slack_notify(saas_file_name, env_name, slack, ri, in_progress):
         icon = ":red_jenkins_circle:"
         description = "Failure"
     message = f"{icon} SaaS file *{saas_file_name}* " + \
-        f"deployment to environment *{env_name}* - {description}"
+        f"deployment to environment *{env_name}*: " + \
+        f"{description} (<{console_url}|Open>)"
     slack.chat_post_message(message)
 
 
@@ -62,14 +74,17 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             # only in v2 saas files
             if saas_file['apiVersion'] == 'v2':
                 ri = ResourceInventory()
+                console_url = \
+                    compose_console_url(saas_file, saas_file_name, env_name)
                 # deployment result notification
                 defer(lambda: slack_notify(saas_file_name, env_name, slack,
-                                           ri, in_progress=False))
+                                           ri, console_url,
+                                           in_progress=False))
                 # deployment start notification
                 slack_notifications = slack_info.get('notifications')
                 if slack_notifications and slack_notifications.get('start'):
                     slack_notify(saas_file_name, env_name, slack, ri,
-                                 in_progress=True)
+                                 console_url, in_progress=True)
         else:
             slack = None
 
