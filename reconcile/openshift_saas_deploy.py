@@ -13,10 +13,39 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.openshift_resource import ResourceInventory
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+def compose_console_url(saas_file, saas_file_name, env_name):
+    pp_ns = saas_file['pipelinesProvider']['namespace']
+    pp_ns_name = pp_ns['name']
+    pp_cluster = pp_ns['cluster']
+    pp_cluster_console_url = pp_cluster['consoleUrl']
+    return f"{pp_cluster_console_url}/k8s/ns/{pp_ns_name}/" +\
+        "tekton.dev~v1beta1~Pipeline/" + \
+        f"openshift-saas-deploy/Runs?name={saas_file_name}-{env_name}"
+
+
+def slack_notify(saas_file_name, env_name, slack, ri, console_url,
+                 in_progress):
+    success = not ri.has_error_registered()
+    if in_progress:
+        icon = ":yellow_jenkins_circle:"
+        description = "In Progress"
+    elif success:
+        icon = ":green_jenkins_circle:"
+        description = "Success"
+    else:
+        icon = ":red_jenkins_circle:"
+        description = "Failure"
+    message = f"{icon} SaaS file *{saas_file_name}* " + \
+        f"deployment to environment *{env_name}*: " + \
+        f"{description} (<{console_url}|Open>)"
+    slack.chat_post_message(message)
 
 
 @defer
@@ -29,6 +58,35 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
+
+    # notify different outputs (publish results, slack notifications)
+    # we only do this if:
+    # - this is not a dry run
+    # - there is a single saas file deployed
+    notify = not dry_run and len(saas_files) == 1
+    if notify:
+        saas_file = saas_files[0]
+        slack_info = saas_file.get('slack')
+        if slack_info:
+            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
+                               init_usergroups=False)
+            # support built-in start and end slack notifications
+            # only in v2 saas files
+            if saas_file['apiVersion'] == 'v2':
+                ri = ResourceInventory()
+                console_url = \
+                    compose_console_url(saas_file, saas_file_name, env_name)
+                # deployment result notification
+                defer(lambda: slack_notify(saas_file_name, env_name, slack,
+                                           ri, console_url,
+                                           in_progress=False))
+                # deployment start notification
+                slack_notifications = slack_info.get('notifications')
+                if slack_notifications and slack_notifications.get('start'):
+                    slack_notify(saas_file_name, env_name, slack, ri,
+                                 console_url, in_progress=True)
+        else:
+            slack = None
 
     instance = queries.get_gitlab_instance()
     # instance exists in v1 saas files only
@@ -100,7 +158,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # based on promotion information in targets
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
-    if not dry_run and len(saasherder.saas_files) == 1:
+    if notify:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
         saasherder.publish_promotions(success, all_saas_files, mr_cli)
 
@@ -113,14 +171,9 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # - there is a single saas file deployed
     # - output is 'events'
     # - no errors were registered
-    if not dry_run and len(saasherder.saas_files) == 1:
-        saas_file = saasherder.saas_files[0]
-        slack_info = saas_file.get('slack')
-        if slack_info and actions and slack_info.get('output') == 'events':
-            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
-                               init_usergroups=False)
-            for action in actions:
-                message = \
-                    f"[{action['cluster']}] " + \
-                    f"{action['kind']} {action['name']} {action['action']}"
-                slack.chat_post_message(message)
+    if notify and slack and actions and slack_info.get('output') == 'events':
+        for action in actions:
+            message = \
+                f"[{action['cluster']}] " + \
+                f"{action['kind']} {action['name']} {action['action']}"
+            slack.chat_post_message(message)
