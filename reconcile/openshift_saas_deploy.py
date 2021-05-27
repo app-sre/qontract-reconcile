@@ -53,19 +53,23 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # - there is a single saas file deployed
     notify = not dry_run and len(saas_files) == 1
     if notify:
-        slack_info = saas_files[0].get('slack')
+        saas_file = saas_files[0]
+        slack_info = saas_file.get('slack')
         if slack_info:
             slack = init_slack(slack_info, QONTRACT_INTEGRATION,
                                init_usergroups=False)
-            ri = ResourceInventory()
-            # deployment result notification
-            defer(lambda: slack_notify(saas_file_name, env_name, slack, ri,
-                                       in_progress=False))
-            # deployment start notification
-            slack_notifications = slack_info.get('notifications')
-            if slack_notifications and slack_notifications.get('start'):
-                slack_notify(saas_file_name, env_name, slack, ri,
-                             in_progress=True)
+            # support built-in start and end slack notifications
+            # only in v2 saas files
+            if saas_file['apiVersion'] == 'v2':
+                ri = ResourceInventory()
+                # deployment result notification
+                defer(lambda: slack_notify(saas_file_name, env_name, slack,
+                                           ri, in_progress=False))
+                # deployment start notification
+                slack_notifications = slack_info.get('notifications')
+                if slack_notifications and slack_notifications.get('start'):
+                    slack_notify(saas_file_name, env_name, slack, ri,
+                                 in_progress=True)
         else:
             slack = None
 
