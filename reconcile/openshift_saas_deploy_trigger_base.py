@@ -74,7 +74,7 @@ def construct_tekton_trigger_resource(saas_file_name,
     Args:
         saas_file_name (string): SaaS file name
         env_name (string): Environment name
-        timeout (Duration): Specifies the timeout before the PipelineRun fails
+        timeout (int): Timeout in minutes before the PipelineRun fails
         settings (dict): App-interface settings
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
