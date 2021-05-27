@@ -20,9 +20,12 @@ QONTRACT_INTEGRATION = 'openshift-saas-deploy'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def slack_notify_result(saas_file_name, env_name, slack, ri):
+def slack_notify(saas_file_name, env_name, slack, ri, in_progress):
     success = not ri.has_error_registered()
-    if success:
+    if in_progress:
+        icon = ":yellow_jenkins_circle:"
+        description = "In Progress"
+    elif success:
         icon = ":green_jenkins_circle:"
         description = "Success"
     else:
@@ -55,7 +58,14 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
             slack = init_slack(slack_info, QONTRACT_INTEGRATION,
                                init_usergroups=False)
             ri = ResourceInventory()
-            defer(lambda: slack_notify_result(saas_file_name, env_name, slack, ri))
+            # deployment result notification
+            defer(lambda: slack_notify(saas_file_name, env_name, slack, ri,
+                                       in_progress=False))
+            # deployment start notification
+            slack_notifications = slack_info.get('notifications')
+            if slack_notifications and slack_notifications.get('start'):
+                slack_notify(saas_file_name, env_name, slack, ri,
+                             in_progress=True)
         else:
             slack = None
 
