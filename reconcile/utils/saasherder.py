@@ -980,7 +980,7 @@ class SaasHerder():
             if subscribe:
                 for channel in subscribe:
                     state_key = f"promotions/{channel}/{commit_sha}"
-                    value = self.state.get(state_key, None)
+                    value = self.state.get(state_key, {})
                     success = value.get('success')
                     if not success:
                         logging.error(
