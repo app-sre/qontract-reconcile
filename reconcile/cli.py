@@ -813,7 +813,7 @@ def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size,
 @use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_trigger_upstream_jobs(ctx, thread_pool_size,
-                                                 internal, use_jump_host):
+                                                internal, use_jump_host):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_upstream_jobs,
         ctx.obj, thread_pool_size, internal, use_jump_host)
