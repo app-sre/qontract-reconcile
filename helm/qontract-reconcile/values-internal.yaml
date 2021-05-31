@@ -124,8 +124,6 @@ integrations:
       memory: 1200Mi
       cpu: 600m
   extraArgs: --internal --light --vault-output-path app-sre/integrations-output
-  logs:
-    slack: true
   internalCertificates: true
 - name: gitlab-projects
   resources:
@@ -135,8 +133,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
 - name: gitlab-members
   resources:
     requests:
@@ -145,8 +141,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
 - name: gitlab-permissions
   resources:
     requests:
@@ -155,8 +149,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
 - name: gitlab-integrations
   resources:
     requests:
@@ -165,8 +157,6 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
 - name: gitlab-owners
   resources:
     requests:
@@ -194,7 +184,6 @@ integrations:
       cpu: 200m
   logs:
     cloudwatch: true
-    slack: true
   state: true
   cache: true
 - name: jenkins-roles

@@ -2149,15 +2149,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2204,15 +2195,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-resources] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2354,15 +2336,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2409,15 +2382,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[gitlab-projects] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2555,15 +2519,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2610,15 +2565,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[gitlab-members] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2756,15 +2702,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2811,15 +2748,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[gitlab-permissions] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2957,15 +2885,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3012,15 +2931,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[gitlab-integrations] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -3533,15 +3443,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3588,15 +3489,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[jenkins-job-builder] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
