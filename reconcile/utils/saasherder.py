@@ -744,8 +744,8 @@ class SaasHerder():
         # additional processing of resources
         self._additional_resource_process(resources, html_url)
         # check images
-        skip_check_images = upstream and self.jenkins_map and \
-            self.jenkins_map[instance_name].is_job_running(upstream)
+        skip_check_images = upstream and self.jenkins_map and instance_name \
+            and self.jenkins_map[instance_name].is_job_running(upstream)
         if skip_check_images:
             logging.warning(
                 "skipping check_image since " +
