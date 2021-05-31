@@ -46,7 +46,6 @@ setup(
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
         "jenkins-job-builder==2.10.1",
-        "importlib-metadata==4.2.0",
         "tzlocal==2.1",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
