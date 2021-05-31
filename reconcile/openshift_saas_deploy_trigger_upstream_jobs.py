@@ -49,7 +49,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
             oc_map=oc_map,
             already_triggered=already_triggered,
             settings=settings,
-            state_update_method=saasherder.update_config,
+            state_update_method=saasherder.update_upstream_job,
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION
         )
