@@ -115,6 +115,18 @@ integrations:
   logs:
     slack: true
   state: true
+- name: openshift-saas-deploy-trigger-upstream-jobs
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 400m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+  state: true
 - name: terraform-resources
   resources:
     requests:

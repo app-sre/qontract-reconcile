@@ -30,6 +30,7 @@ import reconcile.openshift_serviceaccount_tokens
 import reconcile.openshift_saas_deploy
 import reconcile.openshift_saas_deploy_wrapper
 import reconcile.openshift_saas_deploy_trigger_moving_commits
+import reconcile.openshift_saas_deploy_trigger_upstream_jobs
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.saas_file_owners
 import reconcile.gitlab_ci_skipper
@@ -800,6 +801,21 @@ def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size,
                                                  internal, use_jump_host):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_moving_commits,
+        ctx.obj, thread_pool_size, internal, use_jump_host)
+
+
+@integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_saas_deploy_trigger_upstream_jobs(ctx, thread_pool_size,
+                                                 internal, use_jump_host):
+    run_integration(
+        reconcile.openshift_saas_deploy_trigger_upstream_jobs,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 

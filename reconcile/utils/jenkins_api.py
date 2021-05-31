@@ -33,6 +33,23 @@ class JenkinsApi:
         job_names = [r['name'] for r in res.json()['jobs']]
         return job_names
 
+    def get_jobs_state(self):
+        url = f"{self.url}/api/json?tree=jobs[name,builds[number,result]]"
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password)
+        )
+
+        res.raise_for_status()
+        jobs_state = {}
+        for r in res.json()['jobs']:
+            job_name = r['name']
+            builds = r.get('builds', [])
+            jobs_state[job_name] = builds
+
+        return jobs_state
+
     def delete_job(self, job_name):
         kwargs = self.get_crumb_kwargs()
 
