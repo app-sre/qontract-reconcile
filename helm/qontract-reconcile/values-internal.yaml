@@ -94,10 +94,10 @@ integrations:
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
-      memory: 200Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
   extraArgs: --no-use-jump-host
   logs:
@@ -106,10 +106,10 @@ integrations:
 - name: openshift-saas-deploy-trigger-moving-commits
   resources:
     requests:
-      memory: 200Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
   extraArgs: --no-use-jump-host
   logs:
@@ -118,10 +118,10 @@ integrations:
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
-      memory: 200Mi
+      memory: 600Mi
       cpu: 200m
     limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
   extraArgs: --no-use-jump-host
   logs:
