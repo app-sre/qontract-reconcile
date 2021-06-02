@@ -1,0 +1,5 @@
+[run]
+branch = True
+omit = reconcile/tests/*
+[report]
+fail_under = 19
