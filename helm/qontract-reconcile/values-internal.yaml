@@ -103,6 +103,7 @@ integrations:
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-moving-commits
   resources:
     requests:
@@ -115,6 +116,7 @@ integrations:
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
@@ -127,6 +129,7 @@ integrations:
   logs:
     slack: true
   state: true
+  shards: 3
 - name: terraform-resources
   resources:
     requests:
