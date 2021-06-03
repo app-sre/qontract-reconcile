@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import pytest
@@ -19,9 +20,10 @@ def has_uncommited_changes():
 
 class TestMake:
     @staticmethod
-    @pytest.mark.skip(
-        "Broken - uncommitted changes are normal during development"
-        )
+    @pytest.mark.skipif(
+        not os.environ.get("HUDSON_HOME"),
+        reason="This test is only for CI environments",
+    )
     def test_make_generate():
         assert not has_uncommited_changes(), ('No uncommited changes must '
                                               'exists')
