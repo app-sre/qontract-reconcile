@@ -740,7 +740,7 @@ class SaasHerder():
         # filter resources
         resources = [resource for resource in resources
                      if isinstance(resource, dict)
-                     and resource['kind'] in managed_resource_types]
+                     and resource.get('kind') in managed_resource_types]
         # additional processing of resources
         self._additional_resource_process(resources, html_url)
         # check images
