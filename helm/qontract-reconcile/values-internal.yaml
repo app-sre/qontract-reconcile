@@ -95,10 +95,10 @@ integrations:
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -107,10 +107,10 @@ integrations:
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
@@ -119,10 +119,10 @@ integrations:
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true

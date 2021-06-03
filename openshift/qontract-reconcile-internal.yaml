@@ -1852,10 +1852,10 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 400m
+              cpu: 600m
               memory: 800Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 600Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2060,10 +2060,10 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 400m
+              cpu: 600m
               memory: 800Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 600Mi
           volumeMounts:
           - name: qontract-reconcile-toml
@@ -2268,10 +2268,10 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 400m
+              cpu: 600m
               memory: 800Mi
             requests:
-              cpu: 200m
+              cpu: 400m
               memory: 600Mi
           volumeMounts:
           - name: qontract-reconcile-toml
