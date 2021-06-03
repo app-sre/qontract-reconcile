@@ -31,8 +31,11 @@ generate:
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
-test: build-test
-	@docker run --rm $(IMAGE_TEST)
+# test: build-test
+# 	@docker run --rm $(IMAGE_TEST)
+
+test:
+	@env
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
