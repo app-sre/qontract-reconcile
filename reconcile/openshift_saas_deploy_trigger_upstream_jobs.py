@@ -1,8 +1,9 @@
 import sys
 import logging
 
-import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 import reconcile.queries as queries
+import reconcile.openshift_saas_deploy_trigger_base as osdt_base
+import reconcile.utils.threaded as threaded
 
 from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
@@ -42,10 +43,12 @@ def run(dry_run, thread_pool_size=10, internal=None,
     current_state = fetch_current_state(jenkins_map)
     trigger_specs = saasherder.get_upstream_jobs_diff(dry_run, current_state)
     already_triggered = []
-    error = False
-    for job_spec in trigger_specs:
-        trigger_error = osdt_base.trigger(
-            spec=job_spec,
+
+    trigger_errors = \
+        threaded.run(
+            osdt_base.trigger,
+            trigger_specs,
+            thread_pool_size,
             dry_run=dry_run,
             jenkins_map=jenkins_map,
             oc_map=oc_map,
@@ -55,8 +58,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION
         )
-        if trigger_error:
-            error = True
+    error = True in trigger_errors
 
     if error:
         sys.exit(ExitCodes.ERROR)
