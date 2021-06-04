@@ -134,16 +134,121 @@ def trigger(spec,
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
-            spec (dict): A trigger spec as created by saasherder
-            dry_run (bool): Is this a dry run
-            jenkins_map (dict): Instance names with JenkinsApi instances
-            oc_map (OC_Map): a dictionary of OC clients per cluster
-            already_triggered (set): A set of already triggered deployments.
-                                     It will get populated by this function.
-            settings (dict): App-interface settings
-            state_update_method (function): A method to call to update state
-            integration (string): Name of calling integration
-            integration_version (string): Version of calling integration
+        spec (dict): A trigger spec as created by saasherder
+        dry_run (bool): Is this a dry run
+        jenkins_map (dict): Instance names with JenkinsApi instances
+        oc_map (OC_Map): a dictionary of OC clients per cluster
+        already_triggered (set): A set of already triggered deployments.
+                                    It will get populated by this function.
+        settings (dict): App-interface settings
+        state_update_method (function): A method to call to update state
+        integration (string): Name of calling integration
+        integration_version (string): Version of calling integration
+
+    Returns:
+        bool: True if there was an error, False otherwise
+    """
+
+    # TODO: Convert these into a dataclass.
+    provider_name = spec['pipelines_provider']['provider']
+
+    error = False
+    if provider_name == 'jenkins':
+        error = _trigger_jenkins(
+            spec,
+            dry_run,
+            jenkins_map,
+            already_triggered,
+            settings,
+            state_update_method)
+
+    elif provider_name == 'tekton':
+        error = _trigger_tekton(
+            spec,
+            dry_run,
+            oc_map,
+            already_triggered,
+            settings,
+            state_update_method,
+            integration,
+            integration_version)
+
+    else:
+        error = True
+        logging.error(
+            f'[{saas_file_name}] unsupported provider: ' +
+            f'{provider_name}'
+        )
+
+    return error
+
+def _trigger_jenkins(spec,
+                     dry_run,
+                     jenkins_map,
+                     already_triggered,
+                     settings,
+                     state_update_method):
+    """Trigger a deployment via Jenkins job
+
+    Args:
+        spec (dict): A trigger spec as created by saasherder
+        dry_run (bool): Is this a dry run
+        jenkins_map (dict): Instance names with JenkinsApi instances
+        already_triggered (set): A set of already triggered deployments.
+                                    It will get populated by this function.
+        settings (dict): App-interface settings
+        state_update_method (function): A method to call to update state
+
+    Returns:
+        bool: True if there was an error, False otherwise
+    """
+    # TODO: Convert these into a dataclass.
+    saas_file_name = spec['saas_file_name']
+    env_name = spec['env_name']
+    pipelines_provider = spec['pipelines_provider']
+
+    instance_name = pipelines_provider['instance']['name']
+    job_name = get_openshift_saas_deploy_job_name(
+        saas_file_name, env_name, settings)
+
+    error = False
+    to_trigger = _register_trigger(job_name, already_triggered)
+    if to_trigger:
+        logging.info(['trigger_job', instance_name, job_name])
+        if not dry_run:
+            jenkins = jenkins_map[instance_name]
+            try:
+                jenkins.trigger_job(job_name)
+                state_update_method(spec)
+            except Exception as e:
+                error = True
+                logging.error(
+                    f"could not trigger job {job_name} " +
+                    f"in {instance_name}. details: {str(e)}"
+                )
+
+    return error
+
+def _trigger_tekton(spec,
+                    dry_run,
+                    oc_map,
+                    already_triggered,
+                    settings,
+                    state_update_method,
+                    integration,
+                    integration_version):
+    """Trigger a deployment according to the specified pipelines provider
+
+    Args:
+        spec (dict): A trigger spec as created by saasherder
+        dry_run (bool): Is this a dry run
+        oc_map (OC_Map): a dictionary of OC clients per cluster
+        already_triggered (set): A set of already triggered deployments.
+                                 It will get populated by this function.
+        settings (dict): App-interface settings
+        state_update_method (function): A method to call to update state
+        integration (string): Name of calling integration
+        integration_version (string): Version of calling integration
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -154,67 +259,39 @@ def trigger(spec,
     env_name = spec['env_name']
     timeout = spec['timeout']
     pipelines_provider = spec['pipelines_provider']
-    provider_name = pipelines_provider['provider']
+
+    tkn_namespace_info = pipelines_provider['namespace']
+    tkn_namespace_name = tkn_namespace_info['name']
+    tkn_cluster_name = tkn_namespace_info['cluster']['name']
+    tkn_trigger_resource, tkn_name = construct_tekton_trigger_resource(
+        saas_file_name,
+        env_name,
+        timeout,
+        settings,
+        integration,
+        integration_version
+    )
 
     error = False
-    if provider_name == 'jenkins':
-        instance_name = pipelines_provider['instance']['name']
-        job_name = get_openshift_saas_deploy_job_name(
-            saas_file_name, env_name, settings)
-
-        to_trigger = _register_trigger(job_name, already_triggered)
-        if to_trigger:
-            logging.info(['trigger_job', instance_name, job_name])
+    to_trigger = _register_trigger(tkn_name, already_triggered)
+    if to_trigger:
+        try:
+            osb.apply(dry_run=dry_run,
+                      oc_map=oc_map,
+                      cluster=tkn_cluster_name,
+                      namespace=tkn_namespace_name,
+                      resource_type=tkn_trigger_resource.kind,
+                      resource=tkn_trigger_resource,
+                      wait_for_namespace=False)
             if not dry_run:
-                jenkins = jenkins_map[instance_name]
-                try:
-                    jenkins.trigger_job(job_name)
-                    state_update_method(spec)
-                except Exception as e:
-                    error = True
-                    logging.error(
-                        f"could not trigger job {job_name} " +
-                        f"in {instance_name}. details: {str(e)}"
-                    )
-
-    elif provider_name == 'tekton':
-        tkn_namespace_info = pipelines_provider['namespace']
-        tkn_namespace_name = tkn_namespace_info['name']
-        tkn_cluster_name = tkn_namespace_info['cluster']['name']
-        tkn_trigger_resource, tkn_name = construct_tekton_trigger_resource(
-            saas_file_name,
-            env_name,
-            timeout,
-            settings,
-            integration,
-            integration_version
-        )
-
-        to_trigger = _register_trigger(tkn_name, already_triggered)
-        if to_trigger:
-            try:
-                osb.apply(dry_run=dry_run,
-                          oc_map=oc_map,
-                          cluster=tkn_cluster_name,
-                          namespace=tkn_namespace_name,
-                          resource_type=tkn_trigger_resource.kind,
-                          resource=tkn_trigger_resource,
-                          wait_for_namespace=False)
-                if not dry_run:
-                    state_update_method(spec)
-            except Exception as e:
-                error = True
-                logging.error(
-                    f"could not trigger pipeline {tkn_name} " +
-                    f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
-                    f"details: {str(e)}"
-                )
-
-    else:
-        logging.error(
-            f'[{saas_file_name}] unsupported provider: ' +
-            f'{provider_name}'
-        )
+                state_update_method(spec)
+        except Exception as e:
+            error = True
+            logging.error(
+                f"could not trigger pipeline {tkn_name} " +
+                f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
+                f"details: {str(e)}"
+            )
 
     return error
 
