@@ -1,6 +1,8 @@
 import logging
 import datetime
 
+from threading import Lock
+
 import reconcile.openshift_base as osb
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
@@ -11,6 +13,7 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 
+_trigger_lock = Lock()
 
 def setup(options):
     """Setup required resources for triggering integrations
@@ -146,6 +149,8 @@ def trigger(spec,
         bool: True if there was an error, False otherwise
     """
 
+    global _trigger_lock
+
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
@@ -158,18 +163,20 @@ def trigger(spec,
         instance_name = pipelines_provider['instance']['name']
         job_name = get_openshift_saas_deploy_job_name(
             saas_file_name, env_name, settings)
-        if job_name not in already_triggered:
-            logging.info(['trigger_job', instance_name, job_name])
-            if dry_run:
-                already_triggered.append(job_name)
+        with _trigger_lock:
+            if job_name not in already_triggered:
+                logging.info(['trigger_job', instance_name, job_name])
+                if dry_run:
+                    already_triggered.append(job_name)
 
         if not dry_run:
             jenkins = jenkins_map[instance_name]
             try:
-                if job_name not in already_triggered:
-                    jenkins.trigger_job(job_name)
-                    already_triggered.append(job_name)
-                state_update_method(spec)
+                with _trigger_lock:
+                    if job_name not in already_triggered:
+                        jenkins.trigger_job(job_name)
+                        already_triggered.append(job_name)
+                    state_update_method(spec)
             except Exception as e:
                 error = True
                 logging.error(
@@ -189,17 +196,18 @@ def trigger(spec,
             integration_version
         )
         try:
-            if tkn_name not in already_triggered:
-                osb.apply(dry_run=dry_run,
-                          oc_map=oc_map,
-                          cluster=tkn_cluster_name,
-                          namespace=tkn_namespace_name,
-                          resource_type=tkn_trigger_resource.kind,
-                          resource=tkn_trigger_resource,
-                          wait_for_namespace=False)
-                already_triggered.append(tkn_name)
-            if not dry_run:
-                state_update_method(spec)
+            with _trigger_lock:
+                if tkn_name not in already_triggered:
+                    osb.apply(dry_run=dry_run,
+                            oc_map=oc_map,
+                            cluster=tkn_cluster_name,
+                            namespace=tkn_namespace_name,
+                            resource_type=tkn_trigger_resource.kind,
+                            resource=tkn_trigger_resource,
+                            wait_for_namespace=False)
+                    already_triggered.append(tkn_name)
+                if not dry_run:
+                    state_update_method(spec)
         except Exception as e:
             error = True
             logging.error(
