@@ -81,22 +81,21 @@ class JumpHostSSH(JumpHostBase):
 
     def create_ssh_tunnel(self, local_port, remote_port):
         key = f'{self.hostname}-{local_port}-{remote_port}'
-        JumpHostSSH.tunnel_lock.acquire()
-        if key not in JumpHostSSH.bastion_tunnel:
-            # Hide connect messages from sshtunnel
-            logger = logging.getLogger()
-            default_log_level = logger.level
-            logger.setLevel(logging.ERROR)
+        with JumpHostSSH.tunnel_lock:
+            if key not in JumpHostSSH.bastion_tunnel:
+                # Hide connect messages from sshtunnel
+                logger = logging.getLogger()
+                default_log_level = logger.level
+                logger.setLevel(logging.ERROR)
 
-            tunnel = sshtunnel.SSHTunnelForwarder(
-                ssh_address_or_host=self.hostname,
-                ssh_port=self.port,
-                ssh_username=self.user,
-                ssh_pkey=self.identity_file,
-                remote_bind_address=(self.hostname, remote_port),
-                local_bind_address=('localhost', local_port)
-            )
-            tunnel.start()
-            logger.setLevel(default_log_level)
-            JumpHostSSH.bastion_tunnel[key] = tunnel
-        JumpHostSSH.tunnel_lock.release()
+                tunnel = sshtunnel.SSHTunnelForwarder(
+                    ssh_address_or_host=self.hostname,
+                    ssh_port=self.port,
+                    ssh_username=self.user,
+                    ssh_pkey=self.identity_file,
+                    remote_bind_address=(self.hostname, remote_port),
+                    local_bind_address=('localhost', local_port)
+                )
+                tunnel.start()
+                logger.setLevel(default_log_level)
+                JumpHostSSH.bastion_tunnel[key] = tunnel

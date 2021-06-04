@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import time
+import copy
 
 from datetime import datetime
 from functools import wraps
@@ -188,10 +189,10 @@ class OCDeprecated:
             'oc',
             '--kubeconfig', '/dev/null'
         ]
-        if server is not None and len(server) > 0:
+        if server:
             oc_base_cmd.extend(['--server', server])
 
-        if token is not None and len(token) > 0:
+        if token:
             oc_base_cmd.extend(['--token', token])
 
         self.jump_host = None
@@ -757,16 +758,22 @@ class OC(OCDeprecated):
             retries=0
         )
 
+        configuration = kubernetes.client.Configuration()
+
+        # the kubernetes client configuration takes a limited set
+        # of parameters during initialization, but there are a lot
+        # more options that can be set to tweak the behavior of the
+        # client via instance variables.  We define a set of options
+        # above in the format of var_name:value then set them here
+        # in the configuration object with setattr.
+        for k, v in opts.items():
+            setattr(configuration, k, v)
+
         if self.jump_host is not None:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel(8888, 8888)
             opts['proxy'] = 'https://localhost:8888'
-
-        configuration = kubernetes.client.Configuration()
-
-        for k, v in opts.items():
-            setattr(configuration, k, v)
 
         k8s_client = kubernetes.client.ApiClient(configuration)
         try:
@@ -788,6 +795,10 @@ class OC(OCDeprecated):
             group_version = self.api_kind_version[kind][0]
         else:
             raise StatusCodeError(f'{self.server}: {kind} does not exist')
+
+        # if a kind_group has more than 1 entry than the kind_name is in
+        # the format kind.apigroup.  Find the apigroup/version that matches
+        # the apigroup passed with the kind_name
         if len(kind_group) > 1:
             apigroup_override = kind_group[1]
             for gv in self.api_kind_version[kind]:
@@ -796,6 +807,8 @@ class OC(OCDeprecated):
                     break
         return(kind, group_version)
 
+    # this function returns a kind:apigroup/version map for each kind on the
+    # cluster
     def get_api_resources(self):
         # this returns a prefix:apis map
         api_prefix = self.client.resources.parse_api_groups(
@@ -829,6 +842,9 @@ class OC(OCDeprecated):
                             gv = f'{version}'
                         else:
                             gv = f'{apigroup}/{version}'
+
+                        # add the kind and apigroup/version to the set of api
+                        # kinds
                         kind_groupversion = self.add_group_kind(
                             kind, kind_groupversion, gv, obj.preferred)
         return kind_groupversion
@@ -901,27 +917,28 @@ class OC(OCDeprecated):
 
     @staticmethod
     def add_group_kind(kind, kgv, new, preferred):
+        updated_kgv = copy.copy(kgv)
         if kind not in kgv:
             # this is a new kind so add it
-            kgv[kind] = [new]
+            updated_kgv[kind] = [new]
         else:
-            # this kind already exists, so check if this apigroup has already
-            # been added as an option.  If this apigroup is the preferred one,
-            # then replace the apigroup/version so that the preferred
-            # apigroup/version is used instead of a non-preferred one
+            # this kind already exists, so check if this apigroup has
+            # already been added as an option.  If this apigroup/version is the
+            # preferred one, then replace the apigroup/version so that the
+            # preferred apigroup/version is used instead of a non-preferred one
             group = new.split('/', 1)[0]
             new_group = True
             for pos in range(len(kgv[kind])):
                 if group in kgv[kind][pos]:
                     new_group = False
                     if preferred:
-                        kgv[kind][pos] = new
+                        updated_kgv[kind][pos] = new
                     break
 
             if new_group:
                 # this is a new apigroup
-                kgv[kind].append(new)
-        return kgv
+                updated_kgv[kind].append(new)
+        return updated_kgv
 
 
 class OC_Map:
