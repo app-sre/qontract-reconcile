@@ -46,11 +46,13 @@ def setup(saas_files,
     pipelines_providers = queries.get_pipelines_providers()
     tkn_provider_namespaces = [pp['namespace'] for pp in pipelines_providers
                                if pp['provider'] == 'tekton']
-    oc_map = OC_Map(namespaces=tkn_provider_namespaces,
-                    integration=integration,
-                    settings=settings, internal=internal,
-                    use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size)
+
+    oc_map = OC_Map(
+        namespaces=tkn_provider_namespaces,
+        integration=integration,
+        settings=settings, internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size)
 
     saasherder = SaasHerder(
         saas_files,
