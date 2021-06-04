@@ -15,6 +15,7 @@ from reconcile.utils.saasherder import SaasHerder
 
 _trigger_lock = Lock()
 
+
 def setup(saas_files,
           thread_pool_size,
           internal,
@@ -94,6 +95,7 @@ def trigger(spec,
     """
 
     # TODO: Convert these into a dataclass.
+    saas_file_name = spec['saas_file_name']
     provider_name = spec['pipelines_provider']['provider']
 
     error = False
@@ -209,6 +211,7 @@ def _trigger_tekton(spec,
             )
 
     return error
+
 
 def _construct_tekton_trigger_resource(saas_file_name,
                                        env_name,
