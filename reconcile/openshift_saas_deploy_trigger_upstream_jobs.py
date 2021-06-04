@@ -42,7 +42,9 @@ def run(dry_run, thread_pool_size=10, internal=None,
 
     current_state = fetch_current_state(jenkins_map)
     trigger_specs = saasherder.get_upstream_jobs_diff(dry_run, current_state)
-    already_triggered = []
+    # This will be populated by osdt_base.trigger in the below loop and
+    # we need it to be consistent across all iterations
+    already_triggered = set()
 
     trigger_errors = \
         threaded.run(

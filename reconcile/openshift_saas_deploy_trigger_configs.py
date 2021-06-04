@@ -38,7 +38,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     trigger_specs = saasherder.get_configs_diff()
     # This will be populated by osdt_base.trigger in the below loop and
     # we need it to be consistent across all iterations
-    already_triggered = []
+    already_triggered = set()
 
     trigger_errors = \
         threaded.run(

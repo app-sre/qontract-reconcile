@@ -138,7 +138,7 @@ def trigger(spec,
             dry_run (bool): Is this a dry run
             jenkins_map (dict): Instance names with JenkinsApi instances
             oc_map (OC_Map): a dictionary of OC clients per cluster
-            already_triggered (list): A list of already triggered deployments.
+            already_triggered (set): A set of already triggered deployments.
                                       It will get populated by this function.
             settings (dict): App-interface settings
             state_update_method (function): A method to call to update state
@@ -167,7 +167,7 @@ def trigger(spec,
             if job_name not in already_triggered:
                 logging.info(['trigger_job', instance_name, job_name])
                 if dry_run:
-                    already_triggered.append(job_name)
+                    already_triggered.add(job_name)
 
         if not dry_run:
             jenkins = jenkins_map[instance_name]
@@ -175,7 +175,7 @@ def trigger(spec,
                 with _trigger_lock:
                     if job_name not in already_triggered:
                         jenkins.trigger_job(job_name)
-                        already_triggered.append(job_name)
+                        already_triggered.add(job_name)
                     state_update_method(spec)
             except Exception as e:
                 error = True
@@ -205,7 +205,7 @@ def trigger(spec,
                             resource_type=tkn_trigger_resource.kind,
                             resource=tkn_trigger_resource,
                             wait_for_namespace=False)
-                    already_triggered.append(tkn_name)
+                    already_triggered.add(tkn_name)
                 if not dry_run:
                     state_update_method(spec)
         except Exception as e:

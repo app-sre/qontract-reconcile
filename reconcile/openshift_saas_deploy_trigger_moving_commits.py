@@ -45,7 +45,9 @@ def run(dry_run, thread_pool_size=10, internal=None,
     defer(lambda: oc_map.cleanup())
 
     trigger_specs = saasherder.get_moving_commits_diff(dry_run)
-    already_triggered = []
+    # This will be populated by osdt_base.trigger in the below loop and
+    # we need it to be consistent across all iterations
+    already_triggered = set()
 
     trigger_errors = \
         threaded.run(
