@@ -7,6 +7,7 @@ import reconcile.queries as queries
 from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.sharding import is_in_shard
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-upstream-jobs'
@@ -25,6 +26,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
+    saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
 
     setup_options = {
         'saas_files': saas_files,

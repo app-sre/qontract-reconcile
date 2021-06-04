@@ -95,38 +95,41 @@ integrations:
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-moving-commits
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
       memory: 600Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 800Mi
-      cpu: 400m
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: terraform-resources
   resources:
     requests:
