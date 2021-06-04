@@ -66,62 +66,6 @@ def setup(options):
     return saasherder, jenkins_map, oc_map, settings
 
 
-def construct_tekton_trigger_resource(saas_file_name,
-                                      env_name,
-                                      timeout,
-                                      settings,
-                                      integration,
-                                      integration_version):
-    """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
-
-    Args:
-        saas_file_name (string): SaaS file name
-        env_name (string): Environment name
-        timeout (int): Timeout in minutes before the PipelineRun fails
-        settings (dict): App-interface settings
-        integration (string): Name of calling integration
-        integration_version (string): Version of calling integration
-
-    Returns:
-        OpenshiftResource: OpenShift resource to be applied
-    """
-    long_name = f"{saas_file_name}-{env_name}".lower()
-    # using a timestamp to make the resource name unique.
-    # we may want to revisit traceability, but this is compatible
-    # with what we currently have in Jenkins.
-    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
-    # max name length can be 63. leaving 12 for the timestamp - 51
-    name = f"{long_name[:50]}-{ts}"
-    body = {
-        "apiVersion": "tekton.dev/v1beta1",
-        "kind": "PipelineRun",
-        "metadata": {
-            "name": name
-        },
-        "spec": {
-            "pipelineRef": {
-                "name": settings['saasDeployJobTemplate']
-            },
-            "params": [
-                {
-                    "name": "saas_file_name",
-                    "value": saas_file_name
-                },
-                {
-                    "name": "env_name",
-                    "value": env_name
-                }
-            ]
-        }
-    }
-    if timeout:
-        # conforming to Go’s ParseDuration format
-        body['spec']['timeout'] = f"{timeout}m"
-
-    return OR(body, integration, integration_version,
-              error_details=name), long_name
-
-
 def trigger(spec,
             dry_run,
             jenkins_map,
@@ -182,6 +126,7 @@ def trigger(spec,
 
     return error
 
+
 def _trigger_jenkins(spec,
                      dry_run,
                      jenkins_map,
@@ -229,6 +174,7 @@ def _trigger_jenkins(spec,
 
     return error
 
+
 def _trigger_tekton(spec,
                     dry_run,
                     oc_map,
@@ -263,7 +209,7 @@ def _trigger_tekton(spec,
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
     tkn_cluster_name = tkn_namespace_info['cluster']['name']
-    tkn_trigger_resource, tkn_name = construct_tekton_trigger_resource(
+    tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
         saas_file_name,
         env_name,
         timeout,
@@ -294,6 +240,62 @@ def _trigger_tekton(spec,
             )
 
     return error
+
+def _construct_tekton_trigger_resource(saas_file_name,
+                                       env_name,
+                                       timeout,
+                                       settings,
+                                       integration,
+                                       integration_version):
+    """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
+
+    Args:
+        saas_file_name (string): SaaS file name
+        env_name (string): Environment name
+        timeout (int): Timeout in minutes before the PipelineRun fails
+        settings (dict): App-interface settings
+        integration (string): Name of calling integration
+        integration_version (string): Version of calling integration
+
+    Returns:
+        OpenshiftResource: OpenShift resource to be applied
+    """
+    long_name = f"{saas_file_name}-{env_name}".lower()
+    # using a timestamp to make the resource name unique.
+    # we may want to revisit traceability, but this is compatible
+    # with what we currently have in Jenkins.
+    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
+    # max name length can be 63. leaving 12 for the timestamp - 51
+    name = f"{long_name[:50]}-{ts}"
+    body = {
+        "apiVersion": "tekton.dev/v1beta1",
+        "kind": "PipelineRun",
+        "metadata": {
+            "name": name
+        },
+        "spec": {
+            "pipelineRef": {
+                "name": settings['saasDeployJobTemplate']
+            },
+            "params": [
+                {
+                    "name": "saas_file_name",
+                    "value": saas_file_name
+                },
+                {
+                    "name": "env_name",
+                    "value": env_name
+                }
+            ]
+        }
+    }
+    if timeout:
+        # conforming to Go’s ParseDuration format
+        body['spec']['timeout'] = f"{timeout}m"
+
+    return OR(body, integration, integration_version,
+              error_details=name), long_name
+
 
 def _register_trigger(name, already_triggered):
     """checks if a trigger should occur and registers as if it did
