@@ -48,8 +48,8 @@ def run(dry_run, thread_pool_size=10, internal=None,
     error = False
     for job_spec in trigger_specs:
         trigger_error = osdt_base.trigger(
-            dry_run=dry_run,
             spec=job_spec,
+            dry_run=dry_run,
             jenkins_map=jenkins_map,
             oc_map=oc_map,
             already_triggered=already_triggered,

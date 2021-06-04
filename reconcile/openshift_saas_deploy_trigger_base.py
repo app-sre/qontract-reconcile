@@ -119,8 +119,8 @@ def construct_tekton_trigger_resource(saas_file_name,
               error_details=name), long_name
 
 
-def trigger(dry_run,
-            spec,
+def trigger(spec,
+            dry_run,
             jenkins_map,
             oc_map,
             already_triggered,
@@ -131,8 +131,8 @@ def trigger(dry_run,
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
-            dry_run (bool): Is this a dry run
             spec (dict): A trigger spec as created by saasherder
+            dry_run (bool): Is this a dry run
             jenkins_map (dict): Instance names with JenkinsApi instances
             oc_map (OC_Map): a dictionary of OC clients per cluster
             already_triggered (list): A list of already triggered deployments.
