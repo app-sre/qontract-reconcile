@@ -133,20 +133,6 @@ def _trigger_jenkins(spec,
                      already_triggered,
                      settings,
                      state_update_method):
-    """Trigger a deployment via Jenkins job
-
-    Args:
-        spec (dict): A trigger spec as created by saasherder
-        dry_run (bool): Is this a dry run
-        jenkins_map (dict): Instance names with JenkinsApi instances
-        already_triggered (set): A set of already triggered deployments.
-                                    It will get populated by this function.
-        settings (dict): App-interface settings
-        state_update_method (function): A method to call to update state
-
-    Returns:
-        bool: True if there was an error, False otherwise
-    """
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
@@ -183,23 +169,6 @@ def _trigger_tekton(spec,
                     state_update_method,
                     integration,
                     integration_version):
-    """Trigger a deployment according to the specified pipelines provider
-
-    Args:
-        spec (dict): A trigger spec as created by saasherder
-        dry_run (bool): Is this a dry run
-        oc_map (OC_Map): a dictionary of OC clients per cluster
-        already_triggered (set): A set of already triggered deployments.
-                                 It will get populated by this function.
-        settings (dict): App-interface settings
-        state_update_method (function): A method to call to update state
-        integration (string): Name of calling integration
-        integration_version (string): Version of calling integration
-
-    Returns:
-        bool: True if there was an error, False otherwise
-    """
-
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
