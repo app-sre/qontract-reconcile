@@ -29,15 +29,15 @@ def run(dry_run, thread_pool_size=10, internal=None,
         sys.exit(ExitCodes.ERROR)
     saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
 
-    setup_options = {
-        'saas_files': saas_files,
-        'thread_pool_size': thread_pool_size,
-        'internal': internal,
-        'use_jump_host': use_jump_host,
-        'integration': QONTRACT_INTEGRATION,
-        'integration_version': QONTRACT_INTEGRATION_VERSION,
-    }
-    saasherder, jenkins_map, oc_map, settings = osdt_base.setup(setup_options)
+    saasherder, jenkins_map, oc_map, settings = \
+        osdt_base.setup(
+            saas_files=saas_files,
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION
+        )
     defer(lambda: oc_map.cleanup())
 
     current_state = fetch_current_state(jenkins_map)

@@ -15,17 +15,21 @@ from reconcile.utils.saasherder import SaasHerder
 
 _trigger_lock = Lock()
 
-def setup(options):
+def setup(saas_files,
+          thread_pool_size,
+          internal,
+          use_jump_host,
+          integration,
+          integration_version):
     """Setup required resources for triggering integrations
 
     Args:
-        options (dict): A dictionary containing:
-            saas_files (list): SaaS files graphql query results
-            thread_pool_size (int): Thread pool size to use
-            internal (bool): Should run for internal/extrenal/all clusters
-            use_jump_host (bool): Should use jump host to reach clusters
-            integration (string): Name of calling integration
-            integration_version (string): Version of calling integration
+        saas_files (list): SaaS files graphql query results
+        thread_pool_size (int): Thread pool size to use
+        internal (bool): Should run for internal/extrenal/all clusters
+        use_jump_host (bool): Should use jump host to reach clusters
+        integration (string): Name of calling integration
+        integration_version (string): Version of calling integration
 
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
@@ -33,12 +37,6 @@ def setup(options):
         oc_map (OC_Map): a dictionary of OC clients per cluster
         settings (dict): App-interface settings
     """
-    saas_files = options['saas_files']
-    thread_pool_size = options['thread_pool_size']
-    internal = options['internal']
-    use_jump_host = options['use_jump_host']
-    integration = options['integration']
-    integration_version = options['integration_version']
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
