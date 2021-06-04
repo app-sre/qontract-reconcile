@@ -139,7 +139,7 @@ def trigger(spec,
             jenkins_map (dict): Instance names with JenkinsApi instances
             oc_map (OC_Map): a dictionary of OC clients per cluster
             already_triggered (set): A set of already triggered deployments.
-                                      It will get populated by this function.
+                                     It will get populated by this function.
             settings (dict): App-interface settings
             state_update_method (function): A method to call to update state
             integration (string): Name of calling integration
@@ -148,8 +148,6 @@ def trigger(spec,
     Returns:
         bool: True if there was an error, False otherwise
     """
-
-    global _trigger_lock
 
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
@@ -163,26 +161,22 @@ def trigger(spec,
         instance_name = pipelines_provider['instance']['name']
         job_name = get_openshift_saas_deploy_job_name(
             saas_file_name, env_name, settings)
-        with _trigger_lock:
-            if job_name not in already_triggered:
-                logging.info(['trigger_job', instance_name, job_name])
-                if dry_run:
-                    already_triggered.add(job_name)
 
-        if not dry_run:
-            jenkins = jenkins_map[instance_name]
-            try:
-                with _trigger_lock:
-                    if job_name not in already_triggered:
-                        jenkins.trigger_job(job_name)
-                        already_triggered.add(job_name)
+        to_trigger = _register_trigger(job_name, already_triggered)
+        if to_trigger:
+            logging.info(['trigger_job', instance_name, job_name])
+            if not dry_run:
+                jenkins = jenkins_map[instance_name]
+                try:
+                    jenkins.trigger_job(job_name)
                     state_update_method(spec)
-            except Exception as e:
-                error = True
-                logging.error(
-                    f"could not trigger job {job_name} " +
-                    f"in {instance_name}. details: {str(e)}"
-                )
+                except Exception as e:
+                    error = True
+                    logging.error(
+                        f"could not trigger job {job_name} " +
+                        f"in {instance_name}. details: {str(e)}"
+                    )
+
     elif provider_name == 'tekton':
         tkn_namespace_info = pipelines_provider['namespace']
         tkn_namespace_name = tkn_namespace_info['name']
@@ -195,26 +189,27 @@ def trigger(spec,
             integration,
             integration_version
         )
-        try:
-            with _trigger_lock:
-                if tkn_name not in already_triggered:
-                    osb.apply(dry_run=dry_run,
-                            oc_map=oc_map,
-                            cluster=tkn_cluster_name,
-                            namespace=tkn_namespace_name,
-                            resource_type=tkn_trigger_resource.kind,
-                            resource=tkn_trigger_resource,
-                            wait_for_namespace=False)
-                    already_triggered.add(tkn_name)
+
+        to_trigger = _register_trigger(tkn_name, already_triggered)
+        if to_trigger:
+            try:
+                osb.apply(dry_run=dry_run,
+                          oc_map=oc_map,
+                          cluster=tkn_cluster_name,
+                          namespace=tkn_namespace_name,
+                          resource_type=tkn_trigger_resource.kind,
+                          resource=tkn_trigger_resource,
+                          wait_for_namespace=False)
                 if not dry_run:
                     state_update_method(spec)
-        except Exception as e:
-            error = True
-            logging.error(
-                f"could not trigger pipeline {tkn_name} " +
-                f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
-                f"details: {str(e)}"
-            )
+            except Exception as e:
+                error = True
+                logging.error(
+                    f"could not trigger pipeline {tkn_name} " +
+                    f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
+                    f"details: {str(e)}"
+                )
+
     else:
         logging.error(
             f'[{saas_file_name}] unsupported provider: ' +
@@ -222,3 +217,24 @@ def trigger(spec,
         )
 
     return error
+
+def _register_trigger(name, already_triggered):
+    """checks if a trigger should occur and registers as if it did
+
+    Args:
+        name (str): unique trigger name to check and
+        already_triggered (set): A set of already triggered deployments.
+                                 It will get populated by this function.
+
+    Returns:
+        bool: to trigger or not to trigger
+    """
+    global _trigger_lock
+
+    to_trigger = False
+    with _trigger_lock:
+        if name not in already_triggered:
+            to_trigger = True
+            already_triggered.add(name)
+
+    return to_trigger
