@@ -1,6 +1,7 @@
 import logging
 
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 import gitlab
 import urllib3
@@ -253,6 +254,7 @@ class GitLabApi:
     def get_project_url(self, group, project):
         return f"{self.server}/{group}/{project}"
 
+    @retry()
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
         try:
