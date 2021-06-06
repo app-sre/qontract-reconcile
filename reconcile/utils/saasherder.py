@@ -20,6 +20,11 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
 
 
+class Providers:
+    JENKINS = 'jenkins'
+    TEKTON = 'tekton'
+
+
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
@@ -1013,7 +1018,7 @@ class SaasHerder():
             # wrapping the instance in a pipelines provider structure
             # for backwards compatibility
             pipelines_provider = {
-                'provider': 'jenkins',
+                'provider': Providers.JENKINS,
                 'instance': saas_file['instance'],
             }
         if saas_file_api_version == 'v2':

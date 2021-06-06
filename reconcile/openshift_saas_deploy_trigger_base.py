@@ -11,7 +11,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.saasherder import SaasHerder, Providers
 
 _trigger_lock = Lock()
 
@@ -99,7 +99,7 @@ def trigger(spec,
     provider_name = spec['pipelines_provider']['provider']
 
     error = False
-    if provider_name == 'jenkins':
+    if provider_name == Providers.JENKINS:
         error = _trigger_jenkins(
             spec,
             dry_run,
@@ -108,7 +108,7 @@ def trigger(spec,
             settings,
             state_update_method)
 
-    elif provider_name == 'tekton':
+    elif provider_name == Providers.TEKTON:
         error = _trigger_tekton(
             spec,
             dry_run,
