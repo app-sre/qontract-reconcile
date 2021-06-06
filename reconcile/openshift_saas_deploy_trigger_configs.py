@@ -7,6 +7,7 @@ import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 from reconcile.status import ExitCodes
 from reconcile.utils.defer import defer
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.sharding import is_in_shard
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-configs'
@@ -20,6 +21,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
+    saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
 
     setup_options = {
         'saas_files': saas_files,
@@ -39,18 +41,17 @@ def run(dry_run, thread_pool_size=10, internal=None,
 
     error = False
     for job_spec in trigger_specs:
-        trigger_options = {
-            'dry_run': dry_run,
-            'spec': job_spec,
-            'jenkins_map': jenkins_map,
-            'oc_map': oc_map,
-            'already_triggered': already_triggered,
-            'settings': settings,
-            'state_update_method': saasherder.update_config,
-            'integration': QONTRACT_INTEGRATION,
-            'integration_version': QONTRACT_INTEGRATION_VERSION,
-        }
-        trigger_error = osdt_base.trigger(trigger_options)
+        trigger_error = osdt_base.trigger(
+            dry_run=dry_run,
+            spec=job_spec,
+            jenkins_map=jenkins_map,
+            oc_map=oc_map,
+            already_triggered=already_triggered,
+            settings=settings,
+            state_update_method=saasherder.update_config,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION
+        )
         if trigger_error:
             error = True
 

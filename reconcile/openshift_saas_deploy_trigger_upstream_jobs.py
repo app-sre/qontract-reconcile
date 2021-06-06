@@ -10,27 +10,23 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 
-QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-moving-commits'
+QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-upstream-jobs'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+
+
+def fetch_current_state(jenkins_map):
+    return {instance_name: jenkins.get_jobs_state()
+            for instance_name, jenkins in jenkins_map.items()}
 
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
-    saas_files = queries.get_saas_files(v1=True, v2=True)
+    saas_files = queries.get_saas_files(v1=False, v2=True)
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
     saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
-
-    # Remove saas-file targets that are disabled
-    for saas_file in saas_files[:]:
-        resource_templates = saas_file['resourceTemplates']
-        for rt in resource_templates[:]:
-            targets = rt['targets']
-            for target in targets[:]:
-                if target['disable']:
-                    targets.remove(target)
 
     setup_options = {
         'saas_files': saas_files,
@@ -43,7 +39,8 @@ def run(dry_run, thread_pool_size=10, internal=None,
     saasherder, jenkins_map, oc_map, settings = osdt_base.setup(setup_options)
     defer(lambda: oc_map.cleanup())
 
-    trigger_specs = saasherder.get_moving_commits_diff(dry_run)
+    current_state = fetch_current_state(jenkins_map)
+    trigger_specs = saasherder.get_upstream_jobs_diff(dry_run, current_state)
     already_triggered = []
     error = False
     for job_spec in trigger_specs:
@@ -54,9 +51,9 @@ def run(dry_run, thread_pool_size=10, internal=None,
             oc_map=oc_map,
             already_triggered=already_triggered,
             settings=settings,
-            state_update_method=saasherder.update_moving_commit,
+            state_update_method=saasherder.update_upstream_job,
             integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
+            integration_version=QONTRACT_INTEGRATION_VERSION
         )
         if trigger_error:
             error = True

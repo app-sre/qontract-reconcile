@@ -740,12 +740,12 @@ class SaasHerder():
         # filter resources
         resources = [resource for resource in resources
                      if isinstance(resource, dict)
-                     and resource['kind'] in managed_resource_types]
+                     and resource.get('kind') in managed_resource_types]
         # additional processing of resources
         self._additional_resource_process(resources, html_url)
         # check images
-        skip_check_images = upstream and self.jenkins_map and \
-            self.jenkins_map[instance_name].is_job_running(upstream)
+        skip_check_images = upstream and self.jenkins_map and instance_name \
+            and self.jenkins_map[instance_name].is_job_running(upstream)
         if skip_check_images:
             logging.warning(
                 "skipping check_image since " +
@@ -858,6 +858,91 @@ class SaasHerder():
         key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
             f"{namespace_name}/{env_name}/{ref}"
         self.state.add(key, value=commit_sha, force=True)
+
+    def get_upstream_jobs_diff(self, dry_run, current_state):
+        results = threaded.run(self.get_upstream_jobs_diff_saas_file,
+                               self.saas_files,
+                               self.thread_pool_size,
+                               dry_run=dry_run,
+                               current_state=current_state)
+        return [item for sublist in results for item in sublist]
+
+    def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run,
+                                         current_state):
+        saas_file_name = saas_file['name']
+        timeout = saas_file.get('timeout') or None
+        pipelines_provider = self._get_pipelines_provider(saas_file)
+        trigger_specs = []
+        for rt in saas_file['resourceTemplates']:
+            rt_name = rt['name']
+            for target in rt['targets']:
+                upstream = target.get('upstream')
+                if not upstream:
+                    continue
+                instance_name = upstream['instance']['name']
+                job_name = upstream['name']
+                job_history = current_state[instance_name].get(job_name, [])
+                if not job_history:
+                    continue
+                last_build_result = job_history[0]
+                namespace = target['namespace']
+                cluster_name = namespace['cluster']['name']
+                namespace_name = namespace['name']
+                env_name = namespace['environment']['name']
+                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+                    f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
+                state_build_result = self.state.get(key, None)
+                # skip if there is no change in job state
+                if last_build_result == state_build_result:
+                    continue
+                # don't trigger if this is the first time
+                # this target is being deployed.
+                # that will be taken care of by
+                # openshift-saas-deploy-trigger-configs
+                if state_build_result is None:
+                    # store the value to take over from now on
+                    if not dry_run:
+                        self.state.add(key, value=last_build_result)
+                    continue
+
+                state_build_result_number = state_build_result['number']
+                for build_result in job_history:
+                    # this is the most important condition
+                    # if there is a successful newer build -
+                    # trigger the deployment ONCE.
+                    if build_result['number'] > state_build_result_number \
+                            and build_result['result'] == 'SUCCESS':
+                        # we finally found something we want to trigger on!
+                        job_spec = {
+                            'saas_file_name': saas_file_name,
+                            'env_name': env_name,
+                            'timeout': timeout,
+                            'pipelines_provider': pipelines_provider,
+                            'rt_name': rt_name,
+                            'cluster_name': cluster_name,
+                            'namespace_name': namespace_name,
+                            'instance_name': instance_name,
+                            'job_name': job_name,
+                            'last_build_result': last_build_result,
+                        }
+                        trigger_specs.append(job_spec)
+                        # only trigger once, even if multiple builds happened
+                        break
+
+        return trigger_specs
+
+    def update_upstream_job(self, job_spec):
+        saas_file_name = job_spec['saas_file_name']
+        env_name = job_spec['env_name']
+        rt_name = job_spec['rt_name']
+        cluster_name = job_spec['cluster_name']
+        namespace_name = job_spec['namespace_name']
+        instance_name = job_spec['instance_name']
+        job_name = job_spec['job_name']
+        last_build_result = job_spec['last_build_result']
+        key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+            f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
+        self.state.add(key, value=last_build_result, force=True)
 
     def get_configs_diff(self):
         results = threaded.run(self.get_configs_diff_saas_file,

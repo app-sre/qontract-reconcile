@@ -119,11 +119,18 @@ def construct_tekton_trigger_resource(saas_file_name,
               error_details=name), long_name
 
 
-def trigger(options):
+def trigger(dry_run,
+            spec,
+            jenkins_map,
+            oc_map,
+            already_triggered,
+            settings,
+            state_update_method,
+            integration,
+            integration_version):
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
-        options (dict): A dictionary containing:
             dry_run (bool): Is this a dry run
             spec (dict): A trigger spec as created by saasherder
             jenkins_map (dict): Instance names with JenkinsApi instances
@@ -138,16 +145,8 @@ def trigger(options):
     Returns:
         bool: True if there was an error, False otherwise
     """
-    dry_run = options['dry_run']
-    spec = options['spec']
-    jenkins_map = options['jenkins_map']
-    oc_map = options['oc_map']
-    already_triggered = options['already_triggered']
-    settings = options['settings']
-    state_update_method = options['state_update_method']
-    integration = options['integration']
-    integration_version = options['integration_version']
 
+    # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
     timeout = spec['timeout']

@@ -1422,6 +1422,12 @@ SAAS_FILES_QUERY_V2 = """
           subscribe
         }
         parameters
+        upstream {
+          instance {
+            name
+          }
+          name
+        }
         disable
       }
     }
