@@ -201,6 +201,7 @@ def get_git_commit_info(sha, server, token=None):
     return git_commit_info
 
 
+@retry(exceptions=requests.exceptions.ConnectionError, max_attempts=5)
 def init_from_config(sha_url=True, integration=None, validate_schemas=False,
                      print_url=True):
     config = get_config()

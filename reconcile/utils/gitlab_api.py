@@ -1,6 +1,7 @@
 import logging
 
 from urllib.parse import urlparse
+from sretoolbox.utils import retry
 
 import gitlab
 import urllib3
@@ -36,7 +37,7 @@ class GitLabApi:
             ssl_verify = True
         self.gl = gitlab.Gitlab(self.server, private_token=token,
                                 ssl_verify=ssl_verify)
-        self.gl.auth()
+        self._auth()
         self.user = self.gl.user
         if project_id is None:
             # When project_id is not provide, we try to get the project
@@ -48,6 +49,10 @@ class GitLabApi:
         else:
             self.project = self.gl.projects.get(project_id)
         self.saas_files = saas_files
+
+    @retry()
+    def _auth(self):
+        self.gl.auth()
 
     def create_branch(self, new_branch, source_branch):
         data = {
@@ -253,6 +258,7 @@ class GitLabApi:
     def get_project_url(self, group, project):
         return f"{self.server}/{group}/{project}"
 
+    @retry()
     def get_project(self, repo_url):
         repo = repo_url.replace(self.server + '/', '')
         try:
