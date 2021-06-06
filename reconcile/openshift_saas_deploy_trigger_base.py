@@ -12,6 +12,7 @@ from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder, Providers
+from reconcile.utils.sharding import is_in_shard
 
 _trigger_lock = Lock()
 
@@ -37,7 +38,23 @@ def setup(saas_files,
         jenkins_map (dict): Instance names with JenkinsApi instances
         oc_map (OC_Map): a dictionary of OC clients per cluster
         settings (dict): App-interface settings
+        error (bool): True if one happened, False otherwise
     """
+
+    saas_files = queries.get_saas_files(v1=True, v2=True)
+    if not saas_files:
+        logging.error('no saas files found')
+        return None, None, None, None, True
+    saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
+
+    # Remove saas-file targets that are disabled
+    for saas_file in saas_files[:]:
+        resource_templates = saas_file['resourceTemplates']
+        for rt in resource_templates[:]:
+            targets = rt['targets']
+            for target in targets[:]:
+                if target['disable']:
+                    targets.remove(target)
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
@@ -64,7 +81,7 @@ def setup(saas_files,
         settings=settings,
         accounts=accounts)
 
-    return saasherder, jenkins_map, oc_map, settings
+    return saasherder, jenkins_map, oc_map, settings, False
 
 
 def trigger(spec,
