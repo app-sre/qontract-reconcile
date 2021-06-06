@@ -394,6 +394,7 @@ class GitLabApi:
             return
         return user[0]
 
+    @retry()
     def get_project_hooks(self, repo_url):
         p = self.get_project(repo_url)
         if p is None:
