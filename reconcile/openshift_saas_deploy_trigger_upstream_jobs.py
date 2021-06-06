@@ -46,7 +46,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     # we need it to be consistent across all iterations
     already_triggered = set()
 
-    trigger_errors = \
+    errors = \
         threaded.run(
             osdt_base.trigger,
             trigger_specs,
@@ -60,7 +60,6 @@ def run(dry_run, thread_pool_size=10, internal=None,
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION
         )
-    error = True in trigger_errors
 
-    if error:
+    if any(errors):
         sys.exit(ExitCodes.ERROR)

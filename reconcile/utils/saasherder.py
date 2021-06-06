@@ -582,8 +582,7 @@ class SaasHerder():
                               image_patterns=image_patterns,
                               image_auth=image_auth,
                               error_prefix=error_prefix)
-        error = True in errors
-        return error
+        return any(errors)
 
     def _initiate_github(self, saas_file):
         auth = saas_file.get('authentication') or {}
