@@ -139,8 +139,6 @@ integrations:
       memory: 1200Mi
       cpu: 600m
   extraArgs: --internal --light --vault-output-path app-sre/integrations-output
-  logs:
-    slack: true
   internalCertificates: true
 - name: gitlab-projects
   resources:
