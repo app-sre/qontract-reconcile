@@ -892,15 +892,18 @@ class SaasHerder():
         self.state.add(key, value=commit_sha, force=True)
 
     def get_upstream_jobs_diff(self, dry_run):
-        current_state = \
-            {instance_name: jenkins.get_jobs_state()
-             for instance_name, jenkins in self.jenkins_map.items()}
+        current_state = self._get_upstream_jobs_current_state()
         results = threaded.run(self.get_upstream_jobs_diff_saas_file,
                                self.saas_files,
                                self.thread_pool_size,
                                dry_run=dry_run,
                                current_state=current_state)
         return [item for sublist in results for item in sublist]
+
+    @retry()
+    def _get_upstream_jobs_current_state(self):
+        return {instance_name: jenkins.get_jobs_state()
+                for instance_name, jenkins in self.jenkins_map.items()}
 
     def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run,
                                          current_state):
