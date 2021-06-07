@@ -1853,10 +1853,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 00Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2061,10 +2061,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 00Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2269,10 +2269,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 00Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2477,10 +2477,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2685,10 +2685,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2893,10 +2893,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3101,10 +3101,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3309,10 +3309,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3517,10 +3517,10 @@ objects:
           resources:
             limits:
               cpu: 600m
-              memory: 800Mi
+              memory: 1000Mi
             requests:
               cpu: 400m
-              memory: 600Mi
+              memory: 800Mi
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
