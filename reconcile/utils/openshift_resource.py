@@ -13,7 +13,6 @@ class ResourceKeyExistsError(Exception):
     """ Exception to indicate an attempt to add a desired resource
     with the same name and the same type as was already added previously
     """
-    pass
 
 
 class ConstructResourceError(Exception):
