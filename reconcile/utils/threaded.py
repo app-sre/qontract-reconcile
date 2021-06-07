@@ -14,13 +14,33 @@ def full_traceback(func):
     return wrapper
 
 
-def run(func, iterable, thread_pool_size, **kwargs):
+def catching_traceback(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            return e
+    return wrapper
+
+
+def run(func, iterable, thread_pool_size, return_exceptions=False, **kwargs):
     """run executes a function for each item in the input iterable.
-    execution will be multithreaded according to the input thread_pool_size.
-    kwargs are passed to the input function (optional)."""
+    execution will be multithreaded according to the input
+    thread_pool_size.  kwargs are passed to the input function
+    (optional). If return_exceptions is true, any exceptions that may
+    have happened in each thread are returned in the return value,
+    allowing the caller to get as much work done as possible.
+    """
+
+    if return_exceptions:
+        tracer = catching_traceback
+    else:
+        tracer = full_traceback
+
+    func_partial = functools.partial(tracer(func), **kwargs)
 
     pool = ThreadPool(thread_pool_size)
-    func_partial = functools.partial(full_traceback(func), **kwargs)
     try:
         return pool.map(func_partial, iterable)
     finally:
