@@ -180,9 +180,12 @@ def _trigger_tekton(spec,
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
     tkn_cluster_name = tkn_namespace_info['cluster']['name']
+    tkn_cluster_console_url = tkn_namespace_info['cluster']['consoleUrl']
     tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
         saas_file_name,
         env_name,
+        tkn_cluster_console_url,
+        tkn_namespace_name,
         timeout,
         settings,
         integration,
@@ -215,6 +218,8 @@ def _trigger_tekton(spec,
 
 def _construct_tekton_trigger_resource(saas_file_name,
                                        env_name,
+                                       tkn_cluster_console_url,
+                                       tkn_namespace_name,
                                        timeout,
                                        settings,
                                        integration,
@@ -224,6 +229,9 @@ def _construct_tekton_trigger_resource(saas_file_name,
     Args:
         saas_file_name (string): SaaS file name
         env_name (string): Environment name
+        tkn_cluster_console_url (string): Cluster console URL of the cluster
+                                          where the pipeline runs
+        tkn_namespace_name (string): namespace where the pipeline runs
         timeout (int): Timeout in minutes before the PipelineRun fails
         settings (dict): App-interface settings
         integration (string): Name of calling integration
@@ -257,6 +265,14 @@ def _construct_tekton_trigger_resource(saas_file_name,
                 {
                     "name": "env_name",
                     "value": env_name
+                },
+                {
+                    "name": "tkn_cluster_console_url",
+                    "value": tkn_cluster_console_url
+                },
+                {
+                    "name": "tkn_namespace_name",
+                    "value": tkn_namespace_name
                 }
             ]
         }
