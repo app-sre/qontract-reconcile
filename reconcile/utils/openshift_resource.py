@@ -10,6 +10,9 @@ import semver
 
 
 class ResourceKeyExistsError(Exception):
+    """ Exception to indicate an attempt to add a desired resource
+    with the same name and the same type as was already added previously
+    """
     pass
 
 
@@ -452,6 +455,7 @@ class ResourceInventory:
             except KeyError:
                 return None
             if name in desired:
+                self.register_error()
                 raise ResourceKeyExistsError(name)
             desired[name] = value
 
