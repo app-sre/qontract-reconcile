@@ -72,8 +72,8 @@ def run(dry_run,
             already_triggered=already_triggered,
             settings=settings,
             trigger_type=trigger_type,
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION
+            integration=integration,
+            integration_version=integration_version
         )
 
     return any(errors)

@@ -793,7 +793,7 @@ class SaasHerder():
 
     def get_diff(self, trigger_type, dry_run):
         if trigger_type == TriggerTypes.MOVING_COMMITS:
-            return get_moving_commits_diff(dry_run)
+            return self.get_moving_commits_diff(dry_run)
         elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
             return self.get_upstream_jobs_diff(dry_run)
         elif trigger_type == TriggerTypes.CONFIGS:
@@ -804,11 +804,11 @@ class SaasHerder():
 
     def update_state(self, trigger_type, job_spec):
         if trigger_type == TriggerTypes.MOVING_COMMITS:
-            update_moving_commit(job_spec)
+            self.update_moving_commit(job_spec)
         elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
-            update_upstream_job(job_spec)
+            self.update_upstream_job(job_spec)
         elif trigger_type == TriggerTypes.CONFIGS:
-            update_config(job_spec)
+            self.update_config(job_spec)
         else:
             raise NotImplementedError(
                 f'saasherder update_state for trigger type: {trigger_type}')
