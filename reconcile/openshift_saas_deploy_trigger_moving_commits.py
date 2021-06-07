@@ -1,5 +1,4 @@
 import sys
-import logging
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 import reconcile.utils.threaded as threaded
@@ -18,7 +17,6 @@ def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     saasherder, jenkins_map, oc_map, settings, error = \
         osdt_base.setup(
-            saas_files=saas_files,
             thread_pool_size=thread_pool_size,
             internal=internal,
             use_jump_host=use_jump_host,

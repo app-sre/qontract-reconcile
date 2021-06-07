@@ -17,8 +17,7 @@ from reconcile.utils.sharding import is_in_shard
 _trigger_lock = Lock()
 
 
-def setup(saas_files,
-          thread_pool_size,
+def setup(thread_pool_size,
           internal,
           use_jump_host,
           integration,
@@ -26,7 +25,6 @@ def setup(saas_files,
     """Setup required resources for triggering integrations
 
     Args:
-        saas_files (list): SaaS files graphql query results
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
         use_jump_host (bool): Should use jump host to reach clusters
