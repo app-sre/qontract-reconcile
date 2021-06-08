@@ -68,4 +68,4 @@ def run(dry_run, thread_pool_size=10, internal=None,
                 logging.info(['delete_trigger',
                               cluster, namespace, 'PipelineRun', name])
                 if not dry_run:
-                    oc.delete(cluster, namespace, 'PipelineRun', name)
+                    oc.delete(namespace, 'PipelineRun', name)
