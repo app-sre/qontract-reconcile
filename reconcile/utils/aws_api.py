@@ -400,8 +400,7 @@ class AWSApi:
     @staticmethod
     def delete_bucket(s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
-        for key in bucket.objects.all():
-            key.delete()
+        bucket.object_versions.delete()
         bucket.delete()
 
     @staticmethod
