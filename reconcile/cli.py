@@ -32,6 +32,7 @@ import reconcile.openshift_saas_deploy_wrapper
 import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_upstream_jobs
 import reconcile.openshift_saas_deploy_trigger_configs
+import reconcile.openshift_saas_deploy_trigger_cleaner
 import reconcile.saas_file_owners
 import reconcile.gitlab_ci_skipper
 import reconcile.gitlab_labeler
@@ -831,6 +832,20 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size,
                                           internal, use_jump_host):
     run_integration(
         reconcile.openshift_saas_deploy_trigger_configs,
+        ctx.obj, thread_pool_size, internal, use_jump_host)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_saas_deploy_trigger_cleaner(ctx, thread_pool_size,
+                                          internal, use_jump_host):
+    run_integration(
+        reconcile.openshift_saas_deploy_trigger_cleaner,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
