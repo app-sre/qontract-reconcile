@@ -54,7 +54,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
                 key=lambda k: k['metadata']['creationTimestamp']
             )
 
-            retention_min = retention.get('min')
+            retention_min = retention.get('minimum')
             if retention_min:
                 pipeline_runs = pipeline_runs[retention_min:]
 
