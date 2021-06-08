@@ -94,39 +94,42 @@ integrations:
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
-      memory: 200Mi
-      cpu: 200m
-    limits:
-      memory: 400Mi
+      memory: 00Mi
       cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-moving-commits
   resources:
     requests:
-      memory: 200Mi
-      cpu: 200m
-    limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
-      memory: 200Mi
-      cpu: 200m
-    limits:
-      memory: 400Mi
+      memory: 800Mi
       cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
     slack: true
   state: true
+  shards: 3
 - name: terraform-resources
   resources:
     requests:
@@ -136,8 +139,6 @@ integrations:
       memory: 1200Mi
       cpu: 600m
   extraArgs: --internal --light --vault-output-path app-sre/integrations-output
-  logs:
-    slack: true
   internalCertificates: true
 - name: gitlab-projects
   resources:

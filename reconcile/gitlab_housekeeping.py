@@ -13,7 +13,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 LGTM_LABEL = 'lgtm'
 MERGE_LABELS_PRIORITY = ['bot/approved', LGTM_LABEL, 'bot/automerge']
 SAAS_FILE_LABEL = 'saas-file-update'
-REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY + [SAAS_FILE_LABEL]
+REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 

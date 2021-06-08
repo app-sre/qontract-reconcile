@@ -129,6 +129,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # based on promotion information in targets
     if not saasherder.validate_promotions():
         logging.error('invalid promotions')
+        ri.register_error()
         sys.exit(ExitCodes.ERROR)
 
     # if saas_file_name is defined, the integration

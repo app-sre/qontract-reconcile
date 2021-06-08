@@ -42,7 +42,7 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     current_spec_spec = current_spec['spec']
     desired_spec_spec = desired_spec['spec']
     updated = {k: desired_spec_spec[k] for k in desired_spec_spec
-               if current_spec_spec[k] != desired_spec_spec[k]}
+               if current_spec_spec.get(k) != desired_spec_spec[k]}
 
     # we only need deleted to check if a field removal is valid
     # we really want to check updated + deleted, and since
