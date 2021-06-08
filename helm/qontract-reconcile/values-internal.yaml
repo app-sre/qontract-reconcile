@@ -130,6 +130,15 @@ integrations:
     slack: true
   state: true
   shards: 3
+- name: openshift-saas-deploy-trigger-cleaner
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
 - name: terraform-resources
   resources:
     requests:
