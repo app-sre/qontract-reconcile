@@ -1729,7 +1729,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -1937,7 +1937,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -2145,7 +2145,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -2353,7 +2353,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -2561,7 +2561,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -2769,7 +2769,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -2977,7 +2977,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -3185,7 +3185,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -3393,7 +3393,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -3601,7 +3601,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -3809,7 +3809,7 @@ objects:
                 key: slack.webhook_url
                 name: app-interface
           - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
+            value: ${SLACK_CHANNEL_TRIGGER}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
@@ -4011,6 +4011,15 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL_TRIGGER}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -4057,6 +4066,15 @@ objects:
 
             <match integration>
               @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[openshift-saas-deploy-trigger-cleaner] %s\`\`\`"
+              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -6807,6 +6825,8 @@ parameters:
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL
   value: "sd-app-sre-reconcile-stage"
+- name: SLACK_CHANNEL_TRIGGER
+  value: "sd-app-sre-triggers-stage"
 - name: SLACK_ICON_EMOJI
   value: ":bust_in_silhouette:"
 - name: GITHUB_API
