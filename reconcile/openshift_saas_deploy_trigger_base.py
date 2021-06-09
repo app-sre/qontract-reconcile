@@ -6,80 +6,18 @@ from threading import Lock
 import reconcile.openshift_base as osb
 import reconcile.queries as queries
 import reconcile.jenkins_plugins as jenkins_base
-import reconcile.utils.threaded as threaded
 
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder, Providers
-from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.defer import defer
 
 _trigger_lock = Lock()
 
 
-@defer
-def run(dry_run,
-        trigger_type,
-        integration,
-        integration_version,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        defer=None):
-    """Run trigger integration
-
-    Args:
-        dry_run (bool): Is this a dry run
-        trigger_type (str): Indicates which method to call to get diff
-                            and update state
-        integration (string): Name of calling integration
-        integration_version (string): Version of calling integration
-        thread_pool_size (int): Thread pool size to use
-        internal (bool): Should run for internal/extrenal/all clusters
-        use_jump_host (bool): Should use jump host to reach clusters
-
-    Returns:
-        bool: True if there was an error, False otherwise
-    """
-    saasherder, jenkins_map, oc_map, settings, error = \
-        setup(
-            thread_pool_size=thread_pool_size,
-            internal=internal,
-            use_jump_host=use_jump_host,
-            integration=integration,
-            integration_version=integration_version
-        )
-    if error:
-        return error
-    defer(lambda: oc_map.cleanup())
-
-    trigger_specs = saasherder.get_diff(trigger_type, dry_run)
-    # This will be populated by 'trigger' in the below loop and
-    # we need it to be consistent across all iterations
-    already_triggered = set()
-
-    errors = \
-        threaded.run(
-            trigger,
-            trigger_specs,
-            thread_pool_size,
-            dry_run=dry_run,
-            saasherder=saasherder,
-            jenkins_map=jenkins_map,
-            oc_map=oc_map,
-            already_triggered=already_triggered,
-            settings=settings,
-            trigger_type=trigger_type,
-            integration=integration,
-            integration_version=integration_version
-        )
-
-    return any(errors)
-
-
-def setup(thread_pool_size,
+def setup(saas_files,
+          thread_pool_size,
           internal,
           use_jump_host,
           integration,
@@ -87,6 +25,7 @@ def setup(thread_pool_size,
     """Setup required resources for triggering integrations
 
     Args:
+        saas_files (list): SaaS files graphql query results
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
         use_jump_host (bool): Should use jump host to reach clusters
@@ -98,23 +37,7 @@ def setup(thread_pool_size,
         jenkins_map (dict): Instance names with JenkinsApi instances
         oc_map (OC_Map): a dictionary of OC clients per cluster
         settings (dict): App-interface settings
-        error (bool): True if one happened, False otherwise
     """
-
-    saas_files = queries.get_saas_files(v1=True, v2=True)
-    if not saas_files:
-        logging.error('no saas files found')
-        return None, None, None, None, True
-    saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
-
-    # Remove saas-file targets that are disabled
-    for saas_file in saas_files[:]:
-        resource_templates = saas_file['resourceTemplates']
-        for rt in resource_templates[:]:
-            targets = rt['targets']
-            for target in targets[:]:
-                if target['disable']:
-                    targets.remove(target)
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
@@ -141,17 +64,16 @@ def setup(thread_pool_size,
         settings=settings,
         accounts=accounts)
 
-    return saasherder, jenkins_map, oc_map, settings, False
+    return saasherder, jenkins_map, oc_map, settings
 
 
 def trigger(spec,
             dry_run,
-            saasherder,
             jenkins_map,
             oc_map,
             already_triggered,
             settings,
-            trigger_type,
+            state_update_method,
             integration,
             integration_version):
     """Trigger a deployment according to the specified pipelines provider
@@ -159,13 +81,12 @@ def trigger(spec,
     Args:
         spec (dict): A trigger spec as created by saasherder
         dry_run (bool): Is this a dry run
-        saasherder (SaasHerder): a SaasHerder instance
         jenkins_map (dict): Instance names with JenkinsApi instances
         oc_map (OC_Map): a dictionary of OC clients per cluster
         already_triggered (set): A set of already triggered deployments.
                                     It will get populated by this function.
         settings (dict): App-interface settings
-        trigger_type (string): Indicates which method to call to update state
+        state_update_method (function): A method to call to update state
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
 
@@ -182,21 +103,19 @@ def trigger(spec,
         error = _trigger_jenkins(
             spec,
             dry_run,
-            saasherder,
             jenkins_map,
             already_triggered,
             settings,
-            trigger_type)
+            state_update_method)
 
     elif provider_name == Providers.TEKTON:
         error = _trigger_tekton(
             spec,
             dry_run,
-            saasherder,
             oc_map,
             already_triggered,
             settings,
-            trigger_type,
+            state_update_method,
             integration,
             integration_version)
 
@@ -212,11 +131,10 @@ def trigger(spec,
 
 def _trigger_jenkins(spec,
                      dry_run,
-                     saasherder,
                      jenkins_map,
                      already_triggered,
                      settings,
-                     trigger_type):
+                     state_update_method):
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
@@ -234,7 +152,7 @@ def _trigger_jenkins(spec,
             jenkins = jenkins_map[instance_name]
             try:
                 jenkins.trigger_job(job_name)
-                saasherder.update_state(trigger_type, spec)
+                state_update_method(spec)
             except Exception as e:
                 error = True
                 logging.error(
@@ -247,11 +165,10 @@ def _trigger_jenkins(spec,
 
 def _trigger_tekton(spec,
                     dry_run,
-                    saasherder,
                     oc_map,
                     already_triggered,
                     settings,
-                    trigger_type,
+                    state_update_method,
                     integration,
                     integration_version):
     # TODO: Convert these into a dataclass.
@@ -287,7 +204,7 @@ def _trigger_tekton(spec,
                       resource=tkn_trigger_resource,
                       wait_for_namespace=False)
             if not dry_run:
-                saasherder.update_state(trigger_type, spec)
+                state_update_method(spec)
         except Exception as e:
             error = True
             logging.error(
