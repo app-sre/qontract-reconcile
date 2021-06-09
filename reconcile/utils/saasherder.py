@@ -25,6 +25,12 @@ class Providers:
     TEKTON = 'tekton'
 
 
+class TriggerTypes:
+    CONFIGS = 0
+    MOVING_COMMITS = 1
+    UPSTREAM_JOBS = 2
+
+
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
@@ -785,6 +791,28 @@ class SaasHerder():
 
         return promotion
 
+    def get_diff(self, trigger_type, dry_run):
+        if trigger_type == TriggerTypes.MOVING_COMMITS:
+            return self.get_moving_commits_diff(dry_run)
+        elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
+            return self.get_upstream_jobs_diff(dry_run)
+        elif trigger_type == TriggerTypes.CONFIGS:
+            return self.get_configs_diff()
+        else:
+            raise NotImplementedError(
+                f'saasherder get_diff for trigger type: {trigger_type}')
+
+    def update_state(self, trigger_type, job_spec):
+        if trigger_type == TriggerTypes.MOVING_COMMITS:
+            self.update_moving_commit(job_spec)
+        elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
+            self.update_upstream_job(job_spec)
+        elif trigger_type == TriggerTypes.CONFIGS:
+            self.update_config(job_spec)
+        else:
+            raise NotImplementedError(
+                f'saasherder update_state for trigger type: {trigger_type}')
+
     def get_moving_commits_diff(self, dry_run):
         results = threaded.run(self.get_moving_commits_diff_saas_file,
                                self.saas_files,
@@ -863,13 +891,19 @@ class SaasHerder():
             f"{namespace_name}/{env_name}/{ref}"
         self.state.add(key, value=commit_sha, force=True)
 
-    def get_upstream_jobs_diff(self, dry_run, current_state):
+    def get_upstream_jobs_diff(self, dry_run):
+        current_state = self._get_upstream_jobs_current_state()
         results = threaded.run(self.get_upstream_jobs_diff_saas_file,
                                self.saas_files,
                                self.thread_pool_size,
                                dry_run=dry_run,
                                current_state=current_state)
         return [item for sublist in results for item in sublist]
+
+    @retry()
+    def _get_upstream_jobs_current_state(self):
+        return {instance_name: jenkins.get_jobs_state()
+                for instance_name, jenkins in self.jenkins_map.items()}
 
     def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run,
                                          current_state):
