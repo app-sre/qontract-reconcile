@@ -217,9 +217,15 @@ class OCM:
 
         autoscale = cluster_spec.get('autoscale')
         if autoscale is not None:
-            ocm_spec['nodes']['autoscale_compute'] = autoscale
-        else:
-            ocm_spec['nodes']['compute'] = cluster_spec['nodes']
+            ocm_spec['nodes'] = {
+                'autoscale_compute': autoscale
+            }
+
+        nodes = cluster_spec.get('nodes')
+        if nodes:
+            ocm_spec['nodes'] = {
+                'compute': cluster_spec['nodes']
+            }
 
         params = {}
         if dry_run:
