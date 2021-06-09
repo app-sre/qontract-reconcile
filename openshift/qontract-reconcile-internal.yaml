@@ -1781,7 +1781,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -1989,7 +1989,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -2197,7 +2197,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -2405,7 +2405,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -2613,7 +2613,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -2821,7 +2821,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -3029,7 +3029,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -3237,7 +3237,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -3445,7 +3445,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -3653,7 +3653,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -3861,7 +3861,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -4069,7 +4069,7 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
+                channel ${SLACK_CHANNEL_TRIGGER}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
