@@ -116,7 +116,7 @@ integrations:
   logs:
     slack: true
   state: true
-  shards: 3
+  shards: 5
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
