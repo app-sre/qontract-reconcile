@@ -27,6 +27,8 @@ def run(dry_run,
         thread_pool_size,
         internal,
         use_jump_host,
+        v1=True,
+        v2=True,
         defer=None):
     """Run trigger integration
 
@@ -39,6 +41,8 @@ def run(dry_run,
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
         use_jump_host (bool): Should use jump host to reach clusters
+        v1 (bool): Should trigger for v1 SaaS files
+        v2 (bool): Should trigger for v2 SaaS files
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -49,7 +53,9 @@ def run(dry_run,
             internal=internal,
             use_jump_host=use_jump_host,
             integration=integration,
-            integration_version=integration_version
+            integration_version=integration_version,
+            v1=v1,
+            v2=v2
         )
     if error:
         return error
@@ -83,7 +89,9 @@ def setup(thread_pool_size,
           internal,
           use_jump_host,
           integration,
-          integration_version):
+          integration_version,
+          v1,
+          v2):
     """Setup required resources for triggering integrations
 
     Args:
@@ -92,6 +100,8 @@ def setup(thread_pool_size,
         use_jump_host (bool): Should use jump host to reach clusters
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
+        v1 (bool): Should trigger for v1 SaaS files
+        v2 (bool): Should trigger for v2 SaaS files
 
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
@@ -101,7 +111,7 @@ def setup(thread_pool_size,
         error (bool): True if one happened, False otherwise
     """
 
-    saas_files = queries.get_saas_files(v1=True, v2=True)
+    saas_files = queries.get_saas_files(v1=v1, v2=v2)
     if not saas_files:
         logging.error('no saas files found')
         return None, None, None, None, True

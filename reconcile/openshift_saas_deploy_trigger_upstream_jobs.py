@@ -20,7 +20,9 @@ def run(dry_run, thread_pool_size=10, internal=None,
         integration_version=QONTRACT_INTEGRATION_VERSION,
         thread_pool_size=thread_pool_size,
         internal=internal,
-        use_jump_host=use_jump_host
+        use_jump_host=use_jump_host,
+        v1=False,
+        v2=True
     )
 
     if error:
