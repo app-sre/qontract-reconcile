@@ -15,7 +15,8 @@ import reconcile.utils.threaded as threaded
 from reconcile.github_org import get_config
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.oc import OC, StatusCodeError
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
+                                                ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
 
@@ -781,13 +782,20 @@ class SaasHerder():
                 self.integration_version,
                 caller_name=saas_file_name,
                 error_details=html_url)
-            ri.add_desired(
-                cluster,
-                namespace,
-                resource_kind,
-                resource_name,
-                oc_resource
-            )
+            try:
+                ri.add_desired(
+                    cluster,
+                    namespace,
+                    resource_kind,
+                    resource_name,
+                    oc_resource
+                )
+            except ResourceKeyExistsError:
+                ri.register_error()
+                msg = \
+                    f"[{cluster}/{namespace}] desired item " + \
+                    f"already exists: {resource_kind}/{resource_name}."
+                logging.error(msg)
 
         return promotion
 
