@@ -149,6 +149,7 @@ def setup(thread_pool_size,
         integration=integration,
         integration_version=integration_version,
         settings=settings,
+        jenkins_map=jenkins_map,
         accounts=accounts)
 
     return saasherder, jenkins_map, oc_map, settings, False
