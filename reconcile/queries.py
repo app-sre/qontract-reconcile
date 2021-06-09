@@ -1532,6 +1532,10 @@ PIPELINES_PROVIDERS_QUERY = """
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
+    retention {
+      days
+      minimum
+    }
     ...on PipelinesProviderTekton_v1 {
       namespace {
         name

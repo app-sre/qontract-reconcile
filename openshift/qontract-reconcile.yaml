@@ -17260,6 +17260,8 @@ parameters:
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL
   value: "sd-app-sre-reconcile-stage"
+- name: SLACK_CHANNEL_TRIGGER
+  value: "sd-app-sre-triggers-stage"
 - name: SLACK_ICON_EMOJI
   value: ":bust_in_silhouette:"
 - name: GITHUB_API

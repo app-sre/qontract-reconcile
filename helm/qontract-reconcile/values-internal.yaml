@@ -104,6 +104,7 @@ integrations:
     slack: true
   state: true
   shards: 3
+  trigger: true
 - name: openshift-saas-deploy-trigger-moving-commits
   resources:
     requests:
@@ -116,7 +117,8 @@ integrations:
   logs:
     slack: true
   state: true
-  shards: 3
+  shards: 5
+  trigger: true
 - name: openshift-saas-deploy-trigger-upstream-jobs
   resources:
     requests:
@@ -130,6 +132,19 @@ integrations:
     slack: true
   state: true
   shards: 3
+  trigger: true
+- name: openshift-saas-deploy-trigger-cleaner
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+  trigger: true
 - name: terraform-resources
   resources:
     requests:

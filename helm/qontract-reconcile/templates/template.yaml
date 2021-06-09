@@ -75,8 +75,13 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          {{- if $integration.trigger }}
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL_TRIGGER}
+          {{- else }}
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
+          {{- end }}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- end }}
@@ -130,7 +135,11 @@ objects:
               <store>
                 @type slack
                 webhook_url ${SLACK_WEBHOOK_URL}
+                {{- if $integration.trigger }}
+                channel ${SLACK_CHANNEL_TRIGGER}
+                {{- else }}
                 channel ${SLACK_CHANNEL}
+                {{- end }}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
                 flush_interval 10s
@@ -388,6 +397,8 @@ parameters:
   value: "/fluentd/log/integration.log"
 - name: SLACK_CHANNEL
   value: "sd-app-sre-reconcile-stage"
+- name: SLACK_CHANNEL_TRIGGER
+  value: "sd-app-sre-triggers-stage"
 - name: SLACK_ICON_EMOJI
   value: ":bust_in_silhouette:"
 - name: GITHUB_API
