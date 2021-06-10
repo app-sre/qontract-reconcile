@@ -440,19 +440,22 @@ class OC:
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
 
-    def recycle_sts_orphan_pods(
-            self, dry_run, namespace, resource):
-        if resource.kind != 'StatefulSet':
-            raise RecyclePodsUnsupportedKindError(resource.kind)
-
+    def get_owned_pods(self, namespace, resource):
         pods = self.get(namespace, 'Pod')['items']
+        owned_pods = []
         for p in pods:
             owner = self.get_obj_root_owner(namespace, p)
             if resource.kind != owner['kind']:
                 continue
             if resource.name != owner['metadata']['name']:
                 continue
-            # we found a pod we want to recycle
+            # we found an owned pod
+            owned_pods.append(p)
+
+        return owned_pods
+
+    def recycle_orphan_pods(self, namespace, pods):
+        for p in pods:
             name = p['metadata']['name']
             self.delete(namespace, 'Pod', name)
             self.validate_pod_ready(namespace, name)
@@ -640,6 +643,8 @@ class OC:
                         f"[{self.server}]: {err}")
                 if 'UnsupportedMediaType' in err:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
+                if 'updates to statefulset spec for fields other than' in err:
+                    raise FieldIsImmutableError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

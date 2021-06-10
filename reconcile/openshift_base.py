@@ -262,6 +262,8 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             logging.info(['delete_and_apply', cluster, namespace,
                           resource_type, resource.name])
+            owned_pods = \
+                None if cascade else oc.get_owned_pods(namespace, resource)
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=cascade)
             oc.apply(namespace=namespace, resource=annotated)
@@ -272,9 +274,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 # note: we really just delete pods and let the new resource
                 # recreate them. we delete one by one and wait for a new
                 # pod to become ready before proceeding to the next one.
-                logging.info(['recycle_sts_orphan_pods', cluster, namespace,
+                logging.info(['recycle_pods', cluster, namespace,
                               resource_type, resource.name])
-                oc.recycle_sts_orphan_pods(dry_run, namespace, resource)
+                oc.recycle_orphan_pods(namespace, owned_pods)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ['Service']:
                 raise
