@@ -237,6 +237,11 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 oc.create(namespace, annotated)
             oc.replace(namespace, annotated)
         except FieldIsImmutableError:
+            # when we detect a fields immutable error for a resource
+            # that is supported for being replaced.
+            # we delete it. if the resource can be applied
+            # without cascading, we do it to avoid replacing pods.
+            # we then apply the new resource.
             # Add more resources types to the list when you're
             # sure they're safe.
             supported_resource_types = {
@@ -262,6 +267,11 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             oc.apply(namespace=namespace, resource=annotated)
 
             if not cascade:
+                # if the resource was applied without cascading, we proceed
+                # to recycle the pods belonging to the old resource.
+                # note: we really just delete pods and let the new resource
+                # recreate them. we delete one by one and wait for a new
+                # pod to become ready before proceeding to the next one.
                 logging.info(['recycle_sts_orphan_pods', cluster, namespace,
                               resource_type, resource.name])
                 oc.recycle_sts_orphan_pods(dry_run, namespace, resource)
