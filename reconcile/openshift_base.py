@@ -239,10 +239,21 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ['Route', 'Service', 'StatefulSet']:
+            supported_resource_types = {
+                'Route': {
+                    'cascade': True
+                },
+                'Service': {
+                    'cascade': True
+                },
+                'StatefulSet': {
+                    'cascade': False
+                },
+            }
+            if resource_type not in supported_resource_types:
                 raise
 
-            cascade = resource_type not in ['StatefulSet']
+            cascade = supported_resource_types[resource_type]['cascade']
 
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=cascade)
