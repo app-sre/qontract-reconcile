@@ -255,12 +255,14 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             cascade = supported_resource_types[resource_type]['cascade']
 
+            logging.info(['delete_and_apply', cluster, namespace,
+                          resource_type, resource.name])
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=cascade)
             oc.apply(namespace=namespace, resource=annotated)
 
             if not cascade:
-                logging.info(['recycling', cluster, namespace,
+                logging.info(['recycle_sts_orphan_pods', cluster, namespace,
                               resource_type, resource.name])
                 oc.recycle_sts_orphan_pods(dry_run, namespace, resource)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
