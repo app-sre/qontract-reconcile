@@ -459,6 +459,7 @@ class OC:
 
     @retry(max_attempts=20)
     def validate_pod_ready(self, namespace, name):
+        logging.info(['validate_pod_ready', namespace, name])
         pod = self.get(namespace, 'Pod', name)
         for status in pod['status']['containerStatuses']:
             if not status['ready']:
