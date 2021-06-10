@@ -239,12 +239,17 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ['Route', 'Service']:
+            if resource_type not in ['Route', 'Service', 'StatefulSet']:
                 raise
 
+            cascade = resource_type not in ['StatefulSet']
+
             oc.delete(namespace=namespace, kind=resource_type,
-                      name=resource.name)
-            oc.apply(namespace=namespace, resource=annotated)
+                      name=resource.name, cascade=cascade)
+            oc.apply(namespace=namespace, resource=annotated
+
+            if not cascade:
+                oc.recycle_orphan_pods(dry_run, namespace, resource)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ['Service']:
                 raise

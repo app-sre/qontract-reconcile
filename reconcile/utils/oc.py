@@ -298,8 +298,9 @@ class OC:
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @OCDecorators.process_reconcile_time
-    def delete(self, namespace, kind, name):
-        cmd = ['delete', '-n', namespace, kind, name]
+    def delete(self, namespace, kind, name, cascade=True):
+        cmd = ['delete', '-n', namespace, kind, name,
+               f'--cascade={str(cascade).lower()}']
         self._run(cmd)
         resource = {'kind': kind, 'metadata': {'name': name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
@@ -438,6 +439,26 @@ class OC:
         namespace = user.split('/')[0]
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
+
+    def recycle_orphan_pods(self, dry_run, namespace, resource):
+        pods = self.get(namespace, 'Pod')['items']
+        for p in pods:
+            owner = self.get_obj_root_owner(namespace, p)
+            if resource.kind != owner['kind']:
+                continue
+            if resource.name != owner['metadata']['name']:
+                continue
+            # we found a pod we want to recycle
+            name = p['metadata']['name']
+            self.delete(namespace, 'Pod', name)
+            self.validate_pod_ready(namespace, name)
+
+    @retry(max_attempts=20)
+    def validate_pod_ready(self, namespace, name):
+        pod = self.get(namespace, 'Pod', name)
+        for status in pod['status']['containerStatuses']:
+            if not status['ready']:
+                raise PodNotReadyError(name)
 
     def recycle_pods(self, dry_run, namespace, dep_kind, dep_resource):
         """ recycles pods which are using the specified resources.
