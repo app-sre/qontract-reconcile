@@ -260,7 +260,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             oc.apply(namespace=namespace, resource=annotated)
 
             if not cascade:
-                oc.recycle_orphan_pods(dry_run, namespace, resource)
+                oc.recycle_sts_orphan_pods(dry_run, namespace, resource)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ['Service']:
                 raise

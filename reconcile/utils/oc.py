@@ -440,7 +440,11 @@ class OC:
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
 
-    def recycle_orphan_pods(self, dry_run, namespace, resource):
+    def recycle_sts_orphan_pods(
+            self, dry_run, namespace, resource):
+        if resource.kind != 'StatefulSet':
+            raise RecyclePodsUnsupportedKindError(resource.kind)
+
         pods = self.get(namespace, 'Pod')['items']
         for p in pods:
             owner = self.get_obj_root_owner(namespace, p)
