@@ -246,7 +246,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=cascade)
-            oc.apply(namespace=namespace, resource=annotated
+            oc.apply(namespace=namespace, resource=annotated)
 
             if not cascade:
                 oc.recycle_orphan_pods(dry_run, namespace, resource)
