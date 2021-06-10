@@ -241,6 +241,10 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             # sure they're safe.
             if resource_type not in ['Route', 'Service']:
                 raise
+
+            oc.delete(namespace=namespace, kind=resource_type,
+                      name=resource.name)
+            oc.apply(namespace=namespace, resource=annotated)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ['Service']:
                 raise
