@@ -12,6 +12,7 @@ from reconcile.utils.oc import MayNotChangeOnceSetError
 from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError
 from reconcile.utils.oc import InvalidValueApplyError
 from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
+from reconcile.utils.oc import StatefulSetUpdateForbidden
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.oc import UnsupportedMediaTypeError
