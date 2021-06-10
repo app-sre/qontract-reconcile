@@ -47,6 +47,10 @@ class UnsupportedMediaTypeError(Exception):
     pass
 
 
+class StatefulSetUpdateForbidden(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -644,7 +648,7 @@ class OC:
                 if 'UnsupportedMediaType' in err:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
                 if 'updates to statefulset spec for fields other than' in err:
-                    raise FieldIsImmutableError(f"[{self.server}]: {err}")
+                    raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

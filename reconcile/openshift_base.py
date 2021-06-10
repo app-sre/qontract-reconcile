@@ -237,46 +237,14 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                 oc.create(namespace, annotated)
             oc.replace(namespace, annotated)
         except FieldIsImmutableError:
-            # when we detect a fields immutable error for a resource
-            # that is supported for being replaced.
-            # we delete it. if the resource can be applied
-            # without cascading, we do it to avoid replacing pods.
-            # we then apply the new resource.
             # Add more resources types to the list when you're
             # sure they're safe.
-            supported_resource_types = {
-                'Route': {
-                    'cascade': True
-                },
-                'Service': {
-                    'cascade': True
-                },
-                'StatefulSet': {
-                    'cascade': False
-                },
-            }
-            if resource_type not in supported_resource_types:
+            if resource_type not in ['Route', 'Service']:
                 raise
 
-            cascade = supported_resource_types[resource_type]['cascade']
-
-            logging.info(['delete_and_apply', cluster, namespace,
-                          resource_type, resource.name])
-            owned_pods = \
-                None if cascade else oc.get_owned_pods(namespace, resource)
             oc.delete(namespace=namespace, kind=resource_type,
-                      name=resource.name, cascade=cascade)
+                      name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
-
-            if not cascade:
-                # if the resource was applied without cascading, we proceed
-                # to recycle the pods belonging to the old resource.
-                # note: we really just delete pods and let the new resource
-                # recreate them. we delete one by one and wait for a new
-                # pod to become ready before proceeding to the next one.
-                logging.info(['recycle_pods', cluster, namespace,
-                              resource_type, resource.name])
-                oc.recycle_orphan_pods(namespace, owned_pods)
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
             if resource_type not in ['Service']:
                 raise
@@ -284,6 +252,24 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
+        except StatefulSetUpdateForbidden:
+            if resource_type not in ['StatefulSet']:
+                raise
+
+            logging.info(['delete_and_apply', cluster, namespace,
+                          resource_type, resource.name])
+            owned_pods = oc.get_owned_pods(namespace, resource)
+            oc.delete(namespace=namespace, kind=resource_type,
+                      name=resource.name, cascade=False)
+            oc.apply(namespace=namespace, resource=annotated)
+            logging.info(['recycle_pods', cluster, namespace,
+                          resource_type, resource.name])
+            # the resource was applied without cascading, we proceed
+            # to recycle the pods belonging to the old resource.
+            # note: we really just delete pods and let the new resource
+            # recreate them. we delete one by one and wait for a new
+            # pod to become ready before proceeding to the next one.
+            oc.recycle_orphan_pods(namespace, owned_pods)
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
