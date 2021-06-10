@@ -794,7 +794,10 @@ class SaasHerder():
                 ri.register_error()
                 msg = \
                     f"[{cluster}/{namespace}] desired item " + \
-                    f"already exists: {resource_kind}/{resource_name}."
+                    f"already exists: {resource_kind}/{resource_name}. " + \
+                    f"saas file name: {saas_file_name}, " + \
+                    "resource template name: " + \
+                    f"{process_template_options['resource_template_name']}."
                 logging.error(msg)
 
         return promotion
