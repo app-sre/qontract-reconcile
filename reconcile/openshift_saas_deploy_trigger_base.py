@@ -268,7 +268,6 @@ def _trigger_tekton(spec,
     # TODO: Convert these into a dataclass.
     saas_file_name = spec['saas_file_name']
     env_name = spec['env_name']
-    timeout = spec['timeout']
     pipelines_provider = spec['pipelines_provider']
 
     tkn_namespace_info = pipelines_provider['namespace']
@@ -280,7 +279,6 @@ def _trigger_tekton(spec,
         env_name,
         tkn_cluster_console_url,
         tkn_namespace_name,
-        timeout,
         settings,
         integration,
         integration_version
@@ -314,7 +312,6 @@ def _construct_tekton_trigger_resource(saas_file_name,
                                        env_name,
                                        tkn_cluster_console_url,
                                        tkn_namespace_name,
-                                       timeout,
                                        settings,
                                        integration,
                                        integration_version):
@@ -326,7 +323,6 @@ def _construct_tekton_trigger_resource(saas_file_name,
         tkn_cluster_console_url (string): Cluster console URL of the cluster
                                           where the pipeline runs
         tkn_namespace_name (string): namespace where the pipeline runs
-        timeout (int): Timeout in minutes before the PipelineRun fails
         settings (dict): App-interface settings
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
@@ -371,10 +367,6 @@ def _construct_tekton_trigger_resource(saas_file_name,
             ]
         }
     }
-    if timeout:
-        # conforming to Go’s ParseDuration format
-        body['spec']['timeout'] = f"{timeout}m"
-
     return OR(body, integration, integration_version,
               error_details=name), long_name
 
