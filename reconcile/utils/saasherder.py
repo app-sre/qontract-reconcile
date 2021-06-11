@@ -941,8 +941,10 @@ class SaasHerder():
                 key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
                     f"{namespace_name}/{env_name}/{instance_name}/{job_name}"
                 state_build_result = self.state.get(key, None)
-                # skip if there is no change in job state
-                if last_build_result == state_build_result:
+                # skip if last_build_result is incomplete or
+                # there is no change in job state
+                if last_build_result['result'] is None or \
+                        last_build_result == state_build_result:
                     continue
                 # don't trigger if this is the first time
                 # this target is being deployed.
