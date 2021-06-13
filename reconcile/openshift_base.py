@@ -254,7 +254,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                       name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
         except StatefulSetUpdateForbidden:
-            if resource_type not in ['StatefulSet']:
+            if resource_type != 'StatefulSet':
                 raise
 
             logging.info(['delete_sts_and_apply', cluster, namespace,
