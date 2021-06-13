@@ -67,7 +67,6 @@ class TestGetOwnedPods(TestCase):
             }
         ]
 
-
         oc = OC('server', 'token', local=True)
         pods = oc.get_owned_pods('namespace', owner_resource)
         self.assertEqual(len(pods), 1)
