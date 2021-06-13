@@ -449,12 +449,9 @@ class OC:
         owned_pods = []
         for p in pods:
             owner = self.get_obj_root_owner(namespace, p)
-            if resource.kind != owner['kind']:
-                continue
-            if resource.name != owner['metadata']['name']:
-                continue
-            # we found an owned pod
-            owned_pods.append(p)
+            if (resource.kind, resource.name) == \
+                    (owner['kind'], owner['metadata']['name']):
+                owned_pods.append(p)
 
         return owned_pods
 
