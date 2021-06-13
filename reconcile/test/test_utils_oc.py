@@ -115,3 +115,43 @@ class TestValidatePodReady(TestCase):
         with self.assertRaises(PodNotReadyError):
             # Bypass the retry stuff
             oc.validate_pod_ready.__wrapped__(oc, 'namespace', 'podname')
+
+
+class TestGetObjRootOwner(TestCase):
+    @patch.object(OC, 'get')
+    def test_owner(self, oc_get):
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+                'ownerReferences': [
+                    {
+                        'controller': True,
+                        'kind': 'ownerkind',
+                        'name': 'ownername'
+                    }
+                ]
+            }
+        }
+        owner_obj = {
+            'kind': 'ownerkind',
+            'metadata': {'name': 'ownername'}
+        }
+
+        oc_get.side_effect = [
+            owner_obj
+        ]
+
+        oc = OC('server', 'token', local=True)
+        result_owner_obj = oc.get_obj_root_owner('namespace', obj)
+        self.assertEqual(result_owner_obj, owner_obj)
+
+    def test_no_owner(self):
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+            }
+        }
+
+        oc = OC('server', 'token', local=True)
+        result_obj = oc.get_obj_root_owner('namespace', obj)
+        self.assertEqual(result_obj, obj)
