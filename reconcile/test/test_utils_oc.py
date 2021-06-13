@@ -1,13 +1,19 @@
 from unittest import TestCase
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch
 
 from reconcile.utils.oc import OC, PodNotReadyError
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
 class TestGetOwnedPods(TestCase):
     @patch.object(OC, 'get')
     @patch.object(OC, 'get_obj_root_owner')
     def test_get_owned_pods(self, oc_get_obj_root_owner, oc_get):
+        owner_body = {
+            'kind': 'ownerkind',
+            'metadata': {'name': 'ownername'}
+        }
+        owner_resource = OR(owner_body, '', '')
 
         oc_get.return_value = {
             'items': [
@@ -50,10 +56,7 @@ class TestGetOwnedPods(TestCase):
             ]
         }
         oc_get_obj_root_owner.side_effect = [
-            {
-                'kind': 'ownerkind',
-                'metadata': {'name': 'ownername'}
-            },
+            owner_resource.body,
             {
                 'kind': 'notownerkind',
                 'metadata': {'name': 'notownername'},
@@ -64,12 +67,9 @@ class TestGetOwnedPods(TestCase):
             }
         ]
 
-        resource = MagicMock(kind='ownerkind')
-        # a PropertyMock representing the 'name' attribute
-        type(resource).name = PropertyMock(return_value='ownername')
 
         oc = OC('server', 'token', local=True)
-        pods = oc.get_owned_pods('namespace', resource)
+        pods = oc.get_owned_pods('namespace', owner_resource)
         self.assertEqual(len(pods), 1)
         self.assertEqual(pods[0]['metadata']['name'], 'pod1')
 
