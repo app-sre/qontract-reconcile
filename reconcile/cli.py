@@ -14,7 +14,6 @@ import reconcile.github_owners
 import reconcile.github_users
 import reconcile.github_scanner
 import reconcile.github_validator
-import reconcile.openshift_acme
 import reconcile.openshift_clusterrolebindings
 import reconcile.openshift_rolebindings
 import reconcile.openshift_groups
@@ -904,19 +903,6 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
 @click.pass_context
 def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.openshift_network_policies,
-                    ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
-
-
-@integration.command()
-@threaded()
-@binary(['oc', 'ssh'])
-@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@click.pass_context
-def openshift_acme(ctx, thread_pool_size, internal, use_jump_host):
-    run_integration(reconcile.openshift_acme,
                     ctx.obj, thread_pool_size, internal,
                     use_jump_host)
 

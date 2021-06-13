@@ -42,7 +42,6 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `jira-watcher`: Watch for changes in Jira boards and notify on Slack.
 - `kafka-clusters`: Manages Kafka clusters via OCM.
 - `ldap-users`: Removes users which are not found in LDAP search.
-- `openshift-acme`: Manages openshift-acme deployments (https://github.com/tnozicka/openshift-acme)
 - `openshift-clusterrolebindings`: Configures ClusterRolebindings in OpenShift clusters.
 - `openshift-groups`: Manages OpenShift Groups.
 - `openshift-limitranges`: Manages OpenShift LimitRange objects.

@@ -643,23 +643,6 @@ NAMESPACES_QUERY = """
         integrations
       }
     }
-    openshiftAcme {
-      config {
-        name
-        image
-        overrides {
-          deploymentName
-          roleName
-          rolebindingName
-          serviceaccountName
-          rbacApiVersion
-        }
-      }
-      accountSecret {
-        path
-        version
-      }
-    }
     managedResourceNames {
       resource
       resourceNames
