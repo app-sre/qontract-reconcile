@@ -257,13 +257,13 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
             if resource_type not in ['StatefulSet']:
                 raise
 
-            logging.info(['delete_and_apply', cluster, namespace,
+            logging.info(['delete_sts_and_apply', cluster, namespace,
                           resource_type, resource.name])
             owned_pods = oc.get_owned_pods(namespace, resource)
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=False)
             oc.apply(namespace=namespace, resource=annotated)
-            logging.info(['recycle_pods', cluster, namespace,
+            logging.info(['recycle_sts_pods', cluster, namespace,
                           resource_type, resource.name])
             # the resource was applied without cascading, we proceed
             # to recycle the pods belonging to the old resource.
