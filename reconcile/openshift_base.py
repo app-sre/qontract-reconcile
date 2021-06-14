@@ -455,6 +455,7 @@ def validate_data(oc_map, actions):
     supported_kinds = [
         'Deployment',
         'DeploymentConfig',
+        'StatefulSet',
         'Subscription',
         'Job',
         'ClowdApp'
@@ -478,7 +479,7 @@ def validate_data(oc_map, actions):
             if not status:
                 raise ValidationError('status')
             # add elif to validate additional resource kinds
-            if kind in ['Deployment', 'DeploymentConfig']:
+            if kind in ['Deployment', 'DeploymentConfig', 'StatefulSet']:
                 desired_replicas = resource['spec']['replicas']
                 if desired_replicas == 0:
                     continue
