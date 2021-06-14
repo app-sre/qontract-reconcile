@@ -47,6 +47,10 @@ class UnsupportedMediaTypeError(Exception):
     pass
 
 
+class StatefulSetUpdateForbidden(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -298,8 +302,9 @@ class OC:
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @OCDecorators.process_reconcile_time
-    def delete(self, namespace, kind, name):
-        cmd = ['delete', '-n', namespace, kind, name]
+    def delete(self, namespace, kind, name, cascade=True):
+        cmd = ['delete', '-n', namespace, kind, name,
+               f'--cascade={str(cascade).lower()}']
         self._run(cmd)
         resource = {'kind': kind, 'metadata': {'name': name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
@@ -438,6 +443,31 @@ class OC:
         namespace = user.split('/')[0]
         name = user.split('/')[1]
         return "system:serviceaccount:{}:{}".format(namespace, name)
+
+    def get_owned_pods(self, namespace, resource):
+        pods = self.get(namespace, 'Pod')['items']
+        owned_pods = []
+        for p in pods:
+            owner = self.get_obj_root_owner(namespace, p)
+            if (resource.kind, resource.name) == \
+                    (owner['kind'], owner['metadata']['name']):
+                owned_pods.append(p)
+
+        return owned_pods
+
+    def recycle_orphan_pods(self, namespace, pods):
+        for p in pods:
+            name = p['metadata']['name']
+            self.delete(namespace, 'Pod', name)
+            self.validate_pod_ready(namespace, name)
+
+    @retry(max_attempts=20)
+    def validate_pod_ready(self, namespace, name):
+        logging.info([self.validate_pod_ready.__name__, namespace, name])
+        pod = self.get(namespace, 'Pod', name)
+        for status in pod['status']['containerStatuses']:
+            if not status['ready']:
+                raise PodNotReadyError(name)
 
     def recycle_pods(self, dry_run, namespace, dep_kind, dep_resource):
         """ recycles pods which are using the specified resources.
@@ -614,6 +644,8 @@ class OC:
                         f"[{self.server}]: {err}")
                 if 'UnsupportedMediaType' in err:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
+                if 'updates to statefulset spec for fields other than' in err:
+                    raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

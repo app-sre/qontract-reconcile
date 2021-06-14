@@ -1342,7 +1342,6 @@ SAAS_FILES_QUERY_V2 = """
     managedResourceTypes
     takeover
     compare
-    timeout
     publishJobLogs
     imagePatterns
     use_channel_in_image_tag
