@@ -6,23 +6,27 @@ from subprocess import PIPE, Popen, STDOUT
 
 from reconcile.utils.defer import defer
 
+ERR_SPACES = 'key has spaces in it'
+ERR_EQUAL_SIGNS = 'equal signs should only appear at the end of the key'
+ERR_BASE64 = 'could not perform base64 decode of key'
+
 
 @defer
 def gpg_key_valid(public_gpg_key, defer=None):
     stripped_public_gpg_key = public_gpg_key.rstrip()
     if ' ' in stripped_public_gpg_key:
-        msg = 'key has spaces in it'
+        msg = ERR_SPACES
         return False, msg
 
     equal_sign_count = public_gpg_key.count('=')
     if not stripped_public_gpg_key.endswith('=' * equal_sign_count):
-        msg = 'equal signs should only appear at the end of the key'
+        msg = ERR_EQUAL_SIGNS
         return False, msg
 
     try:
         public_gpg_key_dec = base64.b64decode(public_gpg_key)
     except Exception:
-        msg = 'could not perform base64 decode of key'
+        msg = ERR_BASE64
         return False, msg
 
     gnupg_home_dir = tempfile.mkdtemp()
