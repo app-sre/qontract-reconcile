@@ -5873,7 +5873,7 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: ""
           - name: SLEEP_DURATION_SECS
-            value: 3600
+            value: "3600"
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
