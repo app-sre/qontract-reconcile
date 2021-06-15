@@ -175,7 +175,11 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
+            {{- if $integration.sleep_duration_secs }}
+            value: {{ $integration.sleep_duration_secs }}
+            {{- else }}
             value: ${SLEEP_DURATION_SECS}
+            {{- end }}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:

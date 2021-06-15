@@ -226,6 +226,7 @@ integrations:
   state: true
   cache: true
 - name: jenkins-job-builds-cleaner
+  sleep_duration_secs: 3600
   resources:
     requests:
       memory: 100Mi
