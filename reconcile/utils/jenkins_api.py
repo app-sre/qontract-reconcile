@@ -50,6 +50,15 @@ class JenkinsApi:
 
         return jobs_state
 
+    def delete_build(self, job_name, build_id):
+        url = f"{self.url}/job/{job_name}/{build_id}/doDelete"
+        res = requests.post(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+        )
+        res.raise_for_status()
+
     def delete_job(self, job_name):
         kwargs = self.get_crumb_kwargs()
 
@@ -149,17 +158,19 @@ class JenkinsApi:
 
             res.raise_for_status()
 
-    def get_build_history(self, job_name, time_limit):
+    def get_builds(self, job_name):
         url = f"{self.url}/job/{job_name}/api/json" + \
-            "?tree=allBuilds[timestamp,result]"
+            "?tree=allBuilds[timestamp,result,id]"
         res = requests.get(
             url,
             verify=self.ssl_verify,
             auth=(self.user, self.password)
         )
-
         res.raise_for_status()
-        return [b['result'] for b in res.json()['allBuilds']
+        return res.json()['allBuilds']
+
+    def get_build_history(self, job_name, time_limit):
+        return [b['result'] for b in self.get_builds(job_name)
                 if time_limit < self.timestamp_seconds(b['timestamp'])]
 
     def is_job_running(self, job_name):

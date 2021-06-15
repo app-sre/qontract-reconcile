@@ -136,6 +136,10 @@ JENKINS_INSTANCES_QUERY = """
     plugins
     deleteMethod
     managedProjects
+    buildsCleanupRules {
+      name
+      keep_hours
+    }
   }
 }
 """
