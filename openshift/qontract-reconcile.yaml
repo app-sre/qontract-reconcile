@@ -157,11 +157,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${AWS_IAM_KEYS_CPU_LIMIT}
+              memory: ${AWS_IAM_KEYS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: ${AWS_IAM_KEYS_CPU_REQUEST}
+              memory: ${AWS_IAM_KEYS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -358,11 +358,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 130Mi
+              cpu: ${GITHUB_CPU_LIMIT}
+              memory: ${GITHUB_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${GITHUB_CPU_REQUEST}
+              memory: ${GITHUB_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -559,11 +559,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 80Mi
+              cpu: ${GITHUB_OWNERS_CPU_LIMIT}
+              memory: ${GITHUB_OWNERS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${GITHUB_OWNERS_CPU_REQUEST}
+              memory: ${GITHUB_OWNERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -760,11 +760,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${GITHUB_REPO_INVITES_CPU_LIMIT}
+              memory: ${GITHUB_REPO_INVITES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${GITHUB_REPO_INVITES_CPU_REQUEST}
+              memory: ${GITHUB_REPO_INVITES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -961,11 +961,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${QUAY_MEMBERSHIP_CPU_LIMIT}
+              memory: ${QUAY_MEMBERSHIP_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${QUAY_MEMBERSHIP_CPU_REQUEST}
+              memory: ${QUAY_MEMBERSHIP_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1144,11 +1144,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 200Mi
+              cpu: ${QUAY_MIRROR_CPU_LIMIT}
+              memory: ${QUAY_MIRROR_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${QUAY_MIRROR_CPU_REQUEST}
+              memory: ${QUAY_MIRROR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1327,11 +1327,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 200Mi
+              cpu: ${QUAY_MIRROR_ORG_CPU_LIMIT}
+              memory: ${QUAY_MIRROR_ORG_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${QUAY_MIRROR_ORG_CPU_REQUEST}
+              memory: ${QUAY_MIRROR_ORG_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1510,11 +1510,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 200Mi
+              cpu: ${GCR_MIRROR_CPU_LIMIT}
+              memory: ${GCR_MIRROR_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${GCR_MIRROR_CPU_REQUEST}
+              memory: ${GCR_MIRROR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1693,11 +1693,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 600m
-              memory: 500Mi
+              cpu: ${ECR_MIRROR_CPU_LIMIT}
+              memory: ${ECR_MIRROR_MEMORY_LIMIT}
             requests:
-              cpu: 400m
-              memory: 350Mi
+              cpu: ${ECR_MIRROR_CPU_REQUEST}
+              memory: ${ECR_MIRROR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -1894,11 +1894,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${QUAY_REPOS_CPU_LIMIT}
+              memory: ${QUAY_REPOS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${QUAY_REPOS_CPU_REQUEST}
+              memory: ${QUAY_REPOS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2095,11 +2095,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 100Mi
+              cpu: ${QUAY_PERMISSIONS_CPU_LIMIT}
+              memory: ${QUAY_PERMISSIONS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${QUAY_PERMISSIONS_CPU_REQUEST}
+              memory: ${QUAY_PERMISSIONS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2285,11 +2285,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${JIRA_WATCHER_CPU_LIMIT}
+              memory: ${JIRA_WATCHER_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: ${JIRA_WATCHER_CPU_REQUEST}
+              memory: ${JIRA_WATCHER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2475,11 +2475,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${UNLEASH_WATCHER_CPU_LIMIT}
+              memory: ${UNLEASH_WATCHER_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: ${UNLEASH_WATCHER_CPU_REQUEST}
+              memory: ${UNLEASH_WATCHER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2663,11 +2663,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 800m
-              memory: 1000Mi
+              cpu: ${GITHUB_SCANNER_CPU_LIMIT}
+              memory: ${GITHUB_SCANNER_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 500Mi
+              cpu: ${GITHUB_SCANNER_CPU_REQUEST}
+              memory: ${GITHUB_SCANNER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -2851,11 +2851,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${AWS_SUPPORT_CASES_SOS_CPU_LIMIT}
+              memory: ${AWS_SUPPORT_CASES_SOS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: ${AWS_SUPPORT_CASES_SOS_CPU_REQUEST}
+              memory: ${AWS_SUPPORT_CASES_SOS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3052,11 +3052,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 500m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_USERS_CPU_LIMIT}
+              memory: ${OPENSHIFT_USERS_MEMORY_LIMIT}
             requests:
-              cpu: 400m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_USERS_CPU_REQUEST}
+              memory: ${OPENSHIFT_USERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3242,11 +3242,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 500m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_UPGRADE_WATCHER_CPU_LIMIT}
+              memory: ${OPENSHIFT_UPGRADE_WATCHER_MEMORY_LIMIT}
             requests:
-              cpu: 400m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_UPGRADE_WATCHER_CPU_REQUEST}
+              memory: ${OPENSHIFT_UPGRADE_WATCHER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3443,11 +3443,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 780Mi
+              cpu: ${OPENSHIFT_GROUPS_CPU_LIMIT}
+              memory: ${OPENSHIFT_GROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_GROUPS_CPU_REQUEST}
+              memory: ${OPENSHIFT_GROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3644,11 +3644,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 500m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NAMESPACES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NAMESPACES_MEMORY_LIMIT}
             requests:
-              cpu: 400m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NAMESPACES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NAMESPACES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -3845,11 +3845,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 250m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_CLUSTERROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 150m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_CLUSTERROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -4046,11 +4046,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -4247,11 +4247,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -4448,11 +4448,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -4649,11 +4649,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -4850,11 +4850,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -5051,11 +5051,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -5252,11 +5252,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -5453,11 +5453,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -5654,11 +5654,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -5855,11 +5855,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 800m
-              memory: 900Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT}
             requests:
-              cpu: 600m
-              memory: 700Mi
+              cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -6056,11 +6056,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -6257,11 +6257,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -6458,11 +6458,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -6659,11 +6659,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -6860,11 +6860,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -7061,11 +7061,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -7262,11 +7262,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -7463,11 +7463,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -7664,11 +7664,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -7865,11 +7865,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST}
+              memory: ${OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -8066,11 +8066,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_LIMITRANGES_CPU_LIMIT}
+              memory: ${OPENSHIFT_LIMITRANGES_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_LIMITRANGES_CPU_REQUEST}
+              memory: ${OPENSHIFT_LIMITRANGES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -8249,11 +8249,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1200Mi
+              cpu: ${OPENSHIFT_RESOURCEQUOTAS_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCEQUOTAS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_RESOURCEQUOTAS_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCEQUOTAS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -8450,11 +8450,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -8651,11 +8651,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -8852,11 +8852,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -9053,11 +9053,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -9254,11 +9254,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -9455,11 +9455,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -9656,11 +9656,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -9857,11 +9857,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10058,11 +10058,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10259,11 +10259,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 1800Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 1400Mi
+              cpu: ${OPENSHIFT_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10442,11 +10442,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10625,11 +10625,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10808,11 +10808,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -10991,11 +10991,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -11174,11 +11174,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -11357,11 +11357,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -11540,11 +11540,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -11723,11 +11723,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -11906,11 +11906,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -12089,11 +12089,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 600Mi
+              cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_REQUEST}
+              memory: ${OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -12272,11 +12272,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_ROUTES_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROUTES_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_ROUTES_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROUTES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -12455,11 +12455,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 1040Mi
+              cpu: ${OPENSHIFT_ROUTES_CPU_LIMIT}
+              memory: ${OPENSHIFT_ROUTES_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 800Mi
+              cpu: ${OPENSHIFT_ROUTES_CPU_REQUEST}
+              memory: ${OPENSHIFT_ROUTES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -12656,11 +12656,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 500m
-              memory: 1000Mi
+              cpu: ${TERRAFORM_AWS_ROUTE53_CPU_LIMIT}
+              memory: ${TERRAFORM_AWS_ROUTE53_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 500Mi
+              cpu: ${TERRAFORM_AWS_ROUTE53_CPU_REQUEST}
+              memory: ${TERRAFORM_AWS_ROUTE53_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -12857,11 +12857,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 1200m
-              memory: 3250Mi
+              cpu: ${TERRAFORM_RESOURCES_CPU_LIMIT}
+              memory: ${TERRAFORM_RESOURCES_MEMORY_LIMIT}
             requests:
-              cpu: 900m
-              memory: 2500Mi
+              cpu: ${TERRAFORM_RESOURCES_CPU_REQUEST}
+              memory: ${TERRAFORM_RESOURCES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -13058,11 +13058,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 400m
-              memory: 3000Mi
+              cpu: ${TERRAFORM_USERS_CPU_LIMIT}
+              memory: ${TERRAFORM_USERS_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 2400Mi
+              cpu: ${TERRAFORM_USERS_CPU_REQUEST}
+              memory: ${TERRAFORM_USERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -13259,11 +13259,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 500m
-              memory: 2600Mi
+              cpu: ${TERRAFORM_VPC_PEERINGS_CPU_LIMIT}
+              memory: ${TERRAFORM_VPC_PEERINGS_MEMORY_LIMIT}
             requests:
-              cpu: 400m
-              memory: 2000Mi
+              cpu: ${TERRAFORM_VPC_PEERINGS_CPU_REQUEST}
+              memory: ${TERRAFORM_VPC_PEERINGS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -13460,11 +13460,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 400m
-              memory: 3000Mi
+              cpu: ${TERRAFORM_TGW_ATTACHMENTS_CPU_LIMIT}
+              memory: ${TERRAFORM_TGW_ATTACHMENTS_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 2300Mi
+              cpu: ${TERRAFORM_TGW_ATTACHMENTS_CPU_REQUEST}
+              memory: ${TERRAFORM_TGW_ATTACHMENTS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -13661,11 +13661,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_ADDONS_CPU_LIMIT}
+              memory: ${OCM_ADDONS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_ADDONS_CPU_REQUEST}
+              memory: ${OCM_ADDONS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -13844,11 +13844,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_GROUPS_CPU_LIMIT}
+              memory: ${OCM_GROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_GROUPS_CPU_REQUEST}
+              memory: ${OCM_GROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -14050,11 +14050,11 @@ objects:
                 key: gitlab_pr_submitter_queue_url
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_CLUSTERS_CPU_LIMIT}
+              memory: ${OCM_CLUSTERS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_CLUSTERS_CPU_REQUEST}
+              memory: ${OCM_CLUSTERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -14251,11 +14251,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 100m
-              memory: 300Mi
+              cpu: ${OCM_AWS_INFRASTRUCTURE_ACCESS_CPU_LIMIT}
+              memory: ${OCM_AWS_INFRASTRUCTURE_ACCESS_MEMORY_LIMIT}
             requests:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${OCM_AWS_INFRASTRUCTURE_ACCESS_CPU_REQUEST}
+              memory: ${OCM_AWS_INFRASTRUCTURE_ACCESS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -14434,11 +14434,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_GITHUB_IDP_CPU_LIMIT}
+              memory: ${OCM_GITHUB_IDP_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_GITHUB_IDP_CPU_REQUEST}
+              memory: ${OCM_GITHUB_IDP_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -14635,11 +14635,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_MACHINE_POOLS_CPU_LIMIT}
+              memory: ${OCM_MACHINE_POOLS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_MACHINE_POOLS_CPU_REQUEST}
+              memory: ${OCM_MACHINE_POOLS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -14836,11 +14836,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_UPGRADE_SCHEDULER_CPU_LIMIT}
+              memory: ${OCM_UPGRADE_SCHEDULER_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_UPGRADE_SCHEDULER_CPU_REQUEST}
+              memory: ${OCM_UPGRADE_SCHEDULER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -15037,11 +15037,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${OCM_EXTERNAL_CONFIGURATION_LABELS_CPU_LIMIT}
+              memory: ${OCM_EXTERNAL_CONFIGURATION_LABELS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${OCM_EXTERNAL_CONFIGURATION_LABELS_CPU_REQUEST}
+              memory: ${OCM_EXTERNAL_CONFIGURATION_LABELS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -15238,11 +15238,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 1000Mi
+              cpu: ${KAFKA_CLUSTERS_CPU_LIMIT}
+              memory: ${KAFKA_CLUSTERS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 800Mi
+              cpu: ${KAFKA_CLUSTERS_CPU_REQUEST}
+              memory: ${KAFKA_CLUSTERS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -15446,11 +15446,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${EMAIL_SENDER_CPU_LIMIT}
+              memory: ${EMAIL_SENDER_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: ${EMAIL_SENDER_CPU_REQUEST}
+              memory: ${EMAIL_SENDER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -15654,11 +15654,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${REQUESTS_SENDER_CPU_LIMIT}
+              memory: ${REQUESTS_SENDER_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: ${REQUESTS_SENDER_CPU_REQUEST}
+              memory: ${REQUESTS_SENDER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -15837,11 +15837,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${SENTRY_CONFIG_CPU_LIMIT}
+              memory: ${SENTRY_CONFIG_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 100Mi
+              cpu: ${SENTRY_CONFIG_CPU_REQUEST}
+              memory: ${SENTRY_CONFIG_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16027,11 +16027,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 50m
-              memory: 200Mi
+              cpu: ${SENTRY_HELPER_CPU_LIMIT}
+              memory: ${SENTRY_HELPER_MEMORY_LIMIT}
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: ${SENTRY_HELPER_CPU_REQUEST}
+              memory: ${SENTRY_HELPER_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16235,11 +16235,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 330Mi
+              cpu: ${SQL_QUERY_CPU_LIMIT}
+              memory: ${SQL_QUERY_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 250Mi
+              cpu: ${SQL_QUERY_CPU_REQUEST}
+              memory: ${SQL_QUERY_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16418,11 +16418,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 200Mi
+              cpu: ${SLACK_CLUSTER_USERGROUPS_CPU_LIMIT}
+              memory: ${SLACK_CLUSTER_USERGROUPS_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 80Mi
+              cpu: ${SLACK_CLUSTER_USERGROUPS_CPU_REQUEST}
+              memory: ${SLACK_CLUSTER_USERGROUPS_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16601,11 +16601,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 300m
-              memory: 520Mi
+              cpu: ${OCP_RELEASE_MIRROR_CPU_LIMIT}
+              memory: ${OCP_RELEASE_MIRROR_MEMORY_LIMIT}
             requests:
-              cpu: 200m
-              memory: 400Mi
+              cpu: ${OCP_RELEASE_MIRROR_CPU_REQUEST}
+              memory: ${OCP_RELEASE_MIRROR_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16802,11 +16802,11 @@ objects:
             value: "${LOG_SLOW_OC_RECONCILE}"
           resources:
             limits:
-              cpu: 200m
-              memory: 150Mi
+              cpu: ${SENDGRID_TEAMMATES_CPU_LIMIT}
+              memory: ${SENDGRID_TEAMMATES_MEMORY_LIMIT}
             requests:
-              cpu: 100m
-              memory: 50Mi
+              cpu: ${SENDGRID_TEAMMATES_CPU_REQUEST}
+              memory: ${SENDGRID_TEAMMATES_MEMORY_REQUEST}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -16898,11 +16898,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 300m
-                  memory: 200Mi
+                  cpu: ${AWS_ECR_IMAGE_PULL_SECRETS_CPU_LIMIT}
+                  memory: ${AWS_ECR_IMAGE_PULL_SECRETS_MEMORY_LIMIT}
                 requests:
-                  cpu: 200m
-                  memory: 100Mi
+                  cpu: ${AWS_ECR_IMAGE_PULL_SECRETS_CPU_REQUEST}
+                  memory: ${AWS_ECR_IMAGE_PULL_SECRETS_MEMORY_REQUEST}
             restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
@@ -16955,11 +16955,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 50m
-                  memory: 400Mi
+                  cpu: ${AWS_GARBAGE_COLLECTOR_CPU_LIMIT}
+                  memory: ${AWS_GARBAGE_COLLECTOR_MEMORY_LIMIT}
                 requests:
-                  cpu: 25m
-                  memory: 200Mi
+                  cpu: ${AWS_GARBAGE_COLLECTOR_CPU_REQUEST}
+                  memory: ${AWS_GARBAGE_COLLECTOR_MEMORY_REQUEST}
             restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
@@ -17017,11 +17017,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 300m
-                  memory: 150Mi
+                  cpu: ${GITHUB_USERS_CPU_LIMIT}
+                  memory: ${GITHUB_USERS_MEMORY_LIMIT}
                 requests:
-                  cpu: 200m
-                  memory: 50Mi
+                  cpu: ${GITHUB_USERS_CPU_REQUEST}
+                  memory: ${GITHUB_USERS_MEMORY_REQUEST}
             restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
@@ -17079,11 +17079,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 200m
-                  memory: 600Mi
+                  cpu: ${DASHDOTDB_CSO_CPU_LIMIT}
+                  memory: ${DASHDOTDB_CSO_MEMORY_LIMIT}
                 requests:
-                  cpu: 100m
-                  memory: 400Mi
+                  cpu: ${DASHDOTDB_CSO_CPU_REQUEST}
+                  memory: ${DASHDOTDB_CSO_MEMORY_REQUEST}
             restartPolicy: OnFailure
             volumes:
             - name: qontract-reconcile-toml
@@ -17141,11 +17141,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 200m
-                  memory: 600Mi
+                  cpu: ${DASHDOTDB_DVO_CPU_LIMIT}
+                  memory: ${DASHDOTDB_DVO_MEMORY_LIMIT}
                 requests:
-                  cpu: 100m
-                  memory: 400Mi
+                  cpu: ${DASHDOTDB_DVO_CPU_REQUEST}
+                  memory: ${DASHDOTDB_DVO_MEMORY_REQUEST}
             restartPolicy: Never
             volumes:
             - name: qontract-reconcile-toml
@@ -17203,11 +17203,11 @@ objects:
                 mountPath: /config
               resources:
                 limits:
-                  cpu: 200m
-                  memory: 600Mi
+                  cpu: ${DASHDOTDB_SLO_CPU_LIMIT}
+                  memory: ${DASHDOTDB_SLO_MEMORY_LIMIT}
                 requests:
-                  cpu: 100m
-                  memory: 400Mi
+                  cpu: ${DASHDOTDB_SLO_CPU_REQUEST}
+                  memory: ${DASHDOTDB_SLO_MEMORY_REQUEST}
             restartPolicy: Never
             volumes:
             - name: qontract-reconcile-toml
@@ -17280,3 +17280,395 @@ parameters:
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
+- name: AWS_IAM_KEYS_CPU_LIMIT
+  value: 200m
+- name: AWS_IAM_KEYS_MEMORY_LIMIT
+  value: 400Mi
+- name: AWS_IAM_KEYS_CPU_REQUEST
+  value: 100m
+- name: AWS_IAM_KEYS_MEMORY_REQUEST
+  value: 200Mi
+- name: GITHUB_CPU_LIMIT
+  value: 200m
+- name: GITHUB_MEMORY_LIMIT
+  value: 130Mi
+- name: GITHUB_CPU_REQUEST
+  value: 100m
+- name: GITHUB_MEMORY_REQUEST
+  value: 100Mi
+- name: GITHUB_OWNERS_CPU_LIMIT
+  value: 200m
+- name: GITHUB_OWNERS_MEMORY_LIMIT
+  value: 80Mi
+- name: GITHUB_OWNERS_CPU_REQUEST
+  value: 100m
+- name: GITHUB_OWNERS_MEMORY_REQUEST
+  value: 50Mi
+- name: GITHUB_REPO_INVITES_CPU_LIMIT
+  value: 200m
+- name: GITHUB_REPO_INVITES_MEMORY_LIMIT
+  value: 150Mi
+- name: GITHUB_REPO_INVITES_CPU_REQUEST
+  value: 100m
+- name: GITHUB_REPO_INVITES_MEMORY_REQUEST
+  value: 50Mi
+- name: QUAY_MEMBERSHIP_CPU_LIMIT
+  value: 200m
+- name: QUAY_MEMBERSHIP_MEMORY_LIMIT
+  value: 150Mi
+- name: QUAY_MEMBERSHIP_CPU_REQUEST
+  value: 100m
+- name: QUAY_MEMBERSHIP_MEMORY_REQUEST
+  value: 50Mi
+- name: QUAY_MIRROR_CPU_LIMIT
+  value: 300m
+- name: QUAY_MIRROR_MEMORY_LIMIT
+  value: 200Mi
+- name: QUAY_MIRROR_CPU_REQUEST
+  value: 200m
+- name: QUAY_MIRROR_MEMORY_REQUEST
+  value: 150Mi
+- name: QUAY_MIRROR_ORG_CPU_LIMIT
+  value: 300m
+- name: QUAY_MIRROR_ORG_MEMORY_LIMIT
+  value: 200Mi
+- name: QUAY_MIRROR_ORG_CPU_REQUEST
+  value: 200m
+- name: QUAY_MIRROR_ORG_MEMORY_REQUEST
+  value: 150Mi
+- name: GCR_MIRROR_CPU_LIMIT
+  value: 300m
+- name: GCR_MIRROR_MEMORY_LIMIT
+  value: 200Mi
+- name: GCR_MIRROR_CPU_REQUEST
+  value: 200m
+- name: GCR_MIRROR_MEMORY_REQUEST
+  value: 150Mi
+- name: ECR_MIRROR_CPU_LIMIT
+  value: 600m
+- name: ECR_MIRROR_MEMORY_LIMIT
+  value: 500Mi
+- name: ECR_MIRROR_CPU_REQUEST
+  value: 400m
+- name: ECR_MIRROR_MEMORY_REQUEST
+  value: 350Mi
+- name: QUAY_REPOS_CPU_LIMIT
+  value: 200m
+- name: QUAY_REPOS_MEMORY_LIMIT
+  value: 150Mi
+- name: QUAY_REPOS_CPU_REQUEST
+  value: 100m
+- name: QUAY_REPOS_MEMORY_REQUEST
+  value: 50Mi
+- name: QUAY_PERMISSIONS_CPU_LIMIT
+  value: 200m
+- name: QUAY_PERMISSIONS_MEMORY_LIMIT
+  value: 100Mi
+- name: QUAY_PERMISSIONS_CPU_REQUEST
+  value: 100m
+- name: QUAY_PERMISSIONS_MEMORY_REQUEST
+  value: 50Mi
+- name: JIRA_WATCHER_CPU_LIMIT
+  value: 200m
+- name: JIRA_WATCHER_MEMORY_LIMIT
+  value: 200Mi
+- name: JIRA_WATCHER_CPU_REQUEST
+  value: 100m
+- name: JIRA_WATCHER_MEMORY_REQUEST
+  value: 80Mi
+- name: UNLEASH_WATCHER_CPU_LIMIT
+  value: 200m
+- name: UNLEASH_WATCHER_MEMORY_LIMIT
+  value: 200Mi
+- name: UNLEASH_WATCHER_CPU_REQUEST
+  value: 100m
+- name: UNLEASH_WATCHER_MEMORY_REQUEST
+  value: 80Mi
+- name: GITHUB_SCANNER_CPU_LIMIT
+  value: 800m
+- name: GITHUB_SCANNER_MEMORY_LIMIT
+  value: 1000Mi
+- name: GITHUB_SCANNER_CPU_REQUEST
+  value: 600m
+- name: GITHUB_SCANNER_MEMORY_REQUEST
+  value: 500Mi
+- name: AWS_SUPPORT_CASES_SOS_CPU_LIMIT
+  value: 200m
+- name: AWS_SUPPORT_CASES_SOS_MEMORY_LIMIT
+  value: 400Mi
+- name: AWS_SUPPORT_CASES_SOS_CPU_REQUEST
+  value: 100m
+- name: AWS_SUPPORT_CASES_SOS_MEMORY_REQUEST
+  value: 200Mi
+- name: OPENSHIFT_USERS_CPU_LIMIT
+  value: 500m
+- name: OPENSHIFT_USERS_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_USERS_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_USERS_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_UPGRADE_WATCHER_CPU_LIMIT
+  value: 500m
+- name: OPENSHIFT_UPGRADE_WATCHER_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_UPGRADE_WATCHER_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_UPGRADE_WATCHER_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_GROUPS_CPU_LIMIT
+  value: 300m
+- name: OPENSHIFT_GROUPS_MEMORY_LIMIT
+  value: 780Mi
+- name: OPENSHIFT_GROUPS_CPU_REQUEST
+  value: 200m
+- name: OPENSHIFT_GROUPS_MEMORY_REQUEST
+  value: 600Mi
+- name: OPENSHIFT_NAMESPACES_CPU_LIMIT
+  value: 500m
+- name: OPENSHIFT_NAMESPACES_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_NAMESPACES_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_NAMESPACES_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_CLUSTERROLEBINDINGS_CPU_LIMIT
+  value: 250m
+- name: OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_CLUSTERROLEBINDINGS_CPU_REQUEST
+  value: 150m
+- name: OPENSHIFT_CLUSTERROLEBINDINGS_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_ROLEBINDINGS_CPU_LIMIT
+  value: 800m
+- name: OPENSHIFT_ROLEBINDINGS_MEMORY_LIMIT
+  value: 900Mi
+- name: OPENSHIFT_ROLEBINDINGS_CPU_REQUEST
+  value: 600m
+- name: OPENSHIFT_ROLEBINDINGS_MEMORY_REQUEST
+  value: 700Mi
+- name: OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT
+  value: 200m
+- name: OPENSHIFT_NETWORK_POLICIES_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_NETWORK_POLICIES_CPU_REQUEST
+  value: 100m
+- name: OPENSHIFT_NETWORK_POLICIES_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_LIMITRANGES_CPU_LIMIT
+  value: 300m
+- name: OPENSHIFT_LIMITRANGES_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_LIMITRANGES_CPU_REQUEST
+  value: 200m
+- name: OPENSHIFT_LIMITRANGES_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_RESOURCEQUOTAS_CPU_LIMIT
+  value: 1200m
+- name: OPENSHIFT_RESOURCEQUOTAS_MEMORY_LIMIT
+  value: 1200Mi
+- name: OPENSHIFT_RESOURCEQUOTAS_CPU_REQUEST
+  value: 900m
+- name: OPENSHIFT_RESOURCEQUOTAS_MEMORY_REQUEST
+  value: 800Mi
+- name: OPENSHIFT_RESOURCES_CPU_LIMIT
+  value: 1200m
+- name: OPENSHIFT_RESOURCES_MEMORY_LIMIT
+  value: 1800Mi
+- name: OPENSHIFT_RESOURCES_CPU_REQUEST
+  value: 900m
+- name: OPENSHIFT_RESOURCES_MEMORY_REQUEST
+  value: 1400Mi
+- name: OPENSHIFT_VAULT_SECRETS_CPU_LIMIT
+  value: 1200m
+- name: OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT
+  value: 800Mi
+- name: OPENSHIFT_VAULT_SECRETS_CPU_REQUEST
+  value: 900m
+- name: OPENSHIFT_VAULT_SECRETS_MEMORY_REQUEST
+  value: 600Mi
+- name: OPENSHIFT_ROUTES_CPU_LIMIT
+  value: 300m
+- name: OPENSHIFT_ROUTES_MEMORY_LIMIT
+  value: 1040Mi
+- name: OPENSHIFT_ROUTES_CPU_REQUEST
+  value: 200m
+- name: OPENSHIFT_ROUTES_MEMORY_REQUEST
+  value: 800Mi
+- name: TERRAFORM_AWS_ROUTE53_CPU_LIMIT
+  value: 500m
+- name: TERRAFORM_AWS_ROUTE53_MEMORY_LIMIT
+  value: 1000Mi
+- name: TERRAFORM_AWS_ROUTE53_CPU_REQUEST
+  value: 100m
+- name: TERRAFORM_AWS_ROUTE53_MEMORY_REQUEST
+  value: 500Mi
+- name: TERRAFORM_RESOURCES_CPU_LIMIT
+  value: 1200m
+- name: TERRAFORM_RESOURCES_MEMORY_LIMIT
+  value: 3250Mi
+- name: TERRAFORM_RESOURCES_CPU_REQUEST
+  value: 900m
+- name: TERRAFORM_RESOURCES_MEMORY_REQUEST
+  value: 2500Mi
+- name: TERRAFORM_USERS_CPU_LIMIT
+  value: 400m
+- name: TERRAFORM_USERS_MEMORY_LIMIT
+  value: 3000Mi
+- name: TERRAFORM_USERS_CPU_REQUEST
+  value: 200m
+- name: TERRAFORM_USERS_MEMORY_REQUEST
+  value: 2400Mi
+- name: TERRAFORM_VPC_PEERINGS_CPU_LIMIT
+  value: 500m
+- name: TERRAFORM_VPC_PEERINGS_MEMORY_LIMIT
+  value: 2600Mi
+- name: TERRAFORM_VPC_PEERINGS_CPU_REQUEST
+  value: 400m
+- name: TERRAFORM_VPC_PEERINGS_MEMORY_REQUEST
+  value: 2000Mi
+- name: TERRAFORM_TGW_ATTACHMENTS_CPU_LIMIT
+  value: 400m
+- name: TERRAFORM_TGW_ATTACHMENTS_MEMORY_LIMIT
+  value: 3000Mi
+- name: TERRAFORM_TGW_ATTACHMENTS_CPU_REQUEST
+  value: 200m
+- name: TERRAFORM_TGW_ATTACHMENTS_MEMORY_REQUEST
+  value: 2300Mi
+- name: OCM_ADDONS_CPU_LIMIT
+  value: 200m
+- name: OCM_ADDONS_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_ADDONS_CPU_REQUEST
+  value: 100m
+- name: OCM_ADDONS_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_GROUPS_CPU_LIMIT
+  value: 200m
+- name: OCM_GROUPS_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_GROUPS_CPU_REQUEST
+  value: 100m
+- name: OCM_GROUPS_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_CLUSTERS_CPU_LIMIT
+  value: 200m
+- name: OCM_CLUSTERS_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_CLUSTERS_CPU_REQUEST
+  value: 100m
+- name: OCM_CLUSTERS_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_AWS_INFRASTRUCTURE_ACCESS_CPU_LIMIT
+  value: 100m
+- name: OCM_AWS_INFRASTRUCTURE_ACCESS_MEMORY_LIMIT
+  value: 300Mi
+- name: OCM_AWS_INFRASTRUCTURE_ACCESS_CPU_REQUEST
+  value: 50m
+- name: OCM_AWS_INFRASTRUCTURE_ACCESS_MEMORY_REQUEST
+  value: 200Mi
+- name: OCM_GITHUB_IDP_CPU_LIMIT
+  value: 200m
+- name: OCM_GITHUB_IDP_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_GITHUB_IDP_CPU_REQUEST
+  value: 100m
+- name: OCM_GITHUB_IDP_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_MACHINE_POOLS_CPU_LIMIT
+  value: 200m
+- name: OCM_MACHINE_POOLS_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_MACHINE_POOLS_CPU_REQUEST
+  value: 100m
+- name: OCM_MACHINE_POOLS_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_UPGRADE_SCHEDULER_CPU_LIMIT
+  value: 200m
+- name: OCM_UPGRADE_SCHEDULER_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_UPGRADE_SCHEDULER_CPU_REQUEST
+  value: 100m
+- name: OCM_UPGRADE_SCHEDULER_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_EXTERNAL_CONFIGURATION_LABELS_CPU_LIMIT
+  value: 200m
+- name: OCM_EXTERNAL_CONFIGURATION_LABELS_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_EXTERNAL_CONFIGURATION_LABELS_CPU_REQUEST
+  value: 100m
+- name: OCM_EXTERNAL_CONFIGURATION_LABELS_MEMORY_REQUEST
+  value: 100Mi
+- name: KAFKA_CLUSTERS_CPU_LIMIT
+  value: 200m
+- name: KAFKA_CLUSTERS_MEMORY_LIMIT
+  value: 1000Mi
+- name: KAFKA_CLUSTERS_CPU_REQUEST
+  value: 100m
+- name: KAFKA_CLUSTERS_MEMORY_REQUEST
+  value: 800Mi
+- name: EMAIL_SENDER_CPU_LIMIT
+  value: 50m
+- name: EMAIL_SENDER_MEMORY_LIMIT
+  value: 200Mi
+- name: EMAIL_SENDER_CPU_REQUEST
+  value: 25m
+- name: EMAIL_SENDER_MEMORY_REQUEST
+  value: 100Mi
+- name: REQUESTS_SENDER_CPU_LIMIT
+  value: 50m
+- name: REQUESTS_SENDER_MEMORY_LIMIT
+  value: 200Mi
+- name: REQUESTS_SENDER_CPU_REQUEST
+  value: 25m
+- name: REQUESTS_SENDER_MEMORY_REQUEST
+  value: 100Mi
+- name: SENTRY_CONFIG_CPU_LIMIT
+  value: 200m
+- name: SENTRY_CONFIG_MEMORY_LIMIT
+  value: 200Mi
+- name: SENTRY_CONFIG_CPU_REQUEST
+  value: 100m
+- name: SENTRY_CONFIG_MEMORY_REQUEST
+  value: 100Mi
+- name: SENTRY_HELPER_CPU_LIMIT
+  value: 50m
+- name: SENTRY_HELPER_MEMORY_LIMIT
+  value: 200Mi
+- name: SENTRY_HELPER_CPU_REQUEST
+  value: 25m
+- name: SENTRY_HELPER_MEMORY_REQUEST
+  value: 100Mi
+- name: SQL_QUERY_CPU_LIMIT
+  value: 300m
+- name: SQL_QUERY_MEMORY_LIMIT
+  value: 330Mi
+- name: SQL_QUERY_CPU_REQUEST
+  value: 200m
+- name: SQL_QUERY_MEMORY_REQUEST
+  value: 250Mi
+- name: SLACK_CLUSTER_USERGROUPS_CPU_LIMIT
+  value: 200m
+- name: SLACK_CLUSTER_USERGROUPS_MEMORY_LIMIT
+  value: 200Mi
+- name: SLACK_CLUSTER_USERGROUPS_CPU_REQUEST
+  value: 100m
+- name: SLACK_CLUSTER_USERGROUPS_MEMORY_REQUEST
+  value: 80Mi
+- name: OCP_RELEASE_MIRROR_CPU_LIMIT
+  value: 300m
+- name: OCP_RELEASE_MIRROR_MEMORY_LIMIT
+  value: 520Mi
+- name: OCP_RELEASE_MIRROR_CPU_REQUEST
+  value: 200m
+- name: OCP_RELEASE_MIRROR_MEMORY_REQUEST
+  value: 400Mi
+- name: SENDGRID_TEAMMATES_CPU_LIMIT
+  value: 200m
+- name: SENDGRID_TEAMMATES_MEMORY_LIMIT
+  value: 150Mi
+- name: SENDGRID_TEAMMATES_CPU_REQUEST
+  value: 100m
+- name: SENDGRID_TEAMMATES_MEMORY_REQUEST
+  value: 50Mi
