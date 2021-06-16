@@ -94,7 +94,7 @@ integrations:
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
-      memory: 00Mi
+      memory: 800Mi
       cpu: 400m
     limits:
       memory: 1000Mi
