@@ -353,6 +353,10 @@ CLUSTERS_QUERY = """
       schedule_type
       schedule
     }
+    additionalRouters {
+      private
+      route_selectors
+    }
     network {
       vpc
       service
