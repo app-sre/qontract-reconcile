@@ -1,10 +1,7 @@
 import base64
 import tempfile
-import shutil
 
-from subprocess import PIPE, Popen, STDOUT
-
-from reconcile.utils.defer import defer
+from subprocess import PIPE, Popen, STDOUT, run
 
 ERR_SPACES = 'key has spaces in it'
 ERR_EQUAL_SIGNS = 'equal signs should only appear at the end of the key'
@@ -53,23 +50,21 @@ def gpg_encrypt(content, recepient, public_gpg_key):
 
     with tempfile.TemporaryDirectory() as gnupg_home_dir:
         # import public gpg key
-        proc = Popen(['gpg', '--homedir', gnupg_home_dir,
-                      '--import'],
-                     stdin=PIPE,
-                     stdout=PIPE,
-                     stderr=STDOUT)
+        proc = run(['gpg', '--homedir', gnupg_home_dir,
+                    '--import'],
+                   stdin=PIPE,
+                   stdout=PIPE,
+                   stderr=STDOUT,
+                   check=True)
         out = proc.communicate(public_gpg_key_dec)
-        if proc.returncode != 0:
-            return None
         # encrypt content
-        proc = Popen(['gpg', '--homedir', gnupg_home_dir,
-                      '--trust-model', 'always',
-                      '--encrypt', '--armor', '-r', recepient],
-                     stdin=PIPE,
-                     stdout=PIPE,
-                     stderr=STDOUT)
+        proc = run(['gpg', '--homedir', gnupg_home_dir,
+                    '--trust-model', 'always',
+                    '--encrypt', '--armor', '-r', recepient],
+                   stdin=PIPE,
+                   stdout=PIPE,
+                   stderr=STDOUT,
+                   check=True)
         out = proc.communicate(content.encode())
-        if proc.returncode != 0:
-            return None
 
     return out[0].decode('utf-8')
