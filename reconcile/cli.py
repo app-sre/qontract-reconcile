@@ -80,6 +80,7 @@ import reconcile.ocm_upgrade_scheduler
 import reconcile.ocm_addons
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.ocm_github_idp
+import reconcile.ocm_additional_routers
 import reconcile.email_sender
 import reconcile.sentry_helper
 import reconcile.requests_sender
@@ -1185,6 +1186,14 @@ def ocm_aws_infrastructure_access(ctx):
 @click.pass_context
 def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
+
+
+@integration.command()
+@threaded()
+@click.pass_context
+def ocm_additional_routers(ctx, thread_pool_size):
+    run_integration(reconcile.ocm_additional_routers, ctx.obj,
+                    thread_pool_size)
 
 
 @integration.command()

@@ -623,6 +623,63 @@ class OCM:
             f'upgrade_policies/{upgrade_policy_id}'
         self._delete(api)
 
+    def get_additional_routers(self, cluster):
+        """Returns a list of Additional Application Routers
+
+        :param cluster: cluster name
+
+        :type cluster: string
+        """
+        results = []
+        cluster_id = self.cluster_ids.get(cluster)
+        if not cluster_id:
+            return results
+        api = \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses'
+        items = self._get_json(api).get('items')
+        if not items:
+            return results
+
+        for item in items:
+            # filter out default router
+            if item['default']:
+                continue
+            desired_keys = ['id', 'listening', 'dns_name', 'route_selectors']
+            result = {k: v for k, v in item.items() if k in desired_keys}
+            results.append(result)
+
+        return results
+
+    def create_additional_router(self, cluster, spec):
+        """Creates a new Additional Application Router
+
+        :param cluster: cluster name
+        :param spec: required information for creation
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        api = \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses'
+        self._post(api, spec)
+
+    def delete_additional_router(self, cluster, spec):
+        """Deletes an existing Additional Application Router
+
+        :param cluster: cluster name
+        :param spec: required information for update
+
+        :type cluster: string
+        :type spec: dictionary
+        """
+        cluster_id = self.cluster_ids[cluster]
+        router_id = spec['id']
+        api = \
+            f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
+            f'ingresses/{router_id}'
+        self._delete(api)
+
     def get_provision_shard(self, cluster_id):
         """Returns details of the provision shard
 
