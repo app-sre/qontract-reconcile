@@ -30,7 +30,7 @@ Encrypted credentials:
 """
 
 
-def get_ecrypted_credentials(credentials_name, user, settings, smtp_client):
+def get_encrypted_credentials(credentials_name, user, settings, smtp_client):
     credentials_map = settings['credentials']
     credentials_map_item = \
         [c for c in credentials_map if c['name'] == credentials_name]
@@ -84,16 +84,16 @@ def run(dry_run):
             request_name = credentials_request_to_send['name']
             names = [org_username]
             subject = request_name
-            ecrypted_credentials = get_ecrypted_credentials(credentials_name,
+            encrypted_credentials = get_encrypted_credentials(credentials_name,
                                                             user, settings,
                                                             smtp_client)
-            if not ecrypted_credentials:
+            if not encrypted_credentials:
                 error = True
                 logging.error(
                     f"could not get encrypted credentials {credentials_name}")
                 continue
             body = MESSAGE_TEMPLATE.format(
-                request_name, credentials_name, ecrypted_credentials)
+                request_name, credentials_name, encrypted_credentials)
             smtp_client.send_mail(names, subject, body)
             state.add(request_name)
 
