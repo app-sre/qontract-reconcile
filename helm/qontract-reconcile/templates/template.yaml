@@ -479,3 +479,27 @@ parameters:
 {{- end }}
 {{- end }}
 {{- end }}
+{{- range $i, $integration := .Values.cronjobs }}
+{{- if $integration.resources }}
+{{- if $integration.resources.limits }}
+{{- if $integration.resources.limits.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_LIMIT
+  value: {{ $integration.resources.limits.cpu }}
+{{- end }}
+{{- if $integration.resources.limits.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMIT
+  value: {{ $integration.resources.limits.memory }}
+{{- end }}
+{{- end }}
+{{- if $integration.resources.requests }}
+{{- if $integration.resources.requests.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_REQUEST
+  value: {{ $integration.resources.requests.cpu }}
+{{- end }}
+{{- if $integration.resources.requests.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST
+  value: {{ $integration.resources.requests.memory }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
