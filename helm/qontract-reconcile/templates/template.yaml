@@ -220,8 +220,27 @@ objects:
                 key: {{ $env.secretKey }}
           {{- end }}
           {{- end }}
+          {{- if $integration.resources }}
           resources:
-{{ toYaml $integration.resources | indent 12 }}
+            {{- if $integration.resources.limits }}
+            limits:
+              {{- if $integration.resources.limits.cpu }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS{{ "}" }}
+              {{- end }}
+              {{- if $integration.resources.limits.memory }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS{{ "}" }}
+              {{- end }}
+            {{- end }}
+            {{- if $integration.resources.requests }}
+            requests:
+              {{- if $integration.resources.requests.cpu }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS{{ "}" }}
+              {{- end }}
+              {{- if $integration.resources.requests.memory }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS{{ "}" }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
@@ -342,8 +361,27 @@ objects:
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
+              {{- if $integration.resources }}
               resources:
-{{ toYaml $integration.resources | indent 16 }}
+                {{- if $integration.resources.limits }}
+                limits:
+                  {{- if $integration.resources.limits.cpu }}
+                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS{{ "}" }}
+                  {{- end }}
+                  {{- if $integration.resources.limits.memory }}
+                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS{{ "}" }}
+                  {{- end }}
+                {{- end }}
+                {{- if $integration.resources.requests }}
+                requests:
+                  {{- if $integration.resources.requests.cpu }}
+                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS{{ "}" }}
+                  {{- end }}
+                  {{- if $integration.resources.requests.memory }}
+                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS{{ "}" }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
             restartPolicy: {{ $integration.restartPolicy | default "OnFailure" }}
             volumes:
             - name: qontract-reconcile-toml
@@ -417,3 +455,27 @@ parameters:
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
+{{- range $i, $integration := .Values.integrations }}
+{{- if $integration.resources }}
+{{- if $integration.resources.limits }}
+{{- if $integration.resources.limits.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS
+  value: {{ $integration.resources.limits.cpu }}
+{{- end }}
+{{- if $integration.resources.limits.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS
+  value: {{ $integration.resources.limits.memory }}
+{{- end }}
+{{- end }}
+{{- if $integration.resources.requests }}
+{{- if $integration.resources.requests.cpu }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS
+  value: {{ $integration.resources.requests.cpu }}
+{{- end }}
+{{- if $integration.resources.requests.memory }}
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS
+  value: {{ $integration.resources.requests.memory }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
