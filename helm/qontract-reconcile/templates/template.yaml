@@ -225,19 +225,19 @@ objects:
             {{- if $integration.resources.limits }}
             limits:
               {{- if $integration.resources.limits.cpu }}
-              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS{{ "}" }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMIT{{ "}" }}
               {{- end }}
               {{- if $integration.resources.limits.memory }}
-              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS{{ "}" }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMIT{{ "}" }}
               {{- end }}
             {{- end }}
             {{- if $integration.resources.requests }}
             requests:
               {{- if $integration.resources.requests.cpu }}
-              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS{{ "}" }}
+              cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUEST{{ "}" }}
               {{- end }}
               {{- if $integration.resources.requests.memory }}
-              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS{{ "}" }}
+              memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST{{ "}" }}
               {{- end }}
             {{- end }}
           {{- end }}
@@ -366,19 +366,19 @@ objects:
                 {{- if $integration.resources.limits }}
                 limits:
                   {{- if $integration.resources.limits.cpu }}
-                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS{{ "}" }}
+                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMIT{{ "}" }}
                   {{- end }}
                   {{- if $integration.resources.limits.memory }}
-                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS{{ "}" }}
+                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMIT{{ "}" }}
                   {{- end }}
                 {{- end }}
                 {{- if $integration.resources.requests }}
                 requests:
                   {{- if $integration.resources.requests.cpu }}
-                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS{{ "}" }}
+                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUEST{{ "}" }}
                   {{- end }}
                   {{- if $integration.resources.requests.memory }}
-                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS{{ "}" }}
+                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST{{ "}" }}
                   {{- end }}
                 {{- end }}
               {{- end }}
@@ -459,21 +459,21 @@ parameters:
 {{- if $integration.resources }}
 {{- if $integration.resources.limits }}
 {{- if $integration.resources.limits.cpu }}
-- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_LIMITS
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_LIMIT
   value: {{ $integration.resources.limits.cpu }}
 {{- end }}
 {{- if $integration.resources.limits.memory }}
-- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMITS
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMIT
   value: {{ $integration.resources.limits.memory }}
 {{- end }}
 {{- end }}
 {{- if $integration.resources.requests }}
 {{- if $integration.resources.requests.cpu }}
-- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_REQUESTS
+- name: {{ $integration.name | upper | replace "-" "_" }}_CPU_REQUEST
   value: {{ $integration.resources.requests.cpu }}
 {{- end }}
 {{- if $integration.resources.requests.memory }}
-- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUESTS
+- name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST
   value: {{ $integration.resources.requests.memory }}
 {{- end }}
 {{- end }}
