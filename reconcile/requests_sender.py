@@ -77,13 +77,13 @@ def run(dry_run):
             org_username = user['org_username']
             logging.info(['send_credentials', org_username, credentials_name])
 
+            request_name = credentials_request_to_send['name']
+            names = [org_username]
+            subject = request_name
+            encrypted_credentials = get_encrypted_credentials(
+                credentials_name, user, settings, smtp_client
+            )
             if not dry_run:
-                request_name = credentials_request_to_send['name']
-                names = [org_username]
-                subject = request_name
-                encrypted_credentials = get_encrypted_credentials(
-                    credentials_name, user, settings, smtp_client
-                )
                 body = MESSAGE_TEMPLATE.format(
                     request_name, credentials_name, encrypted_credentials
                 )

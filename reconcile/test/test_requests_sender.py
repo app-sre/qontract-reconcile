@@ -115,3 +115,12 @@ class TestRunInteg(TestCase):
         self.do_exit.assert_called_once()
         self.get_encrypted_credentials.assert_called_once()
         self.smtpclient.return_value.send_mail.assert_not_called()
+
+    def test_dry_run_honored(self):
+        self.state.return_value.exists.return_value = False
+        integ.run(True)
+
+        self.get_encrypted_credentials.assert_called_once()
+        self.do_exit.assert_not_called()
+        self.smtpclient.return_value.send_mail.assert_not_called()
+        self.state.return_value.add.assert_not_called()
