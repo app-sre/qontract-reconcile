@@ -179,7 +179,7 @@ integrations:
       # Limits 30% above requests
       memory: 780Mi
       cpu: 300m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
 - name: openshift-namespaces
