@@ -175,7 +175,11 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: "{{ $integration.extraArgs }}"
           - name: SLEEP_DURATION_SECS
+            {{- if $integration.sleepDurationSecs }}
+            value: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS{{ "}" }}
+            {{- else }}
             value: ${SLEEP_DURATION_SECS}
+            {{- end }}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
@@ -456,6 +460,10 @@ parameters:
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
   value: Always
 {{- range $i, $integration := .Values.integrations }}
+{{- if $integration.sleepDurationSecs }}
+  name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
+  value: {{ $integration.sleepDurationSecs | toString | quote }}
+{{- end }}
 {{- if $integration.resources }}
 {{- if $integration.resources.limits }}
 {{- if $integration.resources.limits.cpu }}
