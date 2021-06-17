@@ -217,6 +217,7 @@ integrations:
       memory: 200Mi
       cpu: 200m
 - name: gitlab-housekeeping
+  sleepDurationSecs: 600
   resources:
     requests:
       memory: 100Mi

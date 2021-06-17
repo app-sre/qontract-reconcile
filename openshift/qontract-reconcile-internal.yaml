@@ -5672,7 +5672,7 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: "--wait-for-pipeline"
           - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
+            value: ${GITLAB_HOUSEKEEPING_SLEEP_DURATION_SECS}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
@@ -7255,6 +7255,8 @@ parameters:
   value: 100m
 - name: GITLAB_OWNERS_MEMORY_REQUEST
   value: 100Mi
+  name: GITLAB_HOUSEKEEPING_SLEEP_DURATION_SECS
+  value: "600"
 - name: GITLAB_HOUSEKEEPING_CPU_LIMIT
   value: 200m
 - name: GITLAB_HOUSEKEEPING_MEMORY_LIMIT
