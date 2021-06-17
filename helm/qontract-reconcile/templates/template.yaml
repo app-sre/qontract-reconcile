@@ -461,7 +461,7 @@ parameters:
   value: Always
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
-  name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
+- name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
   value: {{ $integration.sleepDurationSecs | toString | quote }}
 {{- end }}
 {{- if $integration.resources }}
