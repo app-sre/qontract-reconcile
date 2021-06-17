@@ -35,12 +35,9 @@ def find_builds(jenkins, job_names, rules):
 
     builds_found = []
     for job_name in job_names:
-        builds = None
         for rule in rules:
             if rule['name_re'].search(job_name):
-                # Fetch list of builds if we dont have it already
-                if not builds:
-                    builds = jenkins.get_builds(job_name)
+                builds = jenkins.get_builds(job_name)
                 for build in builds:
                     if time_ms - rule['keep_ms'] > build['timestamp']:
                         builds_found.append({
@@ -49,6 +46,8 @@ def find_builds(jenkins, job_names, rules):
                             'rule_keep_hours': rule['keep_hours'],
                             'build_id': build['id'],
                         })
+                # Only act on the first rule matched
+                break
     return builds_found
 
 
