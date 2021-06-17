@@ -1,9 +1,10 @@
-from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from subprocess import CalledProcessError
+import sys
 
+from unittest import TestCase
+from unittest.mock import patch
 import reconcile.queries as queries
 import reconcile.requests_sender as integ
-import sys
 
 
 class TestRunInteg(TestCase):
@@ -38,11 +39,13 @@ class TestRunInteg(TestCase):
         self.state_patcher = patch.object(integ, 'State')
 
         self.do_exit = self.exit_patcher.start()
-        self.get_encrypted_credentials = self.get_encrypted_creds_patcher.start()
+        self.get_encrypted_credentials = \
+            self.get_encrypted_creds_patcher.start()
         self.smtpclient = self.smtpclient_patcher.start()
         self.get_app_interface_settings = self.get_settings_patcher.start()
         self.get_aws_accounts = self.get_aws_accounts_patcher.start()
-        self.get_credentials_requests = self.get_credentials_requests_patcher.start()
+        self.get_credentials_requests = \
+            self.get_credentials_requests_patcher.start()
         self.get_credentials_requests.return_value = self.requests
         self.get_encrypted_credentials.return_value = 'anencryptedcred'
         self.state = self.state_patcher.start()
@@ -75,12 +78,14 @@ class TestRunInteg(TestCase):
     def test_valid_credentials(self):
         # Yeah, yeah, whatever
         self.state.return_value.exists.return_value = False
-        #import pdb; pdb.set_trace()
         integ.run(False)
         # This has succeeded
         self.do_exit.assert_not_called()
         self.get_encrypted_credentials.assert_called_once_with(
-            'credentials_name', self.user, self.settings, self.smtpclient.return_value
+            'credentials_name',
+            self.user,
+            self.settings,
+            self.smtpclient.return_value
         )
         calls = self.smtpclient.return_value.send_mail.call_args_list
         self.assertEqual(len(calls), 1)
@@ -99,7 +104,10 @@ class TestRunInteg(TestCase):
         self.smtpclient.return_value.send_mail.assert_not_called()
 
     def test_invalid_credentials(self):
-        self.get_encrypted_credentials.return_value = ''
+        self.get_encrypted_credentials.side_effect = CalledProcessError(
+            stderr="iadaiada", returncode=1,
+            cmd="a command"
+        )
         self.state.return_value.exists.return_value = False
         integ.run(False)
         self.do_exit.assert_called_once()

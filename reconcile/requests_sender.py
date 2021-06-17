@@ -1,5 +1,6 @@
 import sys
 import logging
+from subprocess import CalledProcessError
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import SmtpClient
@@ -7,6 +8,7 @@ import reconcile.queries as queries
 
 from reconcile.utils.state import State
 from reconcile.utils.gpg import gpg_encrypt
+
 
 QONTRACT_INTEGRATION = 'requests-sender'
 
@@ -69,33 +71,35 @@ def run(dry_run):
     credentials_requests_to_send = \
         [r for r in credentials_requests if not state.exists(r['name'])]
     for credentials_request_to_send in credentials_requests_to_send:
-        user = credentials_request_to_send['user']
-        org_username = user['org_username']
-        public_gpg_key = user.get('public_gpg_key')
-        credentials_name = credentials_request_to_send['credentials']
-        if not public_gpg_key:
-            error = True
-            logging.error(
-                f"user {org_username} does not have a public gpg key")
-            continue
-        logging.info(['send_credentials', org_username, credentials_name])
+        try:
+            user = credentials_request_to_send['user']
+            credentials_name = credentials_request_to_send['credentials']
+            org_username = user['org_username']
+            logging.info(['send_credentials', org_username, credentials_name])
 
-        if not dry_run:
-            request_name = credentials_request_to_send['name']
-            names = [org_username]
-            subject = request_name
-            encrypted_credentials = get_encrypted_credentials(credentials_name,
-                                                            user, settings,
-                                                            smtp_client)
-            if not encrypted_credentials:
-                error = True
-                logging.error(
-                    f"could not get encrypted credentials {credentials_name}")
-                continue
-            body = MESSAGE_TEMPLATE.format(
-                request_name, credentials_name, encrypted_credentials)
-            smtp_client.send_mail(names, subject, body)
-            state.add(request_name)
+            if not dry_run:
+                request_name = credentials_request_to_send['name']
+                names = [org_username]
+                subject = request_name
+                encrypted_credentials = get_encrypted_credentials(
+                    credentials_name, user, settings, smtp_client
+                )
+                body = MESSAGE_TEMPLATE.format(
+                    request_name, credentials_name, encrypted_credentials
+                )
+                smtp_client.send_mail(names, subject, body)
+                state.add(request_name)
+        except KeyError:
+            logging.exception(
+                f"Bad user details for {org_username} - {credentials_name}"
+            )
+            error = True
+        except CalledProcessError as e:
+            logging.exception(
+                f"Failed to handle GPG key for {org_username} "
+                f"({credentials_name}): {e.stderr}"
+            )
+            error = True
 
     if error:
         sys.exit(1)
