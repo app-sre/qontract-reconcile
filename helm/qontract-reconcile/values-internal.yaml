@@ -238,16 +238,6 @@ integrations:
     slack: true
   state: true
   cache: true
-- name: jenkins-job-builds-cleaner
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  logs:
-    slack: false
 - name: jenkins-roles
   resources:
     requests:
@@ -303,3 +293,15 @@ integrations:
     secretKey: gitlab_pr_submitter_queue_url
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   state: true
+cronjobs:
+- name: jenkins-job-builds-cleaner
+  concurrencyPolicy: "Forbid"
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  # once a hour
+  cron: '0 * * * *'
