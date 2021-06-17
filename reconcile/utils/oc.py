@@ -1,10 +1,9 @@
+import copy
 import json
 import logging
 import os
 import tempfile
 import time
-import copy
-
 from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
@@ -13,6 +12,7 @@ from threading import Lock
 import urllib3
 
 from sretoolbox.utils import retry
+from prometheus_client import Counter
 
 import kubernetes
 
@@ -721,7 +721,7 @@ class OCDeprecated:
         return out_json
 
 
-class OC(OCDeprecated):
+class OCNative(OCDeprecated):
     def __init__(self, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -941,6 +941,32 @@ class OC(OCDeprecated):
         return updated_kgv
 
 
+class OC:
+    client_status = Counter(name='qontract_reconcile_native_client',
+                            documentation='Cluster is using openshift '
+                            'native client',
+                            labelnames=['cluster_name', 'native_client'])
+
+    def __new__(cls, server, token, jh=None, settings=None,
+                init_projects=False, init_api_resources=False,
+                local=False, cluster_name=None):
+        use_native = os.environ.get('USE_NATIVE_CLIENT', False)
+        if use_native:
+            if cluster_name:
+                OC.client_status.labels(
+                    cluster_name=cluster_name, native_client=True).inc()
+            return OCNative(server, token, jh, settings,
+                            init_projects, init_api_resources,
+                            local)
+        else:
+            if cluster_name:
+                OC.client_status.labels(
+                    cluster_name=cluster_name, native_client=False).inc()
+            return OCDeprecated(server, token, jh, settings,
+                                init_projects, init_api_resources,
+                                local)
+
+
 class OC_Map:
     """OC_Map gets a GraphQL query results list as input
     and initiates a dictionary of OC clients per cluster.
@@ -1014,7 +1040,8 @@ class OC_Map:
                 oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,
                                init_projects=self.init_projects,
-                               init_api_resources=self.init_api_resources)
+                               init_api_resources=self.init_api_resources,
+                               cluster_name=cluster)
                 self.set_oc(cluster, oc_client)
             except StatusCodeError as e:
                 self.set_oc(cluster,
