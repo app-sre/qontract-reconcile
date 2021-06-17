@@ -245,13 +245,15 @@ def _trigger_jenkins(spec,
             jenkins = jenkins_map[instance_name]
             try:
                 jenkins.trigger_job(job_name)
-                saasherder.update_state(trigger_type, spec)
             except Exception as e:
                 error = True
                 logging.error(
                     f"could not trigger job {job_name} " +
                     f"in {instance_name}. details: {str(e)}"
                 )
+
+    if not error and not dry_run:
+        saasherder.update_state(trigger_type, spec)
 
     return error
 
