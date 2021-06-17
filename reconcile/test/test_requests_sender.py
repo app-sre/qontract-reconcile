@@ -23,20 +23,22 @@ class TestRunInteg(TestCase):
             }
         ]
 
-        self.exit_patcher = patch.object(sys, 'exit')
+        self.exit_patcher = patch.object(sys, 'exit', autospec=True)
         self.get_encrypted_creds_patcher = patch.object(
             integ, 'get_encrypted_credentials'
         )
-        self.smtpclient_patcher = patch.object(integ, 'SmtpClient')
+        self.smtpclient_patcher = patch.object(
+            integ, 'SmtpClient', autospec=True
+        )
         self.get_settings_patcher = patch.object(
-            queries, 'get_app_interface_settings'
+            queries, 'get_app_interface_settings', autospec=True
         )
         self.get_aws_accounts_patcher = patch.object(
-            queries, 'get_aws_accounts'
+            queries, 'get_aws_accounts', autospec=True
         )
         self.get_credentials_requests_patcher = patch.object(
-            queries, 'get_credentials_requests')
-        self.state_patcher = patch.object(integ, 'State')
+            queries, 'get_credentials_requests', autospec=True)
+        self.state_patcher = patch.object(integ, 'State', autospec=True)
 
         self.do_exit = self.exit_patcher.start()
         self.get_encrypted_credentials = \
