@@ -523,18 +523,12 @@ def sre_checkpoints(ctx):
 
     app_checkpoints = []
     for app in apps:
-        # skip parent apps
-        if app['path'] in parent_apps:
-            continue
-
-        # consider only onboardedApps
-        if app['onboardingStatus'] != 'OnBoarded':
-            continue
-
-        app_checkpoints.append({
-            'name': full_name(app),
-            'last_checkpoint': sre_checkpoints.get(app['name'], '')
-        })
+        if (app['path'] not in parent_apps and
+                app['onboardingStatus'] == 'OnBoarded'):
+            app_checkpoints.append({
+                'name': full_name(app),
+                'last_checkpoint': sre_checkpoints.get(app['name'], '')
+            })
 
     app_checkpoints.sort(key=lambda c: c['last_checkpoint'], reverse=True)
 
