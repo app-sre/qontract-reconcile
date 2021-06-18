@@ -21,6 +21,8 @@ from reconcile.utils.environ import environ
 from reconcile.utils.ocm import OCMMap
 from reconcile.cli import config_file
 
+from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
+
 
 def output(function):
     function = click.option('--output', '-o',
@@ -494,26 +496,7 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
 @get.command()
 @click.pass_context
 def sre_checkpoints(ctx):
-    sre_checkpoints_raw = queries.get_sre_checkpoints()
     apps = queries.get_apps()
-
-    def full_name(app):
-        name = app['name']
-        if app.get('parentApp'):
-            parent_app = app['parentApp']['name']
-            name = f"{parent_app}/{name}"
-        return name
-
-    sre_checkpoints = {}
-    for checkpoint in sre_checkpoints_raw:
-        app = checkpoint['app']
-        name = full_name(app)
-
-        if name not in sre_checkpoints:
-            sre_checkpoints[name] = checkpoint['date']
-        else:
-            if checkpoint['date'] > sre_checkpoints[name]:
-                sre_checkpoints[name] = checkpoint['date']
 
     parent_apps = {
         app['parentApp']['path']
@@ -521,19 +504,22 @@ def sre_checkpoints(ctx):
         if app.get('parentApp')
     }
 
-    app_checkpoints = []
-    for app in apps:
+    latest_sre_checkpoints = get_latest_sre_checkpoints()
+
+    checkpoints_data = [
+        {
+            'name': full_name(app),
+            'latest': latest_sre_checkpoints.get(full_name(app), '')
+        }
+        for app in apps
         if (app['path'] not in parent_apps and
-                app['onboardingStatus'] == 'OnBoarded'):
-            app_checkpoints.append({
-                'name': full_name(app),
-                'last_checkpoint': sre_checkpoints.get(app['name'], '')
-            })
+            app['onboardingStatus'] == 'OnBoarded')
+    ]
 
-    app_checkpoints.sort(key=lambda c: c['last_checkpoint'], reverse=True)
+    checkpoints_data.sort(key=lambda c: c['latest'], reverse=True)
 
-    columns = ['name', 'last checkpoint']
-    print_output(ctx.obj['output'], app_checkpoints, columns)
+    columns = ['name', 'latest']
+    print_output(ctx.obj['output'], checkpoints_data, columns)
 
 
 def print_output(output, content, columns=[]):
