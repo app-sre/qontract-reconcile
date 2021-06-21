@@ -52,6 +52,7 @@ integrations:
   logs:
     slack: true
 - name: quay-mirror
+  sleepDurationSecs: 300
   resources:
     requests:
       memory: 150Mi

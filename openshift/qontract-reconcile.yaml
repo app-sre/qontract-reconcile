@@ -1115,7 +1115,7 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: ""
           - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
+            value: ${QUAY_MIRROR_SLEEP_DURATION_SECS}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
@@ -17320,6 +17320,8 @@ parameters:
   value: 100m
 - name: QUAY_MEMBERSHIP_MEMORY_REQUEST
   value: 50Mi
+- name: QUAY_MIRROR_SLEEP_DURATION_SECS
+  value: "300"
 - name: QUAY_MIRROR_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_MEMORY_LIMIT
