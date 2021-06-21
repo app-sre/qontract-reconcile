@@ -17321,7 +17321,7 @@ parameters:
 - name: QUAY_MEMBERSHIP_MEMORY_REQUEST
   value: 50Mi
 - name: QUAY_MIRROR_SLEEP_DURATION_SECS
-  value: "300"
+  value: "1200"
 - name: QUAY_MIRROR_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_MEMORY_LIMIT
