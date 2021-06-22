@@ -1,4 +1,4 @@
-from mock import patch
+from unittest.mock import patch
 
 # import reconcile.queries as queries
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
