@@ -196,6 +196,8 @@ class QuayMirror:
         return sync_tasks
 
     def _is_deep_sync(self, interval):
+        return False  # temporary
+
         control_file_name = 'qontract-reconcile-quay-mirror.timestamp'
         control_file_path = os.path.join(tempfile.gettempdir(),
                                          control_file_name)
