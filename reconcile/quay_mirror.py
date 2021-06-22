@@ -196,6 +196,7 @@ class QuayMirror:
         return sync_tasks
 
     def _is_deep_sync(self, interval):
+        # pylint: disable=unreachable
         return False  # temporary
 
         control_file_name = 'qontract-reconcile-quay-mirror.timestamp'
