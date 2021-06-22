@@ -120,8 +120,8 @@ class QuayMirror:
         return True
 
     def process_sync_tasks(self):
-        eight_hours = 28800  # 60 * 60 * 8
-        is_deep_sync = self._is_deep_sync(interval=eight_hours)
+        twenty_four_hours = 86400  # 60 * 60 * 24
+        is_deep_sync = self._is_deep_sync(interval=twenty_four_hours)
 
         summary = self.process_repos_query()
         sync_tasks = defaultdict(list)
