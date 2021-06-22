@@ -839,6 +839,10 @@ APPS_QUERY = """
       name
       email
     }
+    parentApp {
+      path
+      name
+    }
     codeComponents {
       url
       resource
@@ -1902,3 +1906,21 @@ SLO_DOCUMENTS_QUERY = """
 def get_slo_documents():
     gqlapi = gql.get_api()
     return gqlapi.query(SLO_DOCUMENTS_QUERY)['slo_documents']
+
+
+SRE_CHECKPOINTS_QUERY = """
+{
+  sre_checkpoints: sre_checkpoints_v1 {
+    app {
+      name
+      onboardingStatus
+    }
+    date
+  }
+}
+"""
+
+
+def get_sre_checkpoints():
+    gqlapi = gql.get_api()
+    return gqlapi.query(SRE_CHECKPOINTS_QUERY)['sre_checkpoints']
