@@ -79,6 +79,7 @@ class SaasHerder():
         self.valid = True
         saas_file_name_path_map = {}
         saas_file_promotion_publish_channels = []
+        self.tkn_unique_pipelineruns = {}
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -96,6 +97,16 @@ class SaasHerder():
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
+                    target_namespace = target['namespace']
+                    namespace_name = target_namespace['name']
+                    cluster_name = target_namespace['cluster']['name']
+                    environment = target_namespace['environment']
+                    environment_name = environment['name']
+                    # unique saas file and env name combination
+                    self._check_saas_file_env_combo_unique(
+                        saas_file_name,
+                        environment_name
+                    )
                     # promotion publish channels
                     promotion = target.get('promotion')
                     if promotion:
@@ -108,11 +119,6 @@ class SaasHerder():
                     if not target_parameters:
                         continue
                     target_parameters = json.loads(target_parameters)
-                    target_namespace = target['namespace']
-                    namespace_name = target_namespace['name']
-                    cluster_name = target_namespace['cluster']['name']
-                    environment = target_namespace['environment']
-                    environment_name = environment['name']
                     environment_parameters = environment['parameters']
                     if not environment_parameters:
                         continue
@@ -177,6 +183,24 @@ class SaasHerder():
             msg = 'saas file promotion publish channel is not unique: {}'
             for duplicate in duplicates:
                 logging.error(msg.format(duplicate))
+
+    def _check_saas_file_env_combo_unique(self, saas_file_name, env_name):
+        # max tekton pipelinerun name length can be 63.
+        # leaving 12 for the timestamp leaves us with 51
+        # to create a unique pipelinerun name
+        tkn_long_name = f"{saas_file_name}-{env_name}"
+        tkn_name = tkn_long_name[:50]
+        if tkn_name in self.tkn_unique_pipelineruns.keys() and \
+                self.tkn_unique_pipelineruns[tkn_name] != tkn_long_name:
+            logging.error(
+                f'[{saas_file_name}/{env_name}] '
+                'saas file and env name combination must be '
+                'unique in the first 50 chars. '
+                f'found not unique value: {tkn_name} '
+                f'from this long name: {tkn_long_name}')
+            self.valid = False
+        else:
+            self.tkn_unique_pipelineruns[tkn_name] = tkn_long_name
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
