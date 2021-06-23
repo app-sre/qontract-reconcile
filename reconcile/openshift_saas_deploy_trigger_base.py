@@ -12,7 +12,8 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.saasherder import SaasHerder, Providers
+from reconcile.utils.saasherder import SaasHerder, Providers, \
+    UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
 
@@ -339,7 +340,7 @@ def _construct_tekton_trigger_resource(saas_file_name,
     # with what we currently have in Jenkins.
     ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
     # max name length can be 63. leaving 12 for the timestamp - 51
-    name = f"{long_name[:50]}-{ts}"
+    name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
     body = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",

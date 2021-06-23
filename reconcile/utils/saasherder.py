@@ -32,6 +32,9 @@ class TriggerTypes:
     UPSTREAM_JOBS = 2
 
 
+UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
+
+
 class SaasHerder():
     """Wrapper around SaaS deployment actions."""
 
@@ -189,13 +192,13 @@ class SaasHerder():
         # leaving 12 for the timestamp leaves us with 51
         # to create a unique pipelinerun name
         tkn_long_name = f"{saas_file_name}-{env_name}"
-        tkn_name = tkn_long_name[:50]
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
         if tkn_name in self.tkn_unique_pipelineruns.keys() and \
                 self.tkn_unique_pipelineruns[tkn_name] != tkn_long_name:
             logging.error(
                 f'[{saas_file_name}/{env_name}] '
                 'saas file and env name combination must be '
-                'unique in the first 50 chars. '
+                f'unique in first {UNIQUE_SAAS_FILE_ENV_COMBO_LEN} chars. '
                 f'found not unique value: {tkn_name} '
                 f'from this long name: {tkn_long_name}')
             self.valid = False
