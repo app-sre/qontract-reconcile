@@ -52,19 +52,15 @@ def gpg_encrypt(content, recepient, public_gpg_key):
         # import public gpg key
         proc = run(['gpg', '--homedir', gnupg_home_dir,
                     '--import'],
-                   stdin=PIPE,
-                   stdout=PIPE,
-                   stderr=STDOUT,
+                   input=public_gpg_key_dec,
                    check=True)
-        out = proc.communicate(public_gpg_key_dec)
         # encrypt content
         proc = run(['gpg', '--homedir', gnupg_home_dir,
                     '--trust-model', 'always',
                     '--encrypt', '--armor', '-r', recepient],
-                   stdin=PIPE,
+                   input=content.encode(),
                    stdout=PIPE,
                    stderr=STDOUT,
                    check=True)
-        out = proc.communicate(content.encode())
-
-    return out[0].decode('utf-8')
+        out = proc.stdout
+    return out.decode('utf-8')
