@@ -97,7 +97,7 @@ def run(dry_run):
         except CalledProcessError as e:
             logging.exception(
                 f"Failed to handle GPG key for {org_username} "
-                f"({credentials_name}): {e.stderr}"
+                f"({credentials_name}): {e.stdout}"
             )
             error = True
 
