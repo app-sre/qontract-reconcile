@@ -1,0 +1,88 @@
+gql_response:
+  - name: cluster1
+    additionalRouters:
+    - private: True
+  - name: cluster2
+    additionalRouters:
+    - private: False
+  - name: cluster3
+    additionalRouters:
+    - private: False
+      route_selectors: "{\"key\":\"value\"}"
+  - name: cluster4
+    additionalRouters: []
+
+desired_state:
+- cluster: cluster1
+  listening: internal
+- cluster: cluster2
+  listening: external
+- cluster: cluster3
+  listening: external
+  route_selectors:
+    key: value
+
+ocm_api:
+  cluster1: []
+  cluster2:
+  - listening: internal
+  cluster3:
+  - listening: external
+    route_selectors:
+      key: value1
+  cluster4:
+  - listening: external
+
+current_state:
+- cluster: cluster2
+  listening: internal
+- cluster: cluster3
+  listening: external
+  route_selectors:
+    key: value1
+- cluster: cluster4
+  listening: external
+
+diffs:
+- cluster: cluster1
+  listening: internal
+  action: create
+- cluster: cluster2
+  listening: external
+  action: create
+- cluster: cluster3
+  listening: external
+  route_selectors:
+    key: value
+  action: create
+- cluster: cluster2
+  listening: internal
+  action: delete
+- cluster: cluster3
+  listening: external
+  route_selectors:
+    key: value1
+  action: delete
+- cluster: cluster4
+  listening: external
+  action: delete
+
+ocm_act:
+  create:
+    cluster1:
+      listening: internal
+    cluster2:
+      listening: external
+    cluster3:
+      listening: external
+      route_selectors:
+        key: value
+  delete:
+    cluster2:
+      listening: internal
+    cluster3:
+      listening: external
+      route_selectors:
+        key: value1
+    cluster4:
+      listening: external
