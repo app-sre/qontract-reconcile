@@ -13,6 +13,13 @@ AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
 KAS_API_BASE = '/api/managed-services-api'
 
+MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
+                             'replicas', 'labels', 'taints'}
+UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
+ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
+AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
+CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
+
 
 class OCM:
     """
@@ -512,9 +519,8 @@ class OCM:
             return results
 
         for item in items:
-            desired_keys = ['id', 'instance_type',
-                            'replicas', 'labels', 'taints']
-            result = {k: v for k, v in item.items() if k in desired_keys}
+            result = {k: v for k, v in item.items()
+                      if k in MACHINE_POOL_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -587,8 +593,8 @@ class OCM:
         for item in items:
             if schedule_type and item['schedule_type'] != schedule_type:
                 continue
-            desired_keys = ['id', 'schedule_type', 'schedule', 'next_run']
-            result = {k: v for k, v in item.items() if k in desired_keys}
+            result = {k: v for k, v in item.items()
+                      if k in UPGRADE_POLICY_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -644,8 +650,8 @@ class OCM:
             # filter out default router
             if item['default']:
                 continue
-            desired_keys = ['id', 'listening', 'dns_name', 'route_selectors']
-            result = {k: v for k, v in item.items() if k in desired_keys}
+            result = {k: v for k, v in item.items()
+                      if k in ROUTER_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -696,8 +702,8 @@ class OCM:
         autoscale = cluster['nodes'].get('autoscale_compute', None)
         if autoscale is None:
             return None
-        desired_keys = ['min_replicas', 'max_replicas']
-        return {k: v for k, v in autoscale.items() if k in desired_keys}
+        return {k: v for k, v in autoscale.items()
+                if k in AUTOSCALE_DESIRED_KEYS}
 
     def get_pull_secrets(self,):
         api = f'{AMS_API_BASE}/v1/access_token'
@@ -772,8 +778,8 @@ class OCM:
             return results
 
         for item in items:
-            desired_keys = ['id', 'parameters']
-            result = {k: v for k, v in item.items() if k in desired_keys}
+            result = {k: v for k, v in item.items()
+                      if k in CLUSTER_ADDON_DESIRED_KEYS}
             parameters = result.pop('parameters', None)
             if parameters is not None:
                 result['parameters'] = parameters['items']

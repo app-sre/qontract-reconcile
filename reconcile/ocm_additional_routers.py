@@ -37,7 +37,7 @@ def fetch_desired_state(clusters):
                 'listening': listening,
                 'cluster': cluster_name
             }
-            selectors = router['route_selectors']
+            selectors = router.get('route_selectors', None)
             if selectors:
                 item['route_selectors'] = json.loads(selectors)
             desired_state.append(item)
@@ -47,7 +47,6 @@ def fetch_desired_state(clusters):
 
 def calculate_diff(current_state, desired_state):
     diffs = []
-    err = False
     for d in desired_state:
         c = [c for c in current_state
              if d.items() <= c.items()]
@@ -62,7 +61,7 @@ def calculate_diff(current_state, desired_state):
             c['action'] = 'delete'
             diffs.append(c)
 
-    return diffs, err
+    return diffs
 
 
 def sort_diffs(diff):
@@ -87,7 +86,7 @@ def act(dry_run, diffs, ocm_map):
                 ocm.delete_additional_router(cluster, diff)
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters
                 if c.get('additionalRouters') is not None]
@@ -98,8 +97,5 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
     ocm_map, current_state = fetch_current_state(clusters)
     desired_state = fetch_desired_state(clusters)
-    diffs, err = calculate_diff(current_state, desired_state)
+    diffs = calculate_diff(current_state, desired_state)
     act(dry_run, diffs, ocm_map)
-
-    if err:
-        sys.exit(ExitCodes.ERROR)
