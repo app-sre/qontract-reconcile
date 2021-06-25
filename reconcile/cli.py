@@ -103,7 +103,7 @@ import reconcile.jenkins_job_builds_cleaner
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
 
-from reconcile.utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+from reconcile.utils.gql import (GqlApiErrorForbiddenSchema,
                                  GqlApiIntegrationNotFound)
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
@@ -414,14 +414,6 @@ def run_integration(func_container, ctx, *args, **kwargs):
     except GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
-    except GqlApiError as e:
-        if '409' in str(e):
-            logging.info('Data changed during execution. This is fine.')
-            # exit code to relect conflict
-            # TODO: document this better
-            sys.exit(ExitCodes.DATA_CHANGED)
-        else:
-            raise e
     finally:
         if ctx.get('dump_schemas_file'):
             gqlapi = gql.get_api()

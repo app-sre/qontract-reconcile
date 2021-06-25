@@ -68,14 +68,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -274,14 +266,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -494,14 +478,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -699,14 +675,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -895,14 +863,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -1106,14 +1066,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -1326,14 +1278,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -1541,14 +1485,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -1742,14 +1678,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -1953,14 +1881,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -2153,14 +2073,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -2366,14 +2278,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -2569,14 +2473,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -2782,14 +2678,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -2985,14 +2873,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -3198,14 +3078,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -3401,14 +3273,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -3614,14 +3478,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -3817,14 +3673,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -4030,14 +3878,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -4233,14 +4073,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -4446,14 +4278,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -4648,14 +4472,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -4839,14 +4655,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -5045,14 +4853,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -5241,14 +5041,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -5447,14 +5239,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -5639,14 +5423,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -5817,14 +5593,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -6018,14 +5786,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -6233,14 +5993,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -6443,14 +6195,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -6641,14 +6385,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep
@@ -6847,14 +6583,6 @@ objects:
               @type grep
               <exclude>
                 key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
                 pattern /using gql endpoint/
               </exclude>
             </filter>
@@ -7034,14 +6762,6 @@ objects:
                 @type none
               </parse>
             </source>
-
-            <filter integration>
-              @type grep
-              <exclude>
-                key message
-                pattern /HTTP Error 409: Conflict/
-              </exclude>
-            </filter>
 
             <filter integration>
               @type grep

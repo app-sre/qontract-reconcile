@@ -87,9 +87,6 @@ if __name__ == "__main__":
         run_status.labels(integration=INTEGRATION_NAME,
                           shards=SHARDS, shard_id=SHARD_ID).set(return_code)
 
-        if return_code == ExitCodes.DATA_CHANGED:
-            continue
-
         if RUN_ONCE:
             sys.exit(return_code)
 

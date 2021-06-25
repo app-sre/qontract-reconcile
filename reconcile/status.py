@@ -1,7 +1,6 @@
 class ExitCodes:
     SUCCESS = 0
     ERROR = 1
-    DATA_CHANGED = 3
     INTEGRATION_NOT_FOUND = 4
     FORBIDDEN_SCHEMA = 5
 
