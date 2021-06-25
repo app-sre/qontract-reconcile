@@ -2,4 +2,4 @@
 branch = True
 omit = reconcile/tests/*
 [report]
-fail_under = 20.28
+fail_under = 20.75
