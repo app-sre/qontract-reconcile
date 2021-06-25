@@ -84,8 +84,8 @@ if __name__ == "__main__":
 
         run_time.labels(integration=INTEGRATION_NAME,
                         shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
-        run_status.labels(integration=INTEGRATION_NAME, status=return_code,
-                          shards=SHARDS, shard_id=SHARD_ID).inc()
+        run_status.labels(integration=INTEGRATION_NAME,
+                          shards=SHARDS, shard_id=SHARD_ID).set(return_code)
 
         if return_code == ExitCodes.DATA_CHANGED:
             continue

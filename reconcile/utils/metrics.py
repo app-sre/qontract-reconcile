@@ -7,10 +7,9 @@ run_time = Gauge(name='qontract_reconcile_last_run_seconds',
                  documentation='Last run duration in seconds',
                  labelnames=['integration', 'shards', 'shard_id'])
 
-run_status = Counter(name='qontract_reconcile_run_status',
-                     documentation='Status of the runs',
-                     labelnames=['integration', 'status',
-                                 'shards', 'shard_id'])
+run_status = Gauge(name='qontract_reconcile_last_run_status',
+                   documentation='Last run status',
+                   labelnames=['integration', 'shards', 'shard_id'])
 
 reconcile_time = Histogram(name='qontract_reconcile_function_'
                                 'elapsed_seconds_since_bundle_commit',
