@@ -977,6 +977,14 @@ USERS_QUERY = """
     slack_username
     pagerduty_username
     public_gpg_key
+    {% if refs %}
+    requests {
+      path
+    }
+    queries {
+      path
+    }
+    {% endif %}
   }
 }
 """
@@ -1066,10 +1074,11 @@ def get_roles(aws=True, saas_files=True, sendgrid=False):
     return gqlapi.query(query)['users']
 
 
-def get_users():
+def get_users(refs=False):
     """ Returnes all Users. """
     gqlapi = gql.get_api()
-    return gqlapi.query(USERS_QUERY)['users']
+    query = Template(USERS_QUERY).render(refs=refs)
+    return gqlapi.query(query)['users']
 
 
 BOTS_QUERY = """
