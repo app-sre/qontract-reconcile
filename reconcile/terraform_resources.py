@@ -233,9 +233,10 @@ def populate_oc_resources(spec, ri, account_name):
             openshift_resource = OR(item,
                                     QONTRACT_INTEGRATION,
                                     QONTRACT_INTEGRATION_VERSION)
-            caller = openshift_resource.caller
-            if account_name and caller and caller != account_name:
-                continue
+            if account_name:
+                caller = openshift_resource.caller
+                if caller and caller != account_name:
+                    continue
 
             ri.add_current(
                 spec.cluster,
