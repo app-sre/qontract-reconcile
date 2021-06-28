@@ -3,6 +3,7 @@ import logging
 
 from reconcile.utils.gpg import gpg_key_valid
 import reconcile.queries as queries
+from reconcile.utils.smtp_client import SmtpClient
 
 
 QONTRACT_INTEGRATION = 'user-validator'
@@ -28,10 +29,13 @@ def validate_users_single_path(users):
 
 def validate_users_gpg_key(users):
     ok = True
+    settings = queries.get_app_interface_settings()
+    smtp_client = SmtpClient(settings=settings)
     for user in users:
         public_gpg_key = user.get('public_gpg_key')
         if public_gpg_key:
-            gpg_ok, error_message = gpg_key_valid(public_gpg_key)
+            recipient = smtp_client.get_recipient(user['org_username'])
+            gpg_ok, error_message = gpg_key_valid(public_gpg_key, recipient)
             if not gpg_ok:
                 msg = \
                     'invalid public gpg key for user {}: {}'.format(

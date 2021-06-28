@@ -6,9 +6,10 @@ from subprocess import PIPE, Popen, STDOUT, run
 ERR_SPACES = 'key has spaces in it'
 ERR_EQUAL_SIGNS = 'equal signs should only appear at the end of the key'
 ERR_BASE64 = 'could not perform base64 decode of key'
+ERR_SIGNER = 'key signer dose not match with user org email address '
 
 
-def gpg_key_valid(public_gpg_key):
+def gpg_key_valid(public_gpg_key, recipient=None):
     stripped_public_gpg_key = public_gpg_key.rstrip()
     if ' ' in stripped_public_gpg_key:
         msg = ERR_SPACES
@@ -33,6 +34,10 @@ def gpg_key_valid(public_gpg_key):
         out = proc.communicate(public_gpg_key_dec)
         if proc.returncode != 0:
             return False, out
+
+        if recipient and recipient not in str(out):
+            msg = ERR_SIGNER + recipient
+            return False, msg
 
         keys = out[0].decode('utf-8').split('\n')
         key_types = [k.split(' ')[0] for k in keys if k]
