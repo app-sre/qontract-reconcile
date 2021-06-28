@@ -14,13 +14,17 @@ QONTRACT_INTEGRATION = 'ldap-users'
 
 
 def init_users():
-    app_int_users = queries.get_users()
+    app_int_users = queries.get_users(refs=True)
 
-    users = defaultdict(list)
+    users = defaultdict(set)
     for user in app_int_users:
         u = user['org_username']
         p = 'data' + user['path']
-        users[u].append(p)
+        users[u].add(p)
+        for r in user.get('requests'):
+            users[u].add('data' + r['path'])
+        for q in user.get('queries'):
+            users[u].add('data' + q['path'])
 
     return [{'username': username, 'paths': paths}
             for username, paths in users.items()]
