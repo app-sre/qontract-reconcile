@@ -264,7 +264,8 @@ class TerraformClient:
                 output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
                 oc_resource = \
-                    self.construct_oc_resource(output_resource_name, data)
+                    self.construct_oc_resource(output_resource_name, data,
+                                               account)
                 ri.add_desired(
                     cluster,
                     namespace,
@@ -396,7 +397,7 @@ class TerraformClient:
             return data[list(data.keys())[0]]
         return data
 
-    def construct_oc_resource(self, name, data):
+    def construct_oc_resource(self, name, data, account):
         body = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -422,7 +423,8 @@ class TerraformClient:
             body['data'][k] = v
 
         return OR(body, self.integration, self.integration_version,
-                  error_details=name)
+                  error_details=name,
+                  caller_name=account)
 
     def check_output(self, name, cmd, return_code, stdout, stderr):
         error_occured = False
