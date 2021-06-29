@@ -289,7 +289,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   shards: 2
 - name: terraform-aws-route53
   resources:

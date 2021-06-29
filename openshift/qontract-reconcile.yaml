@@ -11737,7 +11737,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-routes
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -11912,7 +11912,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-routes
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--no-use-jump-host"
+            value: "--external --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API

@@ -105,6 +105,17 @@ integrations:
       cpu: 400m
   extraArgs: --internal
   internalCertificates: true
+- name: openshift-routes
+  resources:
+    requests:
+      # Known peaks are at 770Mi
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 300m
+  extraArgs: --internal
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
