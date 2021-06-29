@@ -35,11 +35,12 @@ def validate_users_gpg_key(users):
         public_gpg_key = user.get('public_gpg_key')
         if public_gpg_key:
             recipient = smtp_client.get_recipient(user['org_username'])
-            gpg_ok, error_message = gpg_key_valid(public_gpg_key, recipient)
-            if not gpg_ok:
+            try:
+                gpg_key_valid(public_gpg_key, recipient)
+            except ValueError as e:
                 msg = \
                     'invalid public gpg key for user {}: {}'.format(
-                        user['org_username'], error_message)
+                        user['org_username'], str(e))
                 logging.error(msg)
                 ok = False
 
