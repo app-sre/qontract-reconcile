@@ -47,7 +47,7 @@ def gpg_key_valid(public_gpg_key, recipient=None):
         raise ValueError(ERR_ENTRIES)
 
 
-def gpg_encrypt(content, recepient, public_gpg_key):
+def gpg_encrypt(content, recipient, public_gpg_key):
     public_gpg_key_dec = base64.b64decode(public_gpg_key)
 
     with tempfile.TemporaryDirectory() as gnupg_home_dir:
@@ -59,7 +59,7 @@ def gpg_encrypt(content, recepient, public_gpg_key):
         # encrypt content
         proc = run(['gpg', '--homedir', gnupg_home_dir,
                     '--trust-model', 'always',
-                    '--encrypt', '--armor', '-r', recepient],
+                    '--encrypt', '--armor', '-r', recipient],
                    input=content.encode(),
                    stdout=PIPE,
                    stderr=STDOUT,
