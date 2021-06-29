@@ -1189,11 +1189,9 @@ def ocm_github_idp(ctx, vault_input_path):
 
 
 @integration.command()
-@threaded()
 @click.pass_context
-def ocm_additional_routers(ctx, thread_pool_size):
-    run_integration(reconcile.ocm_additional_routers, ctx.obj,
-                    thread_pool_size)
+def ocm_additional_routers(ctx):
+    run_integration(reconcile.ocm_additional_routers, ctx.obj)
 
 
 @integration.command()
