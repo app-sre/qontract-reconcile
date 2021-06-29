@@ -4,41 +4,7 @@ from unittest.mock import patch
 import reconcile.utils.gpg as gpg
 
 
-class TestGpgKeyValid(TestCase):
-    def test_gpg_key_invalid_spaces(self):
-        key = 'key with spaces'
-        valid, msg = gpg.gpg_key_valid(key)
-        self.assertFalse(valid)
-        self.assertEqual(msg, gpg.ERR_SPACES)
-
-    def test_gpg_key_invalid_equal_signs(self):
-        key = 'equal=signs=not=at=end=of=key'
-        valid, msg = gpg.gpg_key_valid(key)
-        self.assertFalse(valid)
-        self.assertEqual(msg, gpg.ERR_EQUAL_SIGNS)
-
-    def test_gpg_key_invalid_base64(self):
-        # $ echo -n "hello world" | base64
-        # aGVsbG8gd29ybGQ=
-        key = 'aGVsbG8gd29ybGQ'
-        valid, msg = gpg.gpg_key_valid(key)
-        self.assertFalse(valid)
-        self.assertEqual(msg, gpg.ERR_BASE64)
-
-
-# We have to mangle the namespace of the gpg module, since it imports
-# Popen. Had that module chosen "import subprocess;
-# subprocess.Popen(...)" we'd be patching subprocess instead.
-class TestGpgEncrypt(TestCase):
-    @patch.object(gpg, 'run')
-    def test_gpg_encrypt_all_ok(self, popen):
-        popen.return_value.stdout = b"stdout"
-
-        self.assertEqual(gpg.gpg_encrypt('acontent', 'arecipient', 'akey'),
-                         'stdout')
-
-    def test_gpg_encrypt_nomocks(self):
-        key = """mQINBGCS110BEACsFiswhxDQs2sIox7etkdifJ5r//RAcUIg1lqZLwfGrQQgK62A9aT5cO8SQy8V
+VALID_KEY = """mQINBGCS110BEACsFiswhxDQs2sIox7etkdifJ5r//RAcUIg1lqZLwfGrQQgK62A9aT5cO8SQy8V
 pxapAWStvR99vRFPuUbWDSh1RJT/snc1Cawe+QyIOUuG+m13fKk0HGICrVvnC9K0jxCGK4YO/1p1
 d/OAHoV8IRbrAHX/IqNVM1vUYd8ozIFs/54gtNo7YMz9SE3haIWZjMVydFMqL5Q1ftSHDaFbk7nX
 upda+9uWz+Y59HNipOT2O59JByV6OZI870nQGmVw1rmceKFkF0Z3mrG1KeyfC1cQGx7blMZBXSIw
@@ -80,6 +46,48 @@ k3hanB+U17tcmMfoAnfB2pa6gExEy31+ZHj033YJRmXh5m4+tFwF2qJq1n7lAdTvLvBwdJsesEec
 f6lhzoNbWoDKKpTwRs+CZfVSHJ6KQhfD1zcbhaJhDt/pjQxnsOR6MrHHa6VTU4KoYuvGRw5n3Vlm
 W1DegErhvC6nwh/J0GOLws2gRzVo+2RzB7if"""
 
+
+class TestGpgKeyValid(TestCase):
+    def test_gpg_key_invalid_spaces(self):
+        key = 'key with spaces'
+        with self.assertRaises(ValueError) as e:
+            gpg.gpg_key_valid(key)
+        self.assertEqual(str(e.exception), gpg.ERR_SPACES)
+
+    def test_gpg_key_invalid_equal_signs(self):
+        key = 'equal=signs=not=at=end=of=key'
+        with self.assertRaises(ValueError) as e:
+            gpg.gpg_key_valid(key)
+        self.assertEqual(str(e.exception), gpg.ERR_EQUAL_SIGNS)
+
+    def test_gpg_key_invalid_base64(self):
+        # $ echo -n "hello world" | base64
+        # aGVsbG8gd29ybGQ=
+        key = 'aGVsbG8gd29ybGQ'
+        with self.assertRaises(ValueError) as e:
+            gpg.gpg_key_valid(key)
+        self.assertEqual(str(e.exception), gpg.ERR_BASE64)
+
+    def test_gpg_key_signer(self):
+        recipient = 'someone@redhat.com'
+        with self.assertRaises(ValueError) as e:
+            gpg.gpg_key_valid(VALID_KEY, recipient)
+        self.assertEqual(str(e.exception), f"{gpg.ERR_SIGNER} {recipient}")
+
+
+# We have to mangle the namespace of the gpg module, since it imports
+# Popen. Had that module chosen "import subprocess;
+# subprocess.Popen(...)" we'd be patching subprocess instead.
+class TestGpgEncrypt(TestCase):
+    @patch.object(gpg, 'run')
+    def test_gpg_encrypt_all_ok(self, popen):
+        popen.return_value.stdout = b"stdout"
+
+        self.assertEqual(gpg.gpg_encrypt('acontent', 'arecipient', 'akey'),
+                         'stdout')
+
+    def test_gpg_encrypt_nomocks(self):
+
         self.assertTrue(
-            gpg.gpg_encrypt("a message", "lmunozme@redhat.com", key)
+            gpg.gpg_encrypt("a message", "lmunozme@redhat.com", VALID_KEY)
         )
