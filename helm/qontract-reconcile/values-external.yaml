@@ -423,7 +423,7 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-- name: ocm-additional-router
+- name: ocm-additional-routers
   resources:
     requests:
       memory: 100Mi
