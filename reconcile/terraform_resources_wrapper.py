@@ -1,4 +1,5 @@
 import sys
+import logging
 
 import reconcile.queries as queries
 import reconcile.terraform_resources as tfr
@@ -46,9 +47,8 @@ def run(dry_run, print_only=False,
     account_names = sorted([a['name'] for a in queries.get_aws_accounts()])
 
     in_shard_account_names = [
-        name for name in account_names
+        name for index, name in enumerate(account_names)
         if is_in_shard_round_robin(name, index)
-        for index, name in enumerate(account_names)
     ]
 
     if not in_shard_account_names:
