@@ -1051,7 +1051,8 @@ def terraform_resources(ctx, print_only, enable_deletion,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path,
-                    account_name=account_name)
+                    account_name=account_name,
+                    extra_labels=ctx.obj['extra_labels'])
 
 
 @integration.command()
