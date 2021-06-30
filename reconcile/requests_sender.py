@@ -41,10 +41,10 @@ def get_encrypted_credentials(credentials_name, user, settings, smtp_client):
     secret = credentials_map_item[0]['secret']
     secret_reader = SecretReader(settings=settings)
     credentials = secret_reader.read(secret)
-    recepient = smtp_client.get_recipient(user['org_username'])
+    recipient = smtp_client.get_recipient(user['org_username'])
     public_gpg_key = user['public_gpg_key']
     encrypted_credentials = \
-        gpg_encrypt(credentials, recepient, public_gpg_key)
+        gpg_encrypt(credentials, recipient, public_gpg_key)
 
     return encrypted_credentials
 
