@@ -2,7 +2,7 @@ from prometheus_client import Gauge
 from prometheus_client import Histogram
 
 
-extra_labels = {'key': None}
+extra_labels = {'shard_key': None}
 label_keys = list(extra_labels.keys())
 
 run_time = Gauge(

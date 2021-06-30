@@ -299,7 +299,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
                     if n['name'] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
-        extra_labels['key'] = account_name
+        extra_labels['shard_key'] = account_name
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
