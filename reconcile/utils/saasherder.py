@@ -865,55 +865,61 @@ class SaasHerder():
         github = self._initiate_github(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
-            rt_name = rt['name']
-            url = rt['url']
-            for target in rt['targets']:
-                # don't trigger if there is a linked upstream job
-                if target.get('upstream'):
-                    continue
-                ref = target['ref']
-                get_commit_sha_options = {
-                    'url': url,
-                    'ref': ref,
-                    'github': github
-                }
-                desired_commit_sha = \
-                    self._get_commit_sha(get_commit_sha_options)
-                # don't trigger on refs which are commit shas
-                if ref == desired_commit_sha:
-                    continue
-                namespace = target['namespace']
-                cluster_name = namespace['cluster']['name']
-                namespace_name = namespace['name']
-                env_name = namespace['environment']['name']
-                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
-                    f"{namespace_name}/{env_name}/{ref}"
-                current_commit_sha = self.state.get(key, None)
-                # skip if there is no change in commit sha
-                if current_commit_sha == desired_commit_sha:
-                    continue
-                # don't trigger if this is the first time
-                # this target is being deployed.
-                # that will be taken care of by
-                # openshift-saas-deploy-trigger-configs
-                if current_commit_sha is None:
-                    # store the value to take over from now on
-                    if not dry_run:
-                        self.state.add(key, value=desired_commit_sha)
-                    continue
-                # we finally found something we want to trigger on!
-                job_spec = {
-                    'saas_file_name': saas_file_name,
-                    'env_name': env_name,
-                    'timeout': timeout,
-                    'pipelines_provider': pipelines_provider,
-                    'rt_name': rt_name,
-                    'cluster_name': cluster_name,
-                    'namespace_name': namespace_name,
-                    'ref': ref,
-                    'commit_sha': desired_commit_sha
-                }
-                trigger_specs.append(job_spec)
+            try:
+                rt_name = rt['name']
+                url = rt['url']
+                for target in rt['targets']:
+                    # don't trigger if there is a linked upstream job
+                    if target.get('upstream'):
+                        continue
+                    ref = target['ref']
+                    get_commit_sha_options = {
+                        'url': url,
+                        'ref': ref,
+                        'github': github
+                    }
+                    desired_commit_sha = \
+                        self._get_commit_sha(get_commit_sha_options)
+                    # don't trigger on refs which are commit shas
+                    if ref == desired_commit_sha:
+                        continue
+                    namespace = target['namespace']
+                    cluster_name = namespace['cluster']['name']
+                    namespace_name = namespace['name']
+                    env_name = namespace['environment']['name']
+                    key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+                        f"{namespace_name}/{env_name}/{ref}"
+                    current_commit_sha = self.state.get(key, None)
+                    # skip if there is no change in commit sha
+                    if current_commit_sha == desired_commit_sha:
+                        continue
+                    # don't trigger if this is the first time
+                    # this target is being deployed.
+                    # that will be taken care of by
+                    # openshift-saas-deploy-trigger-configs
+                    if current_commit_sha is None:
+                        # store the value to take over from now on
+                        if not dry_run:
+                            self.state.add(key, value=desired_commit_sha)
+                        continue
+                    # we finally found something we want to trigger on!
+                    job_spec = {
+                        'saas_file_name': saas_file_name,
+                        'env_name': env_name,
+                        'timeout': timeout,
+                        'pipelines_provider': pipelines_provider,
+                        'rt_name': rt_name,
+                        'cluster_name': cluster_name,
+                        'namespace_name': namespace_name,
+                        'ref': ref,
+                        'commit_sha': desired_commit_sha
+                    }
+                    trigger_specs.append(job_spec)
+            except GithubException:
+                logging.exception(
+                    f"Skipping all remaining targets in {saas_file_name}:{rt_name}"
+                    f" - repo: {url} - ref: {ref}"
+                )
 
         return trigger_specs
 
