@@ -704,10 +704,11 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
 
 @integration.command()
 @threaded()
+@account_name
 @click.pass_context
-def aws_iam_keys(ctx, thread_pool_size):
+def aws_iam_keys(ctx, thread_pool_size, account_name):
     run_integration(reconcile.aws_iam_keys, ctx.obj,
-                    thread_pool_size)
+                    thread_pool_size, account_name=account_name)
 
 
 @integration.command()
