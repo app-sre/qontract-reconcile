@@ -400,7 +400,8 @@ def run(dry_run, print_only=False,
     actions = ob.realize_data(dry_run, oc_map, ri, caller=account_name)
 
     disable_keys(dry_run, thread_pool_size,
-                 disable_service_account_keys=True)
+                 disable_service_account_keys=True,
+                 account_name=account_name)
 
     if not dry_run and actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
