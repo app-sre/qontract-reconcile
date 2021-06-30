@@ -2,13 +2,17 @@ from prometheus_client import Gauge
 from prometheus_client import Histogram
 
 
+extra_labels = {'key': None}
+
 run_time = Gauge(name='qontract_reconcile_last_run_seconds',
                  documentation='Last run duration in seconds',
-                 labelnames=['integration', 'shards', 'shard_id'])
+                 labelnames=['integration', 'shards', 'shard_id'] + \
+                      list(extra_labels.keys()))
 
 run_status = Gauge(name='qontract_reconcile_last_run_status',
                    documentation='Last run status',
-                   labelnames=['integration', 'shards', 'shard_id'])
+                   labelnames=['integration', 'shards', 'shard_id'] + \
+                      list(extra_labels.keys()))
 
 reconcile_time = Histogram(name='qontract_reconcile_function_'
                                 'elapsed_seconds_since_bundle_commit',
