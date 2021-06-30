@@ -7,7 +7,6 @@ import time
 
 from collections import defaultdict, namedtuple
 
-from sretoolbox.container import Image
 from sretoolbox.container.image import ImageComparisonError
 from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
@@ -16,7 +15,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
-
+from reconcile.utils.instrumented_wrappers import InstrumentedImage as Image
 
 _LOG = logging.getLogger(__name__)
 
