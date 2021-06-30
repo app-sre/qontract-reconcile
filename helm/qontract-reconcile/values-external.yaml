@@ -301,17 +301,18 @@ integrations:
       cpu: 500m
   logs:
     slack: true
-- name: terraform-resources
+- name: terraform-resources-wrapper
   resources:
     requests:
-      memory: 2500Mi
-      cpu: 900m
+      memory: 500Mi
+      cpu: 200m
     limits:
-      memory: 3250Mi
-      cpu: 1200m
+      memory: 700Mi
+      cpu: 400m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
+  shards: 17
 - name: terraform-users
   resources:
     requests:
