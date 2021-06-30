@@ -43,8 +43,13 @@ def cleanup(working_dirs):
 
 @defer
 def run(dry_run, thread_pool_size=10,
-        disable_service_account_keys=False, defer=None):
+        disable_service_account_keys=False, account_name=None, defer=None):
     accounts = queries.get_aws_accounts()
+    if account_name:
+        accounts = [a for a in accounts if a['name'] == account_name]
+        if not accounts:
+            raise ValueError(f"aws account {account_name} not found")
+
     settings = queries.get_app_interface_settings()
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
