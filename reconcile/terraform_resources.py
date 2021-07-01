@@ -255,9 +255,11 @@ def populate_oc_resources(spec, ri, account_name):
         logging.error(msg)
 
 
-def fetch_current_state(namespaces, thread_pool_size,
+def fetch_current_state(dry_run, namespaces, thread_pool_size,
                         internal, use_jump_host, account_name):
     ri = ResourceInventory()
+    if dry_run:
+        return ri, None
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
@@ -300,7 +302,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     settings = queries.get_app_interface_settings()
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
-    ri, oc_map = fetch_current_state(tf_namespaces, thread_pool_size,
+    ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          oc_map=oc_map,
@@ -389,6 +391,9 @@ def run(dry_run, print_only=False,
         tf.dump_deleted_users(io_dir)
         if disabled_deletions_detected:
             cleanup_and_exit(tf, disabled_deletions_detected)
+
+    if dry_run:
+        cleanup_and_exit(tf)
 
     if not dry_run and not light:
         err = tf.apply()
