@@ -403,13 +403,7 @@ def run(dry_run, print_only=False,
 
     tf.populate_desired_state(ri, oc_map, tf_namespaces)
 
-    # temporarily do not recycle pods
-    # as the work on this PR (#1666)
-    # should cause all Secrets to be applied
-    # and we want to avoid recycling all pods.
-    # this should be reverted in #1664
-    actions = ob.realize_data(dry_run, oc_map, ri,
-                              recycle_pods=False)
+    actions = ob.realize_data(dry_run, oc_map, ri)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True)
