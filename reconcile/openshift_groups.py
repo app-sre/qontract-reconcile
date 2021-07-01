@@ -7,6 +7,7 @@ import reconcile.queries as queries
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
+from reconcile.utils.sharding import is_in_shard
 
 ROLES_QUERY = """
 {
@@ -78,7 +79,7 @@ def create_groups_list(clusters, oc_map):
 
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
-    clusters = queries.get_clusters()
+    clusters = [c for c in queries.get_clusters() if is_in_shard(c['name'])]
     ocm_clusters = [c['name'] for c in clusters if c.get('ocm') is not None]
     current_state = []
     settings = queries.get_app_interface_settings()
