@@ -141,6 +141,7 @@ class GitLabApi:
 
         return False
 
+    @retry()
     def get_project_maintainers(self, repo_url=None):
         if repo_url is None:
             project = self.project
