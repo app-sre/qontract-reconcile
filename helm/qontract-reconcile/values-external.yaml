@@ -312,7 +312,7 @@ integrations:
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
-  shards: 17
+  shards: 13
 - name: terraform-users
   resources:
     requests:
