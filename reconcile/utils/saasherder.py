@@ -865,10 +865,10 @@ class SaasHerder():
         github = self._initiate_github(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
-            try:
-                rt_name = rt['name']
-                url = rt['url']
-                for target in rt['targets']:
+            rt_name = rt['name']
+            url = rt['url']
+            for target in rt['targets']:
+                try:
                     # don't trigger if there is a linked upstream job
                     if target.get('upstream'):
                         continue
@@ -915,11 +915,11 @@ class SaasHerder():
                         'commit_sha': desired_commit_sha
                     }
                     trigger_specs.append(job_spec)
-            except GithubException:
-                logging.exception(
-                    f"Skipping all remaining targets in {saas_file_name}:{rt_name}"
-                    f" - repo: {url} - ref: {ref}"
-                )
+                except GithubException:
+                    logging.exception(
+                        f"Skipping target {saas_file_name}:{rt_name}"
+                        f" - repo: {url} - ref: {ref}"
+                    )
 
         return trigger_specs
 
