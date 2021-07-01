@@ -5,6 +5,7 @@ import os
 
 import yaml
 
+from gitlab.exceptions import GitlabError
 from github import Github, GithubException
 from requests import exceptions as rqexc
 from sretoolbox.container import Image
@@ -915,7 +916,7 @@ class SaasHerder():
                         'commit_sha': desired_commit_sha
                     }
                     trigger_specs.append(job_spec)
-                except GithubException:
+                except (GithubException, GitlabError):
                     logging.exception(
                         f"Skipping target {saas_file_name}:{rt_name}"
                         f" - repo: {url} - ref: {ref}"
