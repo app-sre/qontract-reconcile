@@ -67,7 +67,8 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
         saas_files = [
             {
                 'path': 'path1',
-                'name': 'long-name-which-is-too-long-to-produce-unique-combo',
+                'name':
+                'long-name-which-is-too-long-to-produce-unique-combo',
                 'managedResourceTypes': [],
                 'resourceTemplates':
                 [
@@ -178,7 +179,8 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
             SaasHerder, '_get_commit_sha', autospec=True
         )
         self.initiate_gh = self.initiate_gh_patcher.start()
-        self.get_pipelines_provider = self.get_pipelines_provider_patcher.start()
+        self.get_pipelines_provider = \
+            self.get_pipelines_provider_patcher.start()
         self.get_commit_sha = self.get_commit_sha_patcher.start()
         self.maxDiff = None
 
@@ -254,7 +256,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
         )
         # At least we don't crash!
         self.assertEqual(
-                        saasherder.get_moving_commits_diff_saas_file(
+            saasherder.get_moving_commits_diff_saas_file(
                 self.saas_files[0], True
             ),
             []
