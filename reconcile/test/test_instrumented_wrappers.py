@@ -15,3 +15,22 @@ class TestInstrumentedImage(TestCase):
         counter.assert_called_once()
         counter.return_value.inc.assert_called_once()
 
+
+class TestInstrumentedCache(TestCase):
+    def test_get_set(self):
+        c = instrumented.InstrumentedCache('aninteg', 2, 0)
+        c['lifeuniverseandeverything'] = 42
+        self.assertEqual(c['lifeuniverseandeverything'], 42)
+
+    def test_get_not_exists(self):
+        c = instrumented.InstrumentedCache('aninteg', 2, 0)
+        with self.assertRaises(KeyError):
+            c['akeythatdoesnotexist']
+
+    def test_del(self):
+        c = instrumented.InstrumentedCache('aninteg', 2, 0)
+        c['todelete'] = 42
+        self.assertEqual(c['todelete'], 42)
+        del c['todelete']
+        with self.assertRaises(KeyError):
+            c['todelete']
