@@ -1,6 +1,14 @@
+import os
+
 from prometheus_client import Counter, Gauge
 
 from sretoolbox.container import Image
+
+# TODO: move these to a shared, constants module
+
+INTEGRATION_NAME = os.environ.get('INTEGRATION_NAME', '')
+SHARDS = os.environ.get('SHARDS', 1)
+SHARD_ID = int(os.environ.get('SHARD_ID', 0))
 
 
 class InstrumentedImage(Image):
@@ -14,26 +22,28 @@ class InstrumentedImage(Image):
     _registry_reachouts = Counter(
         name='qontract_reconcile_registry_reachouts',
         documentation='Number GET requests on public image registries',
-    )
-    #    labelnames=['integrations', 'shards', 'shard_id'])
+        labelnames=['integration', 'shard', 'shard_id'])
 
-    def _request_get(self, url):
-        # TODO: Do I need to raise by labels? I don't think so
-        self._registry_reachouts.inc()
-        super()._request_get(url)
+    def _get_manifest(self):
+        self._registry_reachouts.labels(
+            integration=INTEGRATION_NAME,
+            shard=SHARDS,
+            shard_id=SHARD_ID
+        ).inc()
+        super()._get_manifest()
 
 
 class InstrumentedCache:
     _cache_hits = Counter(
         name='qontract_reconcile_cache_hits',
         documentation='Number of hits to this cache',
-        labelnames=['integrations', 'shards', 'shard_id']
+        labelnames=['integration', 'shards', 'shard_id']
     )
 
     _cache_misses = Counter(
         name='qontract_reconcile_cache_misses',
         documentation='Number of misses on this cache',
-        labelnames=['integrations', 'shards', 'shard_id']
+        labelnames=['integration', 'shards', 'shard_id']
     )
 
     _cache_size = Gauge(

@@ -6,10 +6,12 @@ import reconcile.utils.instrumented_wrappers as instrumented
 
 
 class TestInstrumentedImage(TestCase):
-    @patch.object(instrumented.InstrumentedImage._registry_reachouts, 'inc')
-    @patch.object(Image, '_request_get')
+    @patch.object(instrumented.InstrumentedImage._registry_reachouts, 'labels')
+    @patch.object(Image, '_get_manifest')
     def test_instrumented_reachout(self, getter, counter):
         i = instrumented.InstrumentedImage('aregistry/animage:atag')
-        i._request_get("http://localhost")
-        getter.assert_called_once_with("http://localhost")
+        i._get_manifest()
+        getter.assert_called_once_with()
         counter.assert_called_once()
+        counter.return_value.inc.assert_called_once()
+
