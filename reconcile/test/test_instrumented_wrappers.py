@@ -9,6 +9,7 @@ class TestInstrumentedImage(TestCase):
     @patch.object(instrumented.InstrumentedImage._registry_reachouts, 'labels')
     @patch.object(Image, '_get_manifest')
     def test_instrumented_reachout(self, getter, counter):
+        # pylint: disable=no-self-use
         i = instrumented.InstrumentedImage('aregistry/animage:atag')
         i._get_manifest()
         getter.assert_called_once_with()
