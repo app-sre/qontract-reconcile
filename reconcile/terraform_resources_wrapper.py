@@ -25,6 +25,7 @@ def get_accounts_names():
                      settings=settings)
     return ts.uids.keys()
 
+
 def tfr_run_wrapper(account_name,
                     dry_run,
                     print_only,
@@ -66,7 +67,7 @@ def run(dry_run, print_only=False,
         return
 
     exit_codes = threaded.run(
-        tfr_run_wrapper, in_shard_account_names, thread_pool_size,
+        tfr_run_wrapper, account_names, thread_pool_size,
         dry_run=dry_run,
         print_only=print_only,
         enable_deletion=enable_deletion,
