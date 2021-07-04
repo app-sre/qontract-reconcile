@@ -18,8 +18,9 @@ class SendGridAPIError(Exception):
 
 
 class Teammate:
-    def __init__(self, email, pending_token=None):
+    def __init__(self, email, pending_token=None, username=None):
         self.email = email
+        self.username = username or email.split('@')[0]
         self.pending_token = pending_token
 
     @property
@@ -58,7 +59,7 @@ def fetch_current_state(sg_client):
             # we want to ignore the root account (owner account)
             continue
 
-        t = Teammate(teammate['email'])
+        t = Teammate(teammate['email'], username=teammate['username'])
         state.append(t)
 
     return state
@@ -94,7 +95,7 @@ def act(dry_run, sg_client, desired_state, current_state):
                     identifier = user.pending_token
                 else:
                     delete_method = sg_client.teammates
-                    identifier = user.email
+                    identifier = user.username
 
                 response = delete_method._(identifier).delete()
 
