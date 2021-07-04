@@ -763,6 +763,10 @@ class SaasHerder():
         return specs
 
     def populate_desired_state_saas_file(self, spec, ri):
+        if spec['delete']:
+            # to delete resources, we avoid adding them to the desired state
+            return
+
         saas_file_name = spec['saas_file_name']
         cluster = spec['cluster']
         namespace = spec['namespace']
@@ -771,7 +775,6 @@ class SaasHerder():
         check_images_options_base = spec['check_images_options_base']
         instance_name = spec['instance_name']
         upstream = spec['upstream']
-        delete = spec['delete']
 
         resources, html_url, promotion = \
             self._process_template(process_template_options)
@@ -813,14 +816,13 @@ class SaasHerder():
                 caller_name=saas_file_name,
                 error_details=html_url)
             try:
-                if not delete:
-                    ri.add_desired(
-                        cluster,
-                        namespace,
-                        resource_kind,
-                        resource_name,
-                        oc_resource
-                    )
+                ri.add_desired(
+                    cluster,
+                    namespace,
+                    resource_kind,
+                    resource_name,
+                    oc_resource
+                )
             except ResourceKeyExistsError:
                 ri.register_error()
                 msg = \
