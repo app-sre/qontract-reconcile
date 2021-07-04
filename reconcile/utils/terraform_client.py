@@ -231,13 +231,16 @@ class TerraformClient:
 
         return data
 
-    def populate_desired_state(self, ri, oc_map, tf_namespaces):
+    def populate_desired_state(self, ri, oc_map, tf_namespaces, account_name):
         self.init_outputs()  # get updated output
 
         # Dealing with credentials for RDS replicas
         replicas_info = self.get_replicas_info(namespaces=tf_namespaces)
 
         for account, output in self.outputs.items():
+            if account_name and account != account_name:
+                continue
+
             formatted_output = self.format_output(
                 output, self.OUTPUT_TYPE_SECRETS)
 
