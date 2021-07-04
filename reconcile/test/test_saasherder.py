@@ -261,3 +261,19 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
             ),
             []
         )
+
+
+class TestPopulateDesiredState(TestCase):
+    def test_populate_desired_state_saas_file_delete(self):
+        spec = {'delete': True}
+        saasherder = SaasHerder(
+            [],
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        desired_state = \
+            saasherder.populate_desired_state_saas_file(spec, None)
+        self.assertEqual(None, desired_state)
