@@ -1077,7 +1077,8 @@ def terraform_resources_wrapper(ctx, print_only, enable_deletion,
     run_integration(reconcile.terraform_resources_wrapper,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
-                    internal, use_jump_host, light, vault_output_path)
+                    internal, use_jump_host, light, vault_output_path,
+                    extra_labels=ctx.obj.get('extra_labels', {}))
 
 
 @integration.command()
