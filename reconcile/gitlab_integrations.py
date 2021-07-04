@@ -1,11 +1,19 @@
 import logging
 
+from sretoolbox.utils import retry
+
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 
 QONTRACT_INTEGRATION = 'gitlab-integrations'
+
+
+@retry()
+def get_repo_services(gl, repo_url):
+    project = gl.get_project(repo_url=repo_url)
+    return project.services
 
 
 def run(dry_run):
@@ -19,8 +27,7 @@ def run(dry_run):
     for repo in repos:
         skip = False
         repo_url = repo['url']
-        project = gl.get_project(repo_url=repo_url)
-        services = project.services
+        services = get_repo_services(gl, repo_url)
         current_jira = services.get('jira')
 
         desired_jira = repo['jira']
