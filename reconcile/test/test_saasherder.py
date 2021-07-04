@@ -276,4 +276,4 @@ class TestPopulateDesiredState(TestCase):
         )
         desired_state = \
             saasherder.populate_desired_state_saas_file(spec, None)
-        self.assertEqual(None, desired_state)
+        self.assertIsNone(desired_state)
