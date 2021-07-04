@@ -183,6 +183,7 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
+  shards: 5
 - name: openshift-namespaces
   resources:
     requests:
