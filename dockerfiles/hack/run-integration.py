@@ -11,6 +11,7 @@ from reconcile.status import ExitCodes
 from reconcile.cli import integration, LOG_FMT, LOG_DATEFMT
 from reconcile.utils.metrics import run_time
 from reconcile.utils.metrics import run_status
+from reconcile.utils.metrics import extra_labels
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
@@ -67,6 +68,8 @@ if __name__ == "__main__":
         try:
             with integration.make_context(info_name='qontract-reconcile',
                                           args=build_args()) as ctx:
+                ctx.ensure_object(dict)
+                ctx.obj['extra_labels'] = extra_labels
                 integration.invoke(ctx)
                 return_code = 0
         # This is for when the integration explicitly
@@ -83,9 +86,11 @@ if __name__ == "__main__":
         time_spent = time.monotonic() - start_time
 
         run_time.labels(integration=INTEGRATION_NAME,
-                        shards=SHARDS, shard_id=SHARD_ID).set(time_spent)
+                        shards=SHARDS, shard_id=SHARD_ID,
+                        **extra_labels).set(time_spent)
         run_status.labels(integration=INTEGRATION_NAME,
-                          shards=SHARDS, shard_id=SHARD_ID).set(return_code)
+                          shards=SHARDS, shard_id=SHARD_ID,
+                          **extra_labels).set(return_code)
 
         if RUN_ONCE:
             sys.exit(return_code)
