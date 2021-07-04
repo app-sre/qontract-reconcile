@@ -755,7 +755,8 @@ class SaasHerder():
                     'process_template_options': process_template_options,
                     'check_images_options_base': check_images_options_base,
                     'instance_name': instance_name,
-                    'upstream': target.get('upstream')
+                    'upstream': target.get('upstream'),
+                    'delete': target.get('delete'),
                 }
                 specs.append(spec)
 
@@ -770,6 +771,7 @@ class SaasHerder():
         check_images_options_base = spec['check_images_options_base']
         instance_name = spec['instance_name']
         upstream = spec['upstream']
+        delete = spec['delete']
 
         resources, html_url, promotion = \
             self._process_template(process_template_options)
@@ -811,13 +813,14 @@ class SaasHerder():
                 caller_name=saas_file_name,
                 error_details=html_url)
             try:
-                ri.add_desired(
-                    cluster,
-                    namespace,
-                    resource_kind,
-                    resource_name,
-                    oc_resource
-                )
+                if not delete:
+                    ri.add_desired(
+                        cluster,
+                        namespace,
+                        resource_kind,
+                        resource_name,
+                        oc_resource
+                    )
             except ResourceKeyExistsError:
                 ri.register_error()
                 msg = \

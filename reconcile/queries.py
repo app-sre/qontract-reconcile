@@ -1285,6 +1285,7 @@ SAAS_FILES_QUERY_V1 = """
         parameters
         upstream
         disable
+        delete
       }
     }
     roles {
@@ -1432,6 +1433,7 @@ SAAS_FILES_QUERY_V2 = """
           name
         }
         disable
+        delete
       }
     }
     roles {
