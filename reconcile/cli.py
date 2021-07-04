@@ -44,6 +44,7 @@ import reconcile.quay_repos
 import reconcile.quay_permissions
 import reconcile.ldap_users
 import reconcile.terraform_resources
+import reconcile.terraform_resources_wrapper
 import reconcile.terraform_users
 import reconcile.terraform_vpc_peerings
 import reconcile.terraform_tgw_attachments
@@ -1051,6 +1052,31 @@ def terraform_resources(ctx, print_only, enable_deletion,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path,
                     account_name=account_name)
+
+
+@integration.command()
+@print_only
+@throughput
+@vault_output_path
+@threaded(default=20)
+@binary(['terraform', 'oc'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@enable_deletion(default=False)
+@click.option('--light/--full',
+              default=False,
+              help='run without executing terraform plan and apply.')
+@click.pass_context
+def terraform_resources_wrapper(ctx, print_only, enable_deletion,
+                                io_dir, thread_pool_size, internal,
+                                use_jump_host, light, vault_output_path):
+    run_integration(reconcile.terraform_resources_wrapper,
+                    ctx.obj, print_only,
+                    enable_deletion, io_dir, thread_pool_size,
+                    internal, use_jump_host, light, vault_output_path)
 
 
 @integration.command()
