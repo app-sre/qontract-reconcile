@@ -44,6 +44,7 @@ import reconcile.quay_repos
 import reconcile.quay_permissions
 import reconcile.ldap_users
 import reconcile.terraform_resources
+import reconcile.terraform_resources_wrapper
 import reconcile.terraform_users
 import reconcile.terraform_vpc_peerings
 import reconcile.terraform_tgw_attachments
@@ -80,6 +81,7 @@ import reconcile.ocm_upgrade_scheduler
 import reconcile.ocm_addons
 import reconcile.ocm_aws_infrastructure_access
 import reconcile.ocm_github_idp
+import reconcile.ocm_additional_routers
 import reconcile.email_sender
 import reconcile.sentry_helper
 import reconcile.requests_sender
@@ -98,11 +100,12 @@ import reconcile.dashdotdb_dvo
 import reconcile.sendgrid_teammates
 import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
+import reconcile.jenkins_job_builds_cleaner
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
 
-from reconcile.utils.gql import (GqlApiError, GqlApiErrorForbiddenSchema,
+from reconcile.utils.gql import (GqlApiErrorForbiddenSchema,
                                  GqlApiIntegrationNotFound)
 from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
@@ -413,14 +416,6 @@ def run_integration(func_container, ctx, *args, **kwargs):
     except GqlApiErrorForbiddenSchema as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
-    except GqlApiError as e:
-        if '409' in str(e):
-            logging.info('Data changed during execution. This is fine.')
-            # exit code to relect conflict
-            # TODO: document this better
-            sys.exit(ExitCodes.DATA_CHANGED)
-        else:
-            raise e
     finally:
         if ctx.get('dump_schemas_file'):
             gqlapi = gql.get_api()
@@ -605,6 +600,12 @@ def jenkins_job_builder(ctx, io_dir, print_only,
 
 @integration.command()
 @click.pass_context
+def jenkins_job_builds_cleaner(ctx):
+    run_integration(reconcile.jenkins_job_builds_cleaner, ctx.obj)
+
+
+@integration.command()
+@click.pass_context
 def jenkins_job_cleaner(ctx):
     run_integration(reconcile.jenkins_job_cleaner, ctx.obj)
 
@@ -704,10 +705,11 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
 
 @integration.command()
 @threaded()
+@account_name
 @click.pass_context
-def aws_iam_keys(ctx, thread_pool_size):
+def aws_iam_keys(ctx, thread_pool_size, account_name):
     run_integration(reconcile.aws_iam_keys, ctx.obj,
-                    thread_pool_size)
+                    thread_pool_size, account_name=account_name)
 
 
 @integration.command()
@@ -1055,6 +1057,31 @@ def terraform_resources(ctx, print_only, enable_deletion,
 @integration.command()
 @print_only
 @throughput
+@vault_output_path
+@threaded(default=20)
+@binary(['terraform', 'oc'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@enable_deletion(default=False)
+@click.option('--light/--full',
+              default=False,
+              help='run without executing terraform plan and apply.')
+@click.pass_context
+def terraform_resources_wrapper(ctx, print_only, enable_deletion,
+                                io_dir, thread_pool_size, internal,
+                                use_jump_host, light, vault_output_path):
+    run_integration(reconcile.terraform_resources_wrapper,
+                    ctx.obj, print_only,
+                    enable_deletion, io_dir, thread_pool_size,
+                    internal, use_jump_host, light, vault_output_path)
+
+
+@integration.command()
+@print_only
+@throughput
 @threaded(default=20)
 @binary(['terraform', 'gpg'])
 @binary_version('terraform', ['version'],
@@ -1186,6 +1213,12 @@ def ocm_aws_infrastructure_access(ctx):
 @click.pass_context
 def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
+
+
+@integration.command()
+@click.pass_context
+def ocm_additional_routers(ctx):
+    run_integration(reconcile.ocm_additional_routers, ctx.obj)
 
 
 @integration.command()

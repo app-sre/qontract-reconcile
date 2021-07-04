@@ -219,7 +219,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def populate_oc_resources(spec, ri):
+def populate_oc_resources(spec, ri, account_name):
     if spec.oc is None:
         return
 
@@ -233,6 +233,11 @@ def populate_oc_resources(spec, ri):
             openshift_resource = OR(item,
                                     QONTRACT_INTEGRATION,
                                     QONTRACT_INTEGRATION_VERSION)
+            if account_name:
+                caller = openshift_resource.caller
+                if caller and caller != account_name:
+                    continue
+
             ri.add_current(
                 spec.cluster,
                 spec.namespace,
@@ -251,7 +256,7 @@ def populate_oc_resources(spec, ri):
 
 
 def fetch_current_state(dry_run, namespaces, thread_pool_size,
-                        internal, use_jump_host):
+                        internal, use_jump_host, account_name):
     ri = ResourceInventory()
     if dry_run:
         return ri, None
@@ -267,7 +272,8 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
             namespaces=namespaces,
             override_managed_types=['Secret']
         )
-    threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri)
+    threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri,
+                 account_name=account_name)
 
     return ri, oc_map
 
@@ -297,7 +303,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
-                                     internal, use_jump_host)
+                                     internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          oc_map=oc_map,
                                          settings=settings)
@@ -394,23 +400,13 @@ def run(dry_run, print_only=False,
         if err:
             cleanup_and_exit(tf, err)
 
-    # Temporary skip apply secret for running tf-r per account locally.
-    # The integration running on the cluster will manage the secret
-    # after any manual running.
-    # Will refactor with caller for further operator implement.
-    if account_name:
-        cleanup_and_exit(tf)
+    tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
 
-    tf.populate_desired_state(ri, oc_map, tf_namespaces)
-
-    # temporarily not allowing resources to be deleted
-    # or for pods to be recycled
-    # this should be removed after we gained confidence
-    # following the terraform 0.13 upgrade
-    actions = ob.realize_data(dry_run, oc_map, ri)
+    actions = ob.realize_data(dry_run, oc_map, ri, caller=account_name)
 
     disable_keys(dry_run, thread_pool_size,
-                 disable_service_account_keys=True)
+                 disable_service_account_keys=True,
+                 account_name=account_name)
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)

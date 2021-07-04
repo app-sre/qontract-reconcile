@@ -21,6 +21,8 @@ from reconcile.utils.environ import environ
 from reconcile.utils.ocm import OCMMap
 from reconcile.cli import config_file
 
+from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
+
 
 def output(function):
     function = click.option('--output', '-o',
@@ -489,6 +491,35 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
 
     columns = ['name', 'email']
     print_output(ctx.obj['output'], service_owners, columns)
+
+
+@get.command()
+@click.pass_context
+def sre_checkpoints(ctx):
+    apps = queries.get_apps()
+
+    parent_apps = {
+        app['parentApp']['path']
+        for app in apps
+        if app.get('parentApp')
+    }
+
+    latest_sre_checkpoints = get_latest_sre_checkpoints()
+
+    checkpoints_data = [
+        {
+            'name': full_name(app),
+            'latest': latest_sre_checkpoints.get(full_name(app), '')
+        }
+        for app in apps
+        if (app['path'] not in parent_apps and
+            app['onboardingStatus'] == 'OnBoarded')
+    ]
+
+    checkpoints_data.sort(key=lambda c: c['latest'], reverse=True)
+
+    columns = ['name', 'latest']
+    print_output(ctx.obj['output'], checkpoints_data, columns)
 
 
 def print_output(output, content, columns=[]):

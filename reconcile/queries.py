@@ -136,6 +136,10 @@ JENKINS_INSTANCES_QUERY = """
     plugins
     deleteMethod
     managedProjects
+    buildsCleanupRules {
+      name
+      keep_hours
+    }
   }
 }
 """
@@ -348,6 +352,10 @@ CLUSTERS_QUERY = """
     upgradePolicy {
       schedule_type
       schedule
+    }
+    additionalRouters {
+      private
+      route_selectors
     }
     network {
       vpc
@@ -835,6 +843,10 @@ APPS_QUERY = """
       name
       email
     }
+    parentApp {
+      path
+      name
+    }
     codeComponents {
       url
       resource
@@ -969,6 +981,14 @@ USERS_QUERY = """
     slack_username
     pagerduty_username
     public_gpg_key
+    {% if refs %}
+    requests {
+      path
+    }
+    queries {
+      path
+    }
+    {% endif %}
   }
 }
 """
@@ -1058,10 +1078,11 @@ def get_roles(aws=True, saas_files=True, sendgrid=False):
     return gqlapi.query(query)['users']
 
 
-def get_users():
+def get_users(refs=False):
     """ Returnes all Users. """
     gqlapi = gql.get_api()
-    return gqlapi.query(USERS_QUERY)['users']
+    query = Template(USERS_QUERY).render(refs=refs)
+    return gqlapi.query(query)['users']
 
 
 BOTS_QUERY = """
@@ -1898,3 +1919,21 @@ SLO_DOCUMENTS_QUERY = """
 def get_slo_documents():
     gqlapi = gql.get_api()
     return gqlapi.query(SLO_DOCUMENTS_QUERY)['slo_documents']
+
+
+SRE_CHECKPOINTS_QUERY = """
+{
+  sre_checkpoints: sre_checkpoints_v1 {
+    app {
+      name
+      onboardingStatus
+    }
+    date
+  }
+}
+"""
+
+
+def get_sre_checkpoints():
+    gqlapi = gql.get_api()
+    return gqlapi.query(SRE_CHECKPOINTS_QUERY)['sre_checkpoints']

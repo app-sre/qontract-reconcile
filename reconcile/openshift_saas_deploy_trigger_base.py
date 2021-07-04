@@ -12,7 +12,8 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.saasherder import SaasHerder, Providers
+from reconcile.utils.saasherder import SaasHerder, Providers, \
+    UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
 
@@ -245,13 +246,15 @@ def _trigger_jenkins(spec,
             jenkins = jenkins_map[instance_name]
             try:
                 jenkins.trigger_job(job_name)
-                saasherder.update_state(trigger_type, spec)
             except Exception as e:
                 error = True
                 logging.error(
                     f"could not trigger job {job_name} " +
                     f"in {instance_name}. details: {str(e)}"
                 )
+
+    if not error and not dry_run:
+        saasherder.update_state(trigger_type, spec)
 
     return error
 
@@ -295,8 +298,6 @@ def _trigger_tekton(spec,
                       resource_type=tkn_trigger_resource.kind,
                       resource=tkn_trigger_resource,
                       wait_for_namespace=False)
-            if not dry_run:
-                saasherder.update_state(trigger_type, spec)
         except Exception as e:
             error = True
             logging.error(
@@ -304,6 +305,9 @@ def _trigger_tekton(spec,
                 f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
                 f"details: {str(e)}"
             )
+
+    if not error and not dry_run:
+        saasherder.update_state(trigger_type, spec)
 
     return error
 
@@ -336,7 +340,7 @@ def _construct_tekton_trigger_resource(saas_file_name,
     # with what we currently have in Jenkins.
     ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
     # max name length can be 63. leaving 12 for the timestamp - 51
-    name = f"{long_name[:50]}-{ts}"
+    name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
     body = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",

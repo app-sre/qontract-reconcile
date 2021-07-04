@@ -139,6 +139,7 @@ def get_pagerduty_name(user):
     return user['pagerduty_username'] or user['org_username']
 
 
+@retry()
 def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
     settings = queries.get_app_interface_settings()
     all_slack_usernames = []

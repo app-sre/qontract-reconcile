@@ -33,6 +33,32 @@ integrations:
   logs:
     slack: true
   internalCertificates: true
+- name: openshift-users
+  resources:
+    requests:
+      # Known peaks are at 800Mi
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 500m
+  extraArgs: --internal
+  logs:
+    slack: true
+- name: openshift-groups
+  resources:
+    requests:
+      # Known peaks are at 600Mi
+      memory: 600Mi
+      cpu: 200m
+    limits:
+      # Limits 30% above requests
+      memory: 780Mi
+      cpu: 300m
+  extraArgs: --internal
+  logs:
+    slack: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -79,6 +105,17 @@ integrations:
       cpu: 400m
   extraArgs: --internal
   internalCertificates: true
+- name: openshift-routes
+  resources:
+    requests:
+      # Known peaks are at 770Mi
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 300m
+  extraArgs: --internal
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -94,7 +131,7 @@ integrations:
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
-      memory: 00Mi
+      memory: 800Mi
       cpu: 400m
     limits:
       memory: 1000Mi
@@ -204,6 +241,7 @@ integrations:
       memory: 200Mi
       cpu: 200m
 - name: gitlab-housekeeping
+  sleepDurationSecs: 600
   resources:
     requests:
       memory: 100Mi
@@ -280,3 +318,15 @@ integrations:
     secretKey: gitlab_pr_submitter_queue_url
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   state: true
+cronjobs:
+- name: jenkins-job-builds-cleaner
+  concurrencyPolicy: "Forbid"
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  # once a hour
+  cron: '0 * * * *'

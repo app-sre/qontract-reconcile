@@ -52,6 +52,7 @@ integrations:
   logs:
     slack: true
 - name: quay-mirror
+  sleepDurationSecs: 300
   resources:
     requests:
       memory: 150Mi
@@ -156,7 +157,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 500m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
 - name: openshift-upgrade-watcher
@@ -179,9 +180,10 @@ integrations:
       # Limits 30% above requests
       memory: 780Mi
       cpu: 300m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
+  shards: 5
 - name: openshift-namespaces
   resources:
     requests:
@@ -288,7 +290,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
   shards: 2
 - name: terraform-aws-route53
   resources:
@@ -300,17 +302,18 @@ integrations:
       cpu: 500m
   logs:
     slack: true
-- name: terraform-resources
+- name: terraform-resources-wrapper
   resources:
     requests:
-      memory: 2500Mi
-      cpu: 900m
+      memory: 500Mi
+      cpu: 200m
     limits:
-      memory: 3250Mi
-      cpu: 1200m
+      memory: 700Mi
+      cpu: 400m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
+  shards: 13
 - name: terraform-users
   resources:
     requests:
@@ -413,6 +416,16 @@ integrations:
   logs:
     slack: true
 - name: ocm-external-configuration-labels
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    slack: true
+- name: ocm-additional-routers
   resources:
     requests:
       memory: 100Mi

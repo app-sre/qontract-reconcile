@@ -5,6 +5,7 @@ import os
 
 import yaml
 
+from gitlab.exceptions import GitlabError
 from github import Github, GithubException
 from requests import exceptions as rqexc
 from sretoolbox.container import Image
@@ -30,6 +31,9 @@ class TriggerTypes:
     CONFIGS = 0
     MOVING_COMMITS = 1
     UPSTREAM_JOBS = 2
+
+
+UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
 
 
 class SaasHerder():
@@ -79,6 +83,7 @@ class SaasHerder():
         self.valid = True
         saas_file_name_path_map = {}
         saas_file_promotion_publish_channels = []
+        self.tkn_unique_pipelineruns = {}
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -96,6 +101,16 @@ class SaasHerder():
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
                 for target in resource_template['targets']:
+                    target_namespace = target['namespace']
+                    namespace_name = target_namespace['name']
+                    cluster_name = target_namespace['cluster']['name']
+                    environment = target_namespace['environment']
+                    environment_name = environment['name']
+                    # unique saas file and env name combination
+                    self._check_saas_file_env_combo_unique(
+                        saas_file_name,
+                        environment_name
+                    )
                     # promotion publish channels
                     promotion = target.get('promotion')
                     if promotion:
@@ -108,11 +123,6 @@ class SaasHerder():
                     if not target_parameters:
                         continue
                     target_parameters = json.loads(target_parameters)
-                    target_namespace = target['namespace']
-                    namespace_name = target_namespace['name']
-                    cluster_name = target_namespace['cluster']['name']
-                    environment = target_namespace['environment']
-                    environment_name = environment['name']
                     environment_parameters = environment['parameters']
                     if not environment_parameters:
                         continue
@@ -177,6 +187,24 @@ class SaasHerder():
             msg = 'saas file promotion publish channel is not unique: {}'
             for duplicate in duplicates:
                 logging.error(msg.format(duplicate))
+
+    def _check_saas_file_env_combo_unique(self, saas_file_name, env_name):
+        # max tekton pipelinerun name length can be 63.
+        # leaving 12 for the timestamp leaves us with 51
+        # to create a unique pipelinerun name
+        tkn_long_name = f"{saas_file_name}-{env_name}"
+        tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
+        if tkn_name in self.tkn_unique_pipelineruns.keys() and \
+                self.tkn_unique_pipelineruns[tkn_name] != tkn_long_name:
+            logging.error(
+                f'[{saas_file_name}/{env_name}] '
+                'saas file and env name combination must be '
+                f'unique in first {UNIQUE_SAAS_FILE_ENV_COMBO_LEN} chars. '
+                f'found not unique value: {tkn_name} '
+                f'from this long name: {tkn_long_name}')
+            self.valid = False
+        else:
+            self.tkn_unique_pipelineruns[tkn_name] = tkn_long_name
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
@@ -841,52 +869,58 @@ class SaasHerder():
             rt_name = rt['name']
             url = rt['url']
             for target in rt['targets']:
-                # don't trigger if there is a linked upstream job
-                if target.get('upstream'):
-                    continue
-                ref = target['ref']
-                get_commit_sha_options = {
-                    'url': url,
-                    'ref': ref,
-                    'github': github
-                }
-                desired_commit_sha = \
-                    self._get_commit_sha(get_commit_sha_options)
-                # don't trigger on refs which are commit shas
-                if ref == desired_commit_sha:
-                    continue
-                namespace = target['namespace']
-                cluster_name = namespace['cluster']['name']
-                namespace_name = namespace['name']
-                env_name = namespace['environment']['name']
-                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
-                    f"{namespace_name}/{env_name}/{ref}"
-                current_commit_sha = self.state.get(key, None)
-                # skip if there is no change in commit sha
-                if current_commit_sha == desired_commit_sha:
-                    continue
-                # don't trigger if this is the first time
-                # this target is being deployed.
-                # that will be taken care of by
-                # openshift-saas-deploy-trigger-configs
-                if current_commit_sha is None:
-                    # store the value to take over from now on
-                    if not dry_run:
-                        self.state.add(key, value=desired_commit_sha)
-                    continue
-                # we finally found something we want to trigger on!
-                job_spec = {
-                    'saas_file_name': saas_file_name,
-                    'env_name': env_name,
-                    'timeout': timeout,
-                    'pipelines_provider': pipelines_provider,
-                    'rt_name': rt_name,
-                    'cluster_name': cluster_name,
-                    'namespace_name': namespace_name,
-                    'ref': ref,
-                    'commit_sha': desired_commit_sha
-                }
-                trigger_specs.append(job_spec)
+                try:
+                    # don't trigger if there is a linked upstream job
+                    if target.get('upstream'):
+                        continue
+                    ref = target['ref']
+                    get_commit_sha_options = {
+                        'url': url,
+                        'ref': ref,
+                        'github': github
+                    }
+                    desired_commit_sha = \
+                        self._get_commit_sha(get_commit_sha_options)
+                    # don't trigger on refs which are commit shas
+                    if ref == desired_commit_sha:
+                        continue
+                    namespace = target['namespace']
+                    cluster_name = namespace['cluster']['name']
+                    namespace_name = namespace['name']
+                    env_name = namespace['environment']['name']
+                    key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+                        f"{namespace_name}/{env_name}/{ref}"
+                    current_commit_sha = self.state.get(key, None)
+                    # skip if there is no change in commit sha
+                    if current_commit_sha == desired_commit_sha:
+                        continue
+                    # don't trigger if this is the first time
+                    # this target is being deployed.
+                    # that will be taken care of by
+                    # openshift-saas-deploy-trigger-configs
+                    if current_commit_sha is None:
+                        # store the value to take over from now on
+                        if not dry_run:
+                            self.state.add(key, value=desired_commit_sha)
+                        continue
+                    # we finally found something we want to trigger on!
+                    job_spec = {
+                        'saas_file_name': saas_file_name,
+                        'env_name': env_name,
+                        'timeout': timeout,
+                        'pipelines_provider': pipelines_provider,
+                        'rt_name': rt_name,
+                        'cluster_name': cluster_name,
+                        'namespace_name': namespace_name,
+                        'ref': ref,
+                        'commit_sha': desired_commit_sha
+                    }
+                    trigger_specs.append(job_spec)
+                except (GithubException, GitlabError):
+                    logging.exception(
+                        f"Skipping target {saas_file_name}:{rt_name}"
+                        f" - repo: {url} - ref: {ref}"
+                    )
 
         return trigger_specs
 
