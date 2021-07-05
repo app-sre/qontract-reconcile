@@ -1174,6 +1174,8 @@ class SaasHerder():
             self._get_subscribe_saas_file_path_map(saas_files, auto_only=True)
         trigger_promotion = False
         for item in self.promotions:
+            if item is None:
+                continue
             commit_sha = item['commit_sha']
             publish = item.get('publish')
             if publish:
