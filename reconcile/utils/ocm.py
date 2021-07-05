@@ -35,7 +35,8 @@ class OCM:
     :type offline_token: string
     """
     def __init__(self, url, access_token_client_id, access_token_url,
-                 offline_token, init_provision_shards=False):
+                 offline_token, init_provision_shards=False,
+                 init_addons=False):
         """Initiates access token and gets clusters information."""
         self.url = url
         self.access_token_client_id = access_token_client_id
@@ -44,7 +45,8 @@ class OCM:
         self._init_access_token()
         self._init_request_headers()
         self._init_clusters(init_provision_shards=init_provision_shards)
-        self._init_addons()
+        if init_addons:
+            self._init_addons()
 
     @retry()
     def _init_access_token(self):

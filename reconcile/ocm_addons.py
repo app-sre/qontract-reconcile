@@ -14,7 +14,7 @@ QONTRACT_INTEGRATION = 'ocm-addons'
 def fetch_current_state(clusters):
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
+                     settings=settings, init_addons=True)
 
     current_state = []
     for cluster in clusters:
