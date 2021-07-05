@@ -8,9 +8,9 @@ RUN yum install -y epel-release && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
 
-RUN curl -L https://get.helm.sh/helm-v3.0.3-linux-amd64.tar.gz |tar xvz && \
-    mv linux-amd64/helm /usr/bin/helm3 && \
-    chmod +x /usr/bin/helm3 && \
+RUN curl -L https://get.helm.sh/helm-v3.6.2-linux-amd64.tar.gz |tar xvz && \
+    mv linux-amd64/helm /usr/local/bin/helm && \
+    chmod +x /usr/local/bin/helm && \
     rm -rf linux-amd64
 
 COPY . /package
