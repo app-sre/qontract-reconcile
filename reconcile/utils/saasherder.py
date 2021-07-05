@@ -755,13 +755,18 @@ class SaasHerder():
                     'process_template_options': process_template_options,
                     'check_images_options_base': check_images_options_base,
                     'instance_name': instance_name,
-                    'upstream': target.get('upstream')
+                    'upstream': target.get('upstream'),
+                    'delete': target.get('delete'),
                 }
                 specs.append(spec)
 
         return specs
 
     def populate_desired_state_saas_file(self, spec, ri):
+        if spec['delete']:
+            # to delete resources, we avoid adding them to the desired state
+            return
+
         saas_file_name = spec['saas_file_name']
         cluster = spec['cluster']
         namespace = spec['namespace']
