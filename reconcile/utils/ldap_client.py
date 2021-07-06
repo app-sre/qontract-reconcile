@@ -34,4 +34,7 @@ def user_exists(username):
 
     search_filter = "uid={},{}".format(username, _base_dn)
 
+    if not _client.bound:
+        _client.bind()
+
     return _client.search(search_filter, '(objectclass=person)')
