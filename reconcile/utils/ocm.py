@@ -29,10 +29,14 @@ class OCM:
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
     :param offline_token: Long lived offline token used to get access token
+    :param init_provision_shards: should initiate provision shards
+    :param init_addons: should initiate addons
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
     :type offline_token: string
+    :type init_provision_shards: bool
+    :type init_addons: bool
     """
     def __init__(self, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
@@ -863,14 +867,19 @@ class OCMMap:
     :param integration: Name of calling integration.
                         Used to disable integrations.
     :param settings: App Interface settings
+    :param init_provision_shards: should initiate provision shards
+    :param init_addons: should initiate addons
     :type clusters: list
     :type namespaces: list
     :type integration: string
     :type settings: dict
+    :type init_provision_shards: bool
+    :type init_addons: bool
     """
     def __init__(self, clusters=None, namespaces=None,
                  integration='', settings=None,
-                 init_provision_shards=False):
+                 init_provision_shards=False,
+                 init_addons=False):
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
         self.ocm_map = {}
@@ -881,15 +890,18 @@ class OCMMap:
             raise KeyError('expected only one of clusters or namespaces.')
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(cluster_info, init_provision_shards)
+                self.init_ocm_client(cluster_info, init_provision_shards,
+                                     init_addons)
         elif namespaces:
             for namespace_info in namespaces:
                 cluster_info = namespace_info['cluster']
-                self.init_ocm_client(cluster_info, init_provision_shards)
+                self.init_ocm_client(cluster_info, init_provision_shards,
+                                     init_addons)
         else:
             raise KeyError('expected one of clusters or namespaces.')
 
-    def init_ocm_client(self, cluster_info, init_provision_shards):
+    def init_ocm_client(self, cluster_info, init_provision_shards,
+                        init_addons):
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
@@ -897,6 +909,8 @@ class OCMMap:
         the current integration is disabled on it.
 
         :param cluster_info: Graphql cluster query result
+        :param init_provision_shards: should initiate provision shards
+        :param init_addons: should initiate addons
 
         :type cluster_info: dict
         """
@@ -921,7 +935,8 @@ class OCMMap:
             token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
                 OCM(url, access_token_client_id, access_token_url, token,
-                    init_provision_shards=init_provision_shards)
+                    init_provision_shards=init_provision_shards,
+                    init_addons=init_addons)
 
     def cluster_disabled(self, cluster_info):
         """
