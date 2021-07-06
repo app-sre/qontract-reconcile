@@ -1002,8 +1002,7 @@ class TerrascriptClient:
 
                 # Read Replicas shouldn't set these values as they come from
                 # the source db
-                remove_params = ['allocated_storage',
-                                 'engine', 'password', 'username']
+                remove_params = ['engine', 'password', 'username']
                 for param in remove_params:
                     values.pop(param, None)
 
