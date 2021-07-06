@@ -3,6 +3,7 @@ import os
 from prometheus_client import Counter, Gauge
 
 from sretoolbox.container import Image
+from sretoolbox.container import Skopeo
 
 # TODO: move these to a shared, constants module
 
@@ -21,7 +22,7 @@ class InstrumentedImage(Image):
     """
     _registry_reachouts = Counter(
         name='qontract_reconcile_registry_reachouts',
-        documentation='Number GET requests on public image registries',
+        documentation='Number of GET requests on public image registries',
         labelnames=['integration', 'shard', 'shard_id'])
 
     def _get_manifest(self):
@@ -89,3 +90,20 @@ class InstrumentedCache:
     def __delitem__(self, key):
         del self._cache[key]
         self._size.dec(1)
+
+
+class InstrumentedSkopeo(Skopeo):
+    _copy_count = Counter(
+        name='qontract_reconcile_skopeo_copy',
+        documentation='Number of copy commands issued by Skopeo',
+        labelnames=['integration', 'shard', 'shard_id'],
+    )
+
+    def copy(self, *args, **kwargs):
+        # pylint: disable=signature-differs
+        self._copy_count.labels(
+            integration=INTEGRATION_NAME,
+            shard=SHARDS,
+            shard_id=SHARD_ID
+        ).inc()
+        return super().copy(*args, **kwargs)
