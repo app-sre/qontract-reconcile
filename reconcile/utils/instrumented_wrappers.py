@@ -94,7 +94,7 @@ class InstrumentedCache:
 
 class InstrumentedSkopeo(Skopeo):
     _copy_count = Counter(
-        name='qontract_reconcile_skopeo_copy',
+        name='qontract_reconcile_skopeo_copy_total',
         documentation='Number of copy commands issued by Skopeo',
         labelnames=['integration', 'shard', 'shard_id'],
     )
