@@ -42,7 +42,7 @@ class InstrumentedCache:
     )
 
     _cache_misses = Counter(
-        name='qontract_reconcile_cache_misses',
+        name='qontract_reconcile_cache_misses_total',
         documentation='Number of misses on this cache',
         labelnames=['integration', 'shards', 'shard_id']
     )
