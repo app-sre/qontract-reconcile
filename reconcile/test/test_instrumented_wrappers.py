@@ -1,12 +1,14 @@
 from unittest import TestCase
 from unittest.mock import patch
 
+from prometheus_client import Counter
+
 from sretoolbox.container import Image
 import reconcile.utils.instrumented_wrappers as instrumented
 
 
 class TestInstrumentedImage(TestCase):
-    @patch.object(instrumented.InstrumentedImage._registry_reachouts, 'labels')
+    @patch.object(Counter, 'labels')
     @patch.object(Image, '_get_manifest')
     def test_instrumented_reachout(self, getter, counter):
         # pylint: disable=no-self-use

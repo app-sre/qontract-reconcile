@@ -1,9 +1,9 @@
 import os
 
-from prometheus_client import Counter, Gauge
-
 from sretoolbox.container import Image
 from sretoolbox.container import Skopeo
+
+import reconcile.utils.metrics as metrics
 
 # TODO: move these to a shared, constants module
 
@@ -20,13 +20,9 @@ class InstrumentedImage(Image):
     our mirroring-related costs.
 
     """
-    _registry_reachouts = Counter(
-        name='qontract_reconcile_registry_get_manifest_total',
-        documentation='Number of GET requests on image registries',
-        labelnames=['integration', 'shard', 'shard_id', 'registry'])
 
     def _get_manifest(self):
-        self._registry_reachouts.labels(
+        metrics.registry_reachouts.labels(
             integration=INTEGRATION_NAME,
             shard=SHARDS,
             shard_id=SHARD_ID,
@@ -36,40 +32,23 @@ class InstrumentedImage(Image):
 
 
 class InstrumentedCache:
-    _cache_hits = Counter(
-        name='qontract_reconcile_cache_hits_tocal',
-        documentation='Number of hits to this cache',
-        labelnames=['integration', 'shards', 'shard_id']
-    )
-
-    _cache_misses = Counter(
-        name='qontract_reconcile_cache_misses_total',
-        documentation='Number of misses on this cache',
-        labelnames=['integration', 'shards', 'shard_id']
-    )
-
-    _cache_size = Gauge(
-        name='qontract_reconcile_cache_cardinality',
-        documentation='Number of keys in the cache',
-        labelnames=['integration', 'shards', 'shard_id']
-    )
 
     def __init__(self, integration_name, shards, shard_id):
         self.integraton_name = integration_name
         self.shards = shards
         self.shard_id = shard_id
 
-        self._hits = self._cache_hits.labels(
+        self._hits = metrics.cache_hits.labels(
             integration=integration_name,
             shards=shards,
             shard_id=shard_id
         )
-        self._misses = self._cache_misses.labels(
+        self._misses = metrics.cache_misses.labels(
             integration=integration_name,
             shards=shards,
             shard_id=shard_id
         )
-        self._size = self._cache_size.labels(
+        self._size = metrics.cache_size.labels(
             integration=integration_name,
             shards=shards,
             shard_id=shard_id
@@ -94,15 +73,10 @@ class InstrumentedCache:
 
 
 class InstrumentedSkopeo(Skopeo):
-    _copy_count = Counter(
-        name='qontract_reconcile_skopeo_copy_total',
-        documentation='Number of copy commands issued by Skopeo',
-        labelnames=['integration', 'shard', 'shard_id'],
-    )
 
     def copy(self, *args, **kwargs):
         # pylint: disable=signature-differs
-        self._copy_count.labels(
+        metrics.copy_count.labels(
             integration=INTEGRATION_NAME,
             shard=SHARDS,
             shard_id=SHARD_ID
