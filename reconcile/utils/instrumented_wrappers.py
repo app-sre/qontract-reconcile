@@ -23,13 +23,14 @@ class InstrumentedImage(Image):
     _registry_reachouts = Counter(
         name='qontract_reconcile_registry_get_manifest_total',
         documentation='Number of GET requests on public image registries',
-        labelnames=['integration', 'shard', 'shard_id'])
+        labelnames=['integration', 'shard', 'shard_id', 'registry'])
 
     def _get_manifest(self):
         self._registry_reachouts.labels(
             integration=INTEGRATION_NAME,
             shard=SHARDS,
-            shard_id=SHARD_ID
+            shard_id=SHARD_ID,
+            registry=self.registry,
         ).inc()
         super()._get_manifest()
 
