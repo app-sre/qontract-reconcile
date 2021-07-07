@@ -22,7 +22,7 @@ class InstrumentedImage(Image):
     """
     _registry_reachouts = Counter(
         name='qontract_reconcile_registry_get_manifest_total',
-        documentation='Number of GET requests on public image registries',
+        documentation='Number of GET requests on image registries',
         labelnames=['integration', 'shard', 'shard_id', 'registry'])
 
     def _get_manifest(self):
@@ -37,7 +37,7 @@ class InstrumentedImage(Image):
 
 class InstrumentedCache:
     _cache_hits = Counter(
-        name='qontract_reconcile_cache_hits',
+        name='qontract_reconcile_cache_hits_tocal',
         documentation='Number of hits to this cache',
         labelnames=['integration', 'shards', 'shard_id']
     )
@@ -49,8 +49,8 @@ class InstrumentedCache:
     )
 
     _cache_size = Gauge(
-        name='qontract_reconcile_cache_size',
-        documentation='Size of the cache',
+        name='qontract_reconcile_cache_cardinality',
+        documentation='Number of keys in the cache',
         labelnames=['integration', 'shards', 'shard_id']
     )
 
