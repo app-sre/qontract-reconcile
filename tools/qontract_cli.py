@@ -18,8 +18,11 @@ import reconcile.terraform_users as tfu
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.vault import VaultClient
 from reconcile.cli import config_file
+from reconcile.cli import vault_output_path
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 
@@ -520,6 +523,48 @@ def sre_checkpoints(ctx):
 
     columns = ['name', 'latest']
     print_output(ctx.obj['output'], checkpoints_data, columns)
+
+
+@get.command()
+@vault_output_path
+@click.pass_context
+def cluster_deployments(ctx, vault_output_path):
+    if not vault_output_path:
+        print('must supply vault output path')
+        sys.exit(1)
+
+    clusters = queries.get_clusters()
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(clusters=clusters,
+                    integration='',
+                    thread_pool_size=10,
+                    settings=settings,
+                    init_api_resources=True)
+    results = []
+    for c in clusters:
+        name = c['name']
+        oc = oc_map.get(name)
+        if not oc:
+            continue
+        if 'ClusterDeployment' not in oc.api_resources:
+            continue
+        cds = oc.get_all('ClusterDeployment', all_namespaces=True)['items']
+        for cd in cds:
+            try:
+                item = {
+                    'id': cd['spec']['clusterMetadata']['clusterID'],
+                    'cluster': name,
+                }
+                results.append(item)
+            except KeyError:
+                pass
+
+    vault_client = VaultClient()
+    secret = {
+        'path': vault_output_path,
+        'data': '\n'.join(f"{item['id']}: {item['cluster']}")
+    }
+    vault_client.write(secret)
 
 
 def print_output(output, content, columns=[]):
