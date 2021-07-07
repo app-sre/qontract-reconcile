@@ -21,7 +21,7 @@ class InstrumentedImage(Image):
 
     """
     _registry_reachouts = Counter(
-        name='qontract_reconcile_registry_reachouts',
+        name='qontract_reconcile_registry_get_manifest_total',
         documentation='Number of GET requests on public image registries',
         labelnames=['integration', 'shard', 'shard_id'])
 
