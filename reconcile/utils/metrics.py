@@ -23,7 +23,7 @@ registry_reachouts = Counter(
     labelnames=['integration', 'shard', 'shard_id', 'registry'])
 
 cache_hits = Counter(
-    name='qontract_reconcile_cache_hits_tocal',
+    name='qontract_reconcile_cache_hits_total',
     documentation='Number of hits to this cache',
     labelnames=['integration', 'shards', 'shard_id']
 )
