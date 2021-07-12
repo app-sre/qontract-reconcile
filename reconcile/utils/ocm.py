@@ -11,7 +11,7 @@ STATUS_READY = 'ready'
 
 AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
-KAS_API_BASE = '/api/managed-services-api'
+KAS_API_BASE = '/api/kafkas_mgmt'
 
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
