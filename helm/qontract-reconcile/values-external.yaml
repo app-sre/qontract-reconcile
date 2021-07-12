@@ -269,7 +269,7 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
-  shards: 10
+  shards: 20
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -279,7 +279,7 @@ integrations:
       memory: 800Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
-  shards: 10
+  shards: 20
 - name: openshift-routes
   resources:
     requests:
@@ -291,7 +291,7 @@ integrations:
       memory: 1040Mi
       cpu: 300m
   extraArgs: --external --no-use-jump-host
-  shards: 2
+  shards: 5
 - name: terraform-aws-route53
   resources:
     requests:
