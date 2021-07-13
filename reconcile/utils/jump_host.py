@@ -4,7 +4,7 @@ import os
 import threading
 import logging
 
-import sshtunnel
+from sshtunnel import SSHTunnelForwarder
 
 import reconcile.utils.gql as gql
 from reconcile.utils.secret_reader import SecretReader
@@ -88,7 +88,7 @@ class JumpHostSSH(JumpHostBase):
                 default_log_level = logger.level
                 logger.setLevel(logging.ERROR)
 
-                tunnel = sshtunnel.SSHTunnelForwarder(
+                tunnel = SSHTunnelForwarder(
                     ssh_address_or_host=self.hostname,
                     ssh_port=self.port,
                     ssh_username=self.user,
@@ -99,3 +99,9 @@ class JumpHostSSH(JumpHostBase):
                 tunnel.start()
                 logger.setLevel(default_log_level)
                 JumpHostSSH.bastion_tunnel[key] = tunnel
+
+    def cleanup(self):
+        JumpHostBase.cleanup(self)
+        with JumpHostSSH.tunnel_lock:
+            for tunnel in JumpHostSSH.bastion_tunnel.values():
+                tunnel.close()

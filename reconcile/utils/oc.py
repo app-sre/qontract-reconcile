@@ -758,6 +758,12 @@ class OCNative(OCDeprecated):
             retries=0
         )
 
+        if self.jump_host is not None:
+            # the ports could be parameterized, but at this point
+            # we only have need of 1 tunnel for 1 service
+            self.jump_host.create_ssh_tunnel(8888, 8888)
+            opts['proxy'] = 'http://localhost:8888'
+
         configuration = kubernetes.client.Configuration()
 
         # the kubernetes client configuration takes a limited set
@@ -768,12 +774,6 @@ class OCNative(OCDeprecated):
         # in the configuration object with setattr.
         for k, v in opts.items():
             setattr(configuration, k, v)
-
-        if self.jump_host is not None:
-            # the ports could be parameterized, but at this point
-            # we only have need of 1 tunnel for 1 service
-            self.jump_host.create_ssh_tunnel(8888, 8888)
-            opts['proxy'] = 'https://localhost:8888'
 
         k8s_client = kubernetes.client.ApiClient(configuration)
         try:
