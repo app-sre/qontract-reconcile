@@ -1470,13 +1470,13 @@ class TerrascriptClient:
                     "Sid": "ListObjectsInBucket",
                     "Effect": "Allow",
                     "Action": ["s3:ListBucket", "s3:PutBucketCORS"],
-                    "Resource": ["arn:aws:s3:::{0}".format(identifier)]
+                    "Resource": ["${" + bucket_tf_resource.arn + "}"]
                 },
                 {
                     "Sid": "AllObjectActions",
                     "Effect": "Allow",
                     "Action": action,
-                    "Resource": ["arn:aws:s3:::{0}/*".format(identifier)]
+                    "Resource": ["${" + bucket_tf_resource.arn + "}/*"]
                 }
             ]
         }
