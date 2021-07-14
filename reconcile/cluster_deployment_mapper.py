@@ -31,6 +31,7 @@ def run(dry_run, vault_output_path):
             continue
         if 'ClusterDeployment' not in oc.api_resources:
             continue
+        logging.info(f'[{name}] getting ClusterDeployments')
         cds = oc.get_all('ClusterDeployment', all_namespaces=True)['items']
         for cd in cds:
             try:
@@ -43,6 +44,7 @@ def run(dry_run, vault_output_path):
                 pass
 
     if not dry_run:
+        logging.info('writing ClusterDeployments to vault')
         vault_client = VaultClient()
         secret = {
             'path': f"{vault_output_path}/{QONTRACT_INTEGRATION}",
