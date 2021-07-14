@@ -529,6 +529,7 @@ def sre_checkpoints(ctx):
 @vault_output_path
 @click.pass_context
 def cluster_deployments(ctx, vault_output_path):
+    """Get Hive ClusterDeployments from all clusters and save mapping to Vault"""
     if not vault_output_path:
         print('must supply vault output path')
         sys.exit(1)
