@@ -361,10 +361,11 @@ class SaasHerder():
         return commit_sha
 
     @staticmethod
-    def _get_cluster_and_namespace(target):
+    def _get_cluster_namespace_environment(target):
         cluster = target['namespace']['cluster']['name']
         namespace = target['namespace']['name']
-        return cluster, namespace
+        environment = target['namespace']['environment']['name']
+        return cluster, namespace, environment
 
     @staticmethod
     def _additional_resource_process(resources, html_url):
@@ -691,6 +692,7 @@ class SaasHerder():
                                self.thread_pool_size)
         desired_state_specs = \
             [item for sublist in results for item in sublist]
+        self.populate_downstreams(desired_state_specs)
         promotions = threaded.run(self.populate_desired_state_saas_file,
                                   desired_state_specs,
                                   self.thread_pool_size,
@@ -727,8 +729,8 @@ class SaasHerder():
                 if target.get('disable'):
                     # a warning is logged during SaasHerder initiation
                     continue
-                cluster, namespace = \
-                    self._get_cluster_and_namespace(target)
+                cluster, namespace, environment = \
+                    self._get_cluster_namespace_environment(target)
                 process_template_options = {
                     'saas_file_name': saas_file_name,
                     'resource_template_name': rt_name,
@@ -751,16 +753,35 @@ class SaasHerder():
                     'saas_file_name': saas_file_name,
                     'cluster': cluster,
                     'namespace': namespace,
+                    'env_name': environment,
                     'managed_resource_types': managed_resource_types,
                     'process_template_options': process_template_options,
                     'check_images_options_base': check_images_options_base,
                     'instance_name': instance_name,
                     'upstream': target.get('upstream'),
+                    'downstream': target.get('downstream'),
                     'delete': target.get('delete'),
                 }
                 specs.append(spec)
 
         return specs
+
+    def populate_downstreams(self, specs):
+        downstreams = {}
+        for s in specs:
+            downstream = s['downstream']
+            if not downstream:
+                continue
+            saas_file_name = s['saas_file_name']
+            env_name = s['env_name']
+            instance_name = downstream['instance']['name']
+            job_name = downstream['name']
+            downstreams.setdefault(saas_file_name, {})
+            downstreams[saas_file_name].setdefault(env_name, {})
+            downstreams[saas_file_name][env_name].setdefault(
+                instance_name, set())
+            downstreams[saas_file_name][env_name][instance_name].add(job_name)
+        self.downstreams = downstreams
 
     def populate_desired_state_saas_file(self, spec, ri):
         if spec['delete']:
