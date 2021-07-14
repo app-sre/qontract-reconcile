@@ -17,7 +17,6 @@ def run(dry_run, thread_pool_size, vault_output_path):
         sys.exit(ExitCodes.ERROR)
 
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c['name'] == 'hivei01ue1']
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters,
                     integration=QONTRACT_INTEGRATION,
