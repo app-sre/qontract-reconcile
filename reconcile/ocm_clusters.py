@@ -65,7 +65,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is not None]
     ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings, skip_provision_shards=False)
+                     settings=settings, init_provision_shards=True)
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
