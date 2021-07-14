@@ -1366,9 +1366,8 @@ def sendgrid_teammates(ctx):
 
 
 @integration.command()
-@threaded()
 @vault_output_path
 @click.pass_context
-def cluster_deployment_mapper(ctx, thread_pool_size, vault_output_path):
+def cluster_deployment_mapper(ctx, vault_output_path):
     run_integration(reconcile.cluster_deployment_mapper, ctx.obj,
-                    thread_pool_size, vault_output_path)
+                    vault_output_path)

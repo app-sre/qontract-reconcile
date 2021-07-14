@@ -10,7 +10,7 @@ from reconcile.utils.vault import VaultClient
 QONTRACT_INTEGRATION = 'cluster-deployment-mapper'
 
 
-def run(dry_run, thread_pool_size, vault_output_path):
+def run(dry_run, vault_output_path):
     """Get Hive ClusterDeployments from all clusters and save mapping to Vault"""
     if not vault_output_path:
         logging.error('must supply vault output path')
@@ -20,7 +20,7 @@ def run(dry_run, thread_pool_size, vault_output_path):
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters,
                     integration=QONTRACT_INTEGRATION,
-                    thread_pool_size=thread_pool_size,
+                    thread_pool_size=1,
                     settings=settings,
                     init_api_resources=True)
     results = []
