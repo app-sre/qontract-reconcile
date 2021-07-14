@@ -563,9 +563,10 @@ def cluster_deployments(ctx, vault_output_path):
     vault_client = VaultClient()
     secret = {
         'path': vault_output_path,
-        'data': '\n'.join(f"{item['id']}: {item['cluster']}")
+        'data': {'data': '\n'.join(f"{item['id']}: {item['cluster']}"
+                                   for item in results)}
     }
-    vault_client.write(secret)
+    vault_client.write(secret, base64=False)
 
 
 def print_output(output, content, columns=[]):
