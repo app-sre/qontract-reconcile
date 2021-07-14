@@ -29,13 +29,18 @@ class OCM:
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
     :param offline_token: Long lived offline token used to get access token
+    :param init_provision_shards: should initiate provision shards
+    :param init_addons: should initiate addons
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
     :type offline_token: string
+    :type init_provision_shards: bool
+    :type init_addons: bool
     """
     def __init__(self, url, access_token_client_id, access_token_url,
-                 offline_token, skip_provision_shards=True):
+                 offline_token, init_provision_shards=False,
+                 init_addons=False):
         """Initiates access token and gets clusters information."""
         self.url = url
         self.access_token_client_id = access_token_client_id
@@ -43,8 +48,9 @@ class OCM:
         self.offline_token = offline_token
         self._init_access_token()
         self._init_request_headers()
-        self._init_clusters(skip_provision_shards=skip_provision_shards)
-        self._init_addons()
+        self._init_clusters(init_provision_shards=init_provision_shards)
+        if init_addons:
+            self._init_addons()
 
     @retry()
     def _init_access_token(self):
@@ -63,12 +69,12 @@ class OCM:
             "accept": "application/json",
         }
 
-    def _init_clusters(self, skip_provision_shards):
+    def _init_clusters(self, init_provision_shards):
         api = f'{CS_API_BASE}/v1/clusters'
         clusters = self._get_json(api)['items']
         self.cluster_ids = {c['name']: c['id'] for c in clusters}
         self.clusters = {
-            c['name']: self._get_cluster_ocm_spec(c, skip_provision_shards)
+            c['name']: self._get_cluster_ocm_spec(c, init_provision_shards)
             for c in clusters if c['managed']
             and c['state'] == STATUS_READY
         }
@@ -76,7 +82,7 @@ class OCM:
                                    if c['managed']
                                    and c['state'] != STATUS_READY]
 
-    def _get_cluster_ocm_spec(self, cluster, skip_provision_shards):
+    def _get_cluster_ocm_spec(self, cluster, init_provision_shards):
         ocm_spec = {
             'spec': {
                 'id': cluster['id'],
@@ -93,8 +99,8 @@ class OCM:
                 'load_balancers': cluster['load_balancer_quota'],
                 'private': cluster['api']['listening'] == 'internal',
                 'provision_shard_id':
-                    None if skip_provision_shards
-                    else self.get_provision_shard(cluster['id'])['id'],
+                    self.get_provision_shard(cluster['id'])['id']
+                    if init_provision_shards else None,
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -861,14 +867,19 @@ class OCMMap:
     :param integration: Name of calling integration.
                         Used to disable integrations.
     :param settings: App Interface settings
+    :param init_provision_shards: should initiate provision shards
+    :param init_addons: should initiate addons
     :type clusters: list
     :type namespaces: list
     :type integration: string
     :type settings: dict
+    :type init_provision_shards: bool
+    :type init_addons: bool
     """
     def __init__(self, clusters=None, namespaces=None,
                  integration='', settings=None,
-                 skip_provision_shards=True):
+                 init_provision_shards=False,
+                 init_addons=False):
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
         self.ocm_map = {}
@@ -879,15 +890,18 @@ class OCMMap:
             raise KeyError('expected only one of clusters or namespaces.')
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(cluster_info, skip_provision_shards)
+                self.init_ocm_client(cluster_info, init_provision_shards,
+                                     init_addons)
         elif namespaces:
             for namespace_info in namespaces:
                 cluster_info = namespace_info['cluster']
-                self.init_ocm_client(cluster_info, skip_provision_shards)
+                self.init_ocm_client(cluster_info, init_provision_shards,
+                                     init_addons)
         else:
             raise KeyError('expected one of clusters or namespaces.')
 
-    def init_ocm_client(self, cluster_info, skip_provision_shards):
+    def init_ocm_client(self, cluster_info, init_provision_shards,
+                        init_addons):
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
@@ -895,6 +909,8 @@ class OCMMap:
         the current integration is disabled on it.
 
         :param cluster_info: Graphql cluster query result
+        :param init_provision_shards: should initiate provision shards
+        :param init_addons: should initiate addons
 
         :type cluster_info: dict
         """
@@ -919,7 +935,8 @@ class OCMMap:
             token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
                 OCM(url, access_token_client_id, access_token_url, token,
-                    skip_provision_shards=skip_provision_shards)
+                    init_provision_shards=init_provision_shards,
+                    init_addons=init_addons)
 
     def cluster_disabled(self, cluster_info):
         """
