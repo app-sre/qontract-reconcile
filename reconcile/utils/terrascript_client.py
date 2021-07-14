@@ -1002,8 +1002,7 @@ class TerrascriptClient:
 
                 # Read Replicas shouldn't set these values as they come from
                 # the source db
-                remove_params = ['allocated_storage',
-                                 'engine', 'password', 'username']
+                remove_params = ['engine', 'password', 'username']
                 for param in remove_params:
                     values.pop(param, None)
 
@@ -1471,13 +1470,13 @@ class TerrascriptClient:
                     "Sid": "ListObjectsInBucket",
                     "Effect": "Allow",
                     "Action": ["s3:ListBucket", "s3:PutBucketCORS"],
-                    "Resource": ["arn:aws:s3:::{0}".format(identifier)]
+                    "Resource": ["${" + bucket_tf_resource.arn + "}"]
                 },
                 {
                     "Sid": "AllObjectActions",
                     "Effect": "Allow",
                     "Action": action,
-                    "Resource": ["arn:aws:s3:::{0}/*".format(identifier)]
+                    "Resource": ["${" + bucket_tf_resource.arn + "}/*"]
                 }
             ]
         }

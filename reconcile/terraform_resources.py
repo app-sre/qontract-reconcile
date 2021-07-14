@@ -317,8 +317,11 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     existing_secrets = tf.get_terraform_output_secrets()
     clusters = [c for c in queries.get_clusters()
                 if c.get('ocm') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
+    if clusters:
+        ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                         settings=settings)
+    else:
+        ocm_map = None
     ts.populate_resources(tf_namespaces, existing_secrets, account_name,
                           ocm_map=ocm_map)
     ts.dump(print_only, existing_dirs=working_dirs)

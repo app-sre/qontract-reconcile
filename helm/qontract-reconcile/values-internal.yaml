@@ -46,6 +46,16 @@ integrations:
   extraArgs: --internal
   logs:
     slack: true
+- name: openshift-upgrade-watcher
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1040Mi
+      cpu: 500m
+  extraArgs: --no-use-jump-host
+  state: true
 - name: openshift-groups
   resources:
     requests:
