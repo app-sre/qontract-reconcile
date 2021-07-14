@@ -7,7 +7,7 @@ from subprocess import PIPE, Popen, STDOUT, run
 ERR_SPACES = 'key has spaces in it'
 ERR_EQUAL_SIGNS = 'equal signs should only appear at the end of the key'
 ERR_BASE64 = 'could not perform base64 decode of key'
-ERR_SIGNER = 'key signer {} dose not match with user org email address {}'
+ERR_SIGNER = 'key signer {} does not match with user org email address {}'
 ERR_ENTRIES = 'key must contain both pub and sub entries'
 
 
