@@ -1,3 +1,4 @@
+import sys
 import logging
 
 import reconcile.queries as queries
@@ -11,7 +12,7 @@ QONTRACT_INTEGRATION = 'cluster-deployment-mapper'
 
 
 def run(dry_run, vault_output_path):
-    """Get Hive ClusterDeployments from all clusters and save mapping to Vault"""
+    """Get Hive ClusterDeployments from clusters and save mapping to Vault"""
     if not vault_output_path:
         logging.error('must supply vault output path')
         sys.exit(ExitCodes.ERROR)
