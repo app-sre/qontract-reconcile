@@ -18,11 +18,8 @@ import reconcile.terraform_users as tfu
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
-from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
-from reconcile.utils.vault import VaultClient
 from reconcile.cli import config_file
-from reconcile.cli import vault_output_path
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 
