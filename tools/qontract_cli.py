@@ -525,50 +525,6 @@ def sre_checkpoints(ctx):
     print_output(ctx.obj['output'], checkpoints_data, columns)
 
 
-@get.command()
-@vault_output_path
-@click.pass_context
-def cluster_deployments(ctx, vault_output_path):
-    """Get Hive ClusterDeployments from all clusters and save mapping to Vault"""
-    if not vault_output_path:
-        print('must supply vault output path')
-        sys.exit(1)
-
-    clusters = queries.get_clusters()
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(clusters=clusters,
-                    integration='',
-                    thread_pool_size=10,
-                    settings=settings,
-                    init_api_resources=True)
-    results = []
-    for c in clusters:
-        name = c['name']
-        oc = oc_map.get(name)
-        if not oc:
-            continue
-        if 'ClusterDeployment' not in oc.api_resources:
-            continue
-        cds = oc.get_all('ClusterDeployment', all_namespaces=True)['items']
-        for cd in cds:
-            try:
-                item = {
-                    'id': cd['spec']['clusterMetadata']['clusterID'],
-                    'cluster': name,
-                }
-                results.append(item)
-            except KeyError:
-                pass
-
-    vault_client = VaultClient()
-    secret = {
-        'path': vault_output_path,
-        'data': {'data': '\n'.join(f"{item['id']}: {item['cluster']}"
-                                   for item in results)}
-    }
-    vault_client.write(secret, base64=False)
-
-
 def print_output(output, content, columns=[]):
     if output == 'table':
         print_table(content, columns)

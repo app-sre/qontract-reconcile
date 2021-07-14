@@ -101,6 +101,7 @@ import reconcile.sendgrid_teammates
 import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
+import reconcile.cluster_deployment_mapper
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1362,3 +1363,12 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
 @click.pass_context
 def sendgrid_teammates(ctx):
     run_integration(reconcile.sendgrid_teammates, ctx.obj)
+
+
+@integration.command()
+@threaded()
+@vault_output_path
+@click.pass_context
+def cluster_deployment_mapper(ctx, thread_pool_size, vault_output_path):
+    run_integration(reconcile.cluster_deployment_mapper, ctx.obj,
+                    thread_pool_size, vault_output_path)
