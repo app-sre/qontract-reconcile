@@ -52,4 +52,4 @@ def run(dry_run, vault_output_path):
             'data': {'map': '\n'.join(f"{item['id']}: {item['cluster']}"
                                       for item in results)}
         }
-        vault_client.write(secret, base64=False)
+        vault_client.write(secret, decode_base64=False)

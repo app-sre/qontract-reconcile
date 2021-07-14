@@ -216,7 +216,7 @@ class _VaultClient:
         return secret_field
 
     @retry()
-    def write(self, secret, base64=True):
+    def write(self, secret, decode_base64=True):
         """Writes a dictionary of keys and values to a Vault secret.
 
         The input secret is a dictionary which contains the following fields:
@@ -225,7 +225,7 @@ class _VaultClient:
         """
         secret_path = secret['path']
         b64_data = secret['data']
-        if base64:
+        if decode_base64:
             data = {k: base64.b64decode(v or '').decode('utf-8')
                     for k, v in b64_data.items()}
         else:
