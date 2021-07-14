@@ -681,7 +681,8 @@ class OC_Map:
     def __init__(self, clusters=None, namespaces=None,
                  integration='', e2e_test='', settings=None,
                  internal=None, use_jump_host=True, thread_pool_size=1,
-                 init_projects=False, init_api_resources=False):
+                 init_projects=False, init_api_resources=False,
+                 cluster_admin=False):
         self.oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
@@ -696,14 +697,16 @@ class OC_Map:
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
         elif clusters:
-            threaded.run(self.init_oc_client, clusters, self.thread_pool_size)
+            threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
+                         cluster_admin=cluster_admin)
         elif namespaces:
             clusters = [ns_info['cluster'] for ns_info in namespaces]
-            threaded.run(self.init_oc_client, clusters, self.thread_pool_size)
+            threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
+                         cluster_admin=cluster_admin)
         else:
             raise KeyError('expected one of clusters or namespaces.')
 
-    def init_oc_client(self, cluster_info):
+    def init_oc_client(self, cluster_info, cluster_admin):
         cluster = cluster_info['name']
         if self.oc_map.get(cluster):
             return None
@@ -717,7 +720,10 @@ class OC_Map:
             if not self.internal and cluster_info['internal']:
                 return
 
-        automation_token = cluster_info.get('automationToken')
+        if cluster_admin:
+            automation_token = cluster_info.get('clusterAdminAutomationToken')
+        else:
+            automation_token = cluster_info.get('automationToken')
         if automation_token is None:
             self.set_oc(cluster,
                         OCLogMsg(log_level=logging.ERROR,
