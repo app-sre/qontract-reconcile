@@ -728,7 +728,7 @@ class OCM:
     def get_kafka_service_accounts(self, fields=None):
         """Returns details of the Kafka service accounts """
         results = []
-        api = f'{KAS_API_BASE}/v1/serviceaccounts'
+        api = f'{KAS_API_BASE}/v1/service_accounts'
         service_accounts = self._get_json(api)['items']
         for sa in service_accounts:
             sa_id = sa['id']
@@ -748,7 +748,7 @@ class OCM:
 
     def create_kafka_service_account(self, name, fields=None):
         """ Creates a Kafka service account """
-        api = f'{KAS_API_BASE}/v1/serviceaccounts'
+        api = f'{KAS_API_BASE}/v1/service_accounts'
         result = self._post(api, {'name': name})
         if fields:
             result = {k: v for k, v in result.items() if k in fields}
