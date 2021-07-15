@@ -93,6 +93,17 @@ integrations:
   logs:
     slack: true
   internalCertificates: true
+- name: openshift-limitranges
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      memory: 1040Mi
+      cpu: 300m
+  extraArgs: --internal
+  logs:
+    slack: true
 - name: openshift-resources
   resources:
     requests:
