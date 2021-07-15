@@ -121,7 +121,8 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        init_api_resources=True)
+        init_api_resources=True,
+        cluster_admin=saasherder.cluster_admin)
     defer(lambda: oc_map.cleanup())
     saasherder.populate_desired_state(ri)
 

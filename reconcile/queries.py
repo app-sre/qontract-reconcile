@@ -1222,6 +1222,7 @@ SAAS_FILES_QUERY_V1 = """
     compare
     timeout
     publishJobLogs
+    clusterAdmin
     imagePatterns
     use_channel_in_image_tag
     authentication {
@@ -1266,6 +1267,11 @@ SAAS_FILES_QUERY_V1 = """
                 }
             }
             automationToken {
+              path
+              field
+              format
+            }
+            clusterAdminAutomationToken {
               path
               field
               format
@@ -1365,6 +1371,7 @@ SAAS_FILES_QUERY_V2 = """
     takeover
     compare
     publishJobLogs
+    clusterAdmin
     imagePatterns
     use_channel_in_image_tag
     authentication {
@@ -1409,6 +1416,11 @@ SAAS_FILES_QUERY_V2 = """
                 }
             }
             automationToken {
+              path
+              field
+              format
+            }
+            clusterAdminAutomationToken {
               path
               field
               format

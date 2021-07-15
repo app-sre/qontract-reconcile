@@ -171,7 +171,8 @@ def fetch_current_state(namespaces=None,
                         override_managed_types=None,
                         internal=None,
                         use_jump_host=True,
-                        init_api_resources=False):
+                        init_api_resources=False,
+                        cluster_admin=False):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces,
@@ -181,7 +182,8 @@ def fetch_current_state(namespaces=None,
                     internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size,
-                    init_api_resources=init_api_resources)
+                    init_api_resources=init_api_resources,
+                    cluster_admin=cluster_admin)
     state_specs = \
         init_specs_to_fetch(
             ri,

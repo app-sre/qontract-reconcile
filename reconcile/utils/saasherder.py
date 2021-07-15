@@ -73,6 +73,7 @@ class SaasHerder():
         self.take_over = self._get_saas_file_attribute('takeover')
         self.compare = self._get_saas_file_attribute('compare')
         self.publish_job_logs = self._get_saas_file_attribute('publishJobLogs')
+        self.cluster_admin = self._get_saas_file_attribute('clusterAdmin')
         if accounts:
             self._initiate_state(accounts)
 
