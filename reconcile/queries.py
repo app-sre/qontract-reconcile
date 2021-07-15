@@ -1271,6 +1271,11 @@ SAAS_FILES_QUERY_V1 = """
               field
               format
             }
+            clusterAdminAutomationToken {
+              path
+              field
+              format
+            }
             internal
             disable {
               integrations
@@ -1411,6 +1416,11 @@ SAAS_FILES_QUERY_V2 = """
                 }
             }
             automationToken {
+              path
+              field
+              format
+            }
+            clusterAdminAutomationToken {
               path
               field
               format
