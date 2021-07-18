@@ -321,7 +321,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-rolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -528,7 +528,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-clusterrolebindings
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -725,7 +725,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-users
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1100,7 +1100,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-groups
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1303,7 +1303,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-namespaces
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1510,7 +1510,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-network-policies
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1707,7 +1707,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-limitranges
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -1910,7 +1910,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-resources
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2099,7 +2099,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-vault-secrets
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2278,7 +2278,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-routes
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--internal"
+            value: "--internal --no-use-jump-host"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
@@ -2481,7 +2481,7 @@ objects:
           - name: INTEGRATION_NAME
             value: openshift-serviceaccount-tokens
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--vault-output-path app-sre/integrations-output"
+            value: "--no-use-jump-host --vault-output-path app-sre/integrations-output"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
