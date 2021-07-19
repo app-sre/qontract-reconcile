@@ -953,8 +953,11 @@ class SaasHerder():
 
     @retry()
     def _get_upstream_jobs_current_state(self):
-        return {instance_name: jenkins.get_jobs_state()
-                for instance_name, jenkins in self.jenkins_map.items()}
+        current_state = {}
+        for instance_name, jenkins in self.jenkins_map.items():
+            current_state[instance_name] = jenkins.get_jobs_state()
+
+        return current_state
 
     def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run,
                                          current_state):
