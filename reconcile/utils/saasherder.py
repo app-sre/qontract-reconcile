@@ -962,7 +962,7 @@ class SaasHerder():
         for instance_name, jenkins in self.jenkins_map.items():
             try:
                 current_state[instance_name] = jenkins.get_jobs_state()
-            except rqexc.ConnectionError:
+            except (rqexc.ConnectionError, rqexc.HTTPError):
                 error = True
                 logging.error(f"instance unreachable: {instance_name}")
                 current_state[instance_name] = {}
