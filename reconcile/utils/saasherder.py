@@ -956,7 +956,6 @@ class SaasHerder():
                                current_state=current_state)
         return [item for sublist in results for item in sublist], error
 
-    @retry()
     def _get_upstream_jobs_current_state(self):
         current_state = {}
         error = False

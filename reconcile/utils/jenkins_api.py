@@ -3,6 +3,8 @@ import toml
 
 import requests
 
+from sretoolbox.utils import retry
+
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -33,6 +35,7 @@ class JenkinsApi:
         job_names = [r['name'] for r in res.json()['jobs']]
         return job_names
 
+    @retry()
     def get_jobs_state(self):
         url = f"{self.url}/api/json?tree=jobs[name,builds[number,result]]"
         res = requests.get(
