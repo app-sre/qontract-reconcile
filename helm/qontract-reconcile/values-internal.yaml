@@ -291,6 +291,7 @@ integrations:
       cpu: 200m
   logs:
     slack: true
+  cache: true
 - name: jenkins-roles
   resources:
     requests:
