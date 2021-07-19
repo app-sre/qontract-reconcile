@@ -6463,12 +6463,21 @@ objects:
         - name: fluentd-config
           emptyDir: {}
 - apiVersion: apps/v1
-  kind: Deployment
+  kind: StatefulSet
   metadata:
     labels:
       app: qontract-reconcile-jenkins-job-cleaner
     name: qontract-reconcile-jenkins-job-cleaner
   spec:
+    volumeClaimTemplates:
+    - metadata:
+        name: cache
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 1Gi
     replicas: 1
     selector:
       matchLabels:
@@ -6614,6 +6623,8 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
+          - name: cache
+            mountPath: /.cache
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
