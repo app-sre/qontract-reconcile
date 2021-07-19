@@ -838,11 +838,16 @@ class SaasHerder():
 
     def get_diff(self, trigger_type, dry_run):
         if trigger_type == TriggerTypes.MOVING_COMMITS:
-            return self.get_moving_commits_diff(dry_run)
+            # TODO: replace error with actual error handling when needed
+            error = False
+            return self.get_moving_commits_diff(dry_run), error
         elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
+            # error is being returned from the called function
             return self.get_upstream_jobs_diff(dry_run)
         elif trigger_type == TriggerTypes.CONFIGS:
-            return self.get_configs_diff()
+            # TODO: replace error with actual error handling when needed
+            error = False
+            return self.get_configs_diff(), error
         else:
             raise NotImplementedError(
                 f'saasherder get_diff for trigger type: {trigger_type}')
@@ -943,21 +948,27 @@ class SaasHerder():
         self.state.add(key, value=commit_sha, force=True)
 
     def get_upstream_jobs_diff(self, dry_run):
-        current_state = self._get_upstream_jobs_current_state()
+        current_state, error = self._get_upstream_jobs_current_state()
         results = threaded.run(self.get_upstream_jobs_diff_saas_file,
                                self.saas_files,
                                self.thread_pool_size,
                                dry_run=dry_run,
                                current_state=current_state)
-        return [item for sublist in results for item in sublist]
+        return [item for sublist in results for item in sublist], error
 
     @retry()
     def _get_upstream_jobs_current_state(self):
         current_state = {}
+        error = False
         for instance_name, jenkins in self.jenkins_map.items():
-            current_state[instance_name] = jenkins.get_jobs_state()
+            try:
+                current_state[instance_name] = jenkins.get_jobs_state()
+            except rqexc.ConnectionError:
+                error = True
+                logging.error(f"instance unreachable: {instance_name}")
+                current_state[instance_name] = {}
 
-        return current_state
+        return current_state, error
 
     def get_upstream_jobs_diff_saas_file(self, saas_file, dry_run,
                                          current_state):
