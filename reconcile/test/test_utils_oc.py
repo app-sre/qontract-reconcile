@@ -1,13 +1,13 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from reconcile.utils.oc import OC, PodNotReadyError, StatusCodeError
+from reconcile.utils.oc import OC, OCDeprecated, PodNotReadyError, StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
 class TestGetOwnedPods(TestCase):
-    @patch.object(OC, 'get')
-    @patch.object(OC, 'get_obj_root_owner')
+    @patch.object(OCDeprecated, 'get')
+    @patch.object(OCDeprecated, 'get_obj_root_owner')
     def test_get_owned_pods(self, oc_get_obj_root_owner, oc_get):
         owner_body = {
             'kind': 'ownerkind',
@@ -75,7 +75,7 @@ class TestGetOwnedPods(TestCase):
 
 class TestValidatePodReady(TestCase):
     @staticmethod
-    @patch.object(OC, 'get')
+    @patch.object(OCDeprecated, 'get')
     def test_validate_pod_ready_all_good(oc_get):
         oc_get.return_value = {
             'status': {
@@ -94,7 +94,7 @@ class TestValidatePodReady(TestCase):
         oc = OC('cluster', 'server', 'token', local=True)
         oc.validate_pod_ready('namespace', 'podname')
 
-    @patch.object(OC, 'get')
+    @patch.object(OCDeprecated, 'get')
     def test_validate_pod_ready_one_missing(self, oc_get):
         oc_get.return_value = {
             'status': {
@@ -118,7 +118,7 @@ class TestValidatePodReady(TestCase):
 
 
 class TestGetObjRootOwner(TestCase):
-    @patch.object(OC, 'get')
+    @patch.object(OCDeprecated, 'get')
     def test_owner(self, oc_get):
         obj = {
             'metadata': {
