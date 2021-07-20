@@ -728,7 +728,7 @@ class OCNative(OCDeprecated):
         super().__init__(server, token=token, jh=jh, settings=settings,
                          init_projects=False, init_api_resources=False,
                          local=local)
-        if server is not None and len(server) > 0:
+        if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
@@ -758,7 +758,7 @@ class OCNative(OCDeprecated):
             retries=0
         )
 
-        if self.jump_host is not None:
+        if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
             self.jump_host.create_ssh_tunnel(8888, 8888)
