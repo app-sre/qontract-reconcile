@@ -526,7 +526,8 @@ class OC:
             'DaemonSet',
         ]
         for pod in pods_to_recycle:
-            owner = self.get_obj_root_owner(namespace, pod)
+            owner = self.get_obj_root_owner(namespace, pod,
+                                            allow_not_found=True)
             kind = owner['kind']
             if kind not in supported_recyclables:
                 continue
@@ -559,12 +560,18 @@ class OC:
                     stdin = json.dumps(obj, sort_keys=True)
                     self._run(cmd, stdin=stdin, apply=True)
 
-    def get_obj_root_owner(self, ns, obj):
+    def get_obj_root_owner(self, ns, obj, allow_not_found=False):
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
             if r.get('controller'):
-                controller_obj = self.get(ns, r['kind'], r['name'])
-                return self.get_obj_root_owner(ns, controller_obj)
+                controller_obj = self.get(ns, r['kind'], r['name'],
+                                          allow_not_found=allow_not_found)
+                if controller_obj:
+                    return self.get_obj_root_owner(
+                        ns,
+                        controller_obj,
+                        allow_not_found=allow_not_found
+                    )
         return obj
 
     @staticmethod
