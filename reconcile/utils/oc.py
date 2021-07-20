@@ -464,7 +464,8 @@ class OC:
 
     @retry(max_attempts=20)
     def validate_pod_ready(self, namespace, name):
-        logging.info([self.validate_pod_ready.__name__, namespace, name])
+        logging.info([self.validate_pod_ready.__name__,
+                      self.name, namespace, name])
         pod = self.get(namespace, 'Pod', name)
         for status in pod['status']['containerStatuses']:
             if not status['ready']:
@@ -481,7 +482,7 @@ class OC:
         supported_kinds = ['Secret', 'ConfigMap']
         if dep_kind not in supported_kinds:
             logging.debug(['skipping_pod_recycle_unsupported',
-                           namespace, dep_kind])
+                           self.name, namespace, dep_kind])
             return
 
         dep_annotations = dep_resource.body['metadata'].get('annotations', {})
@@ -490,7 +491,7 @@ class OC:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
         if qontract_recycle != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
-                           namespace, dep_kind])
+                           self.name, namespace, dep_kind])
             return
 
         dep_name = dep_resource.name
@@ -530,7 +531,8 @@ class OC:
         for kind, objs in recyclables.items():
             for obj in objs:
                 name = obj['metadata']['name']
-                logging.info([f'recycle_{kind.lower()}', namespace, name])
+                logging.info([f'recycle_{kind.lower()}',
+                              self.name, namespace, name])
                 if not dry_run:
                     now = datetime.now()
                     recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
