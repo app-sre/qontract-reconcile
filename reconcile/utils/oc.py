@@ -160,9 +160,10 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 class OC:
-    def __init__(self, server, token, jh=None, settings=None,
+    def __init__(self, name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
+        self.name = name
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -738,7 +739,7 @@ class OC_Map:
             else:
                 jump_host = None
             try:
-                oc_client = OC(server_url, token, jump_host,
+                oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,
                                init_projects=self.init_projects,
                                init_api_resources=self.init_api_resources)

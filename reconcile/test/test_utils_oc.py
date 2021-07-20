@@ -67,7 +67,7 @@ class TestGetOwnedPods(TestCase):
             }
         ]
 
-        oc = OC('server', 'token', local=True)
+        oc = OC('cluster', 'server', 'token', local=True)
         pods = oc.get_owned_pods('namespace', owner_resource)
         self.assertEqual(len(pods), 1)
         self.assertEqual(pods[0]['metadata']['name'], 'pod1')
@@ -91,7 +91,7 @@ class TestValidatePodReady(TestCase):
                 ]
             }
         }
-        oc = OC('server', 'token', local=True)
+        oc = OC('cluster', 'server', 'token', local=True)
         oc.validate_pod_ready('namespace', 'podname')
 
     @patch.object(OC, 'get')
@@ -111,7 +111,7 @@ class TestValidatePodReady(TestCase):
             }
         }
 
-        oc = OC('server', 'token', local=True)
+        oc = OC('cluster', 'server', 'token', local=True)
         with self.assertRaises(PodNotReadyError):
             # Bypass the retry stuff
             oc.validate_pod_ready.__wrapped__(oc, 'namespace', 'podname')
@@ -141,7 +141,7 @@ class TestGetObjRootOwner(TestCase):
             owner_obj
         ]
 
-        oc = OC('server', 'token', local=True)
+        oc = OC('cluster', 'server', 'token', local=True)
         result_owner_obj = oc.get_obj_root_owner('namespace', obj)
         self.assertEqual(result_owner_obj, owner_obj)
 
@@ -152,6 +152,6 @@ class TestGetObjRootOwner(TestCase):
             }
         }
 
-        oc = OC('server', 'token', local=True)
+        oc = OC('cluster', 'server', 'token', local=True)
         result_obj = oc.get_obj_root_owner('namespace', obj)
         self.assertEqual(result_obj, obj)
