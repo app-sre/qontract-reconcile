@@ -14,7 +14,8 @@ import urllib3
 from sretoolbox.utils import retry
 from prometheus_client import Counter
 
-import kubernetes
+from kubernetes.client import Configuration, ApiClient
+from kubernetes.client.exceptions import ApiException
 
 from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
@@ -23,6 +24,7 @@ from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.threaded as threaded
 from openshift.dynamic.exceptions import NotFoundError
 from openshift.dynamic import DynamicClient
+from openshift.dynamic.resource import ResourceList
 
 urllib3.disable_warnings()
 
@@ -764,7 +766,7 @@ class OCNative(OCDeprecated):
             self.jump_host.create_ssh_tunnel(8888, 8888)
             opts['proxy'] = 'http://localhost:8888'
 
-        configuration = kubernetes.client.Configuration()
+        configuration = Configuration()
 
         # the kubernetes client configuration takes a limited set
         # of parameters during initialization, but there are a lot
@@ -775,7 +777,7 @@ class OCNative(OCDeprecated):
         for k, v in opts.items():
             setattr(configuration, k, v)
 
-        k8s_client = kubernetes.client.ApiClient(configuration)
+        k8s_client = ApiClient(configuration)
         try:
             return DynamicClient(k8s_client)
         except urllib3.exceptions.MaxRetryError as e:
@@ -801,17 +803,23 @@ class OCNative(OCDeprecated):
         # the apigroup passed with the kind_name
         if len(kind_group) > 1:
             apigroup_override = kind_group[1]
+            find = False
             for gv in self.api_kind_version[kind]:
                 if apigroup_override in gv:
                     group_version = gv
+                    find = True
                     break
+            if not find:
+                raise StatusCodeError(f'{self.server}: {apigroup_override}'
+                                      f' does not have kind {kind}')
         return(kind, group_version)
 
     # this function returns a kind:apigroup/version map for each kind on the
     # cluster
     def get_api_resources(self):
+        c_res = self.client.resources
         # this returns a prefix:apis map
-        api_prefix = self.client.resources.parse_api_groups(
+        api_prefix = c_res.parse_api_groups(
             request_resources=False, update=True)
         kind_groupversion = {}
         for prefix, apis in api_prefix.items():
@@ -827,26 +835,25 @@ class OCNative(OCDeprecated):
                 # are part of that apigroup/version.
                 for version, obj in versions.items():
                     try:
-                        client_resources = self.client.resources
-                        r = client_resources.get_resources_for_api_version(
+                        resources = c_res.get_resources_for_api_version(
                             prefix, apigroup, version, True)
-                    except kubernetes.client.exceptions.ApiException:
+                    except ApiException:
                         # there may be apigroups/versions that require elevated
                         # permisions, so go to the next one
                         next
-                    # resources are in a kind:ResourceList map, where a
-                    # ResourceList contains the api endpoint
-                    # (apigroup/version/puralkind)
-                    for kind in r.keys():
-                        if len(apigroup) == 0:
-                            gv = f'{version}'
-                        else:
-                            gv = f'{apigroup}/{version}'
-
-                        # add the kind and apigroup/version to the set of api
-                        # kinds
-                        kind_groupversion = self.add_group_kind(
-                            kind, kind_groupversion, gv, obj.preferred)
+                    # resources is a map containing kind:Resource and
+                    # {kind}List:ResourceList where a Resource contains the api
+                    # group_version (group/api_version) and a ResourceList
+                    # represents a list of API objects
+                    for kind, res in resources.items():
+                        for r in res:
+                            if isinstance(r, ResourceList):
+                                continue
+                            # add the kind and apigroup/version to the set
+                            # of api kinds
+                            kind_groupversion = self.add_group_kind(
+                                    kind, kind_groupversion,
+                                    r.group_version, obj.preferred)
         return kind_groupversion
 
     def get_items(self, kind, **kwargs):
