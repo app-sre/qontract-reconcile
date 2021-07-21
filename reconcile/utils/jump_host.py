@@ -103,5 +103,7 @@ class JumpHostSSH(JumpHostBase):
     def cleanup(self):
         JumpHostBase.cleanup(self)
         with JumpHostSSH.tunnel_lock:
-            for tunnel in JumpHostSSH.bastion_tunnel.values():
+            tunnels = JumpHostSSH.bastion_tunnel
+            for key in list(tunnels.keys()):
+                tunnel = tunnels.pop(key)
                 tunnel.close()
