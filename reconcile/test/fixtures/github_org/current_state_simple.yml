@@ -1,5 +1,7 @@
 gh_api:
   org_a:
+    id:
+    - id: 1234
     members:
     - login: user1
     - login: user2
