@@ -561,6 +561,23 @@ class OC:
                     self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(self, ns, obj, allow_not_found=False):
+        """Get object root owner (recursively find the top level owner).
+        - Returns obj if it has no ownerReferences
+        - Returns obj if all ownerReferences have controller set to false
+        - Returns obj if controller is true, allow_not_found is true,
+          but referenced object does not exist
+        - Throws an exception if controller is true, allow_not_found false,
+          but referenced object does not exist
+        - Recurses if controller is true and referenced object exists
+
+        Args:
+            ns (string): namespace of the object
+            obj (dict): representation of the object
+            allow_not_found (bool, optional): allow owner to be not found
+
+        Returns:
+            dict: representation of the object's owner
+        """
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
             if r.get('controller'):
