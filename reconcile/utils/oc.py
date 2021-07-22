@@ -503,7 +503,7 @@ class OC:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
         if qontract_recycle != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
-                           self.name, namespace, dep_kind])
+                           self.cluster_name, namespace, dep_kind])
             return
 
         dep_name = dep_resource.name
@@ -544,7 +544,7 @@ class OC:
             for obj in objs:
                 name = obj['metadata']['name']
                 logging.info([f'recycle_{kind.lower()}',
-                              self.name, namespace, name])
+                              self.cluster_name, namespace, name])
                 if not dry_run:
                     now = datetime.now()
                     recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
