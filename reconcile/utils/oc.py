@@ -163,6 +163,18 @@ class OC:
     def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
+        """Initiates an OC client
+
+        Args:
+            cluster_name (string): Name of cluster
+            server (string): Server URL of the cluster
+            token (string): Token to use for authentication
+            jh (dict, optional): Info to initiate JumpHostSSH
+            settings (dict, optional): App-interface settings
+            init_projects (bool, optional): Initiate projects
+            init_api_resources (bool, optional): Initiate api-resources
+            local (bool, optional): Use oc locally
+        """
         self.cluster_name = cluster_name
         self.server = server
         oc_base_cmd = [
