@@ -136,6 +136,8 @@ python3 setup.py install
 python3 setup.py develop
 ```
 
+If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
+
 ### Requirements
 
 Please see [setup.py](setup.py).
