@@ -198,9 +198,9 @@ class TestGetObjRootOwner(TestCase):
         ]
 
         oc = OC('cluster', 'server', 'token', local=True)
-        result_owner_obj = oc.get_obj_root_owner('namespace', obj,
+        result_obj = oc.get_obj_root_owner('namespace', obj,
                                                  allow_not_found=True)
-        self.assertEqual(result_owner_obj, owner_obj)
+        self.assertEqual(result_obj, obj)
 
     @patch.object(OC, 'get')
     def test_controller_true_allow_false_ref_not_found_raise(self, oc_get):
