@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from reconcile.utils.oc import OC, PodNotReadyError
+from reconcile.utils.oc import OC, PodNotReadyError, StatusCodeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
@@ -155,3 +155,73 @@ class TestGetObjRootOwner(TestCase):
         oc = OC('cluster', 'server', 'token', local=True)
         result_obj = oc.get_obj_root_owner('namespace', obj)
         self.assertEqual(result_obj, obj)
+
+    def test_controller_false_return_obj(self):
+        """Returns obj if all ownerReferences have controller set to false
+        """
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+                'ownerReferences': [
+                    {
+                        'controller': False
+                    }
+                ]
+            }
+        }
+
+        oc = OC('cluster', 'server', 'token', local=True)
+        result_obj = oc.get_obj_root_owner('namespace', obj)
+        self.assertEqual(result_obj, obj)
+
+    @patch.object(OC, 'get')
+    def test_cont_true_allow_true_ref_not_found_return_obj(self, oc_get):
+        """Returns obj if controller is true, allow_not_found is true,
+        but referenced object does not exist '{}'
+        """
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+                'ownerReferences': [
+                    {
+                        'controller': True,
+                        'kind': 'ownerkind',
+                        'name': 'ownername'
+                    }
+                ]
+            }
+        }
+        owner_obj = {}
+
+        oc_get.side_effect = [
+            owner_obj
+        ]
+
+        oc = OC('cluster', 'server', 'token', local=True)
+        result_obj = oc.get_obj_root_owner('namespace', obj,
+                                           allow_not_found=True)
+        self.assertEqual(result_obj, obj)
+
+    @patch.object(OC, 'get')
+    def test_controller_true_allow_false_ref_not_found_raise(self, oc_get):
+        """Throws an exception if controller is true, allow_not_found false,
+        but referenced object does not exist
+        """
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+                'ownerReferences': [
+                    {
+                        'controller': True,
+                        'kind': 'ownerkind',
+                        'name': 'ownername'
+                    }
+                ]
+            }
+        }
+
+        oc_get.side_effect = StatusCodeError
+
+        oc = OC('cluster', 'server', 'token', local=True)
+        with self.assertRaises(StatusCodeError):
+            oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
