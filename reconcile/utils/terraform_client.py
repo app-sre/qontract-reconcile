@@ -266,9 +266,11 @@ class TerraformClient:
                 resource = data['{}_resource'.format(self.integration_prefix)]
                 output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
+                annotations = data['{}_annotations'.format(
+                    self.integration_prefix)]
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
-                                               account)
+                                               annotations, account)
                 ri.add_desired(
                     cluster,
                     namespace,
@@ -400,7 +402,7 @@ class TerraformClient:
             return data[list(data.keys())[0]]
         return data
 
-    def construct_oc_resource(self, name, data, account):
+    def construct_oc_resource(self, name, data, annotations, account):
         body = {
             "apiVersion": "v1",
             "kind": "Secret",
@@ -413,6 +415,11 @@ class TerraformClient:
             },
             "data": {}
         }
+
+        anno_dict = json.loads(base64.b64decode(annotations))
+
+        for k, v in anno_dict.items():
+            body["metadata"]["annotations"][k] = v
 
         for k, v in data.items():
             if self.integration_prefix in k:
