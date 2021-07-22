@@ -175,7 +175,7 @@ class TestGetObjRootOwner(TestCase):
         self.assertEqual(result_obj, obj)
 
     @patch.object(OC, 'get')
-    def test_controller_true_allow_true_ref_not_found_return_obj(self):
+    def test_cont_true_allow_true_ref_not_found_return_obj(self, oc_get):
         """Returns obj if controller is true, allow_not_found is true,
         but referenced object does not exist '{}'
         """
@@ -202,7 +202,8 @@ class TestGetObjRootOwner(TestCase):
                                                  allow_not_found=True)
         self.assertEqual(result_owner_obj, owner_obj)
 
-    def test_controller_true_allow_false_ref_not_found_raise(self):
+    @patch.object(OC, 'get')
+    def test_controller_true_allow_false_ref_not_found_raise(self, oc_get):
         """Throws an exception if controller is true, allow_not_found false,
         but referenced object does not exist
         """
