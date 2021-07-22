@@ -160,10 +160,10 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 class OC:
-    def __init__(self, name, server, token, jh=None, settings=None,
+    def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
-        self.name = name
+        self.cluster_name = cluster_name
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -465,7 +465,7 @@ class OC:
     @retry(max_attempts=20)
     def validate_pod_ready(self, namespace, name):
         logging.info([self.validate_pod_ready.__name__,
-                      self.name, namespace, name])
+                      self.cluster_name, namespace, name])
         pod = self.get(namespace, 'Pod', name)
         for status in pod['status']['containerStatuses']:
             if not status['ready']:
@@ -482,7 +482,7 @@ class OC:
         supported_kinds = ['Secret', 'ConfigMap']
         if dep_kind not in supported_kinds:
             logging.debug(['skipping_pod_recycle_unsupported',
-                           self.name, namespace, dep_kind])
+                           self.cluster_name, namespace, dep_kind])
             return
 
         dep_annotations = dep_resource.body['metadata'].get('annotations', {})
