@@ -199,7 +199,7 @@ class TestGetObjRootOwner(TestCase):
 
         oc = OC('cluster', 'server', 'token', local=True)
         result_obj = oc.get_obj_root_owner('namespace', obj,
-                                                 allow_not_found=True)
+                                           allow_not_found=True)
         self.assertEqual(result_obj, obj)
 
     @patch.object(OC, 'get')
