@@ -191,7 +191,7 @@ class TestGetObjRootOwner(TestCase):
                 ]
             }
         }
-        owner_obj = '{}'
+        owner_obj = {}
 
         oc_get.side_effect = [
             owner_obj
