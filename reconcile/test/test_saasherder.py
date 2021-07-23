@@ -285,7 +285,8 @@ class TestGetSaasFileAttribute(TestCase):
             {
                 'path': 'path1',
                 'name': 'name1',
-                'managedResourceTypes': []
+                'managedResourceTypes': [],
+                'resourceTemplates': []
             }
         ]
 
@@ -306,7 +307,8 @@ class TestGetSaasFileAttribute(TestCase):
                 'path': 'path1',
                 'name': 'name1',
                 'managedResourceTypes': [],
-                'attrib': 'ute'
+                'resourceTemplates': [],
+                'attrib': True
             }
         ]
 
@@ -319,14 +321,15 @@ class TestGetSaasFileAttribute(TestCase):
             settings={}
         )
         att = saasherder._get_saas_file_feature_enabled('attrib')
-        self.assertEqual(att, 'ute')
+        self.assertEqual(att, True)
 
     def test_attribute_none_with_default(self):
         saas_files = [
             {
                 'path': 'path1',
                 'name': 'name1',
-                'managedResourceTypes': []
+                'managedResourceTypes': [],
+                'resourceTemplates': []
             }
         ]
 
@@ -339,8 +342,8 @@ class TestGetSaasFileAttribute(TestCase):
             settings={}
         )
         att = saasherder._get_saas_file_feature_enabled(
-            'no_such_att', default='hi')
-        self.assertEqual(att, 'hi')
+            'no_such_att', default=True)
+        self.assertEqual(att, True)
 
     def test_attribute_not_none_with_default(self):
         saas_files = [
@@ -348,7 +351,8 @@ class TestGetSaasFileAttribute(TestCase):
                 'path': 'path1',
                 'name': 'name1',
                 'managedResourceTypes': [],
-                'attrib': 'ute'
+                'resourceTemplates': [],
+                'attrib': True
             }
         ]
 
@@ -360,8 +364,8 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_feature_enabled('attrib', default='hi')
-        self.assertEqual(att, 'ute')
+        att = saasherder._get_saas_file_feature_enabled('attrib', default=False)
+        self.assertEqual(att, True)
 
     def test_attribute_multiple_saas_files_return_false(self):
         saas_files = [
@@ -369,12 +373,14 @@ class TestGetSaasFileAttribute(TestCase):
                 'path': 'path1',
                 'name': 'name1',
                 'managedResourceTypes': [],
+                'resourceTemplates': [],
                 'attrib': 'ute'
             },
             {
                 'path': 'path2',
                 'name': 'name2',
-                'managedResourceTypes': []
+                'managedResourceTypes': [],
+                'resourceTemplates': []
             }
         ]
 
@@ -386,5 +392,4 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_feature_enabled('attrib')
-        self.assertEqual(att, False)
+        self.assertFalse(saasherder._get_saas_file_feature_enabled('attrib'))
