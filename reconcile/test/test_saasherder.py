@@ -364,7 +364,8 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_feature_enabled('attrib', default=False)
+        att = saasherder._get_saas_file_feature_enabled(
+            'attrib', default=False)
         self.assertEqual(att, True)
 
     def test_attribute_multiple_saas_files_return_false(self):
