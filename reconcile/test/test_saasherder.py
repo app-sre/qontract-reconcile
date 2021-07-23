@@ -284,7 +284,8 @@ class TestGetSaasFileAttribute(TestCase):
         saas_files = [
             {
                 'path': 'path1',
-                'name': 'name1'
+                'name': 'name1',
+                'managedResourceTypes': []
             }
         ]
 
@@ -304,6 +305,7 @@ class TestGetSaasFileAttribute(TestCase):
             {
                 'path': 'path1',
                 'name': 'name1',
+                'managedResourceTypes': [],
                 'attrib': 'ute'
             }
         ]
@@ -323,7 +325,8 @@ class TestGetSaasFileAttribute(TestCase):
         saas_files = [
             {
                 'path': 'path1',
-                'name': 'name1'
+                'name': 'name1',
+                'managedResourceTypes': []
             }
         ]
 
@@ -343,6 +346,7 @@ class TestGetSaasFileAttribute(TestCase):
             {
                 'path': 'path1',
                 'name': 'name1',
+                'managedResourceTypes': [],
                 'attrib': 'ute'
             }
         ]
@@ -363,11 +367,13 @@ class TestGetSaasFileAttribute(TestCase):
             {
                 'path': 'path1',
                 'name': 'name1',
+                'managedResourceTypes': [],
                 'attrib': 'ute'
             },
             {
                 'path': 'path2',
-                'name': 'name2'
+                'name': 'name2',
+                'managedResourceTypes': []
             }
         ]
 
