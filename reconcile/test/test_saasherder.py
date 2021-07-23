@@ -277,3 +277,107 @@ class TestPopulateDesiredState(TestCase):
         desired_state = \
             saasherder.populate_desired_state_saas_file(spec, None)
         self.assertIsNone(desired_state)
+
+
+class TestGetSaasFileAttribute(TestCase):
+    def test_attribute_none(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1'
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_attribute('no_such_attribute')
+        self.assertEqual(att, None)
+
+    def test_attribute_not_none(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'attrib': 'ute'
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_attribute('attrib')
+        self.assertEqual(att, 'ute')
+
+    def test_attribute_none_with_default(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1'
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_attribute('no_such_att', default='hi')
+        self.assertEqual(att, 'hi')
+
+    def test_attribute_not_none_with_default(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'attrib': 'ute'
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_attribute('attrib', default='hi')
+        self.assertEqual(att, 'ute')
+
+    def test_attribute_multiple_saas_files_return_false(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'attrib': 'ute'
+            },
+            {
+                'path': 'path2',
+                'name': 'name2'
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_attribute('attrib')
+        self.assertEqual(att, False)
