@@ -77,8 +77,17 @@ class SaasHerder():
         if accounts:
             self._initiate_state(accounts)
 
-    def _get_saas_file_attribute(self, attribute):
-        return len(self.saas_files) == 1 and self.saas_files[0].get(attribute)
+    def _get_saas_file_attribute(self, attribute, default=None):
+        """Returns an attribute of a saas file or supplied default
+        if the attribute is None. Returns False if there are multiple
+        saas files in the process.
+        All features using this method should assume a single saas file.
+        """
+        sf_attribute = len(self.saas_files) == 1 and \
+            self.saas_files[0].get(attribute)
+        if sf_attribute is None and default is not None:
+            return default
+        return sf_attribute
 
     def _validate_saas_files(self):
         self.valid = True
