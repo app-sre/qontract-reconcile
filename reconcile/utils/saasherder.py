@@ -71,7 +71,7 @@ class SaasHerder():
         # if called by a single saas file,it may
         # specify that it manages resources exclusively.
         self.take_over = self._get_saas_file_attribute('takeover')
-        self.compare = self._get_saas_file_attribute('compare')
+        self.compare = self._get_saas_file_attribute('compare', default=True)
         self.publish_job_logs = self._get_saas_file_attribute('publishJobLogs')
         self.cluster_admin = self._get_saas_file_attribute('clusterAdmin')
         if accounts:
