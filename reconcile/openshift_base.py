@@ -517,7 +517,8 @@ def validate_data(oc_map, actions):
                         logging.info(yaml.safe_dump(conditions))
                         for c in conditions:
                             if c.get('type') == 'Failed':
-                                raise ValidationErrorJobFailed(name)
+                                msg = f"{name}: {c.get('reason')}"
+                                raise ValidationErrorJobFailed(msg)
                     raise ValidationError(name)
             elif kind == 'ClowdApp':
                 deployments = status.get('deployments')
