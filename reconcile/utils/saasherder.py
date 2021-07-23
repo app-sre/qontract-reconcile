@@ -103,7 +103,7 @@ class SaasHerder():
         saas_file_name_path_map = {}
         saas_file_promotion_publish_channels = []
         self.tkn_unique_pipelineruns = {}
-        for saas_file in self.saas_files:
+        for saas_file, resource_template, target in self:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
             saas_file_name_path_map.setdefault(saas_file_name, [])
@@ -117,75 +117,73 @@ class SaasHerder():
                 logging.error(msg.format(saas_file_name, saas_file_path))
                 self.valid = False
 
-            for resource_template in saas_file['resourceTemplates']:
-                resource_template_name = resource_template['name']
-                for target in resource_template['targets']:
-                    target_namespace = target['namespace']
-                    namespace_name = target_namespace['name']
-                    cluster_name = target_namespace['cluster']['name']
-                    environment = target_namespace['environment']
-                    environment_name = environment['name']
-                    # unique saas file and env name combination
-                    self._check_saas_file_env_combo_unique(
-                        saas_file_name,
-                        environment_name
-                    )
-                    # promotion publish channels
-                    promotion = target.get('promotion')
-                    if promotion:
-                        publish = promotion.get('publish')
-                        if publish:
-                            saas_file_promotion_publish_channels.extend(
-                                publish)
-                    # validate target parameters
-                    target_parameters = target['parameters']
-                    if not target_parameters:
+            resource_template_name = resource_template['name']
+            target_namespace = target['namespace']
+            namespace_name = target_namespace['name']
+            cluster_name = target_namespace['cluster']['name']
+            environment = target_namespace['environment']
+            environment_name = environment['name']
+            # unique saas file and env name combination
+            self._check_saas_file_env_combo_unique(
+                saas_file_name,
+                environment_name
+            )
+            # promotion publish channels
+            promotion = target.get('promotion')
+            if promotion:
+                publish = promotion.get('publish')
+                if publish:
+                    saas_file_promotion_publish_channels.extend(
+                        publish)
+            # validate target parameters
+            target_parameters = target['parameters']
+            if not target_parameters:
+                continue
+            target_parameters = json.loads(target_parameters)
+            environment_parameters = environment['parameters']
+            if not environment_parameters:
+                continue
+            environment_parameters = \
+                json.loads(environment_parameters)
+            msg = \
+                f'[{saas_file_name}/{resource_template_name}] ' + \
+                'parameter found in target ' + \
+                f'{cluster_name}/{namespace_name} ' + \
+                f'should be reused from env {environment_name}'
+            for t_key, t_value in target_parameters.items():
+                if not isinstance(t_value, str):
+                    continue
+                # Check for recursivity. Ex: PARAM: "foo.${PARAM}"
+                replace_pattern = '${' + t_key + '}'
+                if replace_pattern in t_value:
+                    logging.error(
+                        f'[{saas_file_name}/{resource_template_name}] '
+                        f'recursivity in parameter name and value '
+                        f'found: {t_key}: "{t_value}" - this will '
+                        f'likely not work as expected. Please consider'
+                        f' changing the parameter name')
+                    self.valid = False
+                for e_key, e_value in environment_parameters.items():
+                    if not isinstance(e_value, str):
                         continue
-                    target_parameters = json.loads(target_parameters)
-                    environment_parameters = environment['parameters']
-                    if not environment_parameters:
+                    if '.' not in e_value:
                         continue
-                    environment_parameters = \
-                        json.loads(environment_parameters)
-                    msg = \
-                        f'[{saas_file_name}/{resource_template_name}] ' + \
-                        'parameter found in target ' + \
-                        f'{cluster_name}/{namespace_name} ' + \
-                        f'should be reused from env {environment_name}'
-                    for t_key, t_value in target_parameters.items():
-                        if not isinstance(t_value, str):
-                            continue
-                        # Check for recursivity. Ex: PARAM: "foo.${PARAM}"
-                        replace_pattern = '${' + t_key + '}'
-                        if replace_pattern in t_value:
-                            logging.error(
-                                f'[{saas_file_name}/{resource_template_name}] '
-                                f'recursivity in parameter name and value '
-                                f'found: {t_key}: "{t_value}" - this will '
-                                f'likely not work as expected. Please consider'
-                                f' changing the parameter name')
-                            self.valid = False
-                        for e_key, e_value in environment_parameters.items():
-                            if not isinstance(e_value, str):
-                                continue
-                            if '.' not in e_value:
-                                continue
-                            if e_value not in t_value:
-                                continue
-                            if t_key == e_key and t_value == e_value:
-                                details = \
-                                    f'consider removing {t_key}'
-                            else:
-                                replacement = t_value.replace(
-                                    e_value,
-                                    '${' + e_key + '}'
-                                )
-                                details = \
-                                    f'target: \"{t_key}: {t_value}\". ' + \
-                                    f'env: \"{e_key}: {e_value}\". ' + \
-                                    f'consider \"{t_key}: {replacement}\"'
-                            logging.error(f'{msg}: {details}')
-                            self.valid = False
+                    if e_value not in t_value:
+                        continue
+                    if t_key == e_key and t_value == e_value:
+                        details = \
+                            f'consider removing {t_key}'
+                    else:
+                        replacement = t_value.replace(
+                            e_value,
+                            '${' + e_key + '}'
+                        )
+                        details = \
+                            f'target: \"{t_key}: {t_value}\". ' + \
+                            f'env: \"{e_key}: {e_value}\". ' + \
+                            f'consider \"{t_key}: {replacement}\"'
+                    logging.error(f'{msg}: {details}')
+                    self.valid = False
 
         # saas file name duplicates
         duplicates = {saas_file_name: saas_file_paths
@@ -228,23 +226,21 @@ class SaasHerder():
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
         namespaces = []
-        for saas_file in self.saas_files:
+        for saas_file, rt, target in self:
             managed_resource_types = saas_file['managedResourceTypes']
             resource_templates = saas_file['resourceTemplates']
-            for rt in resource_templates:
-                targets = rt['targets']
-                for target in targets:
-                    namespace = target['namespace']
-                    if target.get('disable'):
-                        logging.debug(
-                            f"[{saas_file['name']}/{rt['name']}] target " +
-                            f"{namespace['cluster']['name']}/" +
-                            f"{namespace['name']} is disabled.")
-                        continue
-                    # managedResourceTypes is defined per saas_file
-                    # add it to each namespace in the current saas_file
-                    namespace['managedResourceTypes'] = managed_resource_types
-                    namespaces.append(namespace)
+            targets = rt['targets']
+            namespace = target['namespace']
+            if target.get('disable'):
+                logging.debug(
+                    f"[{saas_file['name']}/{rt['name']}] target " +
+                    f"{namespace['cluster']['name']}/" +
+                    f"{namespace['name']} is disabled.")
+                continue
+            # managedResourceTypes is defined per saas_file
+            # add it to each namespace in the current saas_file
+            namespace['managedResourceTypes'] = managed_resource_types
+            namespaces.append(namespace)
         return namespaces
 
     def _initiate_state(self, accounts):
