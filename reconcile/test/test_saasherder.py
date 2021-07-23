@@ -338,7 +338,8 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_feature_enabled('no_such_att', default='hi')
+        att = saasherder._get_saas_file_feature_enabled(
+            'no_such_att', default='hi')
         self.assertEqual(att, 'hi')
 
     def test_attribute_not_none_with_default(self):

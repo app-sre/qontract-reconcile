@@ -87,7 +87,7 @@ class SaasHerder():
         All features using this method should assume a single saas file.
         """
         sf_attribute = len(self.saas_files) == 1 and \
-            self.saas_files[0].get(attribute)
+            self.saas_files[0].get(name)
         if sf_attribute is None and default is not None:
             return default
         return sf_attribute
