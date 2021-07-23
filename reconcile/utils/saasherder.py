@@ -228,8 +228,6 @@ class SaasHerder():
         namespaces = []
         for saas_file, rt, target in self:
             managed_resource_types = saas_file['managedResourceTypes']
-            resource_templates = saas_file['resourceTemplates']
-            targets = rt['targets']
             namespace = target['namespace']
             if target.get('disable'):
                 logging.debug(
