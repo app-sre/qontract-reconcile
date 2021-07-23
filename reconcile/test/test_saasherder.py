@@ -394,3 +394,33 @@ class TestGetSaasFileAttribute(TestCase):
             settings={}
         )
         self.assertFalse(saasherder._get_saas_file_feature_enabled('attrib'))
+
+    def test_attribute_multiple_saas_files_with_default_return_false(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            },
+            {
+                'path': 'path2',
+                'name': 'name2',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled(
+            'attrib', default=True)
+        self.assertFalse(att)
