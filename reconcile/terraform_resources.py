@@ -36,6 +36,7 @@ provider
   replica_source
   output_resource_db_name
   reset_password
+  annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {
   account
@@ -48,6 +49,7 @@ provider
   bucket_policy
   output_resource_name
   storage_class
+  annotations
 }
 ... on NamespaceTerraformResourceElastiCache_v1 {
   account
@@ -57,6 +59,7 @@ provider
   region
   overrides
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceServiceAccount_v1 {
   account
@@ -65,6 +68,7 @@ provider
   policies
   user_policy
   output_resource_name
+  annotations
   aws_infrastructure_access {
     cluster {
       name
@@ -77,6 +81,7 @@ provider
   region
   identifier
   output_resource_name
+  annotations
   specs {
     defaults
     queues {
@@ -90,6 +95,7 @@ provider
   region
   identifier
   output_resource_name
+  annotations
   specs {
     defaults
     tables {
@@ -104,6 +110,7 @@ provider
   region
   output_resource_name
   public
+  annotations
 }
 ... on NamespaceTerraformResourceS3CloudFront_v1 {
   account
@@ -112,6 +119,7 @@ provider
   defaults
   output_resource_name
   storage_class
+  annotations
 }
 ... on NamespaceTerraformResourceS3SQS_v1 {
   account
@@ -121,6 +129,7 @@ provider
   kms_encryption
   output_resource_name
   storage_class
+  annotations
 }
 ... on NamespaceTerraformResourceCloudWatch_v1 {
   account
@@ -130,6 +139,7 @@ provider
   es_identifier
   filter_pattern
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceKMS_v1 {
   account
@@ -138,6 +148,7 @@ provider
   defaults
   overrides
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceElasticSearch_v1 {
   account
@@ -145,6 +156,7 @@ provider
   identifier
   defaults
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceACM_v1 {
   account
@@ -159,6 +171,7 @@ provider
     alternate_names
   }
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceKinesis_v1 {
   account
@@ -166,6 +179,7 @@ provider
   identifier
   defaults
   output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
   account
@@ -177,6 +191,7 @@ provider
     version
   }
   output_resource_name
+  annotations
 }
 """
 
