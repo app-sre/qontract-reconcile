@@ -270,7 +270,7 @@ class TerraformClient:
                     self.integration_prefix)]
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
-                                               annotations, account)
+                                               account, annotations)
                 ri.add_desired(
                     cluster,
                     namespace,
@@ -402,24 +402,21 @@ class TerraformClient:
             return data[list(data.keys())[0]]
         return data
 
-    def construct_oc_resource(self, name, data, annotations, account):
+    def construct_oc_resource(self, name, data, account, annotations):
         body = {
             "apiVersion": "v1",
             "kind": "Secret",
             "type": "Opaque",
             "metadata": {
-                "name": name,
-                "annotations": {
-                    "qontract.recycle": "true"
-                }
+                "name": name
             },
             "data": {}
         }
 
         anno_dict = json.loads(base64.b64decode(annotations))
 
-        for k, v in anno_dict.items():
-            body["metadata"]["annotations"][k] = v
+        body["metadata"]["annotations"] = anno_dict
+        body["metadata"]["annotations"]["qontract.recycle"] = "true"
 
         for k, v in data.items():
             if self.integration_prefix in k:
