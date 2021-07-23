@@ -297,7 +297,7 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_attribute('no_such_attribute')
+        att = saasherder._get_saas_file_feature_enabled('no_such_attribute')
         self.assertEqual(att, None)
 
     def test_attribute_not_none(self):
@@ -318,7 +318,7 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_attribute('attrib')
+        att = saasherder._get_saas_file_feature_enabled('attrib')
         self.assertEqual(att, 'ute')
 
     def test_attribute_none_with_default(self):
@@ -338,7 +338,7 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_attribute('no_such_att', default='hi')
+        att = saasherder._get_saas_file_feature_enabled('no_such_att', default='hi')
         self.assertEqual(att, 'hi')
 
     def test_attribute_not_none_with_default(self):
@@ -359,7 +359,7 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_attribute('attrib', default='hi')
+        att = saasherder._get_saas_file_feature_enabled('attrib', default='hi')
         self.assertEqual(att, 'ute')
 
     def test_attribute_multiple_saas_files_return_false(self):
@@ -385,5 +385,5 @@ class TestGetSaasFileAttribute(TestCase):
             integration_version='',
             settings={}
         )
-        att = saasherder._get_saas_file_attribute('attrib')
+        att = saasherder._get_saas_file_feature_enabled('attrib')
         self.assertEqual(att, False)
