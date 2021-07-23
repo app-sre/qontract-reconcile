@@ -724,10 +724,10 @@ class OCDeprecated:
 
 
 class OCNative(OCDeprecated):
-    def __init__(self, server, token, jh=None, settings=None,
+    def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
-        super().__init__(server, token=token, jh=jh, settings=settings,
+        super().__init__(cluster_name, server, token, jh, settings,
                          init_projects=False, init_api_resources=False,
                          local=local)
         if server:
@@ -954,22 +954,20 @@ class OC:
                             'native client',
                             labelnames=['cluster_name', 'native_client'])
 
-    def __new__(cls, server, token, jh=None, settings=None,
+    def __new__(cls, cluster_name, server, token, jh=None, settings=None,
                 init_projects=False, init_api_resources=False,
-                local=False, cluster_name=None):
+                local=False):
         use_native = os.environ.get('USE_NATIVE_CLIENT', False)
         if use_native:
-            if cluster_name:
-                OC.client_status.labels(
-                    cluster_name=cluster_name, native_client=True).inc()
-            return OCNative(server, token, jh, settings,
+            OC.client_status.labels(
+                cluster_name=cluster_name, native_client=True).inc()
+            return OCNative(cluster_name, server, token, jh, settings,
                             init_projects, init_api_resources,
                             local)
         else:
-            if cluster_name:
-                OC.client_status.labels(
-                    cluster_name=cluster_name, native_client=False).inc()
-            return OCDeprecated(server, token, jh, settings,
+            OC.client_status.labels(
+                cluster_name=cluster_name, native_client=False).inc()
+            return OCDeprecated(cluster_name, server, token, jh, settings,
                                 init_projects, init_api_resources,
                                 local)
 
@@ -1047,8 +1045,7 @@ class OC_Map:
                 oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,
                                init_projects=self.init_projects,
-                               init_api_resources=self.init_api_resources,
-                               cluster_name=cluster)
+                               init_api_resources=self.init_api_resources)
                 self.set_oc(cluster, oc_client)
             except StatusCodeError as e:
                 self.set_oc(cluster,

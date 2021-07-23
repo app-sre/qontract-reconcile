@@ -32,7 +32,7 @@ class TestOCNative(TestCase):
     def test_oc_native(self, mock_request):
         mock_request.side_effect = request
 
-        oc = OC('server', 'token', init_projects=True, local=True)
+        oc = OC('cluster', 'server', 'token', init_projects=True, local=True)
         expected = fixture['api_kind_version']
         self.assertEqual(oc.api_kind_version, expected)
 
