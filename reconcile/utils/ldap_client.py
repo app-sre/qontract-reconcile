@@ -10,7 +10,8 @@ def init(serverUrl):
 
     if _client is None:
         server = Server(serverUrl, get_info=ALL)
-        _client = Connection(server, None, None, auto_bind=True, client_strategy=SAFE_SYNC)
+        _client = Connection(server, None, None,
+                             auto_bind=True, client_strategy=SAFE_SYNC)
 
     return _client
 
