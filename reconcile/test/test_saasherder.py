@@ -375,7 +375,7 @@ class TestGetSaasFileAttribute(TestCase):
                 'name': 'name1',
                 'managedResourceTypes': [],
                 'resourceTemplates': [],
-                'attrib': 'ute'
+                'attrib': True
             },
             {
                 'path': 'path2',
