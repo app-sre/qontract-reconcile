@@ -80,6 +80,12 @@ class SaasHerder():
         if accounts:
             self._initiate_state(accounts)
 
+    def __iter__(self):
+        for saas_file in self.saas_files:
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+                    yield (saas_file, resource_template, target)
+
     def _get_saas_file_feature_enabled(self, name, default=None):
         """Returns a bool indicating if a feature is enabled in a saas file,
         or a supplied default. Returns False if there are multiple
