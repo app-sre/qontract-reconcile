@@ -18,7 +18,7 @@ class RawGithubApiMock:
         return []
 
     @staticmethod
-    def team_invitations(team_id):
+    def team_invitations(org_id, team_id):
         return []
 
 
@@ -35,6 +35,10 @@ class GithubMock:
     class GithubOrgMock:
         def __init__(self, spec_org):
             self.spec_org = spec_org
+
+        @property
+        def id(self):
+            return self.spec_org["id"]
 
         class GithubTeamMock:
             def __init__(self, spec_team):

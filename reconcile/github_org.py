@@ -120,7 +120,7 @@ def fetch_current_state(gh_api_store):
                 continue
 
             members = [member.login for member in team.get_members()]
-            members.extend(raw_gh_api.team_invitations(team.id))
+            members.extend(raw_gh_api.team_invitations(org.id, team.id))
             members = [m.lower() for m in members]
             all_team_members.extend(members)
 
