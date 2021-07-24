@@ -5,7 +5,7 @@ import json
 
 import reconcile.queries as queries
 
-from reconcile.utils.aws_api import AWSApi
+import reconcile.utils.aws_api as awsapi
 from reconcile.utils.defer import defer
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -111,7 +111,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 continue
             accepter_manage_routes = peer_info.get('manageRoutes')
 
-            aws_api = AWSApi(1, [req_aws], settings=settings)
+            aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
             requester_vpc_id, requester_route_table_ids, _ = \
                 aws_api.get_cluster_vpc_details(
                     req_aws,
@@ -142,7 +142,7 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 error = True
                 continue
 
-            aws_api = AWSApi(1, [acc_aws], settings=settings)
+            aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
             accepter_vpc_id, accepter_route_table_ids, _ = \
                 aws_api.get_cluster_vpc_details(
                     acc_aws,
@@ -208,7 +208,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
                 )
             account['assume_region'] = requester['region']
             account['assume_cidr'] = requester['cidr_block']
-            aws_api = AWSApi(1, [account], settings=settings)
+            aws_api = awsapi.AWSApi(1, [account], settings=settings)
             requester_vpc_id, requester_route_table_ids, _ = \
                 aws_api.get_cluster_vpc_details(
                     account,
@@ -295,7 +295,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 )
             account['assume_region'] = requester['region']
             account['assume_cidr'] = requester['cidr_block']
-            aws_api = AWSApi(1, [account], settings=settings)
+            aws_api = awsapi.AWSApi(1, [account], settings=settings)
             requester_vpc_id, requester_route_table_ids, _ = \
                 aws_api.get_cluster_vpc_details(
                     account,
