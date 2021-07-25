@@ -483,7 +483,8 @@ class SaasHerder():
                 # - If saas file attribute 'use_channel_in_image_tag' is true,
                 #   it is {CHANNEL}-{SHA}
                 # - Otherwise it is just {SHA}
-                if self._get_saas_file_attribute("use_channel_in_image_tag"):
+                if self._get_saas_file_feature_enabled(
+                        "use_channel_in_image_tag"):
                     try:
                         channel = consolidated_parameters["CHANNEL"]
                     except KeyError:
