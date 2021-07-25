@@ -277,3 +277,150 @@ class TestPopulateDesiredState(TestCase):
         desired_state = \
             saasherder.populate_desired_state_saas_file(spec, None)
         self.assertIsNone(desired_state)
+
+
+class TestGetSaasFileAttribute(TestCase):
+    def test_attribute_none(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': []
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled('no_such_attribute')
+        self.assertEqual(att, None)
+
+    def test_attribute_not_none(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled('attrib')
+        self.assertEqual(att, True)
+
+    def test_attribute_none_with_default(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': []
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled(
+            'no_such_att', default=True)
+        self.assertEqual(att, True)
+
+    def test_attribute_not_none_with_default(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled(
+            'attrib', default=False)
+        self.assertEqual(att, True)
+
+    def test_attribute_multiple_saas_files_return_false(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            },
+            {
+                'path': 'path2',
+                'name': 'name2',
+                'managedResourceTypes': [],
+                'resourceTemplates': []
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        self.assertFalse(saasherder._get_saas_file_feature_enabled('attrib'))
+
+    def test_attribute_multiple_saas_files_with_default_return_false(self):
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            },
+            {
+                'path': 'path2',
+                'name': 'name2',
+                'managedResourceTypes': [],
+                'resourceTemplates': [],
+                'attrib': True
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        att = saasherder._get_saas_file_feature_enabled(
+            'attrib', default=True)
+        self.assertFalse(att)

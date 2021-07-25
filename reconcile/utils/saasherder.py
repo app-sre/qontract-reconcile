@@ -70,15 +70,27 @@ class SaasHerder():
                 divisor)
         # if called by a single saas file,it may
         # specify that it manages resources exclusively.
-        self.take_over = self._get_saas_file_attribute('takeover')
-        self.compare = self._get_saas_file_attribute('compare')
-        self.publish_job_logs = self._get_saas_file_attribute('publishJobLogs')
-        self.cluster_admin = self._get_saas_file_attribute('clusterAdmin')
+        self.take_over = self._get_saas_file_feature_enabled('takeover')
+        self.compare = \
+            self._get_saas_file_feature_enabled('compare', default=True)
+        self.publish_job_logs = \
+            self._get_saas_file_feature_enabled('publishJobLogs')
+        self.cluster_admin = \
+            self._get_saas_file_feature_enabled('clusterAdmin')
         if accounts:
             self._initiate_state(accounts)
 
-    def _get_saas_file_attribute(self, attribute):
-        return len(self.saas_files) == 1 and self.saas_files[0].get(attribute)
+    def _get_saas_file_feature_enabled(self, name, default=None):
+        """Returns a bool indicating if a feature is enabled in a saas file,
+        or a supplied default. Returns False if there are multiple
+        saas files in the process.
+        All features using this method should assume a single saas file.
+        """
+        sf_attribute = len(self.saas_files) == 1 and \
+            self.saas_files[0].get(name)
+        if sf_attribute is None and default is not None:
+            return default
+        return sf_attribute
 
     def _validate_saas_files(self):
         self.valid = True
