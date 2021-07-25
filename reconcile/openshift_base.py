@@ -28,6 +28,10 @@ class ValidationError(Exception):
     pass
 
 
+class ValidationErrorJobFailed(Exception):
+    pass
+
+
 class StateSpec:
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
                  resource_type_override=None, resource_names=None):
@@ -511,6 +515,10 @@ def validate_data(oc_map, actions):
                     if conditions:
                         logging.info(f'Job conditions are: {conditions}')
                         logging.info(yaml.safe_dump(conditions))
+                        for c in conditions:
+                            if c.get('type') == 'Failed':
+                                msg = f"{name}: {c.get('reason')}"
+                                raise ValidationErrorJobFailed(msg)
                     raise ValidationError(name)
             elif kind == 'ClowdApp':
                 deployments = status.get('deployments')
