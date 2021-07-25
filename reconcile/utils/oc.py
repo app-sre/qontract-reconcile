@@ -160,9 +160,22 @@ class OCProcessReconcileTimeDecoratorMsg:
 
 
 class OC:
-    def __init__(self, server, token, jh=None, settings=None,
+    def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
+        """Initiates an OC client
+
+        Args:
+            cluster_name (string): Name of cluster
+            server (string): Server URL of the cluster
+            token (string): Token to use for authentication
+            jh (dict, optional): Info to initiate JumpHostSSH
+            settings (dict, optional): App-interface settings
+            init_projects (bool, optional): Initiate projects
+            init_api_resources (bool, optional): Initiate api-resources
+            local (bool, optional): Use oc locally
+        """
+        self.cluster_name = cluster_name
         self.server = server
         oc_base_cmd = [
             'oc',
@@ -463,7 +476,8 @@ class OC:
 
     @retry(max_attempts=20)
     def validate_pod_ready(self, namespace, name):
-        logging.info([self.validate_pod_ready.__name__, namespace, name])
+        logging.info([self.validate_pod_ready.__name__,
+                      self.cluster_name, namespace, name])
         pod = self.get(namespace, 'Pod', name)
         for status in pod['status']['containerStatuses']:
             if not status['ready']:
@@ -480,7 +494,7 @@ class OC:
         supported_kinds = ['Secret', 'ConfigMap']
         if dep_kind not in supported_kinds:
             logging.debug(['skipping_pod_recycle_unsupported',
-                           namespace, dep_kind])
+                           self.cluster_name, namespace, dep_kind])
             return
 
         dep_annotations = dep_resource.body['metadata'].get('annotations', {})
@@ -489,7 +503,7 @@ class OC:
             raise RecyclePodsInvalidAnnotationValue('should be "true"')
         if qontract_recycle != 'true':
             logging.debug(['skipping_pod_recycle_no_annotation',
-                           namespace, dep_kind])
+                           self.cluster_name, namespace, dep_kind])
             return
 
         dep_name = dep_resource.name
@@ -512,7 +526,8 @@ class OC:
             'DaemonSet',
         ]
         for pod in pods_to_recycle:
-            owner = self.get_obj_root_owner(namespace, pod)
+            owner = self.get_obj_root_owner(namespace, pod,
+                                            allow_not_found=True)
             kind = owner['kind']
             if kind not in supported_recyclables:
                 continue
@@ -529,7 +544,8 @@ class OC:
         for kind, objs in recyclables.items():
             for obj in objs:
                 name = obj['metadata']['name']
-                logging.info([f'recycle_{kind.lower()}', namespace, name])
+                logging.info([f'recycle_{kind.lower()}',
+                              self.cluster_name, namespace, name])
                 if not dry_run:
                     now = datetime.now()
                     recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -544,12 +560,35 @@ class OC:
                     stdin = json.dumps(obj, sort_keys=True)
                     self._run(cmd, stdin=stdin, apply=True)
 
-    def get_obj_root_owner(self, ns, obj):
+    def get_obj_root_owner(self, ns, obj, allow_not_found=False):
+        """Get object root owner (recursively find the top level owner).
+        - Returns obj if it has no ownerReferences
+        - Returns obj if all ownerReferences have controller set to false
+        - Returns obj if controller is true, allow_not_found is true,
+          but referenced object does not exist
+        - Throws an exception if controller is true, allow_not_found false,
+          but referenced object does not exist
+        - Recurses if controller is true and referenced object exists
+
+        Args:
+            ns (string): namespace of the object
+            obj (dict): representation of the object
+            allow_not_found (bool, optional): allow owner to be not found
+
+        Returns:
+            dict: representation of the object's owner
+        """
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
             if r.get('controller'):
-                controller_obj = self.get(ns, r['kind'], r['name'])
-                return self.get_obj_root_owner(ns, controller_obj)
+                controller_obj = self.get(ns, r['kind'], r['name'],
+                                          allow_not_found=allow_not_found)
+                if controller_obj:
+                    return self.get_obj_root_owner(
+                        ns,
+                        controller_obj,
+                        allow_not_found=allow_not_found
+                    )
         return obj
 
     @staticmethod
@@ -738,7 +777,7 @@ class OC_Map:
             else:
                 jump_host = None
             try:
-                oc_client = OC(server_url, token, jump_host,
+                oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,
                                init_projects=self.init_projects,
                                init_api_resources=self.init_api_resources)

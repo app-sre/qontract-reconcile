@@ -76,8 +76,9 @@ class RawGithubApi:
             ) if login is not None
         ]
 
-    def team_invitations(self, team_id):
-        invitations = self.query('/teams/{}/invitations'.format(team_id))
+    def team_invitations(self, org_id, team_id):
+        invitations = self.query('/organizations/{}/team/{}/invitations'
+                                 .format(org_id, team_id))
 
         return [
             login for login in (
