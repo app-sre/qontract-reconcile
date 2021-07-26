@@ -530,7 +530,7 @@ class SaasHerder():
                         + f"{image_uri}: {str(e)}")
                     return None, None, None
 
-            oc = OC('cluster', 'server', 'token', local=True)
+            oc = OC('cluster', None, None, local=True)
             try:
                 resources = oc.process(template, consolidated_parameters)
             except StatusCodeError as e:

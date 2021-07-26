@@ -1,22 +1,32 @@
+import copy
 import json
 import logging
 import os
 import tempfile
 import time
-
 from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
 
+import urllib3
+
 from sretoolbox.utils import retry
+from prometheus_client import Counter
 
-import reconcile.utils.threaded as threaded
+from kubernetes.client import Configuration, ApiClient
+from kubernetes.client.exceptions import ApiException
 
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.jump_host import JumpHostSSH
-from reconcile.status import RunningState
 from reconcile.utils.metrics import reconcile_time
+from reconcile.status import RunningState
+from reconcile.utils.jump_host import JumpHostSSH
+from reconcile.utils.secret_reader import SecretReader
+import reconcile.utils.threaded as threaded
+from openshift.dynamic.exceptions import NotFoundError
+from openshift.dynamic import DynamicClient
+from openshift.dynamic.resource import ResourceList
+
+urllib3.disable_warnings()
 
 
 class StatusCodeError(Exception):
@@ -159,7 +169,7 @@ class OCProcessReconcileTimeDecoratorMsg:
         self.is_log_slow_oc_reconcile = is_log_slow_oc_reconcile
 
 
-class OC:
+class OCDeprecated:
     def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False):
@@ -179,16 +189,21 @@ class OC:
         self.server = server
         oc_base_cmd = [
             'oc',
-            '--kubeconfig', '/dev/null',
-            '--server', server,
-            '--token', token
+            '--kubeconfig', '/dev/null'
         ]
+        if server:
+            oc_base_cmd.extend(['--server', server])
 
+        if token:
+            oc_base_cmd.extend(['--token', token])
+
+        self.jump_host = None
         if jh is not None:
             self.jump_host = JumpHostSSH(jh, settings=settings)
             oc_base_cmd = self.jump_host.get_ssh_base_cmd() + oc_base_cmd
 
         self.oc_base_cmd = oc_base_cmd
+
         # calling get_version to check if cluster is reachable
         if not local:
             self.get_version()
@@ -395,7 +410,7 @@ class OC:
         self._run(cmd)
 
     def get_users(self):
-        return self.get_all('Users')['items']
+        return self.get_all('User')['items']
 
     def delete_user(self, user_name):
         user = self.get(None, 'User', user_name)
@@ -507,7 +522,7 @@ class OC:
             return
 
         dep_name = dep_resource.name
-        pods = self.get(namespace, 'Pods')['items']
+        pods = self.get(namespace, 'Pod')['items']
 
         if dep_kind == 'Secret':
             pods_to_recycle = [pod for pod in pods
@@ -581,8 +596,9 @@ class OC:
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
             if r.get('controller'):
-                controller_obj = self.get(ns, r['kind'], r['name'],
-                                          allow_not_found=allow_not_found)
+                controller_obj = self.get(
+                    ns, r['kind'], r['name'],
+                    allow_not_found=allow_not_found)
                 if controller_obj:
                     return self.get_obj_root_owner(
                         ns,
@@ -705,6 +721,255 @@ class OC:
             raise JSONParsingError(out + "\n" + str(e))
 
         return out_json
+
+
+class OCNative(OCDeprecated):
+    def __init__(self, cluster_name, server, token, jh=None, settings=None,
+                 init_projects=False, init_api_resources=False,
+                 local=False):
+        super().__init__(cluster_name, server, token, jh, settings,
+                         init_projects=False, init_api_resources=False,
+                         local=local)
+        if server:
+            self.client = self._get_client(server, token)
+            self.api_kind_version = self.get_api_resources()
+        else:
+            init_api_resources = False
+            init_projects = False
+
+        self.object_clients = {}
+        self.init_projects = init_projects
+        if self.init_projects:
+            self.projects = \
+                [p['metadata']['name']
+                 for p
+                 in self.get_all('Project.project.openshift.io')['items']]
+        self.init_api_resources = init_api_resources
+        if self.init_api_resources:
+            self.api_resources = self.api_kind_version.keys()
+        else:
+            self.api_resources = None
+
+    def _get_client(self, server, token):
+        opts = dict(
+            api_key={'authorization': f'Bearer {token}'},
+            host=server,
+            verify_ssl=False,
+            # default timeout seems to be 1+ minutes and it can't
+            # be changed, so do no retries on connection failure
+            retries=0
+        )
+
+        if self.jump_host:
+            # the ports could be parameterized, but at this point
+            # we only have need of 1 tunnel for 1 service
+            self.jump_host.create_ssh_tunnel(8888, 8888)
+            opts['proxy'] = 'http://localhost:8888'
+
+        configuration = Configuration()
+
+        # the kubernetes client configuration takes a limited set
+        # of parameters during initialization, but there are a lot
+        # more options that can be set to tweak the behavior of the
+        # client via instance variables.  We define a set of options
+        # above in the format of var_name:value then set them here
+        # in the configuration object with setattr.
+        for k, v in opts.items():
+            setattr(configuration, k, v)
+
+        k8s_client = ApiClient(configuration)
+        try:
+            return DynamicClient(k8s_client)
+        except urllib3.exceptions.MaxRetryError as e:
+            raise StatusCodeError(f"[{self.server}]: {e}")
+
+    def _get_obj_client(self, kind, group_version):
+        key = f'{kind}.{group_version}'
+        if key not in self.object_clients:
+            self.object_clients[key] = self.client.resources.get(
+                api_version=group_version, kind=kind)
+        return self.object_clients[key]
+
+    def _parse_kind(self, kind_name):
+        kind_group = kind_name.split('.', 1)
+        kind = kind_group[0]
+        if kind in self.api_kind_version:
+            group_version = self.api_kind_version[kind][0]
+        else:
+            raise StatusCodeError(f'{self.server}: {kind} does not exist')
+
+        # if a kind_group has more than 1 entry than the kind_name is in
+        # the format kind.apigroup.  Find the apigroup/version that matches
+        # the apigroup passed with the kind_name
+        if len(kind_group) > 1:
+            apigroup_override = kind_group[1]
+            find = False
+            for gv in self.api_kind_version[kind]:
+                if apigroup_override in gv:
+                    group_version = gv
+                    find = True
+                    break
+            if not find:
+                raise StatusCodeError(f'{self.server}: {apigroup_override}'
+                                      f' does not have kind {kind}')
+        return(kind, group_version)
+
+    # this function returns a kind:apigroup/version map for each kind on the
+    # cluster
+    def get_api_resources(self):
+        c_res = self.client.resources
+        # this returns a prefix:apis map
+        api_prefix = c_res.parse_api_groups(
+            request_resources=False, update=True)
+        kind_groupversion = {}
+        for prefix, apis in api_prefix.items():
+            # each api prefix consists of api:versions map
+            for apigroup, versions in apis.items():
+                if prefix == 'apis' and len(apigroup) == 0:
+                    # the apis group has an entry with an empty api, but
+                    # querying the apis group with a blank api produces an
+                    # error.  We skip that condition with this hack
+                    continue
+                # each version is a version:obj map, where obj contains if this
+                # api version is preferred and optionally a list of kinds that
+                # are part of that apigroup/version.
+                for version, obj in versions.items():
+                    try:
+                        resources = c_res.get_resources_for_api_version(
+                            prefix, apigroup, version, True)
+                    except ApiException:
+                        # there may be apigroups/versions that require elevated
+                        # permisions, so go to the next one
+                        next
+                    # resources is a map containing kind:Resource and
+                    # {kind}List:ResourceList where a Resource contains the api
+                    # group_version (group/api_version) and a ResourceList
+                    # represents a list of API objects
+                    for kind, res in resources.items():
+                        for r in res:
+                            if isinstance(r, ResourceList):
+                                continue
+                            # add the kind and apigroup/version to the set
+                            # of api kinds
+                            kind_groupversion = self.add_group_kind(
+                                    kind, kind_groupversion,
+                                    r.group_version, obj.preferred)
+        return kind_groupversion
+
+    def get_items(self, kind, **kwargs):
+        k, group_version = self._parse_kind(kind)
+        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+
+        namespace = ''
+        if 'namespace' in kwargs:
+            namespace = kwargs['namespace']
+            # for cluster scoped integrations
+            # currently only openshift-clusterrolebindings
+            if namespace != 'cluster':
+                if not self.project_exists(namespace):
+                    return []
+
+        labels = ''
+        if 'labels' in kwargs:
+            labels_list = [
+                "{}={}".format(k, v)
+                for k, v in kwargs.get('labels').items()
+            ]
+
+            labels = ','.join(labels_list)
+
+        resource_names = kwargs.get('resource_names')
+        if resource_names:
+            items = []
+            for resource_name in resource_names:
+                try:
+                    item = obj_client.get(
+                        name=resource_name, namespace=namespace,
+                        label_selector=labels)
+                    if item:
+                        items.append(item.to_dict())
+                except NotFoundError:
+                    pass
+            items_list = {'items': items}
+        else:
+            items_list = obj_client.get(
+                namespace=namespace, label_selector=labels).to_dict()
+
+        items = items_list.get('items')
+        if items is None:
+            raise Exception("Expecting items")
+
+        return items
+
+    def get(self, namespace, kind, name=None, allow_not_found=False):
+        k, group_version = self._parse_kind(kind)
+        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        try:
+            obj = obj_client.get(name=name, namespace=namespace)
+            return obj.to_dict()
+        except NotFoundError as e:
+            if allow_not_found:
+                return {}
+            else:
+                raise StatusCodeError(f"[{self.server}]: {e}")
+
+    def get_all(self, kind, all_namespaces=False):
+        k, group_version = self._parse_kind(kind)
+        obj_client = self._get_obj_client(
+            group_version=group_version, kind=k)
+        try:
+            return obj_client.get().to_dict()
+        except NotFoundError as e:
+            raise StatusCodeError(f"[{self.server}]: {e}")
+
+    @staticmethod
+    def add_group_kind(kind, kgv, new, preferred):
+        updated_kgv = copy.copy(kgv)
+        if kind not in kgv:
+            # this is a new kind so add it
+            updated_kgv[kind] = [new]
+        else:
+            # this kind already exists, so check if this apigroup has
+            # already been added as an option.  If this apigroup/version is the
+            # preferred one, then replace the apigroup/version so that the
+            # preferred apigroup/version is used instead of a non-preferred one
+            group = new.split('/', 1)[0]
+            new_group = True
+            for pos in range(len(kgv[kind])):
+                if group in kgv[kind][pos]:
+                    new_group = False
+                    if preferred:
+                        updated_kgv[kind][pos] = new
+                    break
+
+            if new_group:
+                # this is a new apigroup
+                updated_kgv[kind].append(new)
+        return updated_kgv
+
+
+class OC:
+    client_status = Counter(name='qontract_reconcile_native_client',
+                            documentation='Cluster is using openshift '
+                            'native client',
+                            labelnames=['cluster_name', 'native_client'])
+
+    def __new__(cls, cluster_name, server, token, jh=None, settings=None,
+                init_projects=False, init_api_resources=False,
+                local=False):
+        use_native = os.environ.get('USE_NATIVE_CLIENT', False)
+        if use_native:
+            OC.client_status.labels(
+                cluster_name=cluster_name, native_client=True).inc()
+            return OCNative(cluster_name, server, token, jh, settings,
+                            init_projects, init_api_resources,
+                            local)
+        else:
+            OC.client_status.labels(
+                cluster_name=cluster_name, native_client=False).inc()
+            return OCDeprecated(cluster_name, server, token, jh, settings,
+                                init_projects, init_api_resources,
+                                local)
 
 
 class OC_Map:

@@ -68,7 +68,7 @@ class DashdotdbCSO:
             return None
 
         try:
-            imagemanifestvuln = oc.get_all('imagemanifestvuln',
+            imagemanifestvuln = oc.get_all('ImageManifestVuln',
                                            all_namespaces=True)
         except StatusCodeError:
             LOG.info('CSO: not installed on %s', cluster)
