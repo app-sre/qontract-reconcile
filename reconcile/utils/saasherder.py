@@ -1228,7 +1228,7 @@ class SaasHerder():
                 if all_subscribed_saas_file_paths:
                     trigger_promotion = True
 
-        if trigger_promotion:
+        if success and trigger_promotion:
             mr = AutoPromoter(self.promotions)
             mr.submit(cli=mr_cli)
 
