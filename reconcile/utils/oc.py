@@ -957,7 +957,8 @@ class OC:
     def __new__(cls, cluster_name, server, token, jh=None, settings=None,
                 init_projects=False, init_api_resources=False,
                 local=False):
-        use_native = os.environ.get('USE_NATIVE_CLIENT', False)
+        use_native = os.environ.get('USE_NATIVE_CLIENT', '').lower() \
+            in ['true', 'yes']
         if use_native:
             OC.client_status.labels(
                 cluster_name=cluster_name, native_client=True).inc()
