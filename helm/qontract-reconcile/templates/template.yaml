@@ -207,6 +207,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
           - name: {{ $env.secretKey }}
@@ -444,6 +446,8 @@ parameters:
 - name: SLOW_OC_RECONCILE_THRESHOLD
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
+  value: "false"
+- name: USE_NATIVE_CLIENT
   value: "false"
 - name: INTERNAL_CERTIFICATES_IMAGE
   value: quay.io/app-sre/internal-redhat-ca
