@@ -299,6 +299,9 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)
     if valid_saas_file_changes_only and saas_label not in labels:
         gl.add_label_to_merge_request(gitlab_merge_request_id, saas_label)
+    if not valid_saas_file_changes_only and saas_label in labels:
+        gl.remove_label_from_merge_request(
+            gitlab_merge_request_id, saas_label)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
