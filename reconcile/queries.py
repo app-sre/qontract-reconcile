@@ -730,6 +730,10 @@ namespace {
       field
       format
     }
+    internal
+    disable {
+      integrations
+    }
   }
 }
 serviceAccountName

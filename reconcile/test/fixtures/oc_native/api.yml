@@ -1,0 +1,110 @@
+server:
+  version:
+    major: 1
+  api/v1:
+    kind: APIResourceList
+    resources: 
+    - name: pods
+      kind: Pod
+    - name: pods/status
+      kind: Pod
+    - name: services
+      kind: Service
+  apis:
+    kind: APIGroupList
+    groups:
+    - name: project.openshift.io
+      versions:
+      - groupVersion: project.openshift.io/v1
+        version: v1
+      preferredVersion:
+        groupVersion: project.openshift.io/v1
+        version: v1
+    - name: config.openshift.io
+      versions:
+      - groupVersion: config.openshift.io/v1
+        version: v1
+      preferredVersion:
+        groupVersion: config.openshift.io/v1
+        version: v1
+    - name: managed.openshift.io
+      versions:
+      - groupVersion: managed.openshift.io/v1alpha1
+        version: v1alpha1
+      - groupVersion: managed.openshift.io/v1alpha2
+        version: v1alpha2
+      preferredVersion:
+        groupVersion: managed.openshift.io/v1alpha2
+        version: v1alpha2
+    - name: console.openshift.io
+      versions:
+      - groupVersion: console.openshift.io/v1
+        version: v1
+      - groupVersion: console.openshift.io/v1alpha1
+        version: v1alpha1      
+      preferredVersion:
+        groupVersion: console.openshift.io/v1
+        version: v1        
+  apis/project.openshift.io/v1:
+    kind: APIResourceList
+    resources: 
+    - name: projects
+      kind: Project
+  apis/config.openshift.io/v1:
+    kind: APIResourceList
+    resources: 
+    - name: projects
+      kind: Project
+  apis/managed.openshift.io/v1alpha1:
+    kind: APIResourceList
+    resources: 
+    - name: customdomains
+      kind: CustomDomain
+    - name: mustgathers
+      kind: MustGather
+  apis/managed.openshift.io/v1alpha2:
+    kind: APIResourceList
+    resources: 
+    - name: customdomains
+      kind: CustomDomain
+  apis/console.openshift.io/v1:
+    kind: APIResourceList
+    resources: 
+    - name: consolelinks
+      kind: ConsoleLink
+  apis/console.openshift.io/v1alpha1:
+    kind: APIResourceList
+    resources: 
+    - name: consolelinks
+      kind: ConsoleLink
+    - name: consoleplugins
+      kind: ConsolePlugin
+  apis/project.openshift.io/v1/projects:
+    kind: ProjectList
+    apiVersion: project.openshift.io/v1
+    items:
+    - metadata:
+        name: dedicated-admin
+    - metadata:
+        name: default
+
+api_kind_version:
+  Pod:
+  - v1
+  Service:
+  - v1
+  Project:
+  - project.openshift.io/v1
+  - config.openshift.io/v1
+  MustGather:
+  - managed.openshift.io/v1alpha1
+  CustomDomain:
+  - managed.openshift.io/v1alpha2
+  ConsoleLink:
+  - console.openshift.io/v1
+  ConsolePlugin:
+  - console.openshift.io/v1alpha1
+
+projects:
+- dedicated-admin
+- default
