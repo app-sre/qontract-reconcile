@@ -960,7 +960,9 @@ class OC:
                 init_projects=False, init_api_resources=False,
                 local=False):
         use_native = os.environ.get('USE_NATIVE_CLIENT', '')
-        if not use_native:
+        if len(use_native) > 0:
+            use_native = use_native.lower() in ['true', 'yes']
+        else:
             enable_toggle = 'openshift-resources-native-client'
             strategies = get_feature_toggle_strategies(
                 enable_toggle, ['perCluster'])
@@ -975,8 +977,6 @@ class OC:
                         break
             use_native = get_feature_toggle_state(enable_toggle) and \
                 cluster_in_strategy
-        else:
-            use_native = use_native.lower() in ['true', 'yes']
 
         if use_native:
             OC.client_status.labels(
