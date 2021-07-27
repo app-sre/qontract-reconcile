@@ -24,6 +24,8 @@ from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.threaded as threaded
 from openshift.dynamic.exceptions import NotFoundError
 from openshift.dynamic import DynamicClient
+from reconcile.utils.unleash import (get_feature_toggle_strategies,
+                                     get_feature_toggle_state)
 from openshift.dynamic.resource import ResourceList
 
 urllib3.disable_warnings()
@@ -852,8 +854,8 @@ class OCNative(OCDeprecated):
                             # add the kind and apigroup/version to the set
                             # of api kinds
                             kind_groupversion = self.add_group_kind(
-                                    kind, kind_groupversion,
-                                    r.group_version, obj.preferred)
+                                kind, kind_groupversion,
+                                r.group_version, obj.preferred)
         return kind_groupversion
 
     def get_items(self, kind, **kwargs):
@@ -957,8 +959,25 @@ class OC:
     def __new__(cls, cluster_name, server, token, jh=None, settings=None,
                 init_projects=False, init_api_resources=False,
                 local=False):
-        use_native = os.environ.get('USE_NATIVE_CLIENT', '').lower() \
-            in ['true', 'yes']
+        use_native = os.environ.get('USE_NATIVE_CLIENT', '')
+        if len(use_native) > 0:
+            use_native = use_native.lower() in ['true', 'yes']
+        else:
+            enable_toggle = 'openshift-resources-native-client'
+            strategies = get_feature_toggle_strategies(
+                enable_toggle, ['perCluster'])
+
+            # only use the native client if the toggle is enabled and this
+            # server is listed in the perCluster strategy
+            cluster_in_strategy = False
+            if strategies:
+                for s in strategies:
+                    if cluster_name in s.parameters['cluster_name'].split(','):
+                        cluster_in_strategy = True
+                        break
+            use_native = get_feature_toggle_state(enable_toggle) and \
+                cluster_in_strategy
+
         if use_native:
             OC.client_status.labels(
                 cluster_name=cluster_name, native_client=True).inc()
