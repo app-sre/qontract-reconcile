@@ -33,7 +33,7 @@ class DashdotdbDVO:
         for i in range(0, len(data), int(size)):
             yield data[i:i+int(size)]
 
-    def _post(self, deploymentvalidation, dashdotdb_token):
+    def _post(self, deploymentvalidation):
         if deploymentvalidation is None:
             return
         cluster = deploymentvalidation['cluster']
@@ -72,7 +72,8 @@ class DashdotdbDVO:
                 endpoint = (f'{self.dashdotdb_url}/api/v1/'
                             f'deploymentvalidation/{cluster}')
                 response = requests.post(url=endpoint, json=dvdata,
-                                         headers={"X-Auth": dashdotdb_token},
+                                         headers={
+                                             "X-Auth": self.dashdotdb_token},
                                          auth=(self.dashdotdb_user,
                                                self.dashdotdb_pass),
                                          timeout=(5, 120))
@@ -131,6 +132,10 @@ class DashdotdbDVO:
         return {'cluster': cluster,
                 'data': deploymentvalidation}
 
+    # query the prometheus instance on a cluster and retrieve all the metric
+    # names.  If a filter is provided, use that to filter the metric names
+    # via startswith and return only those that match.
+    # Returns a map of {cluster: cluster_name, data: [metric_names]}
     def _get_validation_names(self, clusterinfo, filter=None):
         cluster, promurl, ssl_verify, promtoken = self._get_prometheus_info(
             clusterinfo)
@@ -202,12 +207,12 @@ class DashdotdbDVO:
             LOG.error('%s error retrieving token for DVO data: %s',
                       self.logmarker, details)
             return None
-        return response.text.replace('"', '').strip()
+        self.dashdotdb_token = response.text.replace('"', '').strip()
 
-    def _close_token(self, token):
+    def _close_token(self):
         params = {'scope': 'deploymentvalidation'}
         endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                    f'token/{token}')
+                    f'token/{self.dashdotdb_token}')
         response = requests.delete(url=endpoint,
                                    params=params,
                                    auth=(self.dashdotdb_user,
@@ -224,11 +229,12 @@ class DashdotdbDVO:
                                        iterable=self._get_clusters(cname),
                                        thread_pool_size=self.thread_pool_size,
                                        filter='deployment_validation_operator')
+        validation_names = {}
         if validation_list:
             validation_names = {v['cluster']: v['data']
                                 for v in validation_list if v}
         clusters = self._get_clusters(cname)
-        token = self._get_token()
+        self._get_token()
         for cluster in clusters:
             cluster_name = cluster['name']
             if cluster_name not in validation_names:
@@ -242,9 +248,8 @@ class DashdotdbDVO:
                                        thread_pool_size=self.thread_pool_size,
                                        clusterinfo=cluster)
             threaded.run(func=self._post, iterable=validations,
-                         thread_pool_size=self.thread_pool_size,
-                         dashdotdb_token=token)
-        self._close_token(token)
+                         thread_pool_size=self.thread_pool_size)
+        self._close_token()
 
 
 def run(dry_run=False, thread_pool_size=10, cluster_name=None):
