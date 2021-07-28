@@ -448,7 +448,7 @@ parameters:
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
 - name: USE_NATIVE_CLIENT
-  value: "false"
+  value: ""
 - name: INTERNAL_CERTIFICATES_IMAGE
   value: quay.io/app-sre/internal-redhat-ca
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
