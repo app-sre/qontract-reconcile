@@ -250,7 +250,9 @@ def run(dry_run, wait_for_pipeline):
         days_interval = hk.get('days_interval') or default_days_interval
         enable_closing = hk.get('enable_closing') or default_enable_closing
         limit = hk.get('limit') or default_limit
+        pipeline_timeout = hk.get('pipeline_timeout')
         gl = GitLabApi(instance, project_url=project_url, settings=settings)
+
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'issue')
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
