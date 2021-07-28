@@ -2,6 +2,8 @@ import logging
 
 from datetime import datetime, timedelta
 
+import time
+
 import gitlab
 
 from sretoolbox.utils import retry
@@ -18,6 +20,31 @@ HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
+
+
+def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
+    now = time.time()
+
+    pending_pipelines = [p for p in pipelines
+                         if p['status'] in ['pending', 'running']]
+
+    if not pending_pipelines:
+        return
+
+    for p in pending_pipelines:
+        update_time = time.strptime(p['updated_at'], DATE_FORMAT)
+
+        elapsed = now - time.mktime(update_time)
+
+        # pipeline_timeout converted in seconds
+        if elapsed > pipeline_timeout * 60:
+            logging.info(['canceling', p['web_url']])
+            if not dry_run:
+                try:
+                    gl_project.pipelines.get(p['id']).cancel()
+                except gitlab.exceptions.GitlabPipelineCancelError as err:
+                    logging.error('unable to cancel {} - error message {}'
+                                  .format(p['web_url'], err.error_message))
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
