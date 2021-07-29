@@ -55,7 +55,9 @@ def aws_account_from_infrastructure_access(cluster, access_level, ocm_map):
                         cluster['name'],
                         awsAccess['awsGroup']['account']['uid'],
                         awsAccess['awsGroup']['account']['terraformUsername'],
-                    )
+                    ),
+                'assume_region': cluster['spec']['region'],
+                'assume_cidr': cluster['network']['vpc']
             }
     return account
 
@@ -81,8 +83,6 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
             logging.error(msg)
             error = True
             continue
-        req_aws['assume_region'] = cluster_info['spec']['region']
-        req_aws['assume_cidr'] = cluster_info['network']['vpc']
 
         peering_info = cluster_info['peering']
         peer_connections = peering_info['connections']
@@ -141,8 +141,6 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
                 logging.error(msg)
                 error = True
                 continue
-            acc_aws['assume_region'] = peer_cluster['spec']['region']
-            acc_aws['assume_cidr'] = peer_cluster['network']['vpc']
 
             aws_api = AWSApi(1, [acc_aws], settings=settings)
             accepter_vpc_id, accepter_route_table_ids, _ = \
