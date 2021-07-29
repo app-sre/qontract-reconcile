@@ -37,6 +37,7 @@ class TestAWSAccountFromInfrastructureAccess(TestCase):
         self.ocm_map = {
             'cluster': MockOCM()
         }
+
     def test_aws_account_from_infrastructure_access(self):
         expected_result = {
             'name': 'account',

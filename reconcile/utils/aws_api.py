@@ -701,6 +701,17 @@ class AWSApi:
 
         return vpc_id, route_table_ids, subnets_id_az
 
+    def get_cluster_nat_gateways_egress_ips(self, account):
+        assumed_session = self._get_assume_role_session(account)
+        assumed_ec2 = assumed_session.client('ec2')
+        nat_gateways = assumed_ec2.describe_nat_gateways()
+        egress_ips = set()
+        for nat in nat_gateways.get('NatGateways'):
+            for address in nat['NatGatewayAddresses']:
+                egress_ips.add(address['PublicIp'])
+
+        return egress_ips
+
     def get_vpcs_details(self, account, tags=None, route_tables=False):
         results = []
         session = self.get_session(account['name'])
