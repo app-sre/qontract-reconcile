@@ -757,9 +757,8 @@ class OCNative(OCDeprecated):
             api_key={'authorization': f'Bearer {token}'},
             host=server,
             verify_ssl=False,
-            # default timeout seems to be 1+ minutes and it can't
-            # be changed, so do no retries on connection failure
-            retries=0
+            # default timeout seems to be 1+ minutes
+            retries=5
         )
 
         if self.jump_host:

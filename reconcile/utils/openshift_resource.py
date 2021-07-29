@@ -226,6 +226,9 @@ class OpenshiftResource:
 
         return True
 
+    def has_owner_reference(self):
+        return bool(self.body['metadata'].get('ownerReferences', []))
+
     def has_valid_sha256sum(self):
         try:
             current_sha256sum = \
