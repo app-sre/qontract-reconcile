@@ -59,7 +59,7 @@ class OpenshiftResource:
                     pass
                 elif self.ignorable_key_value_pair(obj1_k, obj1_v):
                     pass
-                elif obj1_k in ['data', 'labels']:
+                elif obj1_k in ['data', 'labels', 'annotations']:
                     diff = [k for k in obj2_v
                             if k not in obj1_v
                             and k not in IGNORABLE_DATA_FIELDS]
