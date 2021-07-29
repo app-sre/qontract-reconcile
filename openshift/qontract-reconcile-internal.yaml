@@ -147,6 +147,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${SLACK_USERGROUPS_CPU_LIMIT}
@@ -350,6 +352,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_ROLEBINDINGS_CPU_LIMIT}
@@ -557,6 +561,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_CLUSTERROLEBINDINGS_CPU_LIMIT}
@@ -754,6 +760,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_USERS_CPU_LIMIT}
@@ -936,6 +944,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_UPGRADE_WATCHER_CPU_LIMIT}
@@ -1129,6 +1139,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_GROUPS_CPU_LIMIT}
@@ -1332,6 +1344,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_NAMESPACES_CPU_LIMIT}
@@ -1539,6 +1553,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_NETWORK_POLICIES_CPU_LIMIT}
@@ -1736,6 +1752,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_LIMITRANGES_CPU_LIMIT}
@@ -1939,6 +1957,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_RESOURCES_CPU_LIMIT}
@@ -2128,6 +2148,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_VAULT_SECRETS_CPU_LIMIT}
@@ -2307,6 +2329,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_ROUTES_CPU_LIMIT}
@@ -2510,6 +2534,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SERVICEACCOUNT_TOKENS_CPU_LIMIT}
@@ -2714,6 +2740,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
@@ -2914,6 +2942,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
@@ -3114,6 +3144,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
@@ -3314,6 +3346,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
@@ -3514,6 +3548,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
@@ -3714,6 +3750,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
@@ -3914,6 +3952,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
@@ -4114,6 +4154,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_MOVING_COMMITS_CPU_LIMIT}
@@ -4314,6 +4356,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_LIMIT}
@@ -4514,6 +4558,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_LIMIT}
@@ -4714,6 +4760,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_UPSTREAM_JOBS_CPU_LIMIT}
@@ -4907,6 +4955,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CLEANER_CPU_LIMIT}
@@ -5092,6 +5142,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${TERRAFORM_RESOURCES_CPU_LIMIT}
@@ -5289,6 +5341,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_PROJECTS_CPU_LIMIT}
@@ -5482,6 +5536,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_MEMBERS_CPU_LIMIT}
@@ -5675,6 +5731,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_PERMISSIONS_CPU_LIMIT}
@@ -5868,6 +5926,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_INTEGRATIONS_CPU_LIMIT}
@@ -6043,6 +6103,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_OWNERS_CPU_LIMIT}
@@ -6218,6 +6280,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${GITLAB_HOUSEKEEPING_CPU_LIMIT}
@@ -6409,6 +6473,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${JENKINS_JOB_BUILDER_CPU_LIMIT}
@@ -6613,6 +6679,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${JENKINS_JOB_CLEANER_CPU_LIMIT}
@@ -6808,6 +6876,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${JENKINS_ROLES_CPU_LIMIT}
@@ -7010,6 +7080,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${JENKINS_WEBHOOKS_CPU_LIMIT}
@@ -7205,6 +7277,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${JENKINS_WEBHOOKS_CLEANER_CPU_LIMIT}
@@ -7398,6 +7472,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           resources:
             limits:
               cpu: ${LDAP_USERS_CPU_LIMIT}
@@ -7580,6 +7656,8 @@ objects:
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
             value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
           - name: gitlab_pr_submitter_queue_url
             valueFrom:
               secretKeyRef:
@@ -7811,6 +7889,8 @@ parameters:
   value: "600"
 - name: LOG_SLOW_OC_RECONCILE
   value: "false"
+- name: USE_NATIVE_CLIENT
+  value: ""
 - name: INTERNAL_CERTIFICATES_IMAGE
   value: quay.io/app-sre/internal-redhat-ca
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
