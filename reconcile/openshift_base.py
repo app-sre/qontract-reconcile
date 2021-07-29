@@ -430,6 +430,9 @@ def realize_data(dry_run, oc_map, ri,
             elif not take_over:
                 continue
 
+            if c_item.has_owner_reference():
+                continue
+
             try:
                 delete(dry_run, oc_map, cluster, namespace,
                        resource_type, name, enable_deletion)

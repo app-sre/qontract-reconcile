@@ -105,3 +105,30 @@ class TestOpenshiftResource:
             '1366d8ef31f0d83419d25b446e61008b16348b9efee2216873856c49cede6965'
 
         assert not annotated.has_valid_sha256sum()
+
+    @staticmethod
+    def test_has_owner_reference_true():
+        resource = {
+            'kind': 'kind',
+            'metadata': {
+                'name': 'resource',
+                'ownerReferences': [
+                    {
+                        'name': 'owner'
+                    }
+                ]
+            }
+        }
+        openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+        assert openshift_resource.has_owner_reference()
+
+    @staticmethod
+    def test_has_owner_reference_false():
+        resource = {
+            'kind': 'kind',
+            'metadata': {
+                'name': 'resource'
+            }
+        }
+        openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+        assert not openshift_resource.has_owner_reference()
