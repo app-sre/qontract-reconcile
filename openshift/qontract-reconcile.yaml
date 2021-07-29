@@ -20969,7 +20969,7 @@ objects:
           - name: INTEGRATION_EXTRA_ARGS
             value: ""
           - name: SLEEP_DURATION_SECS
-            value: ${SLEEP_DURATION_SECS}
+            value: ${OCM_AWS_INFRASTRUCTURE_ACCESS_SLEEP_DURATION_SECS}
           - name: GITHUB_API
             valueFrom:
               configMapKeyRef:
@@ -24422,6 +24422,8 @@ parameters:
   value: 100m
 - name: OCM_CLUSTERS_MEMORY_REQUEST
   value: 100Mi
+- name: OCM_AWS_INFRASTRUCTURE_ACCESS_SLEEP_DURATION_SECS
+  value: "600"
 - name: OCM_AWS_INFRASTRUCTURE_ACCESS_CPU_LIMIT
   value: 100m
 - name: OCM_AWS_INFRASTRUCTURE_ACCESS_MEMORY_LIMIT

@@ -367,6 +367,7 @@ integrations:
   - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
     secretKey: gitlab_pr_submitter_queue_url
 - name: ocm-aws-infrastructure-access
+  sleepDurationSecs: 600
   resources:
     requests:
       memory: 200Mi
