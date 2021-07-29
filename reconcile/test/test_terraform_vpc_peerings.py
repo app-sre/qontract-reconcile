@@ -11,8 +11,8 @@ class MockOCM:
 
 
 class TestAWSAccountFromInfrastructureAccess(TestCase):
-    def test_aws_account_from_infrastructure_access(self):
-        cluster = {
+    def setUp(self):
+        self.cluster = {
             'name': 'cluster',
             'spec': {
                 'region': 'region'
@@ -34,9 +34,10 @@ class TestAWSAccountFromInfrastructureAccess(TestCase):
                 }
             ]
         }
-        ocm_map = {
+        self.ocm_map = {
             'cluster': MockOCM()
         }
+    def test_aws_account_from_infrastructure_access(self):
         expected_result = {
             'name': 'account',
             'uid': 'uid',
@@ -47,35 +48,10 @@ class TestAWSAccountFromInfrastructureAccess(TestCase):
             'assume_cidr': 'vpc'
         }
         account = integ.aws_account_from_infrastructure_access(
-            cluster, 'read-only', ocm_map)
+            self.cluster, 'read-only', self.ocm_map)
         self.assertEqual(account, expected_result)
 
     def test_aws_account_from_infrastructure_access_none(self):
-        cluster = {
-            'name': 'cluster',
-            'spec': {
-                'region': 'region'
-            },
-            'network': {
-                'vpc': 'vpc'
-            },
-            'awsInfrastructureAccess': [
-                {
-                    'awsGroup': {
-                        'account': {
-                            'name': 'account',
-                            'uid': 'uid',
-                            'terraformUsername': 'terraform',
-                            'automationToken': 'token'
-                        }
-                    },
-                    'accessLevel': 'read-only'
-                }
-            ]
-        }
-        ocm_map = {
-            'cluster': MockOCM()
-        }
         account = integ.aws_account_from_infrastructure_access(
-            cluster, 'not-read-only', ocm_map)
+            self.cluster, 'not-read-only', self.ocm_map)
         self.assertIsNone(account)
