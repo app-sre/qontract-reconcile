@@ -266,8 +266,8 @@ class TerraformClient:
                 resource = data['{}_resource'.format(self.integration_prefix)]
                 output_resource_name = data['{}_output_resource_name'.format(
                     self.integration_prefix)]
-                annotations = data['{}_annotations'.format(
-                    self.integration_prefix)]
+                annotations = data.get('{}_annotations'.format(
+                    self.integration_prefix))
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
                                                account, annotations)
@@ -408,15 +408,17 @@ class TerraformClient:
             "kind": "Secret",
             "type": "Opaque",
             "metadata": {
-                "name": name
+                "name": name,
+                "annotations": {
+                    "qontract.recycle": "true"
+                }
             },
             "data": {}
         }
 
-        anno_dict = json.loads(base64.b64decode(annotations))
-
-        body["metadata"]["annotations"] = anno_dict
-        body["metadata"]["annotations"]["qontract.recycle"] = "true"
+        if annotations:
+            anno_dict = json.loads(base64.b64decode(annotations))
+            body["metadata"]["annotations"].update(anno_dict)
 
         for k, v in data.items():
             if self.integration_prefix in k:

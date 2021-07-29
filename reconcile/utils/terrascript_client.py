@@ -2750,7 +2750,7 @@ class TerrascriptClient:
         if output_resource_name is None:
             output_resource_name = output_prefix
 
-        annotations = resource.get('annotations') or {}
+        annotations = json.loads(resource.get('annotations') or '{}')
 
         return account, identifier, values, output_prefix, \
             output_resource_name, annotations
@@ -2802,11 +2802,12 @@ class TerrascriptClient:
         output_value = output_resource_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # annotations
-        output_name_0_13 = output_format_0_13.format(
-            output_prefix, self.integration_prefix, 'annotations')
-        anno_json = json.dumps(annotations).encode("utf-8")
-        output_value = base64.b64encode(anno_json).decode()
-        tf_resources.append(Output(output_name_0_13, value=output_value))
+        if annotations:
+            output_name_0_13 = output_format_0_13.format(
+                output_prefix, self.integration_prefix, 'annotations')
+            anno_json = json.dumps(annotations).encode("utf-8")
+            output_value = base64.b64encode(anno_json).decode()
+            tf_resources.append(Output(output_name_0_13, value=output_value))
 
     @staticmethod
     def get_values(path):
