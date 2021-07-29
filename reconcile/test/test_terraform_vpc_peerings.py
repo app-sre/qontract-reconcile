@@ -9,6 +9,7 @@ class MockOCM:
                                                             tf_user):
         return f"{cluster}/{tf_account_id}/{tf_user}"
 
+
 class TestAWSAccountFromInfrastructureAccess(TestCase):
     def test_aws_account_from_infrastructure_access(self):
         cluster = {
