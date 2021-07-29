@@ -1,4 +1,4 @@
-from ldap3 import Server, Connection, ALL, SAFE_SYNC
+from ldap3 import Server, Connection, ALL
 from reconcile.utils.config import get_config
 
 _client = None
@@ -10,8 +10,7 @@ def init(serverUrl):
 
     if _client is None:
         server = Server(serverUrl, get_info=ALL)
-        _client = Connection(server, None, None,
-                             auto_bind=True, client_strategy=SAFE_SYNC)
+        _client = Connection(server, None, None, auto_bind=True)
 
     return _client
 
@@ -35,6 +34,4 @@ def user_exists(username):
 
     search_filter = "uid={},{}".format(username, _base_dn)
 
-    status, _, _, _ = _client.search(search_filter, '(objectclass=person)')
-
-    return status
+    return _client.search(search_filter, '(objectclass=person)')
