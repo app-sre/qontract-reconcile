@@ -14,7 +14,9 @@ from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
+import reconcile.terraform_vpc_peerings as tfvpc
 
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
@@ -178,6 +180,37 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
             results.append(item)
 
     columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
+    print_output(ctx.obj['output'], results, columns)
+
+
+@get.command()
+@click.pass_context
+def clusters_egress_ips(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters
+                if c.get('ocm') is not None
+                and c.get('awsInfrastructureAccess') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    results = []
+    for cluster in clusters:
+        cluster_name = cluster['name']
+        account = tfvpc.aws_account_from_infrastructure_access(
+            cluster,
+            'network-mgmt',
+            ocm_map
+        )
+        aws_api = AWSApi(1, [account], settings=settings)
+        egress_ips = \
+            aws_api.get_cluster_nat_gateways_egress_ips(account)
+        item = {
+            'cluster': cluster_name,
+            'egress_ips': ', '.join(egress_ips)
+        }
+        results.append(item)
+
+    columns = ['cluster', 'egress_ips']
     print_output(ctx.obj['output'], results, columns)
 
 
