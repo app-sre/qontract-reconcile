@@ -609,13 +609,10 @@ class AWSApi:
 
         self.auth_tokens = auth_tokens
 
-    def get_cluster_vpc_details(self, account, route_tables=False,
-                                subnets=False):
+    def _get_assume_role_session(self, account):
         """
-        Returns a cluster VPC details:
-            - VPC ID
-            - Route table IDs (optional)
-            - Subnets list including Subnet ID and Subnet Availability zone
+        Returns a session for a supplied role to assume:
+
         :param account: a dictionary containing the following keys:
                         - name - name of the AWS account
                         - assume_role - role to assume to get access
@@ -654,6 +651,24 @@ class AWSApi:
             region_name=account['assume_region']
         )
 
+        return assumed_session
+
+    def get_cluster_vpc_details(self, account, route_tables=False,
+                                subnets=False):
+        """
+        Returns a cluster VPC details:
+            - VPC ID
+            - Route table IDs (optional)
+            - Subnets list including Subnet ID and Subnet Availability zone
+        :param account: a dictionary containing the following keys:
+                        - name - name of the AWS account
+                        - assume_role - role to assume to get access
+                                        to the cluster's AWS account
+                        - assume_region - region in which to operate
+                        - assume_cidr - CIDR block of the cluster to
+                                        use to find the matching VPC
+        """
+        assumed_session = self._get_assume_role_session(account)
         assumed_ec2 = assumed_session.client('ec2')
         vpcs = assumed_ec2.describe_vpcs()
         vpc_id = None
