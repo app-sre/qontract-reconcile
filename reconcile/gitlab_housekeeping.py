@@ -214,7 +214,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
                 # running, pending, success, failed, canceled, skipped
                 running_pipelines = \
                     [p for p in pipelines
-                     if p['status'] in ['running']]
+                     if p['status'] == 'running']
                 if running_pipelines:
                     if insist:
                         raise Exception(f'insisting on {merge_label}')
