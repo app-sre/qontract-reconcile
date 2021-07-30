@@ -120,7 +120,8 @@ def is_good_to_merge(merge_label, labels):
         not any(l in HOLD_LABELS for l in labels)
 
 
-def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
+def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
+                          wait_for_pipeline=False):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for rebase_label in REBASE_LABELS_PRIORITY:
@@ -169,7 +170,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
 
 
 @retry(max_attempts=10)
-def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
+def merge_merge_requests(dry_run, gl, merge_limit, rebase,
+                         pipeline_timeout=None, insist=False,
                          wait_for_pipeline=False):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
@@ -259,11 +261,13 @@ def run(dry_run, wait_for_pipeline):
                            'merge-request')
         rebase = hk.get('rebase')
         try:
-            merge_merge_requests(dry_run, gl, limit, rebase, insist=True,
+            merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
+                                 insist=True,
                                  wait_for_pipeline=wait_for_pipeline)
         except Exception:
-            merge_merge_requests(dry_run, gl, limit, rebase,
+            merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
                                  wait_for_pipeline=wait_for_pipeline)
         if rebase:
             rebase_merge_requests(dry_run, gl, limit,
+                                  pipeline_timeout=pipeline_timeout,
                                   wait_for_pipeline=wait_for_pipeline)
