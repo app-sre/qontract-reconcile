@@ -861,6 +861,7 @@ APPS_QUERY = """
         days_interval
         limit
         enable_closing
+        pipeline_timeout
       }
       jira {
         serverUrl
