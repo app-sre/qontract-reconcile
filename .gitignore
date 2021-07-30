@@ -2,6 +2,7 @@
 *.egg-info
 /*.toml
 
+.vscode
 .tox
 .pytest_cache
 .eggs
