@@ -121,7 +121,8 @@ def is_good_to_merge(merge_label, labels):
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
-                          wait_for_pipeline=False):
+                          wait_for_pipeline=False, gl_instance=None,
+                          gl_settings=None):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for rebase_label in REBASE_LABELS_PRIORITY:
@@ -147,17 +148,23 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
             if len(result['commits']) == 0:  # rebased
                 continue
 
+            pipelines = mr.pipelines()
+
+            # If pipeline_timeout is None no pipeline will be canceled
+            if pipeline_timeout is not None:
+                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
+                                       settings=gl_settings,).project
+                clean_pipelines(dry_run, gl_project, pipelines,
+                                pipeline_timeout)
+
             if wait_for_pipeline:
-                pipelines = mr.pipelines()
                 if not pipelines:
                     continue
-
                 # possible statuses:
                 # running, pending, success, failed, canceled, skipped
-                incomplete_pipelines = \
-                    [p for p in pipelines
-                     if p['status'] in ['running']]
-                if incomplete_pipelines:
+                running_pipelines = \
+                    [p for p in pipelines if p['status'] == 'running']
+                if running_pipelines:
                     continue
 
             logging.info(['rebase', gl.project.name, mr.iid])
