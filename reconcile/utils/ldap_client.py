@@ -1,18 +1,16 @@
-from ldap3 import Server, Connection, ALL
+from ldap3 import Server, Connection, ALL, SAFE_SYNC
 from reconcile.utils.config import get_config
 
-_client = None
 _base_dn = None
 
 
 def init(serverUrl):
-    global _client
+    server = Server(serverUrl, get_info=ALL)
 
-    if _client is None:
-        server = Server(serverUrl, get_info=ALL)
-        _client = Connection(server, None, None, auto_bind=True)
+    client = Connection(server, None, None, client_strategy=SAFE_SYNC)
+    client.bind()
 
-    return _client
+    return client
 
 
 def init_from_config():
@@ -22,16 +20,20 @@ def init_from_config():
 
     serverUrl = config['ldap']['server']
     _base_dn = config['ldap']['base_dn']
-
     return init(serverUrl)
 
 
 def user_exists(username):
-    global _client
     global _base_dn
 
-    init_from_config()
+    client = init_from_config()
+
+    if not client.bound:
+        client.bind()
 
     search_filter = "uid={},{}".format(username, _base_dn)
+    result, _, _, _ = client.search(search_filter, '(objectclass=person)')
 
-    return _client.search(search_filter, '(objectclass=person)')
+    client.unbind()
+
+    return result
