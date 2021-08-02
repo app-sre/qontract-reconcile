@@ -20,6 +20,7 @@ HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 
 def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
@@ -48,7 +49,6 @@ def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
-    DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
     LABEL = 'stale'
 
     if item_type == 'issue':
