@@ -237,8 +237,13 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     dashdotdb_url = secret_content['url']
     dashdotdb_user = secret_content['username']
     dashdotdb_pass = secret_content['password']
-    metrics = requests.get(f'{dashdotdb_url}/api/v1/metrics',
-                           auth=(dashdotdb_user, dashdotdb_pass)).text
+    auth = (dashdotdb_user, dashdotdb_pass)
+    vuln_metrics = requests.get(
+        f'{dashdotdb_url}/api/v1/imagemanifestvuln/metrics', auth=auth).text
+    validt_metrics = requests.get(
+        f'{dashdotdb_url}/api/v1/deploymentvalidation/metrics', auth=auth).text
+    slo_metrics = requests.get(
+        f'{dashdotdb_url}/api/v1/serviceslometrics/metrics', auth=auth).text
     namespaces = queries.get_namespaces()
 
     build_jobs = jjb.get_all_jobs(job_types=['build'])
@@ -386,7 +391,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
         vuln_mx = {}
         validt_mx = {}
         slo_mx = {}
-        for family in text_string_to_metric_families(metrics):
+        for family in text_string_to_metric_families(vuln_metrics):
             for sample in family.samples:
                 if sample.name == 'imagemanifestvuln_total':
                     for app_namespace in app_namespaces:
@@ -404,6 +409,8 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                         if severity not in vuln_mx[cluster][namespace]:
                             value = int(sample.value)
                             vuln_mx[cluster][namespace][severity] = value
+        for family in text_string_to_metric_families(validt_metrics):
+            for sample in family.samples:
                 if sample.name == 'deploymentvalidation_total':
                     for app_namespace in app_namespaces:
                         cluster = sample.labels['cluster']
@@ -427,6 +434,8 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
                         value = int(sample.value)
                         validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
+        for family in text_string_to_metric_families(slo_metrics):
+            for sample in family.samples:
                 if sample.name == 'serviceslometrics':
                     for app_namespace in app_namespaces:
                         cluster = sample.labels['cluster']
