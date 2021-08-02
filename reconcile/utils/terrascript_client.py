@@ -1545,7 +1545,14 @@ class TerrascriptClient:
         # with the following fields
         # db.endpoint
         output_name_0_13 = output_prefix + '__db_endpoint'
-        output_value = '${' + tf_resource.primary_endpoint_address + '}'
+        # https://docs.aws.amazon.com/AmazonElastiCache/
+        # latest/red-ug/Endpoints.html
+        if values.get('cluster_mode'):
+            output_value = \
+                '${' + tf_resource.configuration_endpoint_address + '}'
+        else:
+            output_value = \
+                '${' + tf_resource.primary_endpoint_address + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # db.port
         output_name_0_13 = output_prefix + '__db_port'
