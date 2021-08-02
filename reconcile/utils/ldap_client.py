@@ -1,16 +1,20 @@
+from contextlib import contextmanager
+
 from ldap3 import Server, Connection, ALL, SAFE_SYNC
 from reconcile.utils.config import get_config
 
 _base_dn = None
 
 
+@contextmanager
 def init(serverUrl):
     server = Server(serverUrl, get_info=ALL)
-
     client = Connection(server, None, None, client_strategy=SAFE_SYNC)
-    client.bind()
-
-    return client
+    try:
+        client.bind()
+        yield client
+    finally:
+        client.unbind()
 
 
 def init_from_config():
@@ -26,14 +30,7 @@ def init_from_config():
 def user_exists(username):
     global _base_dn
 
-    client = init_from_config()
-
-    if not client.bound:
-        client.bind()
-
-    search_filter = "uid={},{}".format(username, _base_dn)
-    result, _, _, _ = client.search(search_filter, '(objectclass=person)')
-
-    client.unbind()
-
-    return result
+    with init_from_config() as client:
+        search_filter = "uid={},{}".format(username, _base_dn)
+        result, _, _, _ = client.search(search_filter, '(objectclass=person)')
+        return result
