@@ -117,7 +117,7 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 
 ## Installation
 
-This project targets Python version 3.6.x for best compatibility. Verify your Python3 version your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
+This project targets Python version 3.6.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
 
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 
@@ -139,7 +139,7 @@ python3 setup.py develop
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
-You may also need need to [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
+You may also need need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
 
 ### Requirements
 
