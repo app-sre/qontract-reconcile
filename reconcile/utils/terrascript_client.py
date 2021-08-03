@@ -839,6 +839,9 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        # 'deps' should contain a list of terraform resourse names (not full objects) that must be created before the actual RDS instance should be created
+        deps = []                         
+
         # we want to allow an empty name, so we
         # only validate names which are not empty
         if values.get('name') and not self.validate_db_name(values['name']):
@@ -861,7 +864,6 @@ class TerrascriptClient:
             provider = 'aws.' + self._region_from_availability_zone_(az)
             values['provider'] = provider
 
-        deps = []
         parameter_group = values.pop('parameter_group', None)
         if parameter_group:
             pg_values = self.get_values(parameter_group)
@@ -879,8 +881,8 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            deps = self.get_dependencies([pg_tf_resource])
-            values['parameter_group_name'] = pg_name
+            resource_name = self.get_dependencies([pg_tf_resource])
+            deps.append(resource_name)
 
         enhanced_monitoring = values.pop('enhanced_monitoring', None)
 
@@ -928,6 +930,9 @@ class TerrascriptClient:
             tf_resource = \
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(tf_resource)
+
+            resource_name = self.get_dependencies([tf_resource])
+            deps.append(resource_name)
 
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.arn + "}"
