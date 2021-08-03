@@ -31,6 +31,7 @@ def user_exists(username):
     global _base_dn
 
     with init_from_config() as client:
-        search_filter = "uid={},{}".format(username, _base_dn)
-        result, _, _, _ = client.search(base_dn, f'(&(uid={username})(objectclass=person))')
+        result, _, _, _ = client.search(_base_dn,
+                                        f'(&(uid={username})' +
+                                        '(objectclass=person))')
         return result
