@@ -179,7 +179,8 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
 @retry(max_attempts=10)
 def merge_merge_requests(dry_run, gl, merge_limit, rebase,
                          pipeline_timeout=None, insist=False,
-                         wait_for_pipeline=False):
+                         wait_for_pipeline=False, gl_instance=None,
+                         gl_settings=None):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
@@ -218,6 +219,12 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
             if not pipelines:
                 continue
 
+            # If pipeline_timeout is None no pipeline will be canceled
+            if pipeline_timeout is not None:
+                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
+                                       settings=gl_settings,).project
+                clean_pipelines(dry_run, gl_project, pipelines,
+                                pipeline_timeout)
             if wait_for_pipeline:
                 # possible statuses:
                 # running, pending, success, failed, canceled, skipped
