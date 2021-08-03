@@ -225,6 +225,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
                                        settings=gl_settings,).project
                 clean_pipelines(dry_run, gl_project, pipelines,
                                 pipeline_timeout)
+
             if wait_for_pipeline:
                 # possible statuses:
                 # running, pending, success, failed, canceled, skipped
@@ -277,11 +278,14 @@ def run(dry_run, wait_for_pipeline):
         try:
             merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
                                  insist=True,
-                                 wait_for_pipeline=wait_for_pipeline)
+                                 wait_for_pipeline=wait_for_pipeline,
+                                 gl_instance=instance, gl_settings=settings)
         except Exception:
             merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
-                                 wait_for_pipeline=wait_for_pipeline)
+                                 wait_for_pipeline=wait_for_pipeline,
+                                 gl_instance=instance, gl_settings=settings)
         if rebase:
             rebase_merge_requests(dry_run, gl, limit,
                                   pipeline_timeout=pipeline_timeout,
-                                  wait_for_pipeline=wait_for_pipeline)
+                                  wait_for_pipeline=wait_for_pipeline,
+                                  gl_instance=instance, gl_settings=settings)
