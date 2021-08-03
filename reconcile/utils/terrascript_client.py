@@ -883,6 +883,8 @@ class TerrascriptClient:
             tf_resources.append(pg_tf_resource)
             resource_name = self.get_names_from_tf_resources([pg_tf_resource])
             deps.append(resource_name)
+            
+            values['parameter_group_name'] = pg_name
 
         enhanced_monitoring = values.pop('enhanced_monitoring', None)
 
