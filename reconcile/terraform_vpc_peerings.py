@@ -17,6 +17,10 @@ QONTRACT_INTEGRATION = 'terraform_vpc_peerings'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
+class BadTerraformPeeringState(Exception):
+    pass
+
+
 def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
     """
     Ensures there is a matching peering with the desired provider type
@@ -72,18 +76,18 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                                                      'network-mgmt',
                                                      ocm_map)
     if not req_aws:
-        msg = f"could not find an AWS account with the " \
+        raise BadTerraformPeeringState(
+            "could not find an AWS account with the "
             f"'network-mgmt' access level on the cluster {cluster_name}"
-        logging.error(msg)
-        return [], True
+        )
 
     peering_info = cluster_info['peering']
     peer_connections = peering_info['connections']
     for peer_connection in peer_connections:
         # We only care about cluster-vpc-requester peering providers
         peer_connection_provider = peer_connection['provider']
-        if not peer_connection_provider == 'cluster-vpc-requester':
-            return [], False
+        if peer_connection_provider != 'cluster-vpc-requester':
+            continue
 
         peer_connection_name = peer_connection['name']
         peer_cluster = peer_connection['cluster']
@@ -95,11 +99,11 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                                           peer_cluster,
                                           'cluster-vpc-accepter')
         if not peer_info:
-            msg = f"could not find a matching peering connection for " \
-                f"cluster {cluster_name}, " \
-                f"connection {peer_connection_name}"
-            logging.error(msg)
-            return [], True
+            raise BadTerraformPeeringState(
+                "could not find a matching peering connection for "
+                f"cluster {cluster_name}, connection {peer_connection_name}"
+            )
+
         accepter_manage_routes = peer_info.get('manageRoutes')
 
         aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
@@ -109,9 +113,10 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                 route_tables=requester_manage_routes
             )
         if requester_vpc_id is None:
-            msg = f'[{cluster_name} could not find VPC ID for cluster'
-            logging.error(msg)
-            return [], True
+            raise BadTerraformPeeringState(
+                f'[{cluster_name} could not find VPC ID for cluster'
+            )
+
         requester = {
             'cidr_block': cluster_info['network']['vpc'],
             'region': cluster_info['spec']['region'],
@@ -127,10 +132,11 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                                                          'network-mgmt',
                                                          ocm_map)
         if not acc_aws:
-            msg = "could not find an AWS account with the " \
-                "'network-mgmt' access level on the cluster"
-            logging.error(msg)
-            return [], True
+            raise BadTerraformPeeringState(
+                "could not find an AWS account with the "
+                f"'network-mgmt' access level on cluster {cluster_name}, "
+                f"peering {peer_connection_name}"
+            )
 
         aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
         accepter_vpc_id, accepter_route_table_ids, _ = \
@@ -139,9 +145,10 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                 route_tables=accepter_manage_routes
             )
         if accepter_vpc_id is None:
-            msg = f'[{peer_cluster_name} could not find VPC ID for cluster'
-            logging.error(msg)
-            return [], True
+            raise BadTerraformPeeringState(
+                f'{peer_cluster_name} could not find VPC ID for cluster'
+            )
+
         requester['peer_owner_id'] = acc_aws['assume_role'].split(':')[4]
         accepter = {
             'cidr_block': peer_cluster['network']['vpc'],
@@ -160,7 +167,8 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
         }
         peerings.append(item)
 
-    return peerings, False
+    return peerings
+
 
 def build_desired_state_all_clusters(clusters, ocm_map, settings):
     """
@@ -171,13 +179,11 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
 
     for cluster_info in clusters:
         try:
-            item, err = build_desired_state_single_cluster(
+            items = build_desired_state_single_cluster(
                 cluster_info, ocm_map, settings
             )
-            if err:
-                error = True
-            elif item:
-                desired_state.extend(item)
+            if items:
+                desired_state.extend(items)
         except Exception:
             logging.exception(
                 f"Failed to get desired state for {cluster_info['name']}"
