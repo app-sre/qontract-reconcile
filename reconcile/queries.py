@@ -854,7 +854,9 @@ APPS_QUERY = """
     codeComponents {
       url
       resource
-      gitlabRepoOwners
+      gitlabRepoOwners {
+        enabled
+      }
       gitlabHousekeeping {
         enabled
         rebase
@@ -911,7 +913,8 @@ def get_repos_gitlab_owner(server=''):
     code_components = get_code_components()
     return [c['url'] for c in code_components
             if c['url'].startswith(server) and
-            c['gitlabRepoOwners']]
+            c['gitlabRepoOwners'] and
+            c['gitlabRepoOwners']['enabled']]
 
 
 def get_repos_gitlab_housekeeping(server=''):
