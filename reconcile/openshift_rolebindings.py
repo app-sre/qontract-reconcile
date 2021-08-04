@@ -131,7 +131,7 @@ def fetch_desired_state(ri, oc_map):
                     ri.add_desired(
                         cluster,
                         permission['namespace'],
-                        'RoleBinding',
+                        'RoleBinding.authorization.openshift.io',
                         resource_name,
                         oc_resource
                     )
@@ -150,7 +150,7 @@ def fetch_desired_state(ri, oc_map):
                     ri.add_desired(
                         permission['cluster'],
                         permission['namespace'],
-                        'RoleBinding',
+                        'RoleBinding.authorization.openshift.io',
                         resource_name,
                         oc_resource
                     )
@@ -176,7 +176,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=['RoleBinding'],
+        override_managed_types=['RoleBinding.authorization.openshift.io'],
         internal=internal,
         use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
