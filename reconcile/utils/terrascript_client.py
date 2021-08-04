@@ -322,7 +322,7 @@ class TerrascriptClient:
                         user_name,
                         user=user_name,
                         pgp_key=user_public_gpg_key,
-                        depends_on=\
+                        depends_on=
                             self.get_names_from_tf_resources([tf_iam_user]),
                         lifecycle={
                             'ignore_changes': ["id",
@@ -363,7 +363,7 @@ class TerrascriptClient:
                         name=user_name + '-' + policy_name,
                         user=user_name,
                         policy=policy,
-                        depends_on=\
+                        depends_on=
                             self.get_names_from_tf_resources([tf_iam_user])
                     )
                     self.add_resource(account_name,
@@ -889,7 +889,6 @@ class TerrascriptClient:
             resource_name = \
                 self.get_names_from_tf_resources([pg_tf_resource])[0]
             deps.append(resource_name)
-            
             values['parameter_group_name'] = pg_name
 
         enhanced_monitoring = values.pop('enhanced_monitoring', None)
@@ -1616,7 +1615,7 @@ class TerrascriptClient:
                     identifier + '-' + policy,
                     user=identifier,
                     policy_arn='arn:aws:iam::aws:policy/' + policy,
-                    depends_on = \
+                    depends_on=
                         self.get_names_from_tf_resources([user_tf_resource])
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
@@ -1638,7 +1637,7 @@ class TerrascriptClient:
                 name=identifier,
                 user=identifier,
                 policy=user_policy,
-                depends_on = \
+                depends_on=
                     self.get_names_from_tf_resources([user_tf_resource])
             )
             tf_resources.append(tf_aws_iam_user_policy)
