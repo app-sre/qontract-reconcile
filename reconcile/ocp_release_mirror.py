@@ -188,8 +188,8 @@ class OcpReleaseMirror:
     def _run_mirror(self, ocp_release, dest_ocp_release, dest_ocp_art_dev):
         # Checking if the image is already there
         if self._is_image_there(dest_ocp_release):
-            LOG.info(f'Image {ocp_release} already in '
-                     f'the mirror. Skipping.')
+            LOG.debug(f'Image {ocp_release} already in '
+                      f'the mirror. Skipping.')
             return
 
         LOG.info(f'Mirroring {ocp_release} to {dest_ocp_art_dev} '
@@ -212,6 +212,8 @@ class OcpReleaseMirror:
 
         for registry, creds in self.registry_creds['auths'].items():
             # Getting the credentials for the image_obj
+            if '//' not in registry:
+                registry = '//' + registry
             registry_obj = urlparse(registry)
 
             if registry_obj.netloc != image_obj.registry:
@@ -311,7 +313,14 @@ class OcpReleaseMirror:
     def _build_quay_auths(url, user, token):
         auth_bytes = bytes(f"{user}:{token}", 'utf-8')
         auth = base64.b64encode(auth_bytes).decode('utf-8')
-        return {url: {"auth": auth, "email": ""}}
+        return {
+            url: {
+                'username': user,
+                'password': token,
+                'email': '',
+                'auth': auth
+            }
+        }
 
 
 def run(dry_run):
