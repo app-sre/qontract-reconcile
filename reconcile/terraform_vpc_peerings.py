@@ -62,7 +62,107 @@ def aws_account_from_infrastructure_access(cluster, access_level, ocm_map):
     return account
 
 
-def build_desired_state_cluster(clusters, ocm_map, settings):
+def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
+    cluster_name = cluster_info['name']
+
+    peerings = []
+    # Find an aws account with the "network-mgmt" access level on the
+    # requester cluster and use that as the account for the requester
+    req_aws = aws_account_from_infrastructure_access(cluster_info,
+                                                     'network-mgmt',
+                                                     ocm_map)
+    if not req_aws:
+        msg = f"could not find an AWS account with the " \
+            f"'network-mgmt' access level on the cluster {cluster_name}"
+        logging.error(msg)
+        return [], True
+
+    peering_info = cluster_info['peering']
+    peer_connections = peering_info['connections']
+    for peer_connection in peer_connections:
+        # We only care about cluster-vpc-requester peering providers
+        peer_connection_provider = peer_connection['provider']
+        if not peer_connection_provider == 'cluster-vpc-requester':
+            return [], False
+
+        peer_connection_name = peer_connection['name']
+        peer_cluster = peer_connection['cluster']
+        peer_cluster_name = peer_cluster['name']
+        requester_manage_routes = peer_connection.get('manageRoutes')
+        # Ensure we have a matching peering connection
+        peer_info = find_matching_peering(cluster_info,
+                                          peer_connection,
+                                          peer_cluster,
+                                          'cluster-vpc-accepter')
+        if not peer_info:
+            msg = f"could not find a matching peering connection for " \
+                f"cluster {cluster_name}, " \
+                f"connection {peer_connection_name}"
+            logging.error(msg)
+            return [], True
+        accepter_manage_routes = peer_info.get('manageRoutes')
+
+        aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
+        requester_vpc_id, requester_route_table_ids, _ = \
+            aws_api.get_cluster_vpc_details(
+                req_aws,
+                route_tables=requester_manage_routes
+            )
+        if requester_vpc_id is None:
+            msg = f'[{cluster_name} could not find VPC ID for cluster'
+            logging.error(msg)
+            return [], True
+        requester = {
+            'cidr_block': cluster_info['network']['vpc'],
+            'region': cluster_info['spec']['region'],
+            'vpc_id': requester_vpc_id,
+            'route_table_ids': requester_route_table_ids,
+            'account': req_aws
+        }
+
+        # Find an aws account with the "network-mgmt" access level on
+        # the peer cluster and use that as the account for the
+        # accepter
+        acc_aws = aws_account_from_infrastructure_access(peer_cluster,
+                                                         'network-mgmt',
+                                                         ocm_map)
+        if not acc_aws:
+            msg = "could not find an AWS account with the " \
+                "'network-mgmt' access level on the cluster"
+            logging.error(msg)
+            return [], True
+
+        aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
+        accepter_vpc_id, accepter_route_table_ids, _ = \
+            aws_api.get_cluster_vpc_details(
+                acc_aws,
+                route_tables=accepter_manage_routes
+            )
+        if accepter_vpc_id is None:
+            msg = f'[{peer_cluster_name} could not find VPC ID for cluster'
+            logging.error(msg)
+            return [], True
+        requester['peer_owner_id'] = acc_aws['assume_role'].split(':')[4]
+        accepter = {
+            'cidr_block': peer_cluster['network']['vpc'],
+            'region': peer_cluster['spec']['region'],
+            'vpc_id': accepter_vpc_id,
+            'route_table_ids': accepter_route_table_ids,
+            'account': acc_aws
+        }
+
+        item = {
+            'connection_provider': peer_connection_provider,
+            'connection_name': peer_connection_name,
+            'requester': requester,
+            'accepter': accepter,
+            'deleted': peer_connection.get('delete', False)
+        }
+        peerings.append(item)
+
+    return peerings, False
+
+def build_desired_state_all_clusters(clusters, ocm_map, settings):
     """
     Fetch state for VPC peerings between two OCM clusters
     """
@@ -70,106 +170,19 @@ def build_desired_state_cluster(clusters, ocm_map, settings):
     error = False
 
     for cluster_info in clusters:
-        cluster_name = cluster_info['name']
-
-        # Find an aws account with the "network-mgmt" access level on the
-        # requester cluster and use that as the account for the requester
-        req_aws = aws_account_from_infrastructure_access(cluster_info,
-                                                         'network-mgmt',
-                                                         ocm_map)
-        if not req_aws:
-            msg = f"could not find an AWS account with the " \
-                  f"'network-mgmt' access level on the cluster {cluster_name}"
-            logging.error(msg)
+        try:
+            item, err = build_desired_state_single_cluster(
+                cluster_info, ocm_map, settings
+            )
+            if err:
+                error = True
+            elif item:
+                desired_state.extend(item)
+        except Exception:
+            logging.exception(
+                f"Failed to get desired state for {cluster_info['name']}"
+            )
             error = True
-            continue
-
-        peering_info = cluster_info['peering']
-        peer_connections = peering_info['connections']
-        for peer_connection in peer_connections:
-            # We only care about cluster-vpc-requester peering providers
-            peer_connection_provider = peer_connection['provider']
-            if not peer_connection_provider == 'cluster-vpc-requester':
-                continue
-
-            peer_connection_name = peer_connection['name']
-            peer_cluster = peer_connection['cluster']
-            peer_cluster_name = peer_cluster['name']
-            requester_manage_routes = peer_connection.get('manageRoutes')
-
-            # Ensure we have a matching peering connection
-            peer_info = find_matching_peering(cluster_info,
-                                              peer_connection,
-                                              peer_cluster,
-                                              'cluster-vpc-accepter')
-            if not peer_info:
-                msg = f"could not find a matching peering connection for " \
-                      f"cluster {cluster_name}, " \
-                      f"connection {peer_connection_name}"
-                logging.error(msg)
-                error = True
-                continue
-            accepter_manage_routes = peer_info.get('manageRoutes')
-
-            aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
-            requester_vpc_id, requester_route_table_ids, _ = \
-                aws_api.get_cluster_vpc_details(
-                    req_aws,
-                    route_tables=requester_manage_routes
-                )
-            if requester_vpc_id is None:
-                msg = f'[{cluster_name} could not find VPC ID for cluster'
-                logging.error(msg)
-                error = True
-                continue
-            requester = {
-                'cidr_block': cluster_info['network']['vpc'],
-                'region': cluster_info['spec']['region'],
-                'vpc_id': requester_vpc_id,
-                'route_table_ids': requester_route_table_ids,
-                'account': req_aws
-            }
-
-            # Find an aws account with the "network-mgmt" access level on the
-            # peer cluster and use that as the account for the accepter
-            acc_aws = aws_account_from_infrastructure_access(peer_cluster,
-                                                             'network-mgmt',
-                                                             ocm_map)
-            if not acc_aws:
-                msg = "could not find an AWS account with the " \
-                    "'network-mgmt' access level on the cluster"
-                logging.error(msg)
-                error = True
-                continue
-
-            aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
-            accepter_vpc_id, accepter_route_table_ids, _ = \
-                aws_api.get_cluster_vpc_details(
-                    acc_aws,
-                    route_tables=accepter_manage_routes
-                )
-            if accepter_vpc_id is None:
-                msg = f'[{peer_cluster_name} could not find VPC ID for cluster'
-                logging.error(msg)
-                error = True
-                continue
-            requester['peer_owner_id'] = acc_aws['assume_role'].split(':')[4]
-            accepter = {
-                'cidr_block': peer_cluster['network']['vpc'],
-                'region': peer_cluster['spec']['region'],
-                'vpc_id': accepter_vpc_id,
-                'route_table_ids': accepter_route_table_ids,
-                'account': acc_aws
-            }
-
-            item = {
-                'connection_provider': peer_connection_provider,
-                'connection_name': peer_connection_name,
-                'requester': requester,
-                'accepter': accepter,
-                'deleted': peer_connection.get('delete', False)
-            }
-            desired_state.append(item)
 
     return desired_state, error
 
@@ -344,7 +357,7 @@ def run(dry_run, print_only=False,
 
     # Fetch desired state for cluster-to-cluster VPCs
     desired_state_cluster, err = \
-        build_desired_state_cluster(clusters, ocm_map, settings)
+        build_desired_state_all_clusters(clusters, ocm_map, settings)
     if err:
         sys.exit(1)
 
