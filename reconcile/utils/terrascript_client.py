@@ -242,13 +242,13 @@ class TerrascriptClient:
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
+                        tf_deps=self.get_names_from_tf_resources([tf_iam_group])
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy.replace('/', '_'),
                                 group=group_name,
                                 policy_arn='arn:aws:iam::aws:policy/' + policy,
-                                depends_on=self.get_names_from_tf_resources(
-                                    [tf_iam_group])
+                                depends_on=tf_deps
                             )
                         self.add_resource(account_name,
                                           tf_iam_group_policy_attachment)
@@ -285,13 +285,14 @@ class TerrascriptClient:
 
                     # Ref: terraform aws iam_group_membership
                     tf_iam_group = self.get_tf_iam_group(group_name)
+                    tf_deps = self.get_names_from_tf_resources(
+                        [tf_iam_user, tf_iam_group])
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
                             user=user_name,
                             groups=[group_name],
-                            depends_on=self.get_names_from_tf_resources(
-                                [tf_iam_user, tf_iam_group])
+                            depends_on=tf_deps
                         )
                     self.add_resource(account_name,
                                       tf_iam_user_group_membership)
@@ -318,12 +319,12 @@ class TerrascriptClient:
                         error = True
                         return error
                     # Ref: terraform aws iam_user_login_profile
+                    tf_deps = self.get_names_from_tf_resources([tf_iam_user])
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
                         user=user_name,
                         pgp_key=user_public_gpg_key,
-                        depends_on=
-                            self.get_names_from_tf_resources([tf_iam_user]),
+                        depends_on=tf_deps,
                         lifecycle={
                             'ignore_changes': ["id",
                                                "password_length",
@@ -357,14 +358,14 @@ class TerrascriptClient:
                         policy.replace('${aws:accountid}', account_uid)
 
                     # Ref: terraform aws iam_user_policy
+                    tf_deps = self.get_names_from_tf_resources([tf_iam_user])
                     tf_iam_user = self.get_tf_iam_user(user_name)
                     tf_aws_iam_user_policy = aws_iam_user_policy(
                         user_name + '-' + policy_name,
                         name=user_name + '-' + policy_name,
                         user=user_name,
                         policy=policy,
-                        depends_on=
-                            self.get_names_from_tf_resources([tf_iam_user])
+                        depends_on=tf_deps
                     )
                     self.add_resource(account_name,
                                       tf_aws_iam_user_policy)
@@ -1609,14 +1610,14 @@ class TerrascriptClient:
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
+        tf_deps = self.get_names_from_tf_resources([user_tf_resource])
         for policy in common_values.get('policies') or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
                     user=identifier,
                     policy_arn='arn:aws:iam::aws:policy/' + policy,
-                    depends_on=
-                        self.get_names_from_tf_resources([user_tf_resource])
+                    depends_on=tf_deps
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
 
@@ -1632,13 +1633,13 @@ class TerrascriptClient:
                     user_policy = user_policy.replace(to_replace, v)
                     output_name_0_13 = output_prefix + '__{}'.format(k)
                     tf_resources.append(Output(output_name_0_13, value=v))
+            tf_deps = self.get_names_from_tf_resources([user_tf_resource])
             tf_aws_iam_user_policy = aws_iam_user_policy(
                 identifier,
                 name=identifier,
                 user=identifier,
                 policy=user_policy,
-                depends_on=
-                    self.get_names_from_tf_resources([user_tf_resource])
+                depends_on=tf_deps
             )
             tf_resources.append(tf_aws_iam_user_policy)
 
