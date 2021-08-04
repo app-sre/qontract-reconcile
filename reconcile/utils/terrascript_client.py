@@ -242,7 +242,8 @@ class TerrascriptClient:
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
-                        tf_deps=self.get_names_from_tf_resources([tf_iam_group])
+                        tf_deps = \
+                            self.get_names_from_tf_resources([tf_iam_group])
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy.replace('/', '_'),
