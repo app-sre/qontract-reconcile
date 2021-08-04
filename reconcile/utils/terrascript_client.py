@@ -322,7 +322,7 @@ class TerrascriptClient:
                         user_name,
                         user=user_name,
                         pgp_key=user_public_gpg_key,
-                        depends_on = \
+                        depends_on=\
                             self.get_names_from_tf_resources([tf_iam_user]),
                         lifecycle={
                             'ignore_changes': ["id",
@@ -363,7 +363,7 @@ class TerrascriptClient:
                         name=user_name + '-' + policy_name,
                         user=user_name,
                         policy=policy,
-                        depends_on = \
+                        depends_on=\
                             self.get_names_from_tf_resources([tf_iam_user])
                     )
                     self.add_resource(account_name,
@@ -841,8 +841,11 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        # 'deps' should contain a list of terraform resourse names (not full objects) that must be created before the actual RDS instance should be created
-        deps = []                         
+        # 'deps' should contain a list of terraform resourse names
+        # (not full objects)
+        # that must be created
+        # before the actual RDS instance should be created
+        deps = []
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
@@ -930,7 +933,7 @@ class TerrascriptClient:
                 'policy_arn':
                     "arn:aws:iam::aws:policy/service-role/" +
                     "AmazonRDSEnhancedMonitoringRole",
-                'depends_on': \
+                'depends_on':
                     self.get_names_from_tf_resources([role_tf_resource])
             }
             tf_resource = \
@@ -1442,7 +1445,7 @@ class TerrascriptClient:
             values = {
                 'bucket': identifier,
                 'policy': bucket_policy,
-                'depends_on': \
+                'depends_on':
                     self.get_names_from_tf_resources([bucket_tf_resource])
             }
             bucket_policy_tf_resource = \
@@ -2472,7 +2475,7 @@ class TerrascriptClient:
                 'destination_arn':
                     "${" + lambds_tf_resource.arn + "}",
                 'filter_pattern': "",
-                'depends_on': \
+                'depends_on':
                     self.get_names_from_tf_resources([log_group_tf_resource])
             }
 
@@ -2501,7 +2504,7 @@ class TerrascriptClient:
         values = {
             'name': identifier,
             'tags': common_values['tags'],
-            'depends_on': \
+            'depends_on':
                 self.get_names_from_tf_resources([log_group_tf_resource])
         }
         user_tf_resource = aws_iam_user(identifier, **values)
@@ -2538,7 +2541,7 @@ class TerrascriptClient:
             'user': identifier,
             'name': identifier,
             'policy': json.dumps(policy, sort_keys=True),
-            'depends_on': \
+            'depends_on':
                 self.get_names_from_tf_resources([user_tf_resource])
         }
         tf_resource = aws_iam_user_policy(identifier, **values)
