@@ -1,32 +1,16 @@
-import logging
-import os
-
-from urllib.parse import urljoin
-
 import requests
 
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.dashdotdb_base import DashdotdbBase, LOG
 
-LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'dashdotdb-dvo'
-DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
-                                  'app-sre/dashdot/auth-proxy-production')
 
 
-class DashdotdbDVO:
+class DashdotdbDVO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
-        self.dry_run = dry_run
-        self.thread_pool_size = thread_pool_size
-        self.settings = queries.get_app_interface_settings()
-        secret_reader = SecretReader(settings=self.settings)
-        secret_content = secret_reader.read_all({'path': DASHDOTDB_SECRET})
-        self.dashdotdb_url = secret_content['url']
-        self.dashdotdb_user = secret_content['username']
-        self.dashdotdb_pass = secret_content['password']
-        self.chunksize = secret_content.get('chunksize') or '20'
-        self.logmarker = "DDDB_DVO:"
+        super().__init__(dry_run, thread_pool_size, "DDDB_DVO:")
+        self.chunksize = self.secret_content.get('chunksize') or '20'
 
     @staticmethod
     def _chunkify(data, size):
@@ -71,52 +55,22 @@ class DashdotdbDVO:
             if not self.dry_run:
                 endpoint = (f'{self.dashdotdb_url}/api/v1/'
                             f'deploymentvalidation/{cluster}')
-                response = requests.post(url=endpoint, json=dvdata,
-                                         headers={
-                                             "X-Auth": self.dashdotdb_token},
-                                         auth=(self.dashdotdb_user,
-                                               self.dashdotdb_pass),
-                                         timeout=(5, 120))
+                response = self._do_post(endpoint, dvdata, (5, 120))
                 try:
                     response.raise_for_status()
                 except requests.exceptions.RequestException as details:
                     LOG.error('%s error posting DVO data (%s): %s',
                               self.logmarker, cluster, details)
 
-        LOG.info('%s DVO data for %s synced to DDDB', self.logmarker, cluster)
+        LOG.info('%s DVO data for %s synced to DDDB',
+                 self.logmarker, cluster)
         return response
-
-    def _promget(self, url, params, token=None, ssl_verify=True,
-                 uri='api/v1/query'):
-        url = urljoin((f'{url}'), uri)
-        LOG.debug('%s Fetching prom payload from %s?%s',
-                  self.logmarker, url, params)
-        headers = {
-            "accept": "application/json",
-        }
-        if token:
-            headers["Authorization"] = (f"Bearer {token}")
-        response = requests.get(url,
-                                params=params,
-                                headers=headers,
-                                verify=ssl_verify,
-                                timeout=(5, 120))
-        response.raise_for_status()
-
-        response = response.json()
-        # TODO ensure len response == 1
-        # return response['data']['result']
-        return response
-
-    def _get_automationtoken(self, tokenpath):
-        autotoken_reader = SecretReader(settings=self.settings)
-        token = autotoken_reader.read(tokenpath)
-        return token
 
     def _get_deploymentvalidation(self, validation, clusterinfo):
         cluster, promurl, ssl_verify, promtoken = self._get_prometheus_info(
             clusterinfo)
-        LOG.debug('%s processing %s, %s', self.logmarker, cluster, validation)
+        LOG.debug('%s processing %s, %s',
+                  self.logmarker, cluster, validation)
 
         try:
             deploymentvalidation = self._promget(url=promurl,
@@ -192,38 +146,6 @@ class DashdotdbDVO:
             return [result for result in results if result['name'] == cnfilter]
         return results
 
-    def _get_token(self):
-        params = {'scope': 'deploymentvalidation'}
-        endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                    f'token')
-        response = requests.get(url=endpoint,
-                                params=params,
-                                auth=(self.dashdotdb_user,
-                                      self.dashdotdb_pass),
-                                timeout=(5, 120))
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            LOG.error('%s error retrieving token for DVO data: %s',
-                      self.logmarker, details)
-            return None
-        self.dashdotdb_token = response.text.replace('"', '').strip()
-
-    def _close_token(self):
-        params = {'scope': 'deploymentvalidation'}
-        endpoint = (f'{self.dashdotdb_url}/api/v1/'
-                    f'token/{self.dashdotdb_token}')
-        response = requests.delete(url=endpoint,
-                                   params=params,
-                                   auth=(self.dashdotdb_user,
-                                         self.dashdotdb_pass),
-                                   timeout=(5, 120))
-        try:
-            response.raise_for_status()
-        except requests.exceptions.RequestException as details:
-            LOG.error('%s error closing token for DVO data: %s',
-                      self.logmarker, details)
-
     def run(self, cname=None):
         validation_list = threaded.run(func=self._get_validation_names,
                                        iterable=self._get_clusters(cname),
@@ -234,7 +156,7 @@ class DashdotdbDVO:
             validation_names = {v['cluster']: v['data']
                                 for v in validation_list if v}
         clusters = self._get_clusters(cname)
-        self._get_token()
+        self._get_token(scope='deploymentvalidation')
         for cluster in clusters:
             cluster_name = cluster['name']
             if cluster_name not in validation_names:
@@ -249,7 +171,7 @@ class DashdotdbDVO:
                                        clusterinfo=cluster)
             threaded.run(func=self._post, iterable=validations,
                          thread_pool_size=self.thread_pool_size)
-        self._close_token()
+        self._close_token(scope='deploymentvalidation')
 
 
 def run(dry_run=False, thread_pool_size=10, cluster_name=None):
