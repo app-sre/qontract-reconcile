@@ -881,7 +881,7 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            resource_name = self.get_names_from_tf_resources([pg_tf_resource])
+            resource_name = self.get_names_from_tf_resources([pg_tf_resource])[0]
             deps.append(resource_name)
             
             values['parameter_group_name'] = pg_name
@@ -933,7 +933,7 @@ class TerrascriptClient:
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(tf_resource)
 
-            resource_name = self.get_names_from_tf_resources([tf_resource])
+            resource_name = self.get_names_from_tf_resources([tf_resource])[0]
             deps.append(resource_name)
 
             values['monitoring_role_arn'] = \
