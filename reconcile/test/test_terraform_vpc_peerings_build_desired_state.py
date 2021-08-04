@@ -64,7 +64,9 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
             'uid': 'anuid',
             'terraformUserName': 'aterraformusename',
             'automationtoken': 'anautomationtoken',
-            'assume_role': 'arole:very:useful:indeed:it:is'
+            'assume_role': 'arole:very:useful:indeed:it:is',
+            'assume_region': 'moon-tranquility-1',
+            'assume_cidr': '172.25.0.0/12',
         }
         self.peer_vpc = {
             'cidr_block': '172.30.0.0/12',
@@ -110,7 +112,7 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
         ).for_call(
             aws_req, route_tables=True
         ).to_return_value(
-            ('vpcid', ['route_table_id'], False)
+            ('vpcid', ['route_table_id'], {})
         ).and_assert_called_once()
         aws_req = {
             'assume_region': 'mars-olympus-2',
@@ -122,7 +124,7 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
         ).for_call(
             aws_req, route_tables=None
         ).to_return_value(
-            ('acceptervpcid', ['accepterroutetableid'], False)
+            ('acceptervpcid', ['accepterroutetableid'], {})
         ).and_assert_called_once()
 
         expected = [
@@ -155,7 +157,7 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
                 'deleted': False
             }
         ]
-        rs = sut.build_desired_state_cluster(self.clusters, {}, self.settings)
+        rs = sut.build_desired_state_all_clusters(self.clusters, {}, self.settings)
         self.assertEqual(rs, (expected, False))
 
     def test_one_cluster_no_peers(self):
@@ -164,7 +166,7 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
             sut, 'aws_account_from_infrastructure_access'
         ).to_return_value(self.aws_account).and_assert_called_once()
         self.assertEqual(
-            sut.build_desired_state_cluster(self.clusters, {}, self.settings),
+            sut.build_desired_state_all_clusters(self.clusters, {}, self.settings),
             ([], False))
 
     def test_one_cluster_no_matches(self):
@@ -175,7 +177,7 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
             None
         ).and_assert_called_once()
         self.assertEqual(
-            sut.build_desired_state_cluster(self.clusters, {}, self.settings),
+            sut.build_desired_state_all_clusters(self.clusters, {}, self.settings),
             ([], True)
         )
 
@@ -188,8 +190,8 @@ class TestBuildDesiredStateCluster(testslide.TestCase):
         ).and_assert_called_once()
         self.mock_callable(
             self.awsapi, 'get_cluster_vpc_details'
-        ).to_return_value((None, None, True)).and_assert_called_once()
+        ).to_return_value((None, None, {})).and_assert_called_once()
         self.assertEqual(
-            sut.build_desired_state_cluster(self.clusters, {}, self.settings),
+            sut.build_desired_state_all_clusters(self.clusters, {}, self.settings),
             ([], True)
         )
