@@ -27,11 +27,17 @@ def init_from_config():
     return init(serverUrl)
 
 
-def user_exists(username):
+def users_exist(users):
     global _base_dn
 
     with init_from_config() as client:
-        result, _, _, _ = client.search(_base_dn,
-                                        f'(&(uid={username})' +
-                                        '(objectclass=person))')
-        return result
+        _, _, results, _ = client.search(_base_dn,
+                                        '(&(objectclass=person))')
+        existing_users = set()
+        for r in results:
+            dn = r['dn']
+            uid = dn.replace(',' + _base_dn, '').replace('uid=', '')
+            existing_users.add(uid)
+        for u in users:
+            u['delete'] = False if u['username'] in existing_users else True
+        return users

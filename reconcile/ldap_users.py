@@ -30,28 +30,18 @@ def init_users():
             for username, paths in users.items()]
 
 
-def init_user_spec(user):
-    username = user['username']
-    paths = user['paths']
-
-    delete = False
-    if not ldap_client.user_exists(username):
-        delete = True
-
-    return (username, delete, paths)
-
-
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    user_specs = threaded.run(init_user_spec, users, thread_pool_size)
-    users_to_delete = [(username, paths) for username, delete, paths
-                       in user_specs if delete]
+    user_specs = ldap_client.users_exist(users)
+    users_to_delete = [u for u in user_specs if u['delete']]
 
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
                                         sqs_or_gitlab='gitlab')
 
-    for username, paths in users_to_delete:
+    for u in users_to_delete:
+        username = u['username']
+        paths = u['paths']
         logging.info(['delete_user', username])
 
         if not dry_run:

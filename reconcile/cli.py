@@ -1015,11 +1015,9 @@ def quay_permissions(ctx):
 
 @integration.command()
 @click.argument('gitlab-project-id')
-@threaded()
 @click.pass_context
-def ldap_users(ctx, gitlab_project_id, thread_pool_size):
-    run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id,
-                    thread_pool_size)
+def ldap_users(ctx, gitlab_project_id):
+    run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id)
 
 
 @integration.command()
