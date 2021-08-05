@@ -95,6 +95,17 @@ def get_config(desired_org_name=None):
 
 
 @retry()
+def get_org_and_teams(github, org_name):
+    org = github.get_organization(org_name)
+    teams = org.get_teams()
+    return org, teams
+
+
+@retry()
+def get_members(unit):
+    return [member.login for member in unit.get_members()]
+
+
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
 
@@ -106,20 +117,20 @@ def fetch_current_state(gh_api_store):
         # we manage all teams
         is_managed = managed_teams is None or len(managed_teams) == 0
 
-        org = g.get_organization(org_name)
+        org, teams = get_org_and_teams(g, org_name)
 
         org_members = None
         if is_managed:
-            org_members = [member.login for member in org.get_members()]
+            org_members = get_members(org)
             org_members.extend(raw_gh_api.org_invitations(org_name))
             org_members = [m.lower() for m in org_members]
 
         all_team_members = []
-        for team in org.get_teams():
+        for team in teams:
             if not is_managed and team.name not in managed_teams:
                 continue
 
-            members = [member.login for member in team.get_members()]
+            members = get_members(team)
             members.extend(raw_gh_api.team_invitations(org.id, team.id))
             members = [m.lower() for m in members]
             all_team_members.extend(members)
