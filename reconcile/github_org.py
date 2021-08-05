@@ -106,7 +106,6 @@ def get_members(unit):
     return [member.login for member in unit.get_members()]
 
 
-@retry()
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
 
