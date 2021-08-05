@@ -1,4 +1,5 @@
 import logging
+import json
 
 from dateutil import parser as dateparser
 
@@ -8,6 +9,7 @@ from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = 'gitlab-owners'
 
@@ -28,19 +30,19 @@ class MRApproval:
     Processes a Merge Request, looking for matches
     between the approval messages the the project owners.
     """
-    def __init__(self, gitlab_client, merge_request, owners, dry_run):
+
+    def __init__(self, gitlab_client, state, merge_request,
+                 persist_lgtm, owners, dry_run):
         self.gitlab = gitlab_client
         self.mr = merge_request
         self.owners = owners
         self.dry_run = dry_run
+        self.state = state
+        self.persist_lgtm = persist_lgtm
 
-        commits = self.mr.commits()
-        if commits:
-            top_commit = next(commits)
-            self.top_commit_created_at = \
-                dateparser.parse(top_commit.created_at)
-        else:
-            self.top_commit_created_at = None
+        self.top_commit_created_at = \
+            self.gitlab.get_merge_request_top_commit_timestamp(
+                mr=merge_request)
 
     def get_change_owners_map(self):
         """
@@ -78,11 +80,26 @@ class MRApproval:
             if comment['body'] != '/lgtm':
                 continue
 
-            # Only interested in comments created after the top commit
-            # creation time
-            comment_created_at = dateparser.parse(comment['created_at'])
-            if comment_created_at < self.top_commit_created_at:
-                continue
+            # Check against saved diffs
+            if self.persist_lgtm:
+                current_diff = self.gitlab.get_merge_request_diffs(self.mr.iid)
+                state_key = generate_state_key(self.mr, comment)
+                try:
+                    diff = self.state.get(key=state_key)
+                    decoded_diff = json.loads(diff)
+                    if current_diff != decoded_diff:
+                        continue
+                except KeyError:
+                    continue
+                lgtms.append(comment['username'])
+
+            # Check using commit creation timestamp
+            else:
+                # Only interested in comments created after the top commit
+                # creation time
+                comment_created_at = dateparser.parse(comment['created_at'])
+                if comment_created_at < self.top_commit_created_at:
+                    continue
 
             lgtms.append(comment['username'])
         return lgtms
@@ -298,67 +315,123 @@ class MRApproval:
         return markdown_report.rstrip()
 
 
-def act(repo, dry_run, instance, settings):
-    gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
-    project_owners = RepoOwners(git_cli=gitlab_cli,
-                                ref=gitlab_cli.project.default_branch)
+def act(repos, dry_run, state, instance, settings):
+    for r in repos:
+        repo = r[0]  # List with single URL
+        persist_lgtm = r[1]  # Boolean
+        gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+        project_owners = RepoOwners(git_cli=gitlab_cli,
+                                    ref=gitlab_cli.project.default_branch)
 
-    for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
-        mr_approval = MRApproval(gitlab_client=gitlab_cli,
-                                 merge_request=mr,
-                                 owners=project_owners,
-                                 dry_run=dry_run)
+        for mr in gitlab_cli.get_merge_requests(state=MRState.OPENED):
+            mr_approval = MRApproval(gitlab_client=gitlab_cli,
+                                     merge_request=mr,
+                                     owners=project_owners,
+                                     state=state,
+                                     persist_lgtm=persist_lgtm,
+                                     dry_run=dry_run)
 
-        if mr_approval.top_commit_created_at is None:
-            _LOG.info([f'Project:{gitlab_cli.project.id} '
-                       f'Merge Request:{mr.iid} '
-                       f'- skipping'])
-            continue
-
-        approval_status = mr_approval.get_approval_status()
-        if approval_status['approved']:
-            if mr_approval.has_approval_label():
+            if mr_approval.top_commit_created_at is None:
                 _LOG.info([f'Project:{gitlab_cli.project.id} '
                            f'Merge Request:{mr.iid} '
-                           f'- already approved'])
+                           f'- skipping'])
                 continue
-            _LOG.info([f'Project:{gitlab_cli.project.id} '
-                       f'Merge Request:{mr.iid} '
-                       f'- approving now'])
-            if not dry_run:
-                gitlab_cli.add_label_to_merge_request(mr.iid,
-                                                      APPROVAL_LABEL)
-            continue
 
-        if not dry_run:
-            if mr_approval.has_approval_label():
+            if persist_lgtm:
+                store_diff_for_lgtm(dry_run, gitlab_cli, mr, state)
+
+            approval_status = mr_approval.get_approval_status()
+            if approval_status['approved']:
+                if mr_approval.has_approval_label():
+                    _LOG.info([f'Project:{gitlab_cli.project.id} '
+                               f'Merge Request:{mr.iid} '
+                               f'- already approved'])
+                    continue
                 _LOG.info([f'Project:{gitlab_cli.project.id} '
                            f'Merge Request:{mr.iid} '
-                           f'- removing approval'])
-                gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                           APPROVAL_LABEL)
-
-        if approval_status['report'] is not None:
-            _LOG.info([f'Project:{gitlab_cli.project.id} '
-                       f'Merge Request:{mr.iid} '
-                       f'- publishing approval report'])
+                           f'- approving now'])
+                if not dry_run:
+                    gitlab_cli.add_label_to_merge_request(mr.iid,
+                                                          APPROVAL_LABEL)
+                continue
 
             if not dry_run:
-                gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                           APPROVAL_LABEL)
-                mr.notes.create({'body': approval_status['report']})
+                if mr_approval.has_approval_label():
+                    _LOG.info([f'Project:{gitlab_cli.project.id} '
+                               f'Merge Request:{mr.iid} '
+                               f'- removing approval'])
+                    gitlab_cli.remove_label_from_merge_request(mr.iid,
+                                                               APPROVAL_LABEL)
+
+            if approval_status['report'] is not None:
+                _LOG.info([f'Project:{gitlab_cli.project.id} '
+                           f'Merge Request:{mr.iid} '
+                           f'- publishing approval report'])
+
+                if not dry_run:
+                    gitlab_cli.remove_label_from_merge_request(mr.iid,
+                                                               APPROVAL_LABEL)
+                    mr.notes.create({'body': approval_status['report']})
+                continue
+
+            _LOG.info([f'Project:{gitlab_cli.project.id} '
+                       f'Merge Request:{mr.iid} '
+                       f'- not fully approved'])
+
+
+def generate_state_key(mr, comment):
+    user = comment['user']
+    comment_id = comment['id']
+    return f'{mr.target_project}/{mr.iid}/{user}-{comment_id}'
+
+
+# Each '/lgtm' must store the changes (diff) it is approving
+def store_diff_for_lgtm(dry_run, gl, mr, state):
+    comments = gl.get_merge_request_comments(mr.iid)
+    top_commit_created_at = gl.get_merge_request_top_commit_timestamp(mr)
+
+    for comment in comments:
+        # Only interested in '/lgtm' comments
+        if comment['body'] != '/lgtm':
             continue
 
-        _LOG.info([f'Project:{gitlab_cli.project.id} '
-                   f'Merge Request:{mr.iid} '
-                   f'- not fully approved'])
+        state_key = generate_state_key(mr, comment)
+        comment_created_at = dateparser.parse(comment['created_at'])
+
+        # Store diffs for only those comments that were
+        # created after the latest commit was
+        # pushed (the top commit)
+
+        # This was done in case, for some reason,
+        # the diff for an '/lgtm' is not
+        # immediately stored, during which it could
+        # be possible to accidentally add
+        # commits which have not been reviewed / approved
+        if comment_created_at < top_commit_created_at:
+            continue
+
+        diffs = gl.get_merge_request_diffs(mr.iid)
+        if not dry_run:
+            if not state.exists(state_key):
+                try:
+                    state.add(key=state_key, value=json.dumps(diffs))
+                except KeyError:
+                    logging.info(['skipping_diff', state_key])
 
 
 def run(dry_run, thread_pool_size=10):
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_owner(server=instance['url'])
+    accounts = queries.get_aws_accounts()
+    state = State(
+        integration=QONTRACT_INTEGRATION,
+        accounts=accounts,
+        settings=settings
+    )
+
     threaded.run(act, repos, thread_pool_size,
                  dry_run=dry_run,
+                 state=state,
                  instance=instance,
                  settings=settings)

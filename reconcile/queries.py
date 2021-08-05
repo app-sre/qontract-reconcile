@@ -856,6 +856,7 @@ APPS_QUERY = """
       resource
       gitlabRepoOwners {
         enabled
+        persistLgtm
       }
       gitlabHousekeeping {
         enabled
@@ -911,7 +912,9 @@ def get_repos_gitlab_owner(server=''):
     server: url of the server to return. for example: https://github.com
     """
     code_components = get_code_components()
-    return [c['url'] for c in code_components
+
+    return [([c['url']], c['gitlabRepoOwners']['persistLgtm'])
+            for c in code_components
             if c['url'].startswith(server) and
             c['gitlabRepoOwners'] and
             c['gitlabRepoOwners']['enabled']]

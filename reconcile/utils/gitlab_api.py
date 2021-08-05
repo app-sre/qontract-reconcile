@@ -1,6 +1,8 @@
 import logging
 
 from urllib.parse import urlparse
+from dateutil import parser as dateparser
+
 from sretoolbox.utils import retry
 
 import gitlab
@@ -277,6 +279,23 @@ class GitLabApi:
 
     def get_merge_requests(self, state):
         return self.get_items(self.project.mergerequests.list, state=state)
+
+    def get_merge_request_diffs(self, mr_id):
+        diffs = []
+        merge_request = self.project.mergerequests.get(mr_id)
+        changes = merge_request.changes()['changes']
+        for change in changes:
+            diffs.append(change['diff'])
+        return diffs
+
+    @staticmethod
+    def get_merge_request_top_commit_timestamp(mr):
+        commits = mr.commits()
+        if commits:
+            top_commit = next(commits)
+            return dateparser.parse(top_commit.created_at)
+        else:
+            return None
 
     def get_merge_request_changed_paths(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
