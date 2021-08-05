@@ -109,15 +109,19 @@ class DashdotdbSLO:
                 prom_result = prom_response['data']['result']
                 if not prom_result:
                     continue
+
                 slo_value = prom_result[0]['value']
                 if not slo_value:
                     continue
+
+                slo_value = float(slo_value[1])
+                slo_target = float(slo['SLOTarget'])
+
+                # In Dash.DB we want to always store SLOs in percentages
                 if unit == "percent_0_1":
-                    slo_value = int(float(slo_value[1]) * 100)
-                    slo_target = int(slo['SLOTarget'] * 100)
-                elif unit == "percent_0_100":
-                    slo_value = int(slo_value[1])
-                    slo_target = slo['SLOTarget']
+                    slo_value *= 100
+                    slo_target *= 100
+
                 result.append({
                     "name": slo['name'],
                     "SLIType": slo['SLIType'],
