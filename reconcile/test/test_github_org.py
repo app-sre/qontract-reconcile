@@ -152,7 +152,7 @@ class TestGithubOrg:
         class SimpleOrgMock:
             @staticmethod
             def get_teams():
-                return 'teams'
+                return ['teams']
 
         class SimpleGithubMock():
             @staticmethod
@@ -161,4 +161,4 @@ class TestGithubOrg:
 
         g = SimpleGithubMock()
         _, teams = github_org.get_org_and_teams(g, 'org')
-        assert teams == 'teams'
+        assert teams == ['teams']
