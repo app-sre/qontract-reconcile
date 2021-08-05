@@ -160,6 +160,5 @@ class TestGithubOrg:
                 return SimpleOrgMock()
 
         g = SimpleGithubMock()
-        expected_org = SimpleOrgMock()
         _, teams = github_org.get_org_and_teams(g, 'org')
         assert teams == 'teams'
