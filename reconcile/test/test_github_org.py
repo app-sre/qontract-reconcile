@@ -147,3 +147,19 @@ class TestGithubOrg:
 
         org = SimpleOrgMock()
         assert github_org.get_members(org) == ['a', 'b']
+
+    def test_get_org_teams(self):
+        class SimpleOrgMock:
+            @staticmethod
+            def get_teams():
+                return 'teams'
+
+        class SimpleGithubMock():
+            @staticmethod
+            def get_organization(org_name):
+                return SimpleOrgMock()
+
+        g = SimpleGithubMock()
+        expected_org = SimpleOrgMock()
+        _, teams = github_org.get_org_and_teams(g, 'org')
+        assert teams == 'teams'
