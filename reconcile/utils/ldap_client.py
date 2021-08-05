@@ -31,8 +31,7 @@ def users_exist(users):
     global _base_dn
 
     with init_from_config() as client:
-        _, _, results, _ = client.search(_base_dn,
-                                        '(&(objectclass=person))')
+        _, _, results, _ = client.search(_base_dn, '(&(objectclass=person))')
         existing_users = set()
         for r in results:
             dn = r['dn']

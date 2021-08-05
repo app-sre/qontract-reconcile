@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import reconcile.queries as queries
 import reconcile.utils.ldap_client as ldap_client
-import reconcile.utils.threaded as threaded
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
