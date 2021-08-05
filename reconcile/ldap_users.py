@@ -31,8 +31,8 @@ def init_users():
 
 def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    user_specs = ldap_client.users_exist(users)
-    users_to_delete = [u for u in user_specs if u['delete']]
+    ldap_users = ldap_client.get_users()
+    users_to_delete = [u for u in users if u['username'] not in ldap_users]
 
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
