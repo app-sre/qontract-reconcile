@@ -95,6 +95,11 @@ def get_config(desired_org_name=None):
 
 
 @retry()
+def get_members(unit):
+    return [member.login for member in unit.get_members()]
+
+
+@retry()
 def fetch_current_state(gh_api_store):
     state = AggregatedList()
 
@@ -110,7 +115,7 @@ def fetch_current_state(gh_api_store):
 
         org_members = None
         if is_managed:
-            org_members = [member.login for member in org.get_members()]
+            org_members = get_members(org)
             org_members.extend(raw_gh_api.org_invitations(org_name))
             org_members = [m.lower() for m in org_members]
 
@@ -119,7 +124,7 @@ def fetch_current_state(gh_api_store):
             if not is_managed and team.name not in managed_teams:
                 continue
 
-            members = [member.login for member in team.get_members()]
+            members = get_members(team)
             members.extend(raw_gh_api.team_invitations(org.id, team.id))
             members = [m.lower() for m in members]
             all_team_members.extend(members)
