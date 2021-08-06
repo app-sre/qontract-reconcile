@@ -194,7 +194,6 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
 
 def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
     desired_state = []
-    error = False
 
     cluster = cluster_info['name']
     peering_info = cluster_info['peering']
@@ -229,8 +228,10 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
             )
 
         if requester_vpc_id is None:
-            logging.error(f'[{cluster} could not find VPC ID for cluster')
-            return desired_state, True
+            raise BadTerraformPeeringState(
+                f'{cluster} could not find VPC ID for cluster and '
+                f'peer account {account}'
+            )
 
         requester['vpc_id'] = requester_vpc_id
         requester['route_table_ids'] = requester_route_table_ids
@@ -263,7 +264,7 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
             }
             desired_state.append(item)
 
-    return desired_state, error
+    return desired_state
 
 
 def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
@@ -277,13 +278,10 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
         try:
             cluster = cluster_info['name']
             ocm = ocm_map.get(cluster)
-            items, err = build_desired_state_vpc_mesh_single_cluster(
+            items = build_desired_state_vpc_mesh_single_cluster(
                 cluster_info, ocm, settings
             )
-            if err:
-                error = True
-            else:
-                desired_state.extend(items)
+            desired_state.extend(items)
         except Exception:
             logging.exception(
                 f"Unable to create VPC mesh for cluster {cluster}"
@@ -291,6 +289,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
             error = True
 
     return desired_state, error
+
 
 def build_desired_state_vpc(clusters, ocm_map, settings):
     """
