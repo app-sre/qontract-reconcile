@@ -317,9 +317,9 @@ class MRApproval:
 
 def act(repos, dry_run, state, instance, settings):
     for r in repos:
-        repo = r[0]  # List with single URL
-        persist_lgtm = r[1]  # Boolean
-        gitlab_cli = GitLabApi(instance, project_url=repo, settings=settings)
+        repo = r['repo']
+        persist_lgtm = r['persist_lgtm']
+        gitlab_cli = GitLabApi(instance, project_url=[repo], settings=settings)
         project_owners = RepoOwners(git_cli=gitlab_cli,
                                     ref=gitlab_cli.project.default_branch)
 

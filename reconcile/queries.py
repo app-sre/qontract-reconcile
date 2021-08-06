@@ -913,7 +913,8 @@ def get_repos_gitlab_owner(server=''):
     """
     code_components = get_code_components()
 
-    return [([c['url']], c['gitlabRepoOwners']['persistLgtm'])
+    return [{'repo': c['url'],
+             'persist_lgtm': c['gitlabRepoOwners']['persistLgtm']}
             for c in code_components
             if c['url'].startswith(server) and
             c['gitlabRepoOwners'] and
