@@ -192,6 +192,80 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
     return desired_state, error
 
 
+def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
+    desired_state = []
+    error = False
+
+    cluster = cluster_info['name']
+    peering_info = cluster_info['peering']
+    peer_connections = peering_info['connections']
+    for peer_connection in peer_connections:
+        # We only care about account-vpc-mesh peering providers
+        peer_connection_provider = peer_connection['provider']
+        if not peer_connection_provider == 'account-vpc-mesh':
+            continue
+        # requester is the cluster's AWS account
+        requester = {
+            'cidr_block': cluster_info['network']['vpc'],
+            'region': cluster_info['spec']['region']
+        }
+
+        account = peer_connection['account']
+        # assume_role is the role to assume to provision the
+        # peering connection request, through the accepter AWS account.
+        account['assume_role'] = \
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster,
+                account['uid'],
+                account['terraformUsername']
+            )
+        account['assume_region'] = requester['region']
+        account['assume_cidr'] = requester['cidr_block']
+        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        requester_vpc_id, requester_route_table_ids, _ = \
+            aws_api.get_cluster_vpc_details(
+                account,
+                route_tables=peer_connection.get('manageRoutes')
+            )
+
+        if requester_vpc_id is None:
+            logging.error(f'[{cluster} could not find VPC ID for cluster')
+            return desired_state, True
+
+        requester['vpc_id'] = requester_vpc_id
+        requester['route_table_ids'] = requester_route_table_ids
+        requester['account'] = account
+
+        account_vpcs = \
+            aws_api.get_vpcs_details(
+                account,
+                tags=json.loads(peer_connection.get('tags') or '{}'),
+                route_tables=peer_connection.get('manageRoutes'),
+            )
+        for vpc in account_vpcs:
+            vpc_id = vpc['vpc_id']
+            connection_name = \
+                f"{peer_connection['name']}_" + \
+                f"{account['name']}-{vpc_id}"
+            accepter = {
+                'vpc_id': vpc_id,
+                'region': vpc['region'],
+                'cidr_block': vpc['cidr_block'],
+                'route_table_ids': vpc['route_table_ids'],
+                'account': account,
+            }
+            item = {
+                'connection_provider': peer_connection_provider,
+                'connection_name': connection_name,
+                'requester': requester,
+                'accepter': accepter,
+                'deleted': peer_connection.get('delete', False)
+            }
+            desired_state.append(item)
+
+    return desired_state, error
+
+
 def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
@@ -200,76 +274,23 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
     error = False
 
     for cluster_info in clusters:
-        cluster = cluster_info['name']
-        ocm = ocm_map.get(cluster)
-        peering_info = cluster_info['peering']
-        peer_connections = peering_info['connections']
-        for peer_connection in peer_connections:
-            # We only care about account-vpc-mesh peering providers
-            peer_connection_provider = peer_connection['provider']
-            if not peer_connection_provider == 'account-vpc-mesh':
-                continue
-            # requester is the cluster's AWS account
-            requester = {
-                'cidr_block': cluster_info['network']['vpc'],
-                'region': cluster_info['spec']['region']
-            }
-
-            account = peer_connection['account']
-            # assume_role is the role to assume to provision the
-            # peering connection request, through the accepter AWS account.
-            account['assume_role'] = \
-                ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster,
-                    account['uid'],
-                    account['terraformUsername']
-                )
-            account['assume_region'] = requester['region']
-            account['assume_cidr'] = requester['cidr_block']
-            aws_api = awsapi.AWSApi(1, [account], settings=settings)
-            requester_vpc_id, requester_route_table_ids, _ = \
-                aws_api.get_cluster_vpc_details(
-                    account,
-                    route_tables=peer_connection.get('manageRoutes')
-                )
-
-            if requester_vpc_id is None:
-                logging.error(f'[{cluster} could not find VPC ID for cluster')
+        try:
+            cluster = cluster_info['name']
+            ocm = ocm_map.get(cluster)
+            items, err = build_desired_state_vpc_mesh_single_cluster(
+                cluster_info, ocm, settings
+            )
+            if err:
                 error = True
-                continue
-            requester['vpc_id'] = requester_vpc_id
-            requester['route_table_ids'] = requester_route_table_ids
-            requester['account'] = account
-
-            account_vpcs = \
-                aws_api.get_vpcs_details(
-                    account,
-                    tags=json.loads(peer_connection.get('tags') or '{}'),
-                    route_tables=peer_connection.get('manageRoutes'),
-                )
-            for vpc in account_vpcs:
-                vpc_id = vpc['vpc_id']
-                connection_name = \
-                    f"{peer_connection['name']}_" + \
-                    f"{account['name']}-{vpc_id}"
-                accepter = {
-                    'vpc_id': vpc_id,
-                    'region': vpc['region'],
-                    'cidr_block': vpc['cidr_block'],
-                    'route_table_ids': vpc['route_table_ids'],
-                    'account': account,
-                }
-                item = {
-                    'connection_provider': peer_connection_provider,
-                    'connection_name': connection_name,
-                    'requester': requester,
-                    'accepter': accepter,
-                    'deleted': peer_connection.get('delete', False)
-                }
-                desired_state.append(item)
+            else:
+                desired_state.extend(items)
+        except Exception:
+            logging.exception(
+                f"Unable to create VPC mesh for cluster {cluster}"
+            )
+            error = True
 
     return desired_state, error
-
 
 def build_desired_state_vpc(clusters, ocm_map, settings):
     """
