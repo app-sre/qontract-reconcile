@@ -244,7 +244,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
             account_vpcs = \
                 aws_api.get_vpcs_details(
                     account,
-                    tags=json.loads(peer_connection.get('tags') or {}),
+                    tags=json.loads(peer_connection.get('tags') or '{}'),
                     route_tables=peer_connection.get('manageRoutes'),
                 )
             for vpc in account_vpcs:
