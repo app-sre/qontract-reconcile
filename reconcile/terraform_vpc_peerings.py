@@ -182,8 +182,7 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
             items = build_desired_state_single_cluster(
                 cluster_info, ocm_map, settings
             )
-            if items:
-                desired_state.extend(items)
+            desired_state.extend(items)
         except Exception:
             logging.exception(
                 f"Failed to get desired state for {cluster_info['name']}"
