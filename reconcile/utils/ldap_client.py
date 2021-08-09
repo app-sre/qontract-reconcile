@@ -33,6 +33,5 @@ def get_users():
     with init_from_config() as client:
         _, _, results, _ = client.search(_base_dn, '(&(objectclass=person))',
                                          attributes=['uid'])
-        if results is None:
-            return []
+        # pylint: disable=not-an-iterable
         return set(r['attributes']['uid'][0] for r in results)
