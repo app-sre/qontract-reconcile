@@ -31,11 +31,6 @@ def get_users():
     global _base_dn
 
     with init_from_config() as client:
-        _, _, results, _ = client.search(_base_dn, '(&(objectclass=person))')
-        users = set()
-        for r in results:
-            dn = r['dn']
-            uid = dn.replace(',' + _base_dn, '').replace('uid=', '')
-            users.add(uid)
-
-        return users
+        _, _, results, _ = client.search(_base_dn, '(&(objectclass=person))',
+                                         attributes=['uid'])
+        return set(r['attributes']['uid'][0] for r in results)
