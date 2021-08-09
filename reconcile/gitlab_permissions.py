@@ -1,4 +1,5 @@
 import logging
+import itertools
 
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
@@ -32,7 +33,7 @@ def run(dry_run, thread_pool_size=10):
     results = threaded.run(get_members_to_add, repos, thread_pool_size,
                            gl=gl, app_sre=app_sre)
 
-    members_to_add = [item for sublist in results for item in sublist]
+    members_to_add = list(itertools.chain.from_iterable(results))
     for m in members_to_add:
         logging.info(['add_maintainer', m["repo"], m["user"].username])
         if not dry_run:

@@ -1,4 +1,5 @@
 import logging
+import itertools
 
 import reconcile.utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
@@ -35,7 +36,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
                     thread_pool_size=thread_pool_size)
     results = threaded.run(get_cluster_users, oc_map.clusters(),
                            thread_pool_size, oc_map=oc_map)
-    current_state = [item for sublist in results for item in sublist]
+    current_state = list(itertools.chain.from_iterable(results))
     return oc_map, current_state
 
 
