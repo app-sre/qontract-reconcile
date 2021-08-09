@@ -368,7 +368,5 @@ cronjobs:
       memory: 200Mi
       cpu: 200m
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
-  logs:
-    slack: true
   # once a hour
   cron: '0 * * * *'
