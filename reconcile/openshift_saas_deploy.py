@@ -136,7 +136,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     # if saas_file_name is defined, the integration
     # is being called from multiple running instances
     actions = ob.realize_data(
-        dry_run, oc_map, ri,
+        dry_run, oc_map, ri, thread_pool_size,
         caller=saas_file_name,
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),

@@ -438,7 +438,7 @@ def _realize_resource_data(unpacked_ri_item,
     return actions
 
 
-def realize_data(dry_run, oc_map, ri, thread_pool_size=1,
+def realize_data(dry_run, oc_map, ri, thread_pool_size,
                  take_over=False,
                  caller=None,
                  wait_for_namespace=False,

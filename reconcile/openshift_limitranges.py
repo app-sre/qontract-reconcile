@@ -108,7 +108,8 @@ def run(dry_run, thread_pool_size=10, internal=None,
     defer(lambda: oc_map.cleanup())
 
     add_desired_state(namespaces, ri, oc_map)
-    ob.realize_data(dry_run, oc_map, ri, take_over=take_over)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
+                    take_over=take_over)
 
     if ri.has_error_registered():
         sys.exit(1)
