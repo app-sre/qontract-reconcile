@@ -684,7 +684,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
                    init_api_resources=init_api_resources)
     defer(lambda: oc_map.cleanup())
 
-    ob.realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
         sys.exit(1)
