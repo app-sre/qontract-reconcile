@@ -5,6 +5,7 @@ import sys
 
 from github import Github
 
+from reconcile.github_repo_invites import run as get_invitations
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.github_org import get_config
 from reconcile.utils.semver_helper import make_semver
@@ -40,13 +41,15 @@ def run(dry_run, instance_name, bot_token_org_name):
 
     gh = init_github(bot_token_org_name)
 
+    invitations = get_invitations(dry_run=True)
+
     error = False
     for job in pr_check_jobs:
         repo_url = jjb.get_repo_url(job)
         repo_name = repo_url.rstrip("/").replace('https://github.com/', '')
         repo = gh.get_repo(repo_name)
         permissions = repo.permissions
-        if not permissions.push:
+        if not permissions.push and repo_url not in invitations:
             logging.error(
                 f'missing write permissions for bot in repo {repo_url}')
             error = True
