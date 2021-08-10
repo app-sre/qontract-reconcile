@@ -27,11 +27,15 @@ def init_from_config():
     return init(serverUrl)
 
 
-def get_users():
+def get_users(uids):
     global _base_dn
 
     with init_from_config() as client:
-        _, _, results, _ = client.search(_base_dn, '(&(objectclass=person))',
-                                         attributes=['uid'])
+        user_filter = "".join((f"(uid={u})" for u in uids))
+        _, _, results, _ = client.search(
+            _base_dn,
+            f'(&(objectclass=person)(|{user_filter}))',
+            attributes=["uid"]
+        )
         # pylint: disable=not-an-iterable
         return set(r['attributes']['uid'][0] for r in results)
