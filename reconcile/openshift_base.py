@@ -414,6 +414,12 @@ def _realize_resource_data(unpacked_ri_item,
             if caller and c_item.caller != caller:
                 continue
         elif not take_over:
+            # this is reached when the current resources:
+            # - does not have qontract annotations (not managed)
+            # - not taking over all resources of the current kind
+            msg = f"[{cluster}/{namespace}] skipping " +\
+                f"{resource_type}/{c_item.name}"
+            logging.debug(msg)
             continue
 
         if c_item.has_owner_reference():
