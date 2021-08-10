@@ -1,4 +1,5 @@
 import logging
+import itertools
 
 from textwrap import indent
 
@@ -888,8 +889,8 @@ def get_code_components():
     apps = get_apps()
     code_components_lists = [a['codeComponents'] for a in apps
                              if a['codeComponents'] is not None]
-    code_components = [item for sublist in code_components_lists
-                       for item in sublist]
+    code_components = \
+        list(itertools.chain.from_iterable(code_components_lists))
     return code_components
 
 

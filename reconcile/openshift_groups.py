@@ -1,5 +1,6 @@
 import sys
 import logging
+import itertools
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -92,7 +93,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
     results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
                            oc_map=oc_map)
 
-    current_state = [item for sublist in results for item in sublist]
+    current_state = list(itertools.chain.from_iterable(results))
     return oc_map, current_state, ocm_clusters
 
 
