@@ -5,6 +5,7 @@ from slackclient import SlackClient
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.config import get_config
 
 
 class UsergroupNotFoundException(Exception):
@@ -97,6 +98,17 @@ class SlackApi:
         logging.error('could not find a deleted user, ' +
                       'empty usergroup will not work')
         return ''
+
+    def get_user_id_by_name(self, user_name):
+        config = get_config()
+        mail_address = config['smtp']['mail_address']
+        result = self.sc.api_call(
+            "users.lookupByEmail",
+            email=f"{user_name}@{mail_address}"
+        )
+        if not result['ok']:
+            raise Exception(result['error'])
+        return result['user']['id']
 
     def get_channels_by_names(self, channels_names):
         return {k: v['name'] for k, v in self._get('channels').items()
