@@ -4,7 +4,7 @@ from glob import glob
 
 
 setup(
-    name="reconcile",
+    name="qontract-reconcile",
     version="0.2.2",
     license="Apache License 2.0",
 
@@ -13,6 +13,8 @@ setup(
 
     description="Collection of tools to reconcile services with their desired "
                 "state as defined in the app-interface DB.",
+
+    url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
 
