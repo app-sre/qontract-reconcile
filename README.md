@@ -153,6 +153,13 @@ image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-im
 if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
 must only contain instructions related to the python code build.
 
+## Release
+
+Edit the `VERSION` file and change the new version. Submit a pull
+request to master. When it is merged, create a tag and push it.
+
+This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile
+
 ## Licence
 
 [Apache License Version 2.0](LICENSE).
