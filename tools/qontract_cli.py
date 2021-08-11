@@ -593,7 +593,6 @@ def print_table(content, columns, table_format='simple'):
     print(tabulate(table_data, headers=headers, tablefmt=table_format))
 
 
-
 @root.group()
 @output
 @click.pass_context
