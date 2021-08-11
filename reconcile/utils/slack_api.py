@@ -130,7 +130,8 @@ class SlackApi:
                 cursor=cursor
             )
             if 'error' in result and result['error'] == 'ratelimited':
-                time.sleep(1)
+                retry_after = result['headers']['retry-after']
+                time.sleep(int(retry_after))
                 continue
             for r in result[result_key]:
                 results[r['id']] = r
