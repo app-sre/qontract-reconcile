@@ -1,11 +1,21 @@
+import os
+
 from setuptools import find_packages
 from setuptools import setup
 from glob import glob
 
 
+BASE_PATH = os.path.dirname(__file__)
+
+
+def get_version():
+    with open(os.path.join(BASE_PATH, 'VERSION'), 'r') as version:
+        return version.read().strip()
+
+
 setup(
     name="qontract-reconcile",
-    version="0.2.2",
+    version=get_version(),
     license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",
