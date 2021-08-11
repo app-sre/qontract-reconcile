@@ -90,7 +90,7 @@ class PagerDutyMap:
             pd_api = PagerDutyApi(token, settings=settings)
             self.pd_apis[name] = pd_api
 
-    def get(name):
+    def get(self, name):
         """Get PagerDutyApi by instance name
 
         Args:

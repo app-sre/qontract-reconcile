@@ -116,6 +116,7 @@ def get_pagerduty_map():
     settings = queries.get_app_interface_settings()
     return PagerDutyMap(instances, settings)
 
+
 def get_current_state(slack_map):
     current_state = []
 
