@@ -76,3 +76,27 @@ class PagerDutyApi:
                 # and next escalation is not 0 minutes from now
                 break
         return users
+
+
+class PagerDutyMap:
+    """A collection of PagerDutyApi instances per PagerDuty instance
+    """
+
+    def __init__(self, instances, settings=None):
+        self.pd_apis = {}
+        for i in instances:
+            name = i['name']
+            token = i['token']
+            pd_api = PagerDutyApi(token, settings=settings)
+            self.pd_apis[name] = pd_api
+
+    def get(self, name):
+        """Get PagerDutyApi by instance name
+
+        Args:
+            name (string): instance name
+
+        Returns:
+            PagerDutyApi: PagerDutyApi instance
+        """
+        return self.pd_apis.get(name)

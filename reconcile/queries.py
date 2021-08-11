@@ -1960,3 +1960,21 @@ SRE_CHECKPOINTS_QUERY = """
 def get_sre_checkpoints():
     gqlapi = gql.get_api()
     return gqlapi.query(SRE_CHECKPOINTS_QUERY)['sre_checkpoints']
+
+
+PAGERDUTY_INSTANCES_QUERY = """
+{
+  pagerduty_instances: pagerduty_instances_v1 {
+    name
+    token {
+      path
+      field
+    }
+  }
+}
+"""
+
+
+def get_pagerduty_instances():
+    gqlapi = gql.get_api()
+    return gqlapi.query(PAGERDUTY_INSTANCES_QUERY)['pagerduty_instances']
