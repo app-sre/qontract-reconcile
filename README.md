@@ -155,10 +155,9 @@ must only contain instructions related to the python code build.
 
 ## Release
 
-Edit the `VERSION` file and change the new version. Submit a pull
-request to master. When it is merged, create a tag and push it.
+Submit a PR to update setup.py (`version`) with the new version according to [semver](https://semver.org/).
 
-This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile
+After the PR is merged, push a matching tag. This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
 
 ## Licence
 
