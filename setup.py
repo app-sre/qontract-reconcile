@@ -5,7 +5,7 @@ from glob import glob
 
 setup(
     name="qontract-reconcile",
-    version="0.3.0",
+    version="0.3.1",
     license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",
@@ -52,7 +52,7 @@ setup(
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
-        "requests==2.22.0",
+        "requests==2.26.0",
         "kubernetes~=12.0",
         "openshift>=0.11.2",
         "websocket-client<0.55.0,>=0.35",
