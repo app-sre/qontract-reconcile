@@ -8,6 +8,10 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
 
 
+class UserNotFoundException(Exception):
+    pass
+
+
 class UsergroupNotFoundException(Exception):
     pass
 
@@ -107,7 +111,7 @@ class SlackApi:
             email=f"{user_name}@{mail_address}"
         )
         if not result['ok']:
-            raise Exception(result['error'])
+            raise UserNotFoundException(result['error'])
         return result['user']['id']
 
     def get_channels_by_names(self, channels_names):
