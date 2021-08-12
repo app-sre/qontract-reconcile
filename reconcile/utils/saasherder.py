@@ -695,7 +695,7 @@ class SaasHerder():
         }
         url = creds.get('url')
         if url:
-            image_auth['auth_server'] == url
+            image_auth['auth_server'] = url
 
         return image_auth
 
