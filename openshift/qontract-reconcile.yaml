@@ -24193,11 +24193,11 @@ parameters:
 - name: QUAY_MIRROR_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_MEMORY_LIMIT
-  value: 1.5Gi
+  value: 200Mi
 - name: QUAY_MIRROR_CPU_REQUEST
   value: 200m
 - name: QUAY_MIRROR_MEMORY_REQUEST
-  value: 1.4Gi
+  value: 150Mi
 - name: QUAY_MIRROR_ORG_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_ORG_MEMORY_LIMIT
