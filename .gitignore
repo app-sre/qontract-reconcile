@@ -8,6 +8,7 @@
 .eggs
 .coverage
 build
+coverage.xml
 dist
 venv
 throughput
