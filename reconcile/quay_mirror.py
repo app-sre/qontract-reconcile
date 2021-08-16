@@ -12,12 +12,11 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile import queries
 from reconcile.status import ExitCodes
-from reconcile.utils import gql, sharding
+from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.instrumented_wrappers import (
     InstrumentedImage as Image,
-    InstrumentedSkopeo as Skopeo,
-    InstrumentedCache
+    InstrumentedSkopeo as Skopeo
 )
 
 _LOG = logging.getLogger(__name__)
@@ -45,12 +44,6 @@ class QuayMirror:
     }
     """
 
-    response_cache = InstrumentedCache(
-        integration_name=QONTRACT_INTEGRATION,
-        shards=sharding.SHARDS,
-        shard_id=sharding.SHARD_ID
-    )
-
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
@@ -71,8 +64,8 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error('[%s]', details)
 
-    @classmethod
-    def process_repos_query(cls):
+    @staticmethod
+    def process_repos_query():
         apps = queries.get_quay_repos()
 
         summary = defaultdict(list)
@@ -92,10 +85,7 @@ class QuayMirror:
                     if item['mirror'] is None:
                         continue
 
-                    mirror_image = Image(
-                        item['mirror']['url'],
-                        response_cache=cls.response_cache
-                    )
+                    mirror_image = Image(item['mirror']['url'])
                     if (mirror_image.registry == 'docker.io'
                             and mirror_image.repository == 'library'
                             and item['public']):
@@ -140,10 +130,8 @@ class QuayMirror:
             org = org_key.org_name
             for item in data:
                 push_creds = self.push_creds[org_key].split(':')
-                image = Image(
-                    f'{item["server_url"]}/{org}/{item["name"]}',
-                    username=push_creds[0], password=push_creds[1],
-                    response_cache=self.response_cache)
+                image = Image(f'{item["server_url"]}/{org}/{item["name"]}',
+                              username=push_creds[0], password=push_creds[1])
 
                 mirror_url = item['mirror']['url']
 
@@ -158,8 +146,7 @@ class QuayMirror:
                     mirror_creds = f'{username}:{password}'
 
                 image_mirror = Image(mirror_url, username=username,
-                                     password=password,
-                                     response_cache=self.response_cache)
+                                     password=password)
 
                 tags = item['mirror'].get('tags')
                 tags_exclude = item['mirror'].get('tagsExclude')
