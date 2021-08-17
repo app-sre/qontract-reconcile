@@ -370,3 +370,43 @@ cronjobs:
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   # once a hour
   cron: '0 * * * *'
+- name: dashdotdb-cso
+  concurrencyPolicy: Replace
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once every 6 hours
+  cron: '0 */6 * * *'
+  dashdotdb: true
+- name: dashdotdb-dvo
+  concurrencyPolicy: Replace
+  successfulJobHistoryLimit: 12
+  failedJobHistoryLimit: 12
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once a day
+  cron: '0 2 * * *'
+  dashdotdb: true
+- name: dashdotdb-slo
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once a day
+  cron: '0 5 * * *'
+  dashdotdb: true
