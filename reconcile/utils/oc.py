@@ -975,7 +975,7 @@ class OC:
                         cluster_in_strategy = True
                         break
             use_native = get_feature_toggle_state(enable_toggle) and \
-                cluster_in_strategy
+                not cluster_in_strategy
 
         if use_native:
             OC.client_status.labels(
