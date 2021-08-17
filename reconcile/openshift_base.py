@@ -400,8 +400,10 @@ def _realize_resource_data(unpacked_ri_item,
             actions.append(action)
         except StatusCodeError as e:
             ri.register_error()
+            err = str(e) if resource_type != 'Secret' \
+                else f'error applying Secret {d_item.name}: REDACTED'
             msg = "[{}/{}] {} (error details: {})".format(
-                cluster, namespace, str(e), d_item.error_details)
+                cluster, namespace, err, d_item.error_details)
             logging.error(msg)
 
     # current items
