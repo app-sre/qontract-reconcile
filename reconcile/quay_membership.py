@@ -70,8 +70,9 @@ def fetch_current_state(quay_api_store):
             try:
                 members = quay_api.list_team_members(team)
             except QuayTeamNotFoundException:
-                logging.warning("Attempted to list members for team %s/%s, "
-                                "but it doesn't exist", org_key.org_name, team)
+                logging.warning("Attempted to list members for team %s in "
+                                "org %s/%s, but it doesn't exist", team,
+                                org_key.instance, org_key.org_name)
             else:
                 # Teams are only added to the state if they exist so that
                 # there is a proper diff between the desired and current state.
