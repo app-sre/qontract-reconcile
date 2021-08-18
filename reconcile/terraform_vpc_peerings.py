@@ -210,8 +210,8 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
         }
 
         account = peer_connection['account']
-        # assume_role is the role to assume to provision the
-        # peering connection request, through the accepter AWS account.
+        # assume_role is the role to assume to provision the peering
+        # connection request, through the accepter AWS account.
         account['assume_role'] = \
             ocm.get_aws_infrastructure_access_terraform_assume_role(
                 cluster,
@@ -291,6 +291,69 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
     return desired_state, error
 
 
+def build_desired_state_vpc_single_cluster(cluster_info, ocm, settings):
+    desired_state = []
+    error = False
+
+    peering_info = cluster_info['peering']
+    peer_connections = peering_info['connections']
+    cluster = cluster_info['name']
+
+    for peer_connection in peer_connections:
+        # We only care about account-vpc peering providers
+        peer_connection_provider = peer_connection['provider']
+        if not peer_connection_provider == 'account-vpc':
+            continue
+        # requester is the cluster's AWS account
+        requester = {
+            'cidr_block': cluster_info['network']['vpc'],
+            'region': cluster_info['spec']['region']
+        }
+        connection_name = peer_connection['name']
+        peer_vpc = peer_connection['vpc']
+        # accepter is the peered AWS account
+        accepter = {
+            'vpc_id': peer_vpc['vpc_id'],
+            'cidr_block': peer_vpc['cidr_block'],
+            'region': peer_vpc['region']
+        }
+        account = peer_vpc['account']
+        # assume_role is the role to assume to provision the peering
+        # connection request, through the accepter AWS account.
+        account['assume_role'] = \
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+            cluster,
+            peer_vpc['account']['uid'],
+            peer_vpc['account']['terraformUsername']
+        )
+        account['assume_region'] = requester['region']
+        account['assume_cidr'] = requester['cidr_block']
+        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        requester_vpc_id, requester_route_table_ids, _ = \
+            aws_api.get_cluster_vpc_details(
+                account,
+                route_tables=peer_connection.get('manageRoutes')
+            )
+
+        if requester_vpc_id is None:
+            logging.error(f'[{cluster} could not find VPC ID for cluster')
+            error = True
+            continue
+        requester['vpc_id'] = requester_vpc_id
+        requester['route_table_ids'] = requester_route_table_ids
+        requester['account'] = account
+        accepter['account'] = account
+        item = {
+            'connection_provider': peer_connection_provider,
+            'connection_name': connection_name,
+            'requester': requester,
+            'accepter': accepter,
+            'deleted': peer_connection.get('delete', False)
+        }
+        desired_state.append(item)
+    return desired_state, error
+
+
 def build_desired_state_vpc(clusters, ocm_map, settings):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
@@ -299,63 +362,21 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
     error = False
 
     for cluster_info in clusters:
-        cluster = cluster_info['name']
-        ocm = ocm_map.get(cluster)
-        peering_info = cluster_info['peering']
-        peer_connections = peering_info['connections']
-        for peer_connection in peer_connections:
-            # We only care about account-vpc peering providers
-            peer_connection_provider = peer_connection['provider']
-            if not peer_connection_provider == 'account-vpc':
-                continue
-            # requester is the cluster's AWS account
-            requester = {
-                'cidr_block': cluster_info['network']['vpc'],
-                'region': cluster_info['spec']['region']
-            }
+        try:
+            cluster = cluster_info['name']
+            ocm = ocm_map.get(cluster)
 
-            connection_name = peer_connection['name']
-            peer_vpc = peer_connection['vpc']
-            # accepter is the peered AWS account
-            accepter = {
-                'vpc_id': peer_vpc['vpc_id'],
-                'cidr_block': peer_vpc['cidr_block'],
-                'region': peer_vpc['region']
-            }
-            account = peer_vpc['account']
-            # assume_role is the role to assume to provision the
-            # peering connection request, through the accepter AWS account.
-            account['assume_role'] = \
-                ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster,
-                    peer_vpc['account']['uid'],
-                    peer_vpc['account']['terraformUsername']
-                )
-            account['assume_region'] = requester['region']
-            account['assume_cidr'] = requester['cidr_block']
-            aws_api = awsapi.AWSApi(1, [account], settings=settings)
-            requester_vpc_id, requester_route_table_ids, _ = \
-                aws_api.get_cluster_vpc_details(
-                    account,
-                    route_tables=peer_connection.get('manageRoutes')
-                )
-
-            if requester_vpc_id is None:
-                logging.error(f'[{cluster} could not find VPC ID for cluster')
+            items, err = build_desired_state_vpc_single_cluster(
+                cluster_info, ocm, settings
+            )
+            if err:
                 error = True
-                continue
-            requester['vpc_id'] = requester_vpc_id
-            requester['route_table_ids'] = requester_route_table_ids
-            requester['account'] = account
-            accepter['account'] = account
-            item = {
-                'connection_provider': peer_connection_provider,
-                'connection_name': connection_name,
-                'requester': requester,
-                'accepter': accepter,
-                'deleted': peer_connection.get('delete', False)
-            }
-            desired_state.append(item)
+            else:
+                desired_state.extend(items)
+        except Exception:
+            logging.exception(f"Unable to process {cluster_info['name']}")
+            error = True
+
     return desired_state, error
 
 
