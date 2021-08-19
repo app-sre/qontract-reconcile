@@ -9,7 +9,8 @@ QONTRACT_INTEGRATION = 'dashdotdb-dvo'
 
 class DashdotdbDVO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
-        super().__init__(dry_run, thread_pool_size, "DDDB_DVO:")
+        super().__init__(dry_run, thread_pool_size, "DDDB_DVO:",
+                         'deploymentvalidation')
         self.chunksize = self.secret_content.get('chunksize') or '20'
 
     @staticmethod
@@ -156,7 +157,7 @@ class DashdotdbDVO(DashdotdbBase):
             validation_names = {v['cluster']: v['data']
                                 for v in validation_list if v}
         clusters = self._get_clusters(cname)
-        self._get_token(scope='deploymentvalidation')
+        self._get_token()
         for cluster in clusters:
             cluster_name = cluster['name']
             if cluster_name not in validation_names:
@@ -171,7 +172,7 @@ class DashdotdbDVO(DashdotdbBase):
                                        clusterinfo=cluster)
             threaded.run(func=self._post, iterable=validations,
                          thread_pool_size=self.thread_pool_size)
-        self._close_token(scope='deploymentvalidation')
+        self._close_token()
 
 
 def run(dry_run=False, thread_pool_size=10, cluster_name=None):

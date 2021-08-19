@@ -13,7 +13,8 @@ LOGMARKER = 'DDDB_CSO:'
 
 class DashdotdbCSO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
-        super().__init__(dry_run, thread_pool_size, LOGMARKER)
+        super().__init__(dry_run, thread_pool_size, LOGMARKER,
+                         'imagemanifestvuln')
 
     def _post(self, manifest):
         if manifest is None:
@@ -76,11 +77,11 @@ class DashdotdbCSO(DashdotdbBase):
                                  thread_pool_size=self.thread_pool_size,
                                  oc_map=oc_map)
 
-        self._get_token(scope='imagemanifestvuln')
+        self._get_token()
         threaded.run(func=self._post,
                      iterable=manifests,
                      thread_pool_size=self.thread_pool_size)
-        self._close_token(scope='imagemanifestvuln')
+        self._close_token()
 
 
 def run(dry_run=False, thread_pool_size=10):

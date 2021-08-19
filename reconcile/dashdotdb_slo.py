@@ -11,7 +11,8 @@ QONTRACT_INTEGRATION = 'dashdotdb-slo'
 
 class DashdotdbSLO(DashdotdbBase):
     def __init__(self, dry_run, thread_pool_size):
-        super().__init__(dry_run, thread_pool_size, "DDDB_SLO:")
+        super().__init__(dry_run, thread_pool_size, "DDDB_SLO:",
+                         'serviceslometrics')
 
     def _post(self, service_slo):
         if service_slo is None:
@@ -89,11 +90,11 @@ class DashdotdbSLO(DashdotdbBase):
                                     iterable=slo_documents,
                                     thread_pool_size=self.thread_pool_size)
 
-        self._get_token('serviceslometrics')
+        self._get_token()
         threaded.run(func=self._post,
                      iterable=service_slos,
                      thread_pool_size=self.thread_pool_size)
-        self._close_token('serviceslometrics')
+        self._close_token()
 
 
 def run(dry_run=False, thread_pool_size=10):
