@@ -1023,7 +1023,14 @@ class OC_Map:
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         elif namespaces:
-            clusters = [ns_info['cluster'] for ns_info in namespaces]
+            clusters = []
+            cluster_names = []
+            for ns_info in namespaces:
+                cluster = ns_info['cluster']
+                name = cluster['name']
+                if name not in cluster_names:
+                    cluster_names.append(name)
+                    clusters.append(cluster)
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         else:
