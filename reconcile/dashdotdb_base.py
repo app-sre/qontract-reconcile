@@ -22,10 +22,9 @@ class DashdotdbBase:
         self.secret_reader = SecretReader(settings=self.settings)
         self.secret_content = self.secret_reader.read_all(
             {'path': DASHDOTDB_SECRET})
-        self.dashdotdb_url = 'http://localhost:8080'
-#        self.dashdotdb_url = self.secret_content['url']
-#        self.dashdotdb_user = self.secret_content['username']
-#        self.dashdotdb_pass = self.secret_content['password']
+        self.dashdotdb_url = self.secret_content['url']
+        self.dashdotdb_user = self.secret_content['username']
+        self.dashdotdb_pass = self.secret_content['password']
         self.logmarker = marker
         self.scope = scope
 
@@ -38,8 +37,8 @@ class DashdotdbBase:
                     f'token')
         response = requests.get(url=endpoint,
                                 params=params,
-                                # auth=(self.dashdotdb_user,
-                                #      self.dashdotdb_pass),
+                                auth=(self.dashdotdb_user,
+                                      self.dashdotdb_pass),
                                 timeout=(5, 120))
         try:
             response.raise_for_status()
@@ -58,8 +57,8 @@ class DashdotdbBase:
                     f'token/{self.dashdotdb_token}')
         response = requests.delete(url=endpoint,
                                    params=params,
-                                   # auth=(self.dashdotdb_user,
-                                   #      self.dashdotdb_pass),
+                                   auth=(self.dashdotdb_user,
+                                         self.dashdotdb_pass),
                                    timeout=(5, 120))
         try:
             response.raise_for_status()
@@ -71,8 +70,8 @@ class DashdotdbBase:
         return requests.post(url=endpoint, json=data,
                              headers={
                                  "X-Auth": self.dashdotdb_token},
-                             # auth=(self.dashdotdb_user,
-                             #      self.dashdotdb_pass),
+                             auth=(self.dashdotdb_user,
+                                   self.dashdotdb_pass),
                              timeout=timeout)
 
     def _promget(self, url, params, token=None, ssl_verify=True,
