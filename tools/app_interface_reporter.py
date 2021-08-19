@@ -278,6 +278,7 @@ def prometheus_metrics_to_job_history(metrics, jobs_cluster):
 def get_apps_data(date, month_delta=1, thread_pool_size=10):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
+    saas_files_v2 = queries.get_saas_files(v1=False, v2=True)
     jjb, _ = init_jjb()
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
