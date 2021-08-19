@@ -423,6 +423,21 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                     **history
                 })
 
+        for saas_file in saas_files_v2:
+            if saas_file['app']['name'] != app_name:
+                continue
+            if saas_file['name'] not in tekton_job_history:
+                continue
+
+            if saas_file['name'] not in app['promotions']:
+                app['promotions'][saas_file['name']] = []
+
+            for env, job in tekton_job_history[saas_file['name']].items():
+                app['promotions'][saas_file['name']].append({
+                    'env': env,
+                    **tekton_job_history[saas_file['name']][env],
+                })
+
         logging.info(f"collecting merge activity for {app_name}")
         app['merge_activity'] = {}
         code_repos = [c['url'] for c in app['codeComponents']
