@@ -7,6 +7,10 @@ class RequestsException(Exception):
         super(Exception, self).__init__(message)
 
 
+class QuayTeamNotFoundException(Exception):
+    pass
+
+
 class QuayApi:
     LIMIT_FOLLOWS = 15
 
@@ -18,6 +22,12 @@ class QuayApi:
         self.api_url = f"https://{base_url}/api/v1"
 
     def list_team_members(self, team, **kwargs):
+        """
+        List Quay team members.
+
+        :raises QuayTeamNotFoundException: if Quay team doesn't exist (404)
+        :raises RequestsException: any HTTP status codes >= 400, but not 404
+        """
         if kwargs.get("cache"):
             cache_members = self.team_members.get(team)
             if cache_members:
@@ -28,10 +38,11 @@ class QuayApi:
 
         r = requests.get(url, headers=self.auth_header)
         if r.status_code == 404:
-            raise ValueError(f"team {team} is not found in "
-                             f"org {self.organization}. "
-                             f"contact org owner to create the "
-                             f"team manually.")
+            raise QuayTeamNotFoundException(
+                f"team {team} is not found in "
+                f"org {self.organization}. "
+                f"contact org owner to create the "
+                f"team manually.")
         elif not r.ok:
             raise RequestsException(r)
 
@@ -89,6 +100,33 @@ class QuayApi:
         if not r.ok:
             raise RequestsException(r)
         return True
+
+    def create_or_update_team(self, team: str, role="member",
+                              description=None) -> None:
+        """
+        Create or update an Organization team.
+
+        https://docs.quay.io/api/swagger/#!/team/updateOrganizationTeam
+
+        :param team: The name of the team
+        :param role: The default role to associate with the team
+        :param description: Team description
+        :raises RequestsException: unsuccessful attempt to create the team
+        """
+
+        url = "{}/organization/{}/team/{}".format(
+            self.api_url, self.organization, team
+        )
+
+        payload = {'role': role}
+
+        if description:
+            payload.update({'description': description})
+
+        r = requests.put(url, headers=self.auth_header, json=payload)
+
+        if not r.ok:
+            raise RequestsException(r)
 
     def list_images(self, images=None, page=None, count=0):
         """
