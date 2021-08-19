@@ -3,6 +3,7 @@ import os
 import textwrap
 
 from datetime import datetime, timezone
+from urllib.parse import urljoin
 
 import click
 import requests
@@ -36,7 +37,7 @@ DASHDOTDB_SECRET = os.environ.get('DASHDOTDB_SECRET',
                                   'app-sre/dashdot/auth-proxy-production')
 
 
-def promql(url, query, auth=None):
+def promql(url, query, token):
     """
     Run an instant-query on the prometheus instance.
 
@@ -47,25 +48,30 @@ def promql(url, query, auth=None):
     :type url: string
     :param query: this is a second value
     :type query: string
-    :param auth: auth object
-    :type auth: requests.auth
+    :param token: prometheus token
+    :type token: string
     :return: structure with the metrics
     :rtype: dictionary
     """
 
-    url = os.path.join(url, 'api/v1/query')
-
-    if auth is None:
-        auth = {}
-
+    url = urljoin(url, '/api/v1/query')
     params = {'query': query}
+    headers = {
+        'accept': 'application/json',
+        'Authorization': f'Bearer {token}',
+    }
 
-    response = requests.get(url, params=params, auth=auth)
+    logging.debug(f'Fetching prom payload from {url}?{params}')
+
+    response = requests.get(url,
+                            params=params,
+                            headers=headers,
+                            verify=False,
+                            timeout=(5, 120))
 
     response.raise_for_status()
     response = response.json()
 
-    # TODO ensure len response == 1
     return response['data']['result']
 
 
