@@ -1501,6 +1501,7 @@ SAAS_FILES_QUERY_V2 = """
     clusterAdmin
     imagePatterns
     use_channel_in_image_tag
+    configurableResources
     authentication {
       code {
         path
@@ -1716,6 +1717,32 @@ PIPELINES_PROVIDERS_QUERY = """
           disable {
             integrations
           }
+        }
+      }
+      taskTemplates {
+        ...on PipelinesProviderTektonObjectTemplate_v1 {
+          name
+          type
+          path
+          variables
+        }
+      }
+      pipelineTemplates {
+        openshiftSaasDeploy {
+          name
+          type
+          path
+          variables
+        }
+      }
+      deployResources {
+        requests {
+          cpu
+          memory
+        }
+        limits {
+          cpu
+          memory
         }
       }
     }

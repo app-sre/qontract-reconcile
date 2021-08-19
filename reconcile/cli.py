@@ -33,6 +33,7 @@ import reconcile.openshift_saas_deploy_trigger_moving_commits
 import reconcile.openshift_saas_deploy_trigger_upstream_jobs
 import reconcile.openshift_saas_deploy_trigger_configs
 import reconcile.openshift_saas_deploy_trigger_cleaner
+import reconcile.openshift_tekton_resources
 import reconcile.saas_file_owners
 import reconcile.gitlab_ci_skipper
 import reconcile.gitlab_labeler
@@ -350,6 +351,14 @@ def gitlab_project_id(function):
                             help='gitlab project id to submit PRs to. '
                                  'not required if mergeRequestGateway '
                                  'is not set to gitlab',
+                            default=None)(function)
+
+    return function
+
+
+def saas_file_name(function):
+    function = click.option('--saas-file-name',
+                            help='saas-file to act on.',
                             default=None)(function)
 
     return function
@@ -860,6 +869,22 @@ def openshift_saas_deploy_trigger_cleaner(ctx, thread_pool_size,
     run_integration(
         reconcile.openshift_saas_deploy_trigger_cleaner,
         ctx.obj, thread_pool_size, internal, use_jump_host)
+
+
+@integration.command()
+@threaded()
+@internal()
+@use_jump_host()
+@saas_file_name
+@click.pass_context
+def openshift_tekton_resources(ctx, thread_pool_size,
+                               internal, use_jump_host, saas_file_name):
+    run_integration(reconcile.openshift_tekton_resources,
+                    ctx.obj,
+                    thread_pool_size,
+                    internal,
+                    use_jump_host,
+                    saas_file_name)
 
 
 @integration.command()
