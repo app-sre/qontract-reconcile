@@ -324,7 +324,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                 else:
                     jobs_to_get[job['instance']].append(job)
 
-    job_history = get_build_history_pool(
+    jenkins_job_history = get_build_history_pool(
                             jenkins_map,
                             jobs_to_get,
                             timestamp_limit,
@@ -391,9 +391,9 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
         for job in saas_deploy_jobs:
             if job['app'] != app_name:
                 continue
-            if job['name'] not in job_history:
+            if job['name'] not in jenkins_job_history:
                 continue
-            history = job_history[job["name"]]
+            history = jenkins_job_history[job["name"]]
             saas_file_name = job['saas_file_name']
             if saas_file_name not in app["promotions"]:
                 app["promotions"][saas_file_name] = [{
@@ -422,9 +422,9 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                     continue
                 if repo_url not in code_repos:
                     continue
-                if job['name'] not in job_history:
+                if job['name'] not in jenkins_job_history:
                     continue
-                history = job_history[job['name']]
+                history = jenkins_job_history[job['name']]
                 if repo_url not in app["merge_activity"]:
                     app["merge_activity"][repo_url] = [{
                         "branch": job["branch"],
