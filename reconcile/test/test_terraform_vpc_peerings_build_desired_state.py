@@ -823,18 +823,14 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         ]
         self.build_single_cluster.for_call(
             self.clusters[0], self.ocm, self.settings
-        ).to_return_value(
-            (expected, False)
-        ).and_assert_called_once()
+        ).to_return_value(expected).and_assert_called_once()
         rs = sut.build_desired_state_vpc(
             self.clusters, self.ocm_map, self.settings
         )
         self.assertEqual(rs, (expected, False))
 
     def test_cluster_fails(self):
-        self.build_single_cluster.to_return_value(([], True))
-        self.clusters[0]['peering']['connections'][0]['provider'] = \
-            'something-else'
+        self.build_single_cluster.to_raise(Exception("I have failed"))
 
         self.assertEqual(
             sut.build_desired_state_vpc(
@@ -844,16 +840,23 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         )
 
     def test_error_persists(self):
-        self.build_single_cluster.to_return_values(
-            [([], True), ([], False)]
-        )
-        self.clusters.append(self.clusters[0])
+        self.clusters.append(self.clusters[0].copy())
+        self.clusters[1]['name'] = 'afailingcluster'
+        self.ocm_map['afailingcluster'] = self.ocm
+        self.build_single_cluster.for_call(
+            self.clusters[0], self.ocm, self.settings
+        ).to_return_value([{"a dict": "a value"}]).and_assert_called_once()
+        self.mock_callable(
+            sut, 'build_desired_state_vpc_single_cluster'
+        ).for_call(
+            self.clusters[1], self.ocm, self.settings
+        ).to_raise(Exception("Fail!")).and_assert_called_once()
 
         self.assertEqual(
             sut.build_desired_state_vpc(
                 self.clusters, self.ocm_map, self.settings
             ),
-            ([], True)
+            ([{"a dict": "a value"}], True)
         )
 
 
@@ -996,7 +999,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         rs = sut.build_desired_state_vpc_single_cluster(
             self.cluster, self.ocm, self.settings
         )
-        self.assertEqual(rs, (expected, False))
+        self.assertEqual(rs, expected)
 
     def test_different_provider(self):
         self.cluster['peering']['connections'][0]['provider'] = \
@@ -1005,7 +1008,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
             sut.build_desired_state_vpc_single_cluster(
                 self.cluster, self.ocm, self.settings
             ),
-            ([], False)
+            []
         )
 
     def test_no_vpc_id(self):
@@ -1021,9 +1024,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
             'a:role:that:you:will:like'
         ).and_assert_called_once()
 
-        self.assertEqual(
+        with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_vpc_single_cluster(
                 self.cluster, self.ocm, self.settings
-            ),
-            ([], True)
-        )
+            )
