@@ -324,6 +324,11 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                 else:
                     jobs_to_get[job['instance']].append(job)
 
+    token = secret_reader.read(
+        settings['pushGatewayCluster']['automationToken']
+    )
+    query = 'app_sre_tekton_pipelinerun_task_status'
+
     jenkins_job_history = get_build_history_pool(
                             jenkins_map,
                             jobs_to_get,
