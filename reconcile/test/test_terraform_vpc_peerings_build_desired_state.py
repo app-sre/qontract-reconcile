@@ -777,6 +777,159 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.ocm_map = {
             'clustername': self.ocm
         }
+
+        self.build_single_cluster = self.mock_callable(
+            sut, 'build_desired_state_vpc_single_cluster'
+        )
+        self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
+        self.maxDiff = None
+
+    def test_all_fine(self):
+        expected = [
+            {
+                'accepter': {
+                    'account': {
+                        'assume_cidr': '172.16.0.0/12',
+                        'assume_region': 'mars-plain-1',
+                        'assume_role': 'this:wonderful:role:hell:yeah',
+                        'automationtoken': 'anautomationtoken',
+                        'name': 'accountname',
+                        'terraformUsername': 'aterraformusename',
+                        'uid': 'anuid'
+                    },
+                    'cidr_block': '172.30.0.0/12',
+                    'region': 'mars-olympus-2',
+                    'vpc_id': 'avpcid'
+                },
+                'connection_name': 'peername',
+                'connection_provider': 'account-vpc',
+                'deleted': False,
+                'requester': {
+                    'account': {
+                        'assume_cidr': '172.16.0.0/12',
+                        'assume_region': 'mars-plain-1',
+                        'assume_role': 'this:wonderful:role:hell:yeah',
+                        'automationtoken': 'anautomationtoken',
+                        'name': 'accountname',
+                        'terraformUsername': 'aterraformusename',
+                        'uid': 'anuid'
+                    },
+                    'cidr_block': '172.16.0.0/12',
+                    'region': 'mars-plain-1',
+                    'route_table_ids': ['routetableid'],
+                    'vpc_id': 'vpcid'
+                }
+            }
+        ]
+        self.build_single_cluster.for_call(
+            self.clusters[0], self.ocm, self.settings
+        ).to_return_value(
+            (expected, False)
+        ).and_assert_called_once()
+        rs = sut.build_desired_state_vpc(
+            self.clusters, self.ocm_map, self.settings
+        )
+        self.assertEqual(rs, (expected, False))
+
+    def test_cluster_fails(self):
+        self.build_single_cluster.to_return_value(([], True))
+        self.clusters[0]['peering']['connections'][0]['provider'] = \
+            'something-else'
+
+        self.assertEqual(
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.settings
+            ),
+            ([], True)
+        )
+
+    def test_error_persists(self):
+        self.build_single_cluster.to_return_values(
+            [([], True), ([], False)]
+        )
+        self.clusters.append(self.clusters[0])
+
+        self.assertEqual(
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.settings
+            ),
+            ([], True)
+        )
+
+
+class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.peer = {
+            'vpc': '172.17.0.0/12',
+            'service': '10.1.0.0/8',
+            'pod': '192.168.1.0/16',
+        }
+        self.aws_account = {
+            'name': 'accountname',
+            'uid': 'anuid',
+            'terraformUsername': 'aterraformusename',
+            'automationtoken': 'anautomationtoken',
+            'assume_role': 'arole:very:useful:indeed:it:is',
+            'assume_region': 'moon-tranquility-1',
+            'assume_cidr': '172.25.0.0/12',
+        }
+
+        self.cluster = {
+            'name': 'clustername',
+            'spec': {
+                'region': 'mars-plain-1',
+            },
+            'network': {
+                'vpc': '172.16.0.0/12',
+                'service': '10.0.0.0/8',
+                'pod': '192.168.0.0/16',
+            },
+            'peering': {
+                'connections': [
+                    {
+                        'provider': 'account-vpc',
+                        'name': 'peername',
+                        'vpc': {
+                            '$ref': '/aws/account/vpcs/mars-plain-1',
+                            'cidr_block': '172.30.0.0/12',
+                            'vpc_id': 'avpcid',
+                            **self.peer,
+                            'region': 'mars-olympus-2',
+                            'account': self.aws_account,
+                        },
+                        'manageRoutes': True,
+                    },
+                ]
+            }
+        }
+        self.settings = {}
+
+        self.peer_cluster = {
+                'name': 'apeerclustername',
+                'spec': {
+                    'region': 'mars-olympus-2',
+                },
+                'network': self.peer,
+                'peering': {
+                    'connections': [
+                        {
+                            'provider': 'account-vpc',
+                            'name': 'peername',
+                            'vpc': {
+                                '$ref': '/aws/account/vpcs/mars-plain-1'
+                            },
+                            'manageRoutes': True,
+                        },
+                    ]
+                }
+            }
+        self.cluster['peering']['connections'][0]['cluster'] = \
+            self.peer_cluster
+        self.build_single_cluster = self.mock_callable(
+            sut, 'build_desired_state_single_cluster'
+        )
+        self.ocm = testslide.StrictMock(template=ocm.OCM)
         self.awsapi = testslide.StrictMock(awsapi.AWSApi)
         self.mock_constructor(
             awsapi, 'AWSApi'
@@ -834,23 +987,23 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.mock_callable(
             self.ocm, 'get_aws_infrastructure_access_terraform_assume_role'
         ).for_call(
-            self.clusters[0]['name'],
+            self.cluster['name'],
             self.aws_account['uid'],
             self.aws_account['terraformUsername']
         ).to_return_value(
             'this:wonderful:role:hell:yeah'
         ).and_assert_called_once()
-        rs = sut.build_desired_state_vpc(
-            self.clusters, self.ocm_map, self.settings
+        rs = sut.build_desired_state_vpc_single_cluster(
+            self.cluster, self.ocm, self.settings
         )
         self.assertEqual(rs, (expected, False))
 
     def test_different_provider(self):
-        self.clusters[0]['peering']['connections'][0]['provider'] = \
+        self.cluster['peering']['connections'][0]['provider'] = \
             'something-else'
         self.assertEqual(
-            sut.build_desired_state_vpc(
-                self.clusters, self.ocm_map, self.settings
+            sut.build_desired_state_vpc_single_cluster(
+                self.cluster, self.ocm, self.settings
             ),
             ([], False)
         )
@@ -869,8 +1022,8 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         ).and_assert_called_once()
 
         self.assertEqual(
-            sut.build_desired_state_vpc(
-                self.clusters, self.ocm_map, self.settings
+            sut.build_desired_state_vpc_single_cluster(
+                self.cluster, self.ocm, self.settings
             ),
             ([], True)
         )
