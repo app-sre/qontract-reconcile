@@ -329,6 +329,9 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     )
     query = 'app_sre_tekton_pipelinerun_task_status'
 
+    metrics = promql(settings['pushGatewayCluster']['prometheusUrl'],
+                     query, token)
+
     jenkins_job_history = get_build_history_pool(
                             jenkins_map,
                             jobs_to_get,
