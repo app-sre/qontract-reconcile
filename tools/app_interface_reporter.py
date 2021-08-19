@@ -228,6 +228,53 @@ class Report:
         ]
 
 
+def prometheus_metrics_to_job_history(metrics, jobs_cluster):
+    """
+    Returns an object of objects containing the results of the tekton pipelines
+    grouped by environments and saas_file names.
+    """
+    job_history = {}
+
+    def success_count(x):
+        """
+        The results of tekton pipelines running in prometheus are
+        '0' if success and '1' if failed so we invert this result to aggregate
+        on the job's success field
+        """
+        return 0 if x == '1' else 1
+
+    def new_job(namespace, success):
+        job = {}
+        job['cluster'] = jobs_cluster
+        job['namespace'] = namespace
+        job['total'] = 1
+        job['success'] = success
+
+        return job
+
+    for m in metrics:
+        saas_file_name = m['metric']['saas_file_name']
+        env = m['metric']['env_name']
+        if saas_file_name not in job_history:
+            job = new_job(m['metric']['namespace'],
+                          success_count(m['value'][1]))
+            job_history[saas_file_name] = {}
+            job_history[saas_file_name][env] = job
+            continue
+
+        if env not in job_history[saas_file_name]:
+            job = new_job(m['metric']['namespace'],
+                          success_count(m['value'][1]))
+            job_history[saas_file_name][env] = job
+            continue
+
+        job_history[saas_file_name][env]['total'] += 1
+        job_history[saas_file_name][env]['success'] \
+            += success_count(m['value'][1])
+
+    return job_history
+
+
 def get_apps_data(date, month_delta=1, thread_pool_size=10):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
