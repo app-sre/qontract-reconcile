@@ -1,11 +1,16 @@
 import time
 import logging
+from typing import Dict
 
 from slackclient import SlackClient
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
+
+# Default result sizes to return from APIs
+CHANNELS_LIMIT = 1000
+USER_LIMIT = 1000
 
 
 class UserNotFoundException(Exception):
@@ -95,7 +100,7 @@ class SlackApi:
         )
 
     def get_random_deleted_user(self):
-        for user_id, user_data in self._get('users').items():
+        for user_id, user_data in self._get('users', limit=USER_LIMIT).items():
             if user_data['deleted'] is True:
                 return user_id
 
@@ -114,24 +119,36 @@ class SlackApi:
             raise UserNotFoundException(result['error'])
         return result['user']['id']
 
-    def get_channels_by_names(self, channels_names):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_names(self, channels_names, limit=CHANNELS_LIMIT):
+        return {k: v['name'] for k, v in self._get('channels',
+                                                   limit=limit).items()
                 if v['name'] in channels_names}
 
-    def get_channels_by_ids(self, channels_ids):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_ids(self, channels_ids, limit=CHANNELS_LIMIT):
+        return {k: v['name'] for k, v in self._get('channels',
+                                                   limit=limit).items()
                 if k in channels_ids}
 
-    def get_users_by_names(self, user_names):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_names(self, user_names, limit=USER_LIMIT):
+        return {k: v['name'] for k, v in self._get('users',
+                                                   limit=limit).items()
                 if v['name'] in user_names}
 
-    def get_users_by_ids(self, users_ids):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_ids(self, users_ids, limit=USER_LIMIT):
+        return {k: v['name'] for k, v in self._get('users',
+                                                   limit=limit).items()
                 if k in users_ids}
 
     @retry()
-    def _get(self, type):
+    def _get(self, type: str, **kwargs) -> Dict:
+        """
+        Get Slack resources by type. This method uses a cache to ensure that
+        each resource type is only fetched once.
+
+        :param type: resource type
+        :param **kwargs: other data to pass to the API call (ex. limit)
+        :return: data from API call
+        """
         result_key = 'members' if type == 'users' else type
         api_key = 'conversations' if type == 'channels' else type
         results = {}
@@ -143,7 +160,8 @@ class SlackApi:
         while True:
             result = self.sc.api_call(
                 "{}.list".format(api_key),
-                cursor=cursor
+                cursor=cursor,
+                **kwargs
             )
             if 'error' in result and result['error'] == 'ratelimited':
                 retry_after = result['headers']['retry-after']
