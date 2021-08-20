@@ -37,6 +37,21 @@ def test_slack_api__get_uses_kwargs_properly(slack_api):
         call('conversations.list', cursor='', limit=1000)
 
 
+def test_slack_api__get_no_kwargs(slack_api):
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'channels': [],
+        'response_metadata': {
+            'next_cursor': ''
+        }
+    }
+
+    slack_api.client._get('channels')
+
+    # Only the default cursor kwarg is present
+    assert slack_api.mock_slack_client.return_value.api_call.call_args == \
+        call('conversations.list', cursor='')
+
+
 def test_slack_api__get_uses_cache(slack_api):
     """The API is never called when the results are already cached."""
     # Reset the mock to clear any calls during __init__
