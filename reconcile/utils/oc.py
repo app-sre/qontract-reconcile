@@ -684,6 +684,8 @@ class OCDeprecated:
 
         if code != 0:
             err = err.decode('utf-8')
+            if 'Unable to connect to the server' in err:
+                raise StatusCodeError(f"[{self.server}]: {err}")
             if kwargs.get('apply'):
                 if 'Invalid value: 0x0' in err:
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
