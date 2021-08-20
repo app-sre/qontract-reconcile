@@ -146,7 +146,7 @@ class SlackApi:
         each resource type is only fetched once.
 
         :param type: resource type
-        :param **kwargs: other data to pass to the API call (ex. limit)
+        :param **kwargs: other args to pass to the API call (ex. limit)
         :return: data from API call
         """
         result_key = 'members' if type == 'users' else type
