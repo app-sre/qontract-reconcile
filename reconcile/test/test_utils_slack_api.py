@@ -22,8 +22,7 @@ def slack_api():
     return SlackApiMock(slack_api, mock_secret_reader, mock_slack_client)
 
 
-def test_slack_api__get_uses_kwargs_properly(slack_api):
-    """Ensure that _get() properly passes along kwargs to the SC API client."""
+def test_slack_api__get_default_args_channels(slack_api):
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'channels': [],
         'response_metadata': {
@@ -31,25 +30,45 @@ def test_slack_api__get_uses_kwargs_properly(slack_api):
         }
     }
 
-    slack_api.client._get('channels', limit=1000)
+    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
+               return_value=500):
+        slack_api.client._get('channels')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('conversations.list', cursor='', limit=1000)
+        call('conversations.list', cursor='', limit=500)
 
 
-def test_slack_api__get_no_kwargs(slack_api):
+def test_slack_api__get_default_args_users(slack_api):
     slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'channels': [],
+        'members': [],
         'response_metadata': {
             'next_cursor': ''
         }
     }
 
-    slack_api.client._get('channels')
+    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
+               return_value=500):
+        slack_api.client._get('users')
 
-    # Only the default cursor kwarg is present
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('conversations.list', cursor='')
+        call('users.list', cursor='', limit=500)
+
+
+def test_slack_api__get_default_args_unknown_type(slack_api):
+    """Leave the limit unset if the resource type is unknown."""
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'something': [],
+        'response_metadata': {
+            'next_cursor': ''
+        }
+    }
+
+    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
+               return_value=None):
+        slack_api.client._get('something')
+
+    assert slack_api.mock_slack_client.return_value.api_call.call_args == \
+        call('something.list', cursor='')
 
 
 def test_slack_api__get_uses_cache(slack_api):
