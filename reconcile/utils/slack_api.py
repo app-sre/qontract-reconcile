@@ -130,12 +130,36 @@ class SlackApi:
         return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
+    @staticmethod
+    def _get_api_results_limit(resource_type):
+        # This will be replaced with getting the data from app-interface in
+        # a future PR.
+        api_limits = {
+            'users': 1000,
+            'channels': 1000
+        }
+
+        return api_limits.get(resource_type)
+
     @retry()
     def _get(self, type):
+        """
+        Get Slack resources by type. This method uses a cache to ensure that
+        each resource type is only fetched once.
+
+        :param type: resource type
+        :return: data from API call
+        """
         result_key = 'members' if type == 'users' else type
         api_key = 'conversations' if type == 'channels' else type
         results = {}
         cursor = ''
+        additional_kwargs = {}
+
+        api_result_limit = self._get_api_results_limit(type)
+
+        if api_result_limit:
+            additional_kwargs['limit'] = api_result_limit
 
         if type in self.results:
             return self.results[type]
@@ -143,7 +167,8 @@ class SlackApi:
         while True:
             result = self.sc.api_call(
                 "{}.list".format(api_key),
-                cursor=cursor
+                cursor=cursor,
+                **additional_kwargs
             )
             if 'error' in result and result['error'] == 'ratelimited':
                 retry_after = result['headers']['retry-after']
