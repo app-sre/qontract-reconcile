@@ -387,23 +387,21 @@ def run(dry_run, print_only=False,
     ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                          settings=settings)
 
+    errors = []
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state_vpc, err = \
         build_desired_state_vpc(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     # Fetch desired state for cluster-to-account (vpc mesh) VPCs
     desired_state_vpc_mesh, err = \
         build_desired_state_vpc_mesh(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     # Fetch desired state for cluster-to-cluster VPCs
     desired_state_cluster, err = \
         build_desired_state_all_clusters(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     desired_state = \
         desired_state_vpc + \
@@ -421,7 +419,7 @@ def run(dry_run, print_only=False,
     participating_accounts += \
         [item['accepter']['account'] for item in desired_state]
     participating_account_names = \
-        [a['name'] for a in participating_accounts]
+        {a['name'] for a in participating_accounts}
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
 
@@ -435,7 +433,7 @@ def run(dry_run, print_only=False,
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
-    if print_only:
+    if print_only or (any(errors) and enable_deletion):
         sys.exit()
 
     tf = terraform.TerraformClient(
@@ -452,9 +450,7 @@ def run(dry_run, print_only=False,
     defer(lambda: tf.cleanup())
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    if err:
-        sys.exit(1)
-    if disabled_deletions_detected:
+    if err or disabled_deletions_detected:
         sys.exit(1)
 
     if dry_run:
