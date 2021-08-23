@@ -684,6 +684,8 @@ class OCDeprecated:
 
         if code != 0:
             err = err.decode('utf-8')
+            if 'Unable to connect to the server' in err:
+                raise StatusCodeError(f"[{self.server}]: {err}")
             if kwargs.get('apply'):
                 if 'Invalid value: 0x0' in err:
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
@@ -1023,7 +1025,14 @@ class OC_Map:
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         elif namespaces:
-            clusters = [ns_info['cluster'] for ns_info in namespaces]
+            clusters = []
+            cluster_names = []
+            for ns_info in namespaces:
+                cluster = ns_info['cluster']
+                name = cluster['name']
+                if name not in cluster_names:
+                    cluster_names.append(name)
+                    clusters.append(cluster)
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         else:
