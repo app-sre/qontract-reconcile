@@ -766,8 +766,9 @@ class OCNative(OCDeprecated):
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
-            self.jump_host.create_ssh_tunnel(8888, 8888)
-            opts['proxy'] = 'http://localhost:8888'
+            self.jump_host.create_ssh_tunnel()
+            local_port = self.jump_host.local_port
+            opts['proxy'] = f'http://localhost:{local_port}'
 
         configuration = Configuration()
 
@@ -1018,6 +1019,7 @@ class OC_Map:
         self.init_projects = init_projects
         self.init_api_resources = init_api_resources
         self._lock = Lock()
+        self.jh_ports = {}
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -1037,6 +1039,18 @@ class OC_Map:
                          cluster_admin=cluster_admin)
         else:
             raise KeyError('expected one of clusters or namespaces.')
+
+    def set_jh_ports(self, jh):
+        # This will be replaced with getting the data from app-interface in
+        # a future PR.
+        jh['remotePort'] = 8888
+        key = f"{jh['hostname']}:{jh['remotePort']}"
+        with self._lock:
+            if key not in self.jh_ports:
+                port = JumpHostSSH.get_unique_random_port()
+                self.jh_ports[key] = port
+            jh['localPort'] = self.jh_ports[key]
+        return jh
 
     def init_oc_client(self, cluster_info, cluster_admin):
         cluster = cluster_info['name']
@@ -1066,7 +1080,8 @@ class OC_Map:
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(automation_token)
             if self.use_jump_host:
-                jump_host = cluster_info.get('jumpHost')
+                jh = cluster_info.get('jumpHost')
+                jump_host = self.set_jh_ports(jh)
             else:
                 jump_host = None
             try:
