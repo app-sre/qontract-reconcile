@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 from typing import Dict
@@ -9,8 +10,8 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
 
 # Default result sizes to return from APIs
-CHANNELS_LIMIT = 1000
-USER_LIMIT = 1000
+CHANNELS_LIMIT = os.environ.get('SLACK_API_CHANNELS_LIMIT', 1000)
+USERS_LIMIT = os.environ.get('SLACK_API_USERS_LIMIT', 1000)
 
 
 class UserNotFoundException(Exception):
@@ -100,7 +101,7 @@ class SlackApi:
         )
 
     def get_random_deleted_user(self):
-        for user_id, user_data in self._get('users', limit=USER_LIMIT).items():
+        for user_id, user_data in self._get('users', limit=USERS_LIMIT).items():
             if user_data['deleted'] is True:
                 return user_id
 
@@ -129,12 +130,12 @@ class SlackApi:
                                                    limit=limit).items()
                 if k in channels_ids}
 
-    def get_users_by_names(self, user_names, limit=USER_LIMIT):
+    def get_users_by_names(self, user_names, limit=USERS_LIMIT):
         return {k: v['name'] for k, v in self._get('users',
                                                    limit=limit).items()
                 if v['name'] in user_names}
 
-    def get_users_by_ids(self, users_ids, limit=USER_LIMIT):
+    def get_users_by_ids(self, users_ids, limit=USERS_LIMIT):
         return {k: v['name'] for k, v in self._get('users',
                                                    limit=limit).items()
                 if k in users_ids}
