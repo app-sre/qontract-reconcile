@@ -1,7 +1,5 @@
-import os
 import time
 import logging
-from typing import Dict
 
 from slackclient import SlackClient
 from sretoolbox.utils import retry
@@ -10,8 +8,8 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
 
 # Default result sizes to return from APIs
-CHANNELS_LIMIT = os.environ.get('SLACK_API_CHANNELS_LIMIT', 1000)
-USERS_LIMIT = os.environ.get('SLACK_API_USERS_LIMIT', 1000)
+CHANNELS_LIMIT = 1000
+USERS_LIMIT = 1000
 
 
 class UserNotFoundException(Exception):
@@ -142,7 +140,7 @@ class SlackApi:
                 if k in users_ids}
 
     @retry()
-    def _get(self, type: str, **kwargs) -> Dict:
+    def _get(self, type, **kwargs):
         """
         Get Slack resources by type. This method uses a cache to ensure that
         each resource type is only fetched once.
