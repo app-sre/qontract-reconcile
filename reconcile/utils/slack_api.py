@@ -101,7 +101,8 @@ class SlackApi:
         )
 
     def get_random_deleted_user(self):
-        for user_id, user_data in self._get('users', limit=USERS_LIMIT).items():
+        for user_id, user_data in \
+                self._get('users', limit=USERS_LIMIT).items():
             if user_data['deleted'] is True:
                 return user_id
 
