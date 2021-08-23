@@ -1050,7 +1050,6 @@ class OC_Map:
                 port = JumpHostSSH.get_unique_random_port()
                 self.jh_ports[key] = port
             jh['localPort'] = self.jh_ports[key]
-        return jh
 
     def init_oc_client(self, cluster_info, cluster_admin):
         cluster = cluster_info['name']
@@ -1080,10 +1079,11 @@ class OC_Map:
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(automation_token)
             if self.use_jump_host:
-                jh = cluster_info.get('jumpHost')
-                jump_host = self.set_jh_ports(jh)
+                jump_host = cluster_info.get('jumpHost')
             else:
                 jump_host = None
+            if jump_host:
+                self.set_jh_ports(jump_host)
             try:
                 oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,
