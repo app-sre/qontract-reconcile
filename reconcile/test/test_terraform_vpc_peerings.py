@@ -94,22 +94,6 @@ class TestRun(testslide.TestCase):
             queries, 'get_app_interface_settings').to_return_value(
                 {}).and_assert_called_once()
 
-        # Sigh...
-        self.exit = self.mock_callable(sys, 'exit').to_raise(
-            Exception("Exit called!"))
-        self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
-
-    def test_all_fine(self):
-        self.mock_callable(
-            self.terrascript,
-            'populate_additional_providers').for_call([
-                {"name": "desired_requester_account"},
-                {"name": "mesh_requester_account"},
-                {"name": "all_clusters_requester_account"},
-                {"name": "desired_accepter_account"},
-                {"name": "mesh_accepter_account"},
-                {"name": "all_clusters_accepter_account"}
-            ]).to_return_value(None).and_assert_called_once()
         self.mock_callable(
             self.terrascript,
             'populate_vpc_peerings').to_return_value(
@@ -117,6 +101,12 @@ class TestRun(testslide.TestCase):
         self.mock_callable(
             self.terrascript,
             'dump').to_return_value(None).and_assert_called_once()
+        # Sigh...
+        self.exit = self.mock_callable(sys, 'exit').to_raise(
+            Exception("Exit called!"))
+        self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
+
+    def initialize_desired_states(self, error_code):
         self.build_desired_state_vpc.to_return_value(([
             {
                 "connection_name": "desired_vpc_conn",
@@ -131,7 +121,7 @@ class TestRun(testslide.TestCase):
                     }
                 },
             },
-        ], False))
+        ], error_code))
         self.build_desired_state_all_clusters.to_return_value(([{
             "connection_name":
             "all_clusters_vpc_conn",
@@ -145,7 +135,7 @@ class TestRun(testslide.TestCase):
                     "name": "all_clusters_accepter_account",
                 }
             },
-        }], False))
+        }], error_code))
         self.build_desired_state_vpc_mesh.to_return_value(([{
             "connection_name": "mesh_vpc_conn",
             "requester": {
@@ -158,7 +148,21 @@ class TestRun(testslide.TestCase):
                     "name": "mesh_accepter_account"
                 },
             }
-        }], False))
+        }], error_code))
+
+        self.mock_callable(
+            self.terrascript,
+            'populate_additional_providers').for_call([
+                {"name": "desired_requester_account"},
+                {"name": "mesh_requester_account"},
+                {"name": "all_clusters_requester_account"},
+                {"name": "desired_accepter_account"},
+                {"name": "mesh_accepter_account"},
+                {"name": "all_clusters_accepter_account"}
+            ]).to_return_value(None).and_assert_called_once()
+
+    def test_all_fine(self):
+        self.initialize_desired_states(False)
         self.mock_callable(self.terraform, 'plan').to_return_value(
             (False, False)).and_assert_called_once()
         self.mock_callable(
@@ -167,5 +171,49 @@ class TestRun(testslide.TestCase):
         self.mock_callable(
             self.terraform,
             'apply').to_return_value(None).and_assert_called_once()
-        self.exit.and_assert_not_called()
-        integ.run(False, False, False, None)
+        self.exit.for_call(0).and_assert_called_once()
+        with self.assertRaises(Exception):
+            integ.run(False, False, False, None)
+
+    def test_fail_state_but_no_delete(self):
+        """Ensure that we change the world if there are changes but we don't
+        want deletions"""
+        self.initialize_desired_states(True)
+        self.mock_callable(self.terraform, 'plan').to_return_value(
+            (False, False)).and_assert_called_once()
+        self.mock_callable(
+            self.terraform,
+            'cleanup').to_return_value(None).and_assert_called_once()
+        self.mock_callable(
+            self.terraform,
+            'apply').to_return_value(None).and_assert_called_once()
+        self.exit.for_call(1).and_assert_called_once()
+        with self.assertRaises(Exception):
+            integ.run(False, False, False, None)
+
+    def test_fail_state_and_delete(self):
+        """Ensure we don't change the world if there are failures and we want
+        deletions"""
+        self.initialize_desired_states(True)
+        self.mock_callable(self.terraform, 'plan').to_return_value(
+            (False, False)).and_assert_not_called()
+        self.mock_callable(self.terraform, 'cleanup').to_return_value(
+            None).and_assert_not_called()
+        self.mock_callable(self.terraform, 'apply').to_return_value(
+            None).and_assert_not_called()
+        self.exit.for_call(1).and_assert_called_once()
+        with self.assertRaises(Exception):
+            integ.run(False, False, True)
+
+    def test_dry_run(self):
+        self.initialize_desired_states(False)
+
+        self.mock_callable(self.terraform, 'plan').to_return_value(
+            (False, False)).and_assert_called_once()
+        self.mock_callable(self.terraform, 'cleanup').to_return_value(
+            None).and_assert_called_once()
+        self.mock_callable(self.terraform, 'apply').to_return_value(
+            None).and_assert_not_called()
+        self.exit.for_call(0).and_assert_called_once()
+        with self.assertRaises(Exception):
+            integ.run(True, False, False)

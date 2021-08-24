@@ -433,7 +433,7 @@ def run(dry_run, print_only=False,
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
-    if print_only or (any(errors) and enable_deletion):
+    if print_only:
         sys.exit()
 
     tf = terraform.TerraformClient(
@@ -454,8 +454,7 @@ def run(dry_run, print_only=False,
         sys.exit(1)
 
     if dry_run:
-        return
+        sys.exit(int(any(errors)))
 
-    err = tf.apply()
-    if err:
-        sys.exit(1)
+    errors.append(tf.apply())
+    sys.exit(int(any(errors)))
