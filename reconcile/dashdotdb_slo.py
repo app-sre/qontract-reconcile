@@ -40,7 +40,7 @@ class DashdotdbSLO(DashdotdbBase):
         return response
 
     def _get_service_slo(self, slo_document):
-        LOG.info('SLO: processing %s', slo_document['name'])
+        LOG.debug('SLO: processing %s', slo_document['name'])
         result = []
         for ns in slo_document['namespaces']:
             if not ns['cluster'].get('prometheusUrl'):
