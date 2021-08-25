@@ -453,7 +453,7 @@ def run(dry_run, print_only=False,
     if err or disabled_deletions_detected:
         sys.exit(1)
 
-    if dry_run:
+    if dry_run or any(errors):
         sys.exit(int(any(errors)))
 
     errors.append(tf.apply())

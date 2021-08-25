@@ -186,7 +186,7 @@ class TestRun(testslide.TestCase):
             'cleanup').to_return_value(None).and_assert_called_once()
         self.mock_callable(
             self.terraform,
-            'apply').to_return_value(None).and_assert_called_once()
+            'apply').to_return_value(None).and_assert_not_called()
         self.exit.for_call(1).and_assert_called_once()
         with self.assertRaises(Exception):
             integ.run(False, False, False, None)
