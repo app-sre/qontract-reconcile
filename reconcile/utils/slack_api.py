@@ -16,6 +16,14 @@ class UsergroupNotFoundException(Exception):
     pass
 
 
+class SlackAPICallException(Exception):
+    """Raised for general error cases when calling the Slack API."""
+
+
+class SlackAPIRateLimitedException(SlackAPICallException):
+    """Raised when a call to the Slack API has been rate-limited."""
+
+
 class SlackApi:
     """Wrapper around Slack API calls"""
 
@@ -82,17 +90,31 @@ class SlackApi:
             description=description,
         )
 
+    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
     def update_usergroup_users(self, id, users_list):
         # since Slack API does not support empty usergroups
         # we can trick it by passing a deleted user
         if len(users_list) == 0:
             users_list = [self.get_random_deleted_user()]
         users = ','.join(users_list)
-        self.sc.api_call(
+        response = self.sc.api_call(
             "usergroups.users.update",
             usergroup=id,
             users=users,
         )
+
+        error = response.get('error')
+
+        if error == 'ratelimited':
+            retry_after = response['headers']['retry-after']
+            time.sleep(int(retry_after))
+            raise SlackAPIRateLimitedException(
+                f"Slack API throttled after max retry attempts - "
+                f"method=usergroups.users.update usergroup={id} users={users}")
+        elif error:
+            raise SlackAPICallException(
+                f"Slack returned error: {error} - "
+                f"method=usergroups.users.update usergroup={id} users={users}")
 
     def get_random_deleted_user(self):
         for user_id, user_data in self._get('users').items():
