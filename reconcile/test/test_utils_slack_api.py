@@ -139,3 +139,16 @@ def test_slack_api_update_usergroup_users_raise_for_errors(slack_api):
     with pytest.raises(SlackAPICallException):
         with patch('time.sleep'):
             slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+
+
+def test_slack_api_update_usergroup_users_invalid_users(slack_api):
+    """
+    Don't raise an exception when Slack returns an 'invalid_users' error
+    because it will still empty groups as expected.
+    """
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'error': 'invalid_users',
+    }
+
+    with patch('time.sleep'):
+        slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])

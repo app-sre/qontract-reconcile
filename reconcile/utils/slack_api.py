@@ -111,7 +111,9 @@ class SlackApi:
             raise SlackAPIRateLimitedException(
                 f"Slack API throttled after max retry attempts - "
                 f"method=usergroups.users.update usergroup={id} users={users}")
-        elif error:
+        # Slack can throw an invalid_users error when emptying groups, but it
+        # will still empty the group (so this can be ignored).
+        elif error and error != 'invalid_users':
             raise SlackAPICallException(
                 f"Slack returned error: {error} - "
                 f"method=usergroups.users.update usergroup={id} users={users}")
