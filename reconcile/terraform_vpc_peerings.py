@@ -453,8 +453,10 @@ def run(dry_run, print_only=False,
     if err or disabled_deletions_detected:
         sys.exit(1)
 
-    if dry_run or any(errors):
-        sys.exit(int(any(errors)))
+    if dry_run:
+        sys.exit(0)
+    if any(errors):
+        sys.exit(1)
 
     errors.append(tf.apply())
     sys.exit(int(any(errors)))
