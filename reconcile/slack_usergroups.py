@@ -8,7 +8,7 @@ from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.slack_api import SlackApi, SlackAPICallException
 from reconcile import queries
 
 
@@ -353,7 +353,16 @@ def act(desired_state, slack_map):
         users = state['users'].keys()
         channels = state['channels'].keys()
         slack = slack_map[workspace]['slack']
-        slack.update_usergroup_users(ugid, users)
+
+        try:
+            slack.update_usergroup_users(ugid, users)
+        except SlackAPICallException as error:
+            # Prior to adding this, we weren't handling failed updates to user
+            # groups. Now that we are, it seems like a good idea to start with
+            # logging the errors and proceeding rather than blocking time
+            # sensitive updates.
+            logging.error(error)
+
         slack.update_usergroup(ugid, channels, description)
 
 

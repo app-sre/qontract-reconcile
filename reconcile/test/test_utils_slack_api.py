@@ -3,7 +3,8 @@ from unittest.mock import call, patch
 
 import pytest
 
-from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.slack_api import SlackApi, SlackAPIRateLimitedException, \
+    SlackAPICallException
 
 
 @pytest.fixture
@@ -80,3 +81,61 @@ def test_slack_api__get_uses_cache(slack_api):
 
     assert slack_api.client._get('channels') == ['some', 'data']
     slack_api.mock_slack_client.return_value.api_call.assert_not_called()
+
+
+def test_slack_api_update_usergroup_users_rate_limit_raise(slack_api):
+    """Raise an exception when the retry count has been exhausted."""
+    # Reset the mock to clear any calls during __init__
+    slack_api.mock_slack_client.return_value.api_call.reset_mock()
+
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'error': 'ratelimited',
+        'headers': {
+            'retry-after': '5'
+        }
+    }
+
+    with pytest.raises(SlackAPIRateLimitedException):
+        with patch('time.sleep'):
+            slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+
+    assert slack_api.mock_slack_client.return_value.api_call.call_count == 5
+
+
+def test_slack_api_update_usergroup_users_rate_limit_retry(slack_api):
+    """
+    Retry without raising an exception when rate-limited fewer than the max
+    number of retries.
+    """
+    # Reset the mock to clear any calls during __init__
+    slack_api.mock_slack_client.return_value.api_call.reset_mock()
+
+    rate_limit_response = {
+        'error': 'ratelimited',
+        'headers': {
+            'retry-after': '5'
+        }
+    }
+
+    # Returns 3 rate-limited responses, and one OK response
+    slack_api.mock_slack_client.return_value.api_call.side_effect = [
+        rate_limit_response,
+        rate_limit_response,
+        rate_limit_response,
+        {'ok': 'true'}
+    ]
+
+    with patch('time.sleep'):
+        slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+
+    assert slack_api.mock_slack_client.return_value.api_call.call_count == 4
+
+
+def test_slack_api_update_usergroup_users_raise_for_errors(slack_api):
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'error': 'some_unknown_error',
+    }
+
+    with pytest.raises(SlackAPICallException):
+        with patch('time.sleep'):
+            slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
