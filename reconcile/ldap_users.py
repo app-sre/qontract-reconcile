@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import reconcile.queries as queries
 import reconcile.utils.ldap_client as ldap_client
-import reconcile.utils.threaded as threaded
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
@@ -30,28 +29,18 @@ def init_users():
             for username, paths in users.items()]
 
 
-def init_user_spec(user):
-    username = user['username']
-    paths = user['paths']
-
-    delete = False
-    if not ldap_client.user_exists(username):
-        delete = True
-
-    return (username, delete, paths)
-
-
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    user_specs = threaded.run(init_user_spec, users, thread_pool_size)
-    users_to_delete = [(username, paths) for username, delete, paths
-                       in user_specs if delete]
+    ldap_users = ldap_client.get_users([u['username'] for u in users])
+    users_to_delete = [u for u in users if u['username'] not in ldap_users]
 
     if not dry_run:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id,
                                         sqs_or_gitlab='gitlab')
 
-    for username, paths in users_to_delete:
+    for u in users_to_delete:
+        username = u['username']
+        paths = u['paths']
         logging.info(['delete_user', username])
 
         if not dry_run:

@@ -2,6 +2,8 @@ import logging
 
 from datetime import datetime, timedelta
 
+import time
+
 import gitlab
 
 from sretoolbox.utils import retry
@@ -18,10 +20,35 @@ HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+
+def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
+    now = time.time()
+
+    pending_pipelines = [p for p in pipelines
+                         if p['status'] in ['pending', 'running']]
+
+    if not pending_pipelines:
+        return
+
+    for p in pending_pipelines:
+        update_time = time.strptime(p['updated_at'], DATE_FORMAT)
+
+        elapsed = now - time.mktime(update_time)
+
+        # pipeline_timeout converted in seconds
+        if elapsed > pipeline_timeout * 60:
+            logging.info(['canceling', p['web_url']])
+            if not dry_run:
+                try:
+                    gl_project.pipelines.get(p['id']).cancel()
+                except gitlab.exceptions.GitlabPipelineCancelError as err:
+                    logging.error('unable to cancel {} - error message {}'
+                                  .format(p['web_url'], err.error_message))
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
-    DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
     LABEL = 'stale'
 
     if item_type == 'issue':
@@ -93,7 +120,9 @@ def is_good_to_merge(merge_label, labels):
         not any(l in HOLD_LABELS for l in labels)
 
 
-def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
+def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
+                          wait_for_pipeline=False, gl_instance=None,
+                          gl_settings=None):
     mrs = gl.get_merge_requests(state='opened')
     rebases = 0
     for rebase_label in REBASE_LABELS_PRIORITY:
@@ -119,17 +148,23 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
             if len(result['commits']) == 0:  # rebased
                 continue
 
+            pipelines = mr.pipelines()
+
+            # If pipeline_timeout is None no pipeline will be canceled
+            if pipeline_timeout is not None:
+                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
+                                       settings=gl_settings,).project
+                clean_pipelines(dry_run, gl_project, pipelines,
+                                pipeline_timeout)
+
             if wait_for_pipeline:
-                pipelines = mr.pipelines()
                 if not pipelines:
                     continue
-
                 # possible statuses:
                 # running, pending, success, failed, canceled, skipped
-                incomplete_pipelines = \
-                    [p for p in pipelines
-                     if p['status'] in ['running']]
-                if incomplete_pipelines:
+                running_pipelines = \
+                    [p for p in pipelines if p['status'] == 'running']
+                if running_pipelines:
                     continue
 
             logging.info(['rebase', gl.project.name, mr.iid])
@@ -142,8 +177,10 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, wait_for_pipeline=False):
 
 
 @retry(max_attempts=10)
-def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
-                         wait_for_pipeline=False):
+def merge_merge_requests(dry_run, gl, merge_limit, rebase,
+                         pipeline_timeout=None, insist=False,
+                         wait_for_pipeline=False, gl_instance=None,
+                         gl_settings=None):
     mrs = gl.get_merge_requests(state='opened')
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
@@ -182,13 +219,20 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase, insist=False,
             if not pipelines:
                 continue
 
+            # If pipeline_timeout is None no pipeline will be canceled
+            if pipeline_timeout is not None:
+                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
+                                       settings=gl_settings,).project
+                clean_pipelines(dry_run, gl_project, pipelines,
+                                pipeline_timeout)
+
             if wait_for_pipeline:
                 # possible statuses:
                 # running, pending, success, failed, canceled, skipped
-                incomplete_pipelines = \
+                running_pipelines = \
                     [p for p in pipelines
-                     if p['status'] in ['running']]
-                if incomplete_pipelines:
+                     if p['status'] == 'running']
+                if running_pipelines:
                     if insist:
                         raise Exception(f'insisting on {merge_label}')
                     else:
@@ -223,18 +267,25 @@ def run(dry_run, wait_for_pipeline):
         days_interval = hk.get('days_interval') or default_days_interval
         enable_closing = hk.get('enable_closing') or default_enable_closing
         limit = hk.get('limit') or default_limit
+        pipeline_timeout = hk.get('pipeline_timeout')
         gl = GitLabApi(instance, project_url=project_url, settings=settings)
+
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'issue')
         handle_stale_items(dry_run, gl, days_interval, enable_closing,
                            'merge-request')
         rebase = hk.get('rebase')
         try:
-            merge_merge_requests(dry_run, gl, limit, rebase, insist=True,
-                                 wait_for_pipeline=wait_for_pipeline)
+            merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
+                                 insist=True,
+                                 wait_for_pipeline=wait_for_pipeline,
+                                 gl_instance=instance, gl_settings=settings)
         except Exception:
-            merge_merge_requests(dry_run, gl, limit, rebase,
-                                 wait_for_pipeline=wait_for_pipeline)
+            merge_merge_requests(dry_run, gl, limit, rebase, pipeline_timeout,
+                                 wait_for_pipeline=wait_for_pipeline,
+                                 gl_instance=instance, gl_settings=settings)
         if rebase:
             rebase_merge_requests(dry_run, gl, limit,
-                                  wait_for_pipeline=wait_for_pipeline)
+                                  pipeline_timeout=pipeline_timeout,
+                                  wait_for_pipeline=wait_for_pipeline,
+                                  gl_instance=instance, gl_settings=settings)

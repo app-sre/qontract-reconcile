@@ -2,11 +2,13 @@
 *.egg-info
 /*.toml
 
+.vscode
 .tox
 .pytest_cache
 .eggs
 .coverage
 build
+coverage.xml
 dist
 venv
 throughput

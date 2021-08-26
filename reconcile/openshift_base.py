@@ -1,5 +1,5 @@
 import logging
-
+import itertools
 import yaml
 
 from sretoolbox.utils import retry
@@ -307,7 +307,146 @@ def check_unused_resource_types(ri):
             logging.warning(msg)
 
 
-def realize_data(dry_run, oc_map, ri,
+def _realize_resource_data(unpacked_ri_item,
+                           dry_run, oc_map, ri,
+                           take_over,
+                           caller,
+                           wait_for_namespace,
+                           no_dry_run_skip_compare,
+                           override_enable_deletion,
+                           recycle_pods):
+    cluster, namespace, resource_type, data = unpacked_ri_item
+    actions = []
+    if ri.has_error_registered(cluster=cluster):
+        msg = (
+            "[{}] skipping realize_data for "
+            "cluster with errors"
+        ).format(cluster)
+        logging.error(msg)
+        return actions
+
+    enable_deletion = False if ri.has_error_registered() else True
+    # only allow to override enable_deletion if no errors were found
+    if enable_deletion is True and override_enable_deletion is False:
+        enable_deletion = False
+
+    # desired items
+    for name, d_item in data['desired'].items():
+        c_item = data['current'].get(name)
+
+        if c_item is not None:
+            if not dry_run and no_dry_run_skip_compare:
+                msg = (
+                    "[{}/{}] skipping compare of resource '{}/{}'."
+                ).format(cluster, namespace, resource_type, name)
+                logging.debug(msg)
+            else:
+                # If resource doesn't have annotations, annotate and apply
+                if not c_item.has_qontract_annotations():
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present "
+                        "w/o annotations, annotating and applying"
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.info(msg)
+
+                # don't apply if resources match
+                # if there is a caller (saas file) and this is a take over
+                # we skip the equal compare as it's not covering
+                # cases of a removed label (for example)
+                # d_item == c_item is uncommutative
+                elif not (caller and take_over) and d_item == c_item:
+                    msg = (
+                        "[{}/{}] resource '{}/{}' present "
+                        "and matches desired, skipping."
+                    ).format(cluster, namespace, resource_type, name)
+                    logging.debug(msg)
+                    continue
+
+                # don't apply if sha256sum hashes match
+                elif c_item.sha256sum() == d_item.sha256sum():
+                    if c_item.has_valid_sha256sum():
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present "
+                            "and hashes match, skipping."
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.debug(msg)
+                        continue
+                    else:
+                        msg = (
+                            "[{}/{}] resource '{}/{}' present and "
+                            "has stale sha256sum due to manual changes."
+                        ).format(cluster, namespace, resource_type, name)
+                        logging.info(msg)
+
+                logging.debug("CURRENT: " +
+                              OR.serialize(OR.canonicalize(c_item.body)))
+        else:
+            logging.debug("CURRENT: None")
+
+        logging.debug("DESIRED: " +
+                      OR.serialize(OR.canonicalize(d_item.body)))
+
+        try:
+            apply(dry_run, oc_map, cluster, namespace,
+                  resource_type, d_item, wait_for_namespace,
+                  recycle_pods=recycle_pods)
+            action = {
+                'action': ACTION_APPLIED,
+                'cluster': cluster,
+                'namespace': namespace,
+                'kind': resource_type,
+                'name': d_item.name
+            }
+            actions.append(action)
+        except StatusCodeError as e:
+            ri.register_error()
+            err = str(e) if resource_type != 'Secret' \
+                else f'error applying Secret {d_item.name}: REDACTED'
+            msg = f"[{cluster}/{namespace}] {err} " + \
+                f"(error details: {d_item.error_details})"
+            logging.error(msg)
+
+    # current items
+    for name, c_item in data['current'].items():
+        d_item = data['desired'].get(name)
+        if d_item is not None:
+            continue
+
+        if c_item.has_qontract_annotations():
+            if caller and c_item.caller != caller:
+                continue
+        elif not take_over:
+            # this is reached when the current resources:
+            # - does not have qontract annotations (not managed)
+            # - not taking over all resources of the current kind
+            msg = f"[{cluster}/{namespace}] skipping " +\
+                f"{resource_type}/{c_item.name}"
+            logging.debug(msg)
+            continue
+
+        if c_item.has_owner_reference():
+            continue
+
+        try:
+            delete(dry_run, oc_map, cluster, namespace,
+                   resource_type, name, enable_deletion)
+            action = {
+                'action': ACTION_DELETED,
+                'cluster': cluster,
+                'namespace': namespace,
+                'kind': resource_type,
+                'name': name
+            }
+            actions.append(action)
+        except StatusCodeError as e:
+            ri.register_error()
+            msg = "[{}/{}] {}".format(cluster, namespace, str(e))
+            logging.error(msg)
+
+    return actions
+
+
+def realize_data(dry_run, oc_map, ri, thread_pool_size,
                  take_over=False,
                  caller=None,
                  wait_for_namespace=False,
@@ -320,6 +459,7 @@ def realize_data(dry_run, oc_map, ri,
     :param dry_run: run in dry-run mode
     :param oc_map: a dictionary containing oc client per cluster
     :param ri: a ResourceInventory containing current and desired states
+    :param thread_pool_size: Thread pool size to use for parallelism
     :param take_over: manage resource types in a namespace exclusively
     :param caller: name of the calling entity.
                    enables multiple running instances of the same integration
@@ -329,127 +469,11 @@ def realize_data(dry_run, oc_map, ri,
     :param override_enable_deletion: override calculated enable_deletion value
     :param recycle_pods: should pods be recycled if a dependency changed
     """
-    actions = []
-    enable_deletion = False if ri.has_error_registered() else True
-    # only allow to override enable_deletion if no errors were found
-    if enable_deletion is True and override_enable_deletion is False:
-        enable_deletion = False
-
-    for cluster, namespace, resource_type, data in ri:
-        if ri.has_error_registered(cluster=cluster):
-            msg = (
-                "[{}] skipping realize_data for "
-                "cluster with errors"
-            ).format(cluster)
-            logging.error(msg)
-            continue
-
-        # desired items
-        for name, d_item in data['desired'].items():
-            c_item = data['current'].get(name)
-
-            if c_item is not None:
-                if not dry_run and no_dry_run_skip_compare:
-                    msg = (
-                        "[{}/{}] skipping compare of resource '{}/{}'."
-                    ).format(cluster, namespace, resource_type, name)
-                    logging.debug(msg)
-                else:
-                    # If resource doesn't have annotations, annotate and apply
-                    if not c_item.has_qontract_annotations():
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "w/o annotations, annotating and applying"
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.info(msg)
-
-                    # don't apply if resources match
-                    # if there is a caller (saas file) and this is a take over
-                    # we skip the equal compare as it's not covering
-                    # cases of a removed label (for example)
-                    # d_item == c_item is uncommutative
-                    elif not (caller and take_over) and d_item == c_item:
-                        msg = (
-                            "[{}/{}] resource '{}/{}' present "
-                            "and matches desired, skipping."
-                        ).format(cluster, namespace, resource_type, name)
-                        logging.debug(msg)
-                        continue
-
-                    # don't apply if sha256sum hashes match
-                    elif c_item.sha256sum() == d_item.sha256sum():
-                        if c_item.has_valid_sha256sum():
-                            msg = (
-                                "[{}/{}] resource '{}/{}' present "
-                                "and hashes match, skipping."
-                            ).format(cluster, namespace, resource_type, name)
-                            logging.debug(msg)
-                            continue
-                        else:
-                            msg = (
-                                "[{}/{}] resource '{}/{}' present and "
-                                "has stale sha256sum due to manual changes."
-                            ).format(cluster, namespace, resource_type, name)
-                            logging.info(msg)
-
-                    logging.debug("CURRENT: " +
-                                  OR.serialize(OR.canonicalize(c_item.body)))
-            else:
-                logging.debug("CURRENT: None")
-
-            logging.debug("DESIRED: " +
-                          OR.serialize(OR.canonicalize(d_item.body)))
-
-            try:
-                apply(dry_run, oc_map, cluster, namespace,
-                      resource_type, d_item, wait_for_namespace,
-                      recycle_pods=recycle_pods)
-                action = {
-                    'action': ACTION_APPLIED,
-                    'cluster': cluster,
-                    'namespace': namespace,
-                    'kind': resource_type,
-                    'name': d_item.name
-                }
-                actions.append(action)
-            except StatusCodeError as e:
-                ri.register_error()
-                msg = "[{}/{}] {} (error details: {})".format(
-                    cluster, namespace, str(e), d_item.error_details)
-                logging.error(msg)
-
-        # current items
-        for name, c_item in data['current'].items():
-            d_item = data['desired'].get(name)
-            if d_item is not None:
-                continue
-
-            if c_item.has_qontract_annotations():
-                if caller and c_item.caller != caller:
-                    continue
-            elif not take_over:
-                continue
-
-            if c_item.has_owner_reference():
-                continue
-
-            try:
-                delete(dry_run, oc_map, cluster, namespace,
-                       resource_type, name, enable_deletion)
-                action = {
-                    'action': ACTION_DELETED,
-                    'cluster': cluster,
-                    'namespace': namespace,
-                    'kind': resource_type,
-                    'name': name
-                }
-                actions.append(action)
-            except StatusCodeError as e:
-                ri.register_error()
-                msg = "[{}/{}] {}".format(cluster, namespace, str(e))
-                logging.error(msg)
-
-    return actions
+    args = locals()
+    del args['thread_pool_size']
+    results = threaded.run(_realize_resource_data, ri, thread_pool_size,
+                           **args)
+    return list(itertools.chain.from_iterable(results))
 
 
 @retry(exceptions=(ValidationError), max_attempts=100)

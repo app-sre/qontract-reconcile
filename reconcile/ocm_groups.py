@@ -1,4 +1,5 @@
 import logging
+import itertools
 
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
@@ -37,7 +38,7 @@ def fetch_current_state(thread_pool_size):
     results = threaded.run(get_cluster_state, groups_list, thread_pool_size,
                            ocm_map=ocm_map)
 
-    current_state = [item for sublist in results for item in sublist]
+    current_state = list(itertools.chain.from_iterable(results))
     return ocm_map, current_state
 
 

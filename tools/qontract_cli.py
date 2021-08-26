@@ -10,12 +10,13 @@ from tabulate import tabulate
 import reconcile.utils.dnsutils as dnsutils
 import reconcile.utils.gql as gql
 import reconcile.utils.config as config
-from reconcile.utils.secret_reader import SecretReader
 import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 
+from reconcile.slack_base import init_slack_workspace
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
@@ -590,6 +591,32 @@ def print_table(content, columns, table_format='simple'):
         table_data.append(row_data)
 
     print(tabulate(table_data, headers=headers, tablefmt=table_format))
+
+
+@root.group()
+@output
+@click.pass_context
+def set(ctx, output):
+    ctx.obj['output'] = output
+
+
+@set.command()
+@click.argument('workspace')
+@click.argument('usergroup')
+@click.argument('username')
+@click.pass_context
+def slack_usergroup(ctx, workspace, usergroup, username):
+    """Update users in a slack usergroup.
+    Use an org_username as the username.
+    To empty a slack usergroup, pass '' (empty string) as the username.
+    """
+    slack = init_slack_workspace('qontract-cli')
+    ugid = slack.get_usergroup_id(usergroup)
+    if username:
+        users = [slack.get_user_id_by_name(username)]
+    else:
+        users = [slack.get_random_deleted_user()]
+    slack.update_usergroup_users(ugid, users)
 
 
 @root.group()

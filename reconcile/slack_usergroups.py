@@ -6,9 +6,9 @@ from sretoolbox.utils import retry
 from reconcile.utils import gql
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.pagerduty_api import PagerDutyApi
+from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.slack_api import SlackApi, SlackAPICallException
 from reconcile import queries
 
 
@@ -51,9 +51,8 @@ ROLES_QUERY = """
         }
         pagerduty {
           name
-          token {
-            path
-            field
+          instance {
+            name
           }
           scheduleID
           escalationPolicyID
@@ -112,6 +111,12 @@ def get_slack_map():
     return slack_map
 
 
+def get_pagerduty_map():
+    instances = queries.get_pagerduty_instances()
+    settings = queries.get_app_interface_settings()
+    return PagerDutyMap(instances, settings)
+
+
 def get_current_state(slack_map):
     current_state = []
 
@@ -140,12 +145,11 @@ def get_pagerduty_name(user):
 
 
 @retry()
-def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
-    settings = queries.get_app_interface_settings()
+def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
+                                       pagerduty_map):
     all_slack_usernames = []
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties or []:
-        pd_token = pagerduty['token']
         pd_schedule_id = pagerduty['scheduleID']
         if pd_schedule_id is not None:
             pd_resource_type = 'schedule'
@@ -155,7 +159,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup):
             pd_resource_type = 'escalationPolicy'
             pd_resource_id = pd_escalation_policy_id
 
-        pd = PagerDutyApi(pd_token, settings=settings)
+        pd = pagerduty_map.get(pagerduty['instance']['name'])
         pagerduty_names = pd.get_pagerduty_users(pd_resource_type,
                                                  pd_resource_id)
         if not pagerduty_names:
@@ -234,7 +238,7 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
     return all_slack_usernames
 
 
-def get_desired_state(slack_map):
+def get_desired_state(slack_map, pagerduty_map):
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     all_users = queries.get_users()
@@ -268,7 +272,8 @@ def get_desired_state(slack_map):
 
             slack_usernames_pagerduty = \
                 get_slack_usernames_from_pagerduty(p['pagerduty'],
-                                                   all_users, usergroup)
+                                                   all_users, usergroup,
+                                                   pagerduty_map)
             user_names.extend(slack_usernames_pagerduty)
 
             slack_usernames_repo = get_slack_usernames_from_owners(
@@ -348,14 +353,24 @@ def act(desired_state, slack_map):
         users = state['users'].keys()
         channels = state['channels'].keys()
         slack = slack_map[workspace]['slack']
-        slack.update_usergroup_users(ugid, users)
+
+        try:
+            slack.update_usergroup_users(ugid, users)
+        except SlackAPICallException as error:
+            # Prior to adding this, we weren't handling failed updates to user
+            # groups. Now that we are, it seems like a good idea to start with
+            # logging the errors and proceeding rather than blocking time
+            # sensitive updates.
+            logging.error(error)
+
         slack.update_usergroup(ugid, channels, description)
 
 
 def run(dry_run):
     slack_map = get_slack_map()
+    pagerduty_map = get_pagerduty_map()
+    desired_state = get_desired_state(slack_map, pagerduty_map)
     current_state = get_current_state(slack_map)
-    desired_state = get_desired_state(slack_map)
 
     print_diff(current_state, desired_state)
 

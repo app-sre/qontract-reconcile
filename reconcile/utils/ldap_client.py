@@ -1,18 +1,20 @@
-from ldap3 import Server, Connection, ALL
+from contextlib import contextmanager
+
+from ldap3 import Server, Connection, ALL, SAFE_SYNC
 from reconcile.utils.config import get_config
 
-_client = None
 _base_dn = None
 
 
+@contextmanager
 def init(serverUrl):
-    global _client
-
-    if _client is None:
-        server = Server(serverUrl, get_info=ALL)
-        _client = Connection(server, None, None, auto_bind=True)
-
-    return _client
+    server = Server(serverUrl, get_info=ALL)
+    client = Connection(server, None, None, client_strategy=SAFE_SYNC)
+    try:
+        client.bind()
+        yield client
+    finally:
+        client.unbind()
 
 
 def init_from_config():
@@ -22,16 +24,18 @@ def init_from_config():
 
     serverUrl = config['ldap']['server']
     _base_dn = config['ldap']['base_dn']
-
     return init(serverUrl)
 
 
-def user_exists(username):
-    global _client
+def get_users(uids):
     global _base_dn
 
-    init_from_config()
-
-    search_filter = "uid={},{}".format(username, _base_dn)
-
-    return _client.search(search_filter, '(objectclass=person)')
+    with init_from_config() as client:
+        user_filter = "".join((f"(uid={u})" for u in uids))
+        _, _, results, _ = client.search(
+            _base_dn,
+            f'(&(objectclass=person)(|{user_filter}))',
+            attributes=["uid"]
+        )
+        # pylint: disable=not-an-iterable
+        return set(r['attributes']['uid'][0] for r in results)

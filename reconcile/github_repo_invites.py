@@ -48,6 +48,7 @@ def run(dry_run):
             org = url[:url.rindex('/')]
             known_orgs.add(org)
 
+    invitations = set()
     for i in g.repo_invitations():
         invitation_id = i['id']
         invitation_url = i['html_url']
@@ -57,8 +58,11 @@ def run(dry_run):
         accept = url in urls or any(url.startswith(org) for org in known_orgs)
         if accept:
             logging.info(['accept', url])
+            invitations.add(url)
 
             if not dry_run:
                 g.accept_repo_invitation(invitation_id)
         else:
             logging.debug(['skipping', url])
+
+    return invitations

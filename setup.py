@@ -4,8 +4,8 @@ from glob import glob
 
 
 setup(
-    name="reconcile",
-    version="0.2.2",
+    name="qontract-reconcile",
+    version="0.3.0",
     license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",
@@ -13,6 +13,8 @@ setup(
 
     description="Collection of tools to reconcile services with their desired "
                 "state as defined in the app-interface DB.",
+
+    url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
 
@@ -26,7 +28,7 @@ setup(
         "jsonpath-rw>=1.4.0,<1.5.0",
         "PyGithub>=1.55,<1.56",
         "hvac>=0.7.0,<0.8.0",
-        "ldap3>=2.5.2,<2.6.0",
+        "ldap3>=2.9.1,<2.10.0",
         "anymarkup>=0.7.0,<0.8.0",
         "python-gitlab>=1.11.0,<1.12.0",
         "semver~=2.13",

@@ -1,4 +1,5 @@
 import logging
+import itertools
 
 from textwrap import indent
 
@@ -854,13 +855,16 @@ APPS_QUERY = """
     codeComponents {
       url
       resource
-      gitlabRepoOwners
+      gitlabRepoOwners {
+        enabled
+      }
       gitlabHousekeeping {
         enabled
         rebase
         days_interval
         limit
         enable_closing
+        pipeline_timeout
       }
       jira {
         serverUrl
@@ -885,8 +889,8 @@ def get_code_components():
     apps = get_apps()
     code_components_lists = [a['codeComponents'] for a in apps
                              if a['codeComponents'] is not None]
-    code_components = [item for sublist in code_components_lists
-                       for item in sublist]
+    code_components = \
+        list(itertools.chain.from_iterable(code_components_lists))
     return code_components
 
 
@@ -910,7 +914,8 @@ def get_repos_gitlab_owner(server=''):
     code_components = get_code_components()
     return [c['url'] for c in code_components
             if c['url'].startswith(server) and
-            c['gitlabRepoOwners']]
+            c['gitlabRepoOwners'] and
+            c['gitlabRepoOwners']['enabled']]
 
 
 def get_repos_gitlab_housekeeping(server=''):
@@ -1955,3 +1960,21 @@ SRE_CHECKPOINTS_QUERY = """
 def get_sre_checkpoints():
     gqlapi = gql.get_api()
     return gqlapi.query(SRE_CHECKPOINTS_QUERY)['sre_checkpoints']
+
+
+PAGERDUTY_INSTANCES_QUERY = """
+{
+  pagerduty_instances: pagerduty_instances_v1 {
+    name
+    token {
+      path
+      field
+    }
+  }
+}
+"""
+
+
+def get_pagerduty_instances():
+    gqlapi = gql.get_api()
+    return gqlapi.query(PAGERDUTY_INSTANCES_QUERY)['pagerduty_instances']

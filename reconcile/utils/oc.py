@@ -684,6 +684,8 @@ class OCDeprecated:
 
         if code != 0:
             err = err.decode('utf-8')
+            if 'Unable to connect to the server' in err:
+                raise StatusCodeError(f"[{self.server}]: {err}")
             if kwargs.get('apply'):
                 if 'Invalid value: 0x0' in err:
                     raise InvalidValueApplyError(f"[{self.server}]: {err}")
@@ -764,8 +766,9 @@ class OCNative(OCDeprecated):
         if self.jump_host:
             # the ports could be parameterized, but at this point
             # we only have need of 1 tunnel for 1 service
-            self.jump_host.create_ssh_tunnel(8888, 8888)
-            opts['proxy'] = 'http://localhost:8888'
+            self.jump_host.create_ssh_tunnel()
+            local_port = self.jump_host.local_port
+            opts['proxy'] = f'http://localhost:{local_port}'
 
         configuration = Configuration()
 
@@ -975,7 +978,7 @@ class OC:
                         cluster_in_strategy = True
                         break
             use_native = get_feature_toggle_state(enable_toggle) and \
-                cluster_in_strategy
+                not cluster_in_strategy
 
         if use_native:
             OC.client_status.labels(
@@ -1016,6 +1019,7 @@ class OC_Map:
         self.init_projects = init_projects
         self.init_api_resources = init_api_resources
         self._lock = Lock()
+        self.jh_ports = {}
 
         if clusters and namespaces:
             raise KeyError('expected only one of clusters or namespaces.')
@@ -1023,11 +1027,29 @@ class OC_Map:
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         elif namespaces:
-            clusters = [ns_info['cluster'] for ns_info in namespaces]
+            clusters = []
+            cluster_names = []
+            for ns_info in namespaces:
+                cluster = ns_info['cluster']
+                name = cluster['name']
+                if name not in cluster_names:
+                    cluster_names.append(name)
+                    clusters.append(cluster)
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
                          cluster_admin=cluster_admin)
         else:
             raise KeyError('expected one of clusters or namespaces.')
+
+    def set_jh_ports(self, jh):
+        # This will be replaced with getting the data from app-interface in
+        # a future PR.
+        jh['remotePort'] = 8888
+        key = f"{jh['hostname']}:{jh['remotePort']}"
+        with self._lock:
+            if key not in self.jh_ports:
+                port = JumpHostSSH.get_unique_random_port()
+                self.jh_ports[key] = port
+            jh['localPort'] = self.jh_ports[key]
 
     def init_oc_client(self, cluster_info, cluster_admin):
         cluster = cluster_info['name']
@@ -1060,6 +1082,8 @@ class OC_Map:
                 jump_host = cluster_info.get('jumpHost')
             else:
                 jump_host = None
+            if jump_host:
+                self.set_jh_ports(jump_host)
             try:
                 oc_client = OC(cluster, server_url, token, jump_host,
                                settings=self.settings,

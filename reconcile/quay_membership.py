@@ -8,7 +8,7 @@ from reconcile.utils.aggregated_list import (AggregatedList,
                                              RunnerException)
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
-
+from reconcile.utils.quay_api import QuayTeamNotFoundException
 
 QUAY_ORG_QUERY = """
 {
@@ -67,12 +67,20 @@ def fetch_current_state(quay_api_store):
         if not teams:
             continue
         for team in teams:
-            members = quay_api.list_team_members(team)
-            state.add({
-                'service': 'quay-membership',
-                'org': org_key,
-                'team': team
-            }, members)
+            try:
+                members = quay_api.list_team_members(team)
+            except QuayTeamNotFoundException:
+                logging.warning("Attempted to list members for team %s in "
+                                "org %s/%s, but it doesn't exist", team,
+                                org_key.instance, org_key.org_name)
+            else:
+                # Teams are only added to the state if they exist so that
+                # there is a proper diff between the desired and current state.
+                state.add({
+                    'service': 'quay-membership',
+                    'org': org_key,
+                    'team': team
+                }, members)
     return state
 
 
@@ -139,6 +147,34 @@ class RunnerAction:
 
         return action
 
+    def create_team(self):
+        """
+        Create an empty team in Quay. This method avoids adding users to the
+        new team. add_to_team() will handle updating the member list the
+        next time run() is executed, while keeping this action very simple.
+        """
+        label = "create_team"
+
+        def action(params, items):
+            org = params["org"]
+            team = params["team"]
+
+            # Ensure all quay org/teams are declared as dependencies in a
+            # `/dependencies/quay-org-1.yml` datafile.
+            if team not in self.quay_api_store[org]["teams"]:
+                raise RunnerException(f"Quay team {team} is not defined as a "
+                                      f"managedTeam in the {org} org.")
+
+            logging.info([label, org, team])
+
+            if not self.dry_run:
+                quay_api = self.quay_api_store[org]['api']
+                quay_api.create_or_update_team(team)
+
+            return True
+
+        return action
+
     def del_from_team(self):
         label = "del_from_team"
 
@@ -168,29 +204,13 @@ def run(dry_run):
 
     # calculate diff
     diff = current_state.diff(desired_state)
-
-    # Ensure all quay org/teams are declared as dependencies:
-    # any item that appears in `diff['insert']` means that it's not listed
-    # in a `/dependencies/quay-org-1.yml` datafile.
-    if len(diff['insert']) > 0:
-        unknown_teams = [
-            "- {}/{}".format(
-                item["params"]["org"],
-                item["params"]["team"],
-            )
-            for item in diff['insert']
-        ]
-
-        raise RunnerException((
-            "Unknown quay/org/team found:\n"
-            "{}"
-        ).format("\n".join(unknown_teams))
-        )
+    logging.debug("State diff: %s", diff)
 
     # Run actions
     runner_action = RunnerAction(dry_run, quay_api_store)
     runner = AggregatedDiffRunner(diff)
 
+    runner.register("insert", runner_action.create_team())
     runner.register("update-insert", runner_action.add_to_team())
     runner.register("update-delete", runner_action.del_from_team())
     runner.register("delete", runner_action.del_from_team())

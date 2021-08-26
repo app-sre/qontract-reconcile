@@ -84,7 +84,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=use_jump_host)
     defer(lambda: oc_map.cleanup())
     fetch_desired_state(namespaces, ri, oc_map)
-    ob.realize_data(dry_run, oc_map, ri)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
         sys.exit(1)

@@ -117,6 +117,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 
 ## Installation
 
+This project targets Python version 3.6.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
+
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 
 ```sh
@@ -137,6 +139,7 @@ python3 setup.py develop
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
+You may also need need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
 
 ### Requirements
 
@@ -149,6 +152,12 @@ In order to speed up frequent builds and avoid issues with dependencies, docker 
 image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
 if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
 must only contain instructions related to the python code build.
+
+## Release
+
+Submit a PR to update setup.py (`version`) with the new version according to [semver](https://semver.org/).
+
+After the PR is merged, push a matching tag. This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
 
 ## Licence
 
