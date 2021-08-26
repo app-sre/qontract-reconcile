@@ -107,11 +107,11 @@ integrations:
 - name: openshift-resources
   resources:
     requests:
-      memory: 1000Mi
-      cpu: 200m
+      memory: 1400Mi
+      cpu: 900m
     limits:
-      memory: 1200Mi
-      cpu: 400m
+      memory: 1800Mi
+      cpu: 1200m
   extraArgs: --internal
   logs:
     slack: true
