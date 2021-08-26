@@ -332,6 +332,11 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
     metrics = promql(settings['pushGatewayCluster']['prometheusUrl'],
                      query, token)
 
+    tekton_job_history = prometheus_metrics_to_job_history(
+        metrics,
+        settings['pushGatewayCluster']['name']
+    )
+
     jenkins_job_history = get_build_history_pool(
                             jenkins_map,
                             jobs_to_get,
