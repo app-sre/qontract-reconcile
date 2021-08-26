@@ -39,6 +39,14 @@ APP_INTERFACE_SETTINGS_QUERY = """
         type
       }
     }
+    pushGatewayCluster {
+      name
+      prometheusUrl
+      automationToken {
+        path
+        field
+      }
+    }
   }
 }
 """
