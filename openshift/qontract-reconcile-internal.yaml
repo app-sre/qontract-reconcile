@@ -1994,10 +1994,10 @@ objects:
                 key: aws_secret_access_key
           resources:
             requests:
-              memory: 30Mi
+              memory: 120Mi
               cpu: 15m
             limits:
-              memory: 120Mi
+              memory: 250Mi
               cpu: 25m
           volumeMounts:
           - name: logs
