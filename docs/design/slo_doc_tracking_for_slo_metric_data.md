@@ -16,20 +16,58 @@ August 27, 2021
 
 Implementation is tracked through [this Jira ticket](https://issues.redhat.com/browse/APPSRE-3570).
 
-For a high-level overview of the problem this proposal aims to address, in the context of the wholistic App-SRE toolset (dashdotDB, app-interface, qontract-reconcile, visual-qontract, etc), please see [this Jira comment](https://issues.redhat.com/browse/APPSRE-3570?focusedCommentId=18878164&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-18878164).
+For a high-level overview of the problem this proposal aims to address, in the context of the wholistic App-SRE toolset (dashdotDB, app-interface, Qontract-Reconcile, visual-qontract, etc), please see [this Jira comment](https://issues.redhat.com/browse/APPSRE-3570?focusedCommentId=18878164&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-18878164).
 
 ## Problem
 
-TODO
+Qontract-Reconcile produces [reports](https://gitlab.cee.redhat.com/service/app-interface/-/tree/master/data/reports) on services. Within these reports are SLO-metric-data ([example](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/reports/ocm/2021-08-01.yml#L128-143)).
+
+A service may have multiple SLO-definitions with the same 'name', but spread across multiple SLO-documents. The reports produced by Qontract-Reconcile do not produce 'service_slo' YML data in such a way that multiples SLOs with the same name will be distinguishable.
+
+A sample of YML snippet of a SLO-report's 'service_slo' appears as follows:
+```yml
+service_slo:
+  - cluster: cluster1
+    namespace: some-namespace
+    slo_name: availability
+    slo_value: 99.0
+    slo_target: 95.0
+  - cluster: cluster2
+    namespace: some-namespace
+    slo_name: latency
+    slo_value: 99.0
+    slo_target: 95.0
+```
 
 ## Proposal
 
-TODO
-
 ## Implementation - Storing SLO Metric Data
 
-TODO
+[This proposal for dashdotDB](https://github.com/app-sre/dashdotdb/pull/51) would enable clients of dashdotDB's HTTP API to associate an SLO-doc-name with SLO-metric-data uploads via `POST /api/v1/serviceslometrics/{name}`.
+
+Qontract-Reconcile currently consumes this API as part of the [dashdotdb-slo integration](https://github.com/app-sre/qontract-reconcile/blob/master/reconcile/dashdotdb_slo.py).
+
+Should the dashdotDB proposal be implemented, Qontract-Reconcile must be updated to include slo-doc-name in the request body for requests to the aforementioned API, as it becomes a required property.
 
 ## Implementation - Producing Service Reports
 
-TODO
+[This proposal for dashdotDB](https://github.com/app-sre/dashdotdb/pull/51) would enable clients of dashdotDB's HTTP API to associate an SLO-doc-name with SLO-metric-data reads via `GET /api/v1/serviceslometrics/metrics`.
+
+Qontract-Reconcile currently consumes this API as part of the [app-interface-reporter process](https://github.com/app-sre/qontract-reconcile/blob/master/tools/app_interface_reporter.py).
+
+Should the dashdotDB proposal be implemented, Qontract-Reconcile will be updated to produce reports with a 'service_slo' property that would appear as follows:
+```yml
+service_slo:
+  - cluster: cluster1
+    namespace: some-namespace
+    slo_doc_name: doc1
+    slo_name: availability
+    slo_value: 99.0
+    slo_target: 95.0
+  - cluster: cluster2
+    namespace: some-namespace
+    slo_doc_name: doc2
+    slo_name: latency
+    slo_value: 99.0
+    slo_target: 95.0
+```
