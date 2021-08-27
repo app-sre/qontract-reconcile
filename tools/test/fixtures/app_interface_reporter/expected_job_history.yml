@@ -1,0 +1,59 @@
+saas-nginx-proxy:
+    App-SRE-integration:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+assisted-installer-monitoring:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+    App-SRE-stage:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-gabi:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-github-mirror:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-grafana:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-mk-token-refresher:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-observatorium-monitoring:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-prometheus-access:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1
+saas-pushgateway:
+    App-SRE-production:
+        cluster: cluster_name
+        namespace: app-sre-observability-production
+        total: 1
+        success: 1

@@ -1,0 +1,190 @@
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-integration
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-nginx-proxy-app-sre-integration-202108051249
+        pod: pushgateway-0
+        saas_file_name: saas-nginx-proxy
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: assisted-installer-monitoring-app-sre-production-202108270020
+        pod: pushgateway-0
+        saas_file_name: assisted-installer-monitoring
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.app-sre-prod-01.i7w5.p1.openshiftapps.com'
+        tkn_namespace_name: assisted-installer-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-gabi-app-sre-production-202108111816
+        pod: pushgateway-0
+        saas_file_name: saas-gabi
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.app-sre-prod-01.i7w5.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-github-mirror-app-sre-production-202108041745
+        pod: pushgateway-0
+        saas_file_name: saas-github-mirror
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.app-sre-prod-01.i7w5.p1.openshiftapps.com'
+        tkn_namespace_name: github-mirror-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-grafana-app-sre-production-202108240857
+        pod: pushgateway-0
+        saas_file_name: saas-grafana
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-mk-token-refresher-app-sre-production-202108091822
+        pod: pushgateway-0
+        saas_file_name: saas-mk-token-refresher
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-observatorium-monitoring-app-sre-production-202107301112
+        pod: pushgateway-0
+        saas_file_name: saas-observatorium-monitoring
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.app-sre-prod-01.i7w5.p1.openshiftapps.com'
+        tkn_namespace_name: observatorium-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-prometheus-access-app-sre-production-202108051249
+        pod: pushgateway-0
+        saas_file_name: saas-prometheus-access
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-production
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: saas-pushgateway-app-sre-production-202107090925
+        pod: pushgateway-0
+        saas_file_name: saas-pushgateway
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com'
+        tkn_namespace_name: app-sre-pipelines
+    value:
+        - 1630083584.585
+        - '0'
+-
+    metric:
+        __name__: app_sre_tekton_pipelinerun_task_status
+        container: pushgateway
+        endpoint: scrape
+        env_name: App-SRE-stage
+        job: openshift-saas-deploy-push-metric
+        namespace: app-sre-observability-production
+        pipeline_name: openshift-saas-deploy
+        pipelinerun_name: assisted-installer-monitoring-app-sre-stage-202108270020
+        pod: pushgateway-0
+        saas_file_name: assisted-installer-monitoring
+        service: pushgateway-nginx-gate
+        task_name: openshift-saas-deploy
+        tkn_cluster_console_url: 'https://console-openshift-console.apps.app-sre-prod-01.i7w5.p1.openshiftapps.com'
+        tkn_namespace_name: assisted-installer-pipelines
+    value:
+        - 1630083584.585
+        - '0'
