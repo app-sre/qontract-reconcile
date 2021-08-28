@@ -8,7 +8,6 @@ from sretoolbox.utils import retry
 
 from reconcile.utils.gpg import gpg_key_valid
 import reconcile.queries as queries
-from reconcile.utils.smtp_client import SmtpClient
 from reconcile.github_users import init_github
 import reconcile.utils.threaded as threaded
 
@@ -37,14 +36,11 @@ def validate_users_single_path(users):
 
 def validate_users_gpg_key(users):
     ok = True
-    settings = queries.get_app_interface_settings()
-    smtp_client = SmtpClient(settings=settings)
     for user in users:
         public_gpg_key = user.get('public_gpg_key')
         if public_gpg_key:
-            recipient = smtp_client.get_recipient(user['org_username'])
             try:
-                gpg_key_valid(public_gpg_key, recipient)
+                gpg_key_valid(public_gpg_key)
             except ValueError as e:
                 msg = \
                     'invalid public gpg key for user {}: {}'.format(
