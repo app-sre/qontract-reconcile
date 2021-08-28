@@ -107,10 +107,10 @@ integrations:
 - name: openshift-resources
   resources:
     requests:
-      memory: 1400Mi
+      memory: 1600Mi
       cpu: 900m
     limits:
-      memory: 1800Mi
+      memory: 3600Mi
       cpu: 1200m
   extraArgs: --internal
   logs:
