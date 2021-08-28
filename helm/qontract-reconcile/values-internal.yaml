@@ -110,7 +110,7 @@ integrations:
       memory: 1600Mi
       cpu: 900m
     limits:
-      memory: 2100Mi
+      memory: 3600Mi
       cpu: 1200m
   extraArgs: --internal
   logs:
