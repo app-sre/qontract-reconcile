@@ -351,8 +351,11 @@ CLUSTERS_QUERY = """
       labels
     }
     upgradePolicy {
-      schedule_type
+      workloads
       schedule
+      conditions {
+        soakDays
+      }
     }
     additionalRouters {
       private
