@@ -33,16 +33,18 @@ class OCM:
     :param offline_token: Long lived offline token used to get access token
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
+    :param blocked_versions: versions to block upgrades for
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
     :type offline_token: string
     :type init_provision_shards: bool
     :type init_addons: bool
+    :type blocked_version: list
     """
     def __init__(self, name, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
-                 init_addons=False):
+                 init_addons=False, blocked_versions=None):
         """Initiates access token and gets clusters information."""
         self.name = name
         self.url = url
@@ -54,6 +56,7 @@ class OCM:
         self._init_clusters(init_provision_shards=init_provision_shards)
         if init_addons:
             self._init_addons()
+        self.blocked_versions = blocked_versions
 
     @retry()
     def _init_access_token(self):
@@ -963,7 +966,8 @@ class OCMMap:
                 OCM(name, url,
                     access_token_client_id, access_token_url, token,
                     init_provision_shards=init_provision_shards,
-                    init_addons=init_addons)
+                    init_addons=init_addons,
+                    blocked_versions=ocm_info.get('blockedVersions'))
 
     def instances(self):
         """Get list of OCM instance names initiated in the OCM map."""
