@@ -75,6 +75,7 @@ class TestUpdateHistory(TestCase):
         }
         self.assertEqual(expected, history)
 
+
 class TestVersionConditionsMet(TestCase):
     def setUp(self):
         self.version = '1.2.3'
