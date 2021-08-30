@@ -57,6 +57,7 @@ setup(
         "openshift>=0.11.2",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
+        "croniter>=1.0.15,<1.1.0",
     ],
 
     test_suite="tests",
