@@ -14,6 +14,7 @@ import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
+import reconcile.ocm_upgrade_scheduler as ous
 
 from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.secret_reader import SecretReader
@@ -143,6 +144,37 @@ def cluster_upgrades(ctx, name):
     columns = ['name', 'upgradePolicy', 'schedule', 'next_run']
 
     print_output(ctx.obj['output'], clusters_data, columns)
+
+
+@get.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def version_history(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    history = ous.get_version_history(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map
+    )
+
+    results = []
+    for ocm_name, history_data in history.items():
+        for version, version_data in history_data['versions'].items():
+            for workload, workload_data in version_data['workloads'].items():
+                item = {
+                    'ocm': ocm_name,
+                    'version': version,
+                    'workload': workload,
+                    'soak_days': round(workload_data['soak_days'], 2),
+                    'clusters': workload_data['reporting'],
+                }
+                results.append(item)
+    columns = ['ocm', 'version', 'workload', 'soak_days', 'clusters']
+    print_output(ctx.obj['output'], results, columns)
 
 
 @get.command()
