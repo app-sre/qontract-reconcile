@@ -170,7 +170,7 @@ def version_history(ctx):
                     'version': version,
                     'workload': workload,
                     'soak_days': round(workload_data['soak_days'], 2),
-                    'clusters': workload_data['reporting'],
+                    'clusters': ', '.join(workload_data['reporting']),
                 }
                 results.append(item)
     columns = ['ocm', 'version', 'workload', 'soak_days', 'clusters']
