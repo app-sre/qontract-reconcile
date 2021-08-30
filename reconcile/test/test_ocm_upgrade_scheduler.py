@@ -65,5 +65,4 @@ class TestUpdateHistory(TestCase):
                 }
             }
         }
-        self.maxDiff = None
         self.assertEqual(expected, history)
