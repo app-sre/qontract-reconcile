@@ -11,19 +11,23 @@ class TestUpdateHistory(TestCase):
     def test_update_history(self):
         history = {
             "check_in": "2021-08-29 18:00:00",
-            "version1": {
-                "workload1": {
-                    "soak_days": 21.0,
-                    "reporting": [
-                        "cluster1",
-                        "cluster2"
-                    ]
-                },
-                "workload2": {
-                    "soak_days": 6.0,
-                    "reporting": [
-                        "cluster3"
-                    ]
+            "versions": {
+                "version1": {
+                    "workloads": {
+                        "workload1": {
+                            "soak_days": 21.0,
+                            "reporting": [
+                                "cluster1",
+                                "cluster2"
+                            ]
+                        },
+                        "workload2": {
+                            "soak_days": 6.0,
+                            "reporting": [
+                                "cluster3"
+                            ]
+                        }
+                    }
                 }
             }
         }
@@ -49,19 +53,23 @@ class TestUpdateHistory(TestCase):
         ous.update_history(history, upgrade_policies)
         expected = {
             "check_in": "2021-08-30 18:00:00",
-            "version1": {
-                "workload1": {
-                    "soak_days": 23.0,
-                    "reporting": [
-                        "cluster1",
-                        "cluster2"
-                    ]
-                },
-                "workload2": {
-                    "soak_days": 7.0,
-                    "reporting": [
-                        "cluster3"
-                    ]
+            "versions": {
+                "version1": {
+                    "workloads": {
+                        "workload1": {
+                            "soak_days": 23.0,
+                            "reporting": [
+                                "cluster1",
+                                "cluster2"
+                            ]
+                        },
+                        "workload2": {
+                            "soak_days": 7.0,
+                            "reporting": [
+                                "cluster3"
+                            ]
+                        }
+                    }
                 }
             }
         }

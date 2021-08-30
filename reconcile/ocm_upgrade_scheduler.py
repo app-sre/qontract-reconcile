@@ -52,19 +52,23 @@ def update_history(history, upgrade_policies):
         history (dict): history in the following format:
         {
           "check_in": "2021-08-29 18:01:27.730441",
-          "version1": {
-            "workload1": {
-              "soak_days": 21,
-              "reporting": [
-                "cluster1",
-                "cluster2"
-              ]
-            },
-            "workload2": {
-              "soak_days": 6,
-              "reporting": [
-                "cluster3"
-              ]
+          "versions": {
+            "version1": {
+                "workloads": {
+                    "workload1": {
+                        "soak_days": 21,
+                        "reporting": [
+                            "cluster1",
+                            "cluster2"
+                        ]
+                    },
+                        "workload2": {
+                        "soak_days": 6,
+                        "reporting": [
+                            "cluster3"
+                        ]
+                    }
+                }
             }
           }
         }
@@ -77,17 +81,19 @@ def update_history(history, upgrade_policies):
 
     now = datetime.utcnow()
     check_in = parser.parse(get_or_init(history, 'check_in', str(now)))
+    versions = get_or_init(history, 'versions', {})
 
     # we iterate over clusters upgrade policies and update the version history
     for item in upgrade_policies:
         current_version = item['current_version']
-        version_history = get_or_init(history, current_version, {})
+        version_history = get_or_init(versions, current_version, {})
+        version_workloads = get_or_init(version_history, 'workloads', {})
         cluster = item['cluster']
         workloads = item['workloads']
         # we keep the version history per workload
         for w in workloads:
             workload_history = get_or_init(
-                version_history, w,
+                version_workloads, w,
                 copy.deepcopy(default_workload_history))
 
             reporting = workload_history['reporting']
