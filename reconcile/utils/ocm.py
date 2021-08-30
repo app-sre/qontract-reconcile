@@ -15,6 +15,7 @@ KAS_API_BASE = '/api/kafkas_mgmt'
 
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
+UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
 UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
 ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
@@ -580,6 +581,28 @@ class OCM:
             f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/' + \
             f'{machine_pool_id}'
         self._delete(api)
+
+    def get_available_upgrades(self, version, channel):
+        """Get available versions to upgrade from specified version
+        in the specified channel
+
+        Args:
+            version (string): OpenShift version ID
+            channel (string): Upgrade channel
+
+        Raises:
+            KeyError: if specified channel is not valid
+
+        Returns:
+            list: available versions to upgrade to
+        """
+        if channel not in UPGRADE_CHANNELS:
+            raise KeyError(f'channel should be one of {UPGRADE_CHANNELS}')
+        version_id = f'openshift-v{version}'
+        if channel != 'stable':
+            version_id = f'{version_id}-{channel}'
+        api = f'{CS_API_BASE}/v1/versions/{version_id}'
+        return self._get_json(api).get('available_upgrades', [])
 
     def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
