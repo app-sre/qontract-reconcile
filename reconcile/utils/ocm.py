@@ -25,6 +25,7 @@ class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
+    :param name: OCM instance name
     :param url: OCM instance URL
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
@@ -38,10 +39,11 @@ class OCM:
     :type init_provision_shards: bool
     :type init_addons: bool
     """
-    def __init__(self, url, access_token_client_id, access_token_url,
+    def __init__(self, name, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
                  init_addons=False):
         """Initiates access token and gets clusters information."""
+        self.name = name
         self.url = url
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
@@ -931,10 +933,12 @@ class OCMMap:
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info['url']
+            name = ocm_info['name']
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
-                OCM(url, access_token_client_id, access_token_url, token,
+                OCM(name, url,
+                    access_token_client_id, access_token_url, token,
                     init_provision_shards=init_provision_shards,
                     init_addons=init_addons)
 
