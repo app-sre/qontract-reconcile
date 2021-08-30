@@ -39,6 +39,7 @@ def fetch_desired_state(clusters):
         upgrade_policy = cluster['upgradePolicy']
         upgrade_policy['cluster'] = cluster_name
         upgrade_policy['current_version'] = cluster['spec']['version']
+        upgrade_policy['channel'] = cluster['spec']['channel']
         desired_state.append(upgrade_policy)
 
     return desired_state
