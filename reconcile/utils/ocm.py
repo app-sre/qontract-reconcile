@@ -938,6 +938,10 @@ class OCMMap:
                     init_provision_shards=init_provision_shards,
                     init_addons=init_addons)
 
+    def instances(self):
+        """Get list of OCM instance names initiated in the OCM map."""
+        return self.ocm_map.keys()
+
     def cluster_disabled(self, cluster_info):
         """
         Checks if the calling integration is disabled in this cluster.
