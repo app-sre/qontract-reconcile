@@ -32,7 +32,7 @@ Encrypted credentials:
 """
 
 
-def get_encrypted_credentials(credentials_name, user, settings, smtp_client):
+def get_encrypted_credentials(credentials_name, user, settings):
     credentials_map = settings['credentials']
     credentials_map_item = \
         [c for c in credentials_map if c['name'] == credentials_name]
@@ -41,10 +41,9 @@ def get_encrypted_credentials(credentials_name, user, settings, smtp_client):
     secret = credentials_map_item[0]['secret']
     secret_reader = SecretReader(settings=settings)
     credentials = secret_reader.read(secret)
-    recipient = smtp_client.get_recipient(user['org_username'])
     public_gpg_key = user['public_gpg_key']
     encrypted_credentials = \
-        gpg_encrypt(credentials, recipient, public_gpg_key)
+        gpg_encrypt(credentials, public_gpg_key)
 
     return encrypted_credentials
 
@@ -81,7 +80,7 @@ def run(dry_run):
             names = [org_username]
             subject = request_name
             encrypted_credentials = get_encrypted_credentials(
-                credentials_name, user, settings, smtp_client
+                credentials_name, user, settings
             )
             if not dry_run:
                 body = MESSAGE_TEMPLATE.format(

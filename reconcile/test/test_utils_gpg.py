@@ -68,14 +68,6 @@ class TestGpgKeyValid(TestCase):
             gpg.gpg_key_valid(key)
         self.assertEqual(str(e.exception), gpg.ERR_BASE64)
 
-    # def test_gpg_key_signer(self):
-    #     signer = 'lmunozme@redhat.com'
-    #     recipient = 'someone@redhat.com'
-    #     with self.assertRaises(ValueError) as e:
-    #         gpg.gpg_key_valid(VALID_KEY, recipient)
-    #     self.assertEqual(str(e.exception),
-    #                      gpg.ERR_SIGNER.format(signer, recipient))
-
 
 # We have to mangle the namespace of the gpg module, since it imports
 # Popen. Had that module chosen "import subprocess;
@@ -83,13 +75,13 @@ class TestGpgKeyValid(TestCase):
 class TestGpgEncrypt(TestCase):
     @patch.object(gpg, 'run')
     def test_gpg_encrypt_all_ok(self, popen):
-        popen.return_value.stdout = b"stdout"
+        popen.return_value.stdout = b"<stdout>"
 
-        self.assertEqual(gpg.gpg_encrypt('acontent', 'arecipient', 'akey'),
-                         'stdout')
+        self.assertEqual(gpg.gpg_encrypt('acontent', 'akey'),
+                         '<stdout>')
 
     def test_gpg_encrypt_nomocks(self):
 
         self.assertTrue(
-            gpg.gpg_encrypt("a message", "lmunozme@redhat.com", VALID_KEY)
+            gpg.gpg_encrypt("a message", VALID_KEY)
         )
