@@ -24,7 +24,7 @@ def fetch_current_state(clusters):
         cluster_name = cluster['name']
         ocm = ocm_map.get(cluster_name)
         upgrade_policies = \
-            ocm.get_upgrade_policies(cluster_name, schedule_type='automatic')
+            ocm.get_upgrade_policies(cluster_name)
         for upgrade_policy in upgrade_policies:
             upgrade_policy['cluster'] = cluster_name
             current_state.append(upgrade_policy)
