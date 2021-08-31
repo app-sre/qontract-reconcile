@@ -16,7 +16,8 @@ KAS_API_BASE = '/api/kafkas_mgmt'
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
 UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
-UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
+UPGRADE_POLICY_DESIRED_KEYS = \
+    {'id', 'schedule_type', 'schedule', 'next_run', 'version'}
 ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
 CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
