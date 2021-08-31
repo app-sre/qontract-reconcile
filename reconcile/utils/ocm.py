@@ -855,10 +855,10 @@ class OCM:
         self._post(api, data)
 
     def _init_blocked_versions(self, blocked_versions):
-        if blocked_versions is None:
-            self.blocked_versions = set()
-        else:
+        try:
             self.blocked_versions = set(blocked_versions)
+        except TypeError:
+            self.blocked_versions = set()
 
     @retry(max_attempts=10)
     def _get_json(self, api):
