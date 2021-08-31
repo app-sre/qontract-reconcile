@@ -190,6 +190,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         ocm = ocm_map.get(cluster)
         c = [c for c in current_state if c['cluster'] == cluster]
         if c:
+            [c] = c  # there can only be one upgrade policy per cluster
             version = c.get('version')  # may not exist in automatic upgrades
             if version and ocm.version_blocked(version):
                 logging.debug(
@@ -198,6 +199,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 item = {
                     'action': 'delete',
                     'cluster': cluster,
+                    'version': version,
                     'id': c['id'],
                 }
                 diffs.append(item)
