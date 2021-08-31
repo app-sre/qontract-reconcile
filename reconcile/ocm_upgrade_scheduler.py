@@ -195,12 +195,12 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 logging.debug(
                     f'[{cluster}] found existing upgrade policy ' +
                     f'with blocked version {version}')
-                    item = {
-                        'action': 'delete',
-                        'cluster': cluster,
-                        'id': c['id'],
-                    }
-                    diffs.append(item)
+                item = {
+                    'action': 'delete',
+                    'cluster': cluster,
+                    'id': c['id'],
+                }
+                diffs.append(item)
             else:
                 logging.debug(
                     f'[{cluster}] skipping cluster with ' +
