@@ -57,7 +57,7 @@ class OCM:
         self._init_clusters(init_provision_shards=init_provision_shards)
         if init_addons:
             self._init_addons()
-        self.blocked_versions = blocked_versions
+        self._init_blocked_versions(blocked_versions)
 
     @retry()
     def _init_access_token(self):
@@ -853,6 +853,12 @@ class OCM:
             data['parameters'] = {}
             data['parameters']['items'] = parameters
         self._post(api, data)
+
+    def _init_blocked_versions(self, blocked_versions):
+        if blocked_versions is None:
+            self.blocked_versions = set()
+        else:
+            self.blocked_versions = set(blocked_versions)
 
     @retry(max_attempts=10)
     def _get_json(self, api):
