@@ -203,6 +203,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 f'[{cluster}] skipping cluster with no upcoming upgrade')
             continue
 
+        # choose version that meets the conditions and add it to the diffs
         ocm = ocm_map.get(cluster)
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
