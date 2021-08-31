@@ -307,6 +307,7 @@ CLUSTERS_QUERY = """
         format
         version
       }
+      blockedVersions
     }
     awsInfrastructureAccess {
       awsGroup {

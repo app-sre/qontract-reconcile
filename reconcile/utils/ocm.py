@@ -16,7 +16,8 @@ KAS_API_BASE = '/api/kafkas_mgmt'
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
 UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
-UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
+UPGRADE_POLICY_DESIRED_KEYS = \
+    {'id', 'schedule_type', 'schedule', 'next_run', 'version'}
 ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
 CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
@@ -33,16 +34,18 @@ class OCM:
     :param offline_token: Long lived offline token used to get access token
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
+    :param blocked_versions: versions to block upgrades for
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
     :type offline_token: string
     :type init_provision_shards: bool
     :type init_addons: bool
+    :type blocked_version: list
     """
     def __init__(self, name, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
-                 init_addons=False):
+                 init_addons=False, blocked_versions=None):
         """Initiates access token and gets clusters information."""
         self.name = name
         self.url = url
@@ -54,6 +57,7 @@ class OCM:
         self._init_clusters(init_provision_shards=init_provision_shards)
         if init_addons:
             self._init_addons()
+        self._init_blocked_versions(blocked_versions)
 
     @retry()
     def _init_access_token(self):
@@ -582,6 +586,19 @@ class OCM:
             f'{machine_pool_id}'
         self._delete(api)
 
+    def version_blocked(self, version):
+        """Check if a version is blocked
+
+        Args:
+            version (string): version to check
+            blocked_versions (list): versions to block upgrade for
+
+        Returns:
+            bool: is version blocked
+        """
+        return self.blocked_versions is not None and \
+            version in self.blocked_versions
+
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version
         in the specified channel
@@ -837,6 +854,12 @@ class OCM:
             data['parameters']['items'] = parameters
         self._post(api, data)
 
+    def _init_blocked_versions(self, blocked_versions):
+        try:
+            self.blocked_versions = set(blocked_versions)
+        except TypeError:
+            self.blocked_versions = set()
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
@@ -963,7 +986,8 @@ class OCMMap:
                 OCM(name, url,
                     access_token_client_id, access_token_url, token,
                     init_provision_shards=init_provision_shards,
-                    init_addons=init_addons)
+                    init_addons=init_addons,
+                    blocked_versions=ocm_info.get('blockedVersions'))
 
     def instances(self):
         """Get list of OCM instance names initiated in the OCM map."""

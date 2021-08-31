@@ -187,11 +187,31 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
     for d in desired_state:
         # ignore clusters with an existing upgrade policy
         cluster = d['cluster']
+        ocm = ocm_map.get(cluster)
         c = [c for c in current_state if c['cluster'] == cluster]
         if c:
-            logging.debug(
-                f'[{cluster}] skipping cluster with existing upgrade policy')
-            continue
+            # there can only be one upgrade policy per cluster
+            if len(c) != 1:
+                raise ValueError(
+                    f'[{cluster}] expected only one upgrade policy')
+            [c] = c
+            version = c.get('version')  # may not exist in automatic upgrades
+            if version and ocm.version_blocked(version):
+                logging.debug(
+                    f'[{cluster}] found existing upgrade policy ' +
+                    f'with blocked version {version}')
+                item = {
+                    'action': 'delete',
+                    'cluster': cluster,
+                    'version': version,
+                    'id': c['id'],
+                }
+                diffs.append(item)
+            else:
+                logging.debug(
+                    f'[{cluster}] skipping cluster with ' +
+                    'existing upgrade policy')
+                continue
 
         # ignore clusters with an upgrade schedule not within the next 2 hours
         schedule = d['schedule']
@@ -204,12 +224,15 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        ocm = ocm_map.get(cluster)
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
         for version in reversed(sorted(available_upgrades)):
             logging.debug(
                 f'[{cluster}] checking conditions for version {version}')
+            if ocm.version_blocked(version):
+                logging.debug(
+                    f'[{cluster}] version {version} is blocked')
+                continue
             if version_conditions_met(version, version_history, ocm.name,
                                       d['workloads'], d['conditions']):
                 logging.debug(
@@ -227,15 +250,27 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
     return diffs
 
 
+def sort_diffs(diff):
+    if diff['action'] == 'delete':
+        return 1
+    else:
+        return 2
+
+
 def act(dry_run, diffs, ocm_map):
+    diffs.sort(key=sort_diffs)
     for diff in diffs:
         action = diff.pop('action')
         cluster = diff.pop('cluster')
-        logging.info([action, cluster, diff['version'], diff['next_run']])
-        if not dry_run:
-            ocm = ocm_map.get(cluster)
-            if action == 'create':
+        ocm = ocm_map.get(cluster)
+        if action == 'create':
+            logging.info([action, cluster, diff['version'], diff['next_run']])
+            if not dry_run:
                 ocm.create_upgrade_policy(cluster, diff)
+        elif action == 'delete':
+            logging.info([action, cluster, diff['version']])
+            if not dry_run:
+                ocm.delete_upgrade_policy(cluster, diff)
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
