@@ -27,3 +27,8 @@ class TestVersionBlocked(TestCase):
         self.ocm.blocked_versions = ['1.2.3']
         result = self.ocm.version_blocked('1.2.4')
         self.assertFalse(result)
+
+    def test_version_blocked_multiple(self):
+        self.ocm.blocked_versions = ['1.2.3', '1.2.4']
+        result = self.ocm.version_blocked('1.2.3')
+        self.assertTrue(result)
