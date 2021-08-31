@@ -36,3 +36,8 @@ class TestVersionBlocked(TestCase):
         self.ocm.blocked_versions = [r'^.*-fc\..*$']
         result = self.ocm.version_blocked('1.2.3-fc.1')
         self.assertTrue(result)
+
+    def test_version_not_blocked_regex(self):
+        self.ocm.blocked_versions = [r'^.*-fc\..*$']
+        result = self.ocm.version_blocked('1.2.3-rc.1')
+        self.assertFalse(result)
