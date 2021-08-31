@@ -11,6 +11,7 @@ import reconcile.queries as queries
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.state import State
 from reconcile.utils.data_structures import get_or_init
+from reconcile.utils.semver_helper import sort_versions
 
 QONTRACT_INTEGRATION = 'ocm-upgrade-scheduler'
 
@@ -226,7 +227,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         # choose version that meets the conditions and add it to the diffs
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
-        for version in reversed(sorted(available_upgrades)):
+        for version in reversed(sort_versions(available_upgrades)):
             logging.debug(
                 f'[{cluster}] checking conditions for version {version}')
             if ocm.version_blocked(version):
