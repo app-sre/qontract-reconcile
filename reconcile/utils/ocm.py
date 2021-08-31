@@ -591,7 +591,6 @@ class OCM:
 
         Args:
             version (string): version to check
-            blocked_versions (list): versions to block upgrade for
 
         Returns:
             bool: is version blocked
