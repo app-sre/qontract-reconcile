@@ -74,3 +74,79 @@ class TestUpdateHistory(TestCase):
             }
         }
         self.assertEqual(expected, history)
+
+
+class TestVersionConditionsMet(TestCase):
+    def setUp(self):
+        self.version = '1.2.3'
+        self.ocm_name = 'ocm'
+        self.workload = 'workload1'
+        self.history = {
+            self.ocm_name: {
+                'versions': {
+                    self.version: {
+                        'workloads': {
+                            self.workload: {
+                                'soak_days': 2.0
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    def test_conditions_met_larger(self):
+        upgrade_conditions = {
+            'soakDays': 1.0
+        }
+
+        conditions_met = ous.version_conditions_met(
+            self.version,
+            self.history,
+            self.ocm_name,
+            [self.workload],
+            upgrade_conditions,
+        )
+        self.assertTrue(conditions_met)
+
+    def test_conditions_met_equal(self):
+        upgrade_conditions = {
+            'soakDays': 2.0
+        }
+
+        conditions_met = ous.version_conditions_met(
+            self.version,
+            self.history,
+            self.ocm_name,
+            [self.workload],
+            upgrade_conditions,
+        )
+        self.assertTrue(conditions_met)
+
+    def test_conditions_not_met(self):
+        upgrade_conditions = {
+            'soakDays': 3.0
+        }
+
+        conditions_met = ous.version_conditions_met(
+            self.version,
+            self.history,
+            self.ocm_name,
+            [self.workload],
+            upgrade_conditions,
+        )
+        self.assertFalse(conditions_met)
+
+    def test_soak_zero_for_new_version(self):
+        upgrade_conditions = {
+            'soakDays': 0.0
+        }
+
+        conditions_met = ous.version_conditions_met(
+            '0.0.0',
+            self.history,
+            self.ocm_name,
+            [self.workload],
+            upgrade_conditions,
+        )
+        self.assertTrue(conditions_met)

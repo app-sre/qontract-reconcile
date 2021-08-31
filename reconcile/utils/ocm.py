@@ -15,6 +15,7 @@ KAS_API_BASE = '/api/kafkas_mgmt'
 
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
+UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
 UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
 ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
@@ -25,6 +26,7 @@ class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
+    :param name: OCM instance name
     :param url: OCM instance URL
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
@@ -38,10 +40,11 @@ class OCM:
     :type init_provision_shards: bool
     :type init_addons: bool
     """
-    def __init__(self, url, access_token_client_id, access_token_url,
+    def __init__(self, name, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
                  init_addons=False):
         """Initiates access token and gets clusters information."""
+        self.name = name
         self.url = url
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
@@ -579,6 +582,28 @@ class OCM:
             f'{machine_pool_id}'
         self._delete(api)
 
+    def get_available_upgrades(self, version, channel):
+        """Get available versions to upgrade from specified version
+        in the specified channel
+
+        Args:
+            version (string): OpenShift version ID
+            channel (string): Upgrade channel
+
+        Raises:
+            KeyError: if specified channel is not valid
+
+        Returns:
+            list: available versions to upgrade to
+        """
+        if channel not in UPGRADE_CHANNELS:
+            raise KeyError(f'channel should be one of {UPGRADE_CHANNELS}')
+        version_id = f'openshift-v{version}'
+        if channel != 'stable':
+            version_id = f'{version_id}-{channel}'
+        api = f'{CS_API_BASE}/v1/versions/{version_id}'
+        return self._get_json(api).get('available_upgrades', [])
+
     def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
 
@@ -931,10 +956,12 @@ class OCMMap:
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info['url']
+            name = ocm_info['name']
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
-                OCM(url, access_token_client_id, access_token_url, token,
+                OCM(name, url,
+                    access_token_client_id, access_token_url, token,
                     init_provision_shards=init_provision_shards,
                     init_addons=init_addons)
 
