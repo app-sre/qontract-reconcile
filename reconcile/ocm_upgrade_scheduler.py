@@ -187,11 +187,25 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
     for d in desired_state:
         # ignore clusters with an existing upgrade policy
         cluster = d['cluster']
+        ocm = ocm_map.get(cluster)
         c = [c for c in current_state if c['cluster'] == cluster]
         if c:
-            logging.debug(
-                f'[{cluster}] skipping cluster with existing upgrade policy')
-            continue
+            version = c.get('version')  # may not exist in automatic upgrades
+            if version and ocm.version_blocked(version):
+                logging.debug(
+                    f'[{cluster}] found existing upgrade policy ' +
+                    f'with blocked version {version}')
+                    item = {
+                        'action': 'delete',
+                        'cluster': cluster,
+                        'id': c['id'],
+                    }
+                    diffs.append(item)
+            else:
+                logging.debug(
+                    f'[{cluster}] skipping cluster with ' +
+                    'existing upgrade policy')
+                continue
 
         # ignore clusters with an upgrade schedule not within the next 2 hours
         schedule = d['schedule']
@@ -204,12 +218,15 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        ocm = ocm_map.get(cluster)
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
         for version in reversed(sorted(available_upgrades)):
             logging.debug(
                 f'[{cluster}] checking conditions for version {version}')
+            if ocm.version_blocked(version):
+                logging.debug(
+                    f'[{cluster}] version {version} is blocked')
+                continue
             if version_conditions_met(version, version_history, ocm.name,
                                       d['workloads'], d['conditions']):
                 logging.debug(
