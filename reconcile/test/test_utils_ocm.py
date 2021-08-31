@@ -1,7 +1,7 @@
-import pytest
-
 from unittest import TestCase
 from unittest.mock import patch
+
+import pytest
 
 from reconcile.utils.ocm import OCM
 
