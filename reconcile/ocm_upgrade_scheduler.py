@@ -223,9 +223,6 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 }
                 diffs.append(item)
                 break
-            else:
-                logging.debug(
-                    f'[{cluster}] conditions not met for version {version}')
 
     return diffs
 
