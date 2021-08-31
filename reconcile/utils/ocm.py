@@ -596,8 +596,7 @@ class OCM:
         Returns:
             bool: is version blocked
         """
-        return self.blocked_versions is not None and \
-            version in self.blocked_versions
+        return version in self.blocked_versions
 
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version
