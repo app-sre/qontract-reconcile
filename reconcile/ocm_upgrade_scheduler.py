@@ -227,7 +227,16 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
     return diffs
 
 
+def sort_diffs(diff):
+    if diff['action'] == 'delete':
+        return 1
+    else:
+        return 2
+    return diffs
+
+
 def act(dry_run, diffs, ocm_map):
+    diffs.sort(key=sort_diffs)
     for diff in diffs:
         action = diff.pop('action')
         cluster = diff.pop('cluster')
@@ -236,6 +245,8 @@ def act(dry_run, diffs, ocm_map):
             ocm = ocm_map.get(cluster)
             if action == 'create':
                 ocm.create_upgrade_policy(cluster, diff)
+            elif action == 'delete':
+                ocm.delete_upgrade_policy(cluster, diff)
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
