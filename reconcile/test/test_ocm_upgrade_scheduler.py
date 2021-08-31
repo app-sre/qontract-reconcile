@@ -95,9 +95,23 @@ class TestVersionConditionsMet(TestCase):
             }
         }
 
-    def test_conditions_met(self):
+    def test_conditions_met_larger(self):
         upgrade_conditions = {
             'soakDays': 1.0
+        }
+
+        conditions_met = ous.version_conditions_met(
+            self.version,
+            self.history,
+            self.ocm_name,
+            [self.workload],
+            upgrade_conditions,
+        )
+        self.assertTrue(conditions_met)
+
+    def test_conditions_met_equal(self):
+        upgrade_conditions = {
+            'soakDays': 2.0
         }
 
         conditions_met = ous.version_conditions_met(
