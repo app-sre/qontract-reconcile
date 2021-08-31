@@ -5,6 +5,7 @@ import copy
 from datetime import datetime
 from dateutil import parser
 from croniter import croniter
+from natsort import natsorted
 
 import reconcile.queries as queries
 
@@ -226,7 +227,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         # choose version that meets the conditions and add it to the diffs
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
-        for version in reversed(sorted(available_upgrades)):
+        for version in reversed(natsorted(available_upgrades)):
             logging.debug(
                 f'[{cluster}] checking conditions for version {version}')
             if ocm.version_blocked(version):

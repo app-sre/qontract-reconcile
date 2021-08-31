@@ -58,6 +58,7 @@ setup(
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
         "croniter>=1.0.15,<1.1.0",
+        "natsort>=7.1.1,<7.2.0",
     ],
 
     test_suite="tests",
