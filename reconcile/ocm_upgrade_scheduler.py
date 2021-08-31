@@ -259,12 +259,14 @@ def act(dry_run, diffs, ocm_map):
     for diff in diffs:
         action = diff.pop('action')
         cluster = diff.pop('cluster')
-        logging.info([action, cluster, diff['version'], diff['next_run']])
-        if not dry_run:
-            ocm = ocm_map.get(cluster)
-            if action == 'create':
+        ocm = ocm_map.get(cluster)
+        if action == 'create':
+            logging.info([action, cluster, diff['version'], diff['next_run']])
+            if not dry_run:
                 ocm.create_upgrade_policy(cluster, diff)
-            elif action == 'delete':
+        elif action == 'delete':
+            logging.info([action, cluster, diff['version']])
+            if not dry_run:
                 ocm.delete_upgrade_policy(cluster, diff)
 
 
