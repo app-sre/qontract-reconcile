@@ -1,5 +1,5 @@
 import logging
-
+import re
 import requests
 
 from sretoolbox.utils import retry
@@ -596,7 +596,7 @@ class OCM:
         Returns:
             bool: is version blocked
         """
-        return version in self.blocked_versions
+        return any(re.search(b, version) for b in self.blocked_versions)
 
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version
