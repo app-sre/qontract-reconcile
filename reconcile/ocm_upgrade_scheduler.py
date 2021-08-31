@@ -202,7 +202,7 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         ocm = ocm_map.get(cluster)
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
-        for version in reversed(available_upgrades):
+        for version in reversed(sorted(available_upgrades)):
             if version_conditions_met(version, version_history, ocm.name,
                                       d['workloads'], d['conditions']):
                 item = {
