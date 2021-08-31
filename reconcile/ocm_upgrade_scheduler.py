@@ -251,7 +251,6 @@ def sort_diffs(diff):
         return 1
     else:
         return 2
-    return diffs
 
 
 def act(dry_run, diffs, ocm_map):
