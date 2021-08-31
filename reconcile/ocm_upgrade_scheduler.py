@@ -189,6 +189,8 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         cluster = d['cluster']
         c = [c for c in current_state if c['cluster'] == cluster]
         if c:
+            logging.debug(
+                f'[{cluster}] skipping cluster with existing upgrade policy')
             continue
 
         # ignore clusters with an upgrade schedule not within the next 2 hours
@@ -197,14 +199,20 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         next_schedule_in_hours = \
             (next_schedule - now).total_seconds() / 3600  # seconds in hour
         if next_schedule_in_hours > 2:
+            logging.debug(
+                f'[{cluster}] skipping cluster with no upcoming upgrade')
             continue
 
         ocm = ocm_map.get(cluster)
         available_upgrades = \
             ocm.get_available_upgrades(d['current_version'], d['channel'])
         for version in reversed(sorted(available_upgrades)):
+            logging.debug(
+                f'[{cluster}] checking conditions for version {version}')
             if version_conditions_met(version, version_history, ocm.name,
                                       d['workloads'], d['conditions']):
+                logging.debug(
+                    f'[{cluster}] conditions met for version {version}')
                 item = {
                     'action': 'create',
                     'cluster': cluster,
@@ -214,6 +222,9 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                 }
                 diffs.append(item)
                 break
+            else:
+                logging.debug(
+                    f'[{cluster}] conditions not met for version {version}')
 
     return diffs
 
