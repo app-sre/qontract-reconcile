@@ -585,6 +585,19 @@ class OCM:
             f'{machine_pool_id}'
         self._delete(api)
 
+    def version_blocked(self, version):
+        """Check if a version is blocked
+
+        Args:
+            version (string): version to check
+            blocked_versions (list): versions to block upgrade for
+
+        Returns:
+            bool: is version blocked
+        """
+        return self.blocked_versions is not None and \
+            version in self.blocked_versions
+
     def get_available_upgrades(self, version, channel):
         """Get available versions to upgrade from specified version
         in the specified channel
