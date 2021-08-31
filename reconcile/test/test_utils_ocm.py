@@ -14,7 +14,6 @@ class TestVersionBlocked(TestCase):
         self.ocm = OCM('name', 'url', 'tid', 'turl', 'ot')
 
     def test_no_blocked_versions(self):
-        self.ocm.blocked_versions = None
         result = self.ocm.version_blocked('1.2.3')
         self.assertFalse(result)
 
