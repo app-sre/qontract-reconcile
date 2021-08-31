@@ -406,6 +406,7 @@ integrations:
       cpu: 200m
   logs:
     slack: true
+  state: true
 - name: ocm-external-configuration-labels
   resources:
     requests:
