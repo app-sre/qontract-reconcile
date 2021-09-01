@@ -200,6 +200,9 @@ def clusters_network(ctx, name):
         clusters = [c for c in clusters if c['name'] == name]
 
     columns = ['name', 'network.vpc', 'network.service', 'network.pod']
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
     print_output(ctx.obj['options'], clusters, columns)
 
 
@@ -375,6 +378,9 @@ def product(ctx, name):
 def environments(ctx):
     environments = queries.get_environments()
     columns = ['name', 'description', 'product.name']
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
     print_output(ctx.obj['options'], environments, columns)
 
 
@@ -392,6 +398,9 @@ def environment(ctx, name):
     environment = environments[0]
     namespaces = environment['namespaces']
     columns = ['name', 'cluster.name', 'app.name']
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
     print_output(ctx.obj['options'], namespaces, columns)
 
 
