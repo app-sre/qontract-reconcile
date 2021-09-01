@@ -591,7 +591,6 @@ class OCM:
 
         Args:
             version (string): version to check
-            blocked_versions (list): versions to block upgrade for
 
         Returns:
             bool: is version blocked
@@ -858,6 +857,13 @@ class OCM:
             self.blocked_versions = set(blocked_versions)
         except TypeError:
             self.blocked_versions = set()
+
+        for b in self.blocked_versions:
+            try:
+                re.compile(b)
+            except re.error:
+                raise TypeError(
+                    f'blocked version is not a valid regex expression: {b}')
 
     @retry(max_attempts=10)
     def _get_json(self, api):
