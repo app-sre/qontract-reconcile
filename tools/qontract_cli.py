@@ -339,6 +339,9 @@ def namespaces(ctx, name):
         namespaces = [ns for ns in namespaces if ns['name'] == name]
 
     columns = ['name', 'cluster.name', 'app.name']
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
     print_output(ctx.obj['options'], namespaces, columns)
 
 
