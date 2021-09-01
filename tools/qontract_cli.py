@@ -40,6 +40,14 @@ def output(function):
     return function
 
 
+def sort(function):
+    function = click.option('--sort', '-s',
+                            help='sort output',
+                            default=True,
+                            type=bool)(function)
+    return function
+
+
 @click.group()
 @config_file
 @click.pass_context
@@ -51,10 +59,12 @@ def root(ctx, configfile):
 
 @root.group()
 @output
+@sort
 @click.pass_context
-def get(ctx, output):
+def get(ctx, output, sort):
     ctx.obj['options'] = {
         'output': output,
+        'sort': sort,
     }
 
 
@@ -593,6 +603,8 @@ def sre_checkpoints(ctx):
 
 
 def print_output(options, content, columns=[]):
+    if options['sort']:
+        content.sort(key=lambda c: tuple(c.values()))
     output = options['output']
 
     if output == 'table':
