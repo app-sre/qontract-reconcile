@@ -52,7 +52,17 @@ def include_user(user, cluster_name, cluster_users):
 
 
 def get_desired_state(slack):
-    desired_state = []
+    """
+    Get the desired state of the Slack cluster usergroups.
+
+    :param slack: client for calling Slack API
+    :type slack: reconcile.utils.slack_api.SlackApi
+
+    :return: desired state data, keys are workspace -> usergroup
+                (ex. state['coreos']['app-sre-ic']
+    :rtype: dict
+    """
+    desired_state = {}
     all_users = queries.get_roles()
     all_clusters = queries.get_clusters(minimal=True)
     clusters = [c for c in all_clusters
@@ -75,30 +85,43 @@ def get_desired_state(slack):
                       if include_user(u, cluster_name, cluster_users)]
         users = slack.get_users_by_names(user_names)
         channels = slack.get_channels_by_names([slack.chat_kwargs['channel']])
-        desired_state.append({
+        desired_state.setdefault(slack.workspace_name, {})[usergroup] = {
             "workspace": slack.workspace_name,
             "usergroup": usergroup,
             "usergroup_id": ugid,
             "users": users,
             "channels": channels,
             "description": f'Users with access to the {cluster_name} cluster',
-        })
+        }
 
     return desired_state
 
 
 def get_current_state(slack, usergroups):
-    current_state = []
+    """
+    Get the current state of the Slack cluster usergroups.
+
+    :param slack: client for calling Slack API
+    :type slack: reconcile.utils.slack_api.SlackApi
+
+    :param usergroups: cluster usergroups to get state of
+    :type usergroups: Iterable
+
+    :return: current state data, keys are workspace -> usergroup
+                (ex. state['coreos']['app-sre-ic']
+    :rtype: dict
+    """
+    current_state = {}
 
     for ug in usergroups:
         users, channels, description = slack.describe_usergroup(ug)
-        current_state.append({
+        current_state.setdefault(slack.workspace_name, {})[ug] = {
             "workspace": slack.workspace_name,
             "usergroup": ug,
             "users": users,
             "channels": channels,
             "description": description,
-        })
+        }
 
     return current_state
 
@@ -106,11 +129,12 @@ def get_current_state(slack, usergroups):
 def run(dry_run):
     slack = init_slack_workspace(QONTRACT_INTEGRATION)
     desired_state = get_desired_state(slack)
-    usergroups = [d['usergroup'] for d in desired_state]
+    usergroups = []
+    for _, workspace_state in desired_state.items():
+        for usergroup, _ in workspace_state.items():
+            usergroups.append(usergroup)
     current_state = get_current_state(slack, usergroups)
-    slack_usergroups.print_diff(current_state, desired_state)
 
-    if not dry_run:
-        # just so we can re-use the logic from slack_usergroups
-        slack_map = {slack.workspace_name: {'slack': slack}}
-        slack_usergroups.act(desired_state, slack_map)
+    # just so we can re-use the logic from slack_usergroups
+    slack_map = {slack.workspace_name: {'slack': slack}}
+    slack_usergroups.act(current_state, desired_state, slack_map, dry_run)
