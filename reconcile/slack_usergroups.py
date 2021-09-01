@@ -363,7 +363,10 @@ def act(desired_state, slack_map):
             # sensitive updates.
             logging.error(error)
 
-        slack.update_usergroup(ugid, channels, description)
+        try:
+            slack.update_usergroup(ugid, channels, description)
+        except SlackAPICallException as error:
+            logging.error(error)
 
 
 def run(dry_run):

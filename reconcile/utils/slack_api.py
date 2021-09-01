@@ -80,15 +80,28 @@ class SlackApi:
         [usergroup] = usergroup
         return usergroup
 
-    @retry()
+    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
     def update_usergroup(self, id, channels_list, description):
         channels = ','.join(channels_list)
-        self.sc.api_call(
+        response = self.sc.api_call(
             "usergroups.update",
             usergroup=id,
             channels=channels,
             description=description,
         )
+
+        error = response.get('error')
+
+        if error == 'ratelimited':
+            retry_after = response['headers']['retry-after']
+            time.sleep(int(retry_after))
+            raise SlackAPIRateLimitedException(
+                f"Slack API throttled after max retry attempts - "
+                f"method=usergroups.update usergroup={id}")
+        elif error:
+            raise SlackAPICallException(
+                f"Slack returned error: {error} - "
+                f"method=usergroups.update usergroup={id}")
 
     @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
     def update_usergroup_users(self, id, users_list):
