@@ -1,18 +1,23 @@
+import json
 from collections import namedtuple
 from unittest.mock import call, patch
 
+import httpretty
 import pytest
+from slack_sdk.errors import SlackApiError
 
-from reconcile.utils.slack_api import SlackApi, SlackAPIRateLimitedException, \
-    SlackAPICallException
+from reconcile.utils.slack_api import SlackApi, MAX_RETRIES
 
 
 @pytest.fixture
 def slack_api():
     with patch('reconcile.utils.slack_api.SecretReader', autospec=True) as \
             mock_secret_reader, \
-            patch('reconcile.utils.slack_api.SlackClient', autospec=True) as \
+            patch('reconcile.utils.slack_api.WebClient', autospec=True) as \
             mock_slack_client:
+
+        # autospec doesn't know about instance attributes
+        mock_slack_client.return_value.retry_handlers = []
 
         token = {'path': 'some/path', 'field': 'some-field'}
         slack_api = SlackApi('some-workspace', token)
@@ -36,7 +41,8 @@ def test_slack_api__get_default_args_channels(slack_api):
         slack_api.client._get('channels')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('conversations.list', cursor='', limit=500)
+        call('conversations.list', http_verb='GET',
+             params={'limit': 500, 'cursor': ''})
 
 
 def test_slack_api__get_default_args_users(slack_api):
@@ -52,7 +58,8 @@ def test_slack_api__get_default_args_users(slack_api):
         slack_api.client._get('users')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('users.list', cursor='', limit=500)
+        call('users.list', http_verb='GET',
+             params={'limit': 500, 'cursor': ''})
 
 
 def test_slack_api__get_default_args_unknown_type(slack_api):
@@ -69,7 +76,7 @@ def test_slack_api__get_default_args_unknown_type(slack_api):
         slack_api.client._get('something')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('something.list', cursor='')
+        call('something.list', http_verb='GET', params={'cursor': ''})
 
 
 def test_slack_api__get_uses_cache(slack_api):
@@ -77,139 +84,163 @@ def test_slack_api__get_uses_cache(slack_api):
     # Reset the mock to clear any calls during __init__
     slack_api.mock_slack_client.return_value.api_call.reset_mock()
 
-    slack_api.client.results['channels'] = ['some', 'data']
+    slack_api.client._results['channels'] = ['some', 'data']
 
     assert slack_api.client._get('channels') == ['some', 'data']
     slack_api.mock_slack_client.return_value.api_call.assert_not_called()
 
 
-def test_slack_api_update_usergroup_users_rate_limit_raise(slack_api):
-    """Raise an exception when the retry count has been exhausted."""
-    # Reset the mock to clear any calls during __init__
-    slack_api.mock_slack_client.return_value.api_call.reset_mock()
+def test_slack_api_chat_post_message(slack_api):
+    """Don't raise an exception when the channel is set."""
+    slack_api.client.channel = 'some-channel'
+    slack_api.client.chat_post_message('test')
 
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'error': 'ratelimited',
-        'headers': {
-            'retry-after': '5'
-        }
+
+def test_slack_api_chat_post_message_missing_channel(slack_api):
+    """Raises an exception when channel isn't set."""
+    slack_api.client.channel = None
+    with pytest.raises(ValueError):
+        slack_api.client.chat_post_message('test')
+
+#
+# Slack WebClient retry tests
+#
+# These tests are meant to ensure that the built-in retry functionality is
+# working as expected in the Slack WebClient. This provides some verification
+# that the handlers are configured properly, as well as testing the custom
+# ServerErrorRetryHandler handler.
+#
+
+
+@httpretty.activate(allow_net_connect=False)
+@patch('reconcile.utils.slack_api.SecretReader', autospec=True)
+@patch('time.sleep', autospec=True)
+def test_slack_api__client_throttle_raise(mock_sleep, mock_secret_reader):
+    """Raise an exception if the max retries is exceeded."""
+    httpretty.register_uri(
+        httpretty.POST,
+        'https://www.slack.com/api/users.list',
+        adding_headers={'Retry-After': '1'},
+        body=json.dumps({'ok': 'false', 'error': 'ratelimited'}),
+        status=429
+    )
+
+    slack_client = SlackApi(
+        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        init_usergroups=False
+    )
+
+    with pytest.raises(SlackApiError):
+        slack_client._sc.api_call('users.list')
+
+    assert len(httpretty.latest_requests()) == MAX_RETRIES + 1
+
+
+@httpretty.activate(allow_net_connect=False)
+@patch('reconcile.utils.slack_api.SecretReader', autospec=True)
+@patch('time.sleep', autospec=True)
+def test_slack_api__client_throttle_doesnt_raise(mock_sleep,
+                                                 mock_secret_reader):
+    """Don't raise an exception if the max retries aren't reached."""
+    uri_args = (httpretty.POST, 'https://www.slack.com/api/users.list')
+    uri_kwargs_failure = {
+        'adding_headers': {'Retry-After': '1'},
+        'body': json.dumps({'ok': 'false', 'error': 'ratelimited'}),
+        'status': 429
+    }
+    uri_kwargs_success = {
+        'body': json.dumps({'ok': 'true'}),
+        'status': 200
     }
 
-    with pytest.raises(SlackAPIRateLimitedException):
-        with patch('time.sleep'):
-            slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+    # These are registered LIFO (3 failures and then 1 success)
+    httpretty.register_uri(*uri_args, **uri_kwargs_success)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
 
-    assert slack_api.mock_slack_client.return_value.api_call.call_count == 5
+    slack_client = SlackApi(
+        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        init_usergroups=False
+    )
+
+    slack_client._sc.api_call('users.list')
+
+    assert len(httpretty.latest_requests()) == 4
 
 
-def test_slack_api_update_usergroup_users_rate_limit_retry(slack_api):
-    """
-    Retry without raising an exception when rate-limited fewer than the max
-    number of retries.
-    """
-    # Reset the mock to clear any calls during __init__
-    slack_api.mock_slack_client.return_value.api_call.reset_mock()
+@httpretty.activate(allow_net_connect=False)
+@patch('reconcile.utils.slack_api.SecretReader', autospec=True)
+@patch('time.sleep', autospec=True)
+def test_slack_api__client_5xx_raise(mock_sleep, mock_secret_reader):
+    """Raise an exception if the max retries is exceeded."""
+    httpretty.register_uri(
+        httpretty.POST,
+        'https://www.slack.com/api/users.list',
+        body=json.dumps({'ok': 'false', 'error': 'internal_error'}),
+        status=500
+    )
 
-    rate_limit_response = {
-        'error': 'ratelimited',
-        'headers': {
-            'retry-after': '5'
-        }
+    slack_client = SlackApi(
+        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        init_usergroups=False
+    )
+
+    with pytest.raises(SlackApiError):
+        slack_client._sc.api_call('users.list')
+
+    assert len(httpretty.latest_requests()) == MAX_RETRIES + 1
+
+
+@httpretty.activate(allow_net_connect=False)
+@patch('reconcile.utils.slack_api.SecretReader', autospec=True)
+@patch('time.sleep', autospec=True)
+def test_slack_api__client_5xx_doesnt_raise(mock_sleep, mock_secret_reader):
+    """Don't raise an exception if the max retries aren't reached."""
+    uri_args = (httpretty.POST, 'https://www.slack.com/api/users.list')
+    uri_kwargs_failure = {
+        'body': json.dumps({'ok': 'false', 'error': 'internal_error'}),
+        'status': 500
+    }
+    uri_kwargs_success = {
+        'body': json.dumps({'ok': 'true'}),
+        'status': 200
     }
 
-    # Returns 3 rate-limited responses, and one OK response
-    slack_api.mock_slack_client.return_value.api_call.side_effect = [
-        rate_limit_response,
-        rate_limit_response,
-        rate_limit_response,
-        {'ok': 'true'}
-    ]
+    # These are registered LIFO (3 failures and then 1 success)
+    httpretty.register_uri(*uri_args, **uri_kwargs_success)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
+    httpretty.register_uri(*uri_args, **uri_kwargs_failure)
 
-    with patch('time.sleep'):
-        slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+    slack_client = SlackApi(
+        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        init_usergroups=False
+    )
 
-    assert slack_api.mock_slack_client.return_value.api_call.call_count == 4
+    slack_client._sc.api_call('users.list')
 
-
-def test_slack_api_update_usergroup_users_raise_for_errors(slack_api):
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'error': 'some_unknown_error',
-    }
-
-    with pytest.raises(SlackAPICallException):
-        with patch('time.sleep'):
-            slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+    assert len(httpretty.latest_requests()) == 4
 
 
-def test_slack_api_update_usergroup_users_invalid_users(slack_api):
-    """
-    Don't raise an exception when Slack returns an 'invalid_users' error
-    because it will still empty groups as expected.
-    """
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'error': 'invalid_users',
-    }
+@httpretty.activate(allow_net_connect=False)
+@patch('reconcile.utils.slack_api.SecretReader', autospec=True)
+@patch('time.sleep', autospec=True)
+def test_slack_api__client_dont_retry(mock_sleep, mock_secret_reader):
+    """Don't retry client-side errors that aren't 429s."""
+    httpretty.register_uri(
+        httpretty.POST,
+        'https://www.slack.com/api/users.list',
+        body=json.dumps({'ok': 'false', 'error': 'internal_error'}),
+        status=401
+    )
 
-    with patch('time.sleep'):
-        slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+    slack_client = SlackApi(
+        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        init_usergroups=False
+    )
 
+    with pytest.raises(SlackApiError):
+        slack_client._sc.api_call('users.list')
 
-def test_slack_api_update_usergroup_rate_limit_raise(slack_api):
-    """Raise an exception when the retry count has been exhausted."""
-    # Reset the mock to clear any calls during __init__
-    slack_api.mock_slack_client.return_value.api_call.reset_mock()
-
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'error': 'ratelimited',
-        'headers': {
-            'retry-after': '5'
-        }
-    }
-
-    with pytest.raises(SlackAPIRateLimitedException):
-        with patch('time.sleep'):
-            slack_api.client.update_usergroup('ABCD', ['CHANA', 'CHANB'],
-                                              'Some description')
-
-    assert slack_api.mock_slack_client.return_value.api_call.call_count == 5
-
-
-def test_slack_api_update_usergroup_rate_limit_retry(slack_api):
-    """
-    Retry without raising an exception when rate-limited fewer than the max
-    number of retries.
-    """
-    # Reset the mock to clear any calls during __init__
-    slack_api.mock_slack_client.return_value.api_call.reset_mock()
-
-    rate_limit_response = {
-        'error': 'ratelimited',
-        'headers': {
-            'retry-after': '5'
-        }
-    }
-
-    # Returns 3 rate-limited responses, and one OK response
-    slack_api.mock_slack_client.return_value.api_call.side_effect = [
-        rate_limit_response,
-        rate_limit_response,
-        rate_limit_response,
-        {'ok': 'true'}
-    ]
-
-    with patch('time.sleep'):
-        slack_api.client.update_usergroup('ABCD', ['CHANA', 'CHANB'],
-                                          'Some description')
-
-    assert slack_api.mock_slack_client.return_value.api_call.call_count == 4
-
-
-def test_slack_api_update_usergroup_raise_for_errors(slack_api):
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'error': 'some_unknown_error',
-    }
-
-    with pytest.raises(SlackAPICallException):
-        with patch('time.sleep'):
-            slack_api.client.update_usergroup('ABCD', ['CHANA', 'CHANB'],
-                                              'Some description')
+    assert len(httpretty.latest_requests()) == 1
