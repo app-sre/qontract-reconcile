@@ -2,12 +2,14 @@ import copy
 import json
 import logging
 import os
+import re
 import tempfile
 import time
 from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
+from typing import Iterable
 
 import urllib3
 
@@ -335,6 +337,18 @@ class OCDeprecated:
     def delete(self, namespace, kind, name, cascade=True):
         cmd = ['delete', '-n', namespace, kind, name,
                f'--cascade={str(cascade).lower()}']
+        self._run(cmd)
+        resource = {'kind': kind, 'metadata': {'name': name}}
+        return self._msg_to_process_reconcile_time(namespace, resource)
+
+    @OCDecorators.process_reconcile_time
+    def label(self, namespace, kind, name, labels, overwrite=False):
+        ns = ['-n', namespace] if namespace else []
+        added = [f"{k}='{v}'" for k, v in labels.items() if v is not None]
+        removed = [f"{k}-" for k, v in labels.items() if v is None]
+        overwrite_param = f'--overwrite={str(overwrite).lower()}'
+        cmd = ['label'] + ns + [kind, name, overwrite_param]
+        cmd.extend(added + removed)
         self._run(cmd)
         resource = {'kind': kind, 'metadata': {'name': name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
@@ -1139,3 +1153,42 @@ class OCLogMsg:
 
     def __bool__(self):
         return False
+
+
+def validate_labels(labels) -> Iterable[str]:
+    """
+    Validate a label key/value against some rules from
+    https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+    """
+    if labels is None:
+        return []
+
+    err = []
+    for k, v in labels.items():
+        if len(v) > 63:
+            err.append(f'Label value longer than 63 chars: {v}')
+        pattern = '^[A-Za-z0-9][A-Za-z0-9-_\\.]{0,61}[A-Za-z0-9]$'
+        if not re.match(pattern, v):
+            err.append(f'Label value is invalid: {v}')
+
+        prefix, name = '', k
+        if '/' in k:
+            split = k.split('/')
+            if len(split) > 3:
+                err.append(f'Only one "/" allowed in label keys: {k}')
+            prefix, name = split[0], split[1]
+        if len(name) > 63:
+            err.append(f'Label key name is longer than 63 chars: {name}')
+        if not re.match(pattern, name):
+            err.append(f'Label key name is invalid: {name}')
+        if prefix:
+            if len(prefix) > 253:
+                err.append(f'Label key prefix longer than 253 chars: {prefix}')
+            hostname = ('^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*'
+                        '([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$')
+            if not re.match(hostname, prefix):
+                err.append(f'Label key prefix is invalid: {prefix}')
+            if prefix in ('kubernetes.io', 'k8s.io'):
+                err.append(f'Label key prefix is reserved: {prefix}')
+
+    return err

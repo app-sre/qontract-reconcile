@@ -69,6 +69,18 @@ integrations:
   extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
+- name: openshift-namespace-labels
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 100m
+    limits:
+      memory: 800Mi
+      cpu: 200m
+  extraArgs: --internal
+  logs:
+    slack: true
+  internalCertificates: true
 - name: openshift-namespaces
   resources:
     requests:

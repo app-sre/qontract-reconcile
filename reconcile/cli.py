@@ -23,6 +23,7 @@ import reconcile.openshift_users
 import reconcile.openshift_resources
 import reconcile.openshift_vault_secrets
 import reconcile.openshift_routes
+import reconcile.openshift_namespace_labels
 import reconcile.openshift_namespaces
 import reconcile.openshift_network_policies
 import reconcile.openshift_serviceaccount_tokens
@@ -882,6 +883,20 @@ def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id):
 def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
     run_integration(reconcile.gitlab_labeler, ctx.obj,
                     gitlab_project_id, gitlab_merge_request_id)
+
+
+@integration.command()
+@threaded()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.openshift_namespace_labels,
+                    ctx.obj, thread_pool_size, internal,
+                    use_jump_host)
 
 
 @integration.command()
