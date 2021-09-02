@@ -121,7 +121,7 @@ def run(dry_run, print_only=False,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    with_ocm = any([c.get('ocm') for c in clusters])
+    with_ocm = any(c.get('ocm') for c in clusters)
     if with_ocm:
         ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
                          settings=settings)
