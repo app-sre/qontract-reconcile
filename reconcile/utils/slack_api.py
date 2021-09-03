@@ -5,10 +5,23 @@ from slackclient import SlackClient
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.config import get_config
+
+
+class UserNotFoundException(Exception):
+    pass
 
 
 class UsergroupNotFoundException(Exception):
     pass
+
+
+class SlackAPICallException(Exception):
+    """Raised for general error cases when calling the Slack API."""
+
+
+class SlackAPIRateLimitedException(SlackAPICallException):
+    """Raised when a call to the Slack API has been rate-limited."""
 
 
 class SlackApi:
@@ -67,27 +80,56 @@ class SlackApi:
         [usergroup] = usergroup
         return usergroup
 
-    @retry()
+    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
     def update_usergroup(self, id, channels_list, description):
         channels = ','.join(channels_list)
-        self.sc.api_call(
+        response = self.sc.api_call(
             "usergroups.update",
             usergroup=id,
             channels=channels,
             description=description,
         )
 
+        error = response.get('error')
+
+        if error == 'ratelimited':
+            retry_after = response['headers']['retry-after']
+            time.sleep(int(retry_after))
+            raise SlackAPIRateLimitedException(
+                f"Slack API throttled after max retry attempts - "
+                f"method=usergroups.update usergroup={id}")
+        elif error:
+            raise SlackAPICallException(
+                f"Slack returned error: {error} - "
+                f"method=usergroups.update usergroup={id}")
+
+    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
     def update_usergroup_users(self, id, users_list):
         # since Slack API does not support empty usergroups
         # we can trick it by passing a deleted user
         if len(users_list) == 0:
             users_list = [self.get_random_deleted_user()]
         users = ','.join(users_list)
-        self.sc.api_call(
+        response = self.sc.api_call(
             "usergroups.users.update",
             usergroup=id,
             users=users,
         )
+
+        error = response.get('error')
+
+        if error == 'ratelimited':
+            retry_after = response['headers']['retry-after']
+            time.sleep(int(retry_after))
+            raise SlackAPIRateLimitedException(
+                f"Slack API throttled after max retry attempts - "
+                f"method=usergroups.users.update usergroup={id} users={users}")
+        # Slack can throw an invalid_users error when emptying groups, but it
+        # will still empty the group (so this can be ignored).
+        elif error and error != 'invalid_users':
+            raise SlackAPICallException(
+                f"Slack returned error: {error} - "
+                f"method=usergroups.users.update usergroup={id} users={users}")
 
     def get_random_deleted_user(self):
         for user_id, user_data in self._get('users').items():
@@ -97,6 +139,17 @@ class SlackApi:
         logging.error('could not find a deleted user, ' +
                       'empty usergroup will not work')
         return ''
+
+    def get_user_id_by_name(self, user_name):
+        config = get_config()
+        mail_address = config['smtp']['mail_address']
+        result = self.sc.api_call(
+            "users.lookupByEmail",
+            email=f"{user_name}@{mail_address}"
+        )
+        if not result['ok']:
+            raise UserNotFoundException(result['error'])
+        return result['user']['id']
 
     def get_channels_by_names(self, channels_names):
         return {k: v['name'] for k, v in self._get('channels').items()
@@ -114,12 +167,36 @@ class SlackApi:
         return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
+    @staticmethod
+    def _get_api_results_limit(resource_type):
+        # This will be replaced with getting the data from app-interface in
+        # a future PR.
+        api_limits = {
+            'users': 1000,
+            'channels': 1000
+        }
+
+        return api_limits.get(resource_type)
+
     @retry()
     def _get(self, type):
+        """
+        Get Slack resources by type. This method uses a cache to ensure that
+        each resource type is only fetched once.
+
+        :param type: resource type
+        :return: data from API call
+        """
         result_key = 'members' if type == 'users' else type
         api_key = 'conversations' if type == 'channels' else type
         results = {}
         cursor = ''
+        additional_kwargs = {}
+
+        api_result_limit = self._get_api_results_limit(type)
+
+        if api_result_limit:
+            additional_kwargs['limit'] = api_result_limit
 
         if type in self.results:
             return self.results[type]
@@ -127,10 +204,12 @@ class SlackApi:
         while True:
             result = self.sc.api_call(
                 "{}.list".format(api_key),
-                cursor=cursor
+                cursor=cursor,
+                **additional_kwargs
             )
             if 'error' in result and result['error'] == 'ratelimited':
-                time.sleep(1)
+                retry_after = result['headers']['retry-after']
+                time.sleep(int(retry_after))
                 continue
             for r in result[result_key]:
                 results[r['id']] = r

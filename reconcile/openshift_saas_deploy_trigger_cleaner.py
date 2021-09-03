@@ -1,6 +1,6 @@
 import logging
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil import parser
 
 import reconcile.queries as queries
@@ -18,9 +18,10 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 def within_retention_days(resource, days):
     metadata = resource['metadata']
     creation_date = parser.parse(metadata['creationTimestamp'])
-    interval = datetime.utcnow().date() - creation_date.date()
+    now_date = datetime.now(timezone.utc)
+    interval = now_date.timestamp() - creation_date.timestamp()
 
-    return interval < timedelta(days=days)
+    return interval < timedelta(days=days).seconds
 
 
 @defer
@@ -51,7 +52,8 @@ def run(dry_run, thread_pool_size=10, internal=None,
             oc = oc_map.get(cluster)
             pipeline_runs = sorted(
                 oc.get(namespace, 'PipelineRun')['items'],
-                key=lambda k: k['metadata']['creationTimestamp']
+                key=lambda k: k['metadata']['creationTimestamp'],
+                reverse=True
             )
 
             retention_min = retention.get('minimum')

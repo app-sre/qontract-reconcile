@@ -171,7 +171,7 @@ class GitLabApi:
         return ([{
                 "user": m.username,
                 "access_level": self.get_access_level_string(m.access_level)}
-            for m in group.members.list()])
+            for m in group.members.list(all=True)])
 
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)

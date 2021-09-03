@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -6,6 +7,7 @@ from reconcile.utils.oc import (
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetOwnedPods(TestCase):
     @patch.object(OCDeprecated, 'get')
     @patch.object(OCDeprecated, 'get_obj_root_owner')
@@ -74,10 +76,11 @@ class TestGetOwnedPods(TestCase):
         self.assertEqual(pods[0]['metadata']['name'], 'pod1')
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestValidatePodReady(TestCase):
-    @staticmethod
     @patch.object(OCDeprecated, 'get')
-    def test_validate_pod_ready_all_good(oc_get):
+    # pylint: disable=no-self-use
+    def test_validate_pod_ready_all_good(self, oc_get):
         oc_get.return_value = {
             'status': {
                 'containerStatuses': [
@@ -118,6 +121,7 @@ class TestValidatePodReady(TestCase):
             oc.validate_pod_ready.__wrapped__(oc, 'namespace', 'podname')
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetObjRootOwner(TestCase):
     @patch.object(OCDeprecated, 'get')
     def test_owner(self, oc_get):

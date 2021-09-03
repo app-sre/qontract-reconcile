@@ -421,7 +421,8 @@ def run(dry_run, print_only=False,
 
     tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
 
-    actions = ob.realize_data(dry_run, oc_map, ri, caller=account_name)
+    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
+                              caller=account_name)
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True,

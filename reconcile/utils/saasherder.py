@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import os
-
+import itertools
 import yaml
 
 from gitlab.exceptions import GitlabError
@@ -628,7 +628,7 @@ class SaasHerder():
 
         images_list = threaded.run(self._collect_images, resources,
                                    self.available_thread_pool_size)
-        images = {item for sublist in images_list for item in sublist}
+        images = set(itertools.chain.from_iterable(images_list))
         if not images:
             return False  # no errors
         errors = threaded.run(self._check_image, images,
@@ -695,7 +695,7 @@ class SaasHerder():
         }
         url = creds.get('url')
         if url:
-            image_auth['auth_server']: url
+            image_auth['auth_server'] = url
 
         return image_auth
 
@@ -703,8 +703,7 @@ class SaasHerder():
         results = threaded.run(self.init_populate_desired_state_specs,
                                self.saas_files,
                                self.thread_pool_size)
-        desired_state_specs = \
-            [item for sublist in results for item in sublist]
+        desired_state_specs = list(itertools.chain.from_iterable(results))
         promotions = threaded.run(self.populate_desired_state_saas_file,
                                   desired_state_specs,
                                   self.thread_pool_size,
@@ -881,7 +880,7 @@ class SaasHerder():
                                self.saas_files,
                                self.thread_pool_size,
                                dry_run=dry_run)
-        return [item for sublist in results for item in sublist]
+        return list(itertools.chain.from_iterable(results))
 
     def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
         saas_file_name = saas_file['name']
@@ -967,7 +966,7 @@ class SaasHerder():
                                self.thread_pool_size,
                                dry_run=dry_run,
                                current_state=current_state)
-        return [item for sublist in results for item in sublist], error
+        return list(itertools.chain.from_iterable(results)), error
 
     def _get_upstream_jobs_current_state(self):
         current_state = {}
@@ -1065,7 +1064,7 @@ class SaasHerder():
         results = threaded.run(self.get_configs_diff_saas_file,
                                self.saas_files,
                                self.thread_pool_size)
-        return [item for sublist in results for item in sublist]
+        return list(itertools.chain.from_iterable(results))
 
     def get_configs_diff_saas_file(self, saas_file):
         saas_file_name = saas_file['name']

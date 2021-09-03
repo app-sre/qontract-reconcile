@@ -134,3 +134,31 @@ class TestGithubOrg:
 
     def test_desired_state_simple(self):
         self.do_desired_state_test('desired_state_simple.yml')
+
+    def test_get_members(self):
+        class SimpleMemberMock:
+            def __init__(self, login):
+                self.login = login
+
+        class SimpleOrgMock:
+            @staticmethod
+            def get_members():
+                return [SimpleMemberMock('a'), SimpleMemberMock('b')]
+
+        org = SimpleOrgMock()
+        assert github_org.get_members(org) == ['a', 'b']
+
+    def test_get_org_teams(self):
+        class SimpleOrgMock:
+            @staticmethod
+            def get_teams():
+                return ['teams']
+
+        class SimpleGithubMock():
+            @staticmethod
+            def get_organization(org_name):
+                return SimpleOrgMock()
+
+        g = SimpleGithubMock()
+        _, teams = github_org.get_org_and_teams(g, 'org')
+        assert teams == ['teams']

@@ -21,7 +21,7 @@ def has_uncommited_changes():
 class TestMake:
     @staticmethod
     @pytest.mark.skipif(
-        not os.environ.get("HUDSON_HOME"),
+        os.getuid() != 0,
         reason="This test is only for CI environments",
     )
     def test_make_generate():

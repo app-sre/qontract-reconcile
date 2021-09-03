@@ -1,0 +1,52 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: openshift-saas-deploy
+spec:
+  params:
+  - name: saas_file_name
+    type: string
+  - name: env_name
+    type: string
+  steps:
+  - name: qontract-reconcile-config
+    image: quay.io/app-sre/qontract-reconcile:latest
+    command: ["/bin/sh", "-c"]
+    args: ['echo "$(CONFIG_TOML)" | base64 -d > config.toml']
+    env:
+    - name: CONFIG_TOML
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: config.toml.base64
+  - name: qontract-reconcile
+    image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
+    command: ["/bin/sh", "-c"]
+    args: ['qontract-reconcile --config config.toml openshift-saas-deploy --saas-file-name $(params.saas_file_name) --env-name $(params.env_name)']
+    env:
+    - name: GITHUB_API
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: github.api.url
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: openshift-saas-deploy
+spec:
+  params:
+  - name: saas_file_name
+    type: string
+  - name: env_name
+    type: string
+  tasks:
+  - name: openshift-saas-deploy
+    taskRef:
+      name: openshift-saas-deploy
+    params:
+    - name: saas_file_name
+      value: "$(params.saas_file_name)"
+    - name: env_name
+      value: "$(params.env_name)"

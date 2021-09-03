@@ -95,7 +95,8 @@ def fetch_desired_state(quay_api_store):
                 repo = RepoInfo(org_key, name, public, description)
 
                 if (org_key, name) in seen_repos:
-                    logging.error('Repo %s/%s is duplicated', org_key, name)
+                    logging.error(f'Repo {org_key.instance}/'
+                                  f'{org_key.org_name}/{name} is duplicated')
                     sys.exit(ExitCodes.ERROR)
 
                 seen_repos.add((org_key, name))
@@ -128,16 +129,16 @@ def get_repo_from_state(state, repo_info):
 
 
 def act_delete(dry_run, quay_api_store, current_repo):
-    logging.info(['delete_repo', current_repo.org_key,
-                  current_repo.name])
+    logging.info(['delete_repo', current_repo.org_key.instance,
+                  current_repo.org_key.org_name, current_repo.name])
     if not dry_run:
         api = quay_api_store[current_repo.org_key]["api"]
         api.repo_delete(current_repo.name)
 
 
 def act_create(dry_run, quay_api_store, desired_repo):
-    logging.info(['create_repo', desired_repo.org_key,
-                  desired_repo.name])
+    logging.info(['create_repo', desired_repo.org_key.instance,
+                  desired_repo.org_key.org_name, desired_repo.name])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         api.repo_create(desired_repo.name,
@@ -146,8 +147,8 @@ def act_create(dry_run, quay_api_store, desired_repo):
 
 
 def act_description(dry_run, quay_api_store, desired_repo):
-    logging.info(['update_desc', desired_repo.org_key,
-                  desired_repo.description])
+    logging.info(['update_desc', desired_repo.org_key.instance,
+                  desired_repo.org_key.org_name, desired_repo.description])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         api.repo_update_description(desired_repo.name,
@@ -155,8 +156,8 @@ def act_description(dry_run, quay_api_store, desired_repo):
 
 
 def act_public(dry_run, quay_api_store, desired_repo):
-    logging.info(['update_public', desired_repo.org_key,
-                  desired_repo.name])
+    logging.info(['update_public', desired_repo.org_key.instance,
+                  desired_repo.org_key.org_name, desired_repo.name])
     if not dry_run:
         api = quay_api_store[desired_repo.org_key]["api"]
         if desired_repo.public:
@@ -192,14 +193,15 @@ def run(dry_run):
             mirror_org_key = org_info['mirror']
             mirror_org = quay_api_store[mirror_org_key]
             if mirror_org.get('mirror'):
-                logging.error('%s can\'t have mirrors and be a mirror',
-                              mirror_org_key)
+                logging.error(f'{mirror_org_key.instance}/' +
+                              f'{mirror_org_key.org_name} ' +
+                              'can\'t have mirrors and be a mirror')
                 sys.exit(ExitCodes.ERROR)
 
             # ensure no org defines `managedRepos` and `mirror` at the same
             if org_info.get('managedRepos'):
-                logging.error('%s has defined mirror and managedRepos',
-                              org_key)
+                logging.error(f'{org_key.instance}/{org_key.org_name} ' +
+                              'has defined mirror and managedRepos')
                 sys.exit(ExitCodes.ERROR)
 
     # run integration

@@ -153,6 +153,12 @@ image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-im
 if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
 must only contain instructions related to the python code build.
 
+## Release
+
+Submit a PR to update setup.py (`version`) with the new version according to [semver](https://semver.org/).
+
+After the PR is merged, push a matching tag. This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
+
 ## Licence
 
 [Apache License Version 2.0](LICENSE).

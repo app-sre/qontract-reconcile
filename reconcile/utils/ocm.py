@@ -1,5 +1,5 @@
 import logging
-
+import re
 import requests
 
 from sretoolbox.utils import retry
@@ -15,7 +15,9 @@ KAS_API_BASE = '/api/kafkas_mgmt'
 
 MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
                              'replicas', 'labels', 'taints'}
-UPGRADE_POLICY_DESIRED_KEYS = {'id', 'schedule_type', 'schedule', 'next_run'}
+UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
+UPGRADE_POLICY_DESIRED_KEYS = \
+    {'id', 'schedule_type', 'schedule', 'next_run', 'version'}
 ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
 CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
@@ -25,23 +27,27 @@ class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
+    :param name: OCM instance name
     :param url: OCM instance URL
     :param access_token_client_id: client-id to get access token
     :param access_token_url: URL to get access token from
     :param offline_token: Long lived offline token used to get access token
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
+    :param blocked_versions: versions to block upgrades for
     :type url: string
     :type access_token_client_id: string
     :type access_token_url: string
     :type offline_token: string
     :type init_provision_shards: bool
     :type init_addons: bool
+    :type blocked_version: list
     """
-    def __init__(self, url, access_token_client_id, access_token_url,
+    def __init__(self, name, url, access_token_client_id, access_token_url,
                  offline_token, init_provision_shards=False,
-                 init_addons=False):
+                 init_addons=False, blocked_versions=None):
         """Initiates access token and gets clusters information."""
+        self.name = name
         self.url = url
         self.access_token_client_id = access_token_client_id
         self.access_token_url = access_token_url
@@ -51,6 +57,7 @@ class OCM:
         self._init_clusters(init_provision_shards=init_provision_shards)
         if init_addons:
             self._init_addons()
+        self._init_blocked_versions(blocked_versions)
 
     @retry()
     def _init_access_token(self):
@@ -579,6 +586,39 @@ class OCM:
             f'{machine_pool_id}'
         self._delete(api)
 
+    def version_blocked(self, version):
+        """Check if a version is blocked
+
+        Args:
+            version (string): version to check
+
+        Returns:
+            bool: is version blocked
+        """
+        return any(re.search(b, version) for b in self.blocked_versions)
+
+    def get_available_upgrades(self, version, channel):
+        """Get available versions to upgrade from specified version
+        in the specified channel
+
+        Args:
+            version (string): OpenShift version ID
+            channel (string): Upgrade channel
+
+        Raises:
+            KeyError: if specified channel is not valid
+
+        Returns:
+            list: available versions to upgrade to
+        """
+        if channel not in UPGRADE_CHANNELS:
+            raise KeyError(f'channel should be one of {UPGRADE_CHANNELS}')
+        version_id = f'openshift-v{version}'
+        if channel != 'stable':
+            version_id = f'{version_id}-{channel}'
+        api = f'{CS_API_BASE}/v1/versions/{version_id}'
+        return self._get_json(api).get('available_upgrades', [])
+
     def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
 
@@ -812,6 +852,19 @@ class OCM:
             data['parameters']['items'] = parameters
         self._post(api, data)
 
+    def _init_blocked_versions(self, blocked_versions):
+        try:
+            self.blocked_versions = set(blocked_versions)
+        except TypeError:
+            self.blocked_versions = set()
+
+        for b in self.blocked_versions:
+            try:
+                re.compile(b)
+            except re.error:
+                raise TypeError(
+                    f'blocked version is not a valid regex expression: {b}')
+
     @retry(max_attempts=10)
     def _get_json(self, api):
         r = requests.get(f"{self.url}{api}", headers=self.headers)
@@ -931,12 +984,19 @@ class OCMMap:
             self.ocm_map[ocm_name] = False
         else:
             url = ocm_info['url']
+            name = ocm_info['name']
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(ocm_offline_token)
             self.ocm_map[ocm_name] = \
-                OCM(url, access_token_client_id, access_token_url, token,
+                OCM(name, url,
+                    access_token_client_id, access_token_url, token,
                     init_provision_shards=init_provision_shards,
-                    init_addons=init_addons)
+                    init_addons=init_addons,
+                    blocked_versions=ocm_info.get('blockedVersions'))
+
+    def instances(self):
+        """Get list of OCM instance names initiated in the OCM map."""
+        return self.ocm_map.keys()
 
     def cluster_disabled(self, cluster_info):
         """

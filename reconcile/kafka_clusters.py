@@ -192,7 +192,7 @@ def run(dry_run, thread_pool_size=10,
                                   kafka_cluster_name,
                                   resource.body['data'])
 
-    ob.realize_data(dry_run, oc_map, ri,
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
                     override_enable_deletion=False)
 
     if error:

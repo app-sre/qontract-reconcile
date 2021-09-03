@@ -17,7 +17,7 @@ integrations:
     limits:
       memory: 720Mi
       cpu: 200m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
   internalCertificates: true
@@ -29,7 +29,7 @@ integrations:
     limits:
       memory: 500Mi
       cpu: 200m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
   internalCertificates: true
@@ -43,7 +43,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 500m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
 - name: openshift-upgrade-watcher
@@ -66,7 +66,7 @@ integrations:
       # Limits 30% above requests
       memory: 780Mi
       cpu: 300m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
 - name: openshift-namespaces
@@ -77,7 +77,7 @@ integrations:
     limits:
       memory: 800Mi
       cpu: 200m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
   internalCertificates: true
@@ -89,7 +89,7 @@ integrations:
     limits:
       memory: 700Mi
       cpu: 250m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
   internalCertificates: true
@@ -101,18 +101,18 @@ integrations:
     limits:
       memory: 1040Mi
       cpu: 300m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
 - name: openshift-resources
   resources:
     requests:
-      memory: 1000Mi
-      cpu: 200m
+      memory: 1600Mi
+      cpu: 900m
     limits:
-      memory: 1200Mi
-      cpu: 400m
-  extraArgs: --internal
+      memory: 3600Mi
+      cpu: 1200m
+  extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
   internalCertificates: true
@@ -124,7 +124,7 @@ integrations:
     limits:
       memory: 800Mi
       cpu: 400m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
   internalCertificates: true
 - name: openshift-routes
   resources:
@@ -136,7 +136,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
-  extraArgs: --internal
+  extraArgs: --internal --no-use-jump-host
 - name: openshift-serviceaccount-tokens
   resources:
     requests:
@@ -145,7 +145,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 400m
-  extraArgs: --vault-output-path app-sre/integrations-output
+  extraArgs: --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
     slack: true
   internalCertificates: true
@@ -323,17 +323,6 @@ integrations:
       cpu: 200m
   logs:
     slack: true
-- name: ldap-users
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  extraArgs: ${APP_INTERFACE_PROJECT_ID}
-  logs:
-    slack: true
 - name: gitlab-mr-sqs-consumer
   resources:
     requests:
@@ -370,3 +359,54 @@ cronjobs:
   # once a day at midnight
   cron: '0 0 * * *'
   extraArgs: --vault-output-path app-sre/integrations-output
+- name: ldap-users
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: ${APP_INTERFACE_PROJECT_ID}
+  # once a hour
+  cron: '0 * * * *'
+- name: dashdotdb-cso
+  concurrencyPolicy: Replace
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once every 6 hours
+  cron: '0 */6 * * *'
+  dashdotdb: true
+- name: dashdotdb-dvo
+  concurrencyPolicy: Replace
+  successfulJobHistoryLimit: 12
+  failedJobHistoryLimit: 12
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once a day
+  cron: '0 2 * * *'
+  dashdotdb: true
+- name: dashdotdb-slo
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # once a day
+  cron: '0 5 * * *'
+  dashdotdb: true

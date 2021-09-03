@@ -3,13 +3,17 @@ import shutil
 import os
 import threading
 import logging
-
+import random
 from sshtunnel import SSHTunnelForwarder
 
 import reconcile.utils.gql as gql
 from reconcile.utils.secret_reader import SecretReader
 
 from reconcile.exceptions import FetchResourceError
+
+# https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+DYNAMIC_PORT_MIN = 49152
+DYNAMIC_PORT_MAX = 65535
 
 
 class HTTPStatusCodeError(Exception):
@@ -41,6 +45,7 @@ class JumpHostBase:
 
 class JumpHostSSH(JumpHostBase):
     bastion_tunnel = {}
+    local_ports = []
     tunnel_lock = threading.Lock()
 
     def __init__(self, jh, settings=None):
@@ -48,6 +53,18 @@ class JumpHostSSH(JumpHostBase):
 
         self.known_hosts = self.get_known_hosts(jh)
         self.init_known_hosts_file()
+        self.local_port = self.get_random_port() \
+            if jh.get('localPort') is None else jh.get('localPort')
+        self.remote_port = jh['remotePort']
+
+    @staticmethod
+    def get_unique_random_port():
+        with JumpHostSSH.tunnel_lock:
+            port = random.randint(DYNAMIC_PORT_MIN, DYNAMIC_PORT_MAX)
+            while port in JumpHostSSH.local_ports:
+                port = random.randint(DYNAMIC_PORT_MIN, DYNAMIC_PORT_MAX)
+            JumpHostSSH.local_ports.append(port)
+            return port
 
     @staticmethod
     def get_known_hosts(jh):
@@ -79,10 +96,9 @@ class JumpHostSSH(JumpHostBase):
             '-o', 'UserKnownHostsFile={}'.format(self.known_hosts_file),
             '-i', self.identity_file, '-p', str(self.port), user_host]
 
-    def create_ssh_tunnel(self, local_port, remote_port):
-        key = f'{self.hostname}-{local_port}-{remote_port}'
+    def create_ssh_tunnel(self):
         with JumpHostSSH.tunnel_lock:
-            if key not in JumpHostSSH.bastion_tunnel:
+            if self.local_port not in JumpHostSSH.bastion_tunnel:
                 # Hide connect messages from sshtunnel
                 logger = logging.getLogger()
                 default_log_level = logger.level
@@ -93,17 +109,18 @@ class JumpHostSSH(JumpHostBase):
                     ssh_port=self.port,
                     ssh_username=self.user,
                     ssh_pkey=self.identity_file,
-                    remote_bind_address=(self.hostname, remote_port),
-                    local_bind_address=('localhost', local_port)
+                    remote_bind_address=(self.hostname, self.remote_port),
+                    local_bind_address=('localhost', self.local_port)
                 )
                 tunnel.start()
                 logger.setLevel(default_log_level)
-                JumpHostSSH.bastion_tunnel[key] = tunnel
+                JumpHostSSH.bastion_tunnel[self.local_port] = tunnel
 
     def cleanup(self):
         JumpHostBase.cleanup(self)
         with JumpHostSSH.tunnel_lock:
             tunnels = JumpHostSSH.bastion_tunnel
-            for key in list(tunnels.keys()):
-                tunnel = tunnels.pop(key)
+            if self.local_port in tunnels:
+                tunnel = tunnels.pop(self.local_port)
                 tunnel.close()
+                JumpHostSSH.local_ports.remove(self.local_port)
