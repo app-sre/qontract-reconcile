@@ -419,7 +419,7 @@ def run(dry_run, print_only=False,
     participating_accounts += \
         [item['accepter']['account'] for item in desired_state]
     participating_account_names = \
-        {a['name'] for a in participating_accounts}
+        [a['name'] for a in participating_accounts]
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
 
@@ -450,7 +450,9 @@ def run(dry_run, print_only=False,
     defer(lambda: tf.cleanup())
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    if err or disabled_deletions_detected:
+    if err:
+        sys.exit(1)
+    if disabled_deletions_detected:
         sys.exit(1)
 
     if dry_run:
