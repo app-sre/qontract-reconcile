@@ -233,7 +233,7 @@ class QuayApi:
               f"{repo_name}/permissions/team/{team}"
         r = requests.get(url, headers=self.auth_header)
         if not r.ok:
-            message = r.json()['message']
+            message = r.json().get('message')
             expected_message = "Team does not have permission for repo."
             if message == expected_message:
                 return None
