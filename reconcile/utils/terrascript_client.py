@@ -1686,6 +1686,11 @@ class TerrascriptClient:
         role_tf_resource = aws_iam_role(identifier, **values)
         tf_resources.append(role_tf_resource)
 
+        # output role arn
+        output_name_0_13 = output_prefix + '__role_arn'
+        output_value = '${' + role_tf_resource.arn + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
