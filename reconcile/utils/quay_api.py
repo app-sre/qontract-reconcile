@@ -1,12 +1,6 @@
 import requests
 
 
-class RequestsException(Exception):
-    def __init__(self, r):
-        message = "\nCode: %s\n%s" % (r.status_code, r.text)
-        super(Exception, self).__init__(message)
-
-
 class QuayTeamNotFoundException(Exception):
     pass
 
@@ -44,7 +38,7 @@ class QuayApi:
                 f"contact org owner to create the "
                 f"team manually.")
         elif not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
         body = r.json()
 
@@ -79,14 +73,14 @@ class QuayApi:
                 user, team)
 
             if message != expected_message:
-                raise RequestsException(r)
+                raise requests.HTTPError(response=r)
 
         url_org = "{}/organization/{}/members/{}".format(
             self.api_url, self.organization, user)
 
         r = requests.delete(url_org, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
         return True
 
@@ -98,7 +92,7 @@ class QuayApi:
             self.api_url, self.organization, team, user)
         r = requests.put(url, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
         return True
 
     def create_or_update_team(self, team: str, role="member",
@@ -126,7 +120,7 @@ class QuayApi:
         r = requests.put(url, headers=self.auth_header, json=payload)
 
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
     def list_images(self, images=None, page=None, count=0):
         """
@@ -146,7 +140,7 @@ class QuayApi:
         # perform request
         r = requests.get(url, params=params, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
         # read body
         body = r.json()
@@ -180,7 +174,7 @@ class QuayApi:
         # perform request
         r = requests.post(url, json=params, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
     def repo_delete(self, repo_name):
         url = "{}/repository/{}/{}".format(
@@ -190,7 +184,7 @@ class QuayApi:
         # perform request
         r = requests.delete(url, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
     def repo_update_description(self, repo_name, description):
         url = "{}/repository/{}/{}".format(
@@ -206,7 +200,7 @@ class QuayApi:
         # perform request
         r = requests.put(url, json=params, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
     def repo_make_public(self, repo_name):
         self._repo_change_visibility(repo_name, "public")
@@ -226,7 +220,7 @@ class QuayApi:
         # perform request
         r = requests.post(url, json=params, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
     def get_repo_team_permissions(self, repo_name, team):
         url = f"{self.api_url}/repository/{self.organization}/" +\
@@ -238,7 +232,7 @@ class QuayApi:
             if message == expected_message:
                 return None
 
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
 
         return r.json().get('role') or None
 
@@ -248,4 +242,4 @@ class QuayApi:
         body = {'role': role}
         r = requests.put(url, json=body, headers=self.auth_header)
         if not r.ok:
-            raise RequestsException(r)
+            raise requests.HTTPError(response=r)
