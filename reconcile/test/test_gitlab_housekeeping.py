@@ -12,7 +12,7 @@ DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 class TestGitLabHousekeeping:
     @staticmethod
     def test_clean_pipelines_happy_path():
-        now = datetime.now()
+        now = datetime.utcnow()
 
         ten_minutes_ago = now - timedelta(minutes=10)
         two_hours_ago = now - timedelta(minutes=120)
