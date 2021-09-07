@@ -59,6 +59,10 @@ class QuayApi:
         return True
 
     def remove_user_from_team(self, user, team):
+        """Deletes an user from a team.
+
+        :raises HTTPError if there are any problems with the request
+        """
         url_team = "{}/organization/{}/team/{}/members/{}".format(
             self.api_url, self.organization,
             team, user
@@ -83,6 +87,10 @@ class QuayApi:
         return True
 
     def add_user_to_team(self, user, team):
+        """Adds an user to a team.
+
+        :raises HTTPError if there are any errors with the request
+        """
         if user in self.list_team_members(team, cache=True):
             return True
 
@@ -120,6 +128,8 @@ class QuayApi:
     def list_images(self, images=None, page=None, count=0):
         """
         https://docs.quay.io/api/swagger/#!/repository/listRepos
+
+        :raises HTTPError: failure when listing the images in the repository
         """
 
         if count > self.LIMIT_FOLLOWS:
@@ -153,6 +163,11 @@ class QuayApi:
             return images
 
     def repo_create(self, repo_name, description, public):
+        """Creates a repository called repo_name with the given description
+        and public flag.
+
+        :raise HTTPError: the operation fails
+        """
         visibility = "public" if public else "private"
 
         url = "{}/repository".format(self.api_url)
