@@ -1,9 +1,9 @@
 import json
-
+from requests import HTTPError
 import pytest
 import responses
 
-from reconcile.utils.quay_api import QuayApi, RequestsException, \
+from reconcile.utils.quay_api import QuayApi, \
     QuayTeamNotFoundException
 
 ORG = 'some-org'
@@ -51,7 +51,7 @@ def test_create_or_update_team_raises(quay_api):
         status=400
     )
 
-    with pytest.raises(RequestsException):
+    with pytest.raises(HTTPError):
         quay_api.create_or_update_team(TEAM_NAME)
 
 
@@ -77,5 +77,5 @@ def test_list_team_members_raises_other_status_codes(quay_api):
         status=401
     )
 
-    with pytest.raises(RequestsException):
+    with pytest.raises(HTTPError):
         quay_api.list_team_members(TEAM_NAME)
