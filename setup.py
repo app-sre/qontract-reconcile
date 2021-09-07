@@ -21,7 +21,7 @@ setup(
     data_files=[('reconcile/templates', glob('reconcile/templates/*.j2'))],
 
     install_requires=[
-        "sretoolbox==0.13.0",
+        "sretoolbox==0.15.0",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
@@ -57,6 +57,7 @@ setup(
         "openshift>=0.11.2",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
+        "croniter>=1.0.15,<1.1.0",
     ],
 
     test_suite="tests",

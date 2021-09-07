@@ -86,8 +86,7 @@ class TestRunInteg(TestCase):
         self.get_encrypted_credentials.assert_called_once_with(
             'credentials_name',
             self.user,
-            self.settings,
-            self.smtpclient.return_value
+            self.settings
         )
         calls = self.smtpclient.return_value.send_mail.call_args_list
         self.assertEqual(len(calls), 1)

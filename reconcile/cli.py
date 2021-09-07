@@ -1188,6 +1188,7 @@ def ocm_machine_pools(ctx, thread_pool_size):
 
 
 @integration.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @click.pass_context
 def ocm_upgrade_scheduler(ctx, thread_pool_size):

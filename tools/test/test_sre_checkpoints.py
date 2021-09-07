@@ -89,8 +89,9 @@ class TestGetSRECheckpoints:
         ]
 
         with sre_checkpoints.make_context(info_name='info', args=[]) as ctx:
-            ctx.obj = {'output': 'json'}
+            ctx.obj = {'options': {'output': 'json'}}
             sre_checkpoints.invoke(ctx)
 
             cols = ['name', 'latest']
-            print_output.assert_called_once_with('json', expected_data, cols)
+            print_output.assert_called_once_with(
+                {'output': 'json'}, expected_data, cols)

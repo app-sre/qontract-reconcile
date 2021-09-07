@@ -307,6 +307,7 @@ CLUSTERS_QUERY = """
         format
         version
       }
+      blockedVersions
     }
     awsInfrastructureAccess {
       awsGroup {
@@ -351,8 +352,11 @@ CLUSTERS_QUERY = """
       labels
     }
     upgradePolicy {
-      schedule_type
+      workloads
       schedule
+      conditions {
+        soakDays
+      }
     }
     additionalRouters {
       private
@@ -421,6 +425,7 @@ CLUSTERS_QUERY = """
           tags
           cidrBlock
           manageSecurityGroups
+          assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {

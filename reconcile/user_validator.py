@@ -1,11 +1,18 @@
+import os
 import sys
 import logging
 
+from github.GithubException import GithubException
+from requests.exceptions import ReadTimeout
+from sretoolbox.utils import retry
+
 from reconcile.utils.gpg import gpg_key_valid
 import reconcile.queries as queries
-from reconcile.utils.smtp_client import SmtpClient
+from reconcile.github_users import init_github
+import reconcile.utils.threaded as threaded
 
 
+GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 QONTRACT_INTEGRATION = 'user-validator'
 
 
@@ -29,14 +36,11 @@ def validate_users_single_path(users):
 
 def validate_users_gpg_key(users):
     ok = True
-    settings = queries.get_app_interface_settings()
-    smtp_client = SmtpClient(settings=settings)
     for user in users:
         public_gpg_key = user.get('public_gpg_key')
         if public_gpg_key:
-            recipient = smtp_client.get_recipient(user['org_username'])
             try:
-                gpg_key_valid(public_gpg_key, recipient)
+                gpg_key_valid(public_gpg_key)
             except ValueError as e:
                 msg = \
                     'invalid public gpg key for user {}: {}'.format(
@@ -47,12 +51,34 @@ def validate_users_gpg_key(users):
     return ok
 
 
-def run(dry_run):
+@retry(exceptions=(GithubException, ReadTimeout))
+def get_github_user(user, github):
+    gh_user = github.get_user(user['github_username'])
+    return user['org_username'], user['github_username'], gh_user.login
+
+
+def validate_users_github(users, thread_pool_size):
+    ok = True
+    g = init_github()
+    results = threaded.run(get_github_user, users,
+                           thread_pool_size, github=g)
+    for org_username, gb_username, gh_login in results:
+        if gb_username != gh_login:
+            logging.error(
+                "Github username is case sensitive in OSD. "
+                f"User {org_username} github_username should be: {gh_login}.")
+            ok = False
+
+    return ok
+
+
+def run(dry_run, thread_pool_size=10):
     users = queries.get_users()
 
     single_path_ok = validate_users_single_path(users)
     gpg_ok = validate_users_gpg_key(users)
+    github_ok = validate_users_github(users, thread_pool_size)
 
-    ok = single_path_ok and gpg_ok
+    ok = single_path_ok and gpg_ok and github_ok
     if not ok:
         sys.exit(1)

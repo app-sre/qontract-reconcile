@@ -21425,6 +21425,208 @@ objects:
   kind: Deployment
   metadata:
     labels:
+      app: qontract-reconcile-ocm-upgrade-scheduler
+    name: qontract-reconcile-ocm-upgrade-scheduler
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-ocm-upgrade-scheduler
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-ocm-upgrade-scheduler
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[ocm-upgrade-scheduler] %s\`\`\`"
+              </store>
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name ocm-upgrade-scheduler
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "1"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: ocm-upgrade-scheduler
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${OCM_UPGRADE_SCHEDULER_CPU_LIMIT}
+              memory: ${OCM_UPGRADE_SCHEDULER_MEMORY_LIMIT}
+            requests:
+              cpu: ${OCM_UPGRADE_SCHEDULER_CPU_REQUEST}
+              memory: ${OCM_UPGRADE_SCHEDULER_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
       app: qontract-reconcile-ocm-external-configuration-labels
     name: qontract-reconcile-ocm-external-configuration-labels
   spec:
@@ -23812,11 +24014,11 @@ parameters:
 - name: QUAY_MIRROR_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_MEMORY_LIMIT
-  value: 200Mi
+  value: 1Gi
 - name: QUAY_MIRROR_CPU_REQUEST
   value: 200m
 - name: QUAY_MIRROR_MEMORY_REQUEST
-  value: 150Mi
+  value: 970Mi
 - name: QUAY_MIRROR_ORG_CPU_LIMIT
   value: 300m
 - name: QUAY_MIRROR_ORG_MEMORY_LIMIT
@@ -23956,11 +24158,11 @@ parameters:
 - name: OPENSHIFT_RESOURCES_CPU_LIMIT
   value: 1200m
 - name: OPENSHIFT_RESOURCES_MEMORY_LIMIT
-  value: 1800Mi
+  value: 3600Mi
 - name: OPENSHIFT_RESOURCES_CPU_REQUEST
   value: 900m
 - name: OPENSHIFT_RESOURCES_MEMORY_REQUEST
-  value: 1400Mi
+  value: 1600Mi
 - name: OPENSHIFT_VAULT_SECRETS_CPU_LIMIT
   value: 1200m
 - name: OPENSHIFT_VAULT_SECRETS_MEMORY_LIMIT
@@ -24066,6 +24268,14 @@ parameters:
 - name: OCM_MACHINE_POOLS_CPU_REQUEST
   value: 100m
 - name: OCM_MACHINE_POOLS_MEMORY_REQUEST
+  value: 100Mi
+- name: OCM_UPGRADE_SCHEDULER_CPU_LIMIT
+  value: 200m
+- name: OCM_UPGRADE_SCHEDULER_MEMORY_LIMIT
+  value: 200Mi
+- name: OCM_UPGRADE_SCHEDULER_CPU_REQUEST
+  value: 100m
+- name: OCM_UPGRADE_SCHEDULER_MEMORY_REQUEST
   value: 100Mi
 - name: OCM_EXTERNAL_CONFIGURATION_LABELS_CPU_LIMIT
   value: 200m

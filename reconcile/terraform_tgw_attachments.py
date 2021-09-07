@@ -46,12 +46,19 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             account = peer_connection['account']
             # assume_role is the role to assume to provision the
             # peering connection request, through the accepter AWS account.
-            account['assume_role'] = \
-                ocm.get_aws_infrastructure_access_terraform_assume_role(
-                    cluster,
-                    account['uid'],
-                    account['terraformUsername']
-                )
+            provided_assume_role = peer_connection.get('assumeRole')
+            # if an assume_role is provided, it means we don't need
+            # to get the information from OCM. it likely means that
+            # there is no OCM at all.
+            if provided_assume_role:
+                account['assume_role'] = provided_assume_role
+            else:
+                account['assume_role'] = \
+                    ocm.get_aws_infrastructure_access_terraform_assume_role(
+                        cluster,
+                        account['uid'],
+                        account['terraformUsername']
+                    )
             account['assume_region'] = accepter['region']
             account['assume_cidr'] = accepter['cidr_block']
             aws_api = AWSApi(1, [account], settings=settings)
@@ -114,8 +121,15 @@ def run(dry_run, print_only=False,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
+    with_ocm = any(c.get('ocm') for c in clusters)
+    if with_ocm:
+        ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                         settings=settings)
+    else:
+        # this is a case for an OCP cluster which is not provisioned
+        # through OCM. it is expected that an 'assume_role' is provided
+        # on the tgw defition in the cluster file.
+        ocm_map = {}
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state, err = \

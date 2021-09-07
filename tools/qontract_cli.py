@@ -14,6 +14,7 @@ import reconcile.queries as queries
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
+import reconcile.ocm_upgrade_scheduler as ous
 
 from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.secret_reader import SecretReader
@@ -39,6 +40,14 @@ def output(function):
     return function
 
 
+def sort(function):
+    function = click.option('--sort', '-s',
+                            help='sort output',
+                            default=True,
+                            type=bool)(function)
+    return function
+
+
 @click.group()
 @config_file
 @click.pass_context
@@ -50,16 +59,22 @@ def root(ctx, configfile):
 
 @root.group()
 @output
+@sort
 @click.pass_context
-def get(ctx, output):
-    ctx.obj['output'] = output
+def get(ctx, output, sort):
+    ctx.obj['options'] = {
+        'output': output,
+        'sort': sort,
+    }
 
 
 @root.group()
 @output
 @click.pass_context
 def describe(ctx, output):
-    ctx.obj['output'] = output
+    ctx.obj['options'] = {
+        'output': output,
+    }
 
 
 @get.command()
@@ -67,7 +82,7 @@ def describe(ctx, output):
 def settings(ctx):
     settings = queries.get_app_interface_settings()
     columns = ['vault', 'kubeBinary', 'mergeRequestGateway']
-    print_output(ctx.obj['output'], [settings], columns)
+    print_output(ctx.obj['options'], [settings], columns)
 
 
 @get.command()
@@ -79,7 +94,7 @@ def aws_accounts(ctx, name):
         accounts = [a for a in accounts if a['name'] == name]
 
     columns = ['name', 'consoleUrl']
-    print_output(ctx.obj['output'], accounts, columns)
+    print_output(ctx.obj['options'], accounts, columns)
 
 
 @get.command()
@@ -91,7 +106,7 @@ def clusters(ctx, name):
         clusters = [c for c in clusters if c['name'] == name]
 
     columns = ['name', 'consoleUrl', 'kibanaUrl', 'prometheusUrl']
-    print_output(ctx.obj['output'], clusters, columns)
+    print_output(ctx.obj['options'], clusters, columns)
 
 
 @get.command()
@@ -142,7 +157,38 @@ def cluster_upgrades(ctx, name):
 
     columns = ['name', 'upgradePolicy', 'schedule', 'next_run']
 
-    print_output(ctx.obj['output'], clusters_data, columns)
+    print_output(ctx.obj['options'], clusters_data, columns)
+
+
+@get.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.pass_context
+def version_history(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    history = ous.get_version_history(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map
+    )
+
+    results = []
+    for ocm_name, history_data in history.items():
+        for version, version_data in history_data['versions'].items():
+            for workload, workload_data in version_data['workloads'].items():
+                item = {
+                    'ocm': ocm_name,
+                    'version': version,
+                    'workload': workload,
+                    'soak_days': round(workload_data['soak_days'], 2),
+                    'clusters': ', '.join(workload_data['reporting']),
+                }
+                results.append(item)
+    columns = ['ocm', 'version', 'workload', 'soak_days', 'clusters']
+    print_output(ctx.obj['options'], results, columns)
 
 
 @get.command()
@@ -154,7 +200,10 @@ def clusters_network(ctx, name):
         clusters = [c for c in clusters if c['name'] == name]
 
     columns = ['name', 'network.vpc', 'network.service', 'network.pod']
-    print_output(ctx.obj['output'], clusters, columns)
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    print_output(ctx.obj['options'], clusters, columns)
 
 
 @get.command()
@@ -181,7 +230,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
             results.append(item)
 
     columns = ['cluster', 'user_arn', 'access_level', 'switch_role_link']
-    print_output(ctx.obj['output'], results, columns)
+    print_output(ctx.obj['options'], results, columns)
 
 
 @get.command()
@@ -212,7 +261,7 @@ def clusters_egress_ips(ctx):
         results.append(item)
 
     columns = ['cluster', 'egress_ips']
-    print_output(ctx.obj['output'], results, columns)
+    print_output(ctx.obj['options'], results, columns)
 
 
 @get.command()
@@ -242,7 +291,7 @@ def terraform_users_credentials(ctx):
             credentials.append(item)
 
     columns = ['account', 'console_url', 'user_name', 'encrypted_password']
-    print_output(ctx.obj['output'], credentials, columns)
+    print_output(ctx.obj['options'], credentials, columns)
 
 
 @get.command()
@@ -263,7 +312,7 @@ def aws_route53_zones(ctx):
         results.append(item)
 
     columns = ['domain', 'records', 'nameservers']
-    print_output(ctx.obj['output'], results, columns)
+    print_output(ctx.obj['options'], results, columns)
 
 
 @get.command()
@@ -293,7 +342,10 @@ def namespaces(ctx, name):
         namespaces = [ns for ns in namespaces if ns['name'] == name]
 
     columns = ['name', 'cluster.name', 'app.name']
-    print_output(ctx.obj['output'], namespaces, columns)
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    print_output(ctx.obj['options'], namespaces, columns)
 
 
 @get.command()
@@ -301,7 +353,7 @@ def namespaces(ctx, name):
 def products(ctx):
     products = queries.get_products()
     columns = ['name', 'description']
-    print_output(ctx.obj['output'], products, columns)
+    print_output(ctx.obj['options'], products, columns)
 
 
 @describe.command()
@@ -318,7 +370,7 @@ def product(ctx, name):
     product = products[0]
     environments = product['environments']
     columns = ['name', 'description']
-    print_output(ctx.obj['output'], environments, columns)
+    print_output(ctx.obj['options'], environments, columns)
 
 
 @get.command()
@@ -326,7 +378,10 @@ def product(ctx, name):
 def environments(ctx):
     environments = queries.get_environments()
     columns = ['name', 'description', 'product.name']
-    print_output(ctx.obj['output'], environments, columns)
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    print_output(ctx.obj['options'], environments, columns)
 
 
 @describe.command()
@@ -343,7 +398,10 @@ def environment(ctx, name):
     environment = environments[0]
     namespaces = environment['namespaces']
     columns = ['name', 'cluster.name', 'app.name']
-    print_output(ctx.obj['output'], namespaces, columns)
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    print_output(ctx.obj['options'], namespaces, columns)
 
 
 @get.command()
@@ -351,7 +409,7 @@ def environment(ctx, name):
 def services(ctx):
     apps = queries.get_apps()
     columns = ['name', 'path', 'onboardingStatus']
-    print_output(ctx.obj['output'], apps, columns)
+    print_output(ctx.obj['options'], apps, columns)
 
 
 @get.command()
@@ -360,7 +418,7 @@ def repos(ctx):
     repos = queries.get_repos()
     repos = [{'url': r} for r in repos]
     columns = ['url']
-    print_output(ctx.obj['output'], repos, columns)
+    print_output(ctx.obj['options'], repos, columns)
 
 
 @get.command()
@@ -449,7 +507,7 @@ def roles(ctx, org_username):
             })
 
     columns = ['type', 'name', 'resource', 'ref']
-    print_output(ctx.obj['output'], roles, columns)
+    print_output(ctx.obj['options'], roles, columns)
 
 
 @get.command()
@@ -461,7 +519,7 @@ def users(ctx, org_username):
         users = [u for u in users if u['org_username'] == org_username]
 
     columns = ['org_username', 'github_username', 'name']
-    print_output(ctx.obj['output'], users, columns)
+    print_output(ctx.obj['options'], users, columns)
 
 
 @get.command()
@@ -469,7 +527,7 @@ def users(ctx, org_username):
 def integrations(ctx):
     environments = queries.get_integrations()
     columns = ['name', 'description']
-    print_output(ctx.obj['output'], environments, columns)
+    print_output(ctx.obj['options'], environments, columns)
 
 
 @get.command()
@@ -503,7 +561,7 @@ def quay_mirrors(ctx):
                 })
 
     columns = ['repo', 'upstream', 'public']
-    print_output(ctx.obj['output'], mirrors, columns)
+    print_output(ctx.obj['options'], mirrors, columns)
 
 
 @get.command()
@@ -524,7 +582,7 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
                 break
 
     columns = ['name', 'email']
-    print_output(ctx.obj['output'], service_owners, columns)
+    print_output(ctx.obj['options'], service_owners, columns)
 
 
 @get.command()
@@ -553,10 +611,14 @@ def sre_checkpoints(ctx):
     checkpoints_data.sort(key=lambda c: c['latest'], reverse=True)
 
     columns = ['name', 'latest']
-    print_output(ctx.obj['output'], checkpoints_data, columns)
+    print_output(ctx.obj['options'], checkpoints_data, columns)
 
 
-def print_output(output, content, columns=[]):
+def print_output(options, content, columns=[]):
+    if options['sort']:
+        content.sort(key=lambda c: tuple(c.values()))
+    output = options['output']
+
     if output == 'table':
         print_table(content, columns)
     elif output == 'md':
