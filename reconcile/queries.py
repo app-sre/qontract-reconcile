@@ -425,6 +425,7 @@ CLUSTERS_QUERY = """
           tags
           cidrBlock
           manageSecurityGroups
+          assumeRole
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
