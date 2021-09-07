@@ -55,7 +55,9 @@ Should the dashdotDB proposal be implemented, qontract-reconcile must be updated
 
 qontract-reconcile currently consumes this API as part of the [app-interface-reporter process](https://github.com/app-sre/qontract-reconcile/blob/master/tools/app_interface_reporter.py).
 
-Should the dashdotDB proposal be implemented, qontract-reconcile will be updated to produce reports with a 'service_slo' property that would appear as follows:
+Should the dashdotDB proposal be implemented, qontract-reconcile will be updated to produce reports with an updated schema for 'service_slo' array items. These array items will now include a 'slo_doc_name' property.
+
+An example of the new output:
 ```yml
 service_slo:
   - cluster: cluster1
