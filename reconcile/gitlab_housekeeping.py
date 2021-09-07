@@ -2,8 +2,6 @@ import logging
 
 from datetime import datetime, timedelta
 
-import time
-
 import gitlab
 
 from sretoolbox.utils import retry
@@ -24,7 +22,7 @@ DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 
 def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
-    now = time.time()
+    now = datetime.utcnow()
 
     pending_pipelines = [p for p in pipelines
                          if p['status'] in ['pending', 'running']]
@@ -33,9 +31,9 @@ def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
         return
 
     for p in pending_pipelines:
-        update_time = time.strptime(p['updated_at'], DATE_FORMAT)
+        update_time = datetime.strptime(p['updated_at'], DATE_FORMAT)
 
-        elapsed = now - time.mktime(update_time)
+        elapsed = (now - update_time).total_seconds()
 
         # pipeline_timeout converted in seconds
         if elapsed > pipeline_timeout * 60:
@@ -152,8 +150,9 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
 
             # If pipeline_timeout is None no pipeline will be canceled
             if pipeline_timeout is not None:
-                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
-                                       settings=gl_settings,).project
+                gl_project = GitLabApi(gl_instance,
+                                       project_id=mr.source_project_id,
+                                       settings=gl_settings).project
                 clean_pipelines(dry_run, gl_project, pipelines,
                                 pipeline_timeout)
 
@@ -221,8 +220,9 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
 
             # If pipeline_timeout is None no pipeline will be canceled
             if pipeline_timeout is not None:
-                gl_project = GitLabApi(gl_instance, project_id=mr.project_id,
-                                       settings=gl_settings,).project
+                gl_project = GitLabApi(gl_instance,
+                                       project_id=mr.source_project_id,
+                                       settings=gl_settings).project
                 clean_pipelines(dry_run, gl_project, pipelines,
                                 pipeline_timeout)
 
