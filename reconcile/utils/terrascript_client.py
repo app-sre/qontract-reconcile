@@ -1733,8 +1733,7 @@ class TerrascriptClient:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
-                            kms_res = "aws_kms_key." + \
-                                kms_key['resource']['identifier']
+                            kms_res = self.get_name_from_tf_resource(kms_key)
                             values['kms_master_key_id'] = \
                                 "${" + kms_res + ".arn}"
                             values['depends_on'] = [kms_res]
