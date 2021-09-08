@@ -1285,7 +1285,7 @@ class TerrascriptClient:
         # 'deps' should contain a list of terraform resourse names
         # (not full objects)
         # that must be created
-        # before the actual RDS instance should be created
+        # before the actual S3 instance should be created
         deps = []
         replication_configs = common_values.get('replication_configurations')
         if replication_configs:
