@@ -5,11 +5,17 @@ from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
 from reconcile import openshift_namespace_labels
-from reconcile.openshift_namespace_labels import NamespaceLabelError, state_key
+from reconcile.openshift_namespace_labels import state_key
 
 
 # TODO: use a dataclass when python > 3.6
 class NS():
+    """
+    Simple utility class holding test information about current,
+    desired and managed labels for a single cluster/namespace. It allows to
+    simplify the test data creation.
+    Some methods are there to convert this data into GQL, State or OC outputs.
+    """
     def __init__(self, cluster: str, name: str,
                  current: Optional[Dict[str, str]],
                  managed: Optional[List[str]],
@@ -161,9 +167,8 @@ class TestOpenshiftNamespaceLabels(TestCase):
         # no change in the managed key store: we have the same keys than before
         self.state.add.assert_not_called()
         oc = self.oc_clients[c1]
-        oc.label.assert_called_once()
-        calls = [call(None, 'Namespace', 'update', k1v2, overwrite=True)]
-        oc.label.assert_has_calls(calls)
+        oc.label.assert_called_once_with(None, 'Namespace', 'update', k1v2,
+                                         overwrite=True)
 
     def test_add(self):
         """ addition of a label """
@@ -171,13 +176,11 @@ class TestOpenshiftNamespaceLabels(TestCase):
             NS(c1, 'add', k1v1, k1, k1v1_k2v2),
         ]
         run_integration()
-        self.state.add.assert_called_once()
-        self.state.add.assert_has_calls([call(state_key(c1, 'add'),
-                                              k1_k2, force=True)])
+        self.state.add.assert_called_once_with(state_key(c1, 'add'),
+                                               k1_k2, force=True)
         oc = self.oc_clients[c1]
-        oc.label.assert_called_once()
-        oc.label.assert_has_calls([call(None, 'Namespace', 'add', k2v2,
-                                        overwrite=True)])
+        oc.label.assert_called_once_with(None, 'Namespace', 'add', k2v2,
+                                         overwrite=True)
 
     def test_add_from_none(self):
         """ addition of a label from none on the current namespace"""
@@ -185,13 +188,11 @@ class TestOpenshiftNamespaceLabels(TestCase):
             NS(c1, 'add-from-none', {}, None, k1v1),
         ]
         run_integration()
-        self.state.add.assert_called_once()
-        self.state.add.assert_has_calls([call(state_key(c1, 'add-from-none'),
-                                              k1, force=True)])
+        self.state.add.assert_called_once_with(state_key(c1, 'add-from-none'),
+                                               k1, force=True)
         oc = self.oc_clients[c1]
-        oc.label.assert_called_once()
-        oc.label.assert_has_calls([call(None, 'Namespace', 'add-from-none',
-                                        k1v1, overwrite=True)])
+        oc.label.assert_called_once_with(None, 'Namespace', 'add-from-none',
+                                         k1v1, overwrite=True)
 
     def test_remove_step1(self):
         """ removal of a label step 1: remove label"""
@@ -201,9 +202,8 @@ class TestOpenshiftNamespaceLabels(TestCase):
         run_integration()
         self.state.add.assert_not_called()
         oc = self.oc_clients[c1]
-        oc.label.assert_called_once()
-        oc.label.assert_has_calls([call(None, 'Namespace', 'remove',
-                                        {'k2': None}, overwrite=True)])
+        oc.label.assert_called_once_with(None, 'Namespace', 'remove',
+                                         {'k2': None}, overwrite=True)
 
     def test_remove_step2(self):
         """ removal of a label step 2: remove key from managed state"""
@@ -211,9 +211,8 @@ class TestOpenshiftNamespaceLabels(TestCase):
             NS(c1, 'remove', k1v1, k1_k2, k1v1),
         ]
         run_integration()
-        self.state.add.assert_called_once()
-        self.state.add.assert_has_calls([call(state_key(c1, 'remove'),
-                                              k1, force=True)])
+        self.state.add.assert_called_once_with(state_key(c1, 'remove'),
+                                               k1, force=True)
         oc = self.oc_clients[c1]
         oc.label.assert_not_called()
 
@@ -224,14 +223,12 @@ class TestOpenshiftNamespaceLabels(TestCase):
             NS(c1, 'all-in-one', k1v1_k2v2, k1_k2, k2v3_k3v3),
         ]
         run_integration()
-        self.state.add.assert_called_once()
-        self.state.add.assert_has_calls([call(state_key(c1, 'all-in-one'),
-                                              k1_k2_k3, force=True)])
+        self.state.add.assert_called_once_with(state_key(c1, 'all-in-one'),
+                                               k1_k2_k3, force=True)
         oc = self.oc_clients[c1]
-        oc.label.assert_called_once()
         labels = {'k1': None, 'k2': 'v3', 'k3': 'v3'}
-        oc.label.assert_has_calls([call(None, 'Namespace', 'all-in-one',
-                                        labels, overwrite=True)])
+        oc.label.assert_called_once_with(None, 'Namespace', 'all-in-one',
+                                         labels, overwrite=True)
 
     def test_remove_add_modify_step2(self):
         """ Remove, add and modify labels all at once, step 2 (removals are in
@@ -240,9 +237,8 @@ class TestOpenshiftNamespaceLabels(TestCase):
             NS(c1, 'all-in-one', k2v3_k3v3, k1_k2_k3, k2v3_k3v3),
         ]
         run_integration()
-        self.state.add.assert_called_once()
-        self.state.add.assert_has_calls([call(state_key(c1, 'all-in-one'),
-                                              k2_k3, force=True)])
+        self.state.add.assert_called_once_with(state_key(c1, 'all-in-one'),
+                                               k2_k3, force=True)
         oc = self.oc_clients[c1]
         oc.label.assert_not_called()
 
@@ -256,13 +252,13 @@ class TestOpenshiftNamespaceLabels(TestCase):
         self.assertNotIn(c1, self.oc_clients.keys())
 
     def test_duplicate_namespace(self):
-        """ Namespace declared several times in a single cluster: error """
+        """ Namespace declared several times in a single cluster: ignored """
         self.test_ns = [
             NS(c1, 'no-change', k1v1, k1, k1v1),
             NS(c1, 'no-change', k1v1, k1, k2v2),
+            NS(c1, 'no-change', k1v1, k1, k1v2),
         ]
-        with self.assertRaises(NamespaceLabelError):
-            run_integration()
+        run_integration()
         self.state.add.assert_not_called()
         for oc in self.oc_clients.values():
             oc.label.assert_not_called()
@@ -282,14 +278,14 @@ class TestOpenshiftNamespaceLabels(TestCase):
         self.assertIn(c1, self.oc_clients)
         self.assertIn(c2, self.oc_clients)
         for oc in self.oc_clients.values():
-            oc.label.assert_called_once()
-            oc.label.assert_has_calls([call(None, 'Namespace', 'multi-cluster',
-                                            k2v2, overwrite=True)])
+            oc.label.assert_called_once_with(None, 'Namespace',
+                                             'multi-cluster', k2v2,
+                                             overwrite=True)
 
     def test_dry_run(self):
         """ Ensures nothing is done in dry_run mode"""
         self.test_ns = [
-            NS(c1, 'many_changes', k1v1_k2v2, k1_k2, k2v3_k3v3),
+            NS(c1, 'many-changes', k1v1_k2v2, k1_k2, k2v3_k3v3),
         ]
         run_integration(dry_run=True)
         self.state.add.assert_not_called()

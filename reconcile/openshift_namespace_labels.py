@@ -205,26 +205,40 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map, namespaces) -> None:
     input namespaces. Ocm_map is used to not register clusters which are
     unreachable or not configured (due to --internal / --external)
     """
+    to_be_ignored = []
     for ns in namespaces:
         if 'labels' not in ns:
             continue
+
         cluster, ns_name = get_names_for_namespace(ns)
         # Skip unreachable / non-hanlded clusters
         # eg: internal settings may not match --internal / --external param
         if cluster not in oc_map.clusters():
             continue
         labels = json.loads(ns['labels'])
+
         validation_errors = validate_labels(labels)
         for err in validation_errors:
             inventory.add_error(cluster, ns_name, err)
-        if inventory.get(cluster, ns_name, DESIRED) is not None:
-            inventory.add_error(cluster, ns_name,
-                                'Found several namespaces for ' +
-                                f'{cluster}/{ns_name}')
-            inventory.delete(cluster, ns_name)
         if inventory.errors(cluster, ns_name):
             continue
+
+        if inventory.get(cluster, ns_name, DESIRED) is not None:
+            # delete at the end of the loop to avoid having a reinsertion at
+            # the third/fifth/.. occurrences
+            to_be_ignored.append((cluster, ns_name))
+            continue
+
         inventory.set(cluster, ns_name, DESIRED, labels)
+
+    for cluster, ns_name in to_be_ignored:
+        # Log only a warning here and do not report errors nor fail the
+        # integration.
+        # A dedicated integration or PR check will be done to ensure this
+        # case does not occur (anymore)
+        _LOG.warning(f'Found several namespace defintions for '
+                     f'{cluster}/{ns_name}. Ignoring')
+        inventory.delete(cluster, ns_name)
 
 
 def state_key(cluster, namespace):

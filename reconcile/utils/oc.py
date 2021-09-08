@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Iterable
+from typing import Dict, Iterable
 
 import urllib3
 
@@ -1155,21 +1155,33 @@ class OCLogMsg:
         return False
 
 
-def validate_labels(labels) -> Iterable[str]:
+LABEL_MAX_VALUE_LENGTH = 63
+LABEL_MAX_KEY_NAME_LENGTH = 63
+LABEL_MAX_KEY_PREFIX_LENGTH = 253
+
+
+def validate_labels(labels: Dict[str, str]) -> Iterable[str]:
     """
     Validate a label key/value against some rules from
     https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+    Returns a list of erros found, as error message strings
     """
     if labels is None:
         return []
 
     err = []
+    v_pattern = re.compile(r'^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$')
+    k_name_pattern = re.compile(r'^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$')
+    k_prefix_pattern = re.compile(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?'
+                                  r'(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$')
+
     for k, v in labels.items():
-        if len(v) > 63:
-            err.append(f'Label value longer than 63 chars: {v}')
-        pattern = '^[A-Za-z0-9][A-Za-z0-9-_\\.]{0,61}[A-Za-z0-9]$'
-        if not re.match(pattern, v):
-            err.append(f'Label value is invalid: {v}')
+        if len(v) > LABEL_MAX_VALUE_LENGTH:
+            err.append(f'Label value longer than '
+                       f'{LABEL_MAX_VALUE_LENGTH} chars: {v}')
+        if not v_pattern.match(v):
+            err.append(f'Label value is invalid, it needs to match '
+                       f"'{v_pattern}': {v}")
 
         prefix, name = '', k
         if '/' in k:
@@ -1177,17 +1189,21 @@ def validate_labels(labels) -> Iterable[str]:
             if len(split) > 3:
                 err.append(f'Only one "/" allowed in label keys: {k}')
             prefix, name = split[0], split[1]
-        if len(name) > 63:
-            err.append(f'Label key name is longer than 63 chars: {name}')
-        if not re.match(pattern, name):
-            err.append(f'Label key name is invalid: {name}')
+
+        if len(name) > LABEL_MAX_KEY_NAME_LENGTH:
+            err.append(f'Label key name is longer than '
+                       f'{LABEL_MAX_KEY_NAME_LENGTH} chars: {name}')
+        if not k_name_pattern.match(name):
+            err.append(f'Label key name is invalid, it needs to mach '
+                       f"'{v_pattern}'': {name}")
+
         if prefix:
-            if len(prefix) > 253:
-                err.append(f'Label key prefix longer than 253 chars: {prefix}')
-            hostname = ('^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*'
-                        '([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$')
-            if not re.match(hostname, prefix):
-                err.append(f'Label key prefix is invalid: {prefix}')
+            if len(prefix) > LABEL_MAX_KEY_PREFIX_LENGTH:
+                err.append(f'Label key prefix longer than '
+                           f'{LABEL_MAX_KEY_PREFIX_LENGTH} chars: {prefix}')
+            if not k_prefix_pattern.match(prefix):
+                err.append(f'Label key prefix is invalid, it needs to match '
+                           f"'{k_prefix_pattern}'': {prefix}")
             if prefix in ('kubernetes.io', 'k8s.io'):
                 err.append(f'Label key prefix is reserved: {prefix}')
 
