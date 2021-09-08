@@ -889,7 +889,7 @@ class TerrascriptClient:
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
             resource_name = \
-                self.get_names_from_tf_resources([pg_tf_resource])[0]
+                self.get_name_from_tf_resource(pg_tf_resource)
             deps.append(resource_name)
             values['parameter_group_name'] = pg_name
 
@@ -942,7 +942,7 @@ class TerrascriptClient:
             tf_resources.append(tf_resource)
 
             resource_name = \
-                self.get_names_from_tf_resources([tf_resource])[0]
+                self.get_name_from_tf_resource(tf_resource)
             deps.append(resource_name)
 
             values['monitoring_role_arn'] = \
@@ -982,8 +982,9 @@ class TerrascriptClient:
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
-                deps.append("aws_db_instance." +
-                            source_info['resource']['identifier'])
+                resource_name = \
+                    self.get_name_from_tf_resource(source_info)
+                deps.append(resource_name)
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone_(
@@ -1042,10 +1043,10 @@ class TerrascriptClient:
             else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
-                    kms_res = "aws_kms_key." + \
-                        kms_key['resource']['identifier']
-                    values['kms_key_id'] = "${" + kms_res + ".arn}"
+                    kms_res = \
+                        self.get_name_from_tf_resource(kms_key)
                     deps.append(kms_res)
+                    values['kms_key_id'] = "${" + kms_res + ".arn}"
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
 
@@ -1284,6 +1285,11 @@ class TerrascriptClient:
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
             values['cors_rule'] = cors_rules
+
+        # 'deps' should contain a list of terraform resourse names
+        # (not full objects)
+        # that must be created
+        # before the actual RDS instance should be created
         deps = []
         replication_configs = common_values.get('replication_configurations')
         if replication_configs:
@@ -1373,7 +1379,9 @@ class TerrascriptClient:
 
                 # Define the replication configuration.  Use a unique role for
                 # each replication configuration for easy cleanup/modification
-                deps.append(role_resource)
+                resource_name = \
+                    self.get_name_from_tf_resource(role_resource)
+                deps.append(resource_name)
                 status = config['status']
                 sc = config.get('storage_class') or "standard"
                 rc_values.clear()
@@ -1391,7 +1399,7 @@ class TerrascriptClient:
                 rc_configs.append(rc_values)
             values['replication_configuration'] = rc_configs
         if len(deps) > 0:
-            values['depends_on'] = self.get_names_from_tf_resources(deps)
+            values['depends_on'] = deps
         region = common_values.get('region') or \
             self.default_regions.get(account)
         if self._multiregion_account_(account):
@@ -2888,6 +2896,10 @@ class TerrascriptClient:
     def get_names_from_tf_resources(tf_resources):
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
+
+    @staticmethod
+    def get_name_from_tf_resource(tf_resource):
+        return f"{tf_resource.__class__.__name__}.{tf_resource._name}"
 
     @staticmethod
     def validate_elasticsearch_version(version):
