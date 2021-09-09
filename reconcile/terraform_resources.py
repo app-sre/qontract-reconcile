@@ -76,6 +76,14 @@ provider
     access_level
   }
 }
+... on NamespaceTerraformResourceRole_v1 {
+  account
+  identifier
+  assume_role
+  inline_policy
+  output_resource_name
+  annotations
+}
 ... on NamespaceTerraformResourceSQS_v1 {
   account
   region

@@ -246,7 +246,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ['Route', 'Service']:
+            if resource_type not in ['Route', 'Service', 'Secret']:
                 raise
 
             oc.delete(namespace=namespace, kind=resource_type,
