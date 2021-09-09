@@ -4,6 +4,8 @@ import os
 import threading
 import logging
 import random
+from typing import Dict, List
+
 from sshtunnel import SSHTunnelForwarder
 
 import reconcile.utils.gql as gql
@@ -44,8 +46,8 @@ class JumpHostBase:
 
 
 class JumpHostSSH(JumpHostBase):
-    bastion_tunnel = {}
-    local_ports = []
+    bastion_tunnel: Dict[int, SSHTunnelForwarder] = {}
+    local_ports: List[int] = []
     tunnel_lock = threading.Lock()
 
     def __init__(self, jh, settings=None):
