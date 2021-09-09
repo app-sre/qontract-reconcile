@@ -22,6 +22,7 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.cli import config_file
@@ -574,6 +575,37 @@ def quay_mirrors(ctx):
 
     columns = ['repo', 'upstream', 'public']
     print_output(ctx.obj['options'], mirrors, columns)
+
+
+@get.command()
+@click.argument('cluster')
+@click.argument('namespace')
+@click.argument('kind')
+@click.argument('name')
+
+@click.pass_context
+def root_owner(ctx, cluster, namespace, kind, name):
+    settings = queries.get_app_interface_settings()
+    clusters = [c for c in queries.get_clusters(minimal=True)
+                if c['name'] == cluster]
+    oc_map = OC_Map(clusters=clusters,
+                    integration='qontract-cli',
+                    thread_pool_size=1,
+                    settings=settings,
+                    init_api_resources=True)
+    oc = oc_map.get(cluster)
+    obj = oc.get(namespace, kind, name)
+    root_owner = oc.get_obj_root_owner(namespace, obj, allow_not_found=True,
+                                       allow_not_controller=True)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    # a bit hacky, but ¯\_(ツ)_/¯
+    if ctx.obj['options']['output'] != 'json':
+        ctx.obj['options']['output'] = 'yaml'
+
+    print_output(ctx.obj['options'], root_owner)
 
 
 @get.command()
