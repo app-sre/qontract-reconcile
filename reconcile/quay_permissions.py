@@ -86,39 +86,38 @@ def run(dry_run):
                             continue
 
                         perm_org_key = (
-                          permission['quayOrg']['instance']['name'],
-                          permission['quayOrg']['name']
+                            permission['quayOrg']['instance']['name'],
+                            permission['quayOrg']['name']
                         )
 
                         if perm_org_key != org_key:
-                            logging.warning('wrong org, should be %s', org_key)
+                            logging.warning(
+                                f'wrong org, should be {org_key}'
+                            )
                             continue
 
                         team_name = permission['team']
 
                         # processing team section
                         logging.debug(['team', team_name])
-
-                        current_role = \
-                            quay_api.get_repo_team_permissions(
-                                repo_name, team_name)
-                        if current_role != role:
-                            logging.info(
-                                ['update_role', org_key, repo_name,
-                                 team_name, role])
-                            if not dry_run:
-                                try:
+                        try:
+                            current_role = \
+                                quay_api.get_repo_team_permissions(
+                                    repo_name, team_name)
+                            if current_role != role:
+                                logging.info(
+                                    ['update_role', org_key, repo_name,
+                                     team_name, role])
+                                if not dry_run:
                                     quay_api.set_repo_team_permissions(
                                         repo_name, team_name, role)
-                                except Exception as e:
-                                    error = True
-                                    logging.error(
-                                        'could not set repo permissions: '
-                                        'repo name: %s, '
-                                        'team name: %s. '
-                                        'details: {%s}',
-                                        repo_name, team_name, e
-                                    )
+                        except Exception:
+                            error = True
+                            logging.exception(
+                                'could not manage repo permissions: '
+                                f'repo name: {repo_name}, '
+                                f'team name: {team_name}'
+                            )
 
     if error:
         sys.exit(ExitCodes.ERROR)

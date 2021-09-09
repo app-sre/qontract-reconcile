@@ -118,20 +118,30 @@ def get_pagerduty_map():
 
 
 def get_current_state(slack_map):
-    current_state = []
+    """
+    Get the current state of Slack usergroups.
+
+    :param slack_map: Slack data from app-interface
+    :type slack_map: dict
+
+    :return: current state data, keys are workspace -> usergroup
+                (ex. state['coreos']['app-sre-ic']
+    :rtype: dict
+    """
+    current_state = {}
 
     for workspace, spec in slack_map.items():
         slack = spec['slack']
         managed_usergroups = spec['managed_usergroups']
         for ug in managed_usergroups:
             users, channels, description = slack.describe_usergroup(ug)
-            current_state.append({
+            current_state.setdefault(workspace, {})[ug] = {
                 "workspace": workspace,
                 "usergroup": ug,
                 "users": users,
                 "channels": channels,
                 "description": description,
-            })
+            }
 
     return current_state
 
@@ -239,11 +249,24 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
 
 
 def get_desired_state(slack_map, pagerduty_map):
+    """
+    Get the desired state of Slack usergroups.
+
+    :param slack_map: Slack data from app-interface
+    :type slack_map: dict
+
+    :param pagerduty_map: PagerDuty instance data
+    :type pagerduty_map: reconcile.utils.pagerduty_api.PagerDutyMap
+
+    :return: current state data, keys are workspace -> usergroup
+                (ex. state['coreos']['app-sre-ic']
+    :rtype: dict
+    """
     gqlapi = gql.get_api()
     roles = gqlapi.query(ROLES_QUERY)['roles']
     all_users = queries.get_users()
 
-    desired_state = []
+    desired_state = {}
     for r in roles:
         for p in r['permissions']:
             if p['service'] != 'slack-usergroup':
@@ -285,77 +308,65 @@ def get_desired_state(slack_map, pagerduty_map):
             channel_names = [] if p['channels'] is None else p['channels']
             channels = slack.get_channels_by_names(channel_names)
 
-            existing_items = [i for i in desired_state
-                              if i['workspace'] == workspace_name
-                              and i['usergroup'] == usergroup]
-            if len(existing_items) == 1:
-                existing_items[0]['users'].update(users)
-            else:
-                desired_state.append({
+            try:
+                desired_state[workspace_name][usergroup]['users'].update(users)
+            except KeyError:
+                desired_state.setdefault(workspace_name, {})[usergroup] = {
                     "workspace": workspace_name,
                     "usergroup": usergroup,
                     "usergroup_id": ugid,
                     "users": users,
                     "channels": channels,
                     "description": description,
-                })
+                }
 
     return desired_state
 
 
-def print_diff(current_state, desired_state):
-    for d_state in desired_state:
-        workspace = d_state['workspace']
-        usergroup = d_state['usergroup']
-        c_state = [c for c in current_state
-                   if c['workspace'] == workspace
-                   and c['usergroup'] == usergroup]
-        # at this point we have a single current state item
-        # thanks to the logic in get_desired_state
-        [c_state] = c_state
+def _update_usergroup_users_from_state(current_ug_state, desired_ug_state,
+                                       slack_client, dry_run=True):
+    """
+    Update the users in a Slack usergroup.
 
-        channels_to_add = subtract_state(d_state, c_state, 'channels')
-        for c in channels_to_add:
-            logging.info(['add_channel_to_usergroup',
-                          workspace, usergroup, c])
+    :param current_ug_state: current state of usergroup
+    :type current_ug_state: dict
 
-        channels_to_del = subtract_state(c_state, d_state, 'channels')
-        for c in channels_to_del:
-            logging.info(['del_channel_from_usergroup',
-                          workspace, usergroup, c])
+    :param desired_ug_state: desired state of usergroup
+    :type desired_ug_state: dict
 
-        users_to_add = subtract_state(d_state, c_state, 'users')
-        for u in users_to_add:
-            logging.info(['add_user_to_usergroup',
-                          workspace, usergroup, u])
+    :param slack_client: client for calling Slack API
+    :type slack_client: reconcile.utils.slack_api.SlackApi
 
-        users_to_del = subtract_state(c_state, d_state, 'users')
-        for u in users_to_del:
-            logging.info(['del_user_from_usergroup',
-                          workspace, usergroup, u])
+    :param dry_run: whether to dryrun or not
+    :type dry_run: bool
 
-        if d_state['description'] != c_state['description']:
-            logging.info(['update_usergroup_description',
-                          workspace, usergroup, d_state['description']])
+    :return: None
+    """
 
+    if current_ug_state.get('users') == desired_ug_state['users']:
+        logging.debug('No usergroup user changes detected for %s',
+                      desired_ug_state['usergroup'])
+        return
 
-def subtract_state(from_state, subtract_state, type):
-    f = from_state[type]
-    s = subtract_state[type]
-    return [v for k, v in f.items() if k not in s.keys()]
+    workspace = desired_ug_state['workspace']
+    usergroup = desired_ug_state['usergroup']
+    ugid = desired_ug_state['usergroup_id']
+    users = list(desired_ug_state['users'].keys())
 
+    current_users = set(current_ug_state.get('users', {}).values())
+    desired_users = set(desired_ug_state['users'].values())
 
-def act(desired_state, slack_map):
-    for state in desired_state:
-        workspace = state['workspace']
-        ugid = state['usergroup_id']
-        description = state['description']
-        users = state['users'].keys()
-        channels = state['channels'].keys()
-        slack = slack_map[workspace]['slack']
+    for user in desired_users - current_users:
+        logging.info(['add_user_to_usergroup',
+                      workspace, usergroup, user])
 
+    for user in current_users - desired_users:
+        logging.info(['del_user_from_usergroup',
+                      workspace, usergroup, user])
+
+    if not dry_run:
         try:
-            slack.update_usergroup_users(ugid, users)
+            slack_client.update_usergroup_users(ugid, users)
         except SlackAPICallException as error:
             # Prior to adding this, we weren't handling failed updates to user
             # groups. Now that we are, it seems like a good idea to start with
@@ -363,10 +374,101 @@ def act(desired_state, slack_map):
             # sensitive updates.
             logging.error(error)
 
+
+def _update_usergroup_from_state(current_ug_state, desired_ug_state,
+                                 slack_client, dry_run=True):
+    """
+    Update a Slack usergroup.
+
+    :param current_ug_state: current state of usergroup
+    :type current_ug_state: dict
+
+    :param desired_ug_state: desired state of usergroup
+    :type desired_ug_state: dict
+
+    :param slack_client: client for calling Slack API
+    :type slack_client: reconcile.utils.slack_api.SlackApi
+
+    :param dry_run: whether to dryrun or not
+    :type dry_run: bool
+
+    :return: None
+    """
+
+    channels_changed = current_ug_state.get('channels') != \
+        desired_ug_state['channels']
+
+    description_changed = current_ug_state.get('description') != \
+        desired_ug_state['description']
+
+    if not channels_changed and not description_changed:
+        logging.debug(
+            'No usergroup channel/description changes detected for %s',
+            desired_ug_state['usergroup']
+        )
+        return
+
+    workspace = desired_ug_state['workspace']
+    usergroup = desired_ug_state['usergroup']
+    ugid = desired_ug_state['usergroup_id']
+    description = desired_ug_state['description']
+    channels = list(desired_ug_state['channels'].keys())
+
+    current_channels = set(current_ug_state.get('channels', {}).values())
+    desired_channels = set(desired_ug_state['channels'].values())
+
+    for channel in desired_channels - current_channels:
+        logging.info(['add_channel_to_usergroup', workspace,
+                      usergroup, channel])
+
+    for channel in current_channels - desired_channels:
+        logging.info(['del_channel_from_usergroup',
+                      workspace, usergroup, channel])
+
+    if description_changed:
+        logging.info(['update_usergroup_description',
+                      workspace, usergroup, description])
+
+    if not dry_run:
         try:
-            slack.update_usergroup(ugid, channels, description)
+            slack_client.update_usergroup(ugid, channels, description)
         except SlackAPICallException as error:
             logging.error(error)
+
+
+def act(current_state, desired_state, slack_map, dry_run=True):
+    """
+    Reconcile the differences between the desired and current state for
+    Slack usergroups.
+
+    :param current_state: current Slack usergroup state
+    :type current_state: dict
+
+    :param desired_state: desired Slack usergroup state
+    :type desired_state: dict
+
+    :param slack_map: mapping of Slack workspace names to API clients
+    :type slack_map: dict
+
+    :param dry_run: indicates whether to run in dryrun mode or not
+    :type dry_run: bool
+
+    :return: None
+    """
+    for workspace, desired_ws_state in desired_state.items():
+        for usergroup, desired_ug_state in desired_ws_state.items():
+            current_ug_state = current_state.get(workspace, {}).get(
+                usergroup, {})
+
+            slack_client = slack_map[workspace]['slack']
+
+            _update_usergroup_users_from_state(current_ug_state,
+                                               desired_ug_state,
+                                               slack_client,
+                                               dry_run=dry_run)
+
+            _update_usergroup_from_state(current_ug_state, desired_ug_state,
+                                         slack_client, dry_run=dry_run)
 
 
 def run(dry_run):
@@ -375,7 +477,4 @@ def run(dry_run):
     desired_state = get_desired_state(slack_map, pagerduty_map)
     current_state = get_current_state(slack_map)
 
-    print_diff(current_state, desired_state)
-
-    if not dry_run:
-        act(desired_state, slack_map)
+    act(current_state, desired_state, slack_map, dry_run)
