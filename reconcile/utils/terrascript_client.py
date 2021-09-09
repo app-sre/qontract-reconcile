@@ -980,8 +980,9 @@ class TerrascriptClient:
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
+                source_info_res = source_info['resource']
                 resource_name = \
-                    self.get_name_from_tf_resource(source_info)
+                    self.get_name_from_tf_resource(source_info_res)
                 deps.append(resource_name)
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
@@ -1041,10 +1042,11 @@ class TerrascriptClient:
             else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
-                    kms_res = \
-                        self.get_name_from_tf_resource(kms_key)
-                    deps.append(kms_res)
-                    values['kms_key_id'] = "${" + kms_res + ".arn}"
+                    kms_res = kms_key['resource']
+                    kms_name = \
+                        self.get_name_from_tf_resource(kms_res)
+                    deps.append(kms_name)
+                    values['kms_key_id'] = "${" + kms_name + ".arn}"
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
 
@@ -1783,10 +1785,11 @@ class TerrascriptClient:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
-                            kms_res = self.get_name_from_tf_resource(kms_key)
+                            kms_res = kms_key['resource']
+                            kms_name = self.get_name_from_tf_resource(kms_res)
                             values['kms_master_key_id'] = \
-                                "${" + kms_res + ".arn}"
-                            values['depends_on'] = [kms_res]
+                                "${" + kms_name + ".arn}"
+                            values['depends_on'] = [kms_name]
                         else:
                             raise ValueError(
                                 f"failed to find kms key {kms_master_key_id}")
