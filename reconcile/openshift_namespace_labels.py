@@ -16,7 +16,6 @@ from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State
 
 _LOG = logging.getLogger(__name__)
-# _LOG.setLevel(logging.DEBUG)
 
 QONTRACT_INTEGRATION = 'openshift-namespace-labels'
 
@@ -97,7 +96,7 @@ class LabelInventory():
             self._ns(cluster, namespace)[type] = labels
             return labels
 
-    def delete(self, cluster, namespace):
+    def delete(self, cluster: str, namespace: str):
         """Delete the given cluster / namespace from the inventory"""
         with self._lock:
             self._inv.get(cluster, {}).pop(namespace, None)
@@ -109,7 +108,7 @@ class LabelInventory():
             for namespace, types in namespaces.items():
                 yield cluster, namespace, types
 
-    def update_managed_keys(self, cluster, namespace, key):
+    def update_managed_keys(self, cluster: str, namespace: str, key: str):
         """
         Add or remove a key from the managed key list.
         This actually handles a copy of the managed keys dict and updates it.
@@ -117,8 +116,12 @@ class LabelInventory():
         If it was not, it will get added
         """
         managed = self.get(cluster, namespace, MANAGED, [])
+        if managed is None:
+            managed = []
         upd_managed = self.setdefault(cluster, namespace, UPDATED_MANAGED,
                                       managed.copy())
+
+        assert isinstance(upd_managed, list)  # make mypy happy
         if key in managed:
             upd_managed.remove(key)
         else:
@@ -167,7 +170,7 @@ class LabelInventory():
                     changed[k] = None
 
 
-def get_names_for_namespace(namespace) -> Tuple[str, str]:
+def get_names_for_namespace(namespace: Dict[str, Any]) -> Tuple[str, str]:
     """
     Get the cluster and namespace names from the provided
     namespace qontract info
@@ -186,8 +189,8 @@ def get_gql_namespaces_in_shard() -> List[Any]:
             if is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
 
 
-def get_oc_map(namespaces, internal,
-               use_jump_host, thread_pool_size) -> OC_Map:
+def get_oc_map(namespaces: List[Any], internal: Optional[bool],
+               use_jump_host: bool, thread_pool_size: int) -> OC_Map:
     """
     Get an OC_Map for our namespaces
     """
@@ -199,7 +202,8 @@ def get_oc_map(namespaces, internal,
                   init_projects=True)
 
 
-def get_desired(inventory: LabelInventory, oc_map: OC_Map, namespaces) -> None:
+def get_desired(inventory: LabelInventory, oc_map: OC_Map,
+                namespaces: List[Any]) -> None:
     """
     Fill the provided label inventory with every desired info from the
     input namespaces. Ocm_map is used to not register clusters which are
@@ -241,11 +245,11 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map, namespaces) -> None:
         inventory.delete(cluster, ns_name)
 
 
-def state_key(cluster, namespace):
+def state_key(cluster: str, namespace: str):
     return f"{cluster}/{namespace}-managed-labels"
 
 
-def get_managed(inventory: LabelInventory, namespaces, state: State) -> None:
+def get_managed(inventory: LabelInventory, state: State) -> None:
     """
     Fill the label inventory with the list of currently managed labels
     for each cluster & namespace. This information is retrieved from the state
@@ -253,7 +257,6 @@ def get_managed(inventory: LabelInventory, namespaces, state: State) -> None:
     """
     keys = state.ls()
     # We could run threaded here: probably faster but more parallel requests.
-    # for namespace in namespaces:
     for cluster, ns_name, types in inventory:
         if types.get(DESIRED) is None:
             continue
@@ -265,7 +268,7 @@ def get_managed(inventory: LabelInventory, namespaces, state: State) -> None:
         inventory.set(cluster, ns_name, MANAGED, managed)
 
 
-def lookup_namespaces(cluster, oc_map: OC_Map):
+def lookup_namespaces(cluster: str, oc_map: OC_Map):
     """
     Retrieve all namespaces from the given cluster
     """
@@ -372,7 +375,7 @@ def run(dry_run: bool, thread_pool_size: int = 10, internal: bool = None,
     state = State(integration=QONTRACT_INTEGRATION,
                   accounts=accounts, settings=settings)
     _LOG.debug('Collecting managed state ...')
-    get_managed(inventory, namespaces, state)
+    get_managed(inventory, state)
 
     _LOG.debug('Collecting current state ...')
     get_current(inventory, oc_map, thread_pool_size)
