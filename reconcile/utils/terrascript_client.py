@@ -843,7 +843,7 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        # 'deps' should contain a list of terraform resourse names
+        # 'deps' should contain a list of terraform resource names
         # (not full objects)
         # that must be created
         # before the actual RDS instance should be created
@@ -1282,7 +1282,7 @@ class TerrascriptClient:
             # common_values['cors_rules'] is a list of cors_rules
             values['cors_rule'] = cors_rules
 
-        # 'deps' should contain a list of terraform resourse names
+        # 'deps' should contain a list of terraform resource names
         # (not full objects)
         # that must be created
         # before the actual S3 instance should be created
