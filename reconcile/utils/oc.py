@@ -577,7 +577,8 @@ class OCDeprecated:
                     stdin = json.dumps(obj, sort_keys=True)
                     self._run(cmd, stdin=stdin, apply=True)
 
-    def get_obj_root_owner(self, ns, obj, allow_not_found=False):
+    def get_obj_root_owner(self, ns, obj, allow_not_found=False,
+                           allow_not_controller=False):
         """Get object root owner (recursively find the top level owner).
         - Returns obj if it has no ownerReferences
         - Returns obj if all ownerReferences have controller set to false
@@ -591,13 +592,14 @@ class OCDeprecated:
             ns (string): namespace of the object
             obj (dict): representation of the object
             allow_not_found (bool, optional): allow owner to be not found
+            allow_not_controller (bool, optional): allow non-controller owner
 
         Returns:
             dict: representation of the object's owner
         """
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
-            if r.get('controller'):
+            if r.get('controller') or allow_not_controller:
                 controller_obj = self.get(
                     ns, r['kind'], r['name'],
                     allow_not_found=allow_not_found)
@@ -605,7 +607,8 @@ class OCDeprecated:
                     return self.get_obj_root_owner(
                         ns,
                         controller_obj,
-                        allow_not_found=allow_not_found
+                        allow_not_found=allow_not_found,
+                        allow_not_controller=allow_not_controller,
                     )
         return obj
 
