@@ -582,7 +582,6 @@ def quay_mirrors(ctx):
 @click.argument('namespace')
 @click.argument('kind')
 @click.argument('name')
-
 @click.pass_context
 def root_owner(ctx, cluster, namespace, kind, name):
     settings = queries.get_app_interface_settings()
