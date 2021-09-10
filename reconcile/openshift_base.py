@@ -1,5 +1,8 @@
 import logging
 import itertools
+
+from typing import Optional, List, Iterable, Mapping
+
 import yaml
 
 from sretoolbox.utils import retry
@@ -45,11 +48,12 @@ class StateSpec:
         self.resource_names = resource_names
 
 
-def init_specs_to_fetch(ri, oc_map,
-                        namespaces=None,
-                        clusters=None,
-                        override_managed_types=None,
-                        managed_types_key='managedResourceTypes'):
+def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
+                        namespaces: Optional[Iterable[Mapping]] = None,
+                        clusters: Optional[Iterable[Mapping]] = None,
+                        override_managed_types: Optional[Iterable[str]] = None,
+                        managed_types_key: str = 'managedResourceTypes'
+                        ) -> List[StateSpec]:
     state_specs = []
 
     if clusters and namespaces:
