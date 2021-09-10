@@ -56,8 +56,10 @@ from terrascript.resource import (
     aws_route53_health_check,
     aws_cloudfront_public_key
 )
-# temporary to create aws_ecrpublic_repository
+
 from terrascript import Resource
+
+from typing import Any, Dict, Union, List
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -1127,7 +1129,7 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self, account, source, provider):
+    def _find_resource_(self, account: str, source: str, provider: str) -> Union[Dict[str, Dict[str, Any]], None]:
         if account not in self.account_resources:
             return None
 
@@ -2939,12 +2941,12 @@ class TerrascriptClient:
         return cluster, namespace
 
     @staticmethod
-    def get_names_from_tf_resources(tf_resources):
+    def get_names_from_tf_resources(tf_resources: List[Resource]) -> List[str]:
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
 
     @staticmethod
-    def get_name_from_tf_resource(tf_resource):
+    def get_name_from_tf_resource(tf_resource: Resource) -> str:
         return f"{tf_resource.__class__.__name__}.{tf_resource._name}"
 
     @staticmethod
