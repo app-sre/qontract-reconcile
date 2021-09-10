@@ -9,6 +9,8 @@ import tempfile
 
 from threading import Lock
 
+from typing import Dict, List, Optional
+
 import anymarkup
 import requests
 
@@ -58,8 +60,6 @@ from terrascript.resource import (
 )
 
 from terrascript import Resource
-
-from typing import Dict, List, Optional
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
