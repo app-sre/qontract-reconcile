@@ -3281,11 +3281,11 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         # outputs
-        ## dns name
+        # dns name
         output_name_0_13 = output_prefix + '__dns_name'
         output_value = lb_tf_resource.dns_name
         tf_resources.append(Output(output_name_0_13, value=output_value))
-        ## zone id
+        # zone id
         output_name_0_13 = output_prefix + '__zone_id'
         output_value = lb_tf_resource.zone_id
         tf_resources.append(Output(output_name_0_13, value=output_value))
