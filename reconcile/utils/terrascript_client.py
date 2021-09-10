@@ -59,7 +59,7 @@ from terrascript.resource import (
 
 from terrascript import Resource
 
-from typing import Any, Dict, Union, List, Optional
+from typing import Dict, List, Optional
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
