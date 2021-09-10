@@ -464,6 +464,7 @@ class OCDeprecated:
         cmd = ['logs', '-n', namespace, f'job/{name}']
         if follow:
             cmd.append('-f')
+        # pylint: disable=consider-using-with
         output_file = open(os.path.join(output, name), 'w')
         # collect logs to file async
         Popen(self.oc_base_cmd + cmd, stdout=output_file)
@@ -670,7 +671,7 @@ class OCDeprecated:
             stdin = None
             stdin_text = None
 
-        p = Popen(
+        p = Popen(  # pylint: disable=consider-using-with
             self.oc_base_cmd + cmd,
             stdin=stdin,
             stdout=PIPE,
