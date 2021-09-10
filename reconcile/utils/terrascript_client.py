@@ -2945,7 +2945,8 @@ class TerrascriptClient:
         return cluster, namespace
 
     @staticmethod
-    def get_names_from_tf_resources(tf_resources: Iterable[Resource]) -> List[str]:
+    def get_names_from_tf_resources(tf_resources: Iterable[Resource]
+                                    ) -> List[str]:
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
 
