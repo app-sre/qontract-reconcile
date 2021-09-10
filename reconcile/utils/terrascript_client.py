@@ -59,7 +59,7 @@ from terrascript.resource import (
 
 from terrascript import Resource
 
-from typing import Any, Dict, Union, List
+from typing import Any, Dict, Union, List, Optional
 
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
@@ -1129,7 +1129,7 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self, account: str, source: str, provider: str) -> Union[Dict[str, Dict[str, Any]], None]:
+    def _find_resource_(self, account: str, source: str, provider: str) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
         if account not in self.account_resources:
             return None
 
