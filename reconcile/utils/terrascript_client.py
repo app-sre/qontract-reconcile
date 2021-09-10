@@ -154,7 +154,7 @@ class TerrascriptClient:
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
         github_config = get_config()['github']
-        # self.token = github_config['app-sre']['token']
+        self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
 
     def get_logtoes_zip(self, release_url):
