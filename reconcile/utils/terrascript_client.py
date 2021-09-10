@@ -944,6 +944,10 @@ class TerrascriptClient:
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(tf_resource)
 
+            resource_name = \
+                self.get_name_from_tf_resource(tf_resource)
+            deps.append(resource_name)
+
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.arn + "}"
 
