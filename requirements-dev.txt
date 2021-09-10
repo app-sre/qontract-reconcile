@@ -1,2 +1,2 @@
 -r requirements-test.txt
--r requirements-types.txt
+-r requirements-type.txt
