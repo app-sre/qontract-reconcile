@@ -392,7 +392,7 @@ def fetch_provider_route(path, tls_path, tls_version):
         msg = "Route secret '{}' key '{}' not in valid keys {}".format(
             tls_path, k, valid_keys
         )
-        _log_lock.acquire()
+        _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.info(msg)
         _log_lock.release()
 
@@ -413,7 +413,7 @@ def fetch_openshift_resource(resource, parent):
     provider = resource['provider']
     path = resource['path']
     msg = "Fetching {}: {}".format(provider, path)
-    _log_lock.acquire()
+    _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
     _log_lock.release()
 
@@ -504,7 +504,7 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type,
 
     msg = "Fetching {}s from {}/{}".format(
         resource_type_to_use, cluster, namespace)
-    _log_lock.acquire()
+    _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
     _log_lock.release()
     if oc is None:
@@ -547,7 +547,7 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
             UnknownProviderError) as e:
         ri.register_error()
         msg = "[{}/{}] {}".format(cluster, namespace, str(e))
-        _log_lock.acquire()
+        _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
         _log_lock.release()
         return
@@ -569,7 +569,7 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
         ri.register_error()
         msg = "[{}/{}] unknown kind: {}.".format(
             cluster, namespace, openshift_resource.kind)
-        _log_lock.acquire()
+        _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
         _log_lock.release()
         return
@@ -582,7 +582,7 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
             "[{}/{}] desired item already exists: {}/{}."
         ).format(cluster, namespace, openshift_resource.kind,
                  openshift_resource.name)
-        _log_lock.acquire()
+        _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
         _log_lock.release()
         return
