@@ -1129,7 +1129,11 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self, account: str, source: str, provider: str) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    def _find_resource_(self,
+                        account: str,
+                        source: str,
+                        provider: str
+        ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
         if account not in self.account_resources:
             return None
 
