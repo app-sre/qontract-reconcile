@@ -27,7 +27,7 @@ UPDATED_MANAGED = 'updated-managed'
 
 Labels = Dict[str, Optional[str]]
 LabelKeys = List[str]
-LabelsOrKeys = Union[Labels, LabelKeys, None]
+LabelsOrKeys = Union[Labels, LabelKeys]
 Types = Dict[str, LabelsOrKeys]
 
 InternalLabelInventory = Dict[str, Dict[str, Types]]
@@ -63,7 +63,7 @@ class LabelInventory():
         self.errors(cluster, namespace).append(err)
 
     def has_any_error(self) -> bool:
-        """Checks if the given cluster / namespace has any error registered"""
+        """Checks if any cluster / namespace has any error registered"""
         return any(e[2] for e in self.iter_errors())
 
     def iter_errors(self) -> Generator[Tuple[str, str, List[str]], None, None]:
@@ -77,13 +77,12 @@ class LabelInventory():
         return self._inv.setdefault(cluster, {}).setdefault(namespace, {})
 
     def get(self, cluster: str, namespace: str, type: str,
-            default: LabelsOrKeys = None) -> LabelsOrKeys:
+            default: Optional[LabelsOrKeys] = None) -> Optional[LabelsOrKeys]:
         """Get the labels or keys for the given cluster / namespace / type"""
-        return self._inv.get(cluster, {}).get(namespace, {}).get(type,
-                                                                 default)
+        return self._inv.get(cluster, {}).get(namespace, {}).get(type, default)
 
     def setdefault(self, cluster: str, namespace: str, type: str,
-                   default: LabelsOrKeys = None) -> LabelsOrKeys:
+                   default: LabelsOrKeys) -> LabelsOrKeys:
         """Get the labels or keys for the given cluster / namespace / type,
         setting it to default if it does not exists"""
         with self._lock:
@@ -121,7 +120,7 @@ class LabelInventory():
         upd_managed = self.setdefault(cluster, namespace, UPDATED_MANAGED,
                                       managed.copy())
 
-        assert isinstance(upd_managed, list)  # make mypy happy
+        assert isinstance(upd_managed, list)  # we never get a Dict here
         if key in managed:
             upd_managed.remove(key)
         else:
@@ -356,8 +355,9 @@ class NamespaceLabelError(Exception):
 
 
 @defer
-def run(dry_run: bool, thread_pool_size: int = 10, internal: bool = None,
-        use_jump_host: bool = True, defer=None, raise_errors=False):
+def run(dry_run: bool, thread_pool_size: int = 10,
+        internal: Optional[bool] = None, use_jump_host: bool = True,
+        defer=None, raise_errors=False):
     _LOG.debug('Collecting GQL data ...')
     namespaces = get_gql_namespaces_in_shard()
 
