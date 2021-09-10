@@ -3272,22 +3272,23 @@ class TerrascriptClient:
         account, identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
-
+        tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
-        tf_resource = aws_lb(identifier, **values)
-        self.add_resource(account, tf_resource)
+        lb_tf_resource = aws_lb(identifier, **values)
+        tf_resources.append(lb_tf_resource)
 
         # outputs
         ## dns name
         output_name_0_13 = output_prefix + '__dns_name'
-        output_value = tf_resources.dns_name
-        self.add_resource(
-            account, Output(output_name_0_13, value=output_value))
+        output_value = lb_tf_resource.dns_name
+        tf_resources.append(Output(output_name_0_13, value=output_value))
         ## zone id
         output_name_0_13 = output_prefix + '__zone_id'
-        output_value = tf_resources.zone_id
-        self.add_resource(
-            account, Output(output_name_0_13, value=output_value))
+        output_value = lb_tf_resource.zone_id
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
