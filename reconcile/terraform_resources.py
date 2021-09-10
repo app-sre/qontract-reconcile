@@ -201,6 +201,14 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceLB_v1 {
+  account
+  region
+  identifier
+  defaults
+  output_resource_name
+  annotations
+}
 """
 
 

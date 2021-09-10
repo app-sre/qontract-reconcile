@@ -56,7 +56,8 @@ from terrascript.resource import (
     aws_route53_zone,
     aws_route53_record,
     aws_route53_health_check,
-    aws_cloudfront_public_key
+    aws_cloudfront_public_key,
+    aws_lb,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -830,6 +831,8 @@ class TerrascriptClient:
         elif provider == 's3-cloudfront-public-key':
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
+        elif provider == 'lb':
+            self.populate_tf_resource_lb(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3264,3 +3267,27 @@ class TerrascriptClient:
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_lb(self, resource, namespace_info):
+        account, identifier, values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb.html
+        tf_resource = aws_lb(identifier, **values)
+        self.add_resource(account, tf_resource)
+
+        # outputs
+        ## dns name
+        output_name_0_13 = output_prefix + '__dns_name'
+        output_value = tf_resources.dns_name
+        self.add_resource(
+            account, Output(output_name_0_13, value=output_value))
+        ## zone id
+        output_name_0_13 = output_prefix + '__zone_id'
+        output_value = tf_resources.zone_id
+        self.add_resource(
+            account, Output(output_name_0_13, value=output_value))
