@@ -25,6 +25,7 @@ def gpg_key_valid(public_gpg_key):
         raise ValueError(ERR_BASE64)
 
     with tempfile.TemporaryDirectory() as gnupg_home_dir:
+        # pylint: disable=consider-using-with
         proc = Popen(['gpg', '--homedir', gnupg_home_dir],
                      stdin=PIPE,
                      stdout=PIPE,

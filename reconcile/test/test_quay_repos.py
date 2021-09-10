@@ -1,4 +1,4 @@
-import mock
+from unittest.mock import patch
 
 from reconcile.quay_repos import RepoInfo, act
 from reconcile.quay_base import OrgKey
@@ -26,10 +26,10 @@ def get_test_repo_from_state(state, name):
 
 class TestQuayRepos:
     @staticmethod
-    @mock.patch('reconcile.quay_repos.act_public')
-    @mock.patch('reconcile.quay_repos.act_description')
-    @mock.patch('reconcile.quay_repos.act_delete')
-    @mock.patch('reconcile.quay_repos.act_create')
+    @patch('reconcile.quay_repos.act_public')
+    @patch('reconcile.quay_repos.act_description')
+    @patch('reconcile.quay_repos.act_delete')
+    @patch('reconcile.quay_repos.act_create')
     def test_act(act_create, act_delete, act_description, act_public):
         fixture = fxt.get_anymarkup('state.yml')
 

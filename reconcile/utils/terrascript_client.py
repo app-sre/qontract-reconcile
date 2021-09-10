@@ -173,6 +173,7 @@ class TerrascriptClient:
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
+            # pylint: disable=consider-using-with
             open(zip_file, 'wb').write(r.content)
         return zip_file
 
@@ -943,10 +944,6 @@ class TerrascriptClient:
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(tf_resource)
 
-            resource_name = \
-                self.get_name_from_tf_resource(tf_resource)
-            deps.append(resource_name)
-
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.arn + "}"
 
@@ -984,9 +981,8 @@ class TerrascriptClient:
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
-                resource_name = \
-                    self.get_name_from_tf_resource(source_info)
-                deps.append(resource_name)
+                deps.append("aws_db_instance." +
+                            source_info['resource']['identifier'])
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone_(
@@ -1045,10 +1041,10 @@ class TerrascriptClient:
             else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
-                    kms_res = \
-                        self.get_name_from_tf_resource(kms_key)
-                    deps.append(kms_res)
+                    kms_res = "aws_kms_key." + \
+                        kms_key['resource']['identifier']
                     values['kms_key_id'] = "${" + kms_res + ".arn}"
+                    deps.append(kms_res)
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
 
@@ -1787,7 +1783,8 @@ class TerrascriptClient:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
-                            kms_res = self.get_name_from_tf_resource(kms_key)
+                            kms_res = "aws_kms_key." + \
+                                kms_key['resource']['identifier']
                             values['kms_master_key_id'] = \
                                 "${" + kms_res + ".arn}"
                             values['depends_on'] = [kms_res]

@@ -5,6 +5,7 @@ from subprocess import PIPE, Popen
 
 
 def state_rm_access_key(working_dirs, account, user):
+    # pylint: disable=consider-using-with
     wd = working_dirs[account]
     proc = Popen(['terraform', 'init'],
                  cwd=wd, stdout=PIPE, stderr=PIPE)
@@ -19,6 +20,7 @@ def state_rm_access_key(working_dirs, account, user):
 
 
 def show_json(working_dir, out_file):
+    # pylint: disable=consider-using-with
     proc = Popen(['terraform', 'show', '-no-color', '-json', out_file],
                  cwd=working_dir, stdout=PIPE, stderr=PIPE)
     out, err = proc.communicate()
