@@ -173,6 +173,7 @@ class TerrascriptClient:
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
+            # pylint: disable=consider-using-with
             open(zip_file, 'wb').write(r.content)
         return zip_file
 

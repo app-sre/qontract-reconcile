@@ -1,4 +1,4 @@
-from mock import patch
+from unittest.mock import patch
 
 import reconcile.utils.config as config
 import reconcile.utils.gql as gql
