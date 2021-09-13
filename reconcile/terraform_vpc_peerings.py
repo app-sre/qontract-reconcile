@@ -2,14 +2,13 @@ import logging
 import sys
 import json
 
-
 import reconcile.queries as queries
-
 import reconcile.utils.aws_api as awsapi
+import reconcile.utils.ocm as ocm
+import reconcile.utils.terraform_client as terraform
+import reconcile.utils.terrascript_client as terrascript
+
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap
-from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.semver_helper import make_semver
 
 
@@ -381,8 +380,8 @@ def run(dry_run, print_only=False,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
+    ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                         settings=settings)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state_vpc, err = \
@@ -422,11 +421,12 @@ def run(dry_run, print_only=False,
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
 
-    ts = Terrascript(QONTRACT_INTEGRATION,
-                     "",
-                     thread_pool_size,
-                     accounts,
-                     settings=settings)
+    ts = terrascript.Terrascript(
+        QONTRACT_INTEGRATION,
+        "",
+        thread_pool_size,
+        accounts,
+        settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
@@ -434,12 +434,13 @@ def run(dry_run, print_only=False,
     if print_only:
         sys.exit()
 
-    tf = Terraform(QONTRACT_INTEGRATION,
-                   QONTRACT_INTEGRATION_VERSION,
-                   "",
-                   accounts,
-                   working_dirs,
-                   thread_pool_size)
+    tf = terraform.Terraform(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        "",
+        accounts,
+        working_dirs,
+        thread_pool_size)
 
     if tf is None:
         sys.exit(1)
