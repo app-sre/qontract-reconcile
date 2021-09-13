@@ -456,7 +456,7 @@ class TerraformClient:
         split_outputs = []
         try:
             for output in outputs:
-                output_lines = [l for l in output.split('\n') if len(l) != 0]
+                output_lines = [ln for ln in output.split('\n') if ln]
                 split_outputs.append(output_lines)
         except Exception:
             logging.warning("failed to split outputs to lines.")

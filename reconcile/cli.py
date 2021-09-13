@@ -139,7 +139,7 @@ def before_breadcrumb(crumb, hint):
 
 # Enable Sentry
 if os.getenv('SENTRY_DSN'):
-    sentry_sdk.init(
+    sentry_sdk.init(  # pylint: disable=abstract-class-instantiated
         os.environ['SENTRY_DSN'],
         before_breadcrumb=before_breadcrumb
     )

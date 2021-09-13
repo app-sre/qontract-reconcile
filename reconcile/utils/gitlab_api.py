@@ -314,7 +314,7 @@ class GitLabApi:
         merge_request.notes.create({'body': comment})
 
     def get_project_labels(self):
-        return [l.name for l in self.project.labels.list(all=True)]
+        return [ln.name for ln in self.project.labels.list(all=True)]
 
     def get_merge_request_labels(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
