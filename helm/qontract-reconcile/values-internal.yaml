@@ -81,6 +81,7 @@ integrations:
   logs:
     slack: true
   internalCertificates: true
+  state: true
 - name: openshift-namespaces
   resources:
     requests:
