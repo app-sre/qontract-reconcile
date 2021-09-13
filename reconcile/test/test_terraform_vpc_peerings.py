@@ -175,25 +175,8 @@ class TestRun(testslide.TestCase):
         with self.assertRaises(Exception):
             integ.run(False, False, False, None)
 
-    def test_fail_state_but_no_delete(self):
-        """Ensure that we change the world if there are changes but we don't
-        want deletions"""
-        self.initialize_desired_states(True)
-        self.mock_callable(self.terraform, 'plan').to_return_value(
-            (False, False)).and_assert_called_once()
-        self.mock_callable(
-            self.terraform,
-            'cleanup').to_return_value(None).and_assert_called_once()
-        self.mock_callable(
-            self.terraform,
-            'apply').to_return_value(None).and_assert_not_called()
-        self.exit.for_call(1).and_assert_called_once()
-        with self.assertRaises(Exception):
-            integ.run(False, False, False, None)
-
-    def test_fail_state_and_delete(self):
-        """Ensure we don't change the world if there are failures and we want
-        deletions"""
+    def test_fail_state(self):
+        """Ensure we don't change the world if there are failures"""
         self.initialize_desired_states(True)
         self.mock_callable(self.terraform, 'plan').to_return_value(
             (False, False)).and_assert_not_called()

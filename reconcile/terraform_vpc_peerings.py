@@ -184,7 +184,7 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
                 cluster_info, ocm_map, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Failed to get desired state for {cluster_info['name']}"
             )
@@ -284,7 +284,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Unable to create VPC mesh for cluster {cluster}"
             )
@@ -371,7 +371,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(f"Unable to process {cluster_info['name']}")
             error = True
 
@@ -433,10 +433,8 @@ def run(dry_run, print_only=False,
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
-    if print_only or dry_run:
-        sys.exit(0)
-    if any(errors):
-        sys.exit(1)
+    if print_only or any(errors):
+        sys.exit(0 if dry_run else 1)
 
     tf = terraform.TerraformClient(
         QONTRACT_INTEGRATION,
@@ -457,6 +455,8 @@ def run(dry_run, print_only=False,
     if disabled_deletions_detected:
         sys.exit(1)
 
+    if dry_run:
+        sys.exit(0)
     if any(errors):
         sys.exit(1)
 

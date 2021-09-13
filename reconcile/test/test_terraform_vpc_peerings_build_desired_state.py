@@ -117,7 +117,7 @@ class TestBuildDesiredStateAllClusters(testslide.TestCase):
         )
         self.assertEqual(rs, (expected, False))
 
-    def test_one_cluster_failing(self):
+    def test_one_cluster_failing_recoverable(self):
         self.build_single_cluster.to_raise(
             sut.BadTerraformPeeringState
         ).and_assert_called_once()
@@ -126,6 +126,15 @@ class TestBuildDesiredStateAllClusters(testslide.TestCase):
                 self.clusters, {}, self.settings
                 ),
             ([], True))
+
+    def test_one_cluster_failing_weird(self):
+        self.build_single_cluster.to_raise(
+            ValueError("Nope")
+        ).and_assert_called_once()
+        with self.assertRaises(ValueError):
+            sut.build_desired_state_all_clusters(
+                self.clusters, {}, self.settings
+            )
 
 
 class TestBuildDesiredStateSingleCluster(testslide.TestCase):
@@ -502,9 +511,18 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         self.assertEqual(rs, (expected, False))
 
     def test_cluster_raises(self):
-        self.vpc_mesh_single_cluster.to_raise(Exception("This is wrong"))
+        self.vpc_mesh_single_cluster.to_raise(
+            sut.BadTerraformPeeringState("This is wrong")
+        )
         rs = sut.build_desired_state_vpc_mesh(self.clusters, self.ocm_map, {})
         self.assertEqual(rs, ([], True))
+
+    def test_cluster_raises_unexpected(self):
+        self.vpc_mesh_single_cluster.to_raise(
+            ValueError("Nope")
+        )
+        with self.assertRaises(ValueError):
+            sut.build_desired_state_vpc_mesh(self.clusters, self.ocm_map, {})
 
 
 class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
@@ -830,7 +848,9 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.assertEqual(rs, (expected, False))
 
     def test_cluster_fails(self):
-        self.build_single_cluster.to_raise(Exception("I have failed"))
+        self.build_single_cluster.to_raise(
+            sut.BadTerraformPeeringState("I have failed")
+        )
 
         self.assertEqual(
             sut.build_desired_state_vpc(
@@ -850,7 +870,9 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             sut, 'build_desired_state_vpc_single_cluster'
         ).for_call(
             self.clusters[1], self.ocm, self.settings
-        ).to_raise(Exception("Fail!")).and_assert_called_once()
+        ).to_raise(
+            sut.BadTerraformPeeringState("Fail!")
+        ).and_assert_called_once()
 
         self.assertEqual(
             sut.build_desired_state_vpc(
@@ -858,6 +880,20 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             ),
             ([{"a dict": "a value"}], True)
         )
+
+    def test_other_exceptions_raise(self):
+        self.clusters.append(self.clusters[0].copy())
+        self.clusters[1]['name'] = 'afailingcluster'
+        self.ocm_map['afailingcluster'] = self.ocm
+        self.build_single_cluster.for_call(
+            self.clusters[0], self.ocm, self.settings
+        ).to_raise(
+            ValueError("I am not planned!")
+        ).and_assert_called_once()
+        with self.assertRaises(ValueError):
+            sut.build_desired_state_vpc(
+                self.clusters, self.ocm_map, self.settings
+            )
 
 
 class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
