@@ -186,6 +186,7 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
+  state: true
 - name: openshift-namespaces
   resources:
     requests:
