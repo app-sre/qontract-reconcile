@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import textwrap
+from typing import Set, Any
 
 from urllib.parse import urlparse
 
@@ -78,7 +79,7 @@ class GqlGetResourceError(Exception):
 
 class GqlApi:
     _valid_schemas = None
-    _queried_schemas = set()
+    _queried_schemas: Set[Any] = set()
 
     def __init__(self, url, token=None, int_name=None, validate_schemas=False):
         self.url = url
