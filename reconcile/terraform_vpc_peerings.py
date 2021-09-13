@@ -433,8 +433,10 @@ def run(dry_run, print_only=False,
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
-    if print_only:
-        sys.exit()
+    if print_only or dry_run:
+        sys.exit(0)
+    if any(errors):
+        sys.exit(1)
 
     tf = terraform.TerraformClient(
         QONTRACT_INTEGRATION,
@@ -455,8 +457,6 @@ def run(dry_run, print_only=False,
     if disabled_deletions_detected:
         sys.exit(1)
 
-    if dry_run:
-        sys.exit(0)
     if any(errors):
         sys.exit(1)
 
