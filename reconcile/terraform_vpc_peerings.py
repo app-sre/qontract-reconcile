@@ -184,7 +184,7 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
                 cluster_info, ocm_map, settings
             )
             desired_state.extend(items)
-        except (BadTerraformPeeringState, awsapi.MissingARNError):
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Failed to get desired state for {cluster_info['name']}"
             )
@@ -284,7 +284,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except (BadTerraformPeeringState, awsapi.MissingARNError):
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Unable to create VPC mesh for cluster {cluster}"
             )
@@ -371,7 +371,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except (BadTerraformPeeringState, awsapi.MissingARNError):
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(f"Unable to process {cluster_info['name']}")
             error = True
 
