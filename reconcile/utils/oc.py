@@ -344,7 +344,7 @@ class OCDeprecated:
     @OCDecorators.process_reconcile_time
     def label(self, namespace, kind, name, labels, overwrite=False):
         ns = ['-n', namespace] if namespace else []
-        added = [f"{k}='{v}'" for k, v in labels.items() if v is not None]
+        added = [f"{k}={v}" for k, v in labels.items() if v is not None]
         removed = [f"{k}-" for k, v in labels.items() if v is None]
         overwrite_param = f'--overwrite={str(overwrite).lower()}'
         cmd = ['label'] + ns + [kind, name, overwrite_param]
