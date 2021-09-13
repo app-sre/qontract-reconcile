@@ -180,10 +180,12 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path='/sha256')
     headers = {'Authorization': token} if token else None
     response = requests.get(sha_endpoint.geturl(), headers=headers)
+    response.raise_for_status()
     sha = response.content.decode('utf-8')
     return sha
 
