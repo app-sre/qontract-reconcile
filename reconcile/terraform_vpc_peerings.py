@@ -421,7 +421,7 @@ def run(dry_run, print_only=False,
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
 
-    ts = terrascript.Terrascript(
+    ts = terrascript.TerrascriptClient(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
@@ -434,7 +434,7 @@ def run(dry_run, print_only=False,
     if print_only:
         sys.exit()
 
-    tf = terraform.Terraform(
+    tf = terraform.TerraformClient(
         QONTRACT_INTEGRATION,
         QONTRACT_INTEGRATION_VERSION,
         "",
