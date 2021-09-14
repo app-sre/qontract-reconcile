@@ -149,12 +149,9 @@ class JenkinsApi:
     def safe_restart(self, force_restart=False):
         url = "{}/safeRestart".format(self.url)
         if self.should_restart or force_restart:
-            logging.debug(
-                'performing safe restart. should_restart=%s, '
-                'force_restart=%s.',
-                self.should_restart,
-                force_restart
-            )
+            logging.debug('performing safe restart. '
+                          f'should_restart={self.should_restart}, '
+                          f'force_restart={force_restart}.')
             res = requests.post(
                 url,
                 verify=self.ssl_verify,
