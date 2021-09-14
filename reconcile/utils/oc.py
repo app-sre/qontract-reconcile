@@ -575,10 +575,10 @@ class OCDeprecated:
 
         for kind, objs in recyclables.items():
             for obj in objs:
-                self.recycle_root_owner(dry_run, namespace, kind, obj)
+                self.recycle(dry_run, namespace, kind, obj)
 
-    def recycle_root_owner(self, dry_run, namespace, kind, obj):
-        """Recycles a root owner object by adding a recycle.time annotation
+    def recycle(self, dry_run, namespace, kind, obj):
+        """Recycles an object by adding a recycle.time annotation
 
         Args:
             dry_run (bool): Is this a dry run
