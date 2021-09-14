@@ -65,6 +65,10 @@ class StatefulSetUpdateForbidden(Exception):
     pass
 
 
+class ObjectHasBeenModifiedError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -577,6 +581,7 @@ class OCDeprecated:
             for obj in objs:
                 self.recycle(dry_run, namespace, kind, obj)
 
+    @retry(exceptions=ObjectHasBeenModifiedError)
     def recycle(self, dry_run, namespace, kind, obj):
         """Recycles an object by adding a recycle.time annotation
 
@@ -731,6 +736,8 @@ class OCDeprecated:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
                 if 'updates to statefulset spec for fields other than' in err:
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
+                if 'the object has been modified' in err:
+                    raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 
