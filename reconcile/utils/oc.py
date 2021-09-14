@@ -575,22 +575,33 @@ class OCDeprecated:
 
         for kind, objs in recyclables.items():
             for obj in objs:
-                name = obj['metadata']['name']
-                logging.info([f'recycle_{kind.lower()}',
-                              self.cluster_name, namespace, name])
-                if not dry_run:
-                    now = datetime.now()
-                    recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+                self.recycle_root_owner(dry_run, namespace, kind, obj)
 
-                    # honor update strategy by setting annotations to force
-                    # a new rollout
-                    a = obj['spec']['template']['metadata'].get(
-                        'annotations', {})
-                    a['recycle.time'] = recycle_time
-                    obj['spec']['template']['metadata']['annotations'] = a
-                    cmd = ['apply', '-n', namespace, '-f', '-']
-                    stdin = json.dumps(obj, sort_keys=True)
-                    self._run(cmd, stdin=stdin, apply=True)
+    def recycle_root_owner(self, dry_run, namespace, kind, obj):
+        """Recycles a root owner object by adding a recycle.time annotation
+
+        Args:
+            dry_run (bool): Is this a dry run
+            namespace (string): Namespace to work in
+            kind (string): Object kind
+            obj (dict): Object to recycle
+        """
+        name = obj['metadata']['name']
+        logging.info([f'recycle_{kind.lower()}',
+                        self.cluster_name, namespace, name])
+        if not dry_run:
+            now = datetime.now()
+            recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+
+            # honor update strategy by setting annotations to force
+            # a new rollout
+            a = obj['spec']['template']['metadata'].get(
+                'annotations', {})
+            a['recycle.time'] = recycle_time
+            obj['spec']['template']['metadata']['annotations'] = a
+            cmd = ['apply', '-n', namespace, '-f', '-']
+            stdin = json.dumps(obj, sort_keys=True)
+            self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(self, ns, obj, allow_not_found=False):
         """Get object root owner (recursively find the top level owner).
