@@ -721,7 +721,7 @@ def ls(ctx, integration):
     print_output('table', table_content, ['integration', 'key'])
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.pass_context
@@ -744,7 +744,7 @@ def add(ctx, integration, key):
     state.add(key)
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.argument('value')

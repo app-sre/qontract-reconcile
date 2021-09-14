@@ -136,6 +136,10 @@ python3 setup.py install
 
 # or alternatively use this for a devel environment
 python3 setup.py develop
+
+# optionally install all test/type dependencies - useful when writing tests,
+# auto-completion in your IDE, etc.
+pip install -r requirements-dev.txt
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
@@ -145,6 +149,12 @@ You may also need need to first [install a rust compiler](https://www.rust-lang.
 
 Please see [setup.py](setup.py).
 
+Also, [requirements-test.txt](requirements-test.txt) exists for unit test 
+and linting dependencies, [requirements-type.txt](requirements-type.txt) 
+for type checking dependencies, and 
+[requirements-dev.txt](requirements-dev.txt) combines the two for 
+installing both in a development environment.
+
 ### Image build
 
 In order to speed up frequent builds and avoid issues with dependencies, docker image makes use
@@ -152,6 +162,46 @@ In order to speed up frequent builds and avoid issues with dependencies, docker 
 image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
 if you want to make changes to the base image. This repo [`Dockerfile`](dockerfiles/Dockerfile)
 must only contain instructions related to the python code build.
+
+## CI Tooling
+
+This project uses [tox](https://tox.readthedocs.io/en/latest/) for running 
+tests, linting/static analysis, and type checkers. Some of the more common 
+commands have been provided below, but see the tox docs for more complete 
+documentation.
+
+Running all checks (tests, linting, and type checkers):
+
+```
+tox
+```
+
+To run the checks faster (run in parallel):
+
+```
+tox -p
+```
+
+Running specific checks (can be much faster):
+
+```
+# Only run unit tests using Python 3.6
+tox -e py36
+
+# Only run linters
+tox -e lint
+
+# Only run the type checker
+tox -e type
+
+# Look at tox.ini for usage of posargs, this allows us to override which 
+# options are passed to the CLI where it's being used. This can be helpful 
+# for type checking a specific file, or running a subset of unit tests (this  
+# can be even faster).
+tox -e type -- reconcile/utils/slack_api.py
+```
+
+
 
 ## Release
 
