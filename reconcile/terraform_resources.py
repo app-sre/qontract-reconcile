@@ -422,7 +422,7 @@ def run(dry_run, print_only=False,
     if dry_run:
         cleanup_and_exit(tf)
 
-    if not light:
+    if not light and tf.should_apply:
         err = tf.apply()
         if err:
             cleanup_and_exit(tf, err)

@@ -1,7 +1,9 @@
 import logging
 import os
+from typing import Dict, Any
+
 from github import Github
-from github.GithubObject import NotSet
+from github.GithubObject import NotSet  # type: ignore
 from sretoolbox.utils import retry
 
 import reconcile.utils.gql as gql
@@ -221,7 +223,7 @@ def fetch_desired_state(infer_clusters=True):
 
 
 class GHApiStore:
-    _orgs = {}
+    _orgs: Dict[str, Any] = {}
 
     def __init__(self, config):
         for org_name, org_config in config['github'].items():

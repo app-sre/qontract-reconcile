@@ -115,7 +115,7 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
 
 def is_good_to_merge(merge_label, labels):
     return merge_label in labels and \
-        not any(l in HOLD_LABELS for l in labels)
+        not any(b in HOLD_LABELS for b in labels)
 
 
 def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,

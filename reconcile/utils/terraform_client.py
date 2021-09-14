@@ -31,6 +31,7 @@ class TerraformClient:
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()
+        self.should_apply = False
 
         self.init_specs()
         self.init_outputs()
@@ -182,6 +183,7 @@ class TerraformClient:
                     continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
+                    self.should_apply = True
                 if action == 'delete':
                     if not deletions_allowed:
                         disabled_deletion_detected = True
@@ -456,7 +458,7 @@ class TerraformClient:
         split_outputs = []
         try:
             for output in outputs:
-                output_lines = [l for l in output.split('\n') if len(l) != 0]
+                output_lines = [ln for ln in output.split('\n') if ln]
                 split_outputs.append(output_lines)
         except Exception:
             logging.warning("failed to split outputs to lines.")

@@ -1,3 +1,6 @@
+from typing import Dict, Any
+
+
 class ExitCodes:
     SUCCESS = 0
     ERROR = 1
@@ -7,7 +10,7 @@ class ExitCodes:
 
 class _RunningState:
 
-    _state = {}
+    _state: Dict[Any, Any] = {}
 
     def __init__(self):
         self.__dict__ = self._state
