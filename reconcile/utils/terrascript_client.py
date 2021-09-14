@@ -1054,6 +1054,7 @@ class TerrascriptClient:
             values['depends_on'] = [attachment_res_name]
             values['create_duration'] = "30s"
             time_sleep_resource = time_sleep(identifier, **values)
+            tf_resources.append(time_sleep_resource)
             time_sleep_res_name = \
                 self.get_name_from_tf_resource(time_sleep_resource)
             deps.append(time_sleep_res_name)
