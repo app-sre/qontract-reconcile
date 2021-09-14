@@ -54,7 +54,7 @@ class State:
         Returns a list of keys in the state
         """
         objects = self.client.list_objects(Bucket=self.bucket,
-                                           Prefix=self.state_path)
+                                           Prefix=f'{self.state_path}/')
 
         if 'Contents' not in objects:
             return []
