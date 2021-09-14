@@ -1041,6 +1041,15 @@ class TerrascriptClient:
                     f"source {replica_source} for read replica " +
                     f"{identifier} not found")
 
+        # there is currently a bug in tf-provider-aws when making replicas 
+        # w/ ehanced-monitoring, causing tf to not wait long enough
+        # between the actions of creating an enhanced-monitoring IAM role
+        # and checking the permissions of that role on a RDS replica
+        if enhanced_monitoring and replica_source:
+            # get name of attachment-resource
+            # create time_sleep, depening on attachment-resource
+            # add time_sleep to deps
+
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
             if kms_key_id.startswith("arn:"):
