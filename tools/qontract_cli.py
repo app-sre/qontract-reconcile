@@ -268,7 +268,7 @@ def clusters_egress_ips(ctx):
             aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {
             'cluster': cluster_name,
-            'egress_ips': ', '.join(egress_ips)
+            'egress_ips': ', '.join(sorted(egress_ips))
         }
         results.append(item)
 
@@ -721,7 +721,7 @@ def ls(ctx, integration):
     print_output('table', table_content, ['integration', 'key'])
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.pass_context
@@ -744,7 +744,7 @@ def add(ctx, integration, key):
     state.add(key)
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.argument('value')

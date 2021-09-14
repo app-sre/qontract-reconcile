@@ -1,0 +1,12 @@
+mypy
+types-boto3
+types-click
+types-croniter
+types-Jinja2
+types-mock
+types-pyOpenSSL
+types-python-dateutil
+types-PyYAML
+types-requests
+types-tabulate
+types-toml

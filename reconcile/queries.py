@@ -597,6 +597,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    labels
     managedRoles
     app {
       name

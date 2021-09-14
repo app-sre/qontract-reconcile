@@ -179,8 +179,8 @@ class TestAggregatedDiffRunner:
         on_update_insert = []
         on_update_delete = []
 
-        def recorder(l):
-            return lambda p, i: l.append([p, i])
+        def recorder(ls):
+            return lambda p, i: ls.append([p, i])
 
         runner = AggregatedDiffRunner(left.diff(right))
 

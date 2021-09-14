@@ -47,11 +47,11 @@ def construct_resources(namespaces):
         }
 
         # Build each limit item ignoring null ones
-        for l in limitranges['limits']:
+        for lr in limitranges['limits']:
             speclimit = {}
             for ltype in SUPPORTED_LIMITRANGE_TYPES:
-                if ltype in l and l[ltype] is not None:
-                    speclimit[ltype] = l[ltype]
+                if ltype in lr and lr[ltype] is not None:
+                    speclimit[ltype] = lr[ltype]
             body['spec']['limits'].append(speclimit)
 
         resource = OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
