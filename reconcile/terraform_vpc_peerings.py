@@ -105,7 +105,8 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
 
         accepter_manage_routes = peer_info.get('manageRoutes')
 
-        aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
+        aws_api = awsapi.AWSApi(1, [req_aws], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 req_aws,
@@ -137,7 +138,8 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                 f"peering {peer_connection_name}"
             )
 
-        aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
+        aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings,
+                                init_users=False)
         accepter_vpc_id, accepter_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 acc_aws,
@@ -219,7 +221,8 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
             )
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
-        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        aws_api = awsapi.AWSApi(1, [account], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 account,
@@ -326,7 +329,8 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm, settings):
         )
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
-        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        aws_api = awsapi.AWSApi(1, [account], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 account,

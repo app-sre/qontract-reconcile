@@ -239,8 +239,8 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map,
         # integration.
         # A dedicated integration or PR check will be done to ensure this
         # case does not occur (anymore)
-        _LOG.warning(f'Found several namespace defintions for '
-                     f'{cluster}/{ns_name}. Ignoring')
+        _LOG.debug(f'Found several namespace definitions for '
+                   f'{cluster}/{ns_name}. Ignoring')
         inventory.delete(cluster, ns_name)
 
 

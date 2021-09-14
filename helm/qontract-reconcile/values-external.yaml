@@ -55,10 +55,10 @@ integrations:
   sleepDurationSecs: 300
   resources:
     requests:
-      memory: 970Mi
+      memory: 550Mi
       cpu: 200m
     limits:
-      memory: 1Gi
+      memory: 550Mi
       cpu: 300m
 - name: quay-mirror-org
   resources:

@@ -159,7 +159,7 @@ class GqlApi:
             # resources is not complete.
             resources = self.query(query, {'path': path},
                                    skip_validation=True)['resources']
-        except GqlApiError as e:
+        except GqlApiError:
             raise GqlGetResourceError(
                 path,
                 'Resource not found.')

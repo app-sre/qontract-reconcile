@@ -19,7 +19,7 @@ class NS():
     def __init__(self, cluster: str, name: str,
                  current: Optional[Dict[str, str]],
                  managed: Optional[List[str]],
-                 desired: Dict[str, str], exists: bool=True):
+                 desired: Dict[str, str], exists: bool = True):
         self.cluster = cluster
         self.name = name
         self.current = current

@@ -268,7 +268,7 @@ def clusters_egress_ips(ctx):
             aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {
             'cluster': cluster_name,
-            'egress_ips': ', '.join(egress_ips)
+            'egress_ips': ', '.join(sorted(egress_ips))
         }
         results.append(item)
 

@@ -197,8 +197,8 @@ class JJB:
                     dlines = d.readlines()
 
                     differ = difflib.Differ()
-                    diff = [l for l in differ.compare(clines, dlines)
-                            if l.startswith(('-', '+'))]
+                    diff = [ln for ln in differ.compare(clines, dlines)
+                            if ln.startswith(('-', '+'))]
                     logging.debug("DIFF:\n" + "".join(diff))
 
     def compare_files(self, from_files, subtract_files, in_op=False):
