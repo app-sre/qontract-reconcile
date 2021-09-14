@@ -290,7 +290,8 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
         logging.log(level=oc.log_level, msg=oc.message)
         return None
     if not dry_run:
-        oc.create(namespace, resource_type, resource)
+        annotated = resource.annotate()
+        oc.create(namespace, annotated)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
