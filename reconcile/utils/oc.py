@@ -598,6 +598,8 @@ class OCDeprecated:
             now = datetime.now()
             recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
 
+            # get the object in case it was modified
+            obj = self.get(namespace, kind, name)
             # honor update strategy by setting annotations to force
             # a new rollout
             a = obj['spec']['template']['metadata'].get(
