@@ -43,8 +43,8 @@ class QuayApi:
 
         # Using a set because members may be repeated
         members = set()
-        for member in body[u'members']:
-            members.add(member[u'name'])
+        for member in body['members']:
+            members.add(member['name'])
 
         members_list = list(members)
         self.team_members[team] = members_list

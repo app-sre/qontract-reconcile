@@ -23,8 +23,8 @@ def get_sentry_users_from_mails(mails):
     user_names = set()
     for mail in mails:
         msg = mail['msg']
-        user_line = [l for l in msg.split('\n')
-                     if 'is requesting access to' in l]
+        user_line = [ln for ln in msg.split('\n')
+                     if 'is requesting access to' in ln]
         if not user_line:
             continue
         user_line = user_line[0]
