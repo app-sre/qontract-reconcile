@@ -6,7 +6,8 @@ import httpretty
 import pytest
 from slack_sdk.errors import SlackApiError
 
-from reconcile.utils.slack_api import SlackApi, MAX_RETRIES
+from reconcile.utils.slack_api import SlackApi, MAX_RETRIES, \
+    UserNotFoundException
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def slack_api():
     return SlackApiMock(slack_api, mock_secret_reader, mock_slack_client)
 
 
-def test_slack_api__get_default_args_channels(slack_api):
+def test__get_default_args_channels(slack_api):
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'channels': [],
         'response_metadata': {
@@ -45,7 +46,7 @@ def test_slack_api__get_default_args_channels(slack_api):
              params={'limit': 500, 'cursor': ''})
 
 
-def test_slack_api__get_default_args_users(slack_api):
+def test__get_default_args_users(slack_api):
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'members': [],
         'response_metadata': {
@@ -62,7 +63,7 @@ def test_slack_api__get_default_args_users(slack_api):
              params={'limit': 500, 'cursor': ''})
 
 
-def test_slack_api__get_default_args_unknown_type(slack_api):
+def test__get_default_args_unknown_type(slack_api):
     """Leave the limit unset if the resource type is unknown."""
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'something': [],
@@ -79,7 +80,7 @@ def test_slack_api__get_default_args_unknown_type(slack_api):
         call('something.list', http_verb='GET', params={'cursor': ''})
 
 
-def test_slack_api__get_uses_cache(slack_api):
+def test__get_uses_cache(slack_api):
     """The API is never called when the results are already cached."""
     # Reset the mock to clear any calls during __init__
     slack_api.mock_slack_client.return_value.api_call.reset_mock()
@@ -90,17 +91,66 @@ def test_slack_api__get_uses_cache(slack_api):
     slack_api.mock_slack_client.return_value.api_call.assert_not_called()
 
 
-def test_slack_api_chat_post_message(slack_api):
+def test_chat_post_message(slack_api):
     """Don't raise an exception when the channel is set."""
     slack_api.client.channel = 'some-channel'
     slack_api.client.chat_post_message('test')
 
 
-def test_slack_api_chat_post_message_missing_channel(slack_api):
+def test_chat_post_message_missing_channel(slack_api):
     """Raises an exception when channel isn't set."""
     slack_api.client.channel = None
     with pytest.raises(ValueError):
         slack_api.client.chat_post_message('test')
+
+
+def test_update_usergroup_users(slack_api):
+    slack_api.client.update_usergroup_users('ABCD', ['USERA', 'USERB'])
+
+    assert slack_api.mock_slack_client.return_value\
+        .usergroups_users_update.call_args == \
+           call(usergroup='ABCD', users=['USERA', 'USERB'])
+
+
+@patch.object(SlackApi, 'get_random_deleted_user', autospec=True)
+def test_update_usergroup_users_empty_list(mock_get_deleted, slack_api):
+    """Passing in an empty list supports removing all users from a group."""
+    mock_get_deleted.return_value = 'a-deleted-user'
+
+    slack_api.client.update_usergroup_users('ABCD', [])
+
+    assert slack_api.mock_slack_client.return_value\
+        .usergroups_users_update.call_args == \
+           call(usergroup='ABCD', users=['a-deleted-user'])
+
+
+@patch('reconcile.utils.slack_api.get_config', autospec=True)
+def test_get_user_id_by_name_user_not_found(get_config_mock, slack_api):
+    """
+    Check that UserNotFoundException will be raised under expected conditions.
+    """
+    get_config_mock.return_value = {'smtp': {'mail_address': 'redhat.com'}}
+    slack_api.mock_slack_client.return_value\
+        .users_lookupByEmail.side_effect = \
+        SlackApiError('Some error message', {'error': 'users_not_found'})
+
+    with pytest.raises(UserNotFoundException):
+        slack_api.client.get_user_id_by_name('someuser')
+
+
+@patch('reconcile.utils.slack_api.get_config', autospec=True)
+def test_get_user_id_by_name_reraise(get_config_mock, slack_api):
+    """
+    Check that SlackApiError is re-raised when not otherwise handled as a user
+    not found error.
+    """
+    get_config_mock.return_value = {'smtp': {'mail_address': 'redhat.com'}}
+    slack_api.mock_slack_client.return_value\
+        .users_lookupByEmail.side_effect = \
+        SlackApiError('Some error message', {'error': 'internal_error'})
+
+    with pytest.raises(SlackApiError):
+        slack_api.client.get_user_id_by_name('someuser')
 
 #
 # Slack WebClient retry tests

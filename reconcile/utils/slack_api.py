@@ -182,6 +182,7 @@ class SlackApi:
         :return: encoded user ID (ex. W012A3CDE)
         :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
         Slack API
+        :raises UserNotFoundException: if the Slack user is not found
         """
         config = get_config()
         mail_address = config['smtp']['mail_address']
