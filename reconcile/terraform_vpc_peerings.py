@@ -433,8 +433,8 @@ def run(dry_run, print_only=False,
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
-    if print_only or any(errors):
-        sys.exit(0 if dry_run else 1)
+    if print_only:
+        sys.exit(0 if dry_run else int(any(errors)))
 
     tf = terraform.TerraformClient(
         QONTRACT_INTEGRATION,
@@ -450,13 +450,13 @@ def run(dry_run, print_only=False,
     defer(lambda: tf.cleanup())
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    if err:
-        sys.exit(1)
+    errors.push(err)
     if disabled_deletions_detected:
+        logging.error("Deletions detected when they are disabled")
         sys.exit(1)
 
     if dry_run:
-        sys.exit(0)
+        sys.exit(int(any(errors)))
     if any(errors):
         sys.exit(1)
 
