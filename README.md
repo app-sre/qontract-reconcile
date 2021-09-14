@@ -126,16 +126,17 @@ python3 -m venv venv
 source venv/bin/activate
 
 # make sure you are running the latest setuptools
-python3 -m pip install --upgrade pip setuptools
+pip install --upgrade pip setuptools
 ```
 
 Install the package:
 
 ```sh
-python3 setup.py install
+pip install .
 
-# or alternatively use this for a devel environment
-python3 setup.py develop
+# or use this for development mode so rebuild/reinstall isn't necessary after 
+# each change that is made during development
+pip install -e .
 
 # optionally install all test/type dependencies - useful when writing tests,
 # auto-completion in your IDE, etc.
