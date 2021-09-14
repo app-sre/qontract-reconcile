@@ -7,7 +7,9 @@ COPY reconcile reconcile
 COPY tools tools
 COPY setup.py .
 
-RUN python3 setup.py install
+# setup.py install is not used because it will install pre-releases:
+# https://github.com/pypa/setuptools/issues/855
+RUN python3 -m pip install .
 
 COPY dockerfiles/hack/run-integration.py /run-integration.py
 CMD [ "/run-integration.py" ]
