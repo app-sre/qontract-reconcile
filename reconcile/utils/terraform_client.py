@@ -31,6 +31,7 @@ class TerraformClient:
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
         self._log_lock = Lock()
+        self.should_apply = False
 
         self.init_specs()
         self.init_outputs()
@@ -182,6 +183,7 @@ class TerraformClient:
                     continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
+                    self.should_apply = True
                 if action == 'delete':
                     if not deletions_allowed:
                         disabled_deletion_detected = True
