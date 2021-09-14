@@ -282,6 +282,17 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
 
+def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
+    logging.info(['create', cluster, namespace, resource_type, resource.name])
+
+    oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
+    if not dry_run:
+        oc.create(namespace, resource_type, resource)
+
+
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
            enable_deletion):
     logging.info(['delete', cluster, namespace, resource_type, name])
