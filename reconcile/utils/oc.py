@@ -593,7 +593,7 @@ class OCDeprecated:
         """
         name = obj['metadata']['name']
         logging.info([f'recycle_{kind.lower()}',
-                        self.cluster_name, namespace, name])
+                      self.cluster_name, namespace, name])
         if not dry_run:
             now = datetime.now()
             recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
