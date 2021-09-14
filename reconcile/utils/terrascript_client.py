@@ -103,6 +103,10 @@ def safe_resource_id(s):
 class aws_ecrpublic_repository(Resource):
     pass
 
+# https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep
+# type is not currently built into python-terrascript
+class time_sleep(Resource):
+    pass
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
@@ -1046,9 +1050,13 @@ class TerrascriptClient:
         # between the actions of creating an enhanced-monitoring IAM role
         # and checking the permissions of that role on a RDS replica
         if enhanced_monitoring and replica_source:
-            # get name of attachment-resource
-            # create time_sleep, depending on attachment-resource
-            # add time_sleep to deps
+            values = {}
+            values['depends_on'] = [attachment_res_name]
+            values['create_duration'] = "30s"
+            time_sleep_resource = time_sleep(identifier, **values)
+            time_sleep_res_name = \
+                self.get_name_from_tf_resource(time_sleep_resource)
+            deps.append(time_sleep_res_name)
 
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
