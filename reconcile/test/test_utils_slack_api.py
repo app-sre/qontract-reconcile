@@ -6,22 +6,24 @@ import httpretty
 import pytest
 from slack_sdk.errors import SlackApiError
 
+import reconcile
 from reconcile.utils.slack_api import SlackApi, MAX_RETRIES, \
     UserNotFoundException
 
 
 @pytest.fixture
-def slack_api():
-    with patch('reconcile.utils.slack_api.SecretReader', autospec=True) as \
-            mock_secret_reader, \
-            patch('reconcile.utils.slack_api.WebClient', autospec=True) as \
-            mock_slack_client:
+def slack_api(mocker):
+    mock_secret_reader = mocker.patch.object(
+        reconcile.utils.slack_api, 'SecretReader', autospec=True)
 
-        # autospec doesn't know about instance attributes
-        mock_slack_client.return_value.retry_handlers = []
+    mock_slack_client = mocker.patch.object(
+        reconcile.utils.slack_api, 'WebClient', autospec=True)
 
-        token = {'path': 'some/path', 'field': 'some-field'}
-        slack_api = SlackApi('some-workspace', token)
+    # autospec doesn't know about instance attributes
+    mock_slack_client.return_value.retry_handlers = []
+
+    token = {'path': 'some/path', 'field': 'some-field'}
+    slack_api = SlackApi('some-workspace', token)
 
     SlackApiMock = namedtuple("SlackApiMock", "client mock_secret_reader "
                                               "mock_slack_client")

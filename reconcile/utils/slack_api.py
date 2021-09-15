@@ -49,7 +49,8 @@ class SlackApi:
         :param settings: settings to pass to SecretReader
         :param init_usergroups: whether or not to get a list of all Slack
         usergroups when instantiated
-        :param channel: the Slack channel to post messages to
+        :param channel: the Slack channel to post messages to, only used
+        when posting messages to a channel
         :param chat_kwargs: any other kwargs that can be used to post Slack
         channel messages
         """
