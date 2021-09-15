@@ -22,7 +22,7 @@ For a high-level overview of the problem this proposal aims to address, in the c
 
 qontract-reconcile produces [reports](https://gitlab.cee.redhat.com/service/app-interface/-/tree/master/data/reports) on services. Within these reports are SLO-metric-data ([example](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/reports/ocm/2021-08-01.yml#L128-143)).
 
-A service may have multiple SLO-definitions with the same 'name', but spread across multiple SLO-documents. The reports produced by qontract-reconcile do not produce 'service_slo' YML data in such a way that multiples SLOs with the same name will be distinguishable.
+A service may have multiple SLO-definitions with the same SLO 'name', but spread across multiple SLO-documents. The reports produced by qontract-reconcile do not produce 'service_slo' YML data in such a way that multiple SLOs with the same name will be distinguishable.
 
 A sample of how a SLO-report's 'service_slo' property appears today:
 ```yml
