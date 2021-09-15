@@ -1,6 +1,7 @@
 import logging
 
 from datetime import datetime, timedelta
+from typing import Dict, List
 
 import gitlab
 
@@ -21,14 +22,17 @@ QONTRACT_INTEGRATION = 'gitlab-housekeeping'
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 
-def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
+def get_timed_out_pipelines(pipelines: List[Dict],
+                            pipeline_timeout: int = 60) -> List[Dict]:
     now = datetime.utcnow()
 
     pending_pipelines = [p for p in pipelines
                          if p['status'] in ['pending', 'running']]
 
     if not pending_pipelines:
-        return
+        return []
+
+    timed_out_pipelines = []
 
     for p in pending_pipelines:
         update_time = datetime.strptime(p['updated_at'], DATE_FORMAT)
@@ -37,13 +41,26 @@ def clean_pipelines(dry_run, gl_project, pipelines, pipeline_timeout=60):
 
         # pipeline_timeout converted in seconds
         if elapsed > pipeline_timeout * 60:
-            logging.info(['canceling', p['web_url']])
-            if not dry_run:
-                try:
-                    gl_project.pipelines.get(p['id']).cancel()
-                except gitlab.exceptions.GitlabPipelineCancelError as err:
-                    logging.error('unable to cancel {} - error message {}'
-                                  .format(p['web_url'], err.error_message))
+            timed_out_pipelines.append(p)
+
+    return timed_out_pipelines
+
+
+def clean_pipelines(dry_run: bool, gl_instance: str, gl_project_id: int,
+                    gl_settings: str, pipelines: List[Dict]) -> None:
+    if not dry_run:
+        gl_piplelines = GitLabApi(gl_instance,
+                                  project_id=gl_project_id,
+                                  settings=gl_settings).project.pipelines
+
+    for p in pipelines:
+        logging.info(['canceling', p['web_url']])
+        if not dry_run:
+            try:
+                gl_piplelines.get(p['id']).cancel()
+            except gitlab.exceptions.GitlabPipelineCancelError as err:
+                logging.error(f'unable to cancel {p["web_url"]} - '
+                              f'error message {err.error_message}')
 
 
 def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
@@ -150,11 +167,12 @@ def rebase_merge_requests(dry_run, gl, rebase_limit, pipeline_timeout=None,
 
             # If pipeline_timeout is None no pipeline will be canceled
             if pipeline_timeout is not None:
-                gl_project = GitLabApi(gl_instance,
-                                       project_id=mr.source_project_id,
-                                       settings=gl_settings).project
-                clean_pipelines(dry_run, gl_project, pipelines,
-                                pipeline_timeout)
+                timed_out_pipelines = \
+                    get_timed_out_pipelines(pipelines, pipeline_timeout)
+                if timed_out_pipelines:
+                    clean_pipelines(dry_run, gl_instance,
+                                    mr.source_project_id, gl_settings,
+                                    timed_out_pipelines)
 
             if wait_for_pipeline:
                 if not pipelines:
@@ -220,11 +238,12 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
 
             # If pipeline_timeout is None no pipeline will be canceled
             if pipeline_timeout is not None:
-                gl_project = GitLabApi(gl_instance,
-                                       project_id=mr.source_project_id,
-                                       settings=gl_settings).project
-                clean_pipelines(dry_run, gl_project, pipelines,
-                                pipeline_timeout)
+                timed_out_pipelines = \
+                    get_timed_out_pipelines(pipelines, pipeline_timeout)
+                if timed_out_pipelines:
+                    clean_pipelines(dry_run, gl_instance,
+                                    mr.source_project_id, gl_settings,
+                                    timed_out_pipelines)
 
             if wait_for_pipeline:
                 # possible statuses:
