@@ -1,5 +1,6 @@
 [run]
 branch = True
-omit = reconcile/tests/*
+omit = reconcile/test/*
+
 [report]
-fail_under = 25.29
+fail_under = 23.1

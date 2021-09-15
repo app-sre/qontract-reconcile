@@ -173,6 +173,7 @@ class TerrascriptClient:
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
+            # pylint: disable=consider-using-with
             open(zip_file, 'wb').write(r.content)
         return zip_file
 
@@ -803,6 +804,8 @@ class TerrascriptClient:
             self.populate_tf_resource_service_account(resource,
                                                       namespace_info,
                                                       ocm_map=ocm_map)
+        elif provider == 'aws-iam-role':
+            self.populate_tf_resource_role(resource, namespace_info)
         elif provider == 'sqs':
             self.populate_tf_resource_sqs(resource, namespace_info)
         elif provider == 'dynamodb':
@@ -1640,6 +1643,54 @@ class TerrascriptClient:
                     output_name_0_13 = output_prefix + '__role_arn'
                     tf_resources.append(
                         Output(output_name_0_13, value=switch_role_arn))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_role(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        # assume role policy
+        assume_role_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": resource['assume_role']
+                    },
+                }
+            ]
+        }
+
+        # iam role
+        values = {
+            'name': identifier,
+            'tags': common_values['tags'],
+            'assume_role_policy': json.dumps(assume_role_policy)
+        }
+
+        inline_policy = resource.get('inline_policy')
+        if inline_policy:
+            values['inline_policy'] = {
+                'name': identifier,
+                'policy': inline_policy
+            }
+
+        role_tf_resource = aws_iam_role(identifier, **values)
+        tf_resources.append(role_tf_resource)
+
+        # output role arn
+        output_name_0_13 = output_prefix + '__role_arn'
+        output_value = '${' + role_tf_resource.arn + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)

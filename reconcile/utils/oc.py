@@ -2,12 +2,14 @@ import copy
 import json
 import logging
 import os
+import re
 import tempfile
 import time
 from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
+from typing import Dict, Iterable
 
 import urllib3
 
@@ -339,6 +341,18 @@ class OCDeprecated:
         resource = {'kind': kind, 'metadata': {'name': name}}
         return self._msg_to_process_reconcile_time(namespace, resource)
 
+    @OCDecorators.process_reconcile_time
+    def label(self, namespace, kind, name, labels, overwrite=False):
+        ns = ['-n', namespace] if namespace else []
+        added = [f"{k}={v}" for k, v in labels.items() if v is not None]
+        removed = [f"{k}-" for k, v in labels.items() if v is None]
+        overwrite_param = f'--overwrite={str(overwrite).lower()}'
+        cmd = ['label'] + ns + [kind, name, overwrite_param]
+        cmd.extend(added + removed)
+        self._run(cmd)
+        resource = {'kind': kind, 'metadata': {'name': name}}
+        return self._msg_to_process_reconcile_time(namespace, resource)
+
     def project_exists(self, name):
         if self.init_projects:
             return name in self.projects
@@ -464,6 +478,7 @@ class OCDeprecated:
         cmd = ['logs', '-n', namespace, f'job/{name}']
         if follow:
             cmd.append('-f')
+        # pylint: disable=consider-using-with
         output_file = open(os.path.join(output, name), 'w')
         # collect logs to file async
         Popen(self.oc_base_cmd + cmd, stdout=output_file)
@@ -670,7 +685,7 @@ class OCDeprecated:
             stdin = None
             stdin_text = None
 
-        p = Popen(
+        p = Popen(  # pylint: disable=consider-using-with
             self.oc_base_cmd + cmd,
             stdin=stdin,
             stdout=PIPE,
@@ -1138,3 +1153,58 @@ class OCLogMsg:
 
     def __bool__(self):
         return False
+
+
+LABEL_MAX_VALUE_LENGTH = 63
+LABEL_MAX_KEY_NAME_LENGTH = 63
+LABEL_MAX_KEY_PREFIX_LENGTH = 253
+
+
+def validate_labels(labels: Dict[str, str]) -> Iterable[str]:
+    """
+    Validate a label key/value against some rules from
+    https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+    Returns a list of erros found, as error message strings
+    """
+    if labels is None:
+        return []
+
+    err = []
+    v_pattern = re.compile(r'^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$')
+    k_name_pattern = re.compile(r'^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$')
+    k_prefix_pattern = re.compile(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?'
+                                  r'(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$')
+
+    for k, v in labels.items():
+        if len(v) > LABEL_MAX_VALUE_LENGTH:
+            err.append(f'Label value longer than '
+                       f'{LABEL_MAX_VALUE_LENGTH} chars: {v}')
+        if not v_pattern.match(v):
+            err.append(f'Label value is invalid, it needs to match '
+                       f"'{v_pattern}': {v}")
+
+        prefix, name = '', k
+        if '/' in k:
+            split = k.split('/')
+            if len(split) > 3:
+                err.append(f'Only one "/" allowed in label keys: {k}')
+            prefix, name = split[0], split[1]
+
+        if len(name) > LABEL_MAX_KEY_NAME_LENGTH:
+            err.append(f'Label key name is longer than '
+                       f'{LABEL_MAX_KEY_NAME_LENGTH} chars: {name}')
+        if not k_name_pattern.match(name):
+            err.append(f'Label key name is invalid, it needs to mach '
+                       f"'{v_pattern}'': {name}")
+
+        if prefix:
+            if len(prefix) > LABEL_MAX_KEY_PREFIX_LENGTH:
+                err.append(f'Label key prefix longer than '
+                           f'{LABEL_MAX_KEY_PREFIX_LENGTH} chars: {prefix}')
+            if not k_prefix_pattern.match(prefix):
+                err.append(f'Label key prefix is invalid, it needs to match '
+                           f"'{k_prefix_pattern}'': {prefix}")
+            if prefix in ('kubernetes.io', 'k8s.io'):
+                err.append(f'Label key prefix is reserved: {prefix}')
+
+    return err

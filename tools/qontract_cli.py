@@ -23,6 +23,7 @@ from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.semver_helper import parse_semver
 from reconcile.cli import config_file
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
@@ -48,6 +49,14 @@ def sort(function):
     return function
 
 
+def to_string(function):
+    function = click.option('--to-string',
+                            help='stringify output',
+                            default=False,
+                            type=bool)(function)
+    return function
+
+
 @click.group()
 @config_file
 @click.pass_context
@@ -60,11 +69,13 @@ def root(ctx, configfile):
 @root.group()
 @output
 @sort
+@to_string
 @click.pass_context
-def get(ctx, output, sort):
+def get(ctx, output, sort, to_string):
     ctx.obj['options'] = {
         'output': output,
         'sort': sort,
+        'to_string': to_string,
     }
 
 
@@ -181,13 +192,14 @@ def version_history(ctx):
             for workload, workload_data in version_data['workloads'].items():
                 item = {
                     'ocm': ocm_name,
-                    'version': version,
+                    'version': parse_semver(version),
                     'workload': workload,
                     'soak_days': round(workload_data['soak_days'], 2),
                     'clusters': ', '.join(workload_data['reporting']),
                 }
                 results.append(item)
     columns = ['ocm', 'version', 'workload', 'soak_days', 'clusters']
+    ctx.obj['options']['to_string'] = True
     print_output(ctx.obj['options'], results, columns)
 
 
@@ -256,7 +268,7 @@ def clusters_egress_ips(ctx):
             aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {
             'cluster': cluster_name,
-            'egress_ips': ', '.join(egress_ips)
+            'egress_ips': ', '.join(sorted(egress_ips))
         }
         results.append(item)
 
@@ -617,6 +629,11 @@ def sre_checkpoints(ctx):
 def print_output(options, content, columns=[]):
     if options['sort']:
         content.sort(key=lambda c: tuple(c.values()))
+    if options.get('to_string'):
+        for c in content:
+            for k, v in c.items():
+                c[k] = str(v)
+
     output = options['output']
 
     if output == 'table':
@@ -704,7 +721,7 @@ def ls(ctx, integration):
     print_output('table', table_content, ['integration', 'key'])
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.pass_context
@@ -727,7 +744,7 @@ def add(ctx, integration, key):
     state.add(key)
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.argument('value')
@@ -856,7 +873,12 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
 def query(output, query):
     """Run a raw GraphQL query"""
     gqlapi = gql.get_api()
-    print_output(output, gqlapi.query(query))
+    result = gqlapi.query(query)
+
+    if output == 'yaml':
+        print(yaml.safe_dump(result))
+    elif output == 'json':
+        print(json.dumps(result))
 
 
 @root.command()

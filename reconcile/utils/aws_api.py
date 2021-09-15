@@ -23,13 +23,14 @@ class AWSApi:
     """Wrapper around AWS SDK"""
 
     def __init__(self, thread_pool_size, accounts, settings=None,
-                 init_ecr_auth_tokens=False):
+                 init_ecr_auth_tokens=False, init_users=True):
         self.thread_pool_size = thread_pool_size
         self.secret_reader = SecretReader(settings=settings)
         self.init_sessions_and_resources(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
-        self.init_users()
+        if init_users:
+            self.init_users()
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']

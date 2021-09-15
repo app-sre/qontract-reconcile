@@ -246,7 +246,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
         except FieldIsImmutableError:
             # Add more resources types to the list when you're
             # sure they're safe.
-            if resource_type not in ['Route', 'Service']:
+            if resource_type not in ['Route', 'Service', 'Secret']:
                 raise
 
             oc.delete(namespace=namespace, kind=resource_type,
@@ -280,6 +280,18 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
+
+
+def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
+    logging.info(['create', cluster, namespace, resource_type, resource.name])
+
+    oc = oc_map.get(cluster)
+    if not oc:
+        logging.log(level=oc.log_level, msg=oc.message)
+        return None
+    if not dry_run:
+        annotated = resource.annotate()
+        oc.create(namespace, annotated)
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
