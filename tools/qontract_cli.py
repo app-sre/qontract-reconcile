@@ -873,7 +873,12 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
 def query(output, query):
     """Run a raw GraphQL query"""
     gqlapi = gql.get_api()
-    print_output(output, gqlapi.query(query))
+    result = gqlapi.query(query)
+
+    if output == 'yaml':
+        print(yaml.safe_dump(result))
+    elif output == 'json':
+        print(json.dumps(result))
 
 
 @root.command()
