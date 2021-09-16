@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from contextlib import suppress
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
@@ -75,13 +76,14 @@ def add_desired_state(namespaces, ri, oc_map):
         if 'resources' not in namespace:
             continue
         for resource in namespace["resources"]:
-            ri.add_desired(
-                namespace['cluster']['name'],
-                namespace['name'],
-                resource.kind,
-                resource.name,
-                resource
-            )
+            with suppress(KeyError):
+                ri.add_desired(
+                    namespace['cluster']['name'],
+                    namespace['name'],
+                    resource.kind,
+                    resource.name,
+                    resource
+                )
 
 
 @defer

@@ -838,13 +838,20 @@ class SaasHerder():
                 )
             except ResourceKeyExistsError:
                 ri.register_error()
-                msg = \
-                    f"[{cluster}/{namespace}] desired item " + \
-                    f"already exists: {resource_kind}/{resource_name}. " + \
-                    f"saas file name: {saas_file_name}, " + \
-                    "resource template name: " + \
-                    f"{process_template_options['resource_template_name']}."
-                logging.error(msg)
+                logging.error(
+                    f"[{cluster}/{namespace}] desired item "
+                    f"already exists: {resource_kind}/{resource_name}. "
+                    f"saas file name: {saas_file_name}, "
+                    "resource template name: "
+                    f"{process_template_options['resource_template_name']}.")
+            except KeyError:
+                ri.register_error()
+                logging.error(
+                    f"[{cluster}/{namespace}] desired item of unexpected "
+                    f"scope: {resource_kind}/{resource_name}. "
+                    f"saas file name: {saas_file_name} "
+                    "resource template name: "
+                    f"{process_template_options['resource_template_name']}.")
 
         return promotion
 
