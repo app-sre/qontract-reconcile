@@ -48,3 +48,18 @@ def test_ls_returns_correct_file(accounts, s3_client, mocker):
     expected = ['/some-file-1']
 
     assert keys == expected
+
+
+def test_ls_when_state_is_empty(accounts, s3_client, mocker):
+    s3_client.create_bucket(Bucket='some-bucket')
+
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value = s3_client
+
+    state = State('integration-name', accounts)
+
+    keys = state.ls()
+
+    assert keys == []
