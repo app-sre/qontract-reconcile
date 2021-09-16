@@ -61,9 +61,9 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
     elif namespaces:
         for namespace_info in namespaces:
             if override_managed_types is None:
-                managed_types = namespace_info.get(managed_types_key)
+                managed_types = set(namespace_info.get(managed_types_key, []))
             else:
-                managed_types = override_managed_types
+                managed_types = set(override_managed_types)
 
             if not managed_types:
                 continue
@@ -78,34 +78,42 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
 
             namespace = namespace_info['name']
             managed_resource_names = \
-                namespace_info.get('managedResourceNames')
+                namespace_info.get('managedResourceNames', [])
             managed_resource_type_overrides = \
-                namespace_info.get('managedResourceTypeOverrides')
+                namespace_info.get('managedResourceTypeOverrides', [])
 
             # Initialize current state specs
             for resource_type in managed_types:
                 ri.initialize_resource_type(cluster, namespace, resource_type)
-                # Handle case of specific managed resources
-                resource_names = \
-                    [mrn['resourceNames'] for mrn in managed_resource_names
-                     if mrn['resource'] == resource_type] \
-                    if managed_resource_names else None
-                # Handle case of resource type override
-                resource_type_override = \
-                    [mnto['override'] for mnto
-                     in managed_resource_type_overrides
-                     if mnto['resource'] == resource_type] \
-                    if managed_resource_type_overrides else None
-                # If not None, there is a single element in the list
-                if resource_names:
-                    [resource_names] = resource_names
-                if resource_type_override:
-                    [resource_type_override] = resource_type_override
+            resource_names = {}
+            resource_type_overrides = {}
+            for mrn in managed_resource_names:
+                # Current implementation guarantees only one
+                # managed_resource_name of each managed type
+                if mrn['resource'] in managed_types:
+                    resource_names[mrn['resource']] = mrn['resourceNames']
+                else:
+                    logging.info(
+                        f"Skipping non-managed resources {mrn} "
+                        f"on {cluster}/{namespace}"
+                    )
+
+            for o in managed_resource_type_overrides:
+                # Current implementation guarantees only one
+                # override of each managed type
+                if o['resource'] in managed_types:
+                    resource_type_overrides[o['resource']] = o['override']
+                else:
+                    logging.info(
+                        f"Skipping nom-managed override {o} "
+                        f"on {cluster}/{namespace}")
+
+            for kind, names in resource_names.items():
                 c_spec = StateSpec(
                     "current", oc, cluster, namespace,
-                    resource_type,
-                    resource_type_override=resource_type_override,
-                    resource_names=resource_names)
+                    kind,
+                    resource_type_override=resource_type_overrides.get(kind),
+                    resource_names=names)
                 state_specs.append(c_spec)
 
             # Initialize desired state specs
@@ -117,7 +125,7 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
     elif clusters:
         # set namespace to something indicative
         namespace = 'cluster'
-        for cluster_info in clusters or []:
+        for cluster_info in clusters:
             cluster = cluster_info['name']
             oc = oc_map.get(cluster)
             if not oc:
