@@ -1632,6 +1632,12 @@ JIRA_BOARDS_QUERY = """
           icon_emoji
           username
         }
+        api_client {
+          methods {
+            name
+            args
+          }
+        }
       }
       channel
     }
@@ -1664,6 +1670,12 @@ UNLEASH_INSTANCES_QUERY = """
             token {
               path
               field
+            }
+          }
+          api_client {
+            methods {
+              name
+              args
             }
           }
         }
@@ -1749,6 +1761,12 @@ SLACK_WORKSPACES_QUERY = """
       channel
       icon_emoji
       username
+    }
+    api_client {
+      methods {
+        name
+        args
+      }
     }
   }
 }

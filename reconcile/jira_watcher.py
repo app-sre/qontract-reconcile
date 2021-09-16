@@ -3,7 +3,7 @@ import logging
 import reconcile.queries as queries
 
 from reconcile.utils.jira_client import JiraClient
-from reconcile.utils.slack_api import SlackApi
+from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.state import State
 
@@ -64,6 +64,7 @@ def init_slack(jira_board):
     workspace = slack_info['workspace']
     workspace_name = workspace['name']
     slack_integrations = workspace['integrations']
+    client_config = workspace.get('api_client')
     jira_config = \
         [i for i in slack_integrations if i['name'] == QONTRACT_INTEGRATION]
     [jira_config] = jira_config
@@ -74,13 +75,19 @@ def init_slack(jira_board):
     username = jira_config['username']
     channel = slack_info.get('channel') or default_channel
 
-    slack = SlackApi(workspace_name,
-                     token,
-                     settings=settings,
-                     init_usergroups=False,
-                     channel=channel,
-                     icon_emoji=icon_emoji,
-                     username=username)
+    slack_api_kwargs = {
+        'settings': settings,
+        'init_usergroups': False,
+        'channel': channel,
+        'icon_emoji': icon_emoji,
+        'username': username
+    }
+
+    if client_config:
+        slack_api_kwargs['api_config'] = \
+            SlackApiConfig.from_dict(client_config)
+
+    slack = SlackApi(workspace_name, token, **slack_api_kwargs)
 
     return slack
 
