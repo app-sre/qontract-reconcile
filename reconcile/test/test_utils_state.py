@@ -10,8 +10,8 @@ def accounts():
     return [{'name': 'some-account'}]
 
 
-@mock_s3
-def test_ls(accounts, monkeypatch, mocker):
+@pytest.fixture
+def s3_client(monkeypatch):
     monkeypatch.setenv('AWS_ACCESS_KEY_ID', 'testing')
     monkeypatch.setenv('AWS_SECRET_ACCESS_KEY', 'testing')
     monkeypatch.setenv('AWS_SECURITY_TOKEN', 'testing')
@@ -19,9 +19,13 @@ def test_ls(accounts, monkeypatch, mocker):
     monkeypatch.setenv('APP_INTERFACE_STATE_BUCKET', 'some-bucket')
     monkeypatch.setenv('APP_INTERFACE_STATE_BUCKET_ACCOUNT', 'some-account')
 
-    s3_client = boto3.client('s3', region_name='us-east-1')
-    s3_client.create_bucket(Bucket='some-bucket')
+    with mock_s3():
+        s3_client = boto3.client('s3', region_name='us-east-1')
+        yield s3_client
 
+
+def test_ls_returns_correct_file(accounts, s3_client, mocker):
+    s3_client.create_bucket(Bucket='some-bucket')
     s3_client.put_object(Bucket='some-bucket',
                          Key='state/integration-name/some-file-1',
                          Body='test')
