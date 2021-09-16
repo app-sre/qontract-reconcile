@@ -93,6 +93,10 @@ class JobNotRunningError(Exception):
     pass
 
 
+class UnableToApplyError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
@@ -733,6 +737,9 @@ class OCDeprecated:
                     if ': primary clusterIP can not be unset' in err:
                         raise PrimaryClusterIPCanNotBeUnsetError(
                             f"[{self.server}]: {err}")
+                    raise UnableToApplyError(
+                        f"[{self.server}: {err}"
+                    )
                 if 'metadata.annotations: Too long' in err:
                     raise MetaDataAnnotationsTooLongApplyError(
                         f"[{self.server}]: {err}")
