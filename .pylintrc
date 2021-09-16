@@ -58,4 +58,9 @@ disable = attribute-defined-outside-init,
           unused-variable,
           use-a-generator,
           use-dict-literal,
-          use-list-literal
+          use-list-literal,
+          consider-using-f-string,
+          consider-iterating-dictionary,
+          raising-bad-type,
+          global-variable-not-assigned,
+          unsupported-membership-test
