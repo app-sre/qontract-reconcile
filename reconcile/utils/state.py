@@ -1,6 +1,8 @@
 import os
 import json
 
+from typing import Any, Iterable, Mapping, Optional
+
 from botocore.errorfactory import ClientError
 
 from reconcile.utils.aws_api import AWSApi
@@ -18,12 +20,10 @@ class State:
     :param integration: name of calling integration
     :param accounts: Graphql AWS accounts query results
     :param settings: App Interface settings
-
-    :type integration: string
-    :type accounts: list
-    :type settings: dict
     """
-    def __init__(self, integration, accounts, settings=None):
+
+    def __init__(self, integration: str, accounts: Iterable[Mapping[str, Any]],
+                 settings: Optional[Mapping[str, Any]] = None) -> None:
         """Initiates S3 client from AWSApi."""
         self.state_path = f"state/{integration}"
         self.bucket = os.environ['APP_INTERFACE_STATE_BUCKET']
