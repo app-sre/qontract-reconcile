@@ -130,10 +130,11 @@ class QuayApi:
         https://docs.quay.io/api/swagger/#!/repository/listRepos
 
         :raises HTTPError: failure when listing the images in the repository
+        :raises ValueError: Following limit exceeded
         """
 
         if count > self.LIMIT_FOLLOWS:
-            raise("Too many page follows")
+            raise ValueError("Too many page follows")
 
         url = "{}/repository".format(self.api_url)
 

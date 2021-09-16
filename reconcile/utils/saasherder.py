@@ -207,7 +207,7 @@ class SaasHerder():
         # to create a unique pipelinerun name
         tkn_long_name = f"{saas_file_name}-{env_name}"
         tkn_name = tkn_long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]
-        if tkn_name in self.tkn_unique_pipelineruns.keys() and \
+        if tkn_name in self.tkn_unique_pipelineruns and \
                 self.tkn_unique_pipelineruns[tkn_name] != tkn_long_name:
             logging.error(
                 f'[{saas_file_name}/{env_name}] '

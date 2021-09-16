@@ -60,7 +60,7 @@ disable = attribute-defined-outside-init,
           use-dict-literal,
           use-list-literal,
           consider-using-f-string,
-          consider-iterating-dictionary,
-          raising-bad-type,
-          global-variable-not-assigned,
-          unsupported-membership-test
+          # This one matters - Python scoping messes up with our
+          # global and multi-threading locks          
+          global-variable-not-assigned
+
