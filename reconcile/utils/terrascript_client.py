@@ -2034,6 +2034,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
+        # pylint: disable=unused-variable
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -2129,6 +2130,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def populate_tf_resource_s3_sqs(self, resource, namespace_info):
+        # pylint: disable=unused-variable
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)

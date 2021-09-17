@@ -70,17 +70,19 @@ QONTRACT_INTEGRATION = 'slack-usergroups'
 
 
 class GitApi:
-    def __new__(cls, url, *args, **kwargs):
+    def __new__(cls, url: str, *args, **kwargs):
         parsed_url = urlparse(url)
         settings = queries.get_app_interface_settings()
 
-        if 'github' in parsed_url.hostname:
-            instance = queries.get_github_instance()
-            return GithubApi(instance, repo_url=url, settings=settings)
+        if parsed_url.hostname:
+            if 'github' in parsed_url.hostname:
+                instance = queries.get_github_instance()
+                return GithubApi(instance, repo_url=url, settings=settings)
+            if 'gitlab' in parsed_url.hostname:
+                instance = queries.get_gitlab_instance()
+                return GitLabApi(instance, project_url=url, settings=settings)
 
-        if 'gitlab' in parsed_url.hostname:
-            instance = queries.get_gitlab_instance()
-            return GitLabApi(instance, project_url=url, settings=settings)
+        raise ValueError(f"Unable to handle URL: {url}")
 
 
 def get_permissions():

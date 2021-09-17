@@ -32,7 +32,7 @@ def init_from_sqs_message(message):
     #     'create_app_interface_notificator_mr': CreateAppInterfaceNotificator,
     #     ...
     # }
-    types_map = dict()
+    types_map = {}
     for item in globals().values():
         if not isinstance(item, type):
             continue

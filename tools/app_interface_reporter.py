@@ -360,7 +360,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
         app['merge_activity'] = {}
         code_repos = [c['url'] for c in app['codeComponents']
                       if c['resource'] == 'upstream']
-        for instance, jobs in build_jobs.items():
+        for jobs in build_jobs.values():
             for job in jobs:
                 try:
                     repo_url = get_repo_url(job)

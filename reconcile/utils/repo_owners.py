@@ -118,12 +118,12 @@ class RepoOwners:
         :return: owners list per path basis
         :rtype: dict
         """
-        owners_map = dict()
+        owners_map = {}
 
         repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
 
         aliases = None
-        owner_files = list()
+        owner_files = []
         for item in repo_tree:
             if item['path'] == 'OWNERS_ALIASES':
                 aliases = self._get_aliases()
