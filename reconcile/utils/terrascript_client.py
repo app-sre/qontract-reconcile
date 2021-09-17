@@ -954,6 +954,9 @@ class TerrascriptClient:
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(attachment_tf_resource)
 
+            values['monitoring_role_arn'] = \
+                "${" + role_tf_resource.arn + "}"
+
         reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
             reset_password = self._should_reset_password(
