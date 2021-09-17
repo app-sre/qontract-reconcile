@@ -56,7 +56,6 @@ disable = attribute-defined-outside-init,
           unspecified-encoding,
           unused-argument,
           unused-variable,
-          use-a-generator,
           consider-using-f-string,
           # This one matters - Python scoping messes up with our
           # global and multi-threading locks          

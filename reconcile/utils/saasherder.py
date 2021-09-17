@@ -259,7 +259,7 @@ class SaasHerder():
                 parameters[k] = 'true'
             elif v is False:
                 parameters[k] = 'false'
-            elif any([isinstance(v, t) for t in [dict, list, tuple]]):
+            elif any(isinstance(v, t) for t in [dict, list, tuple]):
                 parameters[k] = json.dumps(v)
         return parameters
 
