@@ -302,19 +302,20 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
 
 
 def init_working_dirs(accounts, thread_pool_size,
-                      oc_map=None, settings=None):
+                      oc_map=None, settings=None, skip_tf_providers_list):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
                      oc_map,
-                     settings=settings)
+                     settings=settings,
+                     skip_tf_providers_list)
     working_dirs = ts.dump()
     return ts, working_dirs
 
 
 def setup(dry_run, print_only, thread_pool_size, internal,
-          use_jump_host, account_name, extra_labels):
+          use_jump_host, account_name, extra_labels, skip_tf_providers_list):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:
@@ -330,7 +331,8 @@ def setup(dry_run, print_only, thread_pool_size, internal,
                                      internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          oc_map=oc_map,
-                                         settings=settings)
+                                         settings=settings,
+                                         skip_tf_providers_list)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
@@ -396,7 +398,8 @@ def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='',
-        account_name=None, extra_labels=None, defer=None):
+        account_name=None, extra_labels=None, defer=None,
+        skip_tf_provider_list=''):
 
     ri, oc_map, tf, tf_namespaces = \
         setup(dry_run, print_only, thread_pool_size, internal,

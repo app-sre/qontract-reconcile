@@ -36,7 +36,8 @@ def tfr_run_wrapper(account_name,
                     use_jump_host,
                     light,
                     vault_output_path,
-                    extra_labels):
+                    extra_labels,
+                    skip_tf_provider_list):
     exit_code = 0
     try:
         tfr.run(dry_run=dry_run,
@@ -49,7 +50,8 @@ def tfr_run_wrapper(account_name,
                 light=light,
                 vault_output_path=vault_output_path,
                 account_name=account_name,
-                extra_labels=extra_labels)
+                extra_labels=extra_labels,
+                skip_tf_provider_list=skip_tf_provider_list)
     except SystemExit as e:
         exit_code = e.code
     return exit_code
@@ -58,7 +60,8 @@ def tfr_run_wrapper(account_name,
 def run(dry_run, print_only=False,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
-        light=False, vault_output_path='', extra_labels=None):
+        light=False, vault_output_path='', extra_labels=None,
+        skip_tf_provider_list=''):
     account_names = [
         name for index, name in enumerate(sorted(get_accounts_names()))
         if is_in_shard_round_robin(name, index)
@@ -80,6 +83,7 @@ def run(dry_run, print_only=False,
         light=light,
         vault_output_path=vault_output_path,
         extra_labels=extra_labels,
+        skip_tf_provider_list=skip_tf_provider_list
     )
 
     if any(exit_codes):
