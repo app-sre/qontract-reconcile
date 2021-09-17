@@ -863,7 +863,7 @@ class TerrascriptClient:
             # and use that as an alias in the provider definition
             provider = 'aws.' + self._region_from_availability_zone_(az)
             values['provider'] = provider
-        
+
         # 'deps' should contain a list of terraform resource names
         # (not full objects) that must be created
         # before the actual RDS instance should be created
