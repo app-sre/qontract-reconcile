@@ -945,7 +945,6 @@ class TerrascriptClient:
             }
             role_tf_resource = aws_iam_role(em_identifier, **em_values)
             tf_resources.append(role_tf_resource)
-            # todo: add role_tf_resource name to 'deps'
 
             em_values = {
                 'role': role_tf_resource.name,
@@ -959,7 +958,6 @@ class TerrascriptClient:
             tf_resources.append(attachment_tf_resource)
             attachment_res_name = \
                 self.get_dependencies([attachment_tf_resource])[0]
-            # todo: add attachment_res_name to 'deps'
 
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.arn + "}"
