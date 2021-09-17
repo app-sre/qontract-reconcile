@@ -1,5 +1,6 @@
 import json
 import sys
+from typing import Dict, Iterable, List, Mapping, Union
 
 import click
 import requests
@@ -626,7 +627,8 @@ def sre_checkpoints(ctx):
     print_output(ctx.obj['options'], checkpoints_data, columns)
 
 
-def print_output(options, content, columns=[]):
+def print_output(options: Mapping[str, Union[str, bool]],
+                 content: List[Dict], columns: Iterable[str] = ()):
     if options['sort']:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get('to_string'):
