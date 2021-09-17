@@ -9,6 +9,8 @@ import tempfile
 
 from threading import Lock
 
+from typing import Dict, List, Iterable, Optional
+
 import anymarkup
 import requests
 
@@ -97,7 +99,6 @@ def safe_resource_id(s):
     return s.translate({ord(c): "_" for c in "."})
 
 
-# temporary pending https://github.com/mjuenema/python-terrascript/issues/160
 class aws_ecrpublic_repository(Resource):
     pass
 
@@ -1115,7 +1116,11 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self, account, source, provider):
+    def _find_resource_(self,
+                        account: str,
+                        source: str,
+                        provider: str
+                        ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
         if account not in self.account_resources:
             return None
 
@@ -2902,7 +2907,8 @@ class TerrascriptClient:
         return cluster, namespace
 
     @staticmethod
-    def get_dependencies(tf_resources):
+    def get_dependencies(tf_resources: Iterable[Resource]
+                         ) -> List[str]:
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
 
