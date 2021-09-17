@@ -12,7 +12,7 @@ from threading import Lock
 import anymarkup
 import requests
 
-from terrascript import (Terrascript, provider, Terraform,
+from terrascript import (Terrascript, provider, Provider, Terraform,
                          Backend, Output, data)
 from terrascript.resource import (
     aws_db_instance, aws_db_parameter_group,
@@ -101,9 +101,20 @@ def safe_resource_id(s):
 class aws_ecrpublic_repository(Resource):
     pass
 
-# temporary until built into python-terrascript
+
+# temporary until we upgrade to a terrascript release
+# that supports this provider
+# https://github.com/mjuenema/python-terrascript/pull/166
+class time(Provider):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+# https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
     pass
+
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
@@ -140,6 +151,14 @@ class TerrascriptClient:
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
                 region=config['region'])
+
+            # the time provider can be removed if all AWS accounts
+            # upgrade to a provider version with this bug fix
+            # https://github.com/hashicorp/terraform-provider-aws/pull/20926
+            ts += time(
+                version="0.7.2"
+            )
+
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
@@ -926,7 +945,7 @@ class TerrascriptClient:
             values['monitoring_role_arn'] = \
                 "${" + role_tf_resource.arn + "}"
 
-            role_res_name = self.get_name_from_tf_resource(role_tf_resource)
+            role_res_name = self.get_dependencies([role_tf_resource])[0]
             deps.append(role_res_name)
 
             em_values = {
@@ -941,7 +960,7 @@ class TerrascriptClient:
             tf_resources.append(attachment_tf_resource)
 
             attachment_res_name = \
-                self.get_name_from_tf_resource(attachment_tf_resource)
+                self.get_dependencies([attachment_tf_resource])[0]
             deps.append(attachment_res_name)
 
         reset_password_current_value = values.pop('reset_password', None)
@@ -1035,6 +1054,11 @@ class TerrascriptClient:
         # w/ ehanced-monitoring, causing tf to not wait long enough
         # between the actions of creating an enhanced-monitoring IAM role
         # and checking the permissions of that role on a RDS replica
+        # if the source-db already exists
+        # therefore we wait 30s between these actions
+        # this sleep can be removed if all AWS accounts upgrade
+        # to a provider version with this bug fix
+        # https://github.com/hashicorp/terraform-provider-aws/pull/20926
         if enhanced_monitoring and replica_source:
             sleep_vals = {}
             sleep_vals['depends_on'] = [attachment_res_name]
@@ -1046,7 +1070,7 @@ class TerrascriptClient:
             time_sleep_resource = time_sleep(identifier, **sleep_vals)
             tf_resources.append(time_sleep_resource)
             time_sleep_res_name = \
-                self.get_name_from_tf_resource(time_sleep_resource)
+                self.get_dependencies([time_sleep_resource])[0]
             deps.append(time_sleep_res_name)
 
         kms_key_id = values.pop('kms_key_id', None)
