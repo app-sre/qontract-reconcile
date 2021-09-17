@@ -942,26 +942,17 @@ class TerrascriptClient:
             }
             role_tf_resource = aws_iam_role(em_identifier, **em_values)
             tf_resources.append(role_tf_resource)
-            values['monitoring_role_arn'] = \
-                "${" + role_tf_resource.arn + "}"
-
-            role_res_name = self.get_dependencies([role_tf_resource])[0]
-            deps.append(role_res_name)
 
             em_values = {
                 'role': role_tf_resource.name,
                 'policy_arn':
                     "arn:aws:iam::aws:policy/service-role/" +
                     "AmazonRDSEnhancedMonitoringRole",
-                'depends_on': [role_res_name]
+                'depends_on': self.get_dependencies([role_tf_resource])
             }
             attachment_tf_resource = \
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
             tf_resources.append(attachment_tf_resource)
-
-            attachment_res_name = \
-                self.get_dependencies([attachment_tf_resource])[0]
-            deps.append(attachment_res_name)
 
         reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
