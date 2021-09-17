@@ -155,8 +155,10 @@ class TerrascriptClient:
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
         github_config = get_config()['github']
-        if 'cloudwatch' not in self.skip_tf_providers_list:
-            self.token = github_config['app-sre']['token']
+        # if 'cloudwatch' not in self.skip_tf_providers_list:
+        self.token = github_config['app-sre']['token']
+        print('here is token')
+        print(self.token)
         self.logtoes_zip = ''
 
     def get_logtoes_zip(self, release_url):
