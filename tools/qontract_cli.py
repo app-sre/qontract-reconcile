@@ -718,7 +718,8 @@ def ls(ctx, integration):
         {'integration': k.split('/')[0] or integration,
          'key': '/'.join(k.split('/')[1:])}
         for k in keys]
-    print_output('table', table_content, ['integration', 'key'])
+    print_output({'output': 'table', 'sort': False},
+                 table_content, ['integration', 'key'])
 
 
 @state.command()  # type: ignore
@@ -791,7 +792,8 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         if openshift_resource.name != name:
             continue
-        print_output('yaml', openshift_resource.body)
+        print_output({'output': 'yaml', 'sort': False},
+                     openshift_resource.body)
         break
 
 
