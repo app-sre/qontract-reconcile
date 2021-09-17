@@ -118,7 +118,7 @@ class RepoOwners:
         :return: owners list per path basis
         :rtype: dict
         """
-        owners_map = dict()
+        owners_map = {}
 
         repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
 

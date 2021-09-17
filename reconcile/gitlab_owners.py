@@ -47,7 +47,7 @@ class MRApproval:
         Maps each change path to the list of owners that can approve
         that change.
         """
-        change_owners_map = dict()
+        change_owners_map = {}
         paths = self.gitlab.get_merge_request_changed_paths(self.mr.iid)
         for path in paths:
             owners = self.owners.get_path_owners(path)
