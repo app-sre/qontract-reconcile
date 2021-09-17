@@ -1044,14 +1044,14 @@ class TerrascriptClient:
                     f"source {replica_source} for read replica " +
                     f"{identifier} not found")
 
-        # there seems to be a bug in tf-provider-aws when making replicas
+        # There seems to be a bug in tf-provider-aws when making replicas
         # w/ ehanced-monitoring, causing tf to not wait long enough
         # between the actions of creating an enhanced-monitoring IAM role
         # and checking the permissions of that role on a RDS replica
-        # if the source-db already exists
-        # therefore we wait 30s between these actions
-        # this sleep can be removed if all AWS accounts upgrade
-        # to a provider version with this bug fix
+        # if the source-db already exists.
+        # Therefore we wait 30s between these actions.
+        # This sleep can be removed if all AWS accounts upgrade
+        # to a provider version with this bug fix.
         # https://github.com/hashicorp/terraform-provider-aws/pull/20926
         if enhanced_monitoring and replica_source:
             sleep_vals = {}
@@ -1060,8 +1060,10 @@ class TerrascriptClient:
 
             # time_sleep
             # Terraform resource reference:
-            # https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep
+            # https://registry.terraform.io
+            # /providers/hashicorp/time/latest/docs/resources/sleep
             time_sleep_resource = time_sleep(identifier, **sleep_vals)
+
             tf_resources.append(time_sleep_resource)
             time_sleep_res_name = \
                 self.get_dependencies([time_sleep_resource])[0]
