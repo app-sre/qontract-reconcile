@@ -40,7 +40,7 @@ class TestOCNative(TestCase):
         self.assertEqual(oc.projects, expected)
 
         kind = 'Project.config.openshift.io'
-        k, group_version = oc._parse_kind(kind)
+        _k, group_version = oc._parse_kind(kind)
         self.assertEqual(group_version, 'config.openshift.io/v1')
 
         kind = 'Test'
