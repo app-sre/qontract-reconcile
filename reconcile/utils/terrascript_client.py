@@ -923,8 +923,6 @@ class TerrascriptClient:
             }
             role_tf_resource = aws_iam_role(em_identifier, **em_values)
             tf_resources.append(role_tf_resource)
-            values['monitoring_role_arn'] = \
-                f'${{{role_tf_resource.arn}}}'
 
             role_res_name = self.get_dependencies([role_tf_resource])[0]
             deps.append(role_res_name)
@@ -943,6 +941,9 @@ class TerrascriptClient:
             attachment_res_name = \
                 self.get_dependencies([attachment_tf_resource])[0]
             deps.append(attachment_res_name)
+
+            values['monitoring_role_arn'] = \
+                f'${{{role_tf_resource.arn}}}'
 
         reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
