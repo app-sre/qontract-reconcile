@@ -105,7 +105,8 @@ class aws_ecrpublic_repository(Resource):
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, oc_map=None, settings=None, skip_tf_providers_list):
+                 thread_pool_size, accounts, skip_tf_providers_list=None,
+                 oc_map=None, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map

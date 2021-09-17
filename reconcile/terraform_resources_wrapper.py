@@ -22,6 +22,7 @@ def get_accounts_names():
                      tfr.QONTRACT_INTEGRATION_VERSION,
                      1,
                      accounts,
+                     skip_tf_providers_list='',
                      settings=settings)
     return ts.uids.keys()
 

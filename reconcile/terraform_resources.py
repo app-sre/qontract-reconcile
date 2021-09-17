@@ -302,14 +302,14 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
 
 
 def init_working_dirs(accounts, thread_pool_size,
-                      oc_map=None, settings=None, skip_tf_providers_list):
+                      skip_tf_providers_list, oc_map=None, settings=None):
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
+                     skip_tf_providers_list,
                      oc_map,
-                     settings=settings,
-                     skip_tf_providers_list)
+                     settings=settings)
     working_dirs = ts.dump()
     return ts, working_dirs
 
@@ -329,10 +329,12 @@ def setup(dry_run, print_only, thread_pool_size, internal,
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host, account_name)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
-                                         oc_map=oc_map,
-                                         settings=settings,
-                                         skip_tf_providers_list)
+    ts, working_dirs = \
+        init_working_dirs(accounts,
+                          thread_pool_size,
+                          skip_tf_providers_list=skip_tf_providers_list,
+                          oc_map=oc_map,
+                          settings=settings)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
@@ -347,6 +349,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
                          settings=settings)
     else:
         ocm_map = None
+
     ts.populate_resources(tf_namespaces, existing_secrets, account_name,
                           ocm_map=ocm_map)
     ts.dump(print_only, existing_dirs=working_dirs)
@@ -403,7 +406,7 @@ def run(dry_run, print_only=False,
 
     ri, oc_map, tf, tf_namespaces = \
         setup(dry_run, print_only, thread_pool_size, internal,
-              use_jump_host, account_name, extra_labels)
+              use_jump_host, account_name, extra_labels, skip_tf_provider_list)
 
     if not dry_run:
         defer(lambda: oc_map.cleanup())
