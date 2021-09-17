@@ -2909,13 +2909,9 @@ class TerrascriptClient:
     # todo: rename to: 'get_names_from_tf_resource()'
     @staticmethod
     def get_dependencies(tf_resources: Iterable[Resource]
-                                    ) -> List[str]:
+                         ) -> List[str]:
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
-
-    @staticmethod
-    def get_name_from_tf_resource(tf_resource: Resource) -> str:
-        return f"{tf_resource.__class__.__name__}.{tf_resource._name}"
 
     @staticmethod
     def validate_elasticsearch_version(version):
