@@ -191,9 +191,9 @@ class MRApproval:
         """
         markdown_report = ''
 
-        closest_approvers = list()
+        closest_approvers = []
         for _, owners in report.items():
-            new_group = list()
+            new_group = []
 
             if 'closest_approvers' not in owners:
                 continue

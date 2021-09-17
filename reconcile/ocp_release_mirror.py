@@ -237,7 +237,7 @@ class OcpReleaseMirror:
             return account_info
 
     def _get_ocp_releases(self):
-        ocp_releases = list()
+        ocp_releases = []
         clusterimagesets = self.oc_cli.get_all('ClusterImageSet')
         for clusterimageset in clusterimagesets['items']:
             release_image = clusterimageset['spec']['releaseImage']
