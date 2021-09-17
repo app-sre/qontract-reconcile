@@ -84,7 +84,7 @@ def get_desired_state(slack):
                       for u in all_users
                       if include_user(u, cluster_name, cluster_users)]
         users = slack.get_users_by_names(user_names)
-        channels = slack.get_channels_by_names([slack.chat_kwargs['channel']])
+        channels = slack.get_channels_by_names([slack.channel])
         desired_state.setdefault(slack.workspace_name, {})[usergroup] = {
             "workspace": slack.workspace_name,
             "usergroup": usergroup,

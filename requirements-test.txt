@@ -1,8 +1,10 @@
 anymarkup==0.7.0
 flake8~=3.9
+httpretty
 kubernetes~=12.0
 pylint~=2.6
 pytest~=6.2
 pytest-cov~=2.12
+pytest-mock~=3.6
 responses
 testslide~=2.6

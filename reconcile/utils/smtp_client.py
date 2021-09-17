@@ -59,11 +59,11 @@ class SmtpClient:
 
     def get_mails(self, folder='INBOX', criteria='ALL'):
         self.server.select(f'"{folder}"')
-        result, data = self.server.uid('search', None, criteria)
+        _, data = self.server.uid('search', None, criteria)
         uids = [s for s in data[0].split()]
         results = []
         for uid in uids:
-            result, data = self.server.uid('fetch', uid, '(RFC822)')
+            _, data = self.server.uid('fetch', uid, '(RFC822)')
             msg = data[0][1].decode('utf-8')
             results.append({'uid': uid, 'msg': msg})
         return results

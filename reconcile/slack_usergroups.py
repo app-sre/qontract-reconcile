@@ -8,7 +8,7 @@ from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi, SlackAPICallException
+from reconcile.utils.slack_api import SlackApi, SlackApiError
 from reconcile import queries
 
 
@@ -70,17 +70,19 @@ QONTRACT_INTEGRATION = 'slack-usergroups'
 
 
 class GitApi:
-    def __new__(cls, url, *args, **kwargs):
+    def __new__(cls, url: str, *args, **kwargs):
         parsed_url = urlparse(url)
         settings = queries.get_app_interface_settings()
 
-        if 'github' in parsed_url.hostname:
-            instance = queries.get_github_instance()
-            return GithubApi(instance, repo_url=url, settings=settings)
+        if parsed_url.hostname:
+            if 'github' in parsed_url.hostname:
+                instance = queries.get_github_instance()
+                return GithubApi(instance, repo_url=url, settings=settings)
+            if 'gitlab' in parsed_url.hostname:
+                instance = queries.get_gitlab_instance()
+                return GitLabApi(instance, project_url=url, settings=settings)
 
-        if 'gitlab' in parsed_url.hostname:
-            instance = queries.get_gitlab_instance()
-            return GitLabApi(instance, project_url=url, settings=settings)
+        raise ValueError(f"Unable to handle URL: {url}")
 
 
 def get_permissions():
@@ -367,7 +369,7 @@ def _update_usergroup_users_from_state(current_ug_state, desired_ug_state,
     if not dry_run:
         try:
             slack_client.update_usergroup_users(ugid, users)
-        except SlackAPICallException as error:
+        except SlackApiError as error:
             # Prior to adding this, we weren't handling failed updates to user
             # groups. Now that we are, it seems like a good idea to start with
             # logging the errors and proceeding rather than blocking time
@@ -432,7 +434,7 @@ def _update_usergroup_from_state(current_ug_state, desired_ug_state,
     if not dry_run:
         try:
             slack_client.update_usergroup(ugid, channels, description)
-        except SlackAPICallException as error:
+        except SlackApiError as error:
             logging.error(error)
 
 

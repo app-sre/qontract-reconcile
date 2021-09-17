@@ -55,7 +55,8 @@ disable = attribute-defined-outside-init,
           unnecessary-lambda,
           unspecified-encoding,
           unused-argument,
-          unused-variable,
-          use-a-generator,
-          use-dict-literal,
-          use-list-literal
+          consider-using-f-string,
+          # This one matters - Python scoping messes up with our
+          # global and multi-threading locks          
+          global-variable-not-assigned
+
