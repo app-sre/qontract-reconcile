@@ -204,6 +204,90 @@ def version_history(ctx):
     print_output(ctx.obj['options'], results, columns)
 
 
+def soaking_days(history, upgrades, workload):
+    soaking = {}
+    for version in upgrades:
+        for _, history_data in history.items():
+            if version not in history_data['versions']:
+                continue
+            version_data = history_data['versions'][version]
+            if workload not in version_data['workloads']:
+                continue
+            workload_data = version_data['workloads'][workload]
+            soaking[version] = round(workload_data['soak_days'], 2)
+        if not soaking.get(version):
+            soaking[version] = 0
+    return soaking
+
+
+@get.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.option('--cluster', default=None, help='cluster to display.')
+@click.option('--workload', default=None, help='workload to display.')
+@click.option('--show-only-soaking-upgrades/--no-show-only-soaking-upgrades',
+              default=False,
+              help='show upgrades which are not currently soaking.')
+@click.pass_context
+def cluster_upgrade_policies(ctx, cluster=None, workload=None,
+                             show_only_soaking_upgrades=False):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    if cluster:
+        clusters = [c for c in clusters if cluster == c['name']]
+    if workload:
+        clusters = [c for c in clusters
+                    if workload in c['upgradePolicy'].get('workloads', [])]
+    desired_state = ous.fetch_desired_state(clusters)
+
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    history = ous.get_version_history(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map
+    )
+
+    results = []
+    upgrades_cache = {}
+
+    for c in desired_state:
+        cluster_name, version = c['cluster'], c['current_version']
+        channel, schedule = c['channel'], c.get('schedule')
+        soakdays = c.get('conditions', {}).get('soakDays')
+        item = {
+            'cluster': cluster_name,
+            'version': parse_semver(version),
+            'channel': channel,
+            'schedule': schedule,
+            'soak_days': soakdays,
+        }
+        ocm = ocm_map.get(cluster_name)
+        upgrades = upgrades_cache.get((version, channel))
+        if not upgrades:
+            upgrades = ocm.get_available_upgrades(version, channel)
+            upgrades_cache[(version, channel)] = upgrades
+        if not c.get('workloads'):
+            results.append(item)
+        for w in c.get('workloads', []):
+            if workload and w != workload:
+                continue
+            i = item.copy()
+            i.update({'workload': w})
+            soaking = soaking_days(history, upgrades, w)
+            if show_only_soaking_upgrades:
+                soaking = {k: v for k, v in soaking.items() if v != 0}
+            sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
+            u = ', '.join([f'{k} ({v})' for k, v in sorted_soaking])
+            i.update({'soaking_upgrades': u})
+            results.append(i)
+
+    columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
+               'workload', 'soaking_upgrades']
+    ctx.obj['options']['to_string'] = True
+    print_output(ctx.obj['options'], results, columns)
+
+
 @get.command()
 @click.argument('name', default='')
 @click.pass_context
