@@ -2906,7 +2906,6 @@ class TerrascriptClient:
         namespace = namespace_info['name']
         return cluster, namespace
 
-    # todo: rename to: 'get_names_from_tf_resource()'
     @staticmethod
     def get_dependencies(tf_resources: Iterable[Resource]
                          ) -> List[str]:
