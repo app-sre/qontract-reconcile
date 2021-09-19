@@ -62,6 +62,7 @@ from terrascript.resource import (
     aws_lb_target_group,
     aws_lb_target_group_attachment,
     aws_lb_listener,
+    aws_lb_listener_rule,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -3333,6 +3334,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
+        weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
             # https://www.terraform.io/docs/providers/aws/r/
@@ -3358,6 +3360,13 @@ class TerrascriptClient:
                 if default_target:
                     raise KeyError('expected only a single default target')
                 default_target = lbt_tf_resource
+
+            # initiate weighted target groups to use for listener rule
+            weighted_item = {
+                'arn': f'${{{lbt_tf_resource.arn}}}',
+                'weight': t['weight'],
+            }
+            weighted_target_groups.append(weighted_item)
 
             for ip in t['ips']:
                 # https://www.terraform.io/docs/providers/aws/r/
@@ -3412,6 +3421,30 @@ class TerrascriptClient:
         forward_identifier = f'{identifier}-forward'
         forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)
         tf_resources.append(forward_lbl_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
+        weights = [t['weight'] for t in weighted_target_groups]
+        if sum(weights) != 100:
+            raise ValueError('sum of weights of targets should be 100')
+        values = {
+            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+            'action': {
+                'type': 'forward',
+                'forward': {
+                    'target_group': weighted_target_groups,
+                    'stickiness': {
+                        'enabled': False,
+                        'duration': 1,  # required
+                    },
+                },
+            },
+            'condition': {
+                'http_request_method': {'values': ['POST']},
+            },
+            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+        }
+        lblr_tf_resource = aws_lb_listener_rule(identifier, **values)
+        tf_resources.append(lblr_tf_resource)
 
         # outputs
         # dns name
