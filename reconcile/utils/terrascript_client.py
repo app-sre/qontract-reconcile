@@ -3319,9 +3319,6 @@ class TerrascriptClient:
         tf_resources.append(sg_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
-        deps = self.get_dependencies([
-            sg_tf_resource,
-        ])
         values = {
             'name': identifier,
             'internal': False,
@@ -3329,7 +3326,7 @@ class TerrascriptClient:
             'security_groups': [f'${{{sg_tf_resource.id}}}'],
             'subnets': [s['id'] for s in vpc['subnets']],
             'tags': common_values['tags'],
-            'depends_on': [deps],
+            'depends_on': self.get_dependencies([sg_tf_resource]),
         }
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
