@@ -59,6 +59,7 @@ from terrascript.resource import (
     aws_route53_health_check,
     aws_cloudfront_public_key,
     aws_lb,
+    aws_lb_target_group,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -3331,6 +3332,27 @@ class TerrascriptClient:
         }
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
+
+        for t in resource['targets']:
+            target_name = t['name']
+            # https://www.terraform.io/docs/providers/aws/r/
+            # lb_target_group.html
+            values = {
+                'name': target_name,
+                'port': 443,
+                'protocol': 'HTTPS',
+                'target_type': 'ip',
+                'vpc_id': vpc_id,
+                'health_check': {
+                    'interval': 10,
+                    'path': '/',
+                    'protocol': 'HTTPS',
+                    'port': 443,
+                }
+            }
+            lbt_identifier = f'{identifier}-{target_name}'
+            lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
+            tf_resources.append(lbt_tf_resource)
 
         # outputs
         # dns name
