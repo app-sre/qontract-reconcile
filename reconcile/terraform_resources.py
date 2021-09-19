@@ -206,7 +206,7 @@ provider
   region
   identifier
   vpc {
-    id
+    vpc_id
     subnets {
       id
     }
