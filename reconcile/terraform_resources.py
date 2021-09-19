@@ -201,11 +201,22 @@ provider
   output_resource_name
   annotations
 }
-... on NamespaceTerraformResourceLB_v1 {
+... on NamespaceTerraformResourceALB_v1 {
   account
   region
   identifier
-  defaults
+  vpc {
+    id
+    subnets {
+      id
+    }
+  }
+  certificate_arn
+  targets {
+    name
+    weight
+    ips
+  }
   output_resource_name
   annotations
 }
