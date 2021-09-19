@@ -3325,7 +3325,7 @@ class TerrascriptClient:
             'internal': False,
             'load_balancer_type': 'application',
             'security_groups': [f'${{{sg_tf_resource.id}}}'],
-            'subnets': [],
+            'subnets': [s['id'] for s in vpc['subnets']],
             'tags': common_values['tags'],
             'depends_on': [deps],
         }
