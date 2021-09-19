@@ -3269,7 +3269,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def populate_tf_resource_alb(self, resource, namespace_info):
-        account, identifier, values, output_prefix, \
+        account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         tf_resources = []
@@ -3277,6 +3277,14 @@ class TerrascriptClient:
                                  output_resource_name, annotations)
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
+        values = {
+            'name': identifier,
+            'internal': False,
+            'load_balancer_type': 'application',
+            'security_groups': [],
+            'subnets': [],
+            'tags': common_values['tags'],
+        }
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
 
@@ -3284,10 +3292,6 @@ class TerrascriptClient:
         # dns name
         output_name_0_13 = output_prefix + '__dns_name'
         output_value = lb_tf_resource.dns_name
-        tf_resources.append(Output(output_name_0_13, value=output_value))
-        # zone id
-        output_name_0_13 = output_prefix + '__zone_id'
-        output_value = lb_tf_resource.zone_id
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
