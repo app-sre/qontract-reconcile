@@ -43,6 +43,7 @@ from terrascript.resource import (
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
     aws_ec2_transit_gateway_route,
+    aws_security_group,
     aws_security_group_rule,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
@@ -3276,14 +3277,57 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        vpc = resource['vpc']
+        vpc_id = vpc['vpc_id']
+
+        # https://www.terraform.io/docs/providers/aws/r/security_group.html
+        # we will only support https (+ http redirection) at first
+        # this can be enhanced when a use case comes along
+        # https://github.com/hashicorp/terraform-provider-aws/issues/878
+        empty_required_sg_values = {
+            'ipv6_cidr_blocks': None,
+            'prefix_list_ids': None,
+            'security_groups': None,
+            'self': None,
+        }
+        values = {
+            'vpc_id': vpc_id,
+            'tags': common_values['tags'],
+
+            'ingress': [
+                {
+                    'description': 'allow http',
+                    'from_port': 80,
+                    'to_port': 80,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                },
+                {
+                    'description': 'allow https',
+                    'from_port': 443,
+                    'to_port': 443,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                }
+            ],
+        }
+        sg_tf_resource = aws_security_group(identifier, **values)
+        tf_resources.append(sg_tf_resource)
+
         # https://www.terraform.io/docs/providers/aws/r/lb.html
+        deps = self.get_dependencies([
+            sg_tf_resource,
+        ])
         values = {
             'name': identifier,
             'internal': False,
             'load_balancer_type': 'application',
-            'security_groups': [],
+            'security_groups': [f'${{{sg_tf_resource.id}}}'],
             'subnets': [],
             'tags': common_values['tags'],
+            'depends_on': [deps],
         }
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
