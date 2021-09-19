@@ -61,6 +61,7 @@ from terrascript.resource import (
     aws_lb,
     aws_lb_target_group,
     aws_lb_target_group_attachment,
+    aws_lb_listener,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -3331,6 +3332,7 @@ class TerrascriptClient:
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
 
+        default_target = None
         for t in resource['targets']:
             target_name = t['name']
             # https://www.terraform.io/docs/providers/aws/r/
@@ -3352,6 +3354,11 @@ class TerrascriptClient:
             lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
             tf_resources.append(lbt_tf_resource)
 
+            if t['default']:
+                if default_target:
+                    raise KeyError('expected only a single default target')
+                default_target = lbt_tf_resource
+
             for ip in t['ips']:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # lb_target_group_attachment.html
@@ -3366,6 +3373,45 @@ class TerrascriptClient:
                 lbta_tf_resource = \
                     aws_lb_target_group_attachment(lbta_identifier, **values)
                 tf_resources.append(lbta_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
+        # redirect
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 80,
+            'protocol': 'HTTP',
+            'default_action': {
+                'type': 'redirect',
+                'redirect': {
+                    'port': 443,
+                    'protocol': 'HTTPS',
+                    'status_code': 'HTTP_301',
+                }
+            },
+            'depends_on': self.get_dependencies([lb_tf_resource]),
+        }
+        redirect_identifier = f'{identifier}-redirect'
+        redirect_lbl_tf_resource = aws_lb_listener(redirect_identifier, **values)
+        tf_resources.append(redirect_lbl_tf_resource)
+        # forward
+        if not default_target:
+            raise KeyError('expected a single default target')
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 443,
+            'protocol': 'HTTPS',
+            'ssl_policy': 'ELBSecurityPolicy-2016-08',
+            'certificate_arn': resource['certificate_arn'],
+            'default_action': {
+                'type': 'forward',
+                'target_group_arn': f'${{{default_target.arn}}}',
+            },
+            'depends_on': self.get_dependencies(
+                [lb_tf_resource, default_target]),
+        }
+        forward_identifier = f'{identifier}-forward'
+        forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)
+        tf_resources.append(forward_lbl_tf_resource)
 
         # outputs
         # dns name

@@ -214,6 +214,7 @@ provider
   certificate_arn
   targets {
     name
+    default
     weight
     ips
   }
