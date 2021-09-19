@@ -3353,10 +3353,13 @@ class TerrascriptClient:
             tf_resources.append(lbt_tf_resource)
 
             for ip in t['ips']:
+                # https://www.terraform.io/docs/providers/aws/r/
+                # lb_target_group_attachment.html
                 values = {
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
+                    'depends_on': self.get_dependencies([lbt_tf_resource]),
                 }
                 ip_slug = ip.replace('.', '_')
                 lbta_identifier = f'{lbt_identifier}-{ip_slug}'
