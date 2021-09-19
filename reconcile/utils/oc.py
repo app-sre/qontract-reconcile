@@ -585,11 +585,10 @@ class OCDeprecated:
     def recycle(self, dry_run, namespace, kind, obj):
         """Recycles an object by adding a recycle.time annotation
 
-        Args:
-            dry_run (bool): Is this a dry run
-            namespace (string): Namespace to work in
-            kind (string): Object kind
-            obj (dict): Object to recycle
+        :param dry_run: Is this a dry run
+        :param namespace: Namespace to work in
+        :param kind: Object kind
+        :param obj: Object to recycle
         """
         name = obj['metadata']['name']
         logging.info([f'recycle_{kind.lower()}',
