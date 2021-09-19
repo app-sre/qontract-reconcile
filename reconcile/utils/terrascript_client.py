@@ -60,6 +60,7 @@ from terrascript.resource import (
     aws_cloudfront_public_key,
     aws_lb,
     aws_lb_target_group,
+    aws_lb_target_group_attachment,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -3353,6 +3354,18 @@ class TerrascriptClient:
             lbt_identifier = f'{identifier}-{target_name}'
             lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
             tf_resources.append(lbt_tf_resource)
+
+            for ip in t['ips']:
+                values = {
+                    'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
+                    'target_id': ip,
+                    'port': 443,
+                }
+                ip_slug = ip.replace('.', '_')
+                lbta_identifier = f'{lbt_identifier}-{ip_slug}'
+                lbta_tf_resource = \
+                    aws_lb_target_group_attachment(lbta_identifier, **values)
+                tf_resources.append(lbta_tf_resource)
 
         # outputs
         # dns name
