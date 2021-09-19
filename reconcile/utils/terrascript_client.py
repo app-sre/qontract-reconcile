@@ -1659,23 +1659,29 @@ class TerrascriptClient:
 
         aws_infrastructure_access = \
             common_values.get('aws_infrastructure_access') or None
-        if aws_infrastructure_access and ocm_map:
-            cluster = aws_infrastructure_access['cluster']['name']
-            ocm = ocm_map.get(cluster)
-            role_grants = \
-                ocm.get_aws_infrastructure_access_role_grants(cluster)
-            for user_arn, _, state, switch_role_link in role_grants:
-                # find correct user by identifier
-                user_id = self.get_user_id_from_arn(user_arn)
-                # output will only be added once
-                # terraform-resources created the user
-                # and ocm-aws-infrastructure-access granted it the role
-                if identifier == user_id and state != 'failed':
-                    switch_role_arn = \
-                        self.get_role_arn_from_role_link(switch_role_link)
-                    output_name_0_13 = output_prefix + '__role_arn'
-                    tf_resources.append(
-                        Output(output_name_0_13, value=switch_role_arn))
+        if aws_infrastructure_access:
+            if ocm_map:
+                cluster = aws_infrastructure_access['cluster']['name']
+                ocm = ocm_map.get(cluster)
+                role_grants = \
+                    ocm.get_aws_infrastructure_access_role_grants(cluster)
+                for user_arn, _, state, switch_role_link in role_grants:
+                    # find correct user by identifier
+                    user_id = self.get_user_id_from_arn(user_arn)
+                    # output will only be added once
+                    # terraform-resources created the user
+                    # and ocm-aws-infrastructure-access granted it the role
+                    if identifier == user_id and state != 'failed':
+                        switch_role_arn = \
+                            self.get_role_arn_from_role_link(switch_role_link)
+                        output_name_0_13 = output_prefix + '__role_arn'
+                        tf_resources.append(
+                            Output(output_name_0_13, value=switch_role_arn))
+            else:
+                assume_role = aws_infrastructure_access.get('assume_role')
+                output_name_0_13 = output_prefix + '__role_arn'
+                tf_resources.append(
+                    Output(output_name_0_13, value=assume_role))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
