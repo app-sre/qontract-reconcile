@@ -3400,7 +3400,8 @@ class TerrascriptClient:
             'depends_on': self.get_dependencies([lb_tf_resource]),
         }
         redirect_identifier = f'{identifier}-redirect'
-        redirect_lbl_tf_resource = aws_lb_listener(redirect_identifier, **values)
+        redirect_lbl_tf_resource = \
+            aws_lb_listener(redirect_identifier, **values)
         tf_resources.append(redirect_lbl_tf_resource)
         # forward
         if not default_target:
