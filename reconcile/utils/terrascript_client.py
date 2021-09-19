@@ -831,8 +831,8 @@ class TerrascriptClient:
         elif provider == 's3-cloudfront-public-key':
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
-        elif provider == 'lb':
-            self.populate_tf_resource_lb(resource, namespace_info)
+        elif provider == 'alb':
+            self.populate_tf_resource_alb(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3268,7 +3268,7 @@ class TerrascriptClient:
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def populate_tf_resource_lb(self, resource, namespace_info):
+    def populate_tf_resource_alb(self, resource, namespace_info):
         account, identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
