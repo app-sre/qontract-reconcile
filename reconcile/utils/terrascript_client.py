@@ -116,6 +116,8 @@ class TerrascriptClient:
         self.skip_tf_provider_list = []
         if skip_tf_provider_list:
             self.skip_tf_provider_list = skip_tf_provider_list.split(',')
+        logging.debug('skipping the following terraform providers:')
+        logging.debug(self.skip_tf_provider_list)
 
         self.secret_reader = SecretReader(settings=settings)
         self.populate_configs(filtered_accounts)
@@ -159,8 +161,6 @@ class TerrascriptClient:
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
 
-        print('here is skip_tf_provider_list')
-        print(self.skip_tf_provider_list)
         if 'cloudwatch' not in self.skip_tf_provider_list:
             github_config = get_config()['github']
             self.token = github_config['app-sre']['token']
