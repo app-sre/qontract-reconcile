@@ -65,6 +65,10 @@ class StatefulSetUpdateForbidden(Exception):
     pass
 
 
+class ObjectHasBeenModifiedError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -86,6 +90,10 @@ class PodNotReadyError(Exception):
 
 
 class JobNotRunningError(Exception):
+    pass
+
+
+class UnableToApplyError(Exception):
     pass
 
 
@@ -575,22 +583,35 @@ class OCDeprecated:
 
         for kind, objs in recyclables.items():
             for obj in objs:
-                name = obj['metadata']['name']
-                logging.info([f'recycle_{kind.lower()}',
-                              self.cluster_name, namespace, name])
-                if not dry_run:
-                    now = datetime.now()
-                    recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+                self.recycle(dry_run, namespace, kind, obj)
 
-                    # honor update strategy by setting annotations to force
-                    # a new rollout
-                    a = obj['spec']['template']['metadata'].get(
-                        'annotations', {})
-                    a['recycle.time'] = recycle_time
-                    obj['spec']['template']['metadata']['annotations'] = a
-                    cmd = ['apply', '-n', namespace, '-f', '-']
-                    stdin = json.dumps(obj, sort_keys=True)
-                    self._run(cmd, stdin=stdin, apply=True)
+    @retry(exceptions=ObjectHasBeenModifiedError)
+    def recycle(self, dry_run, namespace, kind, obj):
+        """Recycles an object by adding a recycle.time annotation
+
+        :param dry_run: Is this a dry run
+        :param namespace: Namespace to work in
+        :param kind: Object kind
+        :param obj: Object to recycle
+        """
+        name = obj['metadata']['name']
+        logging.info([f'recycle_{kind.lower()}',
+                      self.cluster_name, namespace, name])
+        if not dry_run:
+            now = datetime.now()
+            recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+
+            # get the object in case it was modified
+            obj = self.get(namespace, kind, name)
+            # honor update strategy by setting annotations to force
+            # a new rollout
+            a = obj['spec']['template']['metadata'].get(
+                'annotations', {})
+            a['recycle.time'] = recycle_time
+            obj['spec']['template']['metadata']['annotations'] = a
+            cmd = ['apply', '-n', namespace, '-f', '-']
+            stdin = json.dumps(obj, sort_keys=True)
+            self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(self, ns, obj, allow_not_found=False):
         """Get object root owner (recursively find the top level owner).
@@ -713,6 +734,9 @@ class OCDeprecated:
                     if ': primary clusterIP can not be unset' in err:
                         raise PrimaryClusterIPCanNotBeUnsetError(
                             f"[{self.server}]: {err}")
+                    raise UnableToApplyError(
+                        f"[{self.server}: {err}"
+                    )
                 if 'metadata.annotations: Too long' in err:
                     raise MetaDataAnnotationsTooLongApplyError(
                         f"[{self.server}]: {err}")
@@ -720,6 +744,8 @@ class OCDeprecated:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
                 if 'updates to statefulset spec for fields other than' in err:
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
+                if 'the object has been modified' in err:
+                    raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

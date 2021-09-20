@@ -1,5 +1,6 @@
 import json
 import sys
+from typing import Dict, Iterable, List, Mapping, Union
 
 import click
 import requests
@@ -626,7 +627,8 @@ def sre_checkpoints(ctx):
     print_output(ctx.obj['options'], checkpoints_data, columns)
 
 
-def print_output(options, content, columns=[]):
+def print_output(options: Mapping[str, Union[str, bool]],
+                 content: List[Dict], columns: Iterable[str] = ()):
     if options['sort']:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get('to_string'):
@@ -718,7 +720,8 @@ def ls(ctx, integration):
         {'integration': k.split('/')[0] or integration,
          'key': '/'.join(k.split('/')[1:])}
         for k in keys]
-    print_output('table', table_content, ['integration', 'key'])
+    print_output({'output': 'table', 'sort': False},
+                 table_content, ['integration', 'key'])
 
 
 @state.command()  # type: ignore
@@ -791,7 +794,8 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         if openshift_resource.name != name:
             continue
-        print_output('yaml', openshift_resource.body)
+        print_output({'output': 'yaml', 'sort': False},
+                     openshift_resource.body)
         break
 
 

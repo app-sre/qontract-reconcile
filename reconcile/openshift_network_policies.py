@@ -1,6 +1,8 @@
 import sys
 import logging
 
+from contextlib import suppress
+
 import reconcile.utils.gql as gql
 import reconcile.openshift_base as ob
 
@@ -98,13 +100,14 @@ def fetch_desired_state(namespaces, ri, oc_map):
             resource_name = "allow-from-{}-namespace".format(source_namespace)
             oc_resource = \
                 construct_oc_resource(resource_name, source_namespace)
-            ri.add_desired(
-                cluster,
-                namespace,
-                'NetworkPolicy',
-                resource_name,
-                oc_resource
-            )
+            with suppress(KeyError):
+                ri.add_desired(
+                    cluster,
+                    namespace,
+                    'NetworkPolicy',
+                    resource_name,
+                    oc_resource
+                )
 
 
 @defer
