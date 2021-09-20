@@ -2,6 +2,7 @@ import collections
 import logging
 import sys
 
+from contextlib import suppress
 
 import reconcile.queries as queries
 import reconcile.openshift_base as ob
@@ -53,13 +54,14 @@ def fetch_desired_state(namespaces, ri, oc_map):
         for quota in quotas:
             quota_name = quota['name']
             quota_resource = construct_resource(quota)
-            ri.add_desired(
-                cluster,
-                namespace,
-                'ResourceQuota',
-                quota_name,
-                quota_resource
-            )
+            with suppress(KeyError):
+                ri.add_desired(
+                    cluster,
+                    namespace,
+                    'ResourceQuota',
+                    quota_name,
+                    quota_resource
+                )
 
 
 @defer
