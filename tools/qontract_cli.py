@@ -2,11 +2,11 @@ import json
 import sys
 from typing import Dict, Iterable, List, Mapping, Union
 
+from contextlib import suppress
 import click
 import requests
 import yaml
 
-from contextlib import suppress
 from tabulate import tabulate
 
 import reconcile.utils.dnsutils as dnsutils
@@ -205,14 +205,14 @@ def version_history(ctx):
     print_output(ctx.obj['options'], results, columns)
 
 
-def soaking_days(history, upgrades, workload):
+def soaking_days(history, upgrades, workload, only_soaking):
     soaking = {}
     for version in upgrades:
         for h in history.values():
             with suppress(KeyError):
                 workload_data = h['versions'][version]['workloads'][workload]
                 soaking[version] = round(workload_data['soak_days'], 2)
-        if version not in soaking:
+        if not only_soaking and version not in soaking:
             soaking[version] = 0
     return soaking
 
@@ -224,9 +224,14 @@ def soaking_days(history, upgrades, workload):
 @click.option('--show-only-soaking-upgrades/--no-show-only-soaking-upgrades',
               default=False,
               help='show upgrades which are not currently soaking.')
+@click.option('--by-workload/--no-by-workload',
+              default=False,
+              help='show upgrades for each workload individually '
+                   'rather than grouping them for the whole cluster')
 @click.pass_context
 def cluster_upgrade_policies(ctx, cluster=None, workload=None,
-                             show_only_soaking_upgrades=False):
+                             show_only_soaking_upgrades=False,
+                             by_workload=False):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
@@ -260,24 +265,46 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
             'soak_days': soakdays,
         }
         ocm = ocm_map.get(cluster_name)
+
+        if 'workloads' not in c:
+            results.append(item)
+            continue
+
         upgrades = upgrades_cache.get((version, channel))
         if not upgrades:
             upgrades = ocm.get_available_upgrades(version, channel)
             upgrades_cache[(version, channel)] = upgrades
-        if 'workloads' not in c:
-            results.append(item)
+
+        workload_soaking_upgrades = {}
         for w in c.get('workloads', []):
-            if workload and w != workload:
-                continue
-            i = item.copy()
-            i.update({'workload': w})
-            soaking = soaking_days(history, upgrades, w)
-            if show_only_soaking_upgrades:
-                soaking = {k: v for k, v in soaking.items() if v != 0}
+            if not workload or workload == w:
+                s = soaking_days(history, upgrades, w,
+                                 show_only_soaking_upgrades)
+                workload_soaking_upgrades[w] = s
+
+        def soaking_upgrades_str(soaking):
             sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
-            u = ', '.join([f'{k} ({v})' for k, v in sorted_soaking])
-            i.update({'soaking_upgrades': u})
-            results.append(i)
+            return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
+
+        if by_workload:
+            for w, soaking in workload_soaking_upgrades.items():
+                i = item.copy()
+                i.update({'workload': w,
+                          'soaking_upgrades': soaking_upgrades_str(soaking)})
+                results.append(i)
+        else:
+            workloads = sorted(c.get('workloads', []))
+            w = ', '.join(workloads)
+            soaking = {}
+            for v in upgrades:
+                soaks = [s.get(v, 0)
+                         for s in workload_soaking_upgrades.values()]
+                min_soaks = min(soaks)
+                if not show_only_soaking_upgrades or min_soaks > 0:
+                    soaking[v] = min_soaks
+            item.update({'workload': w,
+                         'soaking_upgrades': soaking_upgrades_str(soaking)})
+            results.append(item)
 
     columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
                'workload', 'soaking_upgrades']
