@@ -49,11 +49,12 @@ def setup(print_only, thread_pool_size):
     tf_roles = [r for r in roles
                 if r['aws_groups'] is not None
                 or r['user_policies'] is not None]
+
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     skip_tf_providers_list='',
+                     skip_tf_providers_list=None,
                      settings=settings)
     err = ts.populate_users(tf_roles)
     if err:

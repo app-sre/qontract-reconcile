@@ -112,7 +112,11 @@ class TerrascriptClient:
         self.oc_map = oc_map
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
-        self.skip_tf_providers_list = skip_tf_providers_list.split(',')
+
+        self.skip_tf_providers_list = []
+        if skip_tf_providers_list:
+            self.skip_tf_providers_list = skip_tf_providers_list.split(',')
+
         self.secret_reader = SecretReader(settings=settings)
         self.populate_configs(filtered_accounts)
         self.versions = {a['name']: a['providerVersion']
@@ -154,12 +158,13 @@ class TerrascriptClient:
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
-        github_config = get_config()['github']
-        # if 'cloudwatch' not in self.skip_tf_providers_list:
-        self.token = github_config['app-sre']['token']
-        print('here is token')
-        print(self.token)
-        self.logtoes_zip = ''
+
+        print('here is skip_tf_providers_list')
+        print(skip_tf_providers_list)
+        if 'cloudwatch' not in self.skip_tf_providers_list:
+            github_config = get_config()['github']
+            self.token = github_config['app-sre']['token']
+            self.logtoes_zip = ''
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:

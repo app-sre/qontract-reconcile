@@ -363,6 +363,14 @@ def enable_deletion(**kwargs):
     return f
 
 
+def skip_tf_provider_list(function):
+    function = click.option('--skip-tf-provider-list',
+                            help='comma-separated list of terraform providers to skip applying.',
+                            default=None)(function)
+
+    return function
+
+
 def send_mails(**kwargs):
     def f(function):
         opt = '--send-mails/--no-send-mails'
@@ -708,10 +716,12 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
 @integration.command()
 @threaded()
 @account_name
+@skip_tf_provider_list
 @click.pass_context
-def aws_iam_keys(ctx, thread_pool_size, account_name):
+def aws_iam_keys(ctx, thread_pool_size, account_name, skip_tf_provider_list):
     run_integration(reconcile.aws_iam_keys, ctx.obj,
-                    thread_pool_size, account_name=account_name)
+                    thread_pool_size, account_name=account_name,
+                    skip_tf_provider_list=skip_tf_provider_list)
 
 
 @integration.command()
@@ -1053,6 +1063,7 @@ def user_validator(ctx):
 @internal()
 @use_jump_host()
 @enable_deletion(default=False)
+@skip_tf_provider_list
 @account_name
 @click.option('--light/--full',
               default=False,
@@ -1060,12 +1071,14 @@ def user_validator(ctx):
 @click.pass_context
 def terraform_resources(ctx, print_only, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
-                        light, vault_output_path, account_name):
+                        light, vault_output_path, account_name,
+                        skip_tf_provider_list):
     run_integration(reconcile.terraform_resources,
                     ctx.obj, print_only,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path,
                     account_name=account_name,
+                    skip_tf_provider_list=skip_tf_provider_list,
                     extra_labels=ctx.obj.get('extra_labels', {}))
 
 

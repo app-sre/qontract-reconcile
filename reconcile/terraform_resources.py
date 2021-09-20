@@ -402,7 +402,7 @@ def run(dry_run, print_only=False,
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='',
         account_name=None, extra_labels=None, defer=None,
-        skip_tf_provider_list=''):
+        skip_tf_provider_list=None):
 
     ri, oc_map, tf, tf_namespaces = \
         setup(dry_run, print_only, thread_pool_size, internal,

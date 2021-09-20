@@ -133,7 +133,7 @@ def run(dry_run=False, print_only=False,
                      "",
                      thread_pool_size,
                      participating_accounts,
-                     skip_tf_providers_list='',
+                     skip_tf_providers_list=None,
                      settings=settings)
 
     desired_state = build_desired_state(zones)
