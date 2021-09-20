@@ -6,6 +6,7 @@ import click
 import requests
 import yaml
 
+from contextlib import suppress
 from tabulate import tabulate
 
 import reconcile.utils.dnsutils as dnsutils
@@ -207,15 +208,11 @@ def version_history(ctx):
 def soaking_days(history, upgrades, workload):
     soaking = {}
     for version in upgrades:
-        for _, history_data in history.items():
-            if version not in history_data['versions']:
-                continue
-            version_data = history_data['versions'][version]
-            if workload not in version_data['workloads']:
-                continue
-            workload_data = version_data['workloads'][workload]
-            soaking[version] = round(workload_data['soak_days'], 2)
-        if not soaking.get(version):
+        for h in history.values():
+            with suppress(KeyError):
+                workload_data = h['versions'][version]['workloads'][workload]
+                soaking[version] = round(workload_data['soak_days'], 2)
+        if version not in soaking:
             soaking[version] = 0
     return soaking
 
@@ -267,7 +264,7 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
         if not upgrades:
             upgrades = ocm.get_available_upgrades(version, channel)
             upgrades_cache[(version, channel)] = upgrades
-        if not c.get('workloads'):
+        if 'workloads' not in c:
             results.append(item)
         for w in c.get('workloads', []):
             if workload and w != workload:
