@@ -307,15 +307,15 @@ def init_working_dirs(accounts, thread_pool_size,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     skip_tf_provider_list,
-                     oc_map,
+                     skip_tf_provider_list=skip_tf_provider_list,
+                     oc_map=oc_map,
                      settings=settings)
     working_dirs = ts.dump()
     return ts, working_dirs
 
 
 def setup(dry_run, print_only, thread_pool_size, internal,
-          use_jump_host, account_name, extra_labels, skip_tf_provider_list):
+          use_jump_host, account_name, skip_tf_provider_list, extra_labels):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:

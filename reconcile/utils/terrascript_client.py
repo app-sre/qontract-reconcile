@@ -160,7 +160,7 @@ class TerrascriptClient:
                                 for a in filtered_accounts}
 
         print('here is skip_tf_provider_list')
-        print(skip_tf_provider_list)
+        print(self.skip_tf_provider_list)
         if 'cloudwatch' not in self.skip_tf_provider_list:
             github_config = get_config()['github']
             self.token = github_config['app-sre']['token']
