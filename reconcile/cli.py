@@ -366,7 +366,10 @@ def enable_deletion(**kwargs):
 def skip_tf_provider_list(function):
     function = click.option('--skip-tf-provider-list',
                             help='comma-separated list of terraform \
-                                providers to skip applying.',
+                                providers to skip creating or modifying \
+                                resources for. \
+                                (this will not stop terraform from \
+                                DESTROYING resources from any provider!)',
                             default=None)(function)
 
     return function
