@@ -54,7 +54,7 @@ def setup(print_only, thread_pool_size):
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     skip_tf_providers_list=None,
+                     skip_tf_provider_list=None,
                      settings=settings)
     err = ts.populate_users(tf_roles)
     if err:

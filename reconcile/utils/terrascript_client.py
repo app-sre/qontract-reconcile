@@ -105,7 +105,7 @@ class aws_ecrpublic_repository(Resource):
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, skip_tf_providers_list=None,
+                 thread_pool_size, accounts, skip_tf_provider_list=None,
                  oc_map=None, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
@@ -113,9 +113,9 @@ class TerrascriptClient:
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
 
-        self.skip_tf_providers_list = []
-        if skip_tf_providers_list:
-            self.skip_tf_providers_list = skip_tf_providers_list.split(',')
+        self.skip_tf_provider_list = []
+        if skip_tf_provider_list:
+            self.skip_tf_provider_list = skip_tf_provider_list.split(',')
 
         self.secret_reader = SecretReader(settings=settings)
         self.populate_configs(filtered_accounts)
@@ -159,9 +159,9 @@ class TerrascriptClient:
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
 
-        print('here is skip_tf_providers_list')
-        print(skip_tf_providers_list)
-        if 'cloudwatch' not in self.skip_tf_providers_list:
+        print('here is skip_tf_provider_list')
+        print(skip_tf_provider_list)
+        if 'cloudwatch' not in self.skip_tf_provider_list:
             github_config = get_config()['github']
             self.token = github_config['app-sre']['token']
             self.logtoes_zip = ''
@@ -803,9 +803,9 @@ class TerrascriptClient:
         resource = populate_spec['resource']
         namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
-        if provider in self.skip_tf_providers_list:
+        if provider in self.skip_tf_provider_list:
             logging.warning(f'skipped populating tf resource {resource} \
-             because its provider {provider} is in skip_tf_providers_list')
+             because its provider {provider} is in skip_tf_provider_list')
         elif provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info,
                                           existing_secrets)

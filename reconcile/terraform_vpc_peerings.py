@@ -430,7 +430,7 @@ def run(dry_run, print_only=False,
         "",
         thread_pool_size,
         accounts,
-        skip_tf_providers_list=None,
+        skip_tf_provider_list=None,
         settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)

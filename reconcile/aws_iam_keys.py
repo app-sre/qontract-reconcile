@@ -24,7 +24,7 @@ def get_keys_to_delete(accounts):
 
 
 def init_tf_working_dirs(accounts, thread_pool_size,
-                         skip_tf_providers_list,
+                         skip_tf_provider_list,
                          settings):
     # copied here to avoid circular dependency
     QONTRACT_INTEGRATION = 'terraform_resources'
@@ -40,7 +40,7 @@ def init_tf_working_dirs(accounts, thread_pool_size,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     skip_tf_providers_list=skip_tf_providers_list,
+                     skip_tf_provider_list=skip_tf_provider_list,
                      settings=settings)
     return ts.dump()
 
@@ -53,7 +53,7 @@ def cleanup(working_dirs):
 @defer
 def run(dry_run, thread_pool_size=10,
         disable_service_account_keys=False, account_name=None, defer=None,
-        skip_tf_providers_list=None):
+        skip_tf_provider_list=None):
     accounts = filter_accounts(queries.get_aws_accounts(), account_name)
     if not accounts:
         raise ValueError(f"aws account {account_name} not found")
@@ -62,7 +62,7 @@ def run(dry_run, thread_pool_size=10,
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     keys_to_delete = get_keys_to_delete(accounts)
     working_dirs = init_tf_working_dirs(accounts, thread_pool_size,
-                                        skip_tf_providers_list, settings)
+                                        skip_tf_provider_list, settings)
     defer(lambda: cleanup(working_dirs))
     error = aws.delete_keys(dry_run, keys_to_delete, working_dirs,
                             disable_service_account_keys)
