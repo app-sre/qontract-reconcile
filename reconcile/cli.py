@@ -368,8 +368,9 @@ def skip_tf_provider_list(function):
                             help='comma-separated list of terraform \
                                 providers to skip creating or modifying \
                                 resources for. \
-                                (this will not stop terraform from \
-                                DESTROYING resources from any provider!)',
+                                (this will consequently cause terraform to \
+                                DESTROY existing resources from providers \
+                                in this list!)',
                             default=None)(function)
 
     return function
