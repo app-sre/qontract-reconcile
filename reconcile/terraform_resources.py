@@ -440,7 +440,8 @@ def run(dry_run, print_only=False,
 
     disable_keys(dry_run, thread_pool_size,
                  disable_service_account_keys=True,
-                 account_name=account_name)
+                 account_name=account_name,
+                 skip_tf_provider_list=skip_tf_provider_list)
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
