@@ -25,7 +25,7 @@ class State:
     def __init__(self, integration: str, accounts: Iterable[Mapping[str, Any]],
                  settings: Optional[Mapping[str, Any]] = None) -> None:
         """Initiates S3 client from AWSApi."""
-        self.state_path = f"state/{integration}"
+        self.state_path = f'state/{integration}' if integration else 'state'
         self.bucket = os.environ['APP_INTERFACE_STATE_BUCKET']
         account = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
         accounts = [a for a in accounts if a['name'] == account]
