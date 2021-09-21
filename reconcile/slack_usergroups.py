@@ -25,6 +25,10 @@ PERMISSIONS_QUERY = """
           field
         }
         api_client {
+          global {
+            max_retries
+            timeout
+          }
           methods {
             name
             args

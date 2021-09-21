@@ -11,6 +11,7 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
 
 MAX_RETRIES = 5
+TIMEOUT = 30
 
 
 class UserNotFoundException(Exception):
@@ -40,7 +41,12 @@ class SlackApiConfig:
     SlackApi object.
     """
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 timeout: int = TIMEOUT,
+                 max_retries: int = MAX_RETRIES) -> None:
+
+        self.timeout = timeout
+        self.max_retries = max_retries
         self._methods: Dict[str, Any] = {}
 
     def set_method_config(self,
@@ -68,13 +74,27 @@ class SlackApiConfig:
 
         Input example:
             {
+                'global': {
+                    'max_retries': 5,
+                    'timeout': 30
+                },
                 'methods': [
                     {'name': 'users.list', 'args': "{\"limit\":1000}"},
                     {'name': 'conversations.list', 'args': "{\"limit\":1000}"}
                 ]
             }
         """
-        config = cls()
+        kwargs = {}
+        global_config = config_data.get('global', {})
+        max_retries = global_config.get('max_retries')
+        timeout = global_config.get('timeout')
+
+        if max_retries:
+            kwargs['max_retries'] = max_retries
+        if timeout:
+            kwargs['timeout'] = timeout
+
+        config = cls(**kwargs)
 
         methods = config_data.get('methods', [])
 
@@ -110,18 +130,21 @@ class SlackApi:
         """
         self.workspace_name = workspace_name
 
+        if api_config:
+            self.config = api_config
+        else:
+            self.config = SlackApiConfig()
+
         secret_reader = SecretReader(settings=settings)
         slack_token = secret_reader.read(token)
 
-        self._sc = WebClient(token=slack_token)
+        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
         self._configure_client_retry()
 
         self._results: Dict[str, Any] = {}
 
         self.channel = channel
         self.chat_kwargs = chat_kwargs
-
-        self.config = api_config
 
         if init_usergroups:
             self._initiate_usergroups()
@@ -132,9 +155,9 @@ class SlackApi:
         client.
         """
         rate_limit_handler = RateLimitErrorRetryHandler(
-            max_retry_count=MAX_RETRIES)
+            max_retry_count=self.config.max_retries)
         server_error_handler = ServerErrorRetryHandler(
-            max_retry_count=MAX_RETRIES)
+            max_retry_count=self.config.max_retries)
 
         self._sc.retry_handlers.append(rate_limit_handler)
         self._sc.retry_handlers.append(server_error_handler)

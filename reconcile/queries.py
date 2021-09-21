@@ -1633,6 +1633,10 @@ JIRA_BOARDS_QUERY = """
           username
         }
         api_client {
+          global {
+            max_retries
+            timeout
+          }
           methods {
             name
             args
@@ -1673,6 +1677,10 @@ UNLEASH_INSTANCES_QUERY = """
             }
           }
           api_client {
+            global {
+              max_retries
+              timeout
+            }
             methods {
               name
               args
@@ -1763,6 +1771,10 @@ SLACK_WORKSPACES_QUERY = """
       username
     }
     api_client {
+      global {
+        max_retries
+        timeout
+      }
       methods {
         name
         args

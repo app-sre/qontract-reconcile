@@ -8,7 +8,7 @@ from slack_sdk.errors import SlackApiError
 
 import reconcile
 from reconcile.utils.slack_api import SlackApi, MAX_RETRIES, \
-    UserNotFoundException, SlackApiConfig
+    UserNotFoundException, SlackApiConfig, TIMEOUT
 
 
 @pytest.fixture
@@ -31,8 +31,19 @@ def slack_api(mocker):
     return SlackApiMock(slack_api, mock_secret_reader, mock_slack_client)
 
 
+def test_slack_api_config_defaults():
+    slack_api_config = SlackApiConfig()
+
+    assert slack_api_config.max_retries == MAX_RETRIES
+    assert slack_api_config.timeout == TIMEOUT
+
+
 def test_slack_api_config_from_dict():
     data = {
+        'global': {
+            'max_retries': 1,
+            'timeout': 5
+        },
         'methods': [
             {'name': 'users.list', 'args': "{\"limit\":1000}"},
             {'name': 'conversations.list', 'args': "{\"limit\":500}"}
@@ -42,10 +53,36 @@ def test_slack_api_config_from_dict():
     slack_api_config = SlackApiConfig.from_dict(data)
 
     assert isinstance(slack_api_config, SlackApiConfig)
+
     assert slack_api_config.get_method_config('users.list') == {'limit': 1000}
     assert slack_api_config.get_method_config('conversations.list') == \
            {'limit': 500}
     assert slack_api_config.get_method_config('doesntexist') is None
+
+    assert slack_api_config.max_retries == 1
+    assert slack_api_config.timeout == 5
+
+
+def test_instantiate_slack_api_with_config(mocker):
+    """
+    When SlackApiConfig is passed into SlackApi, the constructor shouldn't
+    create a default configuration object.
+    """
+    mocker.patch.object(
+        reconcile.utils.slack_api, 'SecretReader', autospec=True)
+
+    mock_slack_client = mocker.patch.object(
+        reconcile.utils.slack_api, 'WebClient', autospec=True)
+
+    # autospec doesn't know about instance attributes
+    mock_slack_client.return_value.retry_handlers = []
+
+    config = SlackApiConfig()
+
+    token = {'path': 'some/path', 'field': 'some-field'}
+    slack_api = SlackApi('some-workspace', token, config)
+
+    assert slack_api.config is config
 
 
 def test__get_default_args(slack_api):
@@ -202,7 +239,8 @@ def test_slack_api__client_throttle_raise(mock_sleep, mock_secret_reader):
     )
 
     slack_client = SlackApi(
-        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        'workspace',
+        {'path': 'some/path', 'field': 'some-field'},
         init_usergroups=False
     )
 
