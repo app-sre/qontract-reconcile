@@ -1,5 +1,6 @@
+import json
 import logging
-from typing import Sequence, Dict, Any, Mapping, Optional
+from typing import Sequence, Dict, Any, Mapping, Optional, Union
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -10,6 +11,7 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
 
 MAX_RETRIES = 5
+TIMEOUT = 30
 
 
 class UserNotFoundException(Exception):
@@ -33,12 +35,83 @@ class ServerErrorRetryHandler(RetryHandler):
         return response is not None and response.status_code >= 500
 
 
+class SlackApiConfig:
+    """
+    Aggregates Slack API configuration objects to be used passed to a
+    SlackApi object.
+    """
+
+    def __init__(self,
+                 timeout: int = TIMEOUT,
+                 max_retries: int = MAX_RETRIES) -> None:
+
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self._methods: Dict[str, Any] = {}
+
+    def set_method_config(self,
+                          method_name: str,
+                          method_config: Mapping[str, Any]
+                          ) -> None:
+        """
+        Sets configuration for a Slack method.
+        :param method_name: name of the method (ex. users.list)
+        :param method_config: configuration for a specific method
+        """
+        self._methods[method_name] = method_config
+
+    def get_method_config(self, method_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get Slack method configuration.
+        :param method_name: the name of a method (ex. users.list)
+        """
+        return self._methods.get(method_name)
+
+    @classmethod
+    def from_dict(cls, config_data: Mapping[str, Any]) -> "SlackApiConfig":
+        """
+        Build a SlackApiConfig object from a mapping object.
+
+        Input example:
+            {
+                'global': {
+                    'max_retries': 5,
+                    'timeout': 30
+                },
+                'methods': [
+                    {'name': 'users.list', 'args': "{\"limit\":1000}"},
+                    {'name': 'conversations.list', 'args': "{\"limit\":1000}"}
+                ]
+            }
+        """
+        kwargs = {}
+        global_config = config_data.get('global', {})
+        max_retries = global_config.get('max_retries')
+        timeout = global_config.get('timeout')
+
+        if max_retries:
+            kwargs['max_retries'] = max_retries
+        if timeout:
+            kwargs['timeout'] = timeout
+
+        config = cls(**kwargs)
+
+        methods = config_data.get('methods', [])
+
+        for method in methods:
+            args = json.loads(method['args'])
+            config.set_method_config(method['name'], args)
+
+        return config
+
+
 class SlackApi:
     """Wrapper around Slack API calls"""
 
     def __init__(self,
                  workspace_name: str,
                  token: Mapping[str, str],
+                 api_config: Optional[SlackApiConfig] = None,
                  settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
                  channel: Optional[str] = None,
@@ -46,6 +119,7 @@ class SlackApi:
         """
         :param workspace_name: Slack workspace name (ex. coreos)
         :param token: data to pass to SecretReader.read() to get the token
+        :param api_config: Slack API configuration
         :param settings: settings to pass to SecretReader
         :param init_usergroups: whether or not to get a list of all Slack
         usergroups when instantiated
@@ -56,10 +130,15 @@ class SlackApi:
         """
         self.workspace_name = workspace_name
 
+        if api_config:
+            self.config = api_config
+        else:
+            self.config = SlackApiConfig()
+
         secret_reader = SecretReader(settings=settings)
         slack_token = secret_reader.read(token)
 
-        self._sc = WebClient(token=slack_token)
+        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
         self._configure_client_retry()
 
         self._results: Dict[str, Any] = {}
@@ -76,9 +155,9 @@ class SlackApi:
         client.
         """
         rate_limit_handler = RateLimitErrorRetryHandler(
-            max_retry_count=MAX_RETRIES)
+            max_retry_count=self.config.max_retries)
         server_error_handler = ServerErrorRetryHandler(
-            max_retry_count=MAX_RETRIES)
+            max_retry_count=self.config.max_retries)
 
         self._sc.retry_handlers.append(rate_limit_handler)
         self._sc.retry_handlers.append(server_error_handler)
@@ -222,17 +301,6 @@ class SlackApi:
         return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
-    @staticmethod
-    def _get_api_results_limit(resource_type):
-        # This will be replaced with getting the data from app-interface in
-        # a future PR.
-        api_limits = {
-            'users': 1000,
-            'channels': 1000
-        }
-
-        return api_limits.get(resource_type)
-
     def _get(self, resource: str) -> Dict[str, Any]:
         """
         Get Slack resources by type. This method uses a cache to ensure that
@@ -244,15 +312,16 @@ class SlackApi:
         result_key = 'members' if resource == 'users' else resource
         api_key = 'conversations' if resource == 'channels' else resource
         results = {}
-        additional_kwargs = {'cursor': ''}
-
-        api_result_limit = self._get_api_results_limit(resource)
-
-        if api_result_limit:
-            additional_kwargs['limit'] = api_result_limit
+        additional_kwargs: Dict[str, Union[str, int]] = {'cursor': ''}
 
         if resource in self._results:
             return self._results[resource]
+
+        if self.config:
+            method_config = self.config.get_method_config(
+                f'{api_key}.list')
+            if method_config:
+                additional_kwargs.update(method_config)
 
         while True:
             result = self._sc.api_call(
