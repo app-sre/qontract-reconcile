@@ -10,6 +10,7 @@ import tempfile
 from threading import Lock
 
 from typing import Dict, List, Iterable, Optional
+from ipaddress import ip_network, ip_address
 
 import anymarkup
 import requests
@@ -3293,6 +3294,7 @@ class TerrascriptClient:
 
         vpc = resource['vpc']
         vpc_id = vpc['vpc_id']
+        vpc_cidr_block = vpc['cidr_block']
 
         # https://www.terraform.io/docs/providers/aws/r/security_group.html
         # we will only support https (+ http redirection) at first
@@ -3387,6 +3389,8 @@ class TerrascriptClient:
                     'port': 443,
                     'depends_on': self.get_dependencies([lbt_tf_resource]),
                 }
+                if not ip_address(ip) in ip_network(vpc_cidr_block):
+                    values['availability_zone'] = 'all'
                 ip_slug = ip.replace('.', '_')
                 lbta_identifier = f'{lbt_identifier}-{ip_slug}'
                 lbta_tf_resource = \
