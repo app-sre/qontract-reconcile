@@ -15,6 +15,21 @@ build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
+create-venv:
+	@python3 -m venv venv
+	@venv/bin/pip install --upgrade pip setuptools wheel
+
+install-deps:
+	@venv/bin/pip install -r requirements.txt
+	@venv/bin/pip install -r requirements-dev.txt
+	@venv/bin/pip install --no-deps -e .
+
+dev-env: create-venv install-deps
+	@echo -e "\n\nTo activate virtualenv: . venv/bin/activate\n"
+
+update-deps:
+	@pip-compile -U --generate-hashes setup.py
+
 push:
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
