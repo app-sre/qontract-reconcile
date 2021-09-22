@@ -61,7 +61,8 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
     elif namespaces:
         for namespace_info in namespaces:
             if override_managed_types is None:
-                managed_types = set(namespace_info.get(managed_types_key, []))
+                managed_types = set(namespace_info.get(managed_types_key)
+                                    or [])
             else:
                 managed_types = set(override_managed_types)
 
@@ -77,10 +78,11 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 continue
 
             namespace = namespace_info['name']
+            # These may exit but have a value of None
             managed_resource_names = \
-                namespace_info.get('managedResourceNames', [])
+                namespace_info.get('managedResourceNames') or []
             managed_resource_type_overrides = \
-                namespace_info.get('managedResourceTypeOverrides', [])
+                namespace_info.get('managedResourceTypeOverrides') or []
 
             # Initialize current state specs
             for resource_type in managed_types:

@@ -145,3 +145,37 @@ class TestInitSpecsToFetch(testslide.TestCase):
         )
 
         self.assert_specs_match(rs, expected)
+
+    def test_namespaces_no_managedresourcenames(self) -> None:
+        self.namespaces[0]['managedResourceNames'] = None
+        self.namespaces[0]['managedResourceTypeOverrides'] = None
+
+        expected = [
+            sut.StateSpec(
+                type="desired",
+                oc="stuff",
+                cluster="cs1",
+                namespace="ns1",
+                resource={
+                    "provider": "resource",
+                    "path": "/some/path.yml"
+                },
+                parent=self.namespaces[0]
+            )
+        ]
+        rs = sut.init_specs_to_fetch(
+            self.resource_inventory,
+            self.oc_map,
+            namespaces=self.namespaces,
+        )
+        self.assert_specs_match(rs, expected)
+
+    def test_namespaces_no_managedresourcetypes(self) -> None:
+        self.namespaces[0]['managedResourceTypes'] = None
+
+        rs = sut.init_specs_to_fetch(
+            self.resource_inventory,
+            self.oc_map,
+            namespaces=self.namespaces,
+        )
+        self.assertEqual(rs, [])
