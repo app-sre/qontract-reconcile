@@ -135,7 +135,7 @@ def fetch_desired_state(ri, oc_map):
                         resource_name,
                         oc_resource
                     )
-                except (KeyError, ResourceKeyExistsError):
+                except ResourceKeyExistsError:
                     # a user may have a Role assigned to them
                     # from multiple app-interface roles
                     pass
