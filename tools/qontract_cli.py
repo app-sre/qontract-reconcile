@@ -823,10 +823,11 @@ def ls(ctx, integration):
     accounts = queries.get_aws_accounts()
     state = State(integration, accounts, settings=settings)
     keys = state.ls()
-    # if 'integration' is defined, the 0th token is empty
+    # if integration in not defined the 2th token will be the integration name
+    key_index = 1 if integration else 2
     table_content = [
-        {'integration': k.split('/')[0] or integration,
-         'key': '/'.join(k.split('/')[1:])}
+        {'integration': integration or k.split('/')[1],
+         'key': '/'.join(k.split('/')[key_index:])}
         for k in keys]
     print_output({'output': 'table', 'sort': False},
                  table_content, ['integration', 'key'])
