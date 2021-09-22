@@ -164,7 +164,13 @@ class SlackApi:
         if len(users_list) == 0:
             users_list = [self.get_random_deleted_user()]
 
-        self._sc.usergroups_users_update(usergroup=id, users=users_list)
+        try:
+            self._sc.usergroups_users_update(usergroup=id, users=users_list)
+        except SlackApiError as e:
+            # Slack can throw an invalid_users error when emptying groups, but
+            # it will still empty the group (so this can be ignored).
+            if e.response['error'] != 'invalid_users':
+                raise
 
     def get_random_deleted_user(self):
         for user_id, user_data in self._get('users').items():

@@ -154,6 +154,33 @@ def test_get_user_id_by_name_reraise(get_config_mock, slack_api):
     with pytest.raises(SlackApiError):
         slack_api.client.get_user_id_by_name('someuser')
 
+
+def test_update_usergroups_users_empty_no_raise(mocker, slack_api):
+    """
+    invalid_users errors shouldn't be raised because providing an empty
+    list is actually removing users from the usergroup.
+    """
+    mocker.patch.object(SlackApi, 'get_random_deleted_user', autospec=True)
+
+    slack_api.mock_slack_client.return_value.usergroups_users_update\
+        .side_effect = SlackApiError('Some error message',
+                                     {'error': 'invalid_users'})
+
+    slack_api.client.update_usergroup_users('ABCD', [])
+
+
+def test_update_usergroups_users_raise(slack_api):
+    """
+    Any errors other than invalid_users should result in an exception being
+    raised.
+    """
+    slack_api.mock_slack_client.return_value.usergroups_users_update \
+        .side_effect = SlackApiError('Some error message',
+                                     {'error': 'internal_error'})
+
+    with pytest.raises(SlackApiError):
+        slack_api.client.update_usergroup_users('ABCD', ['USERA'])
+
 #
 # Slack WebClient retry tests
 #
