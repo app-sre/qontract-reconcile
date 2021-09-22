@@ -3464,7 +3464,7 @@ class TerrascriptClient:
         # outputs
         # dns name
         output_name_0_13 = output_prefix + '__dns_name'
-        output_value = lb_tf_resource.dns_name
+        output_value = f'${{{lb_tf_resource.dns_name}}}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
