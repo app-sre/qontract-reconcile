@@ -103,7 +103,9 @@ class UnknownProviderError(Exception):
 
 def safe_resource_id(s):
     """Sanitize a string into a valid terraform resource id"""
-    return s.translate({ord(c): "_" for c in "."})
+    res = s.translate({ord(c): "_" for c in "."})
+    res = res.replace("*", "_star")
+    return res
 
 
 class aws_ecrpublic_repository(Resource):
