@@ -5,7 +5,6 @@ import os
 import shutil
 
 from collections import defaultdict
-from contextlib import suppress
 from threading import Lock
 
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
@@ -274,14 +273,13 @@ class TerraformClient:
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
                                                account, annotations)
-                with suppress(KeyError):
-                    ri.add_desired(
-                        cluster,
-                        namespace,
-                        resource,
-                        output_resource_name,
-                        oc_resource
-                    )
+                ri.add_desired(
+                    cluster,
+                    namespace,
+                    resource,
+                    output_resource_name,
+                    oc_resource
+                )
 
     @staticmethod
     def get_replicas_info(namespaces):
