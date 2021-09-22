@@ -207,6 +207,7 @@ provider
   identifier
   vpc {
     vpc_id
+    cidr_block
     subnets {
       id
     }
