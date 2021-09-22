@@ -201,6 +201,27 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceALB_v1 {
+  account
+  region
+  identifier
+  vpc {
+    vpc_id
+    cidr_block
+    subnets {
+      id
+    }
+  }
+  certificate_arn
+  targets {
+    name
+    default
+    weight
+    ips
+  }
+  output_resource_name
+  annotations
+}
 """
 
 

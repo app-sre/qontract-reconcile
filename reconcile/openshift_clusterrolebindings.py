@@ -1,7 +1,5 @@
 import sys
 
-from contextlib import suppress
-
 import reconcile.utils.gql as gql
 import reconcile.openshift_base as ob
 import reconcile.queries as queries
@@ -126,11 +124,7 @@ def fetch_desired_state(ri, oc_map):
                 oc_resource, resource_name = \
                     construct_user_oc_resource(
                         permission['cluster_role'], user)
-                with suppress(KeyError, ResourceKeyExistsError):
-                    # a user may have a Role assigned to them from
-                    # multiple app-interface roles. If there is a bug
-                    # that made us not expect a ClusterRoleBinding for
-                    # this cluster/namespace it is safe to ignore
+                try:
                     ri.add_desired(
                         cluster,
                         namepsace,
@@ -138,7 +132,10 @@ def fetch_desired_state(ri, oc_map):
                         resource_name,
                         oc_resource
                     )
-
+                except ResourceKeyExistsError:
+                    # a user may have a Role assigned to them
+                    # from multiple app-interface roles
+                    pass
             for sa in service_accounts:
                 if ri is None:
                     continue
@@ -146,11 +143,7 @@ def fetch_desired_state(ri, oc_map):
                 oc_resource, resource_name = \
                     construct_sa_oc_resource(
                         permission['cluster_role'], namespace, sa_name)
-                with suppress(KeyError, ResourceKeyExistsError):
-                    # a ServiceAccount may have a Role assigned to it
-                    # from multiple app-interface roles. And we don't
-                    # care about the potential bug when the
-                    # ClusterRoleBinding wasn't initialized
+                try:
                     ri.add_desired(
                         permission['cluster'],
                         namepsace,
@@ -158,6 +151,10 @@ def fetch_desired_state(ri, oc_map):
                         resource_name,
                         oc_resource
                     )
+                except ResourceKeyExistsError:
+                    # a ServiceAccount may have a Role assigned to it
+                    # from multiple app-interface roles
+                    pass
 
     return users_desired_state
 

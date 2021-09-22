@@ -118,8 +118,8 @@ from reconcile.utils.unleash import get_feature_toggle_state
 TERRAFORM_VERSION = '0.13.7'
 TERRAFORM_VERSION_REGEX = r'^Terraform\sv([\d]+\.[\d]+\.[\d]+)$'
 
-OC_VERSION = '4.8.0'
-OC_VERSION_REGEX = r'^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)-.*$'
+OC_VERSION = '4.6.1'
+OC_VERSION_REGEX = r'^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$'
 
 LOG_FMT = '[%(asctime)s] [%(levelname)s] ' \
     '[%(filename)s:%(funcName)s:%(lineno)d] - %(message)s'

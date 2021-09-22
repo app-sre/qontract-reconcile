@@ -448,9 +448,12 @@ class ResourceInventory:
 
     def add_desired(self, cluster, namespace, resource_type, name, value):
         with self._lock:
-            desired = (self._clusters[cluster][namespace][resource_type]
-                       ['desired'])
-
+            try:
+                desired = \
+                    (self._clusters[cluster][namespace][resource_type]
+                        ['desired'])
+            except KeyError:
+                return None
             if name in desired:
                 raise ResourceKeyExistsError(name)
             desired[name] = value

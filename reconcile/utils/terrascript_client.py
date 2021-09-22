@@ -10,6 +10,7 @@ import tempfile
 from threading import Lock
 
 from typing import Dict, List, Iterable, Optional
+from ipaddress import ip_network, ip_address
 
 import anymarkup
 import requests
@@ -43,6 +44,7 @@ from terrascript.resource import (
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
     aws_ec2_transit_gateway_route,
+    aws_security_group,
     aws_security_group_rule,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
@@ -56,7 +58,12 @@ from terrascript.resource import (
     aws_route53_zone,
     aws_route53_record,
     aws_route53_health_check,
-    aws_cloudfront_public_key
+    aws_cloudfront_public_key,
+    aws_lb,
+    aws_lb_target_group,
+    aws_lb_target_group_attachment,
+    aws_lb_listener,
+    aws_lb_listener_rule,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -830,6 +837,8 @@ class TerrascriptClient:
         elif provider == 's3-cloudfront-public-key':
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
+        elif provider == 'alb':
+            self.populate_tf_resource_alb(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3270,6 +3279,192 @@ class TerrascriptClient:
         # key
         output_name_0_13 = output_prefix + '__key'
         output_value = key
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_alb(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        vpc = resource['vpc']
+        vpc_id = vpc['vpc_id']
+        vpc_cidr_block = vpc['cidr_block']
+
+        # https://www.terraform.io/docs/providers/aws/r/security_group.html
+        # we will only support https (+ http redirection) at first
+        # this can be enhanced when a use case comes along
+        # https://github.com/hashicorp/terraform-provider-aws/issues/878
+        empty_required_sg_values = {
+            'ipv6_cidr_blocks': None,
+            'prefix_list_ids': None,
+            'security_groups': None,
+            'self': None,
+        }
+        values = {
+            'vpc_id': vpc_id,
+            'tags': common_values['tags'],
+
+            'ingress': [
+                {
+                    'description': 'allow http',
+                    'from_port': 80,
+                    'to_port': 80,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                },
+                {
+                    'description': 'allow https',
+                    'from_port': 443,
+                    'to_port': 443,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                }
+            ],
+        }
+        sg_tf_resource = aws_security_group(identifier, **values)
+        tf_resources.append(sg_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb.html
+        values = {
+            'name': identifier,
+            'internal': False,
+            'load_balancer_type': 'application',
+            'security_groups': [f'${{{sg_tf_resource.id}}}'],
+            'subnets': [s['id'] for s in vpc['subnets']],
+            'tags': common_values['tags'],
+            'depends_on': self.get_dependencies([sg_tf_resource]),
+        }
+        lb_tf_resource = aws_lb(identifier, **values)
+        tf_resources.append(lb_tf_resource)
+
+        default_target = None
+        weighted_target_groups = []
+        for t in resource['targets']:
+            target_name = t['name']
+            # https://www.terraform.io/docs/providers/aws/r/
+            # lb_target_group.html
+            values = {
+                'name': target_name,
+                'port': 443,
+                'protocol': 'HTTPS',
+                'target_type': 'ip',
+                'vpc_id': vpc_id,
+                'health_check': {
+                    'interval': 10,
+                    'path': '/',
+                    'protocol': 'HTTPS',
+                    'port': 443,
+                }
+            }
+            lbt_identifier = f'{identifier}-{target_name}'
+            lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
+            tf_resources.append(lbt_tf_resource)
+
+            if t['default']:
+                if default_target:
+                    raise KeyError('expected only a single default target')
+                default_target = lbt_tf_resource
+
+            # initiate weighted target groups to use for listener rule
+            weighted_item = {
+                'arn': f'${{{lbt_tf_resource.arn}}}',
+                'weight': t['weight'],
+            }
+            weighted_target_groups.append(weighted_item)
+
+            for ip in t['ips']:
+                # https://www.terraform.io/docs/providers/aws/r/
+                # lb_target_group_attachment.html
+                values = {
+                    'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
+                    'target_id': ip,
+                    'port': 443,
+                    'depends_on': self.get_dependencies([lbt_tf_resource]),
+                }
+                if not ip_address(ip) in ip_network(vpc_cidr_block):
+                    values['availability_zone'] = 'all'
+                ip_slug = ip.replace('.', '_')
+                lbta_identifier = f'{lbt_identifier}-{ip_slug}'
+                lbta_tf_resource = \
+                    aws_lb_target_group_attachment(lbta_identifier, **values)
+                tf_resources.append(lbta_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
+        # redirect
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 80,
+            'protocol': 'HTTP',
+            'default_action': {
+                'type': 'redirect',
+                'redirect': {
+                    'port': 443,
+                    'protocol': 'HTTPS',
+                    'status_code': 'HTTP_301',
+                }
+            },
+            'depends_on': self.get_dependencies([lb_tf_resource]),
+        }
+        redirect_identifier = f'{identifier}-redirect'
+        redirect_lbl_tf_resource = \
+            aws_lb_listener(redirect_identifier, **values)
+        tf_resources.append(redirect_lbl_tf_resource)
+        # forward
+        if not default_target:
+            raise KeyError('expected a single default target')
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 443,
+            'protocol': 'HTTPS',
+            'ssl_policy': 'ELBSecurityPolicy-2016-08',
+            'certificate_arn': resource['certificate_arn'],
+            'default_action': {
+                'type': 'forward',
+                'target_group_arn': f'${{{default_target.arn}}}',
+            },
+            'depends_on': self.get_dependencies(
+                [lb_tf_resource, default_target]),
+        }
+        forward_identifier = f'{identifier}-forward'
+        forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)
+        tf_resources.append(forward_lbl_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
+        weights = [t['weight'] for t in weighted_target_groups]
+        if sum(weights) != 100:
+            raise ValueError('sum of weights of targets should be 100')
+        values = {
+            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+            'action': {
+                'type': 'forward',
+                'forward': {
+                    'target_group': weighted_target_groups,
+                    'stickiness': {
+                        'enabled': False,
+                        'duration': 1,  # required
+                    },
+                },
+            },
+            'condition': {
+                'http_request_method': {'values': ['POST']},
+            },
+            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+        }
+        lblr_tf_resource = aws_lb_listener_rule(identifier, **values)
+        tf_resources.append(lblr_tf_resource)
+
+        # outputs
+        # dns name
+        output_name_0_13 = output_prefix + '__dns_name'
+        output_value = f'${{{lb_tf_resource.dns_name}}}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
