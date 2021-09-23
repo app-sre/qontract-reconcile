@@ -768,7 +768,7 @@ class OCNative(OCDeprecated):
         super().__init__(cluster_name, server, token, jh, settings,
                          init_projects=False, init_api_resources=False,
                          local=local)
-        if server:
+        if server is not None:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
         else:
@@ -818,6 +818,8 @@ class OCNative(OCDeprecated):
         k8s_client = ApiClient(configuration)
         try:
             return DynamicClient(k8s_client)
+        except ValueError as e:
+            raise StatusCodeError(f"[{self.server}]: {e}")
         except urllib3.exceptions.MaxRetryError as e:
             raise StatusCodeError(f"[{self.server}]: {e}")
 
