@@ -3357,6 +3357,7 @@ class TerrascriptClient:
                 'name': target_name,
                 'port': 443,
                 'protocol': 'HTTPS',
+                'protocol_version': 'HTTP2',
                 'target_type': 'ip',
                 'vpc_id': vpc_id,
                 'health_check': {
