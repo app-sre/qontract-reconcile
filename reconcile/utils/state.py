@@ -53,14 +53,24 @@ class State:
         """
         Returns a list of keys in the state
         """
-        objects = self.client.list_objects(Bucket=self.bucket,
-                                           Prefix=f'{self.state_path}/')
+        objects = self.client.list_objects_v2(Bucket=self.bucket,
+                                              Prefix=f'{self.state_path}/')
 
         if 'Contents' not in objects:
             return []
 
-        return [o['Key'].replace(self.state_path, '')
-                for o in objects['Contents']]
+        contents = objects['Contents']
+
+        while objects['IsTruncated']:
+            objects = self.client.list_objects_v2(
+                Bucket=self.bucket,
+                Prefix=f'{self.state_path}/',
+                ContinuationToken=objects['NextContinuationToken']
+            )
+
+            contents += objects['Contents']
+
+        return [c['Key'].replace(self.state_path, '') for c in contents]
 
     def add(self, key, value=None, force=False):
         """
