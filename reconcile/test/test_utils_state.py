@@ -93,3 +93,31 @@ def test_ls_when_state_is_empty(accounts, s3_client, mocker):
     keys = state.ls()
 
     assert keys == []
+
+
+def test_ls_when_that_are_more_than_1000_keys(accounts, s3_client, mocker):
+    s3_client.create_bucket(Bucket='some-bucket')
+
+    expected = []
+    # Putting more than 1000 keys
+    for i in range(0, 1010):
+        key = f'/some-file-{i}'
+        expected.append(key)
+
+        s3_client.put_object(Bucket='some-bucket',
+                             Key=f'state/integration{key}',
+                             Body=f'{i}')
+
+    # S3 response is sorted
+    expected.sort()
+
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value = s3_client
+
+    state = State('integration', accounts)
+
+    keys = state.ls()
+
+    assert keys == expected
