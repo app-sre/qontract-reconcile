@@ -103,7 +103,7 @@ class TestRun(testslide.TestCase):
             'dump').to_return_value(None).and_assert_called_once()
         # Sigh...
         self.exit = self.mock_callable(sys, 'exit').to_raise(
-            Exception("Exit called!"))
+            OSError("Exit called!"))
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
     def initialize_desired_states(self, error_code):
@@ -172,7 +172,7 @@ class TestRun(testslide.TestCase):
             self.terraform,
             'apply').to_return_value(None).and_assert_called_once()
         self.exit.for_call(0).and_assert_called_once()
-        with self.assertRaises(Exception):
+        with self.assertRaises(OSError):
             integ.run(False, False, False, None)
 
     def test_fail_state(self):
@@ -181,11 +181,11 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terraform, 'plan').to_return_value(
             (False, False)).and_assert_not_called()
         self.mock_callable(self.terraform, 'cleanup').to_return_value(
-            None).and_assert_called_once()
+            None).and_assert_not_called()
         self.mock_callable(self.terraform, 'apply').to_return_value(
             None).and_assert_not_called()
         self.exit.for_call(1).and_assert_called_once()
-        with self.assertRaises(Exception):
+        with self.assertRaises(OSError):
             integ.run(False, False, True)
 
     def test_dry_run(self):
@@ -198,5 +198,27 @@ class TestRun(testslide.TestCase):
         self.mock_callable(self.terraform, 'apply').to_return_value(
             None).and_assert_not_called()
         self.exit.for_call(0).and_assert_called_once()
-        with self.assertRaises(Exception):
+        with self.assertRaises(OSError):
             integ.run(True, False, False)
+
+    def test_dry_run_with_failures(self):
+        """This is what we do during PR checks and new clusters!"""
+        self.initialize_desired_states(True)
+        self.mock_callable(self.terraform, 'plan').to_return_value(
+            (False, False)).and_assert_not_called()
+        self.mock_callable(self.terraform, 'apply').to_return_value(
+            None).and_assert_not_called()
+        self.exit.for_call(1).and_assert_called_once()
+        with self.assertRaises(OSError):
+            integ.run(True, False, False)
+
+    def test_dry_run_print_only_with_failures(self):
+        """This is what we do during PR checks and new clusters!"""
+        self.initialize_desired_states(True)
+        self.mock_callable(self.terraform, 'plan').to_return_value(
+            (False, False)).and_assert_not_called()
+        self.mock_callable(self.terraform, 'apply').to_return_value(
+            None).and_assert_not_called()
+        self.exit.for_call(0).and_assert_called_once()
+        with self.assertRaises(OSError):
+            integ.run(True, True, False)

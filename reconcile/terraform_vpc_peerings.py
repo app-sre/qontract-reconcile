@@ -444,13 +444,13 @@ def run(dry_run, print_only=False,
         working_dirs,
         thread_pool_size)
 
-    if tf is None:
+    if tf is None or any(errors):
         sys.exit(1)
 
     defer(lambda: tf.cleanup())
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    errors.push(err)
+    errors.append(err)
     if disabled_deletions_detected:
         logging.error("Deletions detected when they are disabled")
         sys.exit(1)
