@@ -87,7 +87,7 @@ GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
 VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'enhanced_monitoring', 'replica_source',
-                 'output_resource_db_name', 'reset_password',
+                 'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
                  'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
@@ -979,6 +979,14 @@ class TerrascriptClient:
         else:
             password = ""
         values['password'] = password
+
+        ca_cert = values.pop('ca_cert', None)
+        if ca_cert:
+            # db.ca_cert
+            output_name_0_13 = output_prefix + '__ca_cert'
+            certificate = self.secret_reader.read(ca_cert)
+            output_value = base64.b64encode(certificate.encode()).decode()
+            tf_resources.append(Output(output_name_0_13, value=output_value))
 
         region = self._region_from_availability_zone_(
             az) or self.default_regions.get(account)
