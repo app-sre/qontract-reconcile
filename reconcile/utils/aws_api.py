@@ -19,6 +19,10 @@ class InvalidResourceTypeError(Exception):
     pass
 
 
+class MissingARNError(Exception):
+    pass
+
+
 class AWSApi:
     """Wrapper around AWS SDK"""
 
@@ -634,9 +638,10 @@ class AWSApi:
         sts = session.client('sts')
         role_arn = account['assume_role']
         if not role_arn:
-            raise KeyError(
-                'Could not find Role ARN. This is likely caused '
-                'due to a missing awsInfrastructureAccess section.'
+            raise MissingARNError(
+                f'Could not find Role ARN {role_arn} on account '
+                f'{account["name"]}. This is likely caused by a missing '
+                'awsInfrastructureAccess section.'
             )
         role_name = role_arn.split('/')[1]
         response = sts.assume_role(
