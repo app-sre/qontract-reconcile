@@ -1,3 +1,4 @@
+from typing import Iterable, Mapping, Union
 import base64
 import json
 import logging
@@ -20,6 +21,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+from reconcile.utils.gitlab_api import GitLabApi
 
 
 class Providers:
@@ -1192,7 +1194,12 @@ class SaasHerder():
 
         return True
 
-    def publish_promotions(self, success, saas_files, mr_cli):
+    def publish_promotions(
+        self,
+        success: bool,
+        saas_files: Iterable[Mapping[str, Union[str, Mapping]]],
+        mr_cli: GitLabApi
+    ) -> None:
         """
         If there were promotion sections in the participating saas files
         publish the results for future promotion validations. """
