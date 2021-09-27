@@ -6,7 +6,7 @@ def make_semver(major, minor, patch):
 
 
 def parse_semver(version):
-    return semver.VersionInfo(**semver.parse(version))
+    return semver.VersionInfo.parse(version)
 
 
 def sort_versions(versions):
