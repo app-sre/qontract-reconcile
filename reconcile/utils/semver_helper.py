@@ -1,5 +1,6 @@
-import semver
 from typing import List, Iterable
+import semver
+
 
 def make_semver(major: int, minor: int, patch: int) -> str:
     return str(semver.VersionInfo(major=major, minor=minor, patch=patch))
