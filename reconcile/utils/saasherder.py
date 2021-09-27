@@ -271,7 +271,7 @@ class SaasHerder():
         except GithubException as e:
             # slightly copied with love from
             # https://github.com/PyGithub/PyGithub/issues/661
-            errors = e.data['errors']
+            errors = e.data.get('errors', [])
             # example errors dict that we are looking for
             # {
             #    'message': '<text>',
