@@ -10,6 +10,7 @@ from github import Github, GithubException
 from requests import exceptions as rqexc
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
+from typing import List
 
 import reconcile.utils.threaded as threaded
 
