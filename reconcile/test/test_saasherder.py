@@ -264,19 +264,25 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 
 
 class TestPopulateDesiredState(TestCase):
-    def test_populate_desired_state_saas_file_delete(self):
-        spec = {'delete': True}
-        saasherder = SaasHerder(
-            [],
+    def setUp(self):
+        saas_files = []
+        self.saasherder = SaasHerder(
+            saas_files,
             thread_pool_size=1,
             gitlab=None,
             integration='',
             integration_version='',
             settings={}
         )
-        desired_state = \
-            saasherder.populate_desired_state_saas_file(spec, None)
+
+    def test_populate_desired_state_saas_file_delete(self):
+        spec = {'delete': True}
+
+        desired_state = self.saasherder.populate_desired_state_saas_file(spec, None)
         self.assertIsNone(desired_state)
+
+    def test_populate_desired_state_cases(self):
+        print("yolo")
 
 
 class TestGetSaasFileAttribute(TestCase):
