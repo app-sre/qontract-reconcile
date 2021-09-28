@@ -660,7 +660,7 @@ class SaasHerder():
     def _initiate_image_auth(self, saas_file):
         """
         This function initiates a dict required for image authentication.
-        This dict will be used as kwargs for sertoolbox's Image.
+        This dict will be used as kwargs for sretoolbox's Image.
         The image authentication secret specified in the saas file must
         contain the 'user' and 'token' keys, and may optionally contain
         a 'url' key specifying the image registry url to be passed to check
@@ -674,6 +674,7 @@ class SaasHerder():
         auth = saas_file.get('authentication')
         if not auth:
             return {}
+
         auth_image_secret = auth.get('image')
         if not auth_image_secret:
             return {}
@@ -715,14 +716,17 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
+
+        # Instance exists in v1 saas files only.
         instance = saas_file.get('instance')
-        # instance exists in v1 saas files only
         instance_name = instance['name'] if instance else None
+
         managed_resource_types = saas_file['managedResourceTypes']
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
-        # iterate over resource templates (multiple per saas_file)
+
+        # Iterate over resource templates (multiple per saas_file).
         for rt in resource_templates:
             rt_name = rt['name']
             url = rt['url']
@@ -735,10 +739,10 @@ class SaasHerder():
             consolidated_parameters.update(saas_file_parameters)
             consolidated_parameters.update(parameters)
 
-            # iterate over targets (each target is a namespace)
+            # Iterate over targets (each target is a namespace).
             for target in rt['targets']:
                 if target.get('disable'):
-                    # a warning is logged during SaasHerder initiation
+                    # Warning is logged during SaasHerder initiation.
                     continue
                 cluster, namespace = \
                     self._get_cluster_and_namespace(target)

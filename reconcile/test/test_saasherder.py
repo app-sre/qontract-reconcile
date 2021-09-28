@@ -1,8 +1,16 @@
+import json
+import logging
+
+import yaml
+
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
+from .fixtures import Fixtures
+
 from github import GithubException
 
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 
 
@@ -264,19 +272,77 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 
 
 class TestPopulateDesiredState(TestCase):
-    def test_populate_desired_state_saas_file_delete(self):
-        spec = {'delete': True}
-        saasherder = SaasHerder(
-            [],
+    def setUp(self):
+        saas_files = []
+        self.fxts = Fixtures('saasherder_populate_desired')
+        for file in [self.fxts.get("saas_remote_openshift_template.yaml")]:
+            saas_files.append(yaml.safe_load(file))
+
+        self.assertEqual(1, len(saas_files))
+        self.saasherder = SaasHerder(
+            saas_files,
             thread_pool_size=1,
             gitlab=None,
             integration='',
             integration_version='',
-            settings={}
+            settings={'hashLength':  7}
         )
-        desired_state = \
-            saasherder.populate_desired_state_saas_file(spec, None)
+
+        # Mock GitHub interactions.
+        self.initiate_gh_patcher = patch.object(
+            SaasHerder, '_initiate_github', autospec=True, return_value=None,
+        )
+        self.get_file_contents_patcher = patch.object(
+            SaasHerder, '_get_file_contents', wraps=self.fake_get_file_contents,
+        )
+        self.initiate_gh_patcher.start()
+        self.get_file_contents_patcher.start()
+
+        # Mock image checking.
+        self.get_check_images_patcher = patch.object(
+            SaasHerder, '_check_images',  autospec=True, return_value=None,
+        )
+        self.get_check_images_patcher.start()
+
+    def fake_get_file_contents(self, options):
+        self.assertEqual('https://github.com/rhobs/configuration', options['url'])
+
+        content = self.fxts.get(options['ref'] + (options['path'].replace('/', '_')))
+        return yaml.safe_load(content), "yolo", options['ref']
+
+    def tearDown(self):
+        for p in (
+            self.initiate_gh_patcher,
+            self.get_file_contents_patcher,
+            self.get_check_images_patcher,
+        ):
+            p.stop()
+
+    def test_populate_desired_state_saas_file_delete(self):
+        spec = {'delete': True}
+
+        desired_state = self.saasherder.populate_desired_state_saas_file(spec, None)
         self.assertIsNone(desired_state)
+
+    def test_populate_desired_state_cases(self):
+        ri = ResourceInventory()
+        for resource_type in (
+                "Deployment",
+                "Service",
+                "ConfigMap",
+        ):
+            ri.initialize_resource_type("stage-1", "yolo-stage", resource_type)
+            ri.initialize_resource_type("prod-1", "yolo", resource_type)
+        self.saasherder.populate_desired_state(ri)
+
+        cnt = 0
+        for (cluster, namespace, resource_type, data) in ri:
+            for _, d_item in data['desired'].items():
+                expected = yaml.safe_load(self.fxts.get(f"expected_{cluster}_{namespace}_{resource_type}.json"))
+                self.assertEqual(expected,  d_item.body)
+                cnt += 1
+
+        self.assertEqual(5, cnt, "expected 5 resources, found less")
 
 
 class TestGetSaasFileAttribute(TestCase):
