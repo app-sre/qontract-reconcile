@@ -13,8 +13,6 @@ RUN dnf install -y python3 python3-pip python3-devel git make tar gzip unzip gcc
 RUN python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-
-
 FROM quay.io/app-sre/qontract-reconcile-base:0.4.0
 
 RUN curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo \
