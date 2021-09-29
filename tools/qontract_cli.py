@@ -254,6 +254,15 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
     results = []
     upgrades_cache = {}
 
+    def soaking_str(soaking, soakdays):
+        sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
+        if ctx.obj['options']['output'] == 'md':
+            for i, data in enumerate(sorted_soaking):
+                v, s = data
+                if s > soakdays:
+                    sorted_soaking[i] = (v, f'{s} :tada:')
+        return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
+
     for c in desired_state:
         cluster_name, version = c['cluster'], c['current_version']
         channel, schedule = c['channel'], c.get('schedule')
@@ -283,15 +292,11 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                                  show_only_soaking_upgrades)
                 workload_soaking_upgrades[w] = s
 
-        def soaking_upgrades_str(soaking):
-            sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
-            return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
-
         if by_workload:
             for w, soaking in workload_soaking_upgrades.items():
                 i = item.copy()
                 i.update({'workload': w,
-                          'soaking_upgrades': soaking_upgrades_str(soaking)})
+                          'soaking_upgrades': soaking_str(soaking, soakdays)})
                 results.append(i)
         else:
             workloads = sorted(c.get('workloads', []))
@@ -304,7 +309,7 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                 if not show_only_soaking_upgrades or min_soaks > 0:
                     soaking[v] = min_soaks
             item.update({'workload': w,
-                         'soaking_upgrades': soaking_upgrades_str(soaking)})
+                         'soaking_upgrades': soaking_str(soaking, soakdays)})
             results.append(item)
 
     columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
