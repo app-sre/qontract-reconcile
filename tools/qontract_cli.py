@@ -312,6 +312,24 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                          'soaking_upgrades': soaking_str(soaking, soakdays)})
             results.append(item)
 
+    if ctx.obj['options']['output'] == 'md':
+        print("""
+The table below regroups upgrade information for each clusters:
+* `version` is the current openshift version on the cluster
+* `channel` is the OCM upgrade channel being tracked by the cluster
+* `schedule` is the cron-formatted schedule for cluster upgrades
+* `soak_days` is the minimum number of days a given version must have been
+running on other clusters with the same workload to be considered for an
+upgrade.
+* `workload` is a list of workload names that are running on the cluster
+* `soaking_upgrades` lists all available upgrades available on the OCM channel
+for that cluster. The number in parenthesis shows the number of days this
+version has been running on other clusters with the same workloads. By
+comparing with the `soak_days` columns, you can see when a version is close to
+be upgraded to. A :tada: sign is displayed for versions which have soaked
+enough and are ready to be upgraded to.
+        """)
+
     columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
                'workload', 'soaking_upgrades']
     ctx.obj['options']['to_string'] = True
