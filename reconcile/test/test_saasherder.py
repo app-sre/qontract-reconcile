@@ -282,7 +282,7 @@ class TestPopulateDesiredState(TestCase):
             gitlab=None,
             integration='',
             integration_version='',
-            settings={}
+            settings={'hashLength':  7}
         )
 
         # Mock GitHub.

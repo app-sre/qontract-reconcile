@@ -7,21 +7,44 @@ labels:
 name: saas-realistic-openshift-template-remote
 description: Test
 
-app:
-  $ref: /services/rhobs/observatorium-mst/app.yml
+#app:
+#  $ref: /services/rhobs/observatorium-mst/app.yml
+#
+#pipelinesProvider:
+#  $ref: /services/rhobs/observatorium/pipelines/observatorium-pipeline.app-sre-prod-01.yaml
+#
+#slack:
+#  workspace:
+#    $ref: /dependencies/slack/coreos.yml
+#  channel: team-monitoring-info
 
-pipelinesProvider:
-  $ref: /services/rhobs/observatorium/pipelines/observatorium-pipeline.app-sre-prod-01.yaml
-
-slack:
-  workspace:
-    $ref: /dependencies/slack/coreos.yml
-  channel: team-monitoring-info
-
-authentication:
-  image:
-    path: app-sre/ci-int/redhat-registry-io-pull
-    field: all
+_placeholders:
+  - &STAGING_NAMESPACE
+    name: "observatorium-mst-stage"
+    environment:
+      name: "stage"
+      parameters:
+        CHANNEL: staging
+        OCM_BASE_URL: https://api.stage.openshift.com
+        SSO_BASE_URL: https://sso.redhat.com/auth/realms/redhat-external
+      labels:
+        service: openshift-dedicated
+        type: stage
+    cluster:
+      name: "stage-1"
+  - &PRODUCTION_NAMESPACE
+    name: "observatorium-mst-production"
+    environment:
+      name: "production"
+      parameters:
+        CHANNEL: production
+        OCM_BASE_URL: https://api.openshift.com
+        SSO_BASE_URL: https://sso.redhat.com/auth/realms/redhat-external
+      labels:
+        service: openshift-dedicated
+        type: production
+    cluster:
+      name: "prod-1"
 
 managedResourceTypes:
 - Deployment
@@ -56,16 +79,13 @@ resourceTemplates:
   path: /resources/services/observatorium-template.yaml
   url: https://github.com/rhobs/configuration
   parameters:
-    # NOTICE: Please specify image tags for each environment separately.
-    # And sort them alphabetically.
     AMS_URL: ${OCM_BASE_URL}
     JAEGER_AGENT_IMAGE: quay.io/app-sre/jaegertracing-jaeger-agent
     MEMCACHED_EXPORTER_IMAGE: quay.io/prometheus/memcached-exporter
     MEMCACHED_IMAGE: registry.redhat.io/rhel8/memcached
     OPA_AMS_IMAGE: quay.io/observatorium/opa-ams
   targets:
-  - namespace:
-      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-stage.yml
+  - namespace: *STAGING_NAMESPACE
     ref: a513f3676c8430265208111048dec36ea86fcd56
     parameters:
       NAMESPACE: observatorium-mst-stage
@@ -104,8 +124,7 @@ resourceTemplates:
       OSD_ORGANIZATION_ID: 1lneg5EWJaGAK3d7RZpAJM9WujU
       PROMETHEUS_AMS_REMOTE_WRITE_PROXY_TARGET: 'observatorium-thanos-receive'
       SERVICE_ACCOUNT_NAME: observatorium-mst
-  - namespace:
-      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-production.yml
+  - namespace: *PRODUCTION_NAMESPACE
     # Commit for github.com/rhobs/configuration repo. Keep it pinned, so we know what we can promote to production.
     ref: 4ba049635dd62d57605ea74890c08caef067ed13
     parameters:
@@ -157,8 +176,7 @@ resourceTemplates:
     STORAGE_CLASS: "gp2"
     THANOS_IMAGE: quay.io/thanos/thanos
   targets:
-  - namespace:
-      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-stage.yml
+  - namespace: *STAGING_NAMESPACE
     ref: 17358120d2019d171f93a0c92e059b6b9acc7a03
     parameters:
       NAMESPACE: observatorium-mst-stage
@@ -221,8 +239,7 @@ resourceTemplates:
       THANOS_STORE_MEMORY_LIMIT: '8Gi'
       THANOS_STORE_MEMORY_REQUEST: '4Gi'
       THANOS_STORE_REPLICAS: 1
-  - namespace:
-      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-production.yml
+  - namespace: *PRODUCTION_NAMESPACE
     # Commit for github.com/rhobs/configuration repo. Keep it pinned, so we know what we can promote to production.
     ref: 17358120d2019d171f93a0c92e059b6b9acc7a03
     parameters:

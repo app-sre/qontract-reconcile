@@ -660,7 +660,7 @@ class SaasHerder():
     def _initiate_image_auth(self, saas_file):
         """
         This function initiates a dict required for image authentication.
-        This dict will be used as kwargs for sertoolbox's Image.
+        This dict will be used as kwargs for sretoolbox's Image.
         The image authentication secret specified in the saas file must
         contain the 'user' and 'token' keys, and may optionally contain
         a 'url' key specifying the image registry url to be passed to check
@@ -674,6 +674,7 @@ class SaasHerder():
         auth = saas_file.get('authentication')
         if not auth:
             return {}
+
         auth_image_secret = auth.get('image')
         if not auth_image_secret:
             return {}
@@ -704,7 +705,6 @@ class SaasHerder():
                                self.saas_files,
                                self.thread_pool_size)
         desired_state_specs = list(itertools.chain.from_iterable(results))
-        logging.warning(desired_state_specs)
         promotions = threaded.run(self.populate_desired_state_saas_file,
                                   desired_state_specs,
                                   self.thread_pool_size,
@@ -712,7 +712,6 @@ class SaasHerder():
         self.promotions = promotions
 
     def init_populate_desired_state_specs(self, saas_file):
-        logging.warning(saas_file)
         specs = []
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
@@ -745,7 +744,7 @@ class SaasHerder():
                 if target.get('disable'):
                     # Warning is logged during SaasHerder initiation.
                     continue
-
+                logging.warning(target)
                 cluster, namespace = \
                     self._get_cluster_and_namespace(target)
                 process_template_options = {
