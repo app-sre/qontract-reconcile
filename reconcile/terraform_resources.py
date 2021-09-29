@@ -36,6 +36,11 @@ provider
   replica_source
   output_resource_db_name
   reset_password
+  ca_cert {
+    path
+    field
+    version
+  }
   annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {

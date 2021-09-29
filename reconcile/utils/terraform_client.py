@@ -270,6 +270,17 @@ class TerraformClient:
                     self.integration_prefix)]
                 annotations = data.get('{}_annotations'.format(
                     self.integration_prefix))
+                # add special handling for ca_cert
+                # which is saved base64 encoded in terraform state.
+                # we decode it because construct_oc_resource
+                # will encode it again.
+                # if we find more examples that require this treatment
+                # we will need to hanle it in a more generic way
+                ca_cert_key = f'{self.integration_prefix}__ca_cert'
+                ca_cert = data.get(ca_cert_key)
+                if ca_cert:
+                    data[ca_cert_key] = base64.b64decode(ca_cert)
+
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
                                                account, annotations)
