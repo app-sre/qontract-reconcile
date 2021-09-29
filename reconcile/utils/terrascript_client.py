@@ -3374,6 +3374,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
+        read_weighted_target_groups = []
         write_weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
@@ -3403,6 +3404,12 @@ class TerrascriptClient:
                 default_target = lbt_tf_resource
 
             # initiate weighted target groups to use for listener rule
+            # read
+            read_weighted_item = {
+                'arn': f'${{{lbt_tf_resource.arn}}}',
+                'weight': t['weights']['read'],
+            }
+            read_weighted_target_groups.append(read_weighted_item)
             # write
             write_weighted_item = {
                 'arn': f'${{{lbt_tf_resource.arn}}}',
@@ -3468,6 +3475,31 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
+        # read
+        read_weights = [t['weight'] for t in read_weighted_target_groups]
+        if sum(read_weights) != 100:
+            raise ValueError('sum of weights of targets should be 100')
+        values = {
+            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+            'action': {
+                'type': 'forward',
+                'forward': {
+                    'target_group': read_weighted_target_groups,
+                    'stickiness': {
+                        'enabled': False,
+                        'duration': 1,  # required
+                    },
+                },
+            },
+            'condition': {
+                'http_request_method': {'values': ['GET']},
+            },
+            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+        }
+        lblr_read_identifier = f'{identifier}-read'
+        lblr_read_tf_resource = \
+            aws_lb_listener_rule(lblr_read_identifier, **values)
+        tf_resources.append(lblr_read_tf_resource)
         # write
         write_weights = [t['weight'] for t in write_weighted_target_groups]
         if sum(write_weights) != 100:
@@ -3489,8 +3521,10 @@ class TerrascriptClient:
             },
             'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
         }
-        lblr_tf_resource = aws_lb_listener_rule(identifier, **values)
-        tf_resources.append(lblr_tf_resource)
+        lblr_write_identifier = f'{identifier}-write'
+        lblr_write_tf_resource = \
+            aws_lb_listener_rule(lblr_write_identifier, **values)
+        tf_resources.append(lblr_write_tf_resource)
 
         # outputs
         # dns name
