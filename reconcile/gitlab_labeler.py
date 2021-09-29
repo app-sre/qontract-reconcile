@@ -44,7 +44,7 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None):
     changed_paths = \
         gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     guessed_labels = guess_labels(project_labels, changed_paths)
-    labels_to_add = [l for l in guessed_labels if l not in labels]
+    labels_to_add = [b for b in guessed_labels if b not in labels]
     if labels_to_add:
         logging.info(['add_labels', labels_to_add])
         gl.add_labels_to_merge_request(gitlab_merge_request_id, labels_to_add)

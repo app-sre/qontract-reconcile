@@ -9,6 +9,9 @@ import tempfile
 
 from threading import Lock
 
+from typing import Dict, List, Iterable, Optional
+from ipaddress import ip_network, ip_address
+
 import anymarkup
 import requests
 
@@ -41,6 +44,7 @@ from terrascript.resource import (
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
     aws_ec2_transit_gateway_route,
+    aws_security_group,
     aws_security_group_rule,
     aws_route,
     aws_cloudwatch_log_group, aws_kms_key,
@@ -54,7 +58,12 @@ from terrascript.resource import (
     aws_route53_zone,
     aws_route53_record,
     aws_route53_health_check,
-    aws_cloudfront_public_key
+    aws_cloudfront_public_key,
+    aws_lb,
+    aws_lb_target_group,
+    aws_lb_target_group_attachment,
+    aws_lb_listener,
+    aws_lb_listener_rule,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -94,10 +103,11 @@ class UnknownProviderError(Exception):
 
 def safe_resource_id(s):
     """Sanitize a string into a valid terraform resource id"""
-    return s.translate({ord(c): "_" for c in "."})
+    res = s.translate({ord(c): "_" for c in "."})
+    res = res.replace("*", "_star")
+    return res
 
 
-# temporary pending https://github.com/mjuenema/python-terrascript/issues/160
 class aws_ecrpublic_repository(Resource):
     pass
 
@@ -173,6 +183,7 @@ class TerrascriptClient:
         if not os.path.exists(zip_file):
             r = requests.get(zip_url)
             r.raise_for_status()
+            # pylint: disable=consider-using-with
             open(zip_file, 'wb').write(r.content)
         return zip_file
 
@@ -242,14 +253,13 @@ class TerrascriptClient:
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
-                        tf_deps = \
-                            self.get_names_from_tf_resources([tf_iam_group])
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy.replace('/', '_'),
                                 group=group_name,
                                 policy_arn='arn:aws:iam::aws:policy/' + policy,
-                                depends_on=tf_deps
+                                depends_on=self.get_dependencies(
+                                    [tf_iam_group])
                             )
                         self.add_resource(account_name,
                                           tf_iam_group_policy_attachment)
@@ -286,14 +296,13 @@ class TerrascriptClient:
 
                     # Ref: terraform aws iam_group_membership
                     tf_iam_group = self.get_tf_iam_group(group_name)
-                    tf_deps = self.get_names_from_tf_resources(
-                        [tf_iam_user, tf_iam_group])
                     tf_iam_user_group_membership = \
                         aws_iam_user_group_membership(
                             user_name + '-' + group_name,
                             user=user_name,
                             groups=[group_name],
-                            depends_on=tf_deps
+                            depends_on=self.get_dependencies(
+                                [tf_iam_user, tf_iam_group])
                         )
                     self.add_resource(account_name,
                                       tf_iam_user_group_membership)
@@ -320,12 +329,11 @@ class TerrascriptClient:
                         error = True
                         return error
                     # Ref: terraform aws iam_user_login_profile
-                    tf_deps = self.get_names_from_tf_resources([tf_iam_user])
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
                         user=user_name,
                         pgp_key=user_public_gpg_key,
-                        depends_on=tf_deps,
+                        depends_on=self.get_dependencies([tf_iam_user]),
                         lifecycle={
                             'ignore_changes': ["id",
                                                "password_length",
@@ -359,14 +367,13 @@ class TerrascriptClient:
                         policy.replace('${aws:accountid}', account_uid)
 
                     # Ref: terraform aws iam_user_policy
-                    tf_deps = self.get_names_from_tf_resources([tf_iam_user])
                     tf_iam_user = self.get_tf_iam_user(user_name)
                     tf_aws_iam_user_policy = aws_iam_user_policy(
                         user_name + '-' + policy_name,
                         name=user_name + '-' + policy_name,
                         user=user_name,
                         policy=policy,
-                        depends_on=tf_deps
+                        depends_on=self.get_dependencies([tf_iam_user])
                     )
                     self.add_resource(account_name,
                                       tf_aws_iam_user_policy)
@@ -832,6 +839,8 @@ class TerrascriptClient:
         elif provider == 's3-cloudfront-public-key':
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
+        elif provider == 'alb':
+            self.populate_tf_resource_alb(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -844,12 +853,6 @@ class TerrascriptClient:
         tf_resources = []
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
-
-        # 'deps' should contain a list of terraform resource names
-        # (not full objects)
-        # that must be created
-        # before the actual RDS instance should be created
-        deps = []
 
         # we want to allow an empty name, so we
         # only validate names which are not empty
@@ -873,6 +876,10 @@ class TerrascriptClient:
             provider = 'aws.' + self._region_from_availability_zone_(az)
             values['provider'] = provider
 
+        # 'deps' should contain a list of terraform resource names
+        # (not full objects) that must be created
+        # before the actual RDS instance should be created
+        deps = []
         parameter_group = values.pop('parameter_group', None)
         if parameter_group:
             pg_values = self.get_values(parameter_group)
@@ -890,9 +897,7 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            resource_name = \
-                self.get_name_from_tf_resource(pg_tf_resource)
-            deps.append(resource_name)
+            deps = self.get_dependencies([pg_tf_resource])
             values['parameter_group_name'] = pg_name
 
         enhanced_monitoring = values.pop('enhanced_monitoring', None)
@@ -931,20 +936,26 @@ class TerrascriptClient:
             role_tf_resource = aws_iam_role(em_identifier, **em_values)
             tf_resources.append(role_tf_resource)
 
+            role_res_name = self.get_dependencies([role_tf_resource])[0]
+            deps.append(role_res_name)
+
             em_values = {
                 'role': role_tf_resource.name,
                 'policy_arn':
                     "arn:aws:iam::aws:policy/service-role/" +
                     "AmazonRDSEnhancedMonitoringRole",
-                'depends_on':
-                    self.get_names_from_tf_resources([role_tf_resource])
+                'depends_on': self.get_dependencies([role_tf_resource])
             }
-            tf_resource = \
+            attachment_tf_resource = \
                 aws_iam_role_policy_attachment(em_identifier, **em_values)
-            tf_resources.append(tf_resource)
+            tf_resources.append(attachment_tf_resource)
+
+            attachment_res_name = \
+                self.get_dependencies([attachment_tf_resource])[0]
+            deps.append(attachment_res_name)
 
             values['monitoring_role_arn'] = \
-                "${" + role_tf_resource.arn + "}"
+                f'${{{role_tf_resource.arn}}}'
 
         reset_password_current_value = values.pop('reset_password', None)
         if self._db_needs_auth_(values):
@@ -980,9 +991,8 @@ class TerrascriptClient:
             source_info = self._find_resource_(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
-                resource_name = \
-                    self.get_name_from_tf_resource(source_info)
-                deps.append(resource_name)
+                deps.append("aws_db_instance." +
+                            source_info['resource']['identifier'])
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
                     replica_region = self._region_from_availability_zone_(
@@ -1041,10 +1051,10 @@ class TerrascriptClient:
             else:
                 kms_key = self._find_resource_(account, kms_key_id, 'kms')
                 if kms_key:
-                    kms_res = \
-                        self.get_name_from_tf_resource(kms_key)
-                    deps.append(kms_res)
+                    kms_res = "aws_kms_key." + \
+                        kms_key['resource']['identifier']
                     values['kms_key_id'] = "${" + kms_res + ".arn}"
+                    deps.append(kms_res)
                 else:
                     raise ValueError(f"failed to find kms key {kms_key_id}")
 
@@ -1127,7 +1137,11 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self, account, source, provider):
+    def _find_resource_(self,
+                        account: str,
+                        source: str,
+                        provider: str
+                        ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
         if account not in self.account_resources:
             return None
 
@@ -1283,11 +1297,6 @@ class TerrascriptClient:
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
             values['cors_rule'] = cors_rules
-
-        # 'deps' should contain a list of terraform resource names
-        # (not full objects)
-        # that must be created
-        # before the actual S3 instance should be created
         deps = []
         replication_configs = common_values.get('replication_configurations')
         if replication_configs:
@@ -1367,9 +1376,8 @@ class TerrascriptClient:
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy_attachment.html
                 rc_values.clear()
-                rc_values['depends_on'] = \
-                    self.get_names_from_tf_resources(
-                        [role_resource, policy_resource])
+                rc_values['depends_on'] = self.get_dependencies(
+                    [role_resource, policy_resource])
                 rc_values['role'] = "${aws_iam_role." + id + ".name}"
                 rc_values['policy_arn'] = "${aws_iam_policy." + id + ".arn}"
                 tf_resource = aws_iam_role_policy_attachment(id, **rc_values)
@@ -1377,9 +1385,7 @@ class TerrascriptClient:
 
                 # Define the replication configuration.  Use a unique role for
                 # each replication configuration for easy cleanup/modification
-                resource_name = \
-                    self.get_name_from_tf_resource(role_resource)
-                deps.append(resource_name)
+                deps.append(role_resource)
                 status = config['status']
                 sc = config.get('storage_class') or "standard"
                 rc_values.clear()
@@ -1397,7 +1403,7 @@ class TerrascriptClient:
                 rc_configs.append(rc_values)
             values['replication_configuration'] = rc_configs
         if len(deps) > 0:
-            values['depends_on'] = deps
+            values['depends_on'] = self.get_dependencies(deps)
         region = common_values.get('region') or \
             self.default_regions.get(account)
         if self._multiregion_account_(account):
@@ -1452,8 +1458,7 @@ class TerrascriptClient:
             values = {
                 'bucket': identifier,
                 'policy': bucket_policy,
-                'depends_on':
-                    self.get_names_from_tf_resources([bucket_tf_resource])
+                'depends_on': self.get_dependencies([bucket_tf_resource])
             }
             bucket_policy_tf_resource = \
                 aws_s3_bucket_policy(identifier, **values)
@@ -1467,8 +1472,7 @@ class TerrascriptClient:
         values = {}
         values['name'] = identifier
         values['tags'] = common_values['tags']
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([bucket_tf_resource])
+        values['depends_on'] = self.get_dependencies([bucket_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -1507,8 +1511,7 @@ class TerrascriptClient:
             ]
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
@@ -1545,8 +1548,7 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_elasticache_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            values['depends_on'] = \
-                self.get_names_from_tf_resources([pg_tf_resource])
+            values['depends_on'] = self.get_dependencies([pg_tf_resource])
             values['parameter_group_name'] = pg_identifier
             values.pop('parameter_group', None)
 
@@ -1617,14 +1619,13 @@ class TerrascriptClient:
                 user_tf_resource, identifier, output_prefix))
 
         # iam user policies
-        tf_deps = self.get_names_from_tf_resources([user_tf_resource])
         for policy in common_values.get('policies') or []:
             tf_iam_user_policy_attachment = \
                 aws_iam_user_policy_attachment(
                     identifier + '-' + policy,
                     user=identifier,
                     policy_arn='arn:aws:iam::aws:policy/' + policy,
-                    depends_on=tf_deps
+                    depends_on=self.get_dependencies([user_tf_resource])
                 )
             tf_resources.append(tf_iam_user_policy_attachment)
 
@@ -1640,13 +1641,12 @@ class TerrascriptClient:
                     user_policy = user_policy.replace(to_replace, v)
                     output_name_0_13 = output_prefix + '__{}'.format(k)
                     tf_resources.append(Output(output_name_0_13, value=v))
-            tf_deps = self.get_names_from_tf_resources([user_tf_resource])
             tf_aws_iam_user_policy = aws_iam_user_policy(
                 identifier,
                 name=identifier,
                 user=identifier,
                 policy=user_policy,
-                depends_on=tf_deps
+                depends_on=self.get_dependencies([user_tf_resource])
             )
             tf_resources.append(tf_aws_iam_user_policy)
 
@@ -1783,7 +1783,8 @@ class TerrascriptClient:
                         kms_key = self._find_resource_(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
-                            kms_res = self.get_name_from_tf_resource(kms_key)
+                            kms_res = "aws_kms_key." + \
+                                kms_key['resource']['identifier']
                             values['kms_master_key_id'] = \
                                 "${" + kms_res + ".arn}"
                             values['depends_on'] = [kms_res]
@@ -1862,9 +1863,8 @@ class TerrascriptClient:
             values['user'] = identifier
             values['policy_arn'] = \
                 '${' + policy_tf_resource.arn + '}'
-            values['depends_on'] = \
-                self.get_names_from_tf_resources(
-                    [user_tf_resource, policy_tf_resource])
+            values['depends_on'] = self.get_dependencies(
+                [user_tf_resource, policy_tf_resource])
             tf_resource = \
                 aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
@@ -1949,8 +1949,7 @@ class TerrascriptClient:
             ]
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
@@ -2003,8 +2002,7 @@ class TerrascriptClient:
         values = {}
         values['name'] = identifier
         values['tags'] = common_values['tags']
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([ecr_tf_resource])
+        values['depends_on'] = self.get_dependencies([ecr_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -2054,8 +2052,7 @@ class TerrascriptClient:
             ]
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
@@ -2063,6 +2060,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
+        # pylint: disable=unused-variable
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -2101,8 +2099,7 @@ class TerrascriptClient:
             ]
         }
         values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([bucket_tf_resource])
+        values['depends_on'] = self.get_dependencies([bucket_tf_resource])
         region = common_values.get('region') or \
             self.default_regions.get(account)
         if self._multiregion_account_(account):
@@ -2159,6 +2156,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def populate_tf_resource_s3_sqs(self, resource, namespace_info):
+        # pylint: disable=unused-variable
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -2257,8 +2255,7 @@ class TerrascriptClient:
             tf_resources.append(alias_tf_resource)
 
             sqs_values['kms_master_key_id'] = '${' + kms_tf_resource.arn + '}'
-            sqs_values['depends_on'] = \
-                self.get_names_from_tf_resources([kms_tf_resource])
+            sqs_values['depends_on'] = self.get_dependencies([kms_tf_resource])
 
         if provider:
             sqs_values['provider'] = provider
@@ -2301,8 +2298,7 @@ class TerrascriptClient:
         # iam access key for user
         values = {}
         values['user'] = sqs_identifier
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         access_key_tf_resource = aws_iam_access_key(sqs_identifier, **values)
         tf_resources.append(access_key_tf_resource)
         # outputs
@@ -2353,7 +2349,7 @@ class TerrascriptClient:
         values['user'] = sqs_identifier
         values['policy_arn'] = \
             '${' + policy_tf_resource.arn + '}'
-        values['depends_on'] = self.get_names_from_tf_resources(
+        values['depends_on'] = self.get_dependencies(
             [user_tf_resource, policy_tf_resource])
         user_policy_attachment_tf_resource = \
             aws_iam_user_policy_attachment(sqs_identifier, **values)
@@ -2529,8 +2525,7 @@ class TerrascriptClient:
                 'destination_arn':
                     "${" + lambds_tf_resource.arn + "}",
                 'filter_pattern': "",
-                'depends_on':
-                    self.get_names_from_tf_resources([log_group_tf_resource])
+                'depends_on': self.get_dependencies([log_group_tf_resource])
             }
 
             filter_pattern = common_values.get('filter_pattern', None)
@@ -2558,8 +2553,7 @@ class TerrascriptClient:
         values = {
             'name': identifier,
             'tags': common_values['tags'],
-            'depends_on':
-                self.get_names_from_tf_resources([log_group_tf_resource])
+            'depends_on': self.get_dependencies([log_group_tf_resource])
         }
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
@@ -2595,8 +2589,7 @@ class TerrascriptClient:
             'user': identifier,
             'name': identifier,
             'policy': json.dumps(policy, sort_keys=True),
-            'depends_on':
-                self.get_names_from_tf_resources([user_tf_resource])
+            'depends_on': self.get_dependencies([user_tf_resource])
         }
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
@@ -2750,8 +2743,7 @@ class TerrascriptClient:
         values = {}
         values['name'] = identifier
         values['tags'] = tags
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([dep_tf_resource])
+        values['depends_on'] = self.get_dependencies([dep_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -2765,8 +2757,7 @@ class TerrascriptClient:
         values['user'] = identifier
         values['name'] = identifier
         values['policy'] = json.dumps(policy, sort_keys=True)
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
@@ -2777,8 +2768,7 @@ class TerrascriptClient:
         tf_resources = []
         values = {}
         values['user'] = identifier
-        values['depends_on'] = \
-            self.get_names_from_tf_resources([user_tf_resource])
+        values['depends_on'] = self.get_dependencies([user_tf_resource])
         tf_resource = aws_iam_access_key(identifier, **values)
         tf_resources.append(tf_resource)
         # outputs
@@ -2938,13 +2928,10 @@ class TerrascriptClient:
         return cluster, namespace
 
     @staticmethod
-    def get_names_from_tf_resources(tf_resources):
+    def get_dependencies(tf_resources: Iterable[Resource]
+                         ) -> List[str]:
         return [f"{tf_resource.__class__.__name__}.{tf_resource._name}"
                 for tf_resource in tf_resources]
-
-    @staticmethod
-    def get_name_from_tf_resource(tf_resource):
-        return f"{tf_resource.__class__.__name__}.{tf_resource._name}"
 
     @staticmethod
     def validate_elasticsearch_version(version):
@@ -3107,7 +3094,7 @@ class TerrascriptClient:
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
 
-        es_values['depends_on'] = self.get_names_from_tf_resources(
+        es_values['depends_on'] = self.get_dependencies(
             [svc_role_tf_resource])
         tf_resources.append(svc_role_tf_resource)
 
@@ -3294,6 +3281,212 @@ class TerrascriptClient:
         # key
         output_name_0_13 = output_prefix + '__key'
         output_value = key
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_alb(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        vpc = resource['vpc']
+        vpc_id = vpc['vpc_id']
+        vpc_cidr_block = vpc['cidr_block']
+
+        # https://www.terraform.io/docs/providers/aws/r/security_group.html
+        # we will only support https (+ http redirection) at first
+        # this can be enhanced when a use case comes along
+        # https://github.com/hashicorp/terraform-provider-aws/issues/878
+        empty_required_sg_values = {
+            'ipv6_cidr_blocks': None,
+            'prefix_list_ids': None,
+            'security_groups': None,
+            'self': None,
+        }
+        values = {
+            'vpc_id': vpc_id,
+            'tags': common_values['tags'],
+
+            'ingress': [
+                {
+                    'description': 'allow http',
+                    'from_port': 80,
+                    'to_port': 80,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                },
+                {
+                    'description': 'allow https',
+                    'from_port': 443,
+                    'to_port': 443,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                }
+            ],
+
+            'egress': [
+                {
+                    'description': 'allow http',
+                    'from_port': 80,
+                    'to_port': 80,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                },
+                {
+                    'description': 'allow https',
+                    'from_port': 443,
+                    'to_port': 443,
+                    'protocol': 'tcp',
+                    'cidr_blocks': ['0.0.0.0/0'],
+                    **empty_required_sg_values,
+                }
+            ]
+        }
+        sg_tf_resource = aws_security_group(identifier, **values)
+        tf_resources.append(sg_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb.html
+        values = {
+            'name': identifier,
+            'internal': False,
+            'load_balancer_type': 'application',
+            'security_groups': [f'${{{sg_tf_resource.id}}}'],
+            'subnets': [s['id'] for s in vpc['subnets']],
+            'tags': common_values['tags'],
+            'depends_on': self.get_dependencies([sg_tf_resource]),
+        }
+        lb_tf_resource = aws_lb(identifier, **values)
+        tf_resources.append(lb_tf_resource)
+
+        default_target = None
+        weighted_target_groups = []
+        for t in resource['targets']:
+            target_name = t['name']
+            # https://www.terraform.io/docs/providers/aws/r/
+            # lb_target_group.html
+            values = {
+                'name': target_name,
+                'port': 443,
+                'protocol': 'HTTPS',
+                'protocol_version': 'HTTP2',
+                'target_type': 'ip',
+                'vpc_id': vpc_id,
+                'health_check': {
+                    'interval': 10,
+                    'path': '/',
+                    'protocol': 'HTTPS',
+                    'port': 443,
+                }
+            }
+            lbt_identifier = f'{identifier}-{target_name}'
+            lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
+            tf_resources.append(lbt_tf_resource)
+
+            if t['default']:
+                if default_target:
+                    raise KeyError('expected only a single default target')
+                default_target = lbt_tf_resource
+
+            # initiate weighted target groups to use for listener rule
+            weighted_item = {
+                'arn': f'${{{lbt_tf_resource.arn}}}',
+                'weight': t['weight'],
+            }
+            weighted_target_groups.append(weighted_item)
+
+            for ip in t['ips']:
+                # https://www.terraform.io/docs/providers/aws/r/
+                # lb_target_group_attachment.html
+                values = {
+                    'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
+                    'target_id': ip,
+                    'port': 443,
+                    'depends_on': self.get_dependencies([lbt_tf_resource]),
+                }
+                if not ip_address(ip) in ip_network(vpc_cidr_block):
+                    values['availability_zone'] = 'all'
+                ip_slug = ip.replace('.', '_')
+                lbta_identifier = f'{lbt_identifier}-{ip_slug}'
+                lbta_tf_resource = \
+                    aws_lb_target_group_attachment(lbta_identifier, **values)
+                tf_resources.append(lbta_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
+        # redirect
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 80,
+            'protocol': 'HTTP',
+            'default_action': {
+                'type': 'redirect',
+                'redirect': {
+                    'port': 443,
+                    'protocol': 'HTTPS',
+                    'status_code': 'HTTP_301',
+                }
+            },
+            'depends_on': self.get_dependencies([lb_tf_resource]),
+        }
+        redirect_identifier = f'{identifier}-redirect'
+        redirect_lbl_tf_resource = \
+            aws_lb_listener(redirect_identifier, **values)
+        tf_resources.append(redirect_lbl_tf_resource)
+        # forward
+        if not default_target:
+            raise KeyError('expected a single default target')
+        values = {
+            'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
+            'port': 443,
+            'protocol': 'HTTPS',
+            'ssl_policy': 'ELBSecurityPolicy-2016-08',
+            'certificate_arn': resource['certificate_arn'],
+            'default_action': {
+                'type': 'forward',
+                'target_group_arn': f'${{{default_target.arn}}}',
+            },
+            'depends_on': self.get_dependencies(
+                [lb_tf_resource, default_target]),
+        }
+        forward_identifier = f'{identifier}-forward'
+        forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)
+        tf_resources.append(forward_lbl_tf_resource)
+
+        # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
+        weights = [t['weight'] for t in weighted_target_groups]
+        if sum(weights) != 100:
+            raise ValueError('sum of weights of targets should be 100')
+        values = {
+            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+            'action': {
+                'type': 'forward',
+                'forward': {
+                    'target_group': weighted_target_groups,
+                    'stickiness': {
+                        'enabled': False,
+                        'duration': 1,  # required
+                    },
+                },
+            },
+            'condition': {
+                'http_request_method': {'values': ['POST']},
+            },
+            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+        }
+        lblr_tf_resource = aws_lb_listener_rule(identifier, **values)
+        tf_resources.append(lblr_tf_resource)
+
+        # outputs
+        # dns name
+        output_name_0_13 = output_prefix + '__dns_name'
+        output_value = f'${{{lb_tf_resource.dns_name}}}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:

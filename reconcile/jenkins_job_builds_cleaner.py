@@ -24,7 +24,7 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
         if not dry_run:
             try:
                 jenkins.delete_build(build['job_name'], build['build_id'])
-            except Exception as e:
+            except Exception:
                 msg = f"failed to delete {job_name}/{build_id}"
                 logging.exception(msg)
 

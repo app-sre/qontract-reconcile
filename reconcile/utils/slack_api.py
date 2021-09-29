@@ -1,11 +1,17 @@
-import time
+import json
 import logging
+from typing import Sequence, Dict, Any, Mapping, Optional, Union
 
-from slackclient import SlackClient
-from sretoolbox.utils import retry
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from slack_sdk.http_retry import RateLimitErrorRetryHandler, RetryHandler, \
+    RetryState, HttpRequest, HttpResponse
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
+
+MAX_RETRIES = 5
+TIMEOUT = 30
 
 
 class UserNotFoundException(Exception):
@@ -16,36 +22,162 @@ class UsergroupNotFoundException(Exception):
     pass
 
 
-class SlackAPICallException(Exception):
-    """Raised for general error cases when calling the Slack API."""
+class ServerErrorRetryHandler(RetryHandler):
+    """Retry handler for 5xx errors."""
+    def _can_retry(
+        self,
+        *,
+        state: RetryState,
+        request: HttpRequest,
+        response: Optional[HttpResponse] = None,
+        error: Optional[Exception] = None
+    ) -> bool:
+        return response is not None and response.status_code >= 500
 
 
-class SlackAPIRateLimitedException(SlackAPICallException):
-    """Raised when a call to the Slack API has been rate-limited."""
+class SlackApiConfig:
+    """
+    Aggregates Slack API configuration objects to be used passed to a
+    SlackApi object.
+    """
+
+    def __init__(self,
+                 timeout: int = TIMEOUT,
+                 max_retries: int = MAX_RETRIES) -> None:
+
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self._methods: Dict[str, Any] = {}
+
+    def set_method_config(self,
+                          method_name: str,
+                          method_config: Mapping[str, Any]
+                          ) -> None:
+        """
+        Sets configuration for a Slack method.
+        :param method_name: name of the method (ex. users.list)
+        :param method_config: configuration for a specific method
+        """
+        self._methods[method_name] = method_config
+
+    def get_method_config(self, method_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get Slack method configuration.
+        :param method_name: the name of a method (ex. users.list)
+        """
+        return self._methods.get(method_name)
+
+    @classmethod
+    def from_dict(cls, config_data: Mapping[str, Any]) -> "SlackApiConfig":
+        """
+        Build a SlackApiConfig object from a mapping object.
+
+        Input example:
+            {
+                'global': {
+                    'max_retries': 5,
+                    'timeout': 30
+                },
+                'methods': [
+                    {'name': 'users.list', 'args': "{\"limit\":1000}"},
+                    {'name': 'conversations.list', 'args': "{\"limit\":1000}"}
+                ]
+            }
+        """
+        kwargs = {}
+        global_config = config_data.get('global', {})
+        max_retries = global_config.get('max_retries')
+        timeout = global_config.get('timeout')
+
+        if max_retries:
+            kwargs['max_retries'] = max_retries
+        if timeout:
+            kwargs['timeout'] = timeout
+
+        config = cls(**kwargs)
+
+        methods = config_data.get('methods', [])
+
+        for method in methods:
+            args = json.loads(method['args'])
+            config.set_method_config(method['name'], args)
+
+        return config
 
 
 class SlackApi:
     """Wrapper around Slack API calls"""
 
-    def __init__(self, workspace_name, token,
-                 settings=None,
+    def __init__(self,
+                 workspace_name: str,
+                 token: Mapping[str, str],
+                 api_config: Optional[SlackApiConfig] = None,
+                 settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
-                 **chat_kwargs):
+                 channel: Optional[str] = None,
+                 **chat_kwargs) -> None:
+        """
+        :param workspace_name: Slack workspace name (ex. coreos)
+        :param token: data to pass to SecretReader.read() to get the token
+        :param api_config: Slack API configuration
+        :param settings: settings to pass to SecretReader
+        :param init_usergroups: whether or not to get a list of all Slack
+        usergroups when instantiated
+        :param channel: the Slack channel to post messages to, only used
+        when posting messages to a channel
+        :param chat_kwargs: any other kwargs that can be used to post Slack
+        channel messages
+        """
         self.workspace_name = workspace_name
+
+        if api_config:
+            self.config = api_config
+        else:
+            self.config = SlackApiConfig()
+
         secret_reader = SecretReader(settings=settings)
         slack_token = secret_reader.read(token)
-        self.sc = SlackClient(slack_token)
-        self.results = {}
+
+        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
+        self._configure_client_retry()
+
+        self._results: Dict[str, Any] = {}
+
+        self.channel = channel
         self.chat_kwargs = chat_kwargs
+
         if init_usergroups:
             self._initiate_usergroups()
 
-    def chat_post_message(self, text):
-        self.sc.api_call(
-            "chat.postMessage",
-            text=text,
-            **self.chat_kwargs
-        )
+    def _configure_client_retry(self) -> None:
+        """
+        Add retry handlers in addition to the defaults provided by the Slack
+        client.
+        """
+        rate_limit_handler = RateLimitErrorRetryHandler(
+            max_retry_count=self.config.max_retries)
+        server_error_handler = ServerErrorRetryHandler(
+            max_retry_count=self.config.max_retries)
+
+        self._sc.retry_handlers.append(rate_limit_handler)
+        self._sc.retry_handlers.append(server_error_handler)
+
+    def chat_post_message(self, text: str) -> None:
+        """
+        Sends a message to a channel.
+
+        :param text: message to send to channel
+        :raises ValueError: when Slack channel wasn't provided
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response
+        from Slack API
+        """
+
+        if not self.channel:
+            raise ValueError('Slack channel name must be provided when '
+                             'posting messages.')
+
+        self._sc.chat_postMessage(channel=self.channel, text=text,
+                                  **self.chat_kwargs)
 
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
@@ -63,14 +195,14 @@ class SlackApi:
         usergroup = self.get_usergroup(handle)
         return usergroup['id']
 
-    @retry()
-    def _initiate_usergroups(self):
-        result = self.sc.api_call(
-            "usergroups.list",
-            include_users=True
-        )
-        if not result['ok']:
-            raise Exception(result['error'])
+    def _initiate_usergroups(self) -> None:
+        """
+        Initiates usergroups list.
+
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
+        Slack API
+        """
+        result = self._sc.usergroups_list(include_users=True)
         self.usergroups = result['usergroups']
 
     def get_usergroup(self, handle):
@@ -80,56 +212,44 @@ class SlackApi:
         [usergroup] = usergroup
         return usergroup
 
-    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
-    def update_usergroup(self, id, channels_list, description):
-        channels = ','.join(channels_list)
-        response = self.sc.api_call(
-            "usergroups.update",
-            usergroup=id,
-            channels=channels,
-            description=description,
-        )
+    def update_usergroup(self, id: str, channels_list: Sequence[str],
+                         description: str) -> None:
+        """
+        Update an existing usergroup.
 
-        error = response.get('error')
+        :param id: encoded usergroup ID
+        :param channels_list: encoded channel IDs that the usergroup uses by
+        default
+        :param description: short description of the usergroup
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
+        Slack API
+        """
+        self._sc.usergroups_update(usergroup=id, channels=channels_list,
+                                   description=description)
 
-        if error == 'ratelimited':
-            retry_after = response['headers']['retry-after']
-            time.sleep(int(retry_after))
-            raise SlackAPIRateLimitedException(
-                f"Slack API throttled after max retry attempts - "
-                f"method=usergroups.update usergroup={id}")
-        elif error:
-            raise SlackAPICallException(
-                f"Slack returned error: {error} - "
-                f"method=usergroups.update usergroup={id}")
+    def update_usergroup_users(self, id: str,
+                               users_list: Sequence[str]) -> None:
+        """
+        Update the list of users for a usergroup.
 
-    @retry(exceptions=SlackAPIRateLimitedException, max_attempts=5)
-    def update_usergroup_users(self, id, users_list):
+        :param id: encoded usergroup ID
+        :param users_list: encoded user IDs that represents the entire list
+        of users for the usergroup
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
+        Slack API
+        """
         # since Slack API does not support empty usergroups
         # we can trick it by passing a deleted user
         if len(users_list) == 0:
             users_list = [self.get_random_deleted_user()]
-        users = ','.join(users_list)
-        response = self.sc.api_call(
-            "usergroups.users.update",
-            usergroup=id,
-            users=users,
-        )
 
-        error = response.get('error')
-
-        if error == 'ratelimited':
-            retry_after = response['headers']['retry-after']
-            time.sleep(int(retry_after))
-            raise SlackAPIRateLimitedException(
-                f"Slack API throttled after max retry attempts - "
-                f"method=usergroups.users.update usergroup={id} users={users}")
-        # Slack can throw an invalid_users error when emptying groups, but it
-        # will still empty the group (so this can be ignored).
-        elif error and error != 'invalid_users':
-            raise SlackAPICallException(
-                f"Slack returned error: {error} - "
-                f"method=usergroups.users.update usergroup={id} users={users}")
+        try:
+            self._sc.usergroups_users_update(usergroup=id, users=users_list)
+        except SlackApiError as e:
+            # Slack can throw an invalid_users error when emptying groups, but
+            # it will still empty the group (so this can be ignored).
+            if e.response['error'] != 'invalid_users':
+                raise
 
     def get_random_deleted_user(self):
         for user_id, user_data in self._get('users').items():
@@ -140,15 +260,29 @@ class SlackApi:
                       'empty usergroup will not work')
         return ''
 
-    def get_user_id_by_name(self, user_name):
+    def get_user_id_by_name(self, user_name: str) -> str:
+        """
+        Get user id from their username.
+
+        :param user_name: Slack user name
+        :return: encoded user ID (ex. W012A3CDE)
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
+        Slack API
+        :raises UserNotFoundException: if the Slack user is not found
+        """
         config = get_config()
         mail_address = config['smtp']['mail_address']
-        result = self.sc.api_call(
-            "users.lookupByEmail",
-            email=f"{user_name}@{mail_address}"
-        )
-        if not result['ok']:
-            raise UserNotFoundException(result['error'])
+
+        try:
+            result = self._sc.users_lookupByEmail(
+                email=f"{user_name}@{mail_address}"
+            )
+        except SlackApiError as e:
+            if e.response['error'] == 'users_not_found':
+                raise UserNotFoundException(e.response['error'])
+            else:
+                raise
+
         return result['user']['id']
 
     def get_channels_by_names(self, channels_names):
@@ -167,55 +301,44 @@ class SlackApi:
         return {k: v['name'] for k, v in self._get('users').items()
                 if k in users_ids}
 
-    @staticmethod
-    def _get_api_results_limit(resource_type):
-        # This will be replaced with getting the data from app-interface in
-        # a future PR.
-        api_limits = {
-            'users': 1000,
-            'channels': 1000
-        }
-
-        return api_limits.get(resource_type)
-
-    @retry()
-    def _get(self, type):
+    def _get(self, resource: str) -> Dict[str, Any]:
         """
         Get Slack resources by type. This method uses a cache to ensure that
         each resource type is only fetched once.
 
-        :param type: resource type
+        :param resource: resource type
         :return: data from API call
         """
-        result_key = 'members' if type == 'users' else type
-        api_key = 'conversations' if type == 'channels' else type
+        result_key = 'members' if resource == 'users' else resource
+        api_key = 'conversations' if resource == 'channels' else resource
         results = {}
-        cursor = ''
-        additional_kwargs = {}
+        additional_kwargs: Dict[str, Union[str, int]] = {'cursor': ''}
 
-        api_result_limit = self._get_api_results_limit(type)
+        if resource in self._results:
+            return self._results[resource]
 
-        if api_result_limit:
-            additional_kwargs['limit'] = api_result_limit
-
-        if type in self.results:
-            return self.results[type]
+        if self.config:
+            method_config = self.config.get_method_config(
+                f'{api_key}.list')
+            if method_config:
+                additional_kwargs.update(method_config)
 
         while True:
-            result = self.sc.api_call(
+            result = self._sc.api_call(
                 "{}.list".format(api_key),
-                cursor=cursor,
-                **additional_kwargs
+                http_verb='GET',
+                params=additional_kwargs
             )
-            if 'error' in result and result['error'] == 'ratelimited':
-                retry_after = result['headers']['retry-after']
-                time.sleep(int(retry_after))
-                continue
+
             for r in result[result_key]:
                 results[r['id']] = r
+
             cursor = result['response_metadata']['next_cursor']
+
             if cursor == '':
                 break
 
-        self.results[type] = results
+            additional_kwargs['cursor'] = cursor
+
+        self._results[resource] = results
         return results

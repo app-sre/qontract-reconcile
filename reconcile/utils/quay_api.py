@@ -43,8 +43,8 @@ class QuayApi:
 
         # Using a set because members may be repeated
         members = set()
-        for member in body[u'members']:
-            members.add(member[u'name'])
+        for member in body['members']:
+            members.add(member['name'])
 
         members_list = list(members)
         self.team_members[team] = members_list
@@ -130,10 +130,11 @@ class QuayApi:
         https://docs.quay.io/api/swagger/#!/repository/listRepos
 
         :raises HTTPError: failure when listing the images in the repository
+        :raises ValueError: Following limit exceeded
         """
 
         if count > self.LIMIT_FOLLOWS:
-            raise("Too many page follows")
+            raise ValueError("Too many page follows")
 
         url = "{}/repository".format(self.api_url)
 

@@ -65,7 +65,7 @@ class _VaultClient:
         self._client = hvac.Client(url=server, session=session)
 
         authenticated = False
-        for i in range(0, 3):
+        for _ in range(0, 3):
             try:
                 self._refresh_client_auth()
                 authenticated = self._client.is_authenticated()

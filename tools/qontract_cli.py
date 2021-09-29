@@ -1,6 +1,8 @@
 import json
 import sys
+from typing import Dict, Iterable, List, Mapping, Union
 
+from contextlib import suppress
 import click
 import requests
 import yaml
@@ -204,6 +206,113 @@ def version_history(ctx):
     print_output(ctx.obj['options'], results, columns)
 
 
+def soaking_days(history, upgrades, workload, only_soaking):
+    soaking = {}
+    for version in upgrades:
+        for h in history.values():
+            with suppress(KeyError):
+                workload_data = h['versions'][version]['workloads'][workload]
+                soaking[version] = round(workload_data['soak_days'], 2)
+        if not only_soaking and version not in soaking:
+            soaking[version] = 0
+    return soaking
+
+
+@get.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.option('--cluster', default=None, help='cluster to display.')
+@click.option('--workload', default=None, help='workload to display.')
+@click.option('--show-only-soaking-upgrades/--no-show-only-soaking-upgrades',
+              default=False,
+              help='show upgrades which are not currently soaking.')
+@click.option('--by-workload/--no-by-workload',
+              default=False,
+              help='show upgrades for each workload individually '
+                   'rather than grouping them for the whole cluster')
+@click.pass_context
+def cluster_upgrade_policies(ctx, cluster=None, workload=None,
+                             show_only_soaking_upgrades=False,
+                             by_workload=False):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    if cluster:
+        clusters = [c for c in clusters if cluster == c['name']]
+    if workload:
+        clusters = [c for c in clusters
+                    if workload in c['upgradePolicy'].get('workloads', [])]
+    desired_state = ous.fetch_desired_state(clusters)
+
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    history = ous.get_version_history(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map
+    )
+
+    results = []
+    upgrades_cache = {}
+
+    for c in desired_state:
+        cluster_name, version = c['cluster'], c['current_version']
+        channel, schedule = c['channel'], c.get('schedule')
+        soakdays = c.get('conditions', {}).get('soakDays')
+        item = {
+            'cluster': cluster_name,
+            'version': parse_semver(version),
+            'channel': channel,
+            'schedule': schedule,
+            'soak_days': soakdays,
+        }
+        ocm = ocm_map.get(cluster_name)
+
+        if 'workloads' not in c:
+            results.append(item)
+            continue
+
+        upgrades = upgrades_cache.get((version, channel))
+        if not upgrades:
+            upgrades = ocm.get_available_upgrades(version, channel)
+            upgrades_cache[(version, channel)] = upgrades
+
+        workload_soaking_upgrades = {}
+        for w in c.get('workloads', []):
+            if not workload or workload == w:
+                s = soaking_days(history, upgrades, w,
+                                 show_only_soaking_upgrades)
+                workload_soaking_upgrades[w] = s
+
+        def soaking_upgrades_str(soaking):
+            sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
+            return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
+
+        if by_workload:
+            for w, soaking in workload_soaking_upgrades.items():
+                i = item.copy()
+                i.update({'workload': w,
+                          'soaking_upgrades': soaking_upgrades_str(soaking)})
+                results.append(i)
+        else:
+            workloads = sorted(c.get('workloads', []))
+            w = ', '.join(workloads)
+            soaking = {}
+            for v in upgrades:
+                soaks = [s.get(v, 0)
+                         for s in workload_soaking_upgrades.values()]
+                min_soaks = min(soaks)
+                if not show_only_soaking_upgrades or min_soaks > 0:
+                    soaking[v] = min_soaks
+            item.update({'workload': w,
+                         'soaking_upgrades': soaking_upgrades_str(soaking)})
+            results.append(item)
+
+    columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
+               'workload', 'soaking_upgrades']
+    ctx.obj['options']['to_string'] = True
+    print_output(ctx.obj['options'], results, columns)
+
+
 @get.command()
 @click.argument('name', default='')
 @click.pass_context
@@ -269,7 +378,7 @@ def clusters_egress_ips(ctx):
             aws_api.get_cluster_nat_gateways_egress_ips(account)
         item = {
             'cluster': cluster_name,
-            'egress_ips': ', '.join(egress_ips)
+            'egress_ips': ', '.join(sorted(egress_ips))
         }
         results.append(item)
 
@@ -657,7 +766,8 @@ def sre_checkpoints(ctx):
     print_output(ctx.obj['options'], checkpoints_data, columns)
 
 
-def print_output(options, content, columns=[]):
+def print_output(options: Mapping[str, Union[str, bool]],
+                 content: List[Dict], columns: Iterable[str] = ()):
     if options['sort']:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get('to_string'):
@@ -744,15 +854,17 @@ def ls(ctx, integration):
     accounts = queries.get_aws_accounts()
     state = State(integration, accounts, settings=settings)
     keys = state.ls()
-    # if 'integration' is defined, the 0th token is empty
+    # if integration in not defined the 2th token will be the integration name
+    key_index = 1 if integration else 2
     table_content = [
-        {'integration': k.split('/')[0] or integration,
-         'key': '/'.join(k.split('/')[1:])}
+        {'integration': integration or k.split('/')[1],
+         'key': '/'.join(k.split('/')[key_index:])}
         for k in keys]
-    print_output('table', table_content, ['integration', 'key'])
+    print_output({'output': 'table', 'sort': False},
+                 table_content, ['integration', 'key'])
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.pass_context
@@ -775,7 +887,7 @@ def add(ctx, integration, key):
     state.add(key)
 
 
-@state.command()
+@state.command()  # type: ignore
 @click.argument('integration')
 @click.argument('key')
 @click.argument('value')
@@ -822,7 +934,8 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         if openshift_resource.name != name:
             continue
-        print_output('yaml', openshift_resource.body)
+        print_output({'output': 'yaml', 'sort': False},
+                     openshift_resource.body)
         break
 
 
@@ -904,7 +1017,12 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
 def query(output, query):
     """Run a raw GraphQL query"""
     gqlapi = gql.get_api()
-    print_output(output, gqlapi.query(query))
+    result = gqlapi.query(query)
+
+    if output == 'yaml':
+        print(yaml.safe_dump(result))
+    elif output == 'json':
+        print(json.dumps(result))
 
 
 @root.command()

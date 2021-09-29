@@ -3,6 +3,8 @@ disable = attribute-defined-outside-init,
           bad-super-call,
           broad-except,
           cell-var-from-loop,
+          consider-using-dict-items,
+          consider-using-from-import,
           dangerous-default-value,
           duplicate-code,
           expression-not-assigned,
@@ -51,5 +53,10 @@ disable = attribute-defined-outside-init,
           ungrouped-imports,
           unnecessary-comprehension,
           unnecessary-lambda,
+          unspecified-encoding,
           unused-argument,
-          unused-variable,
+          consider-using-f-string,
+          # This one matters - Python scoping messes up with our
+          # global and multi-threading locks          
+          global-variable-not-assigned
+

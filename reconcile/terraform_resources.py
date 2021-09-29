@@ -201,6 +201,27 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceALB_v1 {
+  account
+  region
+  identifier
+  vpc {
+    vpc_id
+    cidr_block
+    subnets {
+      id
+    }
+  }
+  certificate_arn
+  targets {
+    name
+    default
+    weight
+    ips
+  }
+  output_resource_name
+  annotations
+}
 """
 
 
@@ -422,7 +443,7 @@ def run(dry_run, print_only=False,
     if dry_run:
         cleanup_and_exit(tf)
 
-    if not light:
+    if not light and tf.should_apply:
         err = tf.apply()
         if err:
             cleanup_and_exit(tf, err)

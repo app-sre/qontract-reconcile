@@ -19,17 +19,22 @@ class InvalidResourceTypeError(Exception):
     pass
 
 
+class MissingARNError(Exception):
+    pass
+
+
 class AWSApi:
     """Wrapper around AWS SDK"""
 
     def __init__(self, thread_pool_size, accounts, settings=None,
-                 init_ecr_auth_tokens=False):
+                 init_ecr_auth_tokens=False, init_users=True):
         self.thread_pool_size = thread_pool_size
         self.secret_reader = SecretReader(settings=settings)
         self.init_sessions_and_resources(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
-        self.init_users()
+        if init_users:
+            self.init_users()
         self._lock = Lock()
         self.resource_types = \
             ['s3', 'sqs', 'dynamodb', 'rds', 'rds_snapshots']
@@ -633,9 +638,10 @@ class AWSApi:
         sts = session.client('sts')
         role_arn = account['assume_role']
         if not role_arn:
-            raise KeyError(
-                'Could not find Role ARN. This is likely caused '
-                'due to a missing awsInfrastructureAccess section.'
+            raise MissingARNError(
+                f'Could not find Role ARN {role_arn} on account '
+                f'{account["name"]}. This is likely caused by a missing '
+                'awsInfrastructureAccess section.'
             )
         role_name = role_arn.split('/')[1]
         response = sts.assume_role(

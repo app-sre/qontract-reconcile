@@ -8,6 +8,7 @@ class GitError(Exception):
 
 
 def clone(repo_url, wd):
+    # pylint: disable=consider-using-with
     DEVNULL = open(os.devnull, 'w')
     proc = Popen(['git', 'clone', repo_url, wd],
                  stdout=DEVNULL, stderr=DEVNULL)
@@ -17,6 +18,7 @@ def clone(repo_url, wd):
 
 
 def checkout(commit, wd):
+    # pylint: disable=consider-using-with
     DEVNULL = open(os.devnull, 'w')
     proc = Popen(['git', 'checkout', commit],
                  cwd=wd, stdout=DEVNULL, stderr=DEVNULL)

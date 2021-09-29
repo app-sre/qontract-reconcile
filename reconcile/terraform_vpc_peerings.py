@@ -2,14 +2,13 @@ import logging
 import sys
 import json
 
-
 import reconcile.queries as queries
-
 import reconcile.utils.aws_api as awsapi
+import reconcile.utils.ocm as ocm
+import reconcile.utils.terraform_client as terraform
+import reconcile.utils.terrascript_client as terrascript
+
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap
-from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.semver_helper import make_semver
 
 
@@ -106,7 +105,8 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
 
         accepter_manage_routes = peer_info.get('manageRoutes')
 
-        aws_api = awsapi.AWSApi(1, [req_aws], settings=settings)
+        aws_api = awsapi.AWSApi(1, [req_aws], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 req_aws,
@@ -138,7 +138,8 @@ def build_desired_state_single_cluster(cluster_info, ocm_map, settings):
                 f"peering {peer_connection_name}"
             )
 
-        aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings)
+        aws_api = awsapi.AWSApi(1, [acc_aws], settings=settings,
+                                init_users=False)
         accepter_vpc_id, accepter_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 acc_aws,
@@ -183,7 +184,7 @@ def build_desired_state_all_clusters(clusters, ocm_map, settings):
                 cluster_info, ocm_map, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Failed to get desired state for {cluster_info['name']}"
             )
@@ -220,7 +221,8 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm, settings):
             )
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
-        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        aws_api = awsapi.AWSApi(1, [account], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 account,
@@ -282,7 +284,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(
                 f"Unable to create VPC mesh for cluster {cluster}"
             )
@@ -327,7 +329,8 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm, settings):
         )
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
-        aws_api = awsapi.AWSApi(1, [account], settings=settings)
+        aws_api = awsapi.AWSApi(1, [account], settings=settings,
+                                init_users=False)
         requester_vpc_id, requester_route_table_ids, _ = \
             aws_api.get_cluster_vpc_details(
                 account,
@@ -368,7 +371,7 @@ def build_desired_state_vpc(clusters, ocm_map, settings):
                 cluster_info, ocm, settings
             )
             desired_state.extend(items)
-        except Exception:
+        except (KeyError, BadTerraformPeeringState, awsapi.MissingARNError):
             logging.exception(f"Unable to process {cluster_info['name']}")
             error = True
 
@@ -381,26 +384,24 @@ def run(dry_run, print_only=False,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings)
+    ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                         settings=settings)
 
+    errors = []
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state_vpc, err = \
         build_desired_state_vpc(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     # Fetch desired state for cluster-to-account (vpc mesh) VPCs
     desired_state_vpc_mesh, err = \
         build_desired_state_vpc_mesh(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     # Fetch desired state for cluster-to-cluster VPCs
     desired_state_cluster, err = \
         build_desired_state_all_clusters(clusters, ocm_map, settings)
-    if err:
-        sys.exit(1)
+    errors.append(err)
 
     desired_state = \
         desired_state_vpc + \
@@ -422,39 +423,42 @@ def run(dry_run, print_only=False,
     accounts = [a for a in queries.get_aws_accounts()
                 if a['name'] in participating_account_names]
 
-    ts = Terrascript(QONTRACT_INTEGRATION,
-                     "",
-                     thread_pool_size,
-                     accounts,
-                     settings=settings)
+    ts = terrascript.TerrascriptClient(
+        QONTRACT_INTEGRATION,
+        "",
+        thread_pool_size,
+        accounts,
+        settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)
     working_dirs = ts.dump(print_only=print_only)
 
     if print_only:
-        sys.exit()
+        sys.exit(0 if dry_run else int(any(errors)))
 
-    tf = Terraform(QONTRACT_INTEGRATION,
-                   QONTRACT_INTEGRATION_VERSION,
-                   "",
-                   accounts,
-                   working_dirs,
-                   thread_pool_size)
+    tf = terraform.TerraformClient(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        "",
+        accounts,
+        working_dirs,
+        thread_pool_size)
 
-    if tf is None:
+    if tf is None or any(errors):
         sys.exit(1)
 
     defer(lambda: tf.cleanup())
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    if err:
-        sys.exit(1)
+    errors.append(err)
     if disabled_deletions_detected:
+        logging.error("Deletions detected when they are disabled")
         sys.exit(1)
 
     if dry_run:
-        return
-
-    err = tf.apply()
-    if err:
+        sys.exit(int(any(errors)))
+    if any(errors):
         sys.exit(1)
+
+    errors.append(tf.apply())
+    sys.exit(int(any(errors)))

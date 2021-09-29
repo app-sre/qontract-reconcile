@@ -3,7 +3,9 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from reconcile.utils.oc import (
-    OC, OCDeprecated, PodNotReadyError, StatusCodeError)
+    LABEL_MAX_KEY_NAME_LENGTH, LABEL_MAX_KEY_PREFIX_LENGTH,
+    LABEL_MAX_VALUE_LENGTH,
+    OC, OCDeprecated, PodNotReadyError, StatusCodeError, validate_labels)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
@@ -260,3 +262,61 @@ class TestGetObjRootOwner(TestCase):
         oc = OC('cluster', 'server', 'token', local=True)
         with self.assertRaises(StatusCodeError):
             oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
+
+
+class TestValidateLabels(TestCase):
+    def test_ok(self):
+        self.assertFalse(validate_labels({'my.company.com/key-name': 'value'}))
+
+    def test_long_value(self):
+        v = 'a' * LABEL_MAX_VALUE_LENGTH
+        self.assertFalse(validate_labels({'my.company.com/key-name': v}))
+
+        v = 'a' * (LABEL_MAX_VALUE_LENGTH + 1)
+        r = validate_labels({'my.company.com/key-name': v})
+        self.assertEqual(len(r), 1)
+
+    def test_long_keyname(self):
+        kn = 'a' * LABEL_MAX_KEY_NAME_LENGTH
+        self.assertFalse(validate_labels({f'my.company.com/{kn}': 'value'}))
+
+        kn = 'a' * (LABEL_MAX_KEY_NAME_LENGTH + 1)
+        r = validate_labels({f'my.company.com/{kn}': 'value'})
+        self.assertEqual(len(r), 1)
+
+    def test_long_key_prefix(self):
+        prefix = 'a' * LABEL_MAX_KEY_PREFIX_LENGTH
+        self.assertFalse(validate_labels({f'{prefix}/key': 'value'}))
+
+        prefix = 'a' * (LABEL_MAX_KEY_PREFIX_LENGTH + 1)
+        r = validate_labels({f'{prefix}/key': 'value'})
+        self.assertEqual(len(r), 1)
+
+    def test_invalid_value(self):
+        r = validate_labels({'my.company.com/key-name': 'b@d'})
+        self.assertEqual(len(r), 1)
+
+    def test_invalid_key_name(self):
+        r = validate_labels({'my.company.com/key@name': 'value'})
+        self.assertEqual(len(r), 1)
+
+    def test_invalid_key_prefix(self):
+        r = validate_labels({'my@company.com/key-name': 'value'})
+        self.assertEqual(len(r), 1)
+
+    def test_reserved_key_prefix(self):
+        r = validate_labels({'kubernetes.io/key-name': 'value'})
+        self.assertEqual(len(r), 1)
+
+        r = validate_labels({'k8s.io/key-name': 'value'})
+        self.assertEqual(len(r), 1)
+
+    def test_many_wrong(self):
+        longstr = 'a' * (LABEL_MAX_KEY_PREFIX_LENGTH + 1)
+        key_prefix = 'b@d.' + longstr + '.com'
+        key_name = 'b@d-' + longstr
+        value = 'b@d-' + longstr
+        r = validate_labels({
+            f'{key_prefix}/{key_name}': value,
+            'kubernetes.io/b@d': value})
+        self.assertEqual(len(r), 10)

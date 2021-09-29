@@ -45,17 +45,15 @@ def collect_to(to):
             for service_owner in service_owners:
                 audience.add(service_owner['email'])
 
-    clusters = to.get('clusters')
-    if clusters:
-        # TODO: implement this
-        for cluster in clusters:
-            pass
+    clusters = to.get('clusters', [])
+    # TODO: implement this
+    for _c in clusters:
+        pass
 
-    namespaces = to.get('namespaces')
-    if namespaces:
-        # TODO: implement this
-        for namespace in namespaces:
-            pass
+    namespaces = to.get('namespaces', [])
+    # TODO: implement this
+    for _n in namespaces:
+        pass
 
     aws_accounts = to.get('aws_accounts')
     if aws_accounts:

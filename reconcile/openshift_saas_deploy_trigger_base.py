@@ -292,13 +292,12 @@ def _trigger_tekton(spec,
     to_trigger = _register_trigger(tkn_name, already_triggered)
     if to_trigger:
         try:
-            osb.apply(dry_run=dry_run,
-                      oc_map=oc_map,
-                      cluster=tkn_cluster_name,
-                      namespace=tkn_namespace_name,
-                      resource_type=tkn_trigger_resource.kind,
-                      resource=tkn_trigger_resource,
-                      wait_for_namespace=False)
+            osb.create(dry_run=dry_run,
+                       oc_map=oc_map,
+                       cluster=tkn_cluster_name,
+                       namespace=tkn_namespace_name,
+                       resource_type=tkn_trigger_resource.kind,
+                       resource=tkn_trigger_resource)
         except Exception as e:
             error = True
             logging.error(

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import textwrap
+from typing import Set, Any
 
 from urllib.parse import urlparse
 
@@ -78,7 +79,7 @@ class GqlGetResourceError(Exception):
 
 class GqlApi:
     _valid_schemas = None
-    _queried_schemas = set()
+    _queried_schemas: Set[Any] = set()
 
     def __init__(self, url, token=None, int_name=None, validate_schemas=False):
         self.url = url
@@ -158,7 +159,7 @@ class GqlApi:
             # resources is not complete.
             resources = self.query(query, {'path': path},
                                    skip_validation=True)['resources']
-        except GqlApiError as e:
+        except GqlApiError:
             raise GqlGetResourceError(
                 path,
                 'Resource not found.')
@@ -180,10 +181,12 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path='/sha256')
     headers = {'Authorization': token} if token else None
     response = requests.get(sha_endpoint.geturl(), headers=headers)
+    response.raise_for_status()
     sha = response.content.decode('utf-8')
     return sha
 

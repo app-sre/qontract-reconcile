@@ -1,10 +1,9 @@
 import importlib
 import os
 import time
+from unittest.mock import patch, MagicMock
 
 import pytest
-
-from mock import patch, MagicMock
 
 import reconcile.utils.vault as vault
 
