@@ -436,6 +436,7 @@ class SaasHerder():
         html_url = None
         commit_sha = None
 
+        # TODO(bwplotka): Add docker executor.
         if provider == 'openshift-template':
             hash_length = options['hash_length']
             parameters = options['parameters']

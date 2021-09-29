@@ -286,6 +286,7 @@ class TestPopulateDesiredState(TestCase):
         )
 
         # Mock GitHub.
+        # TODO(bwplotka): Mock getting stuff from repo.
         self.initiate_gh_patcher = patch.object(
             SaasHerder, '_initiate_github', autospec=True, return_value=None,
         )
@@ -306,6 +307,8 @@ class TestPopulateDesiredState(TestCase):
     def test_populate_desired_state_cases(self):
         ir = ResourceInventory()
         self.saasherder.populate_desired_state(ir)
+
+        # TODO(bwplotka): Assert correct resources.
         self.assertEqual({"yolo": "yolo"}, ir._clusters)
 
 
