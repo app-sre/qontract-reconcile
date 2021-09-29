@@ -9,8 +9,7 @@ from github import GithubException
 
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
+
 
 class TestCheckSaasFileEnvComboUnique(TestCase):
     def test_check_saas_file_env_combo_unique(self):
@@ -285,8 +284,18 @@ class TestPopulateDesiredState(TestCase):
             integration_version='',
             settings={}
         )
-        config.init_from_toml(Fixtures('github_org').path('config.toml'))
-        gql.init_from_config(sha_url=False)
+
+        # Mock GitHub.
+        self.initiate_gh_patcher = patch.object(
+            SaasHerder, '_initiate_github', autospec=True, return_value=None,
+        )
+        self.initiate_gh_patcher.start()
+
+    def tearDown(self):
+        for p in (
+                self.initiate_gh_patcher,
+        ):
+            p.stop()
 
     def test_populate_desired_state_saas_file_delete(self):
         spec = {'delete': True}
