@@ -984,8 +984,7 @@ class TerrascriptClient:
         if ca_cert:
             # db.ca_cert
             output_name_0_13 = output_prefix + '__ca_cert'
-            certificate = self.secret_reader.read(ca_cert)
-            output_value = base64.b64encode(certificate.encode()).decode()
+            output_value = self.secret_reader.read(ca_cert)
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
         region = self._region_from_availability_zone_(
