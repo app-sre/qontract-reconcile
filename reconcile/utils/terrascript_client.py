@@ -3374,7 +3374,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
-        weighted_target_groups = []
+        write_weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
             # https://www.terraform.io/docs/providers/aws/r/
@@ -3403,11 +3403,12 @@ class TerrascriptClient:
                 default_target = lbt_tf_resource
 
             # initiate weighted target groups to use for listener rule
-            weighted_item = {
+            # write
+            write_weighted_item = {
                 'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weight'],
+                'weight': t['weights']['write'],
             }
-            weighted_target_groups.append(weighted_item)
+            write_weighted_target_groups.append(write_weighted_item)
 
             for ip in t['ips']:
                 # https://www.terraform.io/docs/providers/aws/r/
@@ -3467,15 +3468,16 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
-        weights = [t['weight'] for t in weighted_target_groups]
-        if sum(weights) != 100:
+        # write
+        write_weights = [t['weight'] for t in write_weighted_target_groups]
+        if sum(write_weights) != 100:
             raise ValueError('sum of weights of targets should be 100')
         values = {
             'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
             'action': {
                 'type': 'forward',
                 'forward': {
-                    'target_group': weighted_target_groups,
+                    'target_group': write_weighted_target_groups,
                     'stickiness': {
                         'enabled': False,
                         'duration': 1,  # required
