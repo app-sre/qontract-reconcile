@@ -221,7 +221,10 @@ provider
   targets {
     name
     default
-    weight
+    weights {
+      read
+      write
+    }
     ips
   }
   output_resource_name
