@@ -1,10 +1,16 @@
+import yaml
+
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
+from .fixtures import Fixtures
+
 from github import GithubException
 
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-
+import reconcile.utils.config as config
+import reconcile.utils.gql as gql
 
 class TestCheckSaasFileEnvComboUnique(TestCase):
     def test_check_saas_file_env_combo_unique(self):
@@ -266,6 +272,11 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
 class TestPopulateDesiredState(TestCase):
     def setUp(self):
         saas_files = []
+        fxt = Fixtures('saasfiles')
+        for file in [fxt.get("saas_remote_openshift_template.yaml")]:
+            saas_files.append(yaml.safe_load(file))
+
+        self.assertEqual(1, len(saas_files))
         self.saasherder = SaasHerder(
             saas_files,
             thread_pool_size=1,
@@ -274,6 +285,8 @@ class TestPopulateDesiredState(TestCase):
             integration_version='',
             settings={}
         )
+        config.init_from_toml(Fixtures('github_org').path('config.toml'))
+        gql.init_from_config(sha_url=False)
 
     def test_populate_desired_state_saas_file_delete(self):
         spec = {'delete': True}
@@ -282,7 +295,9 @@ class TestPopulateDesiredState(TestCase):
         self.assertIsNone(desired_state)
 
     def test_populate_desired_state_cases(self):
-        print("yolo")
+        ir = ResourceInventory()
+        self.saasherder.populate_desired_state(ir)
+        self.assertEqual({"yolo": "yolo"}, ir._clusters)
 
 
 class TestGetSaasFileAttribute(TestCase):

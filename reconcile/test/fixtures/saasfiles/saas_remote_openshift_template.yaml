@@ -1,0 +1,287 @@
+---
+$schema: /app-sre/saas-file-2.yml
+
+labels:
+  service: observatorium
+
+name: saas-realistic-openshift-template-remote
+description: Test
+
+app:
+  $ref: /services/rhobs/observatorium-mst/app.yml
+
+pipelinesProvider:
+  $ref: /services/rhobs/observatorium/pipelines/observatorium-pipeline.app-sre-prod-01.yaml
+
+slack:
+  workspace:
+    $ref: /dependencies/slack/coreos.yml
+  channel: team-monitoring-info
+
+authentication:
+  image:
+    path: app-sre/ci-int/redhat-registry-io-pull
+    field: all
+
+managedResourceTypes:
+- Deployment
+- Service
+- StatefulSet
+- ConfigMap
+- Role
+- RoleBinding
+- ServiceAccount
+- PodDisruptionBudget
+- PersistentVolumeClaim
+- PrometheusRule
+
+imagePatterns:
+- quay.io/conprof/conprof
+- quay.io/thanos/thanos
+- quay.io/observatorium
+- quay.io/app-sre
+- quay.io/openshift/origin-oauth-proxy
+- quay.io/prometheus/memcached-exporter
+- registry.redhat.io/rhel8/memcached
+- quay.io/jpkroehling/all-in-one
+- quay.io/app-sre/gubernator
+- quay.io/openshift/origin-configmap-reloader
+
+parameters:
+  OAUTH_PROXY_IMAGE: quay.io/openshift/origin-oauth-proxy
+  OAUTH_PROXY_IMAGE_TAG: 4.8.0 # Pinning version before 4.9.0 due to https://github.com/openshift/oauth-proxy/issues/229.
+
+resourceTemplates:
+- name: observatorium-mst-common
+  path: /resources/services/observatorium-template.yaml
+  url: https://github.com/rhobs/configuration
+  parameters:
+    # NOTICE: Please specify image tags for each environment separately.
+    # And sort them alphabetically.
+    AMS_URL: ${OCM_BASE_URL}
+    JAEGER_AGENT_IMAGE: quay.io/app-sre/jaegertracing-jaeger-agent
+    MEMCACHED_EXPORTER_IMAGE: quay.io/prometheus/memcached-exporter
+    MEMCACHED_IMAGE: registry.redhat.io/rhel8/memcached
+    OPA_AMS_IMAGE: quay.io/observatorium/opa-ams
+  targets:
+  - namespace:
+      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-stage.yml
+    ref: a513f3676c8430265208111048dec36ea86fcd56
+    parameters:
+      NAMESPACE: observatorium-mst-stage
+      OBSERVATORIUM_METRICS_NAMESPACE: observatorium-mst-stage
+      OBSERVATORIUM_LOGS_NAMESPACE: observatorium-logs-stage
+      DPTP_ORGANIZATION_ID: 1oZtjZXK3EP4kJSaYXwMmorAqnS
+      GUBERNATOR_REPLICAS: 3
+      JAEGER_AGENT_IMAGE_TAG: 1.22.0
+      JAEGER_COLLECTOR_NAMESPACE: observatorium-stage
+      MANAGEDKAFKA_ORGANIZATION_ID: 1h0UApMaFwzvGLGlfuzUpITFFQ0
+      MEMCACHED_CONNECTION_LIMIT: 3072Mi
+      MEMCACHED_CPU_LIMIT: 3
+      MEMCACHED_CPU_REQUEST: 500m
+      MEMCACHED_EXPORTER_CPU_LIMIT: 200m
+      MEMCACHED_EXPORTER_CPU_REQUEST: 50m
+      MEMCACHED_EXPORTER_IMAGE_TAG: v0.6.0
+      MEMCACHED_EXPORTER_MEMORY_LIMIT: 200Mi
+      MEMCACHED_EXPORTER_MEMORY_REQUEST: 50Mi
+      MEMCACHED_IMAGE_TAG: 1.5
+      MEMCACHED_MEMORY_LIMIT_MB: 2048Mi
+      MEMCACHED_MEMORY_LIMIT:  1844Mi
+      MEMCACHED_MEMORY_REQUEST: 1329Mi
+      OBSERVATORIUM_API_CPU_LIMIT: 1
+      OBSERVATORIUM_API_CPU_REQUEST: 100m
+      OBSERVATORIUM_API_IDENTIFIER: observatorium-observatorium-mst-api
+      OBSERVATORIUM_API_IMAGE_TAG: main-2021-09-10-v0.1.2-52-ga24d7d2
+      OBSERVATORIUM_API_MEMORY_LIMIT: 1Gi
+      OBSERVATORIUM_API_MEMORY_REQUEST: 256Mi
+      OBSERVATORIUM_API_REPLICAS: 3
+      OPA_AMS_CPU_LIMIT: 200m
+      OPA_AMS_CPU_REQUEST: 100m
+      OPA_AMS_IMAGE_TAG: master-2021-07-14-d517f70
+      OPA_AMS_MEMCACHED_EXPIRE: "300"
+      OPA_AMS_MEMORY_LIMIT: 200Mi
+      OPA_AMS_MEMORY_REQUEST: 100Mi
+      OSD_ORGANIZATION_ID: 1lneg5EWJaGAK3d7RZpAJM9WujU
+      PROMETHEUS_AMS_REMOTE_WRITE_PROXY_TARGET: 'observatorium-thanos-receive'
+      SERVICE_ACCOUNT_NAME: observatorium-mst
+  - namespace:
+      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-production.yml
+    # Commit for github.com/rhobs/configuration repo. Keep it pinned, so we know what we can promote to production.
+    ref: 4ba049635dd62d57605ea74890c08caef067ed13
+    parameters:
+      NAMESPACE: observatorium-mst-production
+      OBSERVATORIUM_METRICS_NAMESPACE: observatorium-mst-production
+      OBSERVATORIUM_LOGS_NAMESPACE: observatorium-logs-production
+      PROMETHEUS_AMS_REMOTE_WRITE_PROXY_TARGET: 'observatorium-thanos-receive'
+      GUBERNATOR_REPLICAS: 3
+      JAEGER_AGENT_IMAGE_TAG: 1.22.0
+      JAEGER_COLLECTOR_NAMESPACE: observatorium-production
+      OBSERVATORIUM_API_REPLICAS: 5
+      OBSERVATORIUM_API_CPU_REQUEST: 100m
+      OBSERVATORIUM_API_CPU_LIMIT: 1
+      OBSERVATORIUM_API_MEMORY_REQUEST: 256Mi
+      OBSERVATORIUM_API_MEMORY_LIMIT: 1Gi
+      OPA_AMS_MEMCACHED_EXPIRE: "300"
+      OPA_AMS_CPU_REQUEST: 100m
+      OPA_AMS_CPU_LIMIT: 200m
+      OPA_AMS_MEMORY_REQUEST: 100Mi
+      OPA_AMS_MEMORY_LIMIT: 200Mi
+      OSD_ORGANIZATION_ID: 1ln3QD58ag2A5fqq5Dh1wa2lX5P
+      MANAGEDKAFKA_ORGANIZATION_ID: 1h0TWioN3nZDs6oUI7eT5SowRjo
+      MEMCACHED_IMAGE_TAG: 1.5
+      MEMCACHED_MEMORY_LIMIT_MB: 2048Mi
+      MEMCACHED_CONNECTION_LIMIT: 3072Mi
+      MEMCACHED_CPU_REQUEST: 500m
+      MEMCACHED_CPU_LIMIT: 3
+      MEMCACHED_MEMORY_REQUEST: 1329Mi
+      MEMCACHED_MEMORY_LIMIT:  1844Mi
+      MEMCACHED_EXPORTER_CPU_REQUEST: 50m
+      MEMCACHED_EXPORTER_CPU_LIMIT: 200m
+      MEMCACHED_EXPORTER_MEMORY_REQUEST: 50Mi
+      MEMCACHED_EXPORTER_MEMORY_LIMIT: 200Mi
+      SERVICE_ACCOUNT_NAME: observatorium-mst
+      OBSERVATORIUM_API_IDENTIFIER: observatorium-observatorium-mst-api
+      OBSERVATORIUM_API_IMAGE: quay.io/observatorium/api
+      OBSERVATORIUM_API_IMAGE_TAG: main-2021-09-10-v0.1.2-52-ga24d7d2
+      OPA_AMS_IMAGE_TAG: master-2021-02-24-fc0d722
+      MEMCACHED_EXPORTER_IMAGE_TAG: v0.6.0
+- name: observatorium-mst-metrics
+  path: /resources/services/observatorium-metrics-template.yaml
+  url: https://github.com/rhobs/configuration
+  parameters:
+    # NOTICE: Please specify image tags for each environment separately.
+    # And sort them alphabetically.
+    JAEGER_AGENT_IMAGE: quay.io/app-sre/jaegertracing-jaeger-agent
+    MEMCACHED_EXPORTER_IMAGE: quay.io/prometheus/memcached-exporter
+    MEMCACHED_IMAGE: registry.redhat.io/rhel8/memcached
+    STORAGE_CLASS: "gp2"
+    THANOS_IMAGE: quay.io/thanos/thanos
+  targets:
+  - namespace:
+      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-stage.yml
+    ref: 17358120d2019d171f93a0c92e059b6b9acc7a03
+    parameters:
+      NAMESPACE: observatorium-mst-stage
+      OBSERVATORIUM_METRICS_NAMESPACE: observatorium-mst-stage
+      OBSERVATORIUM_LOGS_NAMESPACE: observatorium-logs-stage
+      JAEGER_AGENT_IMAGE_TAG: 1.22.0
+      JAEGER_COLLECTOR_NAMESPACE: observatorium-stage
+      MEMCACHED_CONNECTION_LIMIT: 3072Mi
+      MEMCACHED_CPU_LIMIT: 3
+      MEMCACHED_CPU_REQUEST: 500m
+      MEMCACHED_EXPORTER_CPU_LIMIT: 200m
+      MEMCACHED_EXPORTER_CPU_REQUEST: 50m
+      MEMCACHED_EXPORTER_IMAGE_TAG: v0.6.0
+      MEMCACHED_EXPORTER_MEMORY_LIMIT: 200Mi
+      MEMCACHED_EXPORTER_MEMORY_REQUEST: 50Mi
+      MEMCACHED_IMAGE_TAG: 1.5
+      MEMCACHED_MEMORY_LIMIT_MB: 2048Mi
+      MEMCACHED_MEMORY_LIMIT:  1844Mi
+      MEMCACHED_MEMORY_REQUEST: 1329Mi
+      SERVICE_ACCOUNT_NAME: observatorium-mst
+      THANOS_COMPACTOR_LOG_LEVEL: 'debug'
+      THANOS_COMPACTOR_PVC_REQUEST: '50Gi'
+      THANOS_COMPACTOR_REPLICAS: 1
+      THANOS_COMPACTOR_RETENTION_RESOULTION_RAW: '30d'
+      THANOS_COMPACTOR_RETENTION_RESOULTION_FIVE_MINUTES: '30d'
+      THANOS_COMPACTOR_RETENTION_RESOULTION_ONE_HOUR: '30d'
+      THANOS_COMPACTOR_RETENTION_DISABLE_DOWNSAMPLING: '--no-downsampling.disable'
+      THANOS_CONFIG_SECRET: observatorium-mst-thanos-objectstorage
+      THANOS_IMAGE_TAG: v0.23.0-rc.0
+      THANOS_QUERIER_CPU_LIMIT: '3'
+      THANOS_QUERIER_CPU_REQUEST: '2'
+      THANOS_QUERIER_MEMORY_LIMIT: '12Gi'
+      THANOS_QUERIER_MEMORY_REQUEST: '8Gi'
+      THANOS_QUERIER_REPLICAS: 4
+      THANOS_QUERY_FRONTEND_CPU_LIMIT: '2'
+      THANOS_QUERY_FRONTEND_CPU_REQUEST: '500m'
+      THANOS_QUERY_FRONTEND_MEMORY_LIMIT: '2Gi'
+      THANOS_QUERY_FRONTEND_MEMORY_REQUEST: '1Gi'
+      THANOS_QUERY_FRONTEND_REPLICAS: 3
+      THANOS_RECEIVE_CONTROLLER_IMAGE_TAG: master-2020-02-06-b66e0c8
+      THANOS_RECEIVE_CPU_LIMIT: '2'
+      THANOS_RECEIVE_CPU_REQUEST: '2'
+      THANOS_RECEIVE_DEBUG_ENV: '1'
+      THANOS_RECEIVE_LOG_LEVEL: 'debug'
+      THANOS_RECEIVE_MEMORY_LIMIT: '12Gi'
+      THANOS_RECEIVE_MEMORY_REQUEST: '12Gi'
+      THANOS_RECEIVE_REPLICAS: 4
+      THANOS_RULER_CPU_LIMIT: '1'
+      THANOS_RULER_CPU_REQUEST: '500m'
+      THANOS_RULER_LOG_LEVEL: 'info'
+      THANOS_RULER_MEMORY_LIMIT: '2Gi'
+      THANOS_RULER_MEMORY_REQUEST: '2Gi'
+      THANOS_RULER_PVC_REQUEST: '50Gi'
+      THANOS_RULER_REPLICAS: 2
+      THANOS_S3_SECRET: observatorium-mst-thanos-stage-s3
+      THANOS_STORE_CACHE_MEMORY_LIMIT_MB: 2048
+      THANOS_STORE_CPU_LIMIT: '250m'
+      THANOS_STORE_CPU_REQUEST: '50m'
+      THANOS_STORE_LOG_LEVEL: 'debug'
+      THANOS_STORE_MEMORY_LIMIT: '8Gi'
+      THANOS_STORE_MEMORY_REQUEST: '4Gi'
+      THANOS_STORE_REPLICAS: 1
+  - namespace:
+      $ref: /services/rhobs/observatorium-mst/namespaces/observatorium-mst-production.yml
+    # Commit for github.com/rhobs/configuration repo. Keep it pinned, so we know what we can promote to production.
+    ref: 17358120d2019d171f93a0c92e059b6b9acc7a03
+    parameters:
+      NAMESPACE: observatorium-mst-production
+      OBSERVATORIUM_METRICS_NAMESPACE: observatorium-mst-production
+      OBSERVATORIUM_LOGS_NAMESPACE: observatorium-logs-production
+      JAEGER_AGENT_IMAGE_TAG: 1.22.0
+      JAEGER_COLLECTOR_NAMESPACE: observatorium-production
+      THANOS_CONFIG_SECRET: observatorium-mst-thanos-objectstorage
+      THANOS_S3_SECRET: observatorium-mst-thanos-production-s3
+      THANOS_IMAGE_TAG: v0.23.0-rc.0
+      THANOS_RECEIVE_CONTROLLER_IMAGE_TAG: master-2020-02-06-b66e0c8
+      THANOS_QUERIER_REPLICAS: 4
+      THANOS_QUERIER_CPU_REQUEST: '1'
+      THANOS_QUERIER_CPU_LIMIT: '1'
+      THANOS_QUERIER_MEMORY_REQUEST: '16Gi'
+      THANOS_QUERIER_MEMORY_LIMIT: '16Gi'
+      THANOS_QUERY_FRONTEND_REPLICAS: 3
+      THANOS_QUERY_FRONTEND_CPU_REQUEST: '100m'
+      THANOS_QUERY_FRONTEND_CPU_LIMIT: '1'
+      THANOS_QUERY_FRONTEND_MEMORY_REQUEST: '256Mi'
+      THANOS_QUERY_FRONTEND_MEMORY_LIMIT: '1Gi'
+      THANOS_STORE_LOG_LEVEL: 'debug'
+      THANOS_STORE_REPLICAS: 1
+      THANOS_STORE_CPU_REQUEST: '1'
+      THANOS_STORE_CPU_LIMIT: '1'
+      THANOS_STORE_MEMORY_REQUEST: '5Gi'
+      THANOS_STORE_MEMORY_LIMIT: '20Gi'
+      THANOS_RECEIVE_REPLICAS: 5
+      THANOS_RECEIVE_CPU_REQUEST: '700m'
+      THANOS_RECEIVE_CPU_LIMIT: '700m'
+      THANOS_RECEIVE_MEMORY_REQUEST: '5Gi'
+      THANOS_RECEIVE_MEMORY_LIMIT: '5Gi'
+      THANOS_RECEIVE_LOG_LEVEL: 'debug'
+      THANOS_RECEIVE_DEBUG_ENV: '1'
+      THANOS_COMPACTOR_REPLICAS: 1
+      THANOS_COMPACTOR_RETENTION_RESOULTION_RAW: '365d'
+      THANOS_COMPACTOR_RETENTION_RESOULTION_FIVE_MINUTES: '365d'
+      THANOS_COMPACTOR_RETENTION_RESOULTION_ONE_HOUR: '365d'
+      THANOS_COMPACTOR_RETENTION_DISABLE_DOWNSAMPLING: '--no-downsampling.disable'
+      THANOS_COMPACTOR_PVC_REQUEST: '50Gi'
+      THANOS_RULER_LOG_LEVEL: 'info'
+      THANOS_RULER_REPLICAS: 2
+      THANOS_RULER_CPU_REQUEST: '500m'
+      THANOS_RULER_CPU_LIMIT: '1'
+      THANOS_RULER_MEMORY_REQUEST: '2Gi'
+      THANOS_RULER_MEMORY_LIMIT: '2Gi'
+      THANOS_RULER_PVC_REQUEST: '50Gi'
+      THANOS_COMPACTOR_LOG_LEVEL: 'debug'
+      THANOS_STORE_CACHE_MEMORY_LIMIT_MB: 2048
+      MEMCACHED_IMAGE_TAG: 1.5
+      MEMCACHED_MEMORY_LIMIT_MB: 2048Mi
+      MEMCACHED_CONNECTION_LIMIT: 3072Mi
+      MEMCACHED_CPU_REQUEST: 500m
+      MEMCACHED_CPU_LIMIT: 3
+      MEMCACHED_MEMORY_REQUEST: 1329Mi
+      MEMCACHED_MEMORY_LIMIT:  1844Mi
+      MEMCACHED_EXPORTER_CPU_REQUEST: 50m
+      MEMCACHED_EXPORTER_CPU_LIMIT: 200m
+      MEMCACHED_EXPORTER_MEMORY_REQUEST: 50Mi
+      MEMCACHED_EXPORTER_MEMORY_LIMIT: 200Mi
+      SERVICE_ACCOUNT_NAME: observatorium-mst

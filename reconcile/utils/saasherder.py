@@ -704,6 +704,7 @@ class SaasHerder():
                                self.saas_files,
                                self.thread_pool_size)
         desired_state_specs = list(itertools.chain.from_iterable(results))
+        logging.warning(desired_state_specs)
         promotions = threaded.run(self.populate_desired_state_saas_file,
                                   desired_state_specs,
                                   self.thread_pool_size,
@@ -711,18 +712,22 @@ class SaasHerder():
         self.promotions = promotions
 
     def init_populate_desired_state_specs(self, saas_file):
+        logging.warning(saas_file)
         specs = []
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
+
+        # Instance exists in v1 saas files only.
         instance = saas_file.get('instance')
-        # instance exists in v1 saas files only
         instance_name = instance['name'] if instance else None
+
         managed_resource_types = saas_file['managedResourceTypes']
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
-        # iterate over resource templates (multiple per saas_file)
+
+        # Iterate over resource templates (multiple per saas_file).
         for rt in resource_templates:
             rt_name = rt['name']
             url = rt['url']
@@ -735,11 +740,12 @@ class SaasHerder():
             consolidated_parameters.update(saas_file_parameters)
             consolidated_parameters.update(parameters)
 
-            # iterate over targets (each target is a namespace)
+            # Iterate over targets (each target is a namespace).
             for target in rt['targets']:
                 if target.get('disable'):
-                    # a warning is logged during SaasHerder initiation
+                    # Warning is logged during SaasHerder initiation.
                     continue
+
                 cluster, namespace = \
                     self._get_cluster_and_namespace(target)
                 process_template_options = {
