@@ -271,7 +271,7 @@ class TerraformClient:
                 annotations = data.get('{}_annotations'.format(
                     self.integration_prefix))
                 # add special handling for ca_cert
-                # which is saved base64 encoded in terrafor state.
+                # which is saved base64 encoded in terraform state.
                 # we decode it because construct_oc_resource
                 # will encode it again.
                 # if we find more examples that require this treatment
