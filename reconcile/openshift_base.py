@@ -503,7 +503,8 @@ def validate_data(oc_map, actions):
         'StatefulSet',
         'Subscription',
         'Job',
-        'ClowdApp'
+        'ClowdApp',
+        'ClowdJobInvocation'
     ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
@@ -572,6 +573,26 @@ def validate_data(oc_map, actions):
                         f'ClowdApp has deployments that are not ready '
                         f'({ready_deployments} ready / '
                         f'{managed_deployments} total)')
+                    raise ValidationError(name)
+            elif kind == 'ClowdJobInvocation':
+                completed = status.get('completed')
+                if not completed:
+                    logging.info(f'CJI {name} has not completed')
+                    conditions = status.get('conditions')
+                    if conditions:
+                        logging.info(f'CJI conditions are: {conditions}')
+                        logging.info(yaml.safe_dump(conditions))
+                    jobs = status.get('jobs')
+                    if jobs:
+                        logging.info(f'CJI jobs are: {jobs}')
+                        logging.info(yaml.safe_dump(jobs))
+                        failed_jobs = []
+                        for job_name, job_state in jobs.items():
+                            if job_state == 'Failed':
+                                failed_jobs.append(job_name)
+                        if failed_jobs:
+                            raise ValidationErrorJobFailed(
+                                f'CJI {name} failed jobs: {failed_jobs}')
                     raise ValidationError(name)
 
 
