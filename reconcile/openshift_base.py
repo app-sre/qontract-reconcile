@@ -607,7 +607,8 @@ def follow_logs(oc_map, actions, io_dir):
     """
 
     supported_kinds = [
-        'Job'
+        'Job',
+        'ClowdJobInvocation'
     ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
@@ -623,7 +624,15 @@ def follow_logs(oc_map, actions, io_dir):
             if not oc:
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
-            oc.job_logs(namespace, name, follow=True, output=io_dir)
+
+            if kind == 'Job':
+                oc.job_logs(namespace, name, follow=True, output=io_dir)
+            if kind == 'ClowdJobInvocation':
+                resource = oc.get(namespace, kind, name=name)
+                jobs = resource.get('status', {}).get('jobs', {})
+                for jn in jobs:
+                    logging.info(['collecting', cluster, namespace, kind, jn])
+                    oc.job_logs(namespace, jn, follow=True, output=io_dir)
 
 
 def aggregate_shared_resources(namespace_info, shared_resources_type):
