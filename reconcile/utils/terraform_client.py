@@ -177,6 +177,7 @@ class TerraformClient:
             before = self.outputs[name].get(output_name, {}).get('value')
             after = output_change['after']
             if before != after:
+                logging.info(['update', name, 'output', output_name])
                 self.should_apply = True
 
         resource_changes = output.get('resource_changes')
