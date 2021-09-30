@@ -577,7 +577,6 @@ def validate_data(oc_map, actions):
             elif kind == 'ClowdJobInvocation':
                 completed = status.get('completed')
                 jobs = status.get('jobs', {})
-                conditions = status.get('conditions')
                 if jobs:
                     logging.info(f'CJI {name} jobs are: {jobs}')
                     logging.info(yaml.safe_dump(jobs))
@@ -591,6 +590,7 @@ def validate_data(oc_map, actions):
                             f'CJI {name} failed jobs: {failed_jobs}')
                 else:
                     logging.info(f'CJI {name} has not completed')
+                    conditions = status.get('conditions')
                     if conditions:
                         logging.info(f'CJI conditions are: {conditions}')
                         logging.info(yaml.safe_dump(conditions))
