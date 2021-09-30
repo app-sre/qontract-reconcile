@@ -3492,7 +3492,7 @@ class TerrascriptClient:
                 },
             },
             'condition': {
-                'http_request_method': {'values': ['GET']},
+                'http_request_method': {'values': ['GET', 'HEAD']},
             },
             'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
         }
@@ -3517,7 +3517,7 @@ class TerrascriptClient:
                 },
             },
             'condition': {
-                'http_request_method': {'values': ['POST']},
+                'http_request_method': {'values': ['POST', 'PUT', 'DELETE']},
             },
             'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
         }
