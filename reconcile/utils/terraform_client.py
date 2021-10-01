@@ -175,7 +175,7 @@ class TerraformClient:
         output_changes = output.get('output_changes', {})
         for output_name, output_change in output_changes.items():
             before = self.outputs[name].get(output_name, {}).get('value')
-            after = output_change['after']
+            after = output_change.get('after')
             if before != after:
                 logging.info(['update', name, 'output', output_name])
                 self.should_apply = True
