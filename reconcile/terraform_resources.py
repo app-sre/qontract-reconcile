@@ -470,7 +470,7 @@ def run(dry_run, print_only=False,
                  disable_service_account_keys=True,
                  account_name=account_name)
 
-    if vault_output_path:
+    if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
 
     if ri.has_error_registered():
