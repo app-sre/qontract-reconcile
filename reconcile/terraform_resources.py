@@ -445,30 +445,30 @@ def run(dry_run, print_only=False,
         err = True
         cleanup_and_exit(tf, err)
 
-    # if not light:
-    #     disabled_deletions_detected, err = tf.plan(enable_deletion)
-    #     if err:
-    #         cleanup_and_exit(tf, err)
-    #     tf.dump_deleted_users(io_dir)
-    #     if disabled_deletions_detected:
-    #         cleanup_and_exit(tf, disabled_deletions_detected)
+    if not light:
+        disabled_deletions_detected, err = tf.plan(enable_deletion)
+        if err:
+            cleanup_and_exit(tf, err)
+        tf.dump_deleted_users(io_dir)
+        if disabled_deletions_detected:
+            cleanup_and_exit(tf, disabled_deletions_detected)
 
-    # if dry_run:
-    #     cleanup_and_exit(tf)
+    if dry_run:
+        cleanup_and_exit(tf)
 
-    # if not light and tf.should_apply:
-    #     err = tf.apply()
-    #     if err:
-    #         cleanup_and_exit(tf, err)
+    if not light and tf.should_apply:
+        err = tf.apply()
+        if err:
+            cleanup_and_exit(tf, err)
 
     tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
 
-    # actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-    #                           caller=account_name)
+    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
+                              caller=account_name)
 
-    # disable_keys(dry_run, thread_pool_size,
-    #              disable_service_account_keys=True,
-    #              account_name=account_name)
+    disable_keys(dry_run, thread_pool_size,
+                 disable_service_account_keys=True,
+                 account_name=account_name)
 
     if vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)
