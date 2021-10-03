@@ -246,9 +246,19 @@ class _VaultClient:
             self._write_v1(secret_path, data)
 
     def _write_v2(self, path, data):
-        # do not forget to run `self._read_all_v2.cache_clear()`
-        # if this ever get's implemented
-        raise NotImplementedError('vault_client write v2')
+        path_split = path.split('/')
+        mount_point = path_split[0]
+        write_path = '/'.join(path_split[1:])
+
+        try:
+            self._client.secrets.kv.v2.create_or_update_secret(
+                mount_point=mount_point,
+                path=write_path,
+                secret=data,
+            )
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
 
     def _write_v1(self, path, data):
         try:
