@@ -182,6 +182,36 @@ class TestGetObjRootOwner(TestCase):
         self.assertEqual(result_obj, obj)
 
     @patch.object(OCDeprecated, 'get')
+    def test_controller_false_return_controller(self, oc_get):
+        """Returns owner if all ownerReferences have controller set to false
+        and allow_not_controller is set to True
+        """
+        obj = {
+            'metadata': {
+                'name': 'pod1',
+                'ownerReferences': [
+                    {
+                        'controller': False,
+                        'kind': 'ownerkind',
+                        'name': 'ownername'
+                    }
+                ]
+            }
+        }
+        owner_obj = {
+            'kind': 'ownerkind',
+            'metadata': {'name': 'ownername'}
+        }
+        oc_get.side_effect = [
+            owner_obj
+        ]
+
+        oc = OC('cluster', 'server', 'token', local=True)
+        result_obj = oc.get_obj_root_owner('namespace', obj,
+                                           allow_not_controller=True)
+        self.assertEqual(result_obj, owner_obj)
+
+    @patch.object(OCDeprecated, 'get')
     def test_cont_true_allow_true_ref_not_found_return_obj(self, oc_get):
         """Returns obj if controller is true, allow_not_found is true,
         but referenced object does not exist '{}'

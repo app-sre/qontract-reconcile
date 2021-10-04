@@ -8,7 +8,7 @@ from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi, SlackApiError
+from reconcile.utils.slack_api import SlackApi, SlackApiError, SlackApiConfig
 from reconcile import queries
 
 
@@ -23,6 +23,16 @@ PERMISSIONS_QUERY = """
         token {
           path
           field
+        }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
         }
         managedUsergroups
       }
@@ -70,17 +80,19 @@ QONTRACT_INTEGRATION = 'slack-usergroups'
 
 
 class GitApi:
-    def __new__(cls, url, *args, **kwargs):
+    def __new__(cls, url: str, *args, **kwargs):
         parsed_url = urlparse(url)
         settings = queries.get_app_interface_settings()
 
-        if 'github' in parsed_url.hostname:
-            instance = queries.get_github_instance()
-            return GithubApi(instance, repo_url=url, settings=settings)
+        if parsed_url.hostname:
+            if 'github' in parsed_url.hostname:
+                instance = queries.get_github_instance()
+                return GithubApi(instance, repo_url=url, settings=settings)
+            if 'gitlab' in parsed_url.hostname:
+                instance = queries.get_gitlab_instance()
+                return GitLabApi(instance, project_url=url, settings=settings)
 
-        if 'gitlab' in parsed_url.hostname:
-            instance = queries.get_gitlab_instance()
-            return GitLabApi(instance, project_url=url, settings=settings)
+        raise ValueError(f"Unable to handle URL: {url}")
 
 
 def get_permissions():
@@ -99,11 +111,21 @@ def get_slack_map():
         if workspace_name in slack_map:
             continue
 
+        slack_api_kwargs = {
+            'settings': settings,
+        }
+
+        client_config = workspace.get('api_client')
+
+        if client_config:
+            slack_api_kwargs['api_config'] = \
+                SlackApiConfig.from_dict(client_config)
+
         workspace_spec = {
             "slack": SlackApi(
                 workspace_name,
                 workspace['token'],
-                settings=settings),
+                **slack_api_kwargs),
             "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec

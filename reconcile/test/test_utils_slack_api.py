@@ -8,7 +8,7 @@ from slack_sdk.errors import SlackApiError
 
 import reconcile
 from reconcile.utils.slack_api import SlackApi, MAX_RETRIES, \
-    UserNotFoundException
+    UserNotFoundException, SlackApiConfig, TIMEOUT
 
 
 @pytest.fixture
@@ -31,7 +31,65 @@ def slack_api(mocker):
     return SlackApiMock(slack_api, mock_secret_reader, mock_slack_client)
 
 
-def test__get_default_args_channels(slack_api):
+def test_slack_api_config_defaults():
+    slack_api_config = SlackApiConfig()
+
+    assert slack_api_config.max_retries == MAX_RETRIES
+    assert slack_api_config.timeout == TIMEOUT
+
+
+def test_slack_api_config_from_dict():
+    data = {
+        'global': {
+            'max_retries': 1,
+            'timeout': 5
+        },
+        'methods': [
+            {'name': 'users.list', 'args': "{\"limit\":1000}"},
+            {'name': 'conversations.list', 'args': "{\"limit\":500}"}
+        ]
+    }
+
+    slack_api_config = SlackApiConfig.from_dict(data)
+
+    assert isinstance(slack_api_config, SlackApiConfig)
+
+    assert slack_api_config.get_method_config('users.list') == {'limit': 1000}
+    assert slack_api_config.get_method_config('conversations.list') == \
+           {'limit': 500}
+    assert slack_api_config.get_method_config('doesntexist') is None
+
+    assert slack_api_config.max_retries == 1
+    assert slack_api_config.timeout == 5
+
+
+def test_instantiate_slack_api_with_config(mocker):
+    """
+    When SlackApiConfig is passed into SlackApi, the constructor shouldn't
+    create a default configuration object.
+    """
+    mocker.patch.object(
+        reconcile.utils.slack_api, 'SecretReader', autospec=True)
+
+    mock_slack_client = mocker.patch.object(
+        reconcile.utils.slack_api, 'WebClient', autospec=True)
+
+    # autospec doesn't know about instance attributes
+    mock_slack_client.return_value.retry_handlers = []
+
+    config = SlackApiConfig()
+
+    token = {'path': 'some/path', 'field': 'some-field'}
+    slack_api = SlackApi('some-workspace', token, config)
+
+    assert slack_api.config is config
+
+
+def test__get_default_args(slack_api):
+    """
+    There shouldn't be any extra params passed to the client if config is
+    unset.
+    """
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'channels': [],
         'response_metadata': {
@@ -39,34 +97,35 @@ def test__get_default_args_channels(slack_api):
         }
     }
 
-    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
-               return_value=500):
-        slack_api.client._get('channels')
+    slack_api.client._get('channels')
+
+    assert slack_api.mock_slack_client.return_value.api_call.call_args == \
+        call('conversations.list', http_verb='GET',
+             params={'cursor': ''})
+
+
+def test__get_with_matching_method_config(slack_api):
+    """Passing in a SlackApiConfig object with a matching method name."""
+    slack_api.mock_slack_client.return_value.api_call.return_value = {
+        'channels': [],
+        'response_metadata': {
+            'next_cursor': ''
+        }
+    }
+
+    api_config = SlackApiConfig()
+    api_config.set_method_config('conversations.list', {'limit': 500})
+    slack_api.client.config = api_config
+
+    slack_api.client._get('channels')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
         call('conversations.list', http_verb='GET',
              params={'limit': 500, 'cursor': ''})
 
 
-def test__get_default_args_users(slack_api):
-    slack_api.mock_slack_client.return_value.api_call.return_value = {
-        'members': [],
-        'response_metadata': {
-            'next_cursor': ''
-        }
-    }
-
-    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
-               return_value=500):
-        slack_api.client._get('users')
-
-    assert slack_api.mock_slack_client.return_value.api_call.call_args == \
-        call('users.list', http_verb='GET',
-             params={'limit': 500, 'cursor': ''})
-
-
-def test__get_default_args_unknown_type(slack_api):
-    """Leave the limit unset if the resource type is unknown."""
+def test__get_without_matching_method_config(slack_api):
+    """Passing in a SlackApiConfig object without a matching method name."""
     slack_api.mock_slack_client.return_value.api_call.return_value = {
         'something': [],
         'response_metadata': {
@@ -74,9 +133,11 @@ def test__get_default_args_unknown_type(slack_api):
         }
     }
 
-    with patch('reconcile.utils.slack_api.SlackApi._get_api_results_limit',
-               return_value=None):
-        slack_api.client._get('something')
+    api_config = SlackApiConfig()
+    api_config.set_method_config('conversations.list', {'limit': 500})
+    slack_api.client.config = api_config
+
+    slack_api.client._get('something')
 
     assert slack_api.mock_slack_client.return_value.api_call.call_args == \
         call('something.list', http_verb='GET', params={'cursor': ''})
@@ -154,6 +215,33 @@ def test_get_user_id_by_name_reraise(get_config_mock, slack_api):
     with pytest.raises(SlackApiError):
         slack_api.client.get_user_id_by_name('someuser')
 
+
+def test_update_usergroups_users_empty_no_raise(mocker, slack_api):
+    """
+    invalid_users errors shouldn't be raised because providing an empty
+    list is actually removing users from the usergroup.
+    """
+    mocker.patch.object(SlackApi, 'get_random_deleted_user', autospec=True)
+
+    slack_api.mock_slack_client.return_value.usergroups_users_update\
+        .side_effect = SlackApiError('Some error message',
+                                     {'error': 'invalid_users'})
+
+    slack_api.client.update_usergroup_users('ABCD', [])
+
+
+def test_update_usergroups_users_raise(slack_api):
+    """
+    Any errors other than invalid_users should result in an exception being
+    raised.
+    """
+    slack_api.mock_slack_client.return_value.usergroups_users_update \
+        .side_effect = SlackApiError('Some error message',
+                                     {'error': 'internal_error'})
+
+    with pytest.raises(SlackApiError):
+        slack_api.client.update_usergroup_users('ABCD', ['USERA'])
+
 #
 # Slack WebClient retry tests
 #
@@ -178,7 +266,8 @@ def test_slack_api__client_throttle_raise(mock_sleep, mock_secret_reader):
     )
 
     slack_client = SlackApi(
-        'workspace', {'path': 'some/path', 'field': 'some-field'},
+        'workspace',
+        {'path': 'some/path', 'field': 'some-field'},
         init_usergroups=False
     )
 

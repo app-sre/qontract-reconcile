@@ -65,6 +65,10 @@ class StatefulSetUpdateForbidden(Exception):
     pass
 
 
+class ObjectHasBeenModifiedError(Exception):
+    pass
+
+
 class NoOutputError(Exception):
     pass
 
@@ -575,24 +579,38 @@ class OCDeprecated:
 
         for kind, objs in recyclables.items():
             for obj in objs:
-                name = obj['metadata']['name']
-                logging.info([f'recycle_{kind.lower()}',
-                              self.cluster_name, namespace, name])
-                if not dry_run:
-                    now = datetime.now()
-                    recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+                self.recycle(dry_run, namespace, kind, obj)
 
-                    # honor update strategy by setting annotations to force
-                    # a new rollout
-                    a = obj['spec']['template']['metadata'].get(
-                        'annotations', {})
-                    a['recycle.time'] = recycle_time
-                    obj['spec']['template']['metadata']['annotations'] = a
-                    cmd = ['apply', '-n', namespace, '-f', '-']
-                    stdin = json.dumps(obj, sort_keys=True)
-                    self._run(cmd, stdin=stdin, apply=True)
+    @retry(exceptions=ObjectHasBeenModifiedError)
+    def recycle(self, dry_run, namespace, kind, obj):
+        """Recycles an object by adding a recycle.time annotation
 
-    def get_obj_root_owner(self, ns, obj, allow_not_found=False):
+        :param dry_run: Is this a dry run
+        :param namespace: Namespace to work in
+        :param kind: Object kind
+        :param obj: Object to recycle
+        """
+        name = obj['metadata']['name']
+        logging.info([f'recycle_{kind.lower()}',
+                      self.cluster_name, namespace, name])
+        if not dry_run:
+            now = datetime.now()
+            recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
+
+            # get the object in case it was modified
+            obj = self.get(namespace, kind, name)
+            # honor update strategy by setting annotations to force
+            # a new rollout
+            a = obj['spec']['template']['metadata'].get(
+                'annotations', {})
+            a['recycle.time'] = recycle_time
+            obj['spec']['template']['metadata']['annotations'] = a
+            cmd = ['apply', '-n', namespace, '-f', '-']
+            stdin = json.dumps(obj, sort_keys=True)
+            self._run(cmd, stdin=stdin, apply=True)
+
+    def get_obj_root_owner(self, ns, obj, allow_not_found=False,
+                           allow_not_controller=False):
         """Get object root owner (recursively find the top level owner).
         - Returns obj if it has no ownerReferences
         - Returns obj if all ownerReferences have controller set to false
@@ -606,13 +624,14 @@ class OCDeprecated:
             ns (string): namespace of the object
             obj (dict): representation of the object
             allow_not_found (bool, optional): allow owner to be not found
+            allow_not_controller (bool, optional): allow non-controller owner
 
         Returns:
             dict: representation of the object's owner
         """
         refs = obj['metadata'].get('ownerReferences', [])
         for r in refs:
-            if r.get('controller'):
+            if r.get('controller') or allow_not_controller:
                 controller_obj = self.get(
                     ns, r['kind'], r['name'],
                     allow_not_found=allow_not_found)
@@ -620,7 +639,8 @@ class OCDeprecated:
                     return self.get_obj_root_owner(
                         ns,
                         controller_obj,
-                        allow_not_found=allow_not_found
+                        allow_not_found=allow_not_found,
+                        allow_not_controller=allow_not_controller,
                     )
         return obj
 
@@ -720,6 +740,8 @@ class OCDeprecated:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
                 if 'updates to statefulset spec for fields other than' in err:
                     raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
+                if 'the object has been modified' in err:
+                    raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
             if not (allow_not_found and 'NotFound' in err):
                 raise StatusCodeError(f"[{self.server}]: {err}")
 

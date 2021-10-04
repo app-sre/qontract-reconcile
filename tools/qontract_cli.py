@@ -1,6 +1,8 @@
 import json
 import sys
+from typing import Dict, Iterable, List, Mapping, Union
 
+from contextlib import suppress
 import click
 import requests
 import yaml
@@ -22,6 +24,7 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.state import State
 from reconcile.utils.environ import environ
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.cli import config_file
@@ -199,6 +202,136 @@ def version_history(ctx):
                 }
                 results.append(item)
     columns = ['ocm', 'version', 'workload', 'soak_days', 'clusters']
+    ctx.obj['options']['to_string'] = True
+    print_output(ctx.obj['options'], results, columns)
+
+
+def soaking_days(history, upgrades, workload, only_soaking):
+    soaking = {}
+    for version in upgrades:
+        for h in history.values():
+            with suppress(KeyError):
+                workload_data = h['versions'][version]['workloads'][workload]
+                soaking[version] = round(workload_data['soak_days'], 2)
+        if not only_soaking and version not in soaking:
+            soaking[version] = 0
+    return soaking
+
+
+@get.command()
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+@click.option('--cluster', default=None, help='cluster to display.')
+@click.option('--workload', default=None, help='workload to display.')
+@click.option('--show-only-soaking-upgrades/--no-show-only-soaking-upgrades',
+              default=False,
+              help='show upgrades which are not currently soaking.')
+@click.option('--by-workload/--no-by-workload',
+              default=False,
+              help='show upgrades for each workload individually '
+                   'rather than grouping them for the whole cluster')
+@click.pass_context
+def cluster_upgrade_policies(ctx, cluster=None, workload=None,
+                             show_only_soaking_upgrades=False,
+                             by_workload=False):
+    settings = queries.get_app_interface_settings()
+    clusters = queries.get_clusters()
+    clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
+    if cluster:
+        clusters = [c for c in clusters if cluster == c['name']]
+    if workload:
+        clusters = [c for c in clusters
+                    if workload in c['upgradePolicy'].get('workloads', [])]
+    desired_state = ous.fetch_desired_state(clusters)
+
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    history = ous.get_version_history(
+        dry_run=True,
+        upgrade_policies=[],
+        ocm_map=ocm_map
+    )
+
+    results = []
+    upgrades_cache = {}
+
+    def soaking_str(soaking, soakdays):
+        sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
+        if ctx.obj['options']['output'] == 'md':
+            for i, data in enumerate(sorted_soaking):
+                v, s = data
+                if s > soakdays:
+                    sorted_soaking[i] = (v, f'{s} :tada:')
+        return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
+
+    for c in desired_state:
+        cluster_name, version = c['cluster'], c['current_version']
+        channel, schedule = c['channel'], c.get('schedule')
+        soakdays = c.get('conditions', {}).get('soakDays')
+        item = {
+            'cluster': cluster_name,
+            'version': parse_semver(version),
+            'channel': channel,
+            'schedule': schedule,
+            'soak_days': soakdays,
+        }
+        ocm = ocm_map.get(cluster_name)
+
+        if 'workloads' not in c:
+            results.append(item)
+            continue
+
+        upgrades = upgrades_cache.get((version, channel))
+        if not upgrades:
+            upgrades = ocm.get_available_upgrades(version, channel)
+            upgrades_cache[(version, channel)] = upgrades
+
+        workload_soaking_upgrades = {}
+        for w in c.get('workloads', []):
+            if not workload or workload == w:
+                s = soaking_days(history, upgrades, w,
+                                 show_only_soaking_upgrades)
+                workload_soaking_upgrades[w] = s
+
+        if by_workload:
+            for w, soaking in workload_soaking_upgrades.items():
+                i = item.copy()
+                i.update({'workload': w,
+                          'soaking_upgrades': soaking_str(soaking, soakdays)})
+                results.append(i)
+        else:
+            workloads = sorted(c.get('workloads', []))
+            w = ', '.join(workloads)
+            soaking = {}
+            for v in upgrades:
+                soaks = [s.get(v, 0)
+                         for s in workload_soaking_upgrades.values()]
+                min_soaks = min(soaks)
+                if not show_only_soaking_upgrades or min_soaks > 0:
+                    soaking[v] = min_soaks
+            item.update({'workload': w,
+                         'soaking_upgrades': soaking_str(soaking, soakdays)})
+            results.append(item)
+
+    if ctx.obj['options']['output'] == 'md':
+        print("""
+The table below regroups upgrade information for each clusters:
+* `version` is the current openshift version on the cluster
+* `channel` is the OCM upgrade channel being tracked by the cluster
+* `schedule` is the cron-formatted schedule for cluster upgrades
+* `soak_days` is the minimum number of days a given version must have been
+running on other clusters with the same workload to be considered for an
+upgrade.
+* `workload` is a list of workload names that are running on the cluster
+* `soaking_upgrades` lists all available upgrades available on the OCM channel
+for that cluster. The number in parenthesis shows the number of days this
+version has been running on other clusters with the same workloads. By
+comparing with the `soak_days` columns, you can see when a version is close to
+be upgraded to. A :tada: sign is displayed for versions which have soaked
+enough and are ready to be upgraded to.
+        """)
+
+    columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
+               'workload', 'soaking_upgrades']
     ctx.obj['options']['to_string'] = True
     print_output(ctx.obj['options'], results, columns)
 
@@ -577,6 +710,36 @@ def quay_mirrors(ctx):
 
 
 @get.command()
+@click.argument('cluster')
+@click.argument('namespace')
+@click.argument('kind')
+@click.argument('name')
+@click.pass_context
+def root_owner(ctx, cluster, namespace, kind, name):
+    settings = queries.get_app_interface_settings()
+    clusters = [c for c in queries.get_clusters(minimal=True)
+                if c['name'] == cluster]
+    oc_map = OC_Map(clusters=clusters,
+                    integration='qontract-cli',
+                    thread_pool_size=1,
+                    settings=settings,
+                    init_api_resources=True)
+    oc = oc_map.get(cluster)
+    obj = oc.get(namespace, kind, name)
+    root_owner = oc.get_obj_root_owner(namespace, obj, allow_not_found=True,
+                                       allow_not_controller=True)
+
+    # TODO(mafriedm): fix this
+    # do not sort
+    ctx.obj['options']['sort'] = False
+    # a bit hacky, but ¯\_(ツ)_/¯
+    if ctx.obj['options']['output'] != 'json':
+        ctx.obj['options']['output'] = 'yaml'
+
+    print_output(ctx.obj['options'], root_owner)
+
+
+@get.command()
 @click.argument('aws_account')
 @click.argument('identifier')
 @click.pass_context
@@ -626,7 +789,8 @@ def sre_checkpoints(ctx):
     print_output(ctx.obj['options'], checkpoints_data, columns)
 
 
-def print_output(options, content, columns=[]):
+def print_output(options: Mapping[str, Union[str, bool]],
+                 content: List[Dict], columns: Iterable[str] = ()):
     if options['sort']:
         content.sort(key=lambda c: tuple(c.values()))
     if options.get('to_string'):
@@ -713,12 +877,14 @@ def ls(ctx, integration):
     accounts = queries.get_aws_accounts()
     state = State(integration, accounts, settings=settings)
     keys = state.ls()
-    # if 'integration' is defined, the 0th token is empty
+    # if integration in not defined the 2th token will be the integration name
+    key_index = 1 if integration else 2
     table_content = [
-        {'integration': k.split('/')[0] or integration,
-         'key': '/'.join(k.split('/')[1:])}
+        {'integration': integration or k.split('/')[1],
+         'key': '/'.join(k.split('/')[key_index:])}
         for k in keys]
-    print_output('table', table_content, ['integration', 'key'])
+    print_output({'output': 'table', 'sort': False},
+                 table_content, ['integration', 'key'])
 
 
 @state.command()  # type: ignore
@@ -791,7 +957,8 @@ def template(ctx, cluster, namespace, kind, name):
             continue
         if openshift_resource.name != name:
             continue
-        print_output('yaml', openshift_resource.body)
+        print_output({'output': 'yaml', 'sort': False},
+                     openshift_resource.body)
         break
 
 

@@ -1,15 +1,16 @@
+from typing import List, Iterable
 import semver
 
 
-def make_semver(major, minor, patch):
+def make_semver(major: int, minor: int, patch: int) -> str:
     return str(semver.VersionInfo(major=major, minor=minor, patch=patch))
 
 
-def parse_semver(version):
-    return semver.VersionInfo(**semver.parse(version))
+def parse_semver(version: str) -> semver.VersionInfo:
+    return semver.VersionInfo.parse(version)
 
 
-def sort_versions(versions):
+def sort_versions(versions: Iterable[str]) -> List[str]:
     """sort versions by semver
 
     Args:

@@ -36,6 +36,11 @@ provider
   replica_source
   output_resource_db_name
   reset_password
+  ca_cert {
+    path
+    field
+    version
+  }
   annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {
@@ -197,6 +202,27 @@ provider
     path
     field
     version
+  }
+  output_resource_name
+  annotations
+}
+... on NamespaceTerraformResourceALB_v1 {
+  account
+  region
+  identifier
+  vpc {
+    vpc_id
+    cidr_block
+    subnets {
+      id
+    }
+  }
+  certificate_arn
+  targets {
+    name
+    default
+    weight
+    ips
   }
   output_resource_name
   annotations

@@ -1,6 +1,8 @@
 import os
 import json
 
+from typing import Any, Iterable, Mapping, Optional
+
 from botocore.errorfactory import ClientError
 
 from reconcile.utils.aws_api import AWSApi
@@ -18,14 +20,12 @@ class State:
     :param integration: name of calling integration
     :param accounts: Graphql AWS accounts query results
     :param settings: App Interface settings
-
-    :type integration: string
-    :type accounts: list
-    :type settings: dict
     """
-    def __init__(self, integration, accounts, settings=None):
+
+    def __init__(self, integration: str, accounts: Iterable[Mapping[str, Any]],
+                 settings: Optional[Mapping[str, Any]] = None) -> None:
         """Initiates S3 client from AWSApi."""
-        self.state_path = f"state/{integration}"
+        self.state_path = f'state/{integration}' if integration else 'state'
         self.bucket = os.environ['APP_INTERFACE_STATE_BUCKET']
         account = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
         accounts = [a for a in accounts if a['name'] == account]
@@ -53,14 +53,24 @@ class State:
         """
         Returns a list of keys in the state
         """
-        objects = self.client.list_objects(Bucket=self.bucket,
-                                           Prefix=self.state_path)
+        objects = self.client.list_objects_v2(Bucket=self.bucket,
+                                              Prefix=f'{self.state_path}/')
 
         if 'Contents' not in objects:
             return []
 
-        return [o['Key'].replace(self.state_path, '')
-                for o in objects['Contents']]
+        contents = objects['Contents']
+
+        while objects['IsTruncated']:
+            objects = self.client.list_objects_v2(
+                Bucket=self.bucket,
+                Prefix=f'{self.state_path}/',
+                ContinuationToken=objects['NextContinuationToken']
+            )
+
+            contents += objects['Contents']
+
+        return [c['Key'].replace(self.state_path, '') for c in contents]
 
     def add(self, key, value=None, force=False):
         """

@@ -1632,6 +1632,16 @@ JIRA_BOARDS_QUERY = """
           icon_emoji
           username
         }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
+        }
       }
       channel
     }
@@ -1664,6 +1674,16 @@ UNLEASH_INSTANCES_QUERY = """
             token {
               path
               field
+            }
+          }
+          api_client {
+            global {
+              max_retries
+              timeout
+            }
+            methods {
+              name
+              args
             }
           }
         }
@@ -1749,6 +1769,16 @@ SLACK_WORKSPACES_QUERY = """
       channel
       icon_emoji
       username
+    }
+    api_client {
+      global {
+        max_retries
+        timeout
+      }
+      methods {
+        name
+        args
+      }
     }
   }
 }

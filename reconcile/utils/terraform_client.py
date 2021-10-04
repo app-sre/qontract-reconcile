@@ -166,6 +166,20 @@ class TerraformClient:
             raise NotImplementedError(
                 'terraform show untested format version')
 
+        # https://www.terraform.io/docs/internals/json-format.html
+        # Terraform is not yet fully able to
+        # track changes to output values, so the actions indicated may not be
+        # fully accurate, but the "after" value will always be correct.
+        # to overcome the "before" value not being accurate,
+        # we find it in the previously initiated outputs.
+        output_changes = output.get('output_changes', {})
+        for output_name, output_change in output_changes.items():
+            before = self.outputs[name].get(output_name, {}).get('value')
+            after = output_change.get('after')
+            if before != after:
+                logging.info(['update', name, 'output', output_name])
+                self.should_apply = True
+
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
             return disabled_deletion_detected, deleted_users
@@ -270,6 +284,7 @@ class TerraformClient:
                     self.integration_prefix)]
                 annotations = data.get('{}_annotations'.format(
                     self.integration_prefix))
+
                 oc_resource = \
                     self.construct_oc_resource(output_resource_name, data,
                                                account, annotations)
