@@ -1,6 +1,5 @@
 from setuptools import find_packages
 from setuptools import setup
-from glob import glob
 
 
 setup(
@@ -17,8 +16,7 @@ setup(
     url='https://github.com/app-sre/qontract-reconcile',
 
     packages=find_packages(exclude=('tests',)),
-
-    data_files=[('reconcile/templates', glob('reconcile/templates/*.j2'))],
+    package_data={'reconcile': ['templates/*.j2']},
 
     install_requires=[
         "sretoolbox==0.15.0",
