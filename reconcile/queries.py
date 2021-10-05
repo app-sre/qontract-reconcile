@@ -1873,6 +1873,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     }
     ocpReleaseEcrIdentifier
     ocpArtDevEcrIdentifier
+    mirrorChannels
   }
 }
 """
