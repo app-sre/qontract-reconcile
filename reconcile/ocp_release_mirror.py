@@ -161,6 +161,9 @@ class OcpReleaseMirror:
 
             self.registry_creds['auths'].update(quay_target_org['auths'])
 
+        # Initiate channel groups
+        self.channel_groups = instance['mirrorChannels']
+
     def run(self):
         ocp_releases = self._get_ocp_releases()
         if not ocp_releases:
@@ -255,9 +258,8 @@ class OcpReleaseMirror:
             if enabled == 'false':
                 continue
             # ClusterImageSets may be in different channels.
-            # Let's only mirror stable
             channel_group = labels['api.openshift.com/channel-group']
-            if channel_group != 'stable':
+            if channel_group not in self.channel_groups:
                 continue
             ocp_releases.append(OcpReleaseInfo(release_image, name))
         return ocp_releases
