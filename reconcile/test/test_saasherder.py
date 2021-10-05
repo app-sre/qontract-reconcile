@@ -284,17 +284,30 @@ class TestPopulateDesiredState(TestCase):
             integration_version='',
             settings={'hashLength':  7}
         )
+        self.fxt_remote_files = Fixtures('saasfiles_remote_repo')
 
-        # Mock GitHub.
-        # TODO(bwplotka): Mock getting stuff from repo.
+        # Mock GitHub interactions.
         self.initiate_gh_patcher = patch.object(
             SaasHerder, '_initiate_github', autospec=True, return_value=None,
         )
         self.initiate_gh_patcher.start()
 
+        self.get_file_contents_patcher = patch.object(
+            SaasHerder, '_get_file_contents', wraps=self.fake_get_file_contents,
+        )
+        self.get_file_contents_patcher.start()
+
+    # options keys: 'url, 'path', 'ref'
+    def fake_get_file_contents(self, options):
+        self.assertEqual('https://github.com/rhobs/configuration', options['url'])
+
+        content = self.fxt_remote_files.get(options['ref'] + (options['path'].replace('/', '_')))
+        return yaml.safe_load(content), "yolo", options['ref']
+
     def tearDown(self):
         for p in (
-                self.initiate_gh_patcher,
+            self.initiate_gh_patcher,
+            self.get_file_contents_patcher
         ):
             p.stop()
 

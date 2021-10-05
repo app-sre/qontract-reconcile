@@ -1,0 +1,2767 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: observatorium-metrics
+objects:
+  - apiVersion: v1
+    data:
+      session_secret: ""
+    kind: Secret
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: compact-proxy
+    type: Opaque
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        service.alpha.openshift.io/serving-cert-secret-name: compact-tls
+      labels:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-compact
+    spec:
+      ports:
+        - name: http
+          port: 10902
+          targetPort: 10902
+        - name: https
+          port: 8443
+          targetPort: 8443
+      selector:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-compact
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-compact
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: database-compactor
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-compact
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-compactor
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-compact
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-compact
+    spec:
+      replicas: ${{THANOS_COMPACTOR_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: database-compactor
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-compact
+          app.kubernetes.io/part-of: observatorium
+      serviceName: observatorium-thanos-compact
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: database-compactor
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-compact
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - compact
+                - --wait
+                - --log.level=${THANOS_COMPACTOR_LOG_LEVEL}
+                - --log.format=logfmt
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --data-dir=/var/thanos/compact
+                - --debug.accept-malformed-index
+                - --retention.resolution-raw=${THANOS_COMPACTOR_RETENTION_RESOULTION_RAW}
+                - --retention.resolution-5m=${THANOS_COMPACTOR_RETENTION_RESOULTION_FIVE_MINUTES}
+                - --retention.resolution-1h=${THANOS_COMPACTOR_RETENTION_RESOULTION_ONE_HOUR}
+                - --delete-delay=48h
+                - --deduplication.replica-label=replica
+                - --debug.max-compaction-level=3
+                - ${THANOS_COMPACTOR_RETENTION_DISABLE_DOWNSAMPLING}
+              env:
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 4
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-compact
+              ports:
+                - containerPort: 10902
+                  name: http
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_COMPACTOR_CPU_LIMIT}
+                  memory: ${THANOS_COMPACTOR_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_COMPACTOR_CPU_REQUEST}
+                  memory: ${THANOS_COMPACTOR_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/compact
+                  name: data
+                  readOnly: false
+            - args:
+                - -provider=openshift
+                - -https-address=:8443
+                - -http-address=
+                - -email-domain=*
+                - -upstream=http://localhost:10902
+                - -openshift-service-account=${SERVICE_ACCOUNT_NAME}
+                - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}'
+                - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}}'
+                - -tls-cert=/etc/tls/private/tls.crt
+                - -tls-key=/etc/tls/private/tls.key
+                - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+                - -cookie-secret-file=/etc/proxy/secrets/session_secret
+                - -openshift-ca=/etc/pki/tls/cert.pem
+                - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              image: ${OAUTH_PROXY_IMAGE}:${OAUTH_PROXY_IMAGE_TAG}
+              name: oauth-proxy
+              ports:
+                - containerPort: 8443
+                  name: https
+              resources:
+                limits:
+                  cpu: ${OAUTH_PROXY_CPU_LIMITS}
+                  memory: ${OAUTH_PROXY_MEMORY_LIMITS}
+                requests:
+                  cpu: ${OAUTH_PROXY_CPU_REQUEST}
+                  memory: ${OAUTH_PROXY_MEMORY_REQUEST}
+              volumeMounts:
+                - mountPath: /etc/tls/private
+                  name: compact-tls
+                  readOnly: false
+                - mountPath: /etc/proxy/secrets
+                  name: compact-proxy
+                  readOnly: false
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes:
+            - name: compact-tls
+              secret:
+                secretName: compact-tls
+            - name: compact-proxy
+              secret:
+                secretName: compact-proxy
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: database-compactor
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-compact
+              app.kubernetes.io/part-of: observatorium
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: ${THANOS_COMPACTOR_PVC_REQUEST}
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query
+    spec:
+      replicas: ${{THANOS_QUERIER_REPLICAS}}
+      securityContext: {}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: query-layer
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-query
+          app.kubernetes.io/part-of: observatorium
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: query-layer
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-query
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-query
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+          containers:
+            - args:
+                - query
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:9090
+                - --log.level=${THANOS_QUERIER_LOG_LEVEL}
+                - --log.format=logfmt
+                - --query.replica-label=replica
+                - --query.replica-label=rule_replica
+                - --query.replica-label=prometheus_replica
+                - --store=dnssrv+_grpc._tcp.observatorium-thanos-rule.${NAMESPACE}.svc.cluster.local
+                - --store=dnssrv+_grpc._tcp.observatorium-thanos-store-shard-0.${NAMESPACE}.svc.cluster.local
+                - --store=dnssrv+_grpc._tcp.observatorium-thanos-store-shard-1.${NAMESPACE}.svc.cluster.local
+                - --store=dnssrv+_grpc._tcp.observatorium-thanos-store-shard-2.${NAMESPACE}.svc.cluster.local
+                - --store=dnssrv+_grpc._tcp.observatorium-thanos-receive-default.${NAMESPACE}.svc.cluster.local
+                - --web.prefix-header=X-Forwarded-Prefix
+                - --query.timeout=15m
+                - --query.lookback-delta=15m
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-query"
+                  "type": "JAEGER"
+                - --query.auto-downsampling
+              env:
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 4
+                httpGet:
+                  path: /-/healthy
+                  port: 9090
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-query
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 9090
+                  name: http
+                - containerPort: 9091
+                  name: https
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 9090
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_QUERIER_CPU_LIMIT}
+                  memory: ${THANOS_QUERIER_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_QUERIER_CPU_REQUEST}
+                  memory: ${THANOS_QUERIER_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+            - args:
+                - -provider=openshift
+                - -https-address=:9091
+                - -http-address=
+                - -email-domain=*
+                - -upstream=http://localhost:9090
+                - -openshift-service-account=${SERVICE_ACCOUNT_NAME}
+                - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}'
+                - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}}'
+                - -tls-cert=/etc/tls/private/tls.crt
+                - -tls-key=/etc/tls/private/tls.key
+                - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+                - -cookie-secret-file=/etc/proxy/secrets/session_secret
+                - -openshift-ca=/etc/pki/tls/cert.pem
+                - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              image: ${OAUTH_PROXY_IMAGE}:${OAUTH_PROXY_IMAGE_TAG}
+              name: oauth-proxy
+              ports:
+                - containerPort: 9091
+                  name: https
+              resources:
+                limits:
+                  cpu: ${OAUTH_PROXY_CPU_LIMITS}
+                  memory: ${OAUTH_PROXY_MEMORY_LIMITS}
+                requests:
+                  cpu: ${OAUTH_PROXY_CPU_REQUEST}
+                  memory: ${OAUTH_PROXY_MEMORY_REQUEST}
+              volumeMounts:
+                - mountPath: /etc/tls/private
+                  name: query-tls
+                  readOnly: false
+                - mountPath: /etc/proxy/secrets
+                  name: query-proxy
+                  readOnly: false
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes:
+            - name: query-tls
+              secret:
+                secretName: query-tls
+            - name: query-proxy
+              secret:
+                secretName: query-proxy
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query-frontend
+    spec:
+      replicas: ${{THANOS_QUERY_FRONTEND_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: query-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-query-frontend
+          app.kubernetes.io/part-of: observatorium
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: query-cache
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-query-frontend
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-query-frontend
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+          containers:
+            - args:
+                - query-frontend
+                - --log.level=info
+                - --log.format=logfmt
+                - --query-frontend.compress-responses
+                - --http-address=0.0.0.0:9090
+                - --query-frontend.downstream-url=http://observatorium-thanos-query.${NAMESPACE}.svc.cluster.local.:9090
+                - --query-frontend.log-queries-longer-than=${THANOS_QUERY_FRONTEND_LOG_QUERIES_LONGER_THAN}
+                - |-
+                  --query-range.response-cache-config="config":
+                    "max_size": "0"
+                    "max_size_items": 2048
+                    "validity": "6h"
+                  "type": "in-memory"
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-query-frontend"
+                  "type": "JAEGER"
+                - --query-range.split-interval=${THANOS_QUERY_FRONTEND_SPLIT_INTERVAL}
+                - --labels.split-interval=${THANOS_QUERY_FRONTEND_SPLIT_INTERVAL}
+                - --query-range.max-retries-per-request=${THANOS_QUERY_FRONTEND_MAX_RETRIES}
+                - --labels.max-retries-per-request=${THANOS_QUERY_FRONTEND_MAX_RETRIES}
+                - --labels.default-time-range=336h
+                - |-
+                  --labels.response-cache-config="config":
+                    "max_size": "0"
+                    "max_size_items": 2048
+                    "validity": "6h"
+                  "type": "in-memory"
+                - --cache-compression-type=snappy
+              env:
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 4
+                httpGet:
+                  path: /-/healthy
+                  port: 9090
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-query-frontend
+              ports:
+                - containerPort: 9090
+                  name: http
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 9090
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_QUERY_FRONTEND_CPU_LIMIT}
+                  memory: ${THANOS_QUERY_FRONTEND_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_QUERY_FRONTEND_CPU_REQUEST}
+                  memory: ${THANOS_QUERY_FRONTEND_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+            - args:
+                - -provider=openshift
+                - -https-address=:9091
+                - -http-address=
+                - -email-domain=*
+                - -upstream=http://localhost:9090
+                - -openshift-service-account=${SERVICE_ACCOUNT_NAME}
+                - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}'
+                - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get", "name": "${NAMESPACE}", "namespace": "${NAMESPACE}"}}'
+                - -tls-cert=/etc/tls/private/tls.crt
+                - -tls-key=/etc/tls/private/tls.key
+                - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+                - -cookie-secret-file=/etc/proxy/secrets/session_secret
+                - -openshift-ca=/etc/pki/tls/cert.pem
+                - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              image: ${OAUTH_PROXY_IMAGE}:${OAUTH_PROXY_IMAGE_TAG}
+              name: oauth-proxy
+              ports:
+                - containerPort: 9091
+                  name: https
+              resources:
+                limits:
+                  cpu: ${OAUTH_PROXY_CPU_LIMITS}
+                  memory: ${OAUTH_PROXY_MEMORY_LIMITS}
+                requests:
+                  cpu: ${OAUTH_PROXY_CPU_REQUEST}
+                  memory: ${OAUTH_PROXY_MEMORY_REQUEST}
+              volumeMounts:
+                - mountPath: /etc/tls/private
+                  name: query-frontend-tls
+                  readOnly: false
+                - mountPath: /etc/proxy/secrets
+                  name: query-frontend-proxy
+                  readOnly: false
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes:
+            - name: query-frontend-tls
+              secret:
+                secretName: query-frontend-tls
+            - name: query-frontend-proxy
+              secret:
+                secretName: query-frontend-proxy
+  - apiVersion: v1
+    data:
+      session_secret: ""
+    kind: Secret
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: query-frontend-proxy
+    type: Opaque
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        service.alpha.openshift.io/serving-cert-secret-name: query-frontend-tls
+      labels:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query-frontend
+    spec:
+      ports:
+        - name: http
+          port: 9090
+          targetPort: 9090
+        - name: https
+          port: 9091
+          targetPort: 9091
+      selector:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query-frontend
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-query-frontend
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: query-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-query-frontend
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    data:
+      session_secret: ""
+    kind: Secret
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: query-proxy
+    type: Opaque
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        service.alpha.openshift.io/serving-cert-secret-name: query-tls
+      labels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query
+    spec:
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 9090
+          targetPort: 9090
+        - name: https
+          port: 9091
+          targetPort: 9091
+      selector:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-query
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-query
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: query-layer
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-query
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    data:
+      hashrings.json: |-
+        [
+          {
+            "hashring": "default",
+            "tenants": [
+
+            ]
+          }
+        ]
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller-tenants
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: kubernetes-controller
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-receive-controller
+          app.kubernetes.io/part-of: observatorium
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: kubernetes-controller
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-receive-controller
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - --configmap-name=observatorium-thanos-receive-controller-tenants
+                - --configmap-generated-name=observatorium-thanos-receive-controller-tenants-generated
+                - --file-name=hashrings.json
+                - --namespace=$(NAMESPACE)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+              image: ${THANOS_RECEIVE_CONTROLLER_IMAGE}:${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+              name: thanos-receive-controller
+              ports:
+                - containerPort: 8080
+                  name: http
+              resources:
+                limits:
+                  cpu: 64m
+                  memory: 128Mi
+                requests:
+                  cpu: 10m
+                  memory: 24Mi
+              securityContext: {}
+          securityContext: {}
+          serviceAccount: observatorium-thanos-receive-controller
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - configmaps
+        verbs:
+          - list
+          - watch
+          - get
+          - create
+          - update
+      - apiGroups:
+          - apps
+        resources:
+          - statefulsets
+        verbs:
+          - list
+          - watch
+          - get
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: observatorium-thanos-receive-controller
+    subjects:
+      - kind: ServiceAccount
+        name: observatorium-thanos-receive-controller
+        namespace: ${NAMESPACE}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller
+    spec:
+      ports:
+        - name: http
+          port: 8080
+          targetPort: 8080
+      selector:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: kubernetes-controller
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive-controller
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_RECEIVE_CONTROLLER_IMAGE_TAG}
+      name: observatorium-thanos-receive-controller
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-thanos-receive-controller
+    spec:
+      endpoints:
+        - port: http
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: kubernetes-controller
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-receive-controller
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: policy/v1beta1
+    kind: PodDisruptionBudget
+    metadata:
+      name: observatorium-thanos-receive-default
+    spec:
+      maxUnavailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: database-write-hashring
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-receive
+          app.kubernetes.io/part-of: observatorium
+          controller.receive.thanos.io/hashring: default
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-write-hashring
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        controller.receive.thanos.io/hashring: default
+      name: observatorium-thanos-receive-default
+    spec:
+      clusterIP: None
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+        - name: remote-write
+          port: 19291
+          targetPort: 19291
+      selector:
+        app.kubernetes.io/component: database-write-hashring
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+        controller.receive.thanos.io/hashring: default
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-write-hashring
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        controller.receive.thanos.io: thanos-receive-controller
+        controller.receive.thanos.io/hashring: default
+      name: observatorium-thanos-receive-default
+    spec:
+      replicas: ${{THANOS_RECEIVE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: database-write-hashring
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-receive
+          app.kubernetes.io/part-of: observatorium
+          controller.receive.thanos.io/hashring: default
+      serviceName: observatorium-thanos-receive-default
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: database-write-hashring
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-receive
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+            controller.receive.thanos.io/hashring: default
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-receive
+                        - key: app.kubernetes.io/instance
+                          operator: In
+                          values:
+                            - observatorium
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-receive
+                        - key: app.kubernetes.io/instance
+                          operator: In
+                          values:
+                            - observatorium
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+          containers:
+            - args:
+                - receive
+                - --log.level=${THANOS_RECEIVE_LOG_LEVEL}
+                - --log.format=logfmt
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:10902
+                - --remote-write.address=0.0.0.0:19291
+                - --receive.replication-factor=3
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --tsdb.path=${THANOS_RECEIVE_TSDB_PATH}
+                - --tsdb.retention=4d
+                - --receive.local-endpoint=$(NAME).observatorium-thanos-receive-default.$(NAMESPACE).svc.cluster.local:10901
+                - --label=replica="$(NAME)"
+                - --label=receive="true"
+                - --receive.hashrings-file=/var/lib/thanos-receive/hashrings.json
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-receive"
+                  "type": "JAEGER"
+                - --receive.default-tenant-id=FB870BF3-9F3A-44FF-9BF7-D7A047A52F43
+              env:
+                - name: NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: DEBUG
+                  value: ${THANOS_RECEIVE_DEBUG_ENV}
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+                - name: DEBUG
+                  value: ${THANOS_RECEIVE_DEBUG_ENV}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 8
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-receive
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 10902
+                  name: http
+                - containerPort: 19291
+                  name: remote-write
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_RECEIVE_CPU_LIMIT}
+                  memory: ${THANOS_RECEIVE_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_RECEIVE_CPU_REQUEST}
+                  memory: ${THANOS_RECEIVE_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/receive
+                  name: data
+                  readOnly: false
+                - mountPath: /var/lib/thanos-receive
+                  name: hashring-config
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 900
+          volumes:
+            - configMap:
+                name: observatorium-thanos-receive-controller-tenants-generated
+              name: hashring-config
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: database-write-hashring
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-receive
+              app.kubernetes.io/part-of: observatorium
+              controller.receive.thanos.io/hashring: default
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+      name: observatorium-thanos-receive
+    spec:
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+        - name: remote-write
+          port: 19291
+          targetPort: 19291
+      selector:
+        app.kubernetes.io/name: thanos-receive
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-write-hashring
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-receive
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: database-write-hashring
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-receive
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-receive
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: database-write-hashring
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-receive
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    data:
+      observatorium.yaml: |-
+        "groups":
+        - "interval": "1m"
+          "name": "telemeter-telemeter.rules"
+          "rules":
+          - "expr": |
+              count by (name,reason) (cluster_operator_conditions{condition="Degraded"} == 1)
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "name_reason:cluster_operator_degraded:count"
+          - "expr": |
+              count by (name,reason) (cluster_operator_conditions{condition="Available"} == 0)
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "name_reason:cluster_operator_unavailable:count"
+          - "expr": |
+              sort_desc(max by (_id,code) (code:apiserver_request_count:rate:sum{code=~"(4|5)\\d\\d"}) > 0.5)
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_code:apiserver_request_error_rate_sum:max"
+          - "expr": |
+              bottomk by (_id) (1, max by (_id, version) (0 * cluster_version{type="failure"}) or max by (_id, version) (1 + 0 * cluster_version{type="current"}))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_version:cluster_available"
+          - "expr": |
+              topk by (_id) (1, max by (_id, managed, ebs_account, internal) (label_replace(label_replace((subscription_labels{support=~"Standard|Premium|Layered"} * 0 + 1) or subscription_labels * 0, "internal", "true", "email_domain", "redhat.com|(.*\\.|^)ibm.com"), "managed", "", "managed", "false")) + on(_id) group_left(version) (topk by (_id) (1, id_version*0)) + on(_id) group_left(install_type) (topk by (_id) (1, id_install_type*0)) + on(_id) group_left(host_type) (topk by (_id) (1, id_primary_host_type*0)) + on(_id) group_left(provider) (topk by (_id) (1, id_provider*0)))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_version_ebs_account_internal:cluster_subscribed"
+          - "expr": |
+              0 * (max by (_id,host_type) (topk by (_id) (1, label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(cluster:virt_platform_nodes:sum, "host_type", "$1", "type", "(aws|ibm_.*|ovirt|none|rhev|gcp|openstack|hyperv|vmware)"), "host_type", "virt-unknown", "host_type", ""), "host_type", "kvm-unknown", "type", "kvm"), "host_type", "xen-unknown", "type", "xen.*"), "host_type", "metal", "host_type", "none"), "host_type", "ibm-$1", "host_type", "ibm[_-](power|systemz).*"))) or on(_id) label_replace(max by (_id) (cluster_version{type="current"}), "host_type", "", "host_type", ""))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_primary_host_type"
+          - "expr": |
+              0 * topk by (_id) (1, count by (_id, provider) (label_replace(cluster_infrastructure_provider * 0 + 2, "provider", "$1", "type", "(.*)")) or on(_id) label_replace(max by (_id) (cluster_version{type="current"}*0+1), "provider", "", "provider", "") or on(_id) label_replace(max by (_id) (cluster:node_instance_type_count:sum*0), "provider", "hypershift-unknown", "provider", ""))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_provider"
+          - "expr": |
+              0 * (max by (_id,version) (topk by (_id) (1, cluster_version{type="current"})) or on(_id) label_replace(max by (_id) (cluster:node_instance_type_count:sum*0), "version", "", "unknown", ""))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_version"
+          - "expr": |
+              0 * (count by (_id, install_type) (label_replace(label_replace(label_replace(label_replace(topk by (_id) (1, cluster_installer), "install_type", "upi", "type", "other"), "install_type", "ipi", "type", "openshift-install"), "install_type", "hive", "invoker", "hive"), "install_type", "assisted-installer", "invoker", "assisted-installer")) or on(_id) (label_replace(count by (_id) (cluster:virt_platform_nodes:sum), "install_type", "hypershift-unknown", "install_type", ""))*0)
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_install_type"
+          - "expr": |
+              0 * (max by (_id,cloudpak_type) (topk by (_id) (1, count by (_id,cloudpak_type) (label_replace(subscription_sync_total{installed=~"ibm-((licensing|common-service)-operator).*"}, "cloudpak_type", "unknown", "", ".*")))))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_cloudpak_type"
+          - "expr": |
+              topk by(_id) (1,
+                (label_replace(7+0*count by (_id) (cluster:usage:resources:sum{resource="netnamespaces.network.openshift.io"}), "network_type", "OpenshiftSDN", "", "") > 0) or
+                (label_replace(6+0*count by (_id) (cluster:usage:resources:sum{resource="clusterinformations.crd.projectcalico.org"}), "network_type", "Calico", "", "") > 0) or
+                (label_replace(5+0*count by (_id) (cluster:usage:resources:sum{resource="acicontainersoperators.aci.ctrl"}), "network_type", "ACI", "", "") > 0) or
+                (label_replace(4+0*count by (_id) (cluster:usage:resources:sum{resource="kuryrnetworks.openstack.org"}), "network_type", "Kuryr", "", "") > 0) or
+                (label_replace(3+0*count by (_id) (cluster:usage:resources:sum{resource="ciliumendpoints.cilium.io"}), "network_type", "Cilium", "", "") > 0) or
+                (label_replace(2+0*count by (_id) (cluster:usage:resources:sum{resource="ncpconfigs.nsx.vmware.com"}), "network_type", "VMWareNSX", "", "") > 0) or
+                (label_replace(1+0*count by (_id) (cluster:usage:resources:sum{resource="egressips.k8s.ovn.org"}), "network_type", "OVNKube", "", "")) or
+                (label_replace(0+0*max by (_id) (cluster:node_instance_type_count:sum*0), "network_type", "unknown", "", ""))
+              )
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "id_network_type"
+          - "expr": |
+              0 * topk by (ebs_account) (1, max by (ebs_account,account_type,internal,email_domain) (label_replace(label_replace(label_replace(subscription_labels{email_domain="redhat.com"}*0+5, "class", "Internal", "class", ".*") or label_replace(subscription_labels{class!="Customer",email_domain=~"(.*\\.|^)ibm.com"}*0+4, "class", "Internal", "class", ".*") or (subscription_labels{class="Customer"}*0+3) or (subscription_labels{class="Partner"}*0+2) or (subscription_labels{class="Evaluation"}*0+1) or label_replace(subscription_labels{class!~"Evaluation|Customer|Partner"}*0+0, "class", "", "class", ".*"), "account_type", "$1", "class", "(.+)"), "internal", "true", "email_domain", "redhat.com|(.*\\.|^)ibm.com") ))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "ebs_account_account_type_email_domain_internal"
+          - "expr": |
+              topk(500, sum (acm_managed_cluster_info) by (managed_cluster_id, cloud, created_via, endpoint, instance, job, namespace, pod, service, vendor, version))
+            "labels":
+              "tenant_id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+            "record": "acm_top500_mcs:acm_managed_cluster_info"
+    kind: ConfigMap
+    metadata:
+      annotations:
+        qontract.recycle: "true"
+      labels:
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/part-of: observatorium
+      name: observatorium-rules
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: rule-evaluation-engine
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-rule
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-rule
+    spec:
+      clusterIP: None
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+      selector:
+        app.kubernetes.io/component: rule-evaluation-engine
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-rule
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: rule-evaluation-engine
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-rule
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-rule
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: rule-evaluation-engine
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-rule
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-rule
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: rule-evaluation-engine
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-rule
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: rule-evaluation-engine
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-rule
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-rule
+    spec:
+      replicas: ${{THANOS_RULER_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: rule-evaluation-engine
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-rule
+          app.kubernetes.io/part-of: observatorium
+      serviceName: observatorium-thanos-rule
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: rule-evaluation-engine
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-rule
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - rule
+                - --log.level=${THANOS_RULER_LOG_LEVEL}
+                - --log.format=logfmt
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:10902
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --data-dir=/var/thanos/rule
+                - --label=rule_replica="$(NAME)"
+                - --alert.label-drop=rule_replica
+                - --tsdb.retention=48h
+                - --tsdb.block-duration=2h
+                - --query=dnssrv+_http._tcp.observatorium-thanos-query.${NAMESPACE}.svc.cluster.local
+                - --rule-file=/etc/thanos/rules/observatorium-rules/observatorium.yaml
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-rule"
+                  "type": "JAEGER"
+              env:
+                - name: NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 24
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              name: thanos-rule
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 10902
+                  name: http
+              readinessProbe:
+                failureThreshold: 18
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                initialDelaySeconds: 10
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_RULER_CPU_LIMIT}
+                  memory: ${THANOS_RULER_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_RULER_CPU_REQUEST}
+                  memory: ${THANOS_RULER_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/rule
+                  name: data
+                  readOnly: false
+                - mountPath: /etc/thanos/rules/observatorium-rules
+                  name: observatorium-rules
+            - args:
+                - -webhook-url=http://localhost:10902/-/reload
+                - -volume-dir=/etc/thanos/rules/observatorium-rules
+              image: ${CONFIGMAP_RELOADER_IMAGE}:${CONFIGMAP_RELOADER_IMAGE_TAG}
+              name: configmap-reloader
+              volumeMounts:
+                - mountPath: /etc/thanos/rules/observatorium-rules
+                  name: observatorium-rules
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          volumes:
+            - configMap:
+                name: observatorium-rules
+              name: observatorium-rules
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: rule-evaluation-engine
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-rule
+              app.kubernetes.io/part-of: observatorium
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: ${THANOS_RULER_PVC_REQUEST}
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-bucket-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-bucket-cache-memcached
+    spec:
+      clusterIP: None
+      ports:
+        - name: client
+          port: 11211
+          targetPort: 11211
+        - name: metrics
+          port: 9150
+          targetPort: 9150
+      selector:
+        app.kubernetes.io/component: store-bucket-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-bucket-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-bucket-cache-memcached
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-thanos-store-bucket-cache-memcached
+    spec:
+      endpoints:
+        - port: metrics
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: store-bucket-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-bucket-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-bucket-cache-memcached
+    spec:
+      replicas: ${{THANOS_STORE_BUCKET_CACHE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: store-bucket-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+      serviceName: observatorium-thanos-store-bucket-cache-memcached
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: store-bucket-cache
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: memcached
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - -m ${THANOS_STORE_BUCKET_CACHE_MEMORY_LIMIT_MB}
+                - -I 1m
+                - -c ${THANOS_STORE_BUCKET_CACHE_CONNECTION_LIMIT}
+                - -v
+              image: ${MEMCACHED_IMAGE}:${MEMCACHED_IMAGE_TAG}
+              name: memcached
+              ports:
+                - containerPort: 11211
+                  name: client
+              resources:
+                limits:
+                  cpu: ${THANOS_STORE_BUCKET_CACHE_MEMCACHED_CPU_LIMIT}
+                  memory: ${THANOS_STORE_BUCKET_CACHE_MEMCACHED_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_STORE_BUCKET_CACHE_MEMCACHED_CPU_REQUEST}
+                  memory: ${THANOS_STORE_BUCKET_CACHE_MEMCACHED_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+            - args:
+                - --memcached.address=localhost:11211
+                - --web.listen-address=0.0.0.0:9150
+              image: ${MEMCACHED_EXPORTER_IMAGE}:${MEMCACHED_EXPORTER_IMAGE_TAG}
+              name: exporter
+              ports:
+                - containerPort: 9150
+                  name: metrics
+              resources:
+                limits:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_LIMIT}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_LIMIT}
+                requests:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_REQUEST}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_REQUEST}
+          securityContext: {}
+          serviceAccountName: observatorium-thanos-store-bucket-cache-memcached
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-index-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-index-cache-memcached
+    spec:
+      clusterIP: None
+      ports:
+        - name: client
+          port: 11211
+          targetPort: 11211
+        - name: metrics
+          port: 9150
+          targetPort: 9150
+      selector:
+        app.kubernetes.io/component: store-index-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-index-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-index-cache-memcached
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-thanos-store-index-cache-memcached
+    spec:
+      endpoints:
+        - port: metrics
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: store-index-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: store-index-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-thanos-store-index-cache-memcached
+    spec:
+      replicas: ${{THANOS_STORE_INDEX_CACHE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: store-index-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+      serviceName: observatorium-thanos-store-index-cache-memcached
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: store-index-cache
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: memcached
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - -m ${THANOS_STORE_INDEX_CACHE_MEMORY_LIMIT_MB}
+                - -I 5m
+                - -c ${THANOS_STORE_INDEX_CACHE_CONNECTION_LIMIT}
+                - -v
+              image: ${MEMCACHED_IMAGE}:${MEMCACHED_IMAGE_TAG}
+              name: memcached
+              ports:
+                - containerPort: 11211
+                  name: client
+              resources:
+                limits:
+                  cpu: ${THANOS_STORE_INDEX_CACHE_MEMCACHED_CPU_LIMIT}
+                  memory: ${THANOS_STORE_INDEX_CACHE_MEMCACHED_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_STORE_INDEX_CACHE_MEMCACHED_CPU_REQUEST}
+                  memory: ${THANOS_STORE_INDEX_CACHE_MEMCACHED_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+            - args:
+                - --memcached.address=localhost:11211
+                - --web.listen-address=0.0.0.0:9150
+              image: ${MEMCACHED_EXPORTER_IMAGE}:${MEMCACHED_EXPORTER_IMAGE_TAG}
+              name: exporter
+              ports:
+                - containerPort: 9150
+                  name: metrics
+              resources:
+                limits:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_LIMIT}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_LIMIT}
+                requests:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_REQUEST}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_REQUEST}
+          securityContext: {}
+          serviceAccountName: observatorium-thanos-store-index-cache-memcached
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+      name: observatorium-thanos-store-shard
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-0
+      name: observatorium-thanos-store-shard-0
+    spec:
+      clusterIP: None
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+      selector:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        store.thanos.io/shard: shard-0
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-0
+      name: observatorium-thanos-store-shard-0
+    spec:
+      replicas: ${{THANOS_STORE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: object-store-gateway
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-store
+          app.kubernetes.io/part-of: observatorium
+          store.thanos.io/shard: shard-0
+      serviceName: observatorium-thanos-store-shard-0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: object-store-gateway
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-store
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+            store.thanos.io/shard: shard-0
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-store
+                        - key: app.kubernetes.io/instance
+                          operator: In
+                          values:
+                            - observatorium
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+          containers:
+            - args:
+                - store
+                - --log.level=${THANOS_STORE_LOG_LEVEL}
+                - --log.format=logfmt
+                - --data-dir=/var/thanos/store
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:10902
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --ignore-deletion-marks-delay=24h
+                - |-
+                  --index-cache.config="config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-index-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 200000
+                    "max_async_concurrency": 200
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1300
+                    "max_item_size": "5MiB"
+                    "timeout": "2s"
+                  "type": "memcached"
+                - |-
+                  --store.caching-bucket.config="blocks_iter_ttl": "5m"
+                  "chunk_object_attrs_ttl": "24h"
+                  "chunk_subrange_size": 16000
+                  "chunk_subrange_ttl": "24h"
+                  "config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-bucket-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 25000
+                    "max_async_concurrency": 50
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1100
+                    "max_item_size": "1MiB"
+                    "timeout": "2s"
+                  "max_chunks_get_range_requests": 3
+                  "metafile_content_ttl": "24h"
+                  "metafile_doesnt_exist_ttl": "15m"
+                  "metafile_exists_ttl": "2h"
+                  "metafile_max_size": "1MiB"
+                  "type": "memcached"
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-store"
+                  "type": "JAEGER"
+                - |
+                  --selector.relabel-config=
+                    - action: hashmod
+                      source_labels: ["__block_id"]
+                      target_label: shard
+                      modulus: 3
+                    - action: keep
+                      source_labels: ["shard"]
+                      regex: 0
+              env:
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 8
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-store
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 10902
+                  name: http
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_STORE_CPU_LIMIT}
+                  memory: ${THANOS_STORE_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_STORE_CPU_REQUEST}
+                  memory: ${THANOS_STORE_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/store
+                  name: data
+                  readOnly: false
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes: []
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: object-store-gateway
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-store
+              app.kubernetes.io/part-of: observatorium
+              store.thanos.io/shard: shard-0
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-1
+      name: observatorium-thanos-store-shard-1
+    spec:
+      clusterIP: None
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+      selector:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        store.thanos.io/shard: shard-1
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-1
+      name: observatorium-thanos-store-shard-1
+    spec:
+      replicas: ${{THANOS_STORE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: object-store-gateway
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-store
+          app.kubernetes.io/part-of: observatorium
+          store.thanos.io/shard: shard-1
+      serviceName: observatorium-thanos-store-shard-1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: object-store-gateway
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-store
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+            store.thanos.io/shard: shard-1
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-store
+                        - key: app.kubernetes.io/instance
+                          operator: In
+                          values:
+                            - observatorium
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+          containers:
+            - args:
+                - store
+                - --log.level=${THANOS_STORE_LOG_LEVEL}
+                - --log.format=logfmt
+                - --data-dir=/var/thanos/store
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:10902
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --ignore-deletion-marks-delay=24h
+                - |-
+                  --index-cache.config="config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-index-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 200000
+                    "max_async_concurrency": 200
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1300
+                    "max_item_size": "5MiB"
+                    "timeout": "2s"
+                  "type": "memcached"
+                - |-
+                  --store.caching-bucket.config="blocks_iter_ttl": "5m"
+                  "chunk_object_attrs_ttl": "24h"
+                  "chunk_subrange_size": 16000
+                  "chunk_subrange_ttl": "24h"
+                  "config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-bucket-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 25000
+                    "max_async_concurrency": 50
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1100
+                    "max_item_size": "1MiB"
+                    "timeout": "2s"
+                  "max_chunks_get_range_requests": 3
+                  "metafile_content_ttl": "24h"
+                  "metafile_doesnt_exist_ttl": "15m"
+                  "metafile_exists_ttl": "2h"
+                  "metafile_max_size": "1MiB"
+                  "type": "memcached"
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-store"
+                  "type": "JAEGER"
+                - |
+                  --selector.relabel-config=
+                    - action: hashmod
+                      source_labels: ["__block_id"]
+                      target_label: shard
+                      modulus: 3
+                    - action: keep
+                      source_labels: ["shard"]
+                      regex: 1
+              env:
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 8
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-store
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 10902
+                  name: http
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_STORE_CPU_LIMIT}
+                  memory: ${THANOS_STORE_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_STORE_CPU_REQUEST}
+                  memory: ${THANOS_STORE_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/store
+                  name: data
+                  readOnly: false
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes: []
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: object-store-gateway
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-store
+              app.kubernetes.io/part-of: observatorium
+              store.thanos.io/shard: shard-1
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-2
+      name: observatorium-thanos-store-shard-2
+    spec:
+      clusterIP: None
+      ports:
+        - name: grpc
+          port: 10901
+          targetPort: 10901
+        - name: http
+          port: 10902
+          targetPort: 10902
+      selector:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        store.thanos.io/shard: shard-2
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+        store.thanos.io/shard: shard-2
+      name: observatorium-thanos-store-shard-2
+    spec:
+      replicas: ${{THANOS_STORE_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: object-store-gateway
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-store
+          app.kubernetes.io/part-of: observatorium
+          store.thanos.io/shard: shard-2
+      serviceName: observatorium-thanos-store-shard-2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: object-store-gateway
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: thanos-store
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${THANOS_IMAGE_TAG}
+            store.thanos.io/shard: shard-2
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - thanos-store
+                        - key: app.kubernetes.io/instance
+                          operator: In
+                          values:
+                            - observatorium
+                    namespaces:
+                      - ${NAMESPACE}
+                    topologyKey: kubernetes.io/hostname
+                  weight: 100
+          containers:
+            - args:
+                - store
+                - --log.level=${THANOS_STORE_LOG_LEVEL}
+                - --log.format=logfmt
+                - --data-dir=/var/thanos/store
+                - --grpc-address=0.0.0.0:10901
+                - --http-address=0.0.0.0:10902
+                - --objstore.config=$(OBJSTORE_CONFIG)
+                - --ignore-deletion-marks-delay=24h
+                - |-
+                  --index-cache.config="config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-index-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 200000
+                    "max_async_concurrency": 200
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1300
+                    "max_item_size": "5MiB"
+                    "timeout": "2s"
+                  "type": "memcached"
+                - |-
+                  --store.caching-bucket.config="blocks_iter_ttl": "5m"
+                  "chunk_object_attrs_ttl": "24h"
+                  "chunk_subrange_size": 16000
+                  "chunk_subrange_ttl": "24h"
+                  "config":
+                    "addresses":
+                    - "dnssrv+_client._tcp.observatorium-thanos-store-bucket-cache-memcached.${NAMESPACE}.svc"
+                    "dns_provider_update_interval": "10s"
+                    "max_async_buffer_size": 25000
+                    "max_async_concurrency": 50
+                    "max_get_multi_batch_size": 100
+                    "max_get_multi_concurrency": 1000
+                    "max_idle_connections": 1100
+                    "max_item_size": "1MiB"
+                    "timeout": "2s"
+                  "max_chunks_get_range_requests": 3
+                  "metafile_content_ttl": "24h"
+                  "metafile_doesnt_exist_ttl": "15m"
+                  "metafile_exists_ttl": "2h"
+                  "metafile_max_size": "1MiB"
+                  "type": "memcached"
+                - |-
+                  --tracing.config="config":
+                    "sampler_param": 2
+                    "sampler_type": "ratelimiting"
+                    "service_name": "thanos-store"
+                  "type": "JAEGER"
+                - |
+                  --selector.relabel-config=
+                    - action: hashmod
+                      source_labels: ["__block_id"]
+                      target_label: shard
+                      modulus: 3
+                    - action: keep
+                      source_labels: ["shard"]
+                      regex: 2
+              env:
+                - name: OBJSTORE_CONFIG
+                  valueFrom:
+                    secretKeyRef:
+                      key: thanos.yaml
+                      name: ${THANOS_CONFIG_SECRET}
+                - name: HOST_IP_ADDRESS
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.hostIP
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_access_key_id
+                      name: ${THANOS_S3_SECRET}
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      key: aws_secret_access_key
+                      name: ${THANOS_S3_SECRET}
+              image: ${THANOS_IMAGE}:${THANOS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 8
+                httpGet:
+                  path: /-/healthy
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 30
+              name: thanos-store
+              ports:
+                - containerPort: 10901
+                  name: grpc
+                - containerPort: 10902
+                  name: http
+              readinessProbe:
+                failureThreshold: 20
+                httpGet:
+                  path: /-/ready
+                  port: 10902
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${THANOS_STORE_CPU_LIMIT}
+                  memory: ${THANOS_STORE_MEMORY_LIMIT}
+                requests:
+                  cpu: ${THANOS_STORE_CPU_REQUEST}
+                  memory: ${THANOS_STORE_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+              volumeMounts:
+                - mountPath: /var/thanos/store
+                  name: data
+                  readOnly: false
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          nodeSelector:
+            beta.kubernetes.io/os: linux
+          securityContext: {}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          terminationGracePeriodSeconds: 120
+          volumes: []
+      volumeClaimTemplates:
+        - metadata:
+            labels:
+              app.kubernetes.io/component: object-store-gateway
+              app.kubernetes.io/instance: observatorium
+              app.kubernetes.io/name: thanos-store
+              app.kubernetes.io/part-of: observatorium
+              store.thanos.io/shard: shard-2
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 50Gi
+            storageClassName: ${STORAGE_CLASS}
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: object-store-gateway
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: thanos-store
+        app.kubernetes.io/part-of: observatorium
+        prometheus: app-sre
+      name: observatorium-thanos-store-shard
+    spec:
+      endpoints:
+        - port: http
+          relabelings:
+            - separator: /
+              sourceLabels:
+                - namespace
+                - pod
+              targetLabel: instance
+      namespaceSelector:
+        matchNames: ${{NAMESPACES}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: object-store-gateway
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: thanos-store
+          app.kubernetes.io/part-of: observatorium
+parameters:
+  - name: NAMESPACE
+    value: observatorium-metrics
+  - name: NAMESPACES
+    value: '["telemeter", "observatorium-metrics", "observatorium-mst-production"]'
+  - name: JAEGER_AGENT_IMAGE_TAG
+    value: 1.15.0
+  - name: JAEGER_AGENT_IMAGE
+    value: quay.io/app-sre/jaegertracing-jaeger-agent
+  - name: JAEGER_COLLECTOR_NAMESPACE
+    value: $(NAMESPACE)
+  - name: MEMCACHED_CPU_LIMIT
+    value: "3"
+  - name: MEMCACHED_CPU_REQUEST
+    value: 500m
+  - name: MEMCACHED_EXPORTER_CPU_LIMIT
+    value: 200m
+  - name: MEMCACHED_EXPORTER_CPU_REQUEST
+    value: 50m
+  - name: MEMCACHED_EXPORTER_IMAGE_TAG
+    value: v0.6.0
+  - name: MEMCACHED_EXPORTER_IMAGE
+    value: docker.io/prom/memcached-exporter
+  - name: MEMCACHED_EXPORTER_MEMORY_LIMIT
+    value: 200Mi
+  - name: MEMCACHED_EXPORTER_MEMORY_REQUEST
+    value: 50Mi
+  - name: MEMCACHED_IMAGE_TAG
+    value: 1.5.20-alpine
+  - name: MEMCACHED_IMAGE
+    value: docker.io/memcached
+  - name: MEMCACHED_MEMORY_LIMIT
+    value: 1844Mi
+  - name: MEMCACHED_MEMORY_REQUEST
+    value: 1329Mi
+  - name: OAUTH_PROXY_CPU_LIMITS
+    value: 200m
+  - name: OAUTH_PROXY_CPU_REQUEST
+    value: 100m
+  - name: OAUTH_PROXY_IMAGE_TAG
+    value: 4.7.0
+  - name: OAUTH_PROXY_IMAGE
+    value: quay.io/openshift/origin-oauth-proxy
+  - name: OAUTH_PROXY_MEMORY_LIMITS
+    value: 200Mi
+  - name: OAUTH_PROXY_MEMORY_REQUEST
+    value: 100Mi
+  - name: SERVICE_ACCOUNT_NAME
+    value: prometheus-telemeter
+  - name: STORAGE_CLASS
+    value: gp2
+  - name: THANOS_COMPACTOR_CPU_LIMIT
+    value: "1"
+  - name: THANOS_COMPACTOR_CPU_REQUEST
+    value: 100m
+  - name: THANOS_COMPACTOR_LOG_LEVEL
+    value: info
+  - name: THANOS_COMPACTOR_RETENTION_RESOULTION_RAW
+    value: 14d
+  - name: THANOS_COMPACTOR_RETENTION_RESOULTION_FIVE_MINUTES
+    value: 1s
+  - name: THANOS_COMPACTOR_RETENTION_RESOULTION_ONE_HOUR
+    value: 1s
+  - name: THANOS_COMPACTOR_RETENTION_DISABLE_DOWNSAMPLING
+    value: --downsampling.disable
+  - name: THANOS_COMPACTOR_MEMORY_LIMIT
+    value: 5Gi
+  - name: THANOS_COMPACTOR_MEMORY_REQUEST
+    value: 1Gi
+  - name: THANOS_COMPACTOR_PVC_REQUEST
+    value: 50Gi
+  - name: THANOS_COMPACTOR_REPLICAS
+    value: "1"
+  - name: THANOS_CONFIG_SECRET
+    value: thanos-objectstorage
+  - name: THANOS_IMAGE_TAG
+    value: master-2020-08-12-70f89d83
+  - name: THANOS_IMAGE
+    value: quay.io/thanos/thanos
+  - name: THANOS_QUERIER_CPU_LIMIT
+    value: "1"
+  - name: THANOS_QUERIER_CPU_REQUEST
+    value: 100m
+  - name: THANOS_QUERIER_LOG_LEVEL
+    value: info
+  - name: THANOS_QUERIER_MEMORY_LIMIT
+    value: 1Gi
+  - name: THANOS_QUERIER_MEMORY_REQUEST
+    value: 256Mi
+  - name: THANOS_QUERIER_REPLICAS
+    value: "3"
+  - name: THANOS_QUERIER_SVC_URL
+    value: http://thanos-querier.observatorium.svc:9090
+  - name: THANOS_QUERY_FRONTEND_CPU_LIMIT
+    value: "1"
+  - name: THANOS_QUERY_FRONTEND_CPU_REQUEST
+    value: 100m
+  - name: THANOS_QUERY_FRONTEND_LOG_QUERIES_LONGER_THAN
+    value: 5s
+  - name: THANOS_QUERY_FRONTEND_MAX_RETRIES
+    value: "0"
+  - name: THANOS_QUERY_FRONTEND_MEMORY_LIMIT
+    value: 1Gi
+  - name: THANOS_QUERY_FRONTEND_MEMORY_REQUEST
+    value: 256Mi
+  - name: THANOS_QUERY_FRONTEND_REPLICAS
+    value: "3"
+  - name: THANOS_QUERY_FRONTEND_SPLIT_INTERVAL
+    value: 24h
+  - name: THANOS_RECEIVE_CONTROLLER_IMAGE_TAG
+    value: master-2019-10-18-d55fee2
+  - name: THANOS_RECEIVE_CONTROLLER_IMAGE
+    value: quay.io/observatorium/thanos-receive-controller
+  - name: THANOS_RECEIVE_CPU_LIMIT
+    value: "1"
+  - name: THANOS_RECEIVE_CPU_REQUEST
+    value: "1"
+  - name: THANOS_RECEIVE_DEBUG_ENV
+    value: ""
+  - name: THANOS_RECEIVE_LOG_LEVEL
+    value: info
+  - name: THANOS_RECEIVE_MEMORY_LIMIT
+    value: 1Gi
+  - name: THANOS_RECEIVE_MEMORY_REQUEST
+    value: 1Gi
+  - name: THANOS_RECEIVE_REPLICAS
+    value: "5"
+  - name: THANOS_RECEIVE_TSDB_PATH
+    value: /var/thanos/receive
+  - name: THANOS_RULER_CPU_LIMIT
+    value: "1"
+  - name: THANOS_RULER_CPU_REQUEST
+    value: 500m
+  - name: THANOS_RULER_LOG_LEVEL
+    value: info
+  - name: THANOS_RULER_MEMORY_LIMIT
+    value: 2Gi
+  - name: THANOS_RULER_MEMORY_REQUEST
+    value: 2Gi
+  - name: THANOS_RULER_PVC_REQUEST
+    value: 50Gi
+  - name: THANOS_RULER_REPLICAS
+    value: "2"
+  - name: THANOS_S3_SECRET
+    value: telemeter-thanos-stage-s3
+  - name: THANOS_STORE_BUCKET_CACHE_CONNECTION_LIMIT
+    value: "3072"
+  - name: THANOS_STORE_BUCKET_CACHE_MEMCACHED_CPU_LIMIT
+    value: "3"
+  - name: THANOS_STORE_BUCKET_CACHE_MEMCACHED_CPU_REQUEST
+    value: 500m
+  - name: THANOS_STORE_BUCKET_CACHE_MEMCACHED_MEMORY_LIMIT
+    value: 3Gi
+  - name: THANOS_STORE_BUCKET_CACHE_MEMCACHED_MEMORY_REQUEST
+    value: 2558Mi
+  - name: THANOS_STORE_BUCKET_CACHE_MEMORY_LIMIT_MB
+    value: "2048"
+  - name: THANOS_STORE_BUCKET_CACHE_REPLICAS
+    value: "3"
+  - name: THANOS_STORE_CPU_LIMIT
+    value: "2"
+  - name: THANOS_STORE_CPU_REQUEST
+    value: 500m
+  - name: THANOS_STORE_INDEX_CACHE_CONNECTION_LIMIT
+    value: "3072"
+  - name: THANOS_STORE_INDEX_CACHE_MEMCACHED_CPU_LIMIT
+    value: "3"
+  - name: THANOS_STORE_INDEX_CACHE_MEMCACHED_CPU_REQUEST
+    value: 500m
+  - name: THANOS_STORE_INDEX_CACHE_MEMCACHED_MEMORY_LIMIT
+    value: 3Gi
+  - name: THANOS_STORE_INDEX_CACHE_MEMCACHED_MEMORY_REQUEST
+    value: 2558Mi
+  - name: THANOS_STORE_INDEX_CACHE_MEMORY_LIMIT_MB
+    value: "2048"
+  - name: THANOS_STORE_INDEX_CACHE_REPLICAS
+    value: "3"
+  - name: THANOS_STORE_LOG_LEVEL
+    value: info
+  - name: THANOS_STORE_MEMORY_LIMIT
+    value: 8Gi
+  - name: THANOS_STORE_MEMORY_REQUEST
+    value: 1Gi
+  - name: THANOS_STORE_REPLICAS
+    value: "5"
+  - name: CONFIGMAP_RELOADER_IMAGE
+    value: quay.io/openshift/origin-configmap-reloader
+  - name: CONFIGMAP_RELOADER_IMAGE_TAG
+    value: 4.5.0

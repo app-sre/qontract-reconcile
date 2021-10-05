@@ -1,0 +1,876 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: observatorium
+objects:
+  - apiVersion: v1
+    data:
+      rbac.yaml: |-
+        "roleBindings":
+        - "name": "rhobs"
+          "roles":
+          - "rhobs"
+          "subjects":
+          - "kind": "group"
+            "name": "rhobs"
+        - "name": "telemeter-server"
+          "roles":
+          - "telemeter-write"
+          "subjects":
+          - "kind": "user"
+            "name": "service-account-telemeter-service-staging"
+          - "kind": "user"
+            "name": "service-account-telemeter-service"
+        - "name": "subwatch"
+          "roles":
+          - "telemeter-read"
+          "subjects":
+          - "kind": "user"
+            "name": "service-account-observatorium-subwatch-staging"
+          - "kind": "user"
+            "name": "service-account-observatorium-subwatch"
+        "roles":
+        - "name": "rhobs"
+          "permissions":
+          - "read"
+          - "write"
+          "resources":
+          - "metrics"
+          - "logs"
+          "tenants":
+          - "rhobs"
+        - "name": "telemeter-write"
+          "permissions":
+          - "write"
+          "resources":
+          - "metrics"
+          "tenants":
+          - "telemeter"
+        - "name": "telemeter-read"
+          "permissions":
+          - "read"
+          "resources":
+          - "metrics"
+          "tenants":
+          - "telemeter"
+    kind: ConfigMap
+    metadata:
+      annotations:
+        qontract.recycle: "true"
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+      name: ${OBSERVATORIUM_API_IDENTIFIER}
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+      name: ${OBSERVATORIUM_API_IDENTIFIER}
+    spec:
+      replicas: ${{OBSERVATORIUM_API_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: observatorium-api
+          app.kubernetes.io/part-of: observatorium
+      strategy:
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: api
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: observatorium-api
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/tracing: jaeger-agent
+            app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - --web.listen=0.0.0.0:8080
+                - --web.internal.listen=0.0.0.0:8081
+                - --metrics.read.endpoint=http://observatorium-thanos-query-frontend.${OBSERVATORIUM_METRICS_NAMESPACE}.svc.cluster.local:9090
+                - --metrics.write.endpoint=http://observatorium-thanos-receive.${OBSERVATORIUM_METRICS_NAMESPACE}.svc.cluster.local:19291
+                - --log.level=warn
+                - --logs.read.endpoint=http://observatorium-loki-query-frontend-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --logs.tail.endpoint=http://observatorium-loki-querier-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --logs.write.endpoint=http://observatorium-loki-distributor-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --rbac.config=/etc/observatorium/rbac.yaml
+                - --tenants.config=/etc/observatorium/tenants.yaml
+                - --middleware.rate-limiter.grpc-address=observatorium-gubernator.${NAMESPACE}.svc.cluster.local:8081
+                - --internal.tracing.endpoint=localhost:6831
+                - --middleware.concurrent-request-limit=${OBSERVATORIUM_API_PER_POD_CONCURRENT_REQUETST_LIMIT}
+              image: ${OBSERVATORIUM_API_IMAGE}:${OBSERVATORIUM_API_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 10
+                httpGet:
+                  path: /live
+                  port: 8081
+                  scheme: HTTP
+                periodSeconds: 30
+              name: observatorium-api
+              ports:
+                - containerPort: 8081
+                  name: internal
+                - containerPort: 8080
+                  name: public
+              readinessProbe:
+                failureThreshold: 12
+                httpGet:
+                  path: /ready
+                  port: 8081
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${OBSERVATORIUM_API_CPU_LIMIT}
+                  memory: ${OBSERVATORIUM_API_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OBSERVATORIUM_API_CPU_REQUEST}
+                  memory: ${OBSERVATORIUM_API_MEMORY_REQUEST}
+              volumeMounts:
+                - mountPath: /etc/observatorium/rbac.yaml
+                  name: rbac
+                  readOnly: true
+                  subPath: rbac.yaml
+                - mountPath: /etc/observatorium/tenants.yaml
+                  name: tenants
+                  readOnly: true
+                  subPath: tenants.yaml
+            - args:
+                - --web.listen=127.0.0.1:8082
+                - --web.internal.listen=0.0.0.0:8083
+                - --web.healthchecks.url=http://127.0.0.1:8082
+                - --log.level=warn
+                - --ams.url=${AMS_URL}
+                - --resource-type-prefix=observatorium
+                - --oidc.client-id=$(CLIENT_ID)
+                - --oidc.client-secret=$(CLIENT_SECRET)
+                - --oidc.issuer-url=$(ISSUER_URL)
+                - --opa.package=observatorium
+                - --memcached=observatorium-api-cache-memcached.${NAMESPACE}.svc.cluster.local:11211
+                - --memcached.expire=${OPA_AMS_MEMCACHED_EXPIRE}
+                - --ams.mappings=dptp=${DPTP_ORGANIZATION_ID}
+                - --ams.mappings=managedkafka=${MANAGEDKAFKA_ORGANIZATION_ID}
+                - --ams.mappings=osd=${OSD_ORGANIZATION_ID}
+              env:
+                - name: ISSUER_URL
+                  valueFrom:
+                    secretKeyRef:
+                      key: issuer-url
+                      name: ${OBSERVATORIUM_API_IDENTIFIER}
+                - name: CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      key: client-id
+                      name: ${OBSERVATORIUM_API_IDENTIFIER}
+                - name: CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      key: client-secret
+                      name: ${OBSERVATORIUM_API_IDENTIFIER}
+              image: ${OPA_AMS_IMAGE}:${OPA_AMS_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 10
+                httpGet:
+                  path: /live
+                  port: 8083
+                  scheme: HTTP
+                periodSeconds: 30
+              name: opa-ams
+              ports:
+                - containerPort: 8082
+                  name: opa-ams-api
+                - containerPort: 8083
+                  name: opa-ams-metrics
+              readinessProbe:
+                failureThreshold: 12
+                httpGet:
+                  path: /ready
+                  port: 8083
+                  scheme: HTTP
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${OPA_AMS_CPU_LIMIT}
+                  memory: ${OPA_AMS_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OPA_AMS_CPU_REQUEST}
+                  memory: ${OPA_AMS_MEMORY_REQUEST}
+            - args:
+                - --reporter.grpc.host-port=dns:///jaeger-collector-headless.${JAEGER_COLLECTOR_NAMESPACE}.svc:14250
+                - --reporter.type=grpc
+                - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: POD
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+              image: ${JAEGER_AGENT_IMAGE}:${JAEGER_AGENT_IMAGE_TAG}
+              livenessProbe:
+                failureThreshold: 5
+                httpGet:
+                  path: /
+                  port: 14271
+                  scheme: HTTP
+              name: jaeger-agent
+              ports:
+                - containerPort: 5778
+                  name: configs
+                - containerPort: 6831
+                  name: jaeger-thrift
+                - containerPort: 14271
+                  name: metrics
+              resources:
+                limits:
+                  cpu: 128m
+                  memory: 128Mi
+                requests:
+                  cpu: 32m
+                  memory: 64Mi
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+          volumes:
+            - configMap:
+                name: ${OBSERVATORIUM_API_IDENTIFIER}
+              name: rbac
+            - name: tenants
+              secret:
+                secretName: ${OBSERVATORIUM_API_IDENTIFIER}
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+      name: ${OBSERVATORIUM_API_IDENTIFIER}
+    stringData:
+      tenants.yaml: |-
+        "tenants":
+        - "id": "770c1124-6ae8-4324-a9d4-9ce08590094b"
+          "name": "rhobs"
+          "oidc":
+            "clientID": "id"
+            "clientSecret": "secret"
+            "groupClaim": "groups"
+            "issuerURL": "https://rhobs.tenants.observatorium.io"
+            "usernameClaim": "preferred_username"
+        - "id": "FB870BF3-9F3A-44FF-9BF7-D7A047A52F43"
+          "name": "telemeter"
+          "oidc":
+            "clientID": "id"
+            "clientSecret": "secret"
+            "issuerURL": "https://sso.redhat.com/auth/realms/redhat-external"
+            "usernameClaim": "preferred_username"
+        - "id": "AC879303-C60F-4D0D-A6D5-A485CFD638B8"
+          "name": "dptp"
+          "oidc":
+            "clientID": "id"
+            "clientSecret": "secret"
+            "issuerURL": "https://sso.redhat.com/auth/realms/redhat-external"
+            "usernameClaim": "preferred_username"
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+      name: ${OBSERVATORIUM_API_IDENTIFIER}
+    spec:
+      ports:
+        - name: internal
+          port: 8081
+          targetPort: 8081
+        - name: public
+          port: 8080
+          targetPort: 8080
+        - name: opa-ams-api
+          port: 8082
+          targetPort: 8082
+        - name: opa-ams-metrics
+          port: 8083
+          targetPort: 8083
+      selector:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${OBSERVATORIUM_API_IMAGE_TAG}
+      name: ${OBSERVATORIUM_API_IDENTIFIER}
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-api
+    spec:
+      endpoints:
+        - port: internal
+        - port: opa-ams-metrics
+      namespaceSelector:
+        matchNames:
+          - ${NAMESPACE}
+          - ${MST_NAMESPACE}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: observatorium-api
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+      name: observatorium-gubernator
+    spec:
+      replicas: ${{GUBERNATOR_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: rate-limiter
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: gubernator
+          app.kubernetes.io/part-of: observatorium
+      strategy:
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: rate-limiter
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: gubernator
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+        spec:
+          containers:
+            - env:
+                - name: GUBER_K8S_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: GUBER_K8S_POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: GUBER_HTTP_ADDRESS
+                  value: 0.0.0.0:8080
+                - name: GUBER_GRPC_ADDRESS
+                  value: 0.0.0.0:8081
+                - name: GUBER_K8S_POD_PORT
+                  value: "8081"
+                - name: GUBER_K8S_ENDPOINTS_SELECTOR
+                  value: app.kubernetes.io/name=gubernator
+              image: ${GUBERNATOR_IMAGE}:${GUBERNATOR_IMAGE_TAG}
+              name: gubernator
+              ports:
+                - containerPort: 8081
+                  name: grpc
+                - containerPort: 8080
+                  name: http
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /v1/HealthCheck
+                  port: 8080
+                  scheme: HTTP
+                initialDelaySeconds: 10
+                periodSeconds: 30
+                timeoutSeconds: 1
+              resources:
+                limits:
+                  cpu: ${GUBERNATOR_CPU_LIMIT}
+                  memory: ${GUBERNATOR_MEMORY_LIMIT}
+                requests:
+                  cpu: ${GUBERNATOR_CPU_REQUEST}
+                  memory: ${GUBERNATOR_MEMORY_REQUEST}
+          restartPolicy: Always
+          serviceAccountName: observatorium-gubernator
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+      name: observatorium-gubernator
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - endpoints
+        verbs:
+          - list
+          - watch
+          - get
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+      name: observatorium-gubernator
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: observatorium-gubernator
+    subjects:
+      - kind: ServiceAccount
+        name: observatorium-gubernator
+        namespace: ${NAMESPACE}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+      name: observatorium-gubernator
+    spec:
+      ports:
+        - name: grpc
+          port: 8081
+          targetPort: 8081
+        - name: http
+          port: 8080
+          targetPort: 8080
+      selector:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    imagePullSecrets:
+      - name: quay.io
+    kind: ServiceAccount
+    metadata:
+      labels:
+        app.kubernetes.io/component: rate-limiter
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: gubernator
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${GUBERNATOR_IMAGE_TAG}
+      name: observatorium-gubernator
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-gubernator
+    spec:
+      endpoints:
+        - port: http
+      namespaceSelector:
+        matchNames:
+          - ${NAMESPACE}
+          - ${MST_NAMESPACE}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: rate-limiter
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: gubernator
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: api-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-api-cache-memcached
+    spec:
+      clusterIP: None
+      ports:
+        - name: client
+          port: 11211
+          targetPort: 11211
+        - name: metrics
+          port: 9150
+          targetPort: 9150
+      selector:
+        app.kubernetes.io/component: api-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: observatorium-api-cache-memcached
+    spec:
+      endpoints:
+        - port: metrics
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+  - apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      labels:
+        app.kubernetes.io/component: api-cache
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+      name: observatorium-api-cache-memcached
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api-cache
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: memcached
+          app.kubernetes.io/part-of: observatorium
+      serviceName: observatorium-api-cache-memcached
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: api-cache
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: memcached
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: ${MEMCACHED_IMAGE_TAG}
+        spec:
+          containers:
+            - args:
+                - -m ${MEMCACHED_MEMORY_LIMIT_MB}
+                - -I 5m
+                - -c ${MEMCACHED_CONNECTION_LIMIT}
+                - -v
+              image: ${MEMCACHED_IMAGE}:${MEMCACHED_IMAGE_TAG}
+              name: memcached
+              ports:
+                - containerPort: 11211
+                  name: client
+              resources:
+                limits:
+                  cpu: ${MEMCACHED_CPU_LIMIT}
+                  memory: ${MEMCACHED_MEMORY_LIMIT}
+                requests:
+                  cpu: ${MEMCACHED_CPU_REQUEST}
+                  memory: ${MEMCACHED_MEMORY_REQUEST}
+              terminationMessagePolicy: FallbackToLogsOnError
+            - args:
+                - --memcached.address=localhost:11211
+                - --web.listen-address=0.0.0.0:9150
+              image: ${MEMCACHED_EXPORTER_IMAGE}:${MEMCACHED_EXPORTER_IMAGE_TAG}
+              name: exporter
+              ports:
+                - containerPort: 9150
+                  name: metrics
+              resources:
+                limits:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_LIMIT}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_LIMIT}
+                requests:
+                  cpu: ${MEMCACHED_EXPORTER_CPU_REQUEST}
+                  memory: ${MEMCACHED_EXPORTER_MEMORY_REQUEST}
+  - apiVersion: v1
+    data:
+      queries.yaml: |-
+        "queries":
+        - "name": "Clusters"
+          "query": "avg_over_time(sum(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Clusters aged 1w"
+          "query": "avg_over_time(sum(count by (_id) (max without (prometheus,receive,instance) ( (time() - cluster_version{type=\"initial\"}) > (7 * 24 * 60 * 60) )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Nodes"
+          "query": "avg_over_time(sum(sum by (_id) (max without (prometheus,receive,instance) ( cluster:node_instance_type_count:sum)) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Cores"
+          "query": "avg_over_time(sum(sum by (_id) (max without (prometheus,receive,instance) ( cluster:capacity_cpu_cores:sum)) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Workload CPU"
+          "query": "avg_over_time(sum(max by (_id) (max without (prometheus,receive,instance) ( workload:cpu_usage_cores:sum )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Etcd Objects"
+          "query": "avg_over_time(sum(sum by (_id) (max without (prometheus,receive,instance) ( instance:etcd_object_counts:sum )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h])"
+        - "name": "Weekly Active Users"
+          "query": "count(count by (account) (count_over_time(subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"}[7d])))"
+        - "name": "Unique customers"
+          "query": "count(count by (email_domain) (count_over_time(subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com|gmail.com\"}[7d])))"
+        - "name": "Hybrid customers"
+          "query": "count(count by (email_domain) (count by (email_domain,type) (count by (_id,type,email_domain) (cluster_infrastructure_provider{} + on (_id) group_left(email_domain) (topk by (_id) (1, 0 * subscription_labels{}))))) and on (email_domain) (count by (email_domain) (count by (email_domain,type) (count by (_id,type,email_domain) (cluster_infrastructure_provider{} + on (_id) group_left(email_domain) (topk by (_id) (1, 0 * subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com|gmail.com\"}))))) > 1))"
+        - "name": "Subscribed clusters"
+          "query": "avg_over_time(sum(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{support=~\"Standard|Premium|Layered\"})))[7d:12h])"
+        - "name": "Subscribed nodes"
+          "query": "avg_over_time(sum(sum by (_id) (max without (prometheus,receive,instance) ( cluster:node_instance_type_count:sum)) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{support=~\"Standard|Premium\"})))[7d:12h])"
+        - "name": "Subscribed cores"
+          "query": "avg_over_time(sum(sum by (_id) (max without (prometheus,receive,instance) ( cluster:capacity_cpu_cores:sum)) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{support=~\"Standard|Premium|Layered\"})))[7d:12h])"
+        - "name": "Hours failing per week"
+          "query": "sum((max by (_id) (count_over_time((cluster_version{type=\"failure\"} * 0 + 1)[7d:15m]) > 1) + on (_id) group_left(email_domain) topk by (_id) (1, 0 * max_over_time(subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"}[7d]))) / 4)"
+        - "name": "Average code age (days)"
+          "query": "avg_over_time(avg(max by (_id) (max without (prometheus,receive,instance) ( (time() - cluster_version{type=\"current\"}))) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[7d:12h]) / 60 / 60 / 24"
+        - "name": "Average subscribed code age (days)"
+          "query": "avg_over_time(avg(max by (_id) (max without (prometheus,receive,instance) ( (time() - cluster_version{type=\"current\"}))) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{support=~\"Standard|Premium|Layered\"})))[7d:12h]) / 60 / 60 / 24"
+        - "name": "Clusters upgrading to 4.2"
+          "query": "count(((count by (_id) (count_over_time(cluster_version{from_version=~\"4\\\\.1\\\\.\\\\d+\",version=~\"4\\\\.2\\\\.\\\\d+\",type=\"updating\"}[7d])))*0+1) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "Failed 4.2 upgrades"
+          "query": "count(((max by (_id) (sum_over_time((1+0*cluster_version{from_version=~\"4\\\\.1\\\\.\\\\d+\",version=~\"4\\\\.2\\\\.\\\\d+\",type=\"failure\"})[7d:15m]))) > 2) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "Clusters upgrading to 4.3"
+          "query": "count(((count by (_id) (count_over_time(cluster_version{from_version=~\"4\\\\.2\\\\.\\\\d+\",version=~\"4\\\\.3\\\\.\\\\d+\",type=\"updating\"}[7d])))*0+1) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "Clusters upgrading to 4.4"
+          "query": "count(((count by (_id) (count_over_time(cluster_version{from_version=~\"4\\\\.2\\\\.\\\\d+\",version=~\"4\\\\.4\\\\.\\\\d+\",type=\"updating\"}[7d])))*0+1) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "Failed 4.3 upgrades"
+          "query": "count(((max by (_id) (sum_over_time((1+0*cluster_version{from_version=~\"4\\\\.2\\\\.\\\\d+\",version=~\"4\\\\.3\\\\.\\\\d+\",type=\"failure\"})[7d:15m]))) > 2) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "Failed 4.4 upgrades"
+          "query": "count(((max by (_id) (sum_over_time((1+0*cluster_version{from_version=~\"4\\\\.2\\\\.\\\\d+\",version=~\"4\\\\.4\\\\.\\\\d+\",type=\"failure\"})[7d:15m]))) > 2) + on(_id) group_left(_blah) (topk by (_id) (1, 0*subscription_labels{email_domain!~\"redhat.com|(.*\\\\.|^)ibm.com\"})))"
+        - "name": "4.4 clusters"
+          "query": "avg_over_time(count(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\",version=~\"4\\\\.4\\\\.\\\\d+\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[1d:12h])"
+        - "name": "4.3 clusters"
+          "query": "avg_over_time(count(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\",version=~\"4\\\\.3\\\\.\\\\d+\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[1d:12h])"
+        - "name": "4.2 clusters"
+          "query": "avg_over_time(count(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\",version=~\"4\\\\.2\\\\.\\\\d+\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[1d:12h])"
+        - "name": "4.1 clusters"
+          "query": "avg_over_time(count(count by (_id) (max without (prometheus,receive,instance) ( cluster_version{type=\"current\",version=~\"4\\\\.1\\\\.\\\\d+\"} )) + on (_id) group_left(_blah) (topk by (_id) (1, 0 *subscription_labels{email_domain!~\"redhat.com|(^|.*\\\\.)ibm.com\"})))[1d:12h])"
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/component: blackbox-prober
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-up
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: master-2020-06-15-d763595
+      name: observatorium-observatorium-up
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: blackbox-prober
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-up
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: master-2020-06-15-d763595
+      name: observatorium-observatorium-up
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: blackbox-prober
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: observatorium-up
+          app.kubernetes.io/part-of: observatorium
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: blackbox-prober
+            app.kubernetes.io/instance: observatorium
+            app.kubernetes.io/name: observatorium-up
+            app.kubernetes.io/part-of: observatorium
+            app.kubernetes.io/version: master-2020-06-15-d763595
+        spec:
+          containers:
+            - args:
+                - --duration=0
+                - --log.level=debug
+                - --endpoint-type=metrics
+                - --queries-file=/etc/up/queries.yaml
+                - --endpoint-read=http://observatorium-thanos-query-frontend.${NAMESPACE}.svc:9090/api/v1/query
+              image: quay.io/observatorium/up:master-2020-06-15-d763595
+              name: observatorium-up
+              ports:
+                - containerPort: 8080
+                  name: http
+              resources:
+                limits:
+                  cpu: 20m
+                  memory: 50Mi
+                requests:
+                  cpu: 5m
+                  memory: 10Mi
+              volumeMounts:
+                - mountPath: /etc/up/
+                  name: query-config
+                  readOnly: false
+          volumes:
+            - configMap:
+                name: observatorium-observatorium-up
+              name: query-config
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: blackbox-prober
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-up
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: master-2020-06-15-d763595
+      name: observatorium-observatorium-up
+    spec:
+      ports:
+        - name: http
+          port: 8080
+          targetPort: 8080
+      selector:
+        app.kubernetes.io/component: blackbox-prober
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-up
+        app.kubernetes.io/part-of: observatorium
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        prometheus: app-sre
+      name: observatorium-up
+    spec:
+      endpoints:
+        - port: http
+      namespaceSelector:
+        matchNames:
+          - ${NAMESPACE}
+          - ${MST_NAMESPACE}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: blackbox-prober
+          app.kubernetes.io/instance: observatorium
+          app.kubernetes.io/name: observatorium-up
+          app.kubernetes.io/part-of: observatorium
+parameters:
+  - name: NAMESPACE
+    value: observatorium
+  - name: OBSERVATORIUM_METRICS_NAMESPACE
+    value: observatorium-metrics
+  - name: OBSERVATORIUM_LOGS_NAMESPACE
+    value: observatorium-logs
+  - name: AMS_URL
+    value: https://api.openshift.com
+  - name: DPTP_ORGANIZATION_ID
+    value: ""
+  - name: GUBERNATOR_CPU_LIMIT
+    value: 200m
+  - name: GUBERNATOR_CPU_REQUEST
+    value: 100m
+  - name: GUBERNATOR_IMAGE_TAG
+    value: 1.0.0-rc.1
+  - name: GUBERNATOR_IMAGE
+    value: quay.io/app-sre/gubernator
+  - name: GUBERNATOR_MEMORY_LIMIT
+    value: 200Mi
+  - name: GUBERNATOR_MEMORY_REQUEST
+    value: 100Mi
+  - name: GUBERNATOR_REPLICAS
+    value: "2"
+  - name: JAEGER_AGENT_IMAGE_TAG
+    value: 1.22.0
+  - name: JAEGER_AGENT_IMAGE
+    value: jaegertracing/jaeger-agent
+  - name: JAEGER_COLLECTOR_NAMESPACE
+    value: $(NAMESPACE)
+  - name: MANAGEDKAFKA_ORGANIZATION_ID
+    value: ""
+  - name: MEMCACHED_CONNECTION_LIMIT
+    value: "3072"
+  - name: MEMCACHED_CPU_LIMIT
+    value: "3"
+  - name: MEMCACHED_CPU_REQUEST
+    value: 500m
+  - name: MEMCACHED_EXPORTER_CPU_LIMIT
+    value: 200m
+  - name: MEMCACHED_EXPORTER_CPU_REQUEST
+    value: 50m
+  - name: MEMCACHED_EXPORTER_IMAGE_TAG
+    value: v0.6.0
+  - name: MEMCACHED_EXPORTER_IMAGE
+    value: docker.io/prom/memcached-exporter
+  - name: MEMCACHED_EXPORTER_MEMORY_LIMIT
+    value: 200Mi
+  - name: MEMCACHED_EXPORTER_MEMORY_REQUEST
+    value: 50Mi
+  - name: MEMCACHED_IMAGE_TAG
+    value: 1.5.20-alpine
+  - name: MEMCACHED_IMAGE
+    value: docker.io/memcached
+  - name: MEMCACHED_MEMORY_LIMIT_MB
+    value: "2048"
+  - name: MEMCACHED_MEMORY_LIMIT
+    value: 1844Mi
+  - name: MEMCACHED_MEMORY_REQUEST
+    value: 1329Mi
+  - name: OAUTH_PROXY_CPU_LIMITS
+    value: 200m
+  - name: OAUTH_PROXY_CPU_REQUEST
+    value: 100m
+  - name: OAUTH_PROXY_IMAGE_TAG
+    value: 4.7.0
+  - name: OAUTH_PROXY_IMAGE
+    value: quay.io/openshift/origin-oauth-proxy
+  - name: OAUTH_PROXY_MEMORY_LIMITS
+    value: 200Mi
+  - name: OAUTH_PROXY_MEMORY_REQUEST
+    value: 100Mi
+  - name: OBSERVATORIUM_API_CPU_LIMIT
+    value: "1"
+  - name: OBSERVATORIUM_API_CPU_REQUEST
+    value: 100m
+  - name: OBSERVATORIUM_API_IDENTIFIER
+    value: observatorium-observatorium-api
+  - name: OBSERVATORIUM_API_IMAGE_TAG
+    value: master-2021-03-26-v0.1.1-200-gea0242a
+  - name: OBSERVATORIUM_API_IMAGE
+    value: quay.io/observatorium/api
+  - name: OBSERVATORIUM_API_MEMORY_LIMIT
+    value: 1Gi
+  - name: OBSERVATORIUM_API_MEMORY_REQUEST
+    value: 256Mi
+  - name: OBSERVATORIUM_API_REPLICAS
+    value: "3"
+  - name: OBSERVATORIUM_API_PER_POD_CONCURRENT_REQUETST_LIMIT
+    value: "50"
+  - name: OPA_AMS_CPU_LIMIT
+    value: 200m
+  - name: OPA_AMS_CPU_REQUEST
+    value: 100m
+  - name: OPA_AMS_IMAGE_TAG
+    value: master-2021-02-17-ed50046
+  - name: OPA_AMS_IMAGE
+    value: quay.io/observatorium/opa-ams
+  - name: OPA_AMS_MEMCACHED_EXPIRE
+    value: "300"
+  - name: OPA_AMS_MEMORY_LIMIT
+    value: 200Mi
+  - name: OPA_AMS_MEMORY_REQUEST
+    value: 100Mi
+  - name: OSD_ORGANIZATION_ID
+    value: ""
+  - name: SERVICE_ACCOUNT_NAME
+    value: prometheus-telemeter

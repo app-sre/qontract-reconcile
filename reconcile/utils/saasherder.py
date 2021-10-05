@@ -745,7 +745,6 @@ class SaasHerder():
                 if target.get('disable'):
                     # Warning is logged during SaasHerder initiation.
                     continue
-                logging.warning(target)
                 cluster, namespace = \
                     self._get_cluster_and_namespace(target)
                 process_template_options = {
