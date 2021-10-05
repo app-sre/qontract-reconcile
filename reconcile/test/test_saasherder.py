@@ -1,3 +1,5 @@
+import logging
+
 import yaml
 
 from unittest import TestCase
@@ -290,14 +292,19 @@ class TestPopulateDesiredState(TestCase):
         self.initiate_gh_patcher = patch.object(
             SaasHerder, '_initiate_github', autospec=True, return_value=None,
         )
-        self.initiate_gh_patcher.start()
-
         self.get_file_contents_patcher = patch.object(
             SaasHerder, '_get_file_contents', wraps=self.fake_get_file_contents,
         )
+        self.initiate_gh_patcher.start()
         self.get_file_contents_patcher.start()
 
-    # options keys: 'url, 'path', 'ref'
+        # Mock image checking.
+        self.get_check_images_patcher = patch.object(
+            SaasHerder, '_check_images',  autospec=True, return_value=None,
+        )
+        self.get_check_images_patcher.start()
+
+    # options keys: 'url, 'path', 'ref'.
     def fake_get_file_contents(self, options):
         self.assertEqual('https://github.com/rhobs/configuration', options['url'])
 
@@ -307,7 +314,8 @@ class TestPopulateDesiredState(TestCase):
     def tearDown(self):
         for p in (
             self.initiate_gh_patcher,
-            self.get_file_contents_patcher
+            self.get_file_contents_patcher,
+            self.get_check_images_patcher,
         ):
             p.stop()
 
@@ -318,11 +326,29 @@ class TestPopulateDesiredState(TestCase):
         self.assertIsNone(desired_state)
 
     def test_populate_desired_state_cases(self):
-        ir = ResourceInventory()
-        self.saasherder.populate_desired_state(ir)
+        ri = ResourceInventory()
+        for resource_type in (
+                "Deployment",
+                "Service",
+                "StatefulSet",
+                "ConfigMap",
+                "Role",
+                "RoleBinding",
+                "ServiceAccount",
+                    "PodDisruptionBudget",
+                    "PersistentVolumeClaim",
+                    "PrometheusRule",
+        ):
+            ri.initialize_resource_type("stage-1", "observatorium-mst-stage", resource_type)
+            ri.initialize_resource_type("prod-1", "observatorium-mst-production", resource_type)
+        self.saasherder.populate_desired_state(ri)
 
         # TODO(bwplotka): Assert correct resources.
-        self.assertEqual({"yolo": "yolo"}, ir._clusters)
+        self.maxDiff = None
+        for (cluster, namespace, resource_type, data) in ri:
+            for name, d_item in data['desired'].items():
+                logging.warning( d_item.body)
+                self.assertEqual({"yolo": "yolo"},  d_item.body)
 
 
 class TestGetSaasFileAttribute(TestCase):

@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: observatorium
+    app.kubernetes.io/name: observatorium-api
+    app.kubernetes.io/part-of: observatorium
+    app.kubernetes.io/version: main-2021-09-10-v0.1.2-52-ga24d7d2
+  name: observatorium-observatorium-mst-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: api
+      app.kubernetes.io/instance: observatorium
+      app.kubernetes.io/name: observatorium-api
+      app.kubernetes.io/part-of: observatorium
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: observatorium-api
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/tracing: jaeger-agent
+        app.kubernetes.io/version: main-2021-09-10-v0.1.2-52-ga24d7d2
+    spec:
+      containers:
+        - args:
+            - '--web.listen=0.0.0.0:8080'
+            - '--web.internal.listen=0.0.0.0:8081'
+            - >-
+              --metrics.read.endpoint=http://observatorium-thanos-query-frontend.observatorium-mst-stage.svc.cluster.local:9090
+            - >-
+              --metrics.write.endpoint=http://observatorium-thanos-receive.observatorium-mst-stage.svc.cluster.local:19291
+            - '--log.level=warn'
+            - >-
+              --logs.read.endpoint=http://observatorium-loki-query-frontend-http.observatorium-logs-stage.svc.cluster.local:3100
+            - >-
+              --logs.tail.endpoint=http://observatorium-loki-querier-http.observatorium-logs-stage.svc.cluster.local:3100
+            - >-
+              --logs.write.endpoint=http://observatorium-loki-distributor-http.observatorium-logs-stage.svc.cluster.local:3100
+            - '--rbac.config=/etc/observatorium/rbac.yaml'
+            - '--tenants.config=/etc/observatorium/tenants.yaml'
+            - >-
+              --middleware.rate-limiter.grpc-address=observatorium-gubernator.observatorium-mst-stage.svc.cluster.local:8081
+            - '--internal.tracing.endpoint=localhost:6831'
+          image: 'quay.io/observatorium/api:main-2021-09-10-v0.1.2-52-ga24d7d2'
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /live
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 30
+          name: observatorium-api
+          ports:
+            - containerPort: 8081
+              name: internal
+            - containerPort: 8080
+              name: public
+          readinessProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /ready
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /etc/observatorium/rbac.yaml
+              name: rbac
+              readOnly: true
+              subPath: rbac.yaml
+            - mountPath: /etc/observatorium/tenants.yaml
+              name: tenants
+              readOnly: true
+              subPath: tenants.yaml
+        - args:
+            - '--web.listen=127.0.0.1:8082'
+            - '--web.internal.listen=0.0.0.0:8083'
+            - '--web.healthchecks.url=http://127.0.0.1:8082'
+            - '--log.level=warn'
+            - '--ams.url=https://api.stage.openshift.com'
+            - '--resource-type-prefix=observatorium'
+            - '--oidc.client-id=$(CLIENT_ID)'
+            - '--oidc.client-secret=$(CLIENT_SECRET)'
+            - '--oidc.issuer-url=$(ISSUER_URL)'
+            - '--opa.package=observatorium'
+            - >-
+              --memcached=observatorium-api-cache-memcached.observatorium-mst-stage.svc.cluster.local:11211
+            - '--memcached.expire=300'
+            - '--ams.mappings=dptp=1oZtjZXK3EP4kJSaYXwMmorAqnS'
+            - '--ams.mappings=managedkafka=1h0UApMaFwzvGLGlfuzUpITFFQ0'
+            - '--ams.mappings=osd=1lneg5EWJaGAK3d7RZpAJM9WujU'
+          env:
+            - name: ISSUER_URL
+              valueFrom:
+                secretKeyRef:
+                  key: issuer-url
+                  name: observatorium-observatorium-mst-api
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: client-id
+                  name: observatorium-observatorium-mst-api
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: client-secret
+                  name: observatorium-observatorium-mst-api
+          image: 'quay.io/observatorium/opa-ams:master-2021-07-14-d517f70'
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /live
+              port: 8083
+              scheme: HTTP
+            periodSeconds: 30
+          name: opa-ams
+          ports:
+            - containerPort: 8082
+              name: opa-ams-api
+            - containerPort: 8083
+              name: opa-ams-metrics
+          readinessProbe:
+            failureThreshold: 12
+            httpGet:
+              path: /ready
+              port: 8083
+              scheme: HTTP
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+        - args:
+            - >-
+              --reporter.grpc.host-port=dns:///jaeger-collector-headless.observatorium-stage.svc:14250
+            - '--reporter.type=grpc'
+            - '--agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)'
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          image: 'quay.io/app-sre/jaegertracing-jaeger-agent:1.22.0'
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /
+              port: 14271
+              scheme: HTTP
+          name: jaeger-agent
+          ports:
+            - containerPort: 5778
+              name: configs
+            - containerPort: 6831
+              name: jaeger-thrift
+            - containerPort: 14271
+              name: metrics
+          resources:
+            limits:
+              cpu: 128m
+              memory: 128Mi
+            requests:
+              cpu: 32m
+              memory: 64Mi
+      serviceAccountName: observatorium-mst
+      volumes:
+        - configMap:
+            name: observatorium-observatorium-mst-api
+          name: rbac
+        - name: tenants
+          secret:
+            secretName: observatorium-observatorium-mst-api
