@@ -254,6 +254,15 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
     results = []
     upgrades_cache = {}
 
+    def soaking_str(soaking, soakdays):
+        sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
+        if ctx.obj['options']['output'] == 'md':
+            for i, data in enumerate(sorted_soaking):
+                v, s = data
+                if s > soakdays:
+                    sorted_soaking[i] = (v, f'{s} :tada:')
+        return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
+
     for c in desired_state:
         cluster_name, version = c['cluster'], c['current_version']
         channel, schedule = c['channel'], c.get('schedule')
@@ -283,15 +292,11 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                                  show_only_soaking_upgrades)
                 workload_soaking_upgrades[w] = s
 
-        def soaking_upgrades_str(soaking):
-            sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
-            return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
-
         if by_workload:
             for w, soaking in workload_soaking_upgrades.items():
                 i = item.copy()
                 i.update({'workload': w,
-                          'soaking_upgrades': soaking_upgrades_str(soaking)})
+                          'soaking_upgrades': soaking_str(soaking, soakdays)})
                 results.append(i)
         else:
             workloads = sorted(c.get('workloads', []))
@@ -304,8 +309,26 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                 if not show_only_soaking_upgrades or min_soaks > 0:
                     soaking[v] = min_soaks
             item.update({'workload': w,
-                         'soaking_upgrades': soaking_upgrades_str(soaking)})
+                         'soaking_upgrades': soaking_str(soaking, soakdays)})
             results.append(item)
+
+    if ctx.obj['options']['output'] == 'md':
+        print("""
+The table below regroups upgrade information for each clusters:
+* `version` is the current openshift version on the cluster
+* `channel` is the OCM upgrade channel being tracked by the cluster
+* `schedule` is the cron-formatted schedule for cluster upgrades
+* `soak_days` is the minimum number of days a given version must have been
+running on other clusters with the same workload to be considered for an
+upgrade.
+* `workload` is a list of workload names that are running on the cluster
+* `soaking_upgrades` lists all available upgrades available on the OCM channel
+for that cluster. The number in parenthesis shows the number of days this
+version has been running on other clusters with the same workloads. By
+comparing with the `soak_days` columns, you can see when a version is close to
+be upgraded to. A :tada: sign is displayed for versions which have soaked
+enough and are ready to be upgraded to.
+        """)
 
     columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
                'workload', 'soaking_upgrades']

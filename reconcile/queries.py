@@ -254,6 +254,14 @@ AWS_ACCOUNTS_QUERY = """
       integrations
     }
     deleteKeys
+    {% if reset_passwords %}
+    resetPasswords {
+      user {
+        org_username
+      }
+      requestId
+    }
+    {% endif %}
     premiumSupport
     ecrs {
       region
@@ -263,10 +271,13 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
-def get_aws_accounts():
+def get_aws_accounts(reset_passwords=False):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
-    return gqlapi.query(AWS_ACCOUNTS_QUERY)['accounts']
+    query = Template(AWS_ACCOUNTS_QUERY).render(
+        reset_passwords=reset_passwords,
+    )
+    return gqlapi.query(query)['accounts']
 
 
 CLUSTERS_QUERY = """
@@ -1873,6 +1884,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     }
     ocpReleaseEcrIdentifier
     ocpArtDevEcrIdentifier
+    mirrorChannels
   }
 }
 """

@@ -983,7 +983,7 @@ class TerrascriptClient:
         ca_cert = values.pop('ca_cert', None)
         if ca_cert:
             # db.ca_cert
-            output_name_0_13 = output_prefix + '__ca_cert'
+            output_name_0_13 = output_prefix + '__db_ca_cert'
             output_value = self.secret_reader.read(ca_cert)
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
