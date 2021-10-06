@@ -608,6 +608,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    delete
     labels
     managedRoles
     app {
