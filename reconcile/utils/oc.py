@@ -738,7 +738,7 @@ class OCDeprecated:
                         raise PrimaryClusterIPCanNotBeUnsetError(
                             f"[{self.server}]: {err}")
                     raise UnableToApplyError(
-                        f"[{self.server}: {err}"
+                        f"[{self.server}]: {err}"
                     )
                 if 'metadata.annotations: Too long' in err:
                     raise MetaDataAnnotationsTooLongApplyError(
