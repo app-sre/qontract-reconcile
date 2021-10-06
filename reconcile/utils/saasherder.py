@@ -783,7 +783,7 @@ class SaasHerder():
         saas_file_name = spec['saas_file_name']
         cluster = spec['cluster']
         namespace = spec['namespace']
-        managed_resource_types = spec['managed_resource_types']
+        managed_resource_types = set(spec['managed_resource_types'])
         process_template_options = spec['process_template_options']
         check_images_options_base = spec['check_images_options_base']
         instance_name = spec['instance_name']
@@ -795,10 +795,22 @@ class SaasHerder():
             ri.register_error()
             return
         # filter resources
-        resources = [resource for resource in resources
-                     if isinstance(resource, dict)
-                     and resource.get('kind') in managed_resource_types]
+        rs = []
+        for r in resources:
+            if isinstance(r, dict):
+                kind = r.get('kind')
+                if kind in managed_resource_types:
+                    rs.append(r)
+                else:
+                    logging.info(
+                        f"Skipping resource of kind {kind} on "
+                        f"{cluster}/{namespace} - {instance_name}"
+                    )
+            else:
+                logging.info("Skipping non-dictionary resource on "
+                             f"{cluster}/{namespace} - {instance_name}")
         # additional processing of resources
+        resources = rs
         self._additional_resource_process(resources, html_url)
         # check images
         skip_check_images = upstream and self.jenkins_map and instance_name \
