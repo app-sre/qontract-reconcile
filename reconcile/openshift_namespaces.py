@@ -1,6 +1,6 @@
 import logging
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple, Any
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -20,9 +20,9 @@ NS_ACTION_CREATE = "create"
 
 
 def get_desired_state(
-        namespaces: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        namespaces: List[Dict[str, Any]]) -> List[Dict[str, str]]:
 
-    desired_state = []
+    desired_state: List[Dict[str, str]] = []
     for namespace in namespaces:
         state = NS_STATUS_PRESENT
         if namespace.get("delete"):
@@ -52,10 +52,11 @@ def get_shard_namespaces() -> List[Dict[str, str]]:
             " Ignoring")
         del namespaces[shard_key]
 
-    return namespaces.values()
+    return list(namespaces.values())
 
 
-def check_ns_exists(spec: Dict[str, str], oc_map: OC_Map) -> bool:
+def check_ns_exists(spec: Dict[str, str],
+                    oc_map: OC_Map) -> Tuple[Dict[str, str], Optional[bool]]:
     cluster = spec['cluster']
     namespace = spec['namespace']
     try:
