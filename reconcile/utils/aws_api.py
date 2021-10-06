@@ -557,6 +557,11 @@ class AWSApi:
 
         return users_keys
 
+    def reset_password(self, account, user_name):
+        s = self.sessions[account]
+        iam = s.client('iam')
+        iam.delete_login_profile(UserName=user_name)
+
     @staticmethod
     def get_user_keys(iam, user):
         key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
