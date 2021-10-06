@@ -1,7 +1,8 @@
 import pytest
 import boto3
+from botocore.errorfactory import ClientError
 from moto import mock_s3
-from reconcile.utils.state import State
+from reconcile.utils.state import State, StateInaccessibleException
 
 
 @pytest.fixture
@@ -121,3 +122,63 @@ def test_ls_when_that_are_more_than_1000_keys(accounts, s3_client, mocker):
     keys = state.ls()
 
     assert keys == expected
+
+
+def test_exists_for_existing_key(accounts, s3_client, mocker):
+    key = "some-key"
+
+    s3_client.create_bucket(Bucket='some-bucket')
+    s3_client.put_object(Bucket='some-bucket',
+                         Key=f'state/integration-name/{key}',
+                         Body='test')
+
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value = s3_client
+
+    state = State('integration-name', accounts)
+
+    assert state.exists(key)
+
+
+def test_exists_for_missing_key(accounts, s3_client, mocker):
+    s3_client.create_bucket(Bucket='some-bucket')
+
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value = s3_client
+
+    state = State('integration-name', accounts)
+
+    assert not state.exists("some-key")
+
+
+def test_exists_for_missing_bucket(accounts, s3_client, mocker):
+    # don't create a bucket unlink in all the other tests
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value = s3_client
+
+    state = State('integration-name', accounts)
+
+    with pytest.raises(StateInaccessibleException,
+                       match=r"bucket .* does not exist"):
+        state.exists("some-key")
+
+
+def test_exists_for_forbidden(accounts, s3_client, mocker):
+    forbidden_error = ClientError({"Error": {"Code": "403"}}, None)
+    mock_aws_api = mocker.patch('reconcile.utils.state.AWSApi', autospec=True)
+    mock_aws_api.return_value \
+        .get_session.return_value \
+        .client.return_value \
+        .head_object.side_effect = forbidden_error
+
+    state = State('integration-name', accounts)
+
+    with pytest.raises(StateInaccessibleException,
+                       match=r"access to bucket .* forbidden"):
+        state.exists("some-key")

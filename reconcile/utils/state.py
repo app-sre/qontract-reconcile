@@ -8,6 +8,10 @@ from botocore.errorfactory import ClientError
 from reconcile.utils.aws_api import AWSApi
 
 
+class StateInaccessibleException(Exception):
+    pass
+
+
 class State:
     """
     A state object to be used by stateful integrations.
@@ -41,13 +45,31 @@ class State:
         :param key: key to check
 
         :type key: string
+
+        :raises StateInaccessibleException: if the bucket is missing or
+        permissions are insufficient or a general AWS error occurred
         """
         try:
             self.client.head_object(
                 Bucket=self.bucket, Key=f"{self.state_path}/{key}")
             return True
-        except ClientError:
-            return False
+        except ClientError as details:
+            error_code = details.response.get('Error', {}).get('Code', None)
+            if error_code == '404':
+                return False
+            elif error_code == '403':
+                raise StateInaccessibleException(
+                    f"access to bucket {self.bucket} forbidden"
+                )
+            elif error_code == 'NoSuchBucket':
+                raise StateInaccessibleException(
+                    f"bucket {self.bucket} does not exist"
+                )
+            else:
+                raise StateInaccessibleException(
+                    f"detected error {error_code} while "
+                    f"accessing state bucket {self.bucket}"
+                )
 
     def ls(self):
         """
