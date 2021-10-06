@@ -1,105 +1,76 @@
 import logging
 
-import reconcile.utils.gql as gql
+from typing import List, Dict, Optional
 import reconcile.utils.threaded as threaded
-import reconcile.openshift_base as ob
 import reconcile.queries as queries
 
-from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
 
-QUERY = """
-{
-  namespaces: namespaces_v1 {
-    name
-    cluster {
-      name
-      serverUrl
-      jumpHost {
-          hostname
-          knownHosts
-          user
-          port
-          identity {
-              path
-              field
-              format
-          }
-      }
-      automationToken {
-        path
-        field
-        format
-      }
-      internal
-      disable {
-        integrations
-      }
-    }
-  }
-}
-"""
-
 QONTRACT_INTEGRATION = 'openshift-namespaces'
 
+NS_STATUS_PRESENT = "present"
+NS_STATUS_ABSENT = "absent"
 
-def get_desired_state(internal, use_jump_host, thread_pool_size):
-    gqlapi = gql.get_api()
-    all_namespaces = gqlapi.query(QUERY)['namespaces']
+NS_ACTION_DELETE = "delete"
+NS_ACTION_CREATE = "create"
 
-    namespaces = []
+
+def get_desired_state(
+        namespaces: List[Dict[str, str]]) -> List[Dict[str, str]]:
+
+    desired_state = []
+    for namespace in namespaces:
+        state = NS_STATUS_PRESENT
+        if namespace.get("delete"):
+            state = NS_STATUS_ABSENT
+
+        desired_state.append({"cluster": namespace["cluster"]["name"],
+                              "namespace": namespace["name"],
+                              "state": state})
+
+    return desired_state
+
+
+def get_shard_namespaces() -> List[Dict[str, str]]:
+    all_namespaces = queries.get_namespaces()
+    namespaces = {}
+    to_be_ignored = []
     for namespace in all_namespaces:
         shard_key = f'{namespace["cluster"]["name"]}/{namespace["name"]}'
         if is_in_shard(shard_key):
-            namespaces.append(namespace)
+            if shard_key not in namespaces:
+                namespaces[shard_key] = namespace
+            else:
+                to_be_ignored.append(shard_key)
+    for shard_key in to_be_ignored:
+        logging.debug(
+            f"Found multiple definitions for the namespace {shard_key};"
+            " Ignoring")
+        del namespaces[shard_key]
 
-    ri = ResourceInventory()
-    settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal,
-                    use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size,
-                    init_projects=True)
-    ob.init_specs_to_fetch(
-        ri,
-        oc_map,
-        namespaces=namespaces,
-        override_managed_types=['Namespace']
-    )
-
-    desired_state = []
-    for cluster, namespace, _, _ in ri:
-        if cluster not in oc_map.clusters():
-            continue
-        desired_state.append({"cluster": cluster, "namespace": namespace})
-
-    return oc_map, desired_state
+    return namespaces.values()
 
 
-def check_ns_exists(spec, oc_map):
+def check_ns_exists(spec: Dict[str, str], oc_map: OC_Map) -> bool:
     cluster = spec['cluster']
     namespace = spec['namespace']
-
     try:
-        create = not oc_map.get(cluster).project_exists(namespace)
-        return spec, create
+        exists = oc_map.get(cluster).project_exists(namespace)
+        return spec, exists
     except StatusCodeError as e:
-        msg = 'cluster: {},'
-        msg += 'namespace: {},'
-        msg += 'exception: {}'
-        msg = msg.format(cluster,
-                         namespace,
-                         str(e))
+        msg = (
+            f'cluster: {cluster}, namespace: {namespace}, exception: {str(e)}'
+        )
         logging.error(msg)
 
     return spec, None
 
 
-def create_new_project(spec, oc_map):
+def manage_projects(spec: Dict[str, str], oc_map: OC_Map, action: str) -> None:
     cluster = spec['cluster']
     namespace = spec['namespace']
 
@@ -107,21 +78,57 @@ def create_new_project(spec, oc_map):
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
         return None
-    oc.new_project(namespace)
+
+    if action == NS_ACTION_CREATE:
+        try:
+            oc.new_project(namespace)
+        except StatusCodeError as e:
+            msg = (
+                f'cluster: {cluster}, namespace: {namespace}, '
+                f'exception: {str(e)}'
+            )
+            logging.error(msg)
+    elif action == NS_ACTION_DELETE:
+        oc.delete_project(namespace)
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True, defer=None):
-    oc_map, desired_state = get_desired_state(internal, use_jump_host,
-                                              thread_pool_size)
+def run(dry_run: bool, thread_pool_size: int = 10,
+        internal: Optional[bool] = None, use_jump_host: bool = True,
+        defer=None):
+
+    namespaces = get_shard_namespaces()
+    settings = queries.get_app_interface_settings()
+    oc_map = OC_Map(namespaces=namespaces,
+                    integration=QONTRACT_INTEGRATION,
+                    settings=settings, internal=internal,
+                    use_jump_host=use_jump_host,
+                    thread_pool_size=thread_pool_size,
+                    init_projects=True)
+
     defer(lambda: oc_map.cleanup())
+
+    desired_state = get_desired_state(namespaces)
+
     results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
                            oc_map=oc_map)
-    specs_to_create = [spec for spec, create in results if create]
 
-    for spec in specs_to_create:
-        logging.info(['create', spec['cluster'], spec['namespace']])
+    ns_to_create = []
+    ns_to_delete = []
+    for ns, exists in results:
+        if exists is None:
+            continue
+        elif not exists and ns["state"] == NS_STATUS_PRESENT:
+            logging.info(['create', ns['cluster'], ns['namespace']])
+            ns_to_create.append(ns)
 
-        if not dry_run:
-            create_new_project(spec, oc_map)
+        elif exists and ns["state"] == NS_STATUS_ABSENT:
+            logging.info(['delete', ns['cluster'], ns['namespace']])
+            ns_to_delete.append(ns)
+
+    if not dry_run:
+        threaded.run(manage_projects, ns_to_create, thread_pool_size,
+                     oc_map=oc_map, action=NS_ACTION_CREATE)
+
+        threaded.run(manage_projects, ns_to_delete, thread_pool_size,
+                     oc_map=oc_map, action=NS_ACTION_DELETE)
