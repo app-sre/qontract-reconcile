@@ -1,6 +1,6 @@
 import logging
 
-from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping
+from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping, Union
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -56,7 +56,7 @@ def get_shard_namespaces() -> List[Dict[str, str]]:
 
 
 def check_ns_exists(spec: Mapping[str, str],
-                    oc_map: OC_Map) -> Tuple[Dict[str, str], Optional[bool]]:
+                    oc_map: OC_Map) -> Tuple[Mapping[str, str], Any]:
     cluster = spec['cluster']
     namespace = spec['namespace']
     try:
