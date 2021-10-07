@@ -98,6 +98,7 @@ class TestOpenshiftNamespaces(TestCase):
         self.test_ns = [
             NS(c1, n1, delete=False, exists=True),
             NS(c1, n1, delete=True, exists=True),
+            NS(c1, n1, delete=True, exists=True),
             NS(c1, n2, delete=False, exists=True)
         ]
         openshift_namespaces.run(False, thread_pool_size=1)
