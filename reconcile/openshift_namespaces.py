@@ -72,9 +72,10 @@ def check_ns_exists(spec: Mapping[str, str],
 
 
 def manage_projects(spec: Mapping[str, str],
-                    oc_map: OC_Map, action: str) -> None:
+                    oc_map: OC_Map, dry_run: bool) -> None:
     cluster = spec['cluster']
     namespace = spec['namespace']
+    action = spec["action"]
 
     oc = oc_map.get(cluster)
     if not oc:
@@ -83,15 +84,20 @@ def manage_projects(spec: Mapping[str, str],
 
     if action == NS_ACTION_CREATE:
         try:
-            oc.new_project(namespace)
+            logging.info(['create', cluster, namespace])
+            if not dry_run:
+                oc.new_project(namespace)
         except StatusCodeError as e:
             msg = (
                 f'cluster: {cluster}, namespace: {namespace}, '
                 f'exception: {str(e)}'
             )
             logging.error(msg)
+
     elif action == NS_ACTION_DELETE:
-        oc.delete_project(namespace)
+        logging.info(['create', cluster, namespace])
+        if not dry_run:
+            oc.delete_project(namespace)
 
 
 @defer
@@ -115,22 +121,17 @@ def run(dry_run: bool, thread_pool_size=10,
     results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
                            oc_map=oc_map)
 
-    ns_to_create = []
-    ns_to_delete = []
-    for ns, exists in results:
+    specs = []
+    for spec, exists in results:
         if exists is None:
             continue
-        elif not exists and ns["state"] == NS_STATUS_PRESENT:
-            logging.info(['create', ns['cluster'], ns['namespace']])
-            ns_to_create.append(ns)
+        elif not exists and spec["state"] == NS_STATUS_PRESENT:
+            spec["action"] = NS_ACTION_CREATE
+        elif exists and spec["state"] == NS_STATUS_ABSENT:
+            spec["action"] = NS_ACTION_DELETE
+        else:
+            continue
+        specs.append(spec)
 
-        elif exists and ns["state"] == NS_STATUS_ABSENT:
-            logging.info(['delete', ns['cluster'], ns['namespace']])
-            ns_to_delete.append(ns)
-
-    if not dry_run:
-        threaded.run(manage_projects, ns_to_create, thread_pool_size,
-                     oc_map=oc_map, action=NS_ACTION_CREATE)
-
-        threaded.run(manage_projects, ns_to_delete, thread_pool_size,
-                     oc_map=oc_map, action=NS_ACTION_DELETE)
+    threaded.run(manage_projects, specs, thread_pool_size,
+                 dry_run=dry_run, oc_map=oc_map)
