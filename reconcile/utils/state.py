@@ -24,6 +24,9 @@ class State:
     :param integration: name of calling integration
     :param accounts: Graphql AWS accounts query results
     :param settings: App Interface settings
+
+    :raises StateInaccessibleException: if the bucket is missing
+    or not accessible
     """
 
     def __init__(self, integration: str, accounts: Iterable[Mapping[str, Any]],
@@ -37,6 +40,16 @@ class State:
         session = aws_api.get_session(account)
 
         self.client = session.client('s3')
+
+        # check if the bucket exists
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except ClientError as details:
+            error_code = details.response.get('Error', {}).get('Code', None)
+            if error_code == '404':
+                raise StateInaccessibleException(
+                    f"bucket {self.bucket} does not exist"
+                )
 
     def exists(self, key):
         """
@@ -59,16 +72,12 @@ class State:
                 return False
             elif error_code == '403':
                 raise StateInaccessibleException(
-                    f"access to bucket {self.bucket} forbidden"
-                )
-            elif error_code == 'NoSuchBucket':
-                raise StateInaccessibleException(
-                    f"bucket {self.bucket} does not exist"
+                    f"access to bucket {self.bucket} is forbidden"
                 )
             else:
                 raise StateInaccessibleException(
-                    f"detected error {error_code} while "
-                    f"accessing state bucket {self.bucket}"
+                    f"error accessing state key {key} "
+                    f"in bucket {self.bucket} - {error_code}"
                 )
 
     def ls(self):
