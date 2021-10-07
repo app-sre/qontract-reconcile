@@ -221,8 +221,15 @@ provider
   targets {
     name
     default
-    weight
+    weights {
+      read
+      write
+    }
     ips
+  }
+  paths {
+    read
+    write
   }
   output_resource_name
   annotations

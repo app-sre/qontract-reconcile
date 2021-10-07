@@ -322,7 +322,7 @@ class OCM:
             return []
         api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api)['items']
+        role_grants = self._get_json(api).get('items', [])
         return [(r['user_arn'], r['role']['id'], r['state'], r['console_url'])
                 for r in role_grants]
 
@@ -332,7 +332,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api)['items']
+        role_grants = self._get_json(api).get('items', [])
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
         for rg in role_grants:
             if rg['user_arn'] != user_arn:
@@ -383,7 +383,7 @@ class OCM:
         cluster_id = self.cluster_ids[cluster]
         api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
               'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api)['items']
+        role_grants = self._get_json(api).get('items', [])
         for rg in role_grants:
             if rg['user_arn'] != user_arn:
                 continue
