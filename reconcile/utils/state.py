@@ -45,11 +45,9 @@ class State:
         try:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError as details:
-            error_code = details.response.get('Error', {}).get('Code', None)
-            if error_code == '404':
-                raise StateInaccessibleException(
-                    f"bucket {self.bucket} does not exist"
-                )
+            raise StateInaccessibleException(
+                f"Bucket {self.bucket} is not accessible - {str(details)}"
+            )
 
     def exists(self, key):
         """
@@ -62,22 +60,19 @@ class State:
         :raises StateInaccessibleException: if the bucket is missing or
         permissions are insufficient or a general AWS error occurred
         """
+        key_path = f"{self.state_path}/{key}"
         try:
             self.client.head_object(
-                Bucket=self.bucket, Key=f"{self.state_path}/{key}")
+                Bucket=self.bucket, Key=key_path)
             return True
         except ClientError as details:
             error_code = details.response.get('Error', {}).get('Code', None)
             if error_code == '404':
                 return False
-            elif error_code == '403':
-                raise StateInaccessibleException(
-                    f"access to bucket {self.bucket} is forbidden"
-                )
             else:
                 raise StateInaccessibleException(
-                    f"error accessing state key {key} "
-                    f"in bucket {self.bucket} - {error_code}"
+                    f"Can not access state key {key_path} "
+                    f"in bucket {self.bucket} - {str(details)}"
                 )
 
     def ls(self):

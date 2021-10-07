@@ -162,8 +162,7 @@ def test_exists_for_missing_bucket(accounts, s3_client, mocker):
         .get_session.return_value \
         .client.return_value = s3_client
 
-    with pytest.raises(StateInaccessibleException,
-                       match=r"bucket .* does not exist"):
+    with pytest.raises(StateInaccessibleException, match=r".*404.*"):
         State('integration-name', accounts)
 
 
@@ -177,6 +176,5 @@ def test_exists_for_forbidden(accounts, s3_client, mocker):
 
     state = State('integration-name', accounts)
 
-    with pytest.raises(StateInaccessibleException,
-                       match=r"access to bucket .* forbidden"):
+    with pytest.raises(StateInaccessibleException, match=r".*403.*"):
         state.exists("some-key")
