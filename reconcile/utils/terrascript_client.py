@@ -3498,7 +3498,8 @@ class TerrascriptClient:
         }
         read_paths = resource.get('paths', {}).get('read')
         if read_paths:
-            values['condition'].append({'path_pattern': {'values': read_paths}})
+            values['condition'].append(
+                {'path_pattern': {'values': read_paths}})
         lblr_read_identifier = f'{identifier}-read'
         lblr_read_tf_resource = \
             aws_lb_listener_rule(lblr_read_identifier, **values)
@@ -3526,7 +3527,8 @@ class TerrascriptClient:
         }
         write_paths = resource.get('paths', {}).get('write')
         if write_paths:
-            values['condition'].append({'path_pattern': {'values': write_paths}})
+            values['condition'].append(
+                {'path_pattern': {'values': write_paths}})
         lblr_write_identifier = f'{identifier}-write'
         lblr_write_tf_resource = \
             aws_lb_listener_rule(lblr_write_identifier, **values)
