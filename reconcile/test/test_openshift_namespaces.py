@@ -76,27 +76,29 @@ class TestOpenshiftNamespaces(TestCase):
 
     def testCreateNamespace(self):
         self.test_ns = [
-            NS(c1, n1, False, False),
+            NS(c1, n1, delete=False, exists=False),
         ]
 
         openshift_namespaces.run(False, thread_pool_size=1)
         oc = self.oc_clients[c1]
         oc.new_project.assert_called_with(n1)
+        oc.delete_project.assert_not_called()
 
     def testDeleteNamespace(self):
         self.test_ns = [
-            NS(c1, n1, True, True),
+            NS(c1, n1, delete=True, exists=True),
         ]
 
         openshift_namespaces.run(False, thread_pool_size=1)
         oc = self.oc_clients[c1]
         oc.delete_project.assert_called_with(n1)
+        oc.new_project.assert_not_called()
 
     def testDuplicatedNamespace(self):
         self.test_ns = [
-            NS(c1, n1, False, True),
-            NS(c1, n1, True, True),
-            NS(c1, n2, False, True)
+            NS(c1, n1, delete=False, exists=True),
+            NS(c1, n1, delete=True, exists=True),
+            NS(c1, n2, delete=False, exists=True)
         ]
         openshift_namespaces.run(False, thread_pool_size=1)
 
@@ -106,7 +108,7 @@ class TestOpenshiftNamespaces(TestCase):
 
     def testDeleteAbsentNamespace(self):
         self.test_ns = [
-            NS(c1, n1, True, False),
+            NS(c1, n1, delete=True, exists=False),
         ]
         openshift_namespaces.run(False, thread_pool_size=1)
 
