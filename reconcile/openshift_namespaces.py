@@ -1,6 +1,6 @@
 import logging
 
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -20,7 +20,7 @@ NS_ACTION_CREATE = "create"
 
 
 def get_desired_state(
-        namespaces: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        namespaces: Iterable[Dict[str, Any]]) -> List[Dict[str, str]]:
 
     desired_state: List[Dict[str, str]] = []
     for namespace in namespaces:
@@ -55,7 +55,7 @@ def get_shard_namespaces() -> List[Dict[str, str]]:
     return list(namespaces.values())
 
 
-def check_ns_exists(spec: Dict[str, str],
+def check_ns_exists(spec: Mapping[str, str],
                     oc_map: OC_Map) -> Tuple[Dict[str, str], Optional[bool]]:
     cluster = spec['cluster']
     namespace = spec['namespace']
@@ -71,7 +71,8 @@ def check_ns_exists(spec: Dict[str, str],
     return spec, None
 
 
-def manage_projects(spec: Dict[str, str], oc_map: OC_Map, action: str) -> None:
+def manage_projects(spec: Mapping[str, str],
+                    oc_map: OC_Map, action: str) -> None:
     cluster = spec['cluster']
     namespace = spec['namespace']
 
@@ -94,8 +95,8 @@ def manage_projects(spec: Dict[str, str], oc_map: OC_Map, action: str) -> None:
 
 
 @defer
-def run(dry_run: bool, thread_pool_size: int = 10,
-        internal: Optional[bool] = None, use_jump_host: bool = True,
+def run(dry_run: bool, thread_pool_size=10,
+        internal: Optional[bool] = None, use_jump_host=True,
         defer=None):
 
     namespaces = get_shard_namespaces()
