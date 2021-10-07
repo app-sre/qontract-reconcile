@@ -227,6 +227,10 @@ provider
     }
     ips
   }
+  paths {
+    read
+    write
+  }
   output_resource_name
   annotations
 }
