@@ -8,6 +8,10 @@ from botocore.errorfactory import ClientError
 from reconcile.utils.aws_api import AWSApi
 
 
+class StateInaccessibleException(Exception):
+    pass
+
+
 class State:
     """
     A state object to be used by stateful integrations.
@@ -20,6 +24,9 @@ class State:
     :param integration: name of calling integration
     :param accounts: Graphql AWS accounts query results
     :param settings: App Interface settings
+
+    :raises StateInaccessibleException: if the bucket is missing
+    or not accessible
     """
 
     def __init__(self, integration: str, accounts: Iterable[Mapping[str, Any]],
@@ -34,6 +41,14 @@ class State:
 
         self.client = session.client('s3')
 
+        # check if the bucket exists
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except ClientError as details:
+            raise StateInaccessibleException(
+                f"Bucket {self.bucket} is not accessible - {str(details)}"
+            )
+
     def exists(self, key):
         """
         Checks if a key exists in the state.
@@ -41,13 +56,24 @@ class State:
         :param key: key to check
 
         :type key: string
+
+        :raises StateInaccessibleException: if the bucket is missing or
+        permissions are insufficient or a general AWS error occurred
         """
+        key_path = f"{self.state_path}/{key}"
         try:
             self.client.head_object(
-                Bucket=self.bucket, Key=f"{self.state_path}/{key}")
+                Bucket=self.bucket, Key=key_path)
             return True
-        except ClientError:
-            return False
+        except ClientError as details:
+            error_code = details.response.get('Error', {}).get('Code', None)
+            if error_code == '404':
+                return False
+            else:
+                raise StateInaccessibleException(
+                    f"Can not access state key {key_path} "
+                    f"in bucket {self.bucket} - {str(details)}"
+                )
 
     def ls(self):
         """
