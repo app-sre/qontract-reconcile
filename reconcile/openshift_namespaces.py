@@ -36,7 +36,7 @@ def get_desired_state(
 
 
 def get_shard_namespaces() -> List[Dict[str, str]]:
-    all_namespaces = queries.get_namespaces()
+    all_namespaces = queries.get_namespaces(minimal=True)
     namespaces = {}
     to_be_ignored = set()
     for namespace in all_namespaces:

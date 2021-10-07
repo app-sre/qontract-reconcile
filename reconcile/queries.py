@@ -720,11 +720,48 @@ NAMESPACES_QUERY = """
 }
 """
 
+NAMESPACES_MINIMAL_QUERY = """
+{
+  namespaces: namespaces_v1 {
+    name
+    delete
+    labels
+    cluster {
+      name
+      serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
+  }
+}
+"""
 
-def get_namespaces():
+
+def get_namespaces(minimal=False):
     """ Returns all Namespaces """
     gqlapi = gql.get_api()
-    return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+    if minimal:
+        return gqlapi.query(NAMESPACES_MINIMAL_QUERY)['namespaces']
+    else:
+        return gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
 
 SA_TOKEN = """

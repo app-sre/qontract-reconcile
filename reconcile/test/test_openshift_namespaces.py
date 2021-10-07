@@ -48,7 +48,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.project_exists.side_effect = self._project_exists
         return oc
 
-    def _queries_get_namespaces(self):
+    def _queries_get_namespaces(self, minimal=False):
         """ Mock queries.get_namespaces() by returning our test data
             gql_response is set in the test method.
         """
