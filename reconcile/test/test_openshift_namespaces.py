@@ -70,6 +70,10 @@ class TestOpenshiftNamespaces(TestCase):
         self.oc_map.clusters.side_effect = self._oc_map_clusters
         self.oc_map.get.side_effect = self._oc_map_get
 
+    def tearDown(self) -> None:
+        self.oc_map_patcher.stop()
+        self.queries_patcher.stop()
+
     def testCreateNamespace(self):
         self.test_ns = [
             NS(c1, n1, False, False),
