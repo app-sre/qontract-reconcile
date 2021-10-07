@@ -503,7 +503,8 @@ def validate_data(oc_map, actions):
         'StatefulSet',
         'Subscription',
         'Job',
-        'ClowdApp'
+        'ClowdApp',
+        'ClowdJobInvocation'
     ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
@@ -573,6 +574,27 @@ def validate_data(oc_map, actions):
                         f'({ready_deployments} ready / '
                         f'{managed_deployments} total)')
                     raise ValidationError(name)
+            elif kind == 'ClowdJobInvocation':
+                completed = status.get('completed')
+                jobs = status.get('jobs', {})
+                if jobs:
+                    logging.info(f'CJI {name} jobs are: {jobs}')
+                    logging.info(yaml.safe_dump(jobs))
+                if completed:
+                    failed_jobs = []
+                    for job_name, job_state in jobs.items():
+                        if job_state == 'Failed':
+                            failed_jobs.append(job_name)
+                    if failed_jobs:
+                        raise ValidationErrorJobFailed(
+                            f'CJI {name} failed jobs: {failed_jobs}')
+                else:
+                    logging.info(f'CJI {name} has not completed')
+                    conditions = status.get('conditions')
+                    if conditions:
+                        logging.info(f'CJI conditions are: {conditions}')
+                        logging.info(yaml.safe_dump(conditions))
+                    raise ValidationError(name)
 
 
 def follow_logs(oc_map, actions, io_dir):
@@ -585,7 +607,8 @@ def follow_logs(oc_map, actions, io_dir):
     """
 
     supported_kinds = [
-        'Job'
+        'Job',
+        'ClowdJobInvocation'
     ]
     for action in actions:
         if action['action'] == ACTION_APPLIED:
@@ -601,7 +624,15 @@ def follow_logs(oc_map, actions, io_dir):
             if not oc:
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
-            oc.job_logs(namespace, name, follow=True, output=io_dir)
+
+            if kind == 'Job':
+                oc.job_logs(namespace, name, follow=True, output=io_dir)
+            if kind == 'ClowdJobInvocation':
+                resource = oc.get(namespace, kind, name=name)
+                jobs = resource.get('status', {}).get('jobs', {})
+                for jn in jobs:
+                    logging.info(['collecting', cluster, namespace, kind, jn])
+                    oc.job_logs(namespace, jn, follow=True, output=io_dir)
 
 
 def aggregate_shared_resources(namespace_info, shared_resources_type):
