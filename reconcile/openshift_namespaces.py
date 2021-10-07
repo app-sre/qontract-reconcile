@@ -1,6 +1,6 @@
 import logging
 
-from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping, Union
+from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
