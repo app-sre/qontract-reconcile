@@ -61,11 +61,11 @@ class TestOpenshiftNamespaces(TestCase):
 
         module = 'reconcile.openshift_namespaces'
 
-        self.queries_patcher = patch(f'{module}.queries')
+        self.queries_patcher = patch(f'{module}.queries', autospec=True)
         self.queries = self.queries_patcher.start()
         self.queries.get_namespaces.side_effect = self._queries_get_namespaces
 
-        self.oc_map_patcher = patch(f'{module}.OC_Map')
+        self.oc_map_patcher = patch(f'{module}.OC_Map', autospec=True)
         self.oc_map = self.oc_map_patcher.start().return_value
         self.oc_map.clusters.side_effect = self._oc_map_clusters
         self.oc_map.get.side_effect = self._oc_map_get
