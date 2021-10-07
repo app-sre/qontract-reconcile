@@ -20,7 +20,7 @@ NS_ACTION_CREATE = "create"
 
 
 def get_desired_state(
-        namespaces: Iterable[Dict[str, Any]]) -> List[Dict[str, str]]:
+        namespaces: Iterable[Mapping[str, Any]]) -> List[Dict[str, str]]:
 
     desired_state: List[Dict[str, str]] = []
     for namespace in namespaces:
