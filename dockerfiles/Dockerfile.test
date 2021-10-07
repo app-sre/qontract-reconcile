@@ -1,17 +1,15 @@
-FROM quay.io/centos/centos:7
+FROM registry.access.redhat.com/ubi8/python-39
 
-ENV LC_ALL=en_US.utf8
-ENV LANG=en_US.utf8
-
-RUN yum install -y epel-release && \
-    yum install -y python36 python36-pip git make gcc gcc-c++ python36-devel && \
+USER root
+RUN dnf install -y python3-pip python3-devel git make gcc gcc-c++ gnupg2 && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
 
 RUN curl -L https://get.helm.sh/helm-v3.6.2-linux-amd64.tar.gz |tar xvz && \
     mv linux-amd64/helm /usr/local/bin/helm && \
     chmod +x /usr/local/bin/helm && \
-    rm -rf linux-amd64
+    rm -rf linux-amd64 && mkdir ~/.gnupg && \
+    echo no-user-agent > ~/.gnupg/gpg.conf
 
 COPY . /package
 WORKDIR /package
