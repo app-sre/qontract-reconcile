@@ -16,6 +16,9 @@ QONTRACT_INTEGRATION = 'openshift-namespaces'
 NS_STATE_PRESENT = "present"
 NS_STATE_ABSENT = "absent"
 
+NS_ACTION_CREATE = "create"
+NS_ACTION_DELETE = "delete"
+
 
 def get_desired_state(
         namespaces: Iterable[Mapping[str, Any]]) -> List[Dict[str, str]]:
@@ -65,16 +68,22 @@ def manage_namespaces(spec: Mapping[str, str],
         logging.log(level=oc.log_level, msg=oc.message)
         return None
 
-    exists = oc.project_exists(namespace)
+    act = {
+        NS_ACTION_CREATE: oc.new_project,
+        NS_ACTION_DELETE: oc.delete_project
+    }
 
+    exists = oc.project_exists(namespace)
+    action = None
     if not exists and desired_state == NS_STATE_PRESENT:
-        logging.info(['create', cluster, namespace])
-        if not dry_run:
-            oc.new_project(namespace)
+        action = NS_ACTION_CREATE
     elif exists and desired_state == NS_STATE_ABSENT:
-        logging.info(['create', cluster, namespace])
+        action = NS_ACTION_DELETE
+
+    if action:
+        logging.info([action, cluster, namespace])
         if not dry_run:
-            oc.delete_project(namespace)
+            act[action](namespace)
 
 
 def check_results(
