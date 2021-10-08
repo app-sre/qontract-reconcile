@@ -79,7 +79,7 @@ class TestOpenshiftNamespaces(TestCase):
         self.oc_map_patcher.stop()
         self.queries_patcher.stop()
 
-    def testCreateNamespace(self):
+    def test_create_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
         ]
@@ -89,7 +89,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.new_project.assert_called_with(n1)
         oc.delete_project.assert_not_called()
 
-    def testDeleteNamespace(self):
+    def test_delete_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=True, exists=True),
         ]
@@ -99,7 +99,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_called_with(n1)
         oc.new_project.assert_not_called()
 
-    def testDuplicatedNamespace(self):
+    def test_duplicated_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=False, exists=True),
             NS(c1, n1, delete=True, exists=True),
@@ -112,7 +112,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def testDeleteAbsentNamespace(self):
+    def test_delete_absent_namespace(self):
         self.test_ns = [
             NS(c1, n1, delete=True, exists=False),
         ]
@@ -122,7 +122,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def testErrorHandlingProjectExists(self):
+    def test_error_handling_project_exists(self):
         oc = self.oc_clients.setdefault(c1, Mock(name=f'oc_{c1}'))
         oc.project_exists.side_effect = StatusCodeError("SomeError")
         self.oc_map.get.return_value = oc
@@ -134,4 +134,4 @@ class TestOpenshiftNamespaces(TestCase):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
             openshift_namespaces.run(False, thread_pool_size=1)
 
-            self.assertTrue("SomeError" in f.getvalue())
+            self.assertIn("SomeError", f.getvalue())
