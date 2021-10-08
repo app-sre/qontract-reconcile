@@ -1,22 +1,20 @@
 import logging
+import sys
 
-from typing import List, Dict, Optional, Tuple, Any, Iterable, Mapping
+from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, Union
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
+from reconcile.status import ExitCodes
 
 
 QONTRACT_INTEGRATION = 'openshift-namespaces'
 
-NS_STATUS_PRESENT = "present"
-NS_STATUS_ABSENT = "absent"
-
-NS_ACTION_DELETE = "delete"
-NS_ACTION_CREATE = "create"
+NS_STATE_PRESENT = "present"
+NS_STATE_ABSENT = "absent"
 
 
 def get_desired_state(
@@ -56,49 +54,41 @@ def get_shard_namespaces() -> List[Dict[str, str]]:
     return list(namespaces.values())
 
 
-def check_ns_exists(spec: Mapping[str, str],
-                    oc_map: OC_Map) -> Tuple[Mapping[str, str], Any]:
+def manage_namespaces(spec: Mapping[str, str],
+                      oc_map: OC_Map, dry_run: bool) -> None:
     cluster = spec['cluster']
     namespace = spec['namespace']
-    try:
-        exists = oc_map.get(cluster).project_exists(namespace)
-        return spec, exists
-    except StatusCodeError as e:
-        msg = (
-            f'cluster: {cluster}, namespace: {namespace}, exception: {str(e)}'
-        )
-        logging.error(msg)
-
-    return spec, None
-
-
-def manage_projects(spec: Mapping[str, str],
-                    oc_map: OC_Map, dry_run: bool) -> None:
-    cluster = spec['cluster']
-    namespace = spec['namespace']
-    action = spec["action"]
+    desired_state = spec["desired_state"]
 
     oc = oc_map.get(cluster)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
         return None
 
-    if action == NS_ACTION_CREATE:
-        try:
-            logging.info(['create', cluster, namespace])
-            if not dry_run:
-                oc.new_project(namespace)
-        except StatusCodeError as e:
-            msg = (
-                f'cluster: {cluster}, namespace: {namespace}, '
-                f'exception: {str(e)}'
-            )
-            logging.error(msg)
+    exists = oc.project_exists(namespace)
 
-    elif action == NS_ACTION_DELETE:
+    if not exists and desired_state == NS_STATE_PRESENT:
+        logging.info(['create', cluster, namespace])
+        if not dry_run:
+            oc.new_project(namespace)
+    elif exists and desired_state == NS_STATE_ABSENT:
         logging.info(['create', cluster, namespace])
         if not dry_run:
             oc.delete_project(namespace)
+
+
+def check_results(
+        results: Tuple[Mapping[str, str], Union[bool, Exception]]) -> bool:
+    err = False
+    for s, e in results:
+        if isinstance(e, Exception):
+            err = True
+            msg = (
+                f'cluster: {s["cluster"]}, namespace: {s["namespace"]}, '
+                f'exception: {str(e)}'
+            )
+            logging.error(msg)
+    return err
 
 
 @defer
@@ -107,6 +97,8 @@ def run(dry_run: bool, thread_pool_size=10,
         defer=None):
 
     namespaces = get_shard_namespaces()
+    desired_state = get_desired_state(namespaces)
+
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(namespaces=namespaces,
                     integration=QONTRACT_INTEGRATION,
@@ -117,22 +109,10 @@ def run(dry_run: bool, thread_pool_size=10,
 
     defer(lambda: oc_map.cleanup())
 
-    desired_state = get_desired_state(namespaces)
+    results = threaded.run(manage_namespaces, desired_state,
+                           thread_pool_size, return_exceptions=True,
+                           dry_run=dry_run, oc_map=oc_map)
 
-    results = threaded.run(check_ns_exists, desired_state, thread_pool_size,
-                           oc_map=oc_map)
-
-    specs = []
-    for spec, exists in results:
-        if exists is None:
-            continue
-        elif not exists and spec["state"] == NS_STATUS_PRESENT:
-            spec["action"] = NS_ACTION_CREATE
-        elif exists and spec["state"] == NS_STATUS_ABSENT:
-            spec["action"] = NS_ACTION_DELETE
-        else:
-            continue
-        specs.append(spec)
-
-    threaded.run(manage_projects, specs, thread_pool_size,
-                 dry_run=dry_run, oc_map=oc_map)
+    err = check_results(zip(desired_state, results))
+    if err:
+        sys.exit(ExitCodes.ERROR)
