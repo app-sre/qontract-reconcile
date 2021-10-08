@@ -38,15 +38,16 @@ def get_desired_state(
 def get_shard_namespaces() -> List[Dict[str, str]]:
     all_namespaces = queries.get_namespaces(minimal=True)
     namespaces = {}
-    to_be_ignored = set()
-    for namespace in all_namespaces:
-        shard_key = f'{namespace["cluster"]["name"]}/{namespace["name"]}'
+    duplicated_ns = set()
+    for ns in all_namespaces:
+        shard_key = f'{ns["cluster"]["name"]}/{ns["name"]}'
         if is_in_shard(shard_key):
             if shard_key not in namespaces:
-                namespaces[shard_key] = namespace
+                namespaces[shard_key] = ns
             else:
-                to_be_ignored.add(shard_key)
-    for shard_key in to_be_ignored:
+                duplicated_ns.add(shard_key)
+
+    for shard_key in duplicated_ns:
         logging.debug(
             f"Found multiple definitions for the namespace {shard_key};"
             " Ignoring")
