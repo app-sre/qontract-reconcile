@@ -23,14 +23,14 @@ def get_desired_state(
         namespaces: Iterable[Mapping[str, Any]]) -> List[Dict[str, str]]:
 
     desired_state: List[Dict[str, str]] = []
-    for namespace in namespaces:
-        state = NS_STATUS_PRESENT
-        if namespace.get("delete"):
-            state = NS_STATUS_ABSENT
+    for ns in namespaces:
+        state = NS_STATE_PRESENT
+        if ns.get("delete"):
+            state = NS_STATE_ABSENT
 
-        desired_state.append({"cluster": namespace["cluster"]["name"],
-                              "namespace": namespace["name"],
-                              "state": state})
+        desired_state.append({"cluster": ns["cluster"]["name"],
+                              "namespace": ns["name"],
+                              "desired_state": state})
 
     return desired_state
 
