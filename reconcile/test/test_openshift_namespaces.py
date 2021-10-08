@@ -1,6 +1,9 @@
+import contextlib
+import io
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from reconcile import openshift_namespaces
+from reconcile.utils.oc import StatusCodeError
 
 
 c1, c2 = "cluster1", "cluster2"
@@ -37,14 +40,16 @@ class TestOpenshiftNamespaces(TestCase):
             if ns.name == project and \
                ns.cluster == self.current_cluster:
                 return ns.exists
-
         return False
 
     def _oc_map_get(self, cluster):
         """ Mock OCM_Map.get() to return a Mock object
         """
         self.current_cluster = cluster
-        oc = self.oc_clients.setdefault(cluster, Mock(name=f'oc_{cluster}'))
+        if cluster not in self.oc_clients:
+            # The mock could be set in the test to override this behavior
+            oc = self.oc_clients.setdefault(cluster,
+                                            Mock(name=f'oc_{cluster}'))
         oc.project_exists.side_effect = self._project_exists
         return oc
 
@@ -116,3 +121,17 @@ class TestOpenshiftNamespaces(TestCase):
         oc = self.oc_clients[c1]
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
+
+    def testErrorHandlingProjectExists(self):
+        oc = self.oc_clients.setdefault(c1, Mock(name=f'oc_{c1}'))
+        oc.project_exists.side_effect = StatusCodeError("SomeError")
+        self.oc_map.get.return_value = oc
+
+        self.test_ns = [
+            NS(c1, "project_raises_exception", delete=True, exists=False),
+        ]
+        f = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
+            openshift_namespaces.run(False, thread_pool_size=1)
+
+            self.assertTrue("SomeError" in f.getvalue())
