@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, Union
+from typing import List, Dict, Optional, Any, Iterable, Mapping
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -78,9 +78,10 @@ def manage_namespaces(spec: Mapping[str, str],
 
 
 def check_results(
-        results: Tuple[Mapping[str, str], Union[bool, Exception]]) -> bool:
+        desired_state: Iterable[Mapping[str, str]],
+        results: Iterable[Any]) -> bool:
     err = False
-    for s, e in results:
+    for s, e in zip(desired_state, results):
         if isinstance(e, Exception):
             err = True
             msg = (
@@ -113,6 +114,6 @@ def run(dry_run: bool, thread_pool_size=10,
                            thread_pool_size, return_exceptions=True,
                            dry_run=dry_run, oc_map=oc_map)
 
-    err = check_results(zip(desired_state, results))
+    err = check_results(desired_state, results)
     if err:
         sys.exit(ExitCodes.ERROR)
