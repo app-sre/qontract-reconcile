@@ -169,6 +169,7 @@ class OcpReleaseMirror:
         if not ocp_releases:
             raise RuntimeError('No OCP Releases found')
 
+        error = False
         for ocp_release_info in ocp_releases:
             ocp_release = ocp_release_info.ocp_release
             tag = ocp_release_info.tag
@@ -184,9 +185,18 @@ class OcpReleaseMirror:
                 dest_ocp_release = (f'{quay_target_org["dest_ocp_release"]}:'
                                     f'{tag}')
                 dest_ocp_art_dev = quay_target_org["dest_ocp_art_dev"]
-                self._run_mirror(ocp_release=ocp_release,
-                                 dest_ocp_release=dest_ocp_release,
-                                 dest_ocp_art_dev=dest_ocp_art_dev)
+                try:
+                    self._run_mirror(ocp_release=ocp_release,
+                                     dest_ocp_release=dest_ocp_release,
+                                     dest_ocp_art_dev=dest_ocp_art_dev)
+                except Exception as details:
+                    # add more information to this error message
+                    # if we ever run this integration with threading.
+                    error = True
+                    LOG.error(f'Mirroring failed. details: {str(details)}')
+    
+        if error:
+            raise OcpReleaseMirrorError('Mirroring completed with errors')
 
     def _run_mirror(self, ocp_release, dest_ocp_release, dest_ocp_art_dev):
         # Checking if the image is already there
