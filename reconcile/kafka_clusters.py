@@ -167,7 +167,7 @@ def run(dry_run, thread_pool_size=10,
                 failed_reason = current_cluster['failed_reason']
                 logging.error(
                     f'[{kafka_cluster_name}] cluster status is {status}. '
-                    f'reason: {failed_reason}'    
+                    f'reason: {failed_reason}'
                 )
                 ri.register_error(kafka_cluster_name)
             else:
