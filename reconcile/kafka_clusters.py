@@ -161,18 +161,18 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        cluster_status = current_cluster['status']
-        if cluster_status != STATUS_READY:
+        status = current_cluster['status']
+        if status != STATUS_READY:
             # check if cluster is failed
-            if cluster_status == STATUS_FAILED:
+            if status == STATUS_FAILED:
                 failed_reason = current_cluster['failed_reason']
                 logging.error(
-                    f'[{kafka_cluster_name}] cluster status is {cluster_status}. '
+                    f'[{kafka_cluster_name}] cluster status is {status}. '
                     f'reason: {failed_reason}'    
                 )
             else:
                 logging.warning(
-                    f'[{kafka_cluster_name}] cluster status is {cluster_status}')
+                    f'[{kafka_cluster_name}] cluster status is {status}')
             continue
         # we have a ready cluster!
         # get a service account for the cluster
