@@ -190,10 +190,10 @@ def run(dry_run, thread_pool_size=10,
                 resource.name,
                 resource
             )
-        # if not dry_run:
-        #     write_output_to_vault(vault_throughput_path,
-        #                           kafka_cluster_name,
-        #                           resource.body['data'])
+        if not dry_run:
+            write_output_to_vault(vault_throughput_path,
+                                  kafka_cluster_name,
+                                  resource.body['data'])
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
                     override_enable_deletion=False)
