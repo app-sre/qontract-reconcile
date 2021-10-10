@@ -135,7 +135,6 @@ def run(dry_run, thread_pool_size=10,
     desired_state = fetch_desired_state(kafka_clusters)
     kafka_service_accounts = ocm_map.kafka_service_account_specs()
 
-    error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
         desired_cluster = [c for c in desired_state
@@ -158,7 +157,7 @@ def run(dry_run, thread_pool_size=10,
                 '[%s] desired spec %s is different ' +
                 'from current spec %s',
                 kafka_cluster_name, desired_cluster, current_cluster)
-            error = True
+            ri.register_error(kafka_cluster_name)
             continue
         # check if cluster is ready. if not - wait
         status = current_cluster['status']
@@ -170,6 +169,7 @@ def run(dry_run, thread_pool_size=10,
                     f'[{kafka_cluster_name}] cluster status is {status}. '
                     f'reason: {failed_reason}'    
                 )
+                ri.register_error(kafka_cluster_name)
             else:
                 logging.warning(
                     f'[{kafka_cluster_name}] cluster status is {status}')
@@ -203,8 +203,7 @@ def run(dry_run, thread_pool_size=10,
                                   kafka_cluster_name,
                                   resource.body['data'])
 
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-                    override_enable_deletion=False)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
-    if error:
+    if ri.has_error_registered():
         sys.exit(ExitCodes.ERROR)
