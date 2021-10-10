@@ -161,7 +161,10 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        if current_cluster['status'] != STATUS_READY:
+        cluster_status = current_cluster['status']
+        if cluster_status != STATUS_READY:
+            logging.warning(
+                f'[{kafka_cluster_name}] cluster status is {cluster_status}')
             continue
         # we have a ready cluster!
         # get a service account for the cluster
