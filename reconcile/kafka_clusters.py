@@ -157,7 +157,7 @@ def run(dry_run, thread_pool_size=10,
                 '[%s] desired spec %s is different ' +
                 'from current spec %s',
                 kafka_cluster_name, desired_cluster, current_cluster)
-            ri.register_error(kafka_cluster_name)
+            ri.register_error()
             continue
         # check if cluster is ready. if not - wait
         status = current_cluster['status']
@@ -169,7 +169,7 @@ def run(dry_run, thread_pool_size=10,
                     f'[{kafka_cluster_name}] cluster status is {status}. '
                     f'reason: {failed_reason}'
                 )
-                ri.register_error(kafka_cluster_name)
+                ri.register_error()
             else:
                 logging.warning(
                     f'[{kafka_cluster_name}] cluster status is {status}')
