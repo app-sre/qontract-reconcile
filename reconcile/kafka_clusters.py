@@ -9,7 +9,7 @@ import reconcile.queries as queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap, STATUS_READY
+from reconcile.utils.ocm import OCMMap, STATUS_READY, STATUS_FAILED
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
 from reconcile.utils.vault import VaultClient
@@ -163,8 +163,16 @@ def run(dry_run, thread_pool_size=10,
         # check if cluster is ready. if not - wait
         cluster_status = current_cluster['status']
         if cluster_status != STATUS_READY:
-            logging.warning(
-                f'[{kafka_cluster_name}] cluster status is {cluster_status}')
+            # check if cluster is failed
+            if cluster_status == STATUS_FAILED:
+                failed_reason = current_cluster['failed_reason']
+                logging.error(
+                    f'[{kafka_cluster_name}] cluster status is {cluster_status}. '
+                    f'reason: {failed_reason}'    
+                )
+            else:
+                logging.warning(
+                    f'[{kafka_cluster_name}] cluster status is {cluster_status}')
             continue
         # we have a ready cluster!
         # get a service account for the cluster
