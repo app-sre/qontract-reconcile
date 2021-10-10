@@ -84,9 +84,6 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
             managed_resource_type_overrides = \
                 namespace_info.get('managedResourceTypeOverrides') or []
 
-            # Initialize current state specs
-            for resource_type in managed_types:
-                ri.initialize_resource_type(cluster, namespace, resource_type)
             resource_names = {}
             resource_type_overrides = {}
             for mrn in managed_resource_names:
@@ -110,12 +107,15 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                         f"Skipping nom-managed override {o} "
                         f"on {cluster}/{namespace}")
 
-            for kind, names in resource_names.items():
+            # Initialize current state specs
+            for resource_type in managed_types:
+                ri.initialize_resource_type(cluster, namespace, resource_type)
                 c_spec = StateSpec(
                     "current", oc, cluster, namespace,
-                    kind,
-                    resource_type_override=resource_type_overrides.get(kind),
-                    resource_names=names)
+                    resource_type,
+                    resource_type_override=resource_type_overrides.get(
+                        resource_type),
+                    resource_names=resource_names.get(resource_type))
                 state_specs.append(c_spec)
 
             # Initialize desired state specs
