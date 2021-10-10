@@ -161,7 +161,10 @@ def run(dry_run, thread_pool_size=10,
             error = True
             continue
         # check if cluster is ready. if not - wait
-        if current_cluster['status'] != STATUS_READY:
+        cluster_status = current_cluster['status']
+        if cluster_status != STATUS_READY:
+            logging.warning(
+                f'[{kafka_cluster_name}] cluster status is {cluster_status}')
             continue
         # we have a ready cluster!
         # get a service account for the cluster
@@ -187,10 +190,10 @@ def run(dry_run, thread_pool_size=10,
                 resource.name,
                 resource
             )
-        if not dry_run:
-            write_output_to_vault(vault_throughput_path,
-                                  kafka_cluster_name,
-                                  resource.body['data'])
+        # if not dry_run:
+        #     write_output_to_vault(vault_throughput_path,
+        #                           kafka_cluster_name,
+        #                           resource.body['data'])
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
                     override_enable_deletion=False)
