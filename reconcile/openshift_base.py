@@ -325,6 +325,7 @@ def _realize_resource_data(unpacked_ri_item,
                            caller,
                            wait_for_namespace,
                            no_dry_run_skip_compare,
+                           override_enable_deletion,
                            recycle_pods):
     cluster, namespace, resource_type, data = unpacked_ri_item
     actions = []
@@ -337,6 +338,9 @@ def _realize_resource_data(unpacked_ri_item,
         return actions
 
     enable_deletion = False if ri.has_error_registered() else True
+    # only allow to override enable_deletion if no errors were found
+    if enable_deletion is True and override_enable_deletion is False:
+        enable_deletion = False
 
     # desired items
     for name, d_item in data['desired'].items():
@@ -459,6 +463,7 @@ def realize_data(dry_run, oc_map, ri, thread_pool_size,
                  caller=None,
                  wait_for_namespace=False,
                  no_dry_run_skip_compare=False,
+                 override_enable_deletion=None,
                  recycle_pods=True):
     """
     Realize the current state to the desired state.
@@ -473,6 +478,7 @@ def realize_data(dry_run, oc_map, ri, thread_pool_size,
                    to deploy to the same namespace
     :param wait_for_namespace: wait for namespace to exist before applying
     :param no_dry_run_skip_compare: when running without dry-run, skip compare
+    :param override_enable_deletion: override calculated enable_deletion value
     :param recycle_pods: should pods be recycled if a dependency changed
     """
     args = locals()
