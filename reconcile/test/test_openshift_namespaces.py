@@ -101,7 +101,18 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_called_with(n1)
         oc.new_project.assert_not_called()
 
-    def test_duplicated_namespace(self):
+    def test_dup_present_namespace_no_deletes_should_do_nothing(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=True),
+            NS(c1, n1, delete=False, exists=True),
+            NS(c1, n1, delete=False, exists=True),
+        ]
+        openshift_namespaces.run(False, thread_pool_size=1)
+        oc = self.oc_clients[c1]
+        oc.delete_project.assert_not_called()
+        oc.new_project.assert_not_called()
+
+    def test_dup_present_namespace_some_deletes_should_error(self):
         self.test_ns = [
             NS(c1, n1, delete=False, exists=True),
             NS(c1, n1, delete=True, exists=True),
@@ -113,6 +124,56 @@ class TestOpenshiftNamespaces(TestCase):
             openshift_namespaces.run(False, thread_pool_size=1)
             self.assertIn("Found multiple definitions", f.getvalue())
 
+        oc = self.oc_clients[c1]
+        oc.delete_project.assert_not_called()
+        oc.new_project.assert_not_called()
+
+    def test_dup_present_namespace_all_deletes_should_delete(self):
+        self.test_ns = [
+            NS(c1, n1, delete=True, exists=True),
+            NS(c1, n1, delete=True, exists=True),
+            NS(c1, n1, delete=True, exists=True),
+        ]
+        openshift_namespaces.run(False, thread_pool_size=1)
+        oc = self.oc_clients[c1]
+        oc.delete_project.assert_called()
+        oc.new_project.assert_not_called()
+
+    def test_dup_absent_namespace_no_deletes_should_create(self):
+        self.test_ns = [
+            NS(c1, n1, delete=False, exists=False),
+            NS(c1, n1, delete=False, exists=False),
+            NS(c1, n1, delete=False, exists=False),
+        ]
+        openshift_namespaces.run(False, thread_pool_size=1)
+        oc = self.oc_clients[c1]
+        oc.delete_project.assert_not_called()
+        oc.new_project.assert_called()
+
+    def test_dup_absent_namespace_some_deletes_should_error(self):
+        self.test_ns = [
+            NS(c1, n1, delete=True, exists=False),
+            NS(c1, n1, delete=False, exists=False),
+            NS(c1, n1, delete=False, exists=False),
+            NS(c1, n2, delete=False, exists=True),
+        ]
+
+        f = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
+            openshift_namespaces.run(False, thread_pool_size=1)
+            self.assertIn("Found multiple definitions", f.getvalue())
+
+        oc = self.oc_clients[c1]
+        oc.delete_project.assert_not_called()
+        oc.new_project.assert_not_called()
+
+    def test_dup_absent_namespace_all_deletes_should_do_nothing(self):
+        self.test_ns = [
+            NS(c1, n1, delete=True, exists=False),
+            NS(c1, n1, delete=True, exists=False),
+            NS(c1, n1, delete=True, exists=False),
+        ]
+        openshift_namespaces.run(False, thread_pool_size=1)
         oc = self.oc_clients[c1]
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
