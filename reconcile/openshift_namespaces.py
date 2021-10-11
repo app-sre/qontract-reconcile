@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from typing import List, Dict, Optional, Any, Iterable, Mapping
+from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -36,25 +36,28 @@ def get_desired_state(
     return desired_state
 
 
-def get_shard_namespaces() -> List[Dict[str, str]]:
-    all_namespaces = queries.get_namespaces(minimal=True)
-    namespaces = {}
+def get_shard_namespaces(namespaces: Any) \
+        -> Tuple[List[Dict[str, str]], bool]:
+
+    shard_namespaces = {}
     duplicated_ns = set()
-    for ns in all_namespaces:
+    err = False
+    for ns in namespaces:
         shard_key = f'{ns["cluster"]["name"]}/{ns["name"]}'
         if is_in_shard(shard_key):
-            if shard_key not in namespaces:
-                namespaces[shard_key] = ns
+            if shard_key not in shard_namespaces:
+                shard_namespaces[shard_key] = ns
             else:
+                err = True
                 duplicated_ns.add(shard_key)
 
     for shard_key in duplicated_ns:
-        logging.debug(
+        logging.error(
             f"Found multiple definitions for the namespace {shard_key};"
             " Ignoring")
-        del namespaces[shard_key]
+        del shard_namespaces[shard_key]
 
-    return list(namespaces.values())
+    return list(shard_namespaces.values()), err
 
 
 def manage_namespaces(spec: Mapping[str, str],
@@ -106,11 +109,12 @@ def run(dry_run: bool, thread_pool_size=10,
         internal: Optional[bool] = None, use_jump_host=True,
         defer=None):
 
-    namespaces = get_shard_namespaces()
-    desired_state = get_desired_state(namespaces)
+    namespaces = queries.get_namespaces(minimal=True)
+    shard_namespaces, duplicates = get_shard_namespaces(namespaces)
+    desired_state = get_desired_state(shard_namespaces)
 
     settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(namespaces=namespaces,
+    oc_map = OC_Map(namespaces=shard_namespaces,
                     integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
@@ -124,5 +128,5 @@ def run(dry_run: bool, thread_pool_size=10,
                            dry_run=dry_run, oc_map=oc_map)
 
     err = check_results(desired_state, results)
-    if err:
+    if err or duplicates:
         sys.exit(ExitCodes.ERROR)
