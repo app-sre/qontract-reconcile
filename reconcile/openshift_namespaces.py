@@ -39,13 +39,14 @@ def get_desired_state(
     return desired_state
 
 
-def get_shard_namespaces(namespaces: Iterable[Dict[str, str]]) \
-        -> Tuple[List[Dict[str, str]], bool]:
+def get_shard_namespaces(
+        namespaces: Iterable[Mapping[str, Any]]) \
+            -> Tuple[List[Dict[str, str]], bool]:
 
     # Structure holding duplicates by namespace key
     duplicates: Dict[str, List[Dict[str, str]]] = {}
     # namespace filtered list without duplicates
-    filtered_ns: Dict[str, Dict[str, str]] = {}
+    filtered_ns: Dict[str, Dict[str, Any]] = {}
 
     err = False
     for ns in namespaces:
@@ -53,11 +54,11 @@ def get_shard_namespaces(namespaces: Iterable[Dict[str, str]]) \
 
         if is_in_shard(key):
             if key not in filtered_ns:
-                filtered_ns[key] = ns
+                filtered_ns[key] = dict(ns)
             else:
                 # Duplicated NS
                 dupe_list_by_key = duplicates.setdefault(key, [])
-                dupe_list_by_key.append(ns)
+                dupe_list_by_key.append(dict(ns))
 
     for key, dupe_list in duplicates.items():
         dupe_list.append(filtered_ns[key])
