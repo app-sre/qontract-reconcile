@@ -1,5 +1,6 @@
 import logging
 
+from datetime import datetime
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
@@ -70,6 +71,16 @@ ROLES_QUERY = """
         channels
         description
         ownersFromRepos
+        schedule {
+          schedule {
+            start
+            end
+            users {
+              org_username
+              slack_username
+            }
+          }
+        }
       }
     }
   }
@@ -270,6 +281,20 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
     return all_slack_usernames
 
 
+def get_slack_usernames_from_schedule(schedule):
+    if schedule is None:
+        return []
+    now = datetime.utcnow()
+    all_slack_usernames = []
+    for entry in schedule['schedule']:
+        start = datetime.strptime(entry['start'], '%Y-%m-%d %H:%M')
+        end = datetime.strptime(entry['end'], '%Y-%m-%d %H:%M')
+        if start <= now <= end:
+            all_slack_usernames.extend(
+                get_slack_username(u) for u in entry['users'])
+    return all_slack_usernames
+
+
 def get_desired_state(slack_map, pagerduty_map):
     """
     Get the desired state of Slack usergroups.
@@ -324,6 +349,11 @@ def get_desired_state(slack_map, pagerduty_map):
             slack_usernames_repo = get_slack_usernames_from_owners(
                     p['ownersFromRepos'], all_users, usergroup)
             user_names.extend(slack_usernames_repo)
+
+            slack_usernames_schedule = get_slack_usernames_from_schedule(
+                p['schedule']
+            )
+            user_names.extend(slack_usernames_schedule)
 
             users = slack.get_users_by_names(user_names)
 
