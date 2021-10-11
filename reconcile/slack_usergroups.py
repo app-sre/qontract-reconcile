@@ -87,6 +87,7 @@ ROLES_QUERY = """
 }
 """
 
+DATE_FORMAT = '%Y-%m-%d %H:%M'
 QONTRACT_INTEGRATION = 'slack-usergroups'
 
 
@@ -287,8 +288,8 @@ def get_slack_usernames_from_schedule(schedule):
     now = datetime.utcnow()
     all_slack_usernames = []
     for entry in schedule['schedule']:
-        start = datetime.strptime(entry['start'], '%Y-%m-%d %H:%M')
-        end = datetime.strptime(entry['end'], '%Y-%m-%d %H:%M')
+        start = datetime.strptime(entry['start'], DATE_FORMAT)
+        end = datetime.strptime(entry['end'], DATE_FORMAT)
         if start <= now <= end:
             all_slack_usernames.extend(
                 get_slack_username(u) for u in entry['users'])
