@@ -8,6 +8,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 STATUS_READY = 'ready'
+STATUS_FAILED = 'failed'
 
 AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
@@ -1044,7 +1045,7 @@ class OCMMap:
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
         fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
-                  'name', 'bootstrapServerHost']
+                  'name', 'bootstrapServerHost', 'failed_reason']
         cluster_specs = []
         for ocm in self.ocm_map.values():
             clusters = ocm.get_kafka_clusters(fields=fields)
