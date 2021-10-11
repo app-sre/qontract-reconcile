@@ -39,7 +39,7 @@ def get_desired_state(
     return desired_state
 
 
-def get_shard_namespaces(namespaces: Any) \
+def get_shard_namespaces(namespaces: Iterable[Dict[str, str]]) \
         -> Tuple[List[Dict[str, str]], bool]:
 
     # Structure holding duplicates by namespace key
