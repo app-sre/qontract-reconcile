@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple
+from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, cast
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
 
@@ -54,11 +54,11 @@ def get_shard_namespaces(
 
         if is_in_shard(key):
             if key not in filtered_ns:
-                filtered_ns[key] = dict(ns)
+                filtered_ns[key] = cast(dict, ns)
             else:
                 # Duplicated NS
                 dupe_list_by_key = duplicates.setdefault(key, [])
-                dupe_list_by_key.append(dict(ns))
+                dupe_list_by_key.append(cast(dict, ns))
 
     for key, dupe_list in duplicates.items():
         dupe_list.append(filtered_ns[key])
