@@ -15,9 +15,9 @@ class TestSupportFunctions(TestCase):
             'schedule': [
                 {
                     'start': (now - timedelta(hours=1)).
-                        strftime(integ.DATE_FORMAT),
+                    strftime(integ.DATE_FORMAT),
                     'end': (now + timedelta(hours=1)).
-                        strftime(integ.DATE_FORMAT),
+                    strftime(integ.DATE_FORMAT),
                     'users': [
                         {
                             'org_username': 'user',
