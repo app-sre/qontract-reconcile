@@ -59,9 +59,8 @@ def get_shard_namespaces(namespaces: Iterable[Dict[str, str]]) \
                 dupe_list_by_key = duplicates.setdefault(key, [])
                 dupe_list_by_key.append(ns)
 
-    for key in duplicates:
-        dupe_list_by_key = duplicates[key]
-        dupe_list_by_key.append(filtered_ns[key])
+    for key, dupe_list in duplicates.items():
+        dupe_list.append(filtered_ns[key])
         delete_flags = [ns["delete"] for ns in dupe_list_by_key]
 
         if len(set(delete_flags)) > 1:
