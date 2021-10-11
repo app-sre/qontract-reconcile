@@ -22,6 +22,7 @@ NS_ACTION_DELETE = "delete"
 
 DUPLICATES_LOG_MSG = "Found multiple definitions for the namespace {key}"
 
+
 def get_desired_state(
         namespaces: Iterable[Mapping[str, Any]]) -> List[Dict[str, str]]:
 
@@ -38,21 +39,11 @@ def get_desired_state(
     return desired_state
 
 
-def get_shard_namespaces(namespaces: Any) -> List[Any]:
-    shard_namespaces = []
-    for ns in namespaces:
-        shard_key = f'{ns["cluster"]["name"]}/{ns["name"]}'
-        if is_in_shard(shard_key):
-            shard_namespaces.append(ns)
-
-    return shard_namespaces
-
-
-def manage_duplicated_namespaces(namespaces: Any) \
+def get_shard_namespaces(namespaces: Any) \
         -> Tuple[List[Dict[str, str]], bool]:
 
     # Structure holding duplicates by namespace key
-    duplicated_ns: Dict[str, Iterable[Mapping[str, str]]] = {}
+    duplicates: Dict[str, List[Dict[str, str]]] = {}
     # namespace filtered list without duplicates
     filtered_ns: Dict[str, Dict[str, str]] = {}
 
@@ -60,19 +51,20 @@ def manage_duplicated_namespaces(namespaces: Any) \
     for ns in namespaces:
         key = f'{ns["cluster"]["name"]}/{ns["name"]}'
 
-        if key not in filtered_ns:
-            filtered_ns[key] = ns
-        else:
-            # Duplicated NS
-            d_list = duplicated_ns.setdefault(key, [])
-            d_list.append(ns)
+        if is_in_shard(key):
+            if key not in filtered_ns:
+                filtered_ns[key] = ns
+            else:
+                # Duplicated NS
+                dupe_list_by_key = duplicates.setdefault(key, [])
+                dupe_list_by_key.append(ns)
 
-    for key in duplicated_ns:
-        dupe_ns_list = duplicated_ns[key]
-        dupe_ns_list.append(filtered_ns[key])
-        deletes_in_list = [ns["delete"] for ns in dupe_ns_list]
+    for key in duplicates:
+        dupe_list_by_key = duplicates[key]
+        dupe_list_by_key.append(filtered_ns[key])
+        delete_flags = [ns["delete"] for ns in dupe_list_by_key]
 
-        if len(set(deletes_in_list)) > 1:
+        if len(set(delete_flags)) > 1:
             # If true only some definitions in list have the delete flag.
             # this case will generate an error
             err = True
@@ -137,9 +129,8 @@ def run(dry_run: bool, thread_pool_size=10,
         defer=None):
 
     all_namespaces = queries.get_namespaces(minimal=True)
-    namespaces, duplicates = manage_duplicated_namespaces(all_namespaces)
+    shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
 
-    shard_namespaces = get_shard_namespaces(namespaces)
     desired_state = get_desired_state(shard_namespaces)
 
     settings = queries.get_app_interface_settings()
