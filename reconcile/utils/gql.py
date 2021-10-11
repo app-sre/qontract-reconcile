@@ -141,7 +141,20 @@ class GqlApi:
                 "`data` field missing from GraphQL"
                 "server response."))
 
+        if result['data'] is not None:
+            self.filter_null(result['data'])
+
         return result['data']
+
+    def filter_null(self, data):
+        if not isinstance(data, (str, int)):
+            for k, v in data.copy().items():
+                if isinstance(v, dict):
+                    self.filter_null(v)
+                elif isinstance(v, list):
+                    [self.filter_null(x) for x in v]
+                elif v is None:
+                    del data[k]
 
     def get_resource(self, path):
         query = """
