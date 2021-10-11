@@ -50,7 +50,9 @@ class TestOpenshiftNamespaces(TestCase):
             # The mock could be set in the test to override this behavior
             oc = self.oc_clients.setdefault(cluster,
                                             Mock(name=f'oc_{cluster}'))
-        oc.project_exists.side_effect = self._project_exists
+            oc.project_exists.side_effect = self._project_exists
+        else:
+            oc = self.oc_clients[cluster]
         return oc
 
     def _queries_get_namespaces(self, minimal=False):
@@ -106,7 +108,10 @@ class TestOpenshiftNamespaces(TestCase):
             NS(c1, n1, delete=True, exists=True),
             NS(c1, n2, delete=False, exists=True)
         ]
-        openshift_namespaces.run(False, thread_pool_size=1)
+        f = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
+            openshift_namespaces.run(False, thread_pool_size=1)
+            self.assertIn("Found multiple definitions", f.getvalue())
 
         oc = self.oc_clients[c1]
         oc.delete_project.assert_not_called()
@@ -133,5 +138,4 @@ class TestOpenshiftNamespaces(TestCase):
         f = io.StringIO()
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(f):
             openshift_namespaces.run(False, thread_pool_size=1)
-
             self.assertIn("SomeError", f.getvalue())
