@@ -1,8 +1,7 @@
-FROM registry.access.redhat.com/ubi8/python-39
+FROM quay.io/app-sre/qontract-reconcile-base:0.5.0
 
 USER root
-RUN dnf install -y python3-pip python3-devel git make gcc gcc-c++ gnupg2 && \
-    python3 -m pip install --upgrade pip && \
+RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
 
 RUN curl -L https://get.helm.sh/helm-v3.6.2-linux-amd64.tar.gz |tar xvz && \
