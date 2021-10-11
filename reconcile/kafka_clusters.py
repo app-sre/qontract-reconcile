@@ -9,7 +9,7 @@ import reconcile.queries as queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
-from reconcile.utils.ocm import OCMMap, STATUS_READY
+from reconcile.utils.ocm import OCMMap, STATUS_READY, STATUS_FAILED
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.status import ExitCodes
 from reconcile.utils.vault import VaultClient
@@ -135,7 +135,6 @@ def run(dry_run, thread_pool_size=10,
     desired_state = fetch_desired_state(kafka_clusters)
     kafka_service_accounts = ocm_map.kafka_service_account_specs()
 
-    error = False
     for kafka_cluster in kafka_clusters:
         kafka_cluster_name = kafka_cluster['name']
         desired_cluster = [c for c in desired_state
@@ -158,13 +157,22 @@ def run(dry_run, thread_pool_size=10,
                 '[%s] desired spec %s is different ' +
                 'from current spec %s',
                 kafka_cluster_name, desired_cluster, current_cluster)
-            error = True
+            ri.register_error()
             continue
         # check if cluster is ready. if not - wait
-        cluster_status = current_cluster['status']
-        if cluster_status != STATUS_READY:
-            logging.warning(
-                f'[{kafka_cluster_name}] cluster status is {cluster_status}')
+        status = current_cluster['status']
+        if status != STATUS_READY:
+            # check if cluster is failed
+            if status == STATUS_FAILED:
+                failed_reason = current_cluster['failed_reason']
+                logging.error(
+                    f'[{kafka_cluster_name}] cluster status is {status}. '
+                    f'reason: {failed_reason}'
+                )
+                ri.register_error()
+            else:
+                logging.warning(
+                    f'[{kafka_cluster_name}] cluster status is {status}')
             continue
         # we have a ready cluster!
         # get a service account for the cluster
@@ -195,8 +203,7 @@ def run(dry_run, thread_pool_size=10,
                                   kafka_cluster_name,
                                   resource.body['data'])
 
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-                    override_enable_deletion=False)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
-    if error:
+    if ri.has_error_registered():
         sys.exit(ExitCodes.ERROR)
