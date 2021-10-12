@@ -10,7 +10,10 @@ def full_traceback(func):
             return func(*args, **kwargs)
         except Exception as e:
             msg = "{}\n\nOriginal {}".format(e, traceback.format_exc())
-            raise type(e)(msg)
+            try:
+                raise type(e)(msg)
+            except Exception:
+                raise e
     return wrapper
 
 
