@@ -24,7 +24,7 @@ from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.secret_reader import SecretReader
 import reconcile.utils.threaded as threaded
-from openshift.dynamic.exceptions import NotFoundError
+from openshift.dynamic.exceptions import NotFoundError, ServerTimeoutError
 from openshift.dynamic import DynamicClient
 from reconcile.utils.unleash import (get_feature_toggle_strategies,
                                      get_feature_toggle_state)
@@ -798,6 +798,7 @@ class OCNative(OCDeprecated):
         else:
             self.api_resources = None
 
+    @retry(exceptions=ServerTimeoutError)
     def _get_client(self, server, token):
         opts = dict(
             api_key={'authorization': f'Bearer {token}'},
