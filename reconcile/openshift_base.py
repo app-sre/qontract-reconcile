@@ -576,7 +576,7 @@ def validate_data(oc_map, actions):
                     raise ValidationError(name)
             elif kind == 'ClowdJobInvocation':
                 completed = status.get('completed')
-                jobs = status.get('jobs', {})
+                jobs = status.get('jobMap', {})
                 if jobs:
                     logging.info(f'CJI {name} jobs are: {jobs}')
                     logging.info(yaml.safe_dump(jobs))
@@ -629,7 +629,7 @@ def follow_logs(oc_map, actions, io_dir):
                 oc.job_logs(namespace, name, follow=True, output=io_dir)
             if kind == 'ClowdJobInvocation':
                 resource = oc.get(namespace, kind, name=name)
-                jobs = resource.get('status', {}).get('jobs', {})
+                jobs = resource.get('status', {}).get('jobMap', {})
                 for jn in jobs:
                     logging.info(['collecting', cluster, namespace, kind, jn])
                     oc.job_logs(namespace, jn, follow=True, output=io_dir)
