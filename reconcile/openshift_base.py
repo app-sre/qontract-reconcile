@@ -1,5 +1,7 @@
 import logging
 import itertools
+from typing import Mapping, MutableSequence
+
 import yaml
 
 from sretoolbox.utils import retry
@@ -661,3 +663,16 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
         else:
             namespace_type_resources = shared_type_resources_items
             namespace_info[shared_resources_type] = namespace_type_resources
+
+
+def remove_clusters_empty_server_url(
+        clusters: MutableSequence[Mapping]) -> None:
+    """
+    Remove any clusters where serverUrl is empty. This can happen when a new
+    cluster is created and the serverUrl hasn't been added yet.
+    """
+    for c in list(clusters):
+        if not c['serverUrl']:
+            logging.warning('Skipping cluster %s because serverUrl is '
+                            'empty', c['name'])
+            clusters.remove(c)

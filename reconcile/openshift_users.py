@@ -5,6 +5,7 @@ import reconcile.utils.threaded as threaded
 import reconcile.openshift_groups as openshift_groups
 import reconcile.openshift_rolebindings as openshift_rolebindings
 import reconcile.queries as queries
+from reconcile.openshift_base import remove_clusters_empty_server_url
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
@@ -29,6 +30,9 @@ def get_cluster_users(cluster, oc_map):
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = queries.get_clusters(minimal=True)
+    # New clusters can cause failures in this integration without this.
+    remove_clusters_empty_server_url(clusters)
+
     settings = queries.get_app_interface_settings()
     oc_map = OC_Map(clusters=clusters, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,

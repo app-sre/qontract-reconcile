@@ -5,6 +5,7 @@ import itertools
 import reconcile.utils.gql as gql
 import reconcile.utils.threaded as threaded
 import reconcile.queries as queries
+from reconcile.openshift_base import remove_clusters_empty_server_url
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
@@ -81,6 +82,9 @@ def create_groups_list(clusters, oc_map):
 
 def fetch_current_state(thread_pool_size, internal, use_jump_host):
     clusters = [c for c in queries.get_clusters() if is_in_shard(c['name'])]
+    # New clusters can cause failures in this integration without this.
+    remove_clusters_empty_server_url(clusters)
+
     ocm_clusters = [c['name'] for c in clusters if c.get('ocm') is not None]
     current_state = []
     settings = queries.get_app_interface_settings()

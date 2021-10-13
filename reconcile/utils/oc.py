@@ -778,6 +778,13 @@ class OCNative(OCDeprecated):
         super().__init__(cluster_name, server, token, jh, settings,
                          init_projects=False, init_api_resources=False,
                          local=local)
+
+        # server is empty for certain use cases like saasherder where process()
+        # is being used. A refactor to provide that functionality outside of
+        # this class would allow an exception to be thrown here instead.
+        # This would be advantageous because AttributeErrors when
+        # client/api_kind_version aren't set is less obvious than failing
+        # early.
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
