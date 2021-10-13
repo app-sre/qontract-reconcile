@@ -1,7 +1,7 @@
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
 
-import reconcile.utils.config as config
+from reconcile.utils import config
 from reconcile.utils.vault import VaultClient
 
 

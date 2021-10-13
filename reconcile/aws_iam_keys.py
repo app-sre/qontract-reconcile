@@ -1,7 +1,7 @@
 import sys
 import shutil
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.defer import defer
 from reconcile.utils.aws_api import AWSApi

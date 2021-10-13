@@ -68,8 +68,8 @@ from terrascript.resource import (
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
 
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
+from reconcile.utils import gql
+from reconcile.utils import threaded
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_org import get_config

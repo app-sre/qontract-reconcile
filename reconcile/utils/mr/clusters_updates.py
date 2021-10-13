@@ -1,4 +1,4 @@
-import ruamel.yaml as yaml
+from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE

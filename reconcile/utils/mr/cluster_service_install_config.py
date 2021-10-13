@@ -1,4 +1,4 @@
-import ruamel.yaml as yaml
+from ruamel import yaml
 from gitlab.exceptions import GitlabError
 
 from reconcile.utils.mr.base import MergeRequestBase

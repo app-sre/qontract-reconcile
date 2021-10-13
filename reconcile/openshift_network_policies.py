@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 import reconcile.openshift_base as ob
 
 from reconcile.utils.semver_helper import make_semver

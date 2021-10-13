@@ -2,7 +2,7 @@ import logging
 
 from datetime import datetime
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.oc import OC_Map

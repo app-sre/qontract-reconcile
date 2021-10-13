@@ -2,8 +2,8 @@ import logging
 
 from collections import defaultdict
 
-import reconcile.queries as queries
-import reconcile.utils.ldap_client as ldap_client
+from reconcile import queries
+from reconcile.utils import ldap_client
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser

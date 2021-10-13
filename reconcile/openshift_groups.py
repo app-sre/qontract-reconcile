@@ -2,9 +2,9 @@ import sys
 import logging
 import itertools
 
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
-import reconcile.queries as queries
+from reconcile.utils import gql
+from reconcile.utils import threaded
+from reconcile import queries
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer

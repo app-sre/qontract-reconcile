@@ -3,7 +3,7 @@ import os
 from sretoolbox.container import Image
 from sretoolbox.container import Skopeo
 
-import reconcile.utils.metrics as metrics
+from reconcile.utils import metrics
 
 # TODO: move these to a shared, constants module
 

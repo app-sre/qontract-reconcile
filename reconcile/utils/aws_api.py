@@ -9,7 +9,7 @@ from threading import Lock
 import boto3
 import botocore
 
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader

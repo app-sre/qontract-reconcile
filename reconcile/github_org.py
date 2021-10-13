@@ -6,10 +6,10 @@ from github import Github
 from github.GithubObject import NotSet  # type: ignore
 from sretoolbox.utils import retry
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
-import reconcile.openshift_users as openshift_users
-import reconcile.queries as queries
+from reconcile import openshift_users
+from reconcile import queries
 
 from reconcile.utils.aggregated_list \
     import AggregatedList, AggregatedDiffRunner

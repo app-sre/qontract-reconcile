@@ -1,4 +1,4 @@
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 

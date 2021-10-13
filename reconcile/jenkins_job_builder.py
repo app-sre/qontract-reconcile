@@ -2,8 +2,8 @@ import sys
 import json
 import logging
 
-import reconcile.utils.gql as gql
-import reconcile.queries as queries
+from reconcile.utils import gql
+from reconcile import queries
 
 from reconcile.utils.defer import defer
 from reconcile.utils.jjb_client import JJB
