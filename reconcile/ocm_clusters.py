@@ -11,10 +11,29 @@ from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
+ALLOWED_SPEC_UPDATE_FIELDS = {
+    'instance_type',
+    'storage',
+    'load_balancers',
+    'private',
+    'channel',
+    'autoscale',
+    'nodes'
+}
+
+OCM_GENERATED_FIELDS = ['network', 'consoleUrl', 'serverUrl', 'elbFQDN']
+PREDICTABLE_FIELDS = ['prometheusUrl', 'alertmanagerUrl', ]
+MANAGED_FIELDS = ['spec'] + OCM_GENERATED_FIELDS + PREDICTABLE_FIELDS
+
 
 def fetch_desired_state(clusters):
-    desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
-                     for c in clusters}
+
+    desired_state = {
+        c['name']: {
+            f: c[f] for f in MANAGED_FIELDS
+        }
+        for c in clusters
+    }
     # remove unused keys
     for desired_spec in desired_state.values():
         # remove empty keys in spec
@@ -26,15 +45,7 @@ def fetch_desired_state(clusters):
 
 def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     """ Get a cluster spec to update. Returns an error if diff is invalid """
-    allowed_spec_update_fields = {
-        'instance_type',
-        'storage',
-        'load_balancers',
-        'private',
-        'channel',
-        'autoscale',
-        'nodes'
-    }
+
     error = False
     if current_spec['network'] != desired_spec['network']:
         error = True
@@ -52,7 +63,7 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     diffs = deleted
     diffs.update(updated)
 
-    invalid_fields = set(diffs.keys()) - allowed_spec_update_fields
+    invalid_fields = set(diffs.keys()) - ALLOWED_SPEC_UPDATE_FIELDS
     if invalid_fields:
         error = True
         logging.error(f'[{cluster_name}] invalid updates: {invalid_fields}')
@@ -82,6 +93,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 [c['path'] for c in clusters
                  if c['name'] == cluster_name][0]
 
+            desired_spec['prometheusUrl'] = \
+                f"prometheus.{cluster_name}.devshift.net"
+            desired_spec['alertmanagerUrl'] = \
+                f"alertmanager.{cluster_name}.devshift.net"
             # validate version
             desired_spec['spec'].pop('initial_version')
             desired_version = desired_spec['spec'].pop('version')
@@ -113,6 +128,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             if not desired_spec['spec'].get('external_id'):
                 clusters_updates[cluster_name]['external_id'] = \
                     current_spec['spec']['external_id']
+
+            for f in OCM_GENERATED_FIELDS:
+                if not desired_spec[f]:
+                    clusters_updates[cluster_name][f] = current_spec[f]
 
             desired_provision_shard_id = \
                 desired_spec['spec'].get('provision_shard_id')
