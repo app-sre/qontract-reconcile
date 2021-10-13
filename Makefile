@@ -31,7 +31,7 @@ generate:
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
-test: build-test
+test: build-test build
 	@docker run --rm $(IMAGE_TEST)
 
 clean:
