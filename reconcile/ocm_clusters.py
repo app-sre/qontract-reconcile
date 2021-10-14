@@ -88,15 +88,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
-            clusters_updates[cluster_name] = {}
+            clusters_updates[cluster_name] = {'spec': {}, 'root': {}}
             cluster_path = 'data' + \
                 [c['path'] for c in clusters
                  if c['name'] == cluster_name][0]
 
-            desired_spec['prometheusUrl'] = \
-                f"prometheus.{cluster_name}.devshift.net"
-            desired_spec['alertmanagerUrl'] = \
-                f"alertmanager.{cluster_name}.devshift.net"
             # validate version
             desired_spec['spec'].pop('initial_version')
             desired_version = desired_spec['spec'].pop('version')
@@ -113,7 +109,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s. ' +
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
-                clusters_updates[cluster_name]['version'] = current_version
+                clusters_updates[cluster_name]['spec']['version'] = current_version
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -122,23 +118,31 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
 
             if not desired_spec['spec'].get('id'):
-                clusters_updates[cluster_name]['id'] = \
+                clusters_updates[cluster_name]['spec']['id'] = \
                     current_spec['spec']['id']
 
             if not desired_spec['spec'].get('external_id'):
-                clusters_updates[cluster_name]['external_id'] = \
+                clusters_updates[cluster_name]['spec']['external_id'] = \
                     current_spec['spec']['external_id']
 
-            for f in OCM_GENERATED_FIELDS:
-                if not desired_spec[f]:
-                    clusters_updates[cluster_name][f] = current_spec[f]
+            if not desired_spec['consoleUrl']:
+                clusters_updates[cluster_name]['root']['consoleUrl'] = \
+                    current_spec['console']['url']
+
+            if not desired_spec['serverUrl']:
+                clusters_updates[cluster_name]['root']['serverUrl'] = \
+                    current_spec['api']['url']
+
+            if not desired_spec['elbFQDN']:
+                clusters_updates[cluster_name]['root']['elbFQDN'] = \
+                    f"elb.apps.{cluster_name}.{current_state['dns']['base_domain']}"
 
             desired_provision_shard_id = \
                 desired_spec['spec'].get('provision_shard_id')
             current_provision_shard_id = \
                 current_spec['spec']['provision_shard_id']
             if desired_provision_shard_id != current_provision_shard_id:
-                clusters_updates[cluster_name]['provision_shard_id'] = \
+                clusters_updates[cluster_name]['spec']['provision_shard_id'] = \
                     current_provision_shard_id
 
             if clusters_updates[cluster_name]:
@@ -179,18 +183,21 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
     create_update_mr = False
     for cluster_name, cluster_updates in clusters_updates.items():
-        for k, v in cluster_updates.items():
-            if k == 'path':
-                continue
+        for k, v in cluster_updates['spec'].items():
             logging.info(
-                f"[{cluster_name}] desired key " +
+                f"[{cluster_name}] desired key in spec " +
                 f"{k} will be updated automatically " +
                 f"with value {v}."
+            )
+            create_update_mr = True
+        for k, v in cluster_updates['root'].items():
+            logging.info(
+                f"[{cluster_name}] desired root key {k} will "
+                f"be updated automatically with value {v}"
             )
             create_update_mr = True
     if create_update_mr and not dry_run:
         mr = cu.CreateClustersUpdates(clusters_updates)
         mr.submit(cli=mr_cli)
 
-    if error:
-        sys.exit(1)
+    sys.exit(int(error))
