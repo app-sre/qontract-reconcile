@@ -5,9 +5,9 @@ import semver
 from reconcile import queries
 
 from reconcile import mr_client_gateway
-from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
+import reconcile.utils.mr.clusters_updates as cu
 
-from reconcile.utils.ocm import OCMMap
+import reconcile.utils.ocm as ocmmod
 
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
@@ -75,8 +75,8 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings, init_provision_shards=True)
+    ocm_map = ocmmod.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                            settings=settings, init_provision_shards=True)
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
@@ -189,7 +189,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             )
             create_update_mr = True
     if create_update_mr and not dry_run:
-        mr = CreateClustersUpdates(clusters_updates)
+        mr = cu.CreateClustersUpdates(clusters_updates)
         mr.submit(cli=mr_cli)
 
     if error:
