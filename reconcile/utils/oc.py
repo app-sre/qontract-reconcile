@@ -781,6 +781,12 @@ class OCNative(OCDeprecated):
         super().__init__(cluster_name, server, token, jh, settings,
                          init_projects=False, init_api_resources=False,
                          local=local)
+
+        # server is set to None for certain use cases like saasherder which
+        # uses local operations, such as process(). A refactor to provide that
+        # functionality outside of this class would allow an exception to be
+        # thrown here instead to avoid AttributeErrors when accessing
+        # methods that rely on client/api_kind_version to be set.
         if server:
             self.client = self._get_client(server, token)
             self.api_kind_version = self.get_api_resources()
@@ -1119,11 +1125,19 @@ class OC_Map:
             automation_token = cluster_info.get('clusterAdminAutomationToken')
         else:
             automation_token = cluster_info.get('automationToken')
+
         if automation_token is None:
             self.set_oc(cluster,
                         OCLogMsg(log_level=logging.ERROR,
                                  message=f"[{cluster}]"
                                  " has no automation token"))
+        # serverUrl isn't set when a new cluster is initially created.
+        elif not cluster_info.get('serverUrl'):
+            self.set_oc(
+                cluster,
+                OCLogMsg(
+                    log_level=logging.ERROR,
+                    message=f"[{cluster}] has no serverUrl"))
         else:
             server_url = cluster_info['serverUrl']
             secret_reader = SecretReader(settings=self.settings)
