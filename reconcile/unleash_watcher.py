@@ -1,6 +1,6 @@
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.unleash import get_feature_toggles
 from reconcile.utils.slack_api import SlackApi, SlackApiConfig

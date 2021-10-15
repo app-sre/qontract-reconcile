@@ -4,7 +4,7 @@ import sys
 
 import reconcile.jenkins_plugins as jenkins_base
 import reconcile.openshift_base as ob
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile import mr_client_gateway
 from reconcile.slack_base import init_slack

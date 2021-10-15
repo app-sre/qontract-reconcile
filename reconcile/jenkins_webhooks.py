@@ -1,7 +1,7 @@
 import copy
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.jenkins_job_builder import init_jjb

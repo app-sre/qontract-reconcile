@@ -1,6 +1,6 @@
 import sys
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.saasherder import SaasHerder

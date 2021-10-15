@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 from reconcile.utils.secret_reader import SecretReader
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.quay_api import QuayApi
 

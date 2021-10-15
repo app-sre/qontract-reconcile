@@ -6,7 +6,7 @@ import gitlab
 
 from sretoolbox.utils import retry
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 

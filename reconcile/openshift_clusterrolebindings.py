@@ -1,8 +1,8 @@
 import sys
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 import reconcile.openshift_base as ob
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,

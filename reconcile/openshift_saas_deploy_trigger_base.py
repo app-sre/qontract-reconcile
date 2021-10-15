@@ -4,9 +4,9 @@ import datetime
 from threading import Lock
 
 import reconcile.openshift_base as osb
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.jenkins_plugins as jenkins_base
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name

@@ -1,10 +1,10 @@
 import logging
 import os
 
-import reconcile.utils.gql as gql
-import reconcile.utils.raw_github_api as raw_github_api
+from reconcile.utils import gql
+from reconcile.utils import raw_github_api
 from reconcile.utils.secret_reader import SecretReader
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.config import get_config
 

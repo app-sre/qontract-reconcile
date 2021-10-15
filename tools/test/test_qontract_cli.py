@@ -1,7 +1,7 @@
 import pytest
 from click.testing import CliRunner
 
-import tools.qontract_cli as qontract_cli
+from tools import qontract_cli
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ from requests import exceptions as rqexc
 from sretoolbox.container import Image
 from sretoolbox.utils import retry
 
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 from reconcile.github_org import get_config
 from reconcile.utils.mr.auto_promoter import AutoPromoter

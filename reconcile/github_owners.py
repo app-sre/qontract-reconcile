@@ -4,7 +4,7 @@ import logging
 from github import Github
 from sretoolbox.utils import retry
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 
 from reconcile.github_org import get_config
 from reconcile.utils.raw_github_api import RawGithubApi

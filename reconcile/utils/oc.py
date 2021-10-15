@@ -23,7 +23,7 @@ from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.secret_reader import SecretReader
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 from openshift.dynamic.exceptions import (NotFoundError,
                                           ServerTimeoutError,
                                           InternalServerError,

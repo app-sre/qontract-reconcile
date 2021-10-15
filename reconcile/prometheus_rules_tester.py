@@ -6,9 +6,9 @@ import traceback
 
 import yaml
 
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
-import reconcile.utils.promtool as promtool
+from reconcile.utils import gql
+from reconcile.utils import threaded
+from reconcile.utils import promtool
 import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver

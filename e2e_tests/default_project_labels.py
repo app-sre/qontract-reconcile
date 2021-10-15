@@ -2,7 +2,7 @@ import re
 import logging
 
 import e2e_tests.test_base as tb
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 from reconcile.utils.defer import defer
 

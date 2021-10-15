@@ -3,7 +3,7 @@ import logging
 import sys
 
 
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.openshift_base as ob
 
 from reconcile.utils.semver_helper import make_semver

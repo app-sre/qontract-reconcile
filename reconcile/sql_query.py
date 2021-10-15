@@ -5,7 +5,7 @@ import time
 from textwrap import indent
 
 import jinja2
-import ruamel.yaml as yaml
+from ruamel import yaml
 
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb

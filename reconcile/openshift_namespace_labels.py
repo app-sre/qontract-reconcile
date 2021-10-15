@@ -6,8 +6,8 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 from kubernetes.client.exceptions import ApiException
 
-import reconcile.queries as queries
-import reconcile.utils.threaded as threaded
+from reconcile import queries
+from reconcile.utils import threaded
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map, OCNative, StatusCodeError
 from reconcile.utils.oc import validate_labels

@@ -5,7 +5,7 @@ SQS Consumer to create Gitlab merge requests.
 import json
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils import mr
 from reconcile.utils.sqs_gateway import SQSGateway

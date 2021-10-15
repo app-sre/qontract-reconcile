@@ -2,8 +2,7 @@ import sys
 import logging
 import json
 
-import reconcile.queries as queries
-
+from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
 
