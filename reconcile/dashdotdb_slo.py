@@ -84,6 +84,7 @@ class DashdotdbSLO(DashdotdbBase):
                     "service": ns['app'],
                     "value": slo_value,
                     "target": slo_target,
+                    "SLODoc": {"name": slo_document['name']},
                 })
         return result
 
