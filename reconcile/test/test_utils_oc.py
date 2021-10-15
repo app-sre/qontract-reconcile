@@ -340,7 +340,7 @@ class TestOCMapInit(TestCase):
         }
         oc_map = OC_Map(clusters=[cluster])
 
-        self.assertTrue(isinstance(oc_map.get(cluster['name']), OCLogMsg))
+        self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
         self.assertEqual(oc_map.get(cluster['name']).message,
                          f'[{cluster["name"]}] has no serverUrl')
         self.assertEqual(len(oc_map.clusters()), 0)
@@ -357,7 +357,7 @@ class TestOCMapInit(TestCase):
         }
         oc_map = OC_Map(clusters=[cluster])
 
-        self.assertTrue(isinstance(oc_map.get(cluster['name']), OCLogMsg))
+        self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
         self.assertEqual(oc_map.get(cluster['name']).message,
                          f'[{cluster["name"]}] has no automation token')
         self.assertEqual(len(oc_map.clusters()), 0)
