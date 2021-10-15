@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-reconcile-base:0.5.2 AS build-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.5.1 AS build-image
 
 WORKDIR /work
 
@@ -50,7 +50,7 @@ RUN cp /tmp/work/devel:kubic:libcontainers:stable.repo /etc/yum.repos.d/ && \
 RUN python3.9 -m pip install --upgrade pip setuptools wheel && \
     python3.9 -m pip install --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
     rm -rf /tmp/work && \
-    mkdir -p /.terraform.d/plugin-cache
+    mkdir -p ${TF_PLUGIN_CACHE_DIR}
 
 COPY dockerfiles/hack/run-integration.py /run-integration.py
 CMD [ "/run-integration.py" ]
