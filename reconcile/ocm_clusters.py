@@ -27,10 +27,10 @@ MANAGED_FIELDS = ['spec'] + OCM_GENERATED_FIELDS + PREDICTABLE_FIELDS
 
 
 def fetch_desired_state(clusters):
-
+    # Not all our managed fields will exist in all clusters
     desired_state = {
         c['name']: {
-            f: c[f] for f in MANAGED_FIELDS
+            f: c[f] for f in MANAGED_FIELDS if f in c
         }
         for c in clusters
     }
@@ -86,6 +86,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     error = False
     clusters_updates = {}
     for cluster_name, desired_spec in desired_state.items():
+        logging.info(f"Processing cluster {cluster_name}")
         current_spec = current_state.get(cluster_name)
         if current_spec:
             clusters_updates[cluster_name] = {'spec': {}, 'root': {}}
@@ -125,15 +126,16 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 clusters_updates[cluster_name]['spec']['external_id'] = \
                     current_spec['spec']['external_id']
 
-            if not desired_spec['consoleUrl']:
+            if not desired_spec.get('consoleUrl'):
                 clusters_updates[cluster_name]['root']['consoleUrl'] = \
                     current_spec['console']['url']
 
-            if not desired_spec['serverUrl']:
+            if not desired_spec.get('serverUrl'):
                 clusters_updates[cluster_name]['root']['serverUrl'] = \
                     current_spec['api']['url']
 
-            if not desired_spec['elbFQDN']:
+            if not desired_spec.get('elbFQDN'):
+                logging.info(f"Current state is: {current_state}")
                 clusters_updates[cluster_name]['root']['elbFQDN'] = \
                     f"elb.apps.{cluster_name}.{current_state['dns']['base_domain']}"
 
