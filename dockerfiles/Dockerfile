@@ -35,6 +35,7 @@ COPY --chown=0:0 --from=build-image \
 COPY --from=build-image /work /tmp/work
 
 RUN cp /tmp/work/devel:kubic:libcontainers:stable.repo /etc/yum.repos.d/ && \
+    mkdir -p ${TF_PLUGIN_CACHE_DIR} && \
     microdnf install \
         git \
         glibc-langpack-en \
@@ -46,8 +47,7 @@ RUN cp /tmp/work/devel:kubic:libcontainers:stable.repo /etc/yum.repos.d/ && \
 
 RUN python3.9 -m pip install --upgrade pip setuptools wheel && \
     python3.9 -m pip install --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
-    rm -rf /tmp/work && \
-    mkdir -p ${TF_PLUGIN_CACHE_DIR}
+    rm -rf /tmp/work
 
 COPY dockerfiles/hack/run-integration.py /run-integration.py
 CMD [ "/run-integration.py" ]
