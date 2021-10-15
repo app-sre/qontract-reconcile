@@ -14,4 +14,4 @@ RUN curl -L https://get.helm.sh/helm-v3.6.2-linux-amd64.tar.gz |tar xvz && \
 COPY . /package
 WORKDIR /package
 
-CMD [ "tox", "-p" ]
+CMD [ "tox" ]
