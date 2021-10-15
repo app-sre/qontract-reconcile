@@ -1,7 +1,7 @@
 import logging
 
 from reconcile.utils.smtp_client import SmtpClient
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.state import State

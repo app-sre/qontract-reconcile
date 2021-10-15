@@ -1,7 +1,7 @@
 import requests
 
-import reconcile.utils.threaded as threaded
-import reconcile.queries as queries
+from reconcile.utils import threaded
+from reconcile import queries
 from reconcile.dashdotdb_base import DashdotdbBase, LOG
 
 QONTRACT_INTEGRATION = 'dashdotdb-dvo'

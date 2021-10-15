@@ -19,8 +19,9 @@ from jenkins_jobs.registry import ModuleRegistry
 from jenkins_jobs.errors import JenkinsJobsException
 from sretoolbox.utils import retry
 
-import reconcile.utils.gql as gql
-import reconcile.utils.throughput as throughput
+from reconcile.utils import gql
+from reconcile.utils import throughput
+
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.exceptions import FetchResourceError

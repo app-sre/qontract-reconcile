@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
-import reconcile.quay_membership as quay_membership
+from reconcile.utils import config
+from reconcile.utils import gql
+from reconcile import quay_membership
 
 from reconcile.utils.aggregated_list import AggregatedList
 

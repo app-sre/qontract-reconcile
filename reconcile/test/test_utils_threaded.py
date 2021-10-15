@@ -1,5 +1,5 @@
 import unittest
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 
 def identity(x):

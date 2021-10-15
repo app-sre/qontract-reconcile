@@ -4,7 +4,7 @@ import sys
 
 from github import Github
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.secret_reader import SecretReader
 

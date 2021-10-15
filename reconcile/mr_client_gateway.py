@@ -1,4 +1,4 @@
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
 from reconcile.utils.gitlab_api import GitLabApi

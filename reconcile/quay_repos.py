@@ -3,7 +3,7 @@ import sys
 
 from collections import namedtuple
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 
 from reconcile.quay_base import get_quay_api_store, OrgKey
 from reconcile.status import ExitCodes

@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer

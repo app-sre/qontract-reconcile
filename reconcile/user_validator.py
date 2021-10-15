@@ -7,9 +7,9 @@ from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
 
 from reconcile.utils.gpg import gpg_key_valid
-import reconcile.queries as queries
+from reconcile import queries
 from reconcile.github_users import init_github
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')

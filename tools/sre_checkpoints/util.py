@@ -1,4 +1,4 @@
-import reconcile.queries as queries
+from reconcile import queries
 
 
 def full_name(app):

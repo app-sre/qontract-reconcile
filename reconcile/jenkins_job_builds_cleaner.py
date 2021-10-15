@@ -2,7 +2,7 @@ import logging
 import re
 import time
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.jenkins_api import JenkinsApi
 

@@ -7,8 +7,8 @@ from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
 
-import reconcile.utils.threaded as threaded
-import reconcile.queries as queries
+from reconcile.utils import threaded
+from reconcile import queries
 
 from reconcile import mr_client_gateway
 from reconcile.github_org import get_config

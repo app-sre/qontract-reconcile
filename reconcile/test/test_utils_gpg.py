@@ -3,7 +3,7 @@ import sys
 from unittest import TestCase, skipIf
 from unittest.mock import patch
 
-import reconcile.utils.gpg as gpg
+from reconcile.utils import gpg
 
 
 VALID_KEY = """mQINBGCS110BEACsFiswhxDQs2sIox7etkdifJ5r//RAcUIg1lqZLwfGrQQgK62A9aT5cO8SQy8V

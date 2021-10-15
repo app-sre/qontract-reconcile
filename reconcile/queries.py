@@ -5,7 +5,7 @@ from textwrap import indent
 
 from jinja2 import Template
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 
 
 APP_INTERFACE_SETTINGS_QUERY = """

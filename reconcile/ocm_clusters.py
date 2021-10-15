@@ -2,7 +2,7 @@ import sys
 import logging
 import semver
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates

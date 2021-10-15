@@ -1,9 +1,10 @@
 import logging
 import itertools
 
-import reconcile.utils.threaded as threaded
-import reconcile.queries as queries
-import reconcile.openshift_groups as openshift_groups
+from reconcile.utils import threaded
+from reconcile import queries
+from reconcile import openshift_groups
+
 
 from reconcile.utils.ocm import OCMMap
 

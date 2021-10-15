@@ -2,9 +2,9 @@ import logging
 import sys
 import json
 
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.utils.aws_api as awsapi
-import reconcile.utils.ocm as ocm
+from reconcile.utils import ocm
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_client as terrascript
 

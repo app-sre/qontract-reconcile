@@ -1,6 +1,6 @@
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.state import State
