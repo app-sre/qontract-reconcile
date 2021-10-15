@@ -1,17 +1,30 @@
-from unittest.mock import Mock, call
-
+from unittest.mock import patch
 from datetime import datetime, timedelta
+from gitlab import Gitlab
 
-from gitlab.v4.objects import Project, ProjectPipelineManager
-
+from reconcile.utils.secret_reader import SecretReader
 import reconcile.gitlab_housekeeping as gl_h
 
+from reconcile.test.fixtures import Fixtures
+
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+
+fixture = Fixtures('gitlab_housekeeping').get_anymarkup('api.yml')
+
+
+def get_mock(path, query_data=None, streamed=False, raw=False, **kwargs):
+    path = path[1:]
+    data = fixture.get('gitlab').get(path)
+    return data
 
 
 class TestGitLabHousekeeping:
     @staticmethod
-    def test_clean_pipelines_happy_path():
+    @patch.object(SecretReader, 'read')
+    @patch.object(Gitlab, 'http_get')
+    @patch.object(Gitlab, 'http_post')
+    def test_clean_pipelines_happy_path(http_post, http_get, secret_read):
+        http_get.side_effect = get_mock
         now = datetime.utcnow()
 
         ten_minutes_ago = now - timedelta(minutes=10)
@@ -52,14 +65,17 @@ class TestGitLabHousekeeping:
                 'updated_at': ten_minutes_ago.strftime(DATE_FORMAT)
             },
         ]
+        instance = {
+            'url': 'http://localhost',
+            'sslVerify': False,
+            'token': 'token'
+        }
 
         dry_run = False
         timeout = 60
-        gl_project_mock = Mock(spec=Project)
-        gl_project_mock.pipelines = Mock(spec=ProjectPipelineManager)
 
-        gl_h.clean_pipelines(dry_run, gl_project_mock, pipelines, timeout)
+        timeout_pipelines = gl_h.get_timed_out_pipelines(pipelines, timeout)
+        gl_h.clean_pipelines(dry_run, instance, '1', '', timeout_pipelines)
 
         # Test if mock have this exact calls
-        kall = call(47).cancel()
-        assert gl_project_mock.pipelines.get.mock_calls == kall.call_list()
+        http_post.assert_called_once_with('/projects/1/pipelines/47/cancel')
