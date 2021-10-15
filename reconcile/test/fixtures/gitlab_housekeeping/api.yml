@@ -1,0 +1,8 @@
+gitlab:
+  user:
+    username: devtools-bot
+  projects/1:
+    id: 1
+    name: app-interface
+  projects/1/pipelines/47:
+    id: 47
