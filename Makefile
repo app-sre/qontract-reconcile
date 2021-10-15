@@ -1,4 +1,4 @@
-.PHONY: build push rc build-test test clean
+.PHONY: build push rc build-test test-app test-container-image test clean
 
 IMAGE_TEST := reconcile-test
 
@@ -31,12 +31,18 @@ generate:
 build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
-test: build-test build
-	docker run --rm \
+test-app: build-test
+#	Target to test app with tox on docker
+	@docker run --rm $(IMAGE_TEST)
+
+test-container-image: build
+#	Target to test the final image
+	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR):/work gcr.io/gcp-runtimes/container-structure-test:latest \
 		test --config /work/dockerfiles/structure-test.yaml -i $(IMAGE_NAME):$(IMAGE_TAG)
-	@docker run --rm $(IMAGE_TEST)
+
+test: test-app test-image
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
