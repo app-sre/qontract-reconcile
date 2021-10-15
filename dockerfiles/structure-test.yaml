@@ -1,0 +1,86 @@
+schemaVersion: "2.0.0"
+
+fileExistenceTests:
+- name: 'Oc'
+  path: '/usr/local/bin/oc'
+  shouldExist: true
+  permissions: '-rwxr-xr-x'
+  uid: 0
+  gid: 0
+  isExecutableBy: 'other'
+
+- name: 'Kubectl'
+  path: '/usr/local/bin/kubectl'
+  shouldExist: true
+  permissions: '-rwxr-xr-x'
+  uid: 0
+  gid: 0
+  isExecutableBy: 'other'
+
+- name: 'Terraform'
+  path: '/usr/local/bin/terraform'
+  shouldExist: true
+  permissions: '-rwxr-xr-x'
+  uid: 0
+  gid: 0
+  isExecutableBy: 'other'
+
+- name: 'Amtool'
+  path: '/usr/local/bin/amtool'
+  shouldExist: true
+  permissions: '-rwxr-xr-x'
+  uid: 0
+  gid: 0
+  isExecutableBy: 'other'
+
+- name: 'Promtool'
+  path: '/usr/local/bin/promtool'
+  shouldExist: true
+  permissions: '-rwxr-xr-x'
+  uid: 0
+  gid: 0
+  isExecutableBy: 'other'
+
+- name: 'Terraform providers'
+  path: '/usr/local/share/terraform/plugins/registry.terraform.io/hashicorp/aws'
+  shouldExist: true
+  permissions: 'drwxr-xr-x'
+  uid: 0
+  gid: 0
+
+- name: 'Terraform plugin cache'
+  path: '/.terraform.d/plugin-cache'
+  shouldExist: true
+  permissions: 'drwxr-xr-x'
+  uid: 0
+  gid: 0
+
+commandTests:
+  - name: "Qonctract-Reconcile"
+    command: "qontract-reconcile"
+    expectedOutput: ['Usage: qontract-reconcile']
+
+  - name: "terraform"
+    command: "terraform"
+    expectedOutput: ['Usage: terraform']
+    exitCode: 127
+
+  - name: "oc"
+    command: "oc"
+    expectedOutput: ['OpenShift Client']
+
+  - name: "kubectl"
+    command: "kubectl"
+    expectedOutput: ['kubectl controls the Kubernetes cluster manager']
+
+  - name: "promtool"
+    command: "promtool"
+    expectedOutput: ['Tooling for the Prometheus monitoring system']
+
+  - name: "amtool"
+    command: "amtool"
+    expectedError: ['View and modify the current Alertmanager state']
+
+  - name: "skopeo"
+    command: "skopeo"
+    expectedOutput: ['Various operations with container images and container image registries']
