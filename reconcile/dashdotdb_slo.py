@@ -18,6 +18,13 @@ class DashdotdbSLO(DashdotdbBase):
         if service_slo is None:
             return None
 
+        LOG.debug('Here are SLO JSON items that this integration \
+                  is about to POST to dashdotdb \
+                  (if NOT in dry-run mode):\n')
+        for item in service_slo:
+            LOG.debug(f'\n{item}\n')
+        LOG.debug('* End of SLO JSON items. *')
+
         response = None
 
         if self.dry_run:
