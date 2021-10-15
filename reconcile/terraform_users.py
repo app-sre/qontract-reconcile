@@ -1,8 +1,8 @@
 import sys
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 from reconcile.utils.smtp_client import SmtpClient
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript

@@ -11,11 +11,11 @@ import anymarkup
 import jinja2
 
 import reconcile.openshift_base as ob
-import reconcile.queries as queries
-import reconcile.utils.amtool as amtool
-import reconcile.utils.gql as gql
-import reconcile.utils.openssl as openssl
-import reconcile.utils.threaded as threaded
+from reconcile import queries
+from reconcile.utils import amtool
+from reconcile.utils import gql
+from reconcile.utils import openssl
+from reconcile.utils import threaded
 
 from reconcile.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver

@@ -7,8 +7,8 @@ import re
 import click
 import sentry_sdk
 
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
+from reconcile.utils import config
+from reconcile.utils import gql
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users

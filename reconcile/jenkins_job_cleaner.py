@@ -1,6 +1,6 @@
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.jenkins_api import JenkinsApi

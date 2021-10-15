@@ -3,7 +3,7 @@ import logging
 
 from operator import itemgetter
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap

@@ -2,7 +2,7 @@ import testslide
 
 import reconcile.utils.aws_api as awsapi
 import reconcile.terraform_vpc_peerings as sut
-import reconcile.utils.ocm as ocm
+from reconcile.utils import ocm
 
 
 class TestBuildDesiredStateAllClusters(testslide.TestCase):

@@ -4,7 +4,7 @@ from subprocess import CalledProcessError
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import SmtpClient
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.state import State
 from reconcile.utils.gpg import gpg_encrypt

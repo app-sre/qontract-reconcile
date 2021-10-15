@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import OC_Map

@@ -1,6 +1,6 @@
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.slack_api import SlackApi, SlackApiConfig

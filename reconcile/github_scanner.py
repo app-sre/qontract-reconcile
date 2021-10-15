@@ -3,9 +3,9 @@ import logging
 from github.GithubException import UnknownObjectException
 
 import reconcile.aws_support_cases_sos as aws_sos
-import reconcile.queries as queries
-import reconcile.utils.threaded as threaded
-import reconcile.utils.git_secrets as git_secrets
+from reconcile import queries
+from reconcile.utils import threaded
+from reconcile.utils import git_secrets
 
 from reconcile.github_users import init_github
 from reconcile.utils.aws_api import AWSApi

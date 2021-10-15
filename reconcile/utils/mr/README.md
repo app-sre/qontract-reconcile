@@ -89,7 +89,7 @@ merge_request = CreateAppInterfaceNotificator(notification=notification)
 then create the SQS Client instance:
 
 ```python
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
 
@@ -112,7 +112,7 @@ first get the SQS messages:
 
 
 ```python
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.sqs_gateway import SQSGateway
 

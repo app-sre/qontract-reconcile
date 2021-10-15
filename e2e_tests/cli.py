@@ -2,8 +2,8 @@ import sys
 import logging
 import click
 
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
+from reconcile.utils import config
+from reconcile.utils import gql
 import e2e_tests.create_namespace
 import e2e_tests.dedicated_admin_rolebindings
 import e2e_tests.default_network_policies

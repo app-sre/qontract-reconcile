@@ -6,7 +6,7 @@ from datetime import datetime
 from dateutil import parser
 from croniter import croniter
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.state import State

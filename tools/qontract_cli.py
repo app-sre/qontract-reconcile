@@ -9,10 +9,10 @@ import yaml
 
 from tabulate import tabulate
 
-import reconcile.utils.dnsutils as dnsutils
-import reconcile.utils.gql as gql
-import reconcile.utils.config as config
-import reconcile.queries as queries
+from reconcile.utils import dnsutils
+from reconcile.utils import gql
+from reconcile.utils import config
+from reconcile import queries
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc

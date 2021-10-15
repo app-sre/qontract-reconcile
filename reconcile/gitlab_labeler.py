@@ -1,7 +1,7 @@
 import os
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
 from reconcile.utils.gitlab_api import GitLabApi

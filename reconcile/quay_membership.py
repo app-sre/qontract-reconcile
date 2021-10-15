@@ -1,7 +1,7 @@
 import logging
 import sys
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 
 from reconcile.utils.aggregated_list import (AggregatedList,
                                              AggregatedDiffRunner,

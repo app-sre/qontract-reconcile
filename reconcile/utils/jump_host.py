@@ -8,7 +8,7 @@ from typing import Dict, List
 
 from sshtunnel import SSHTunnelForwarder
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
 
 from reconcile.exceptions import FetchResourceError

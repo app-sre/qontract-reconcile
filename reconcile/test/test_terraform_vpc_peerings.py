@@ -4,8 +4,8 @@ import testslide
 import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_client as terrascript
-import reconcile.queries as queries
-import reconcile.utils.ocm as ocm
+from reconcile import queries
+from reconcile.utils import ocm
 
 
 class MockOCM:

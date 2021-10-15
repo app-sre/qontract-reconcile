@@ -1,7 +1,7 @@
 import logging
 
-import reconcile.utils.gql as gql
-import reconcile.queries as queries
+from reconcile.utils import gql
+from reconcile import queries
 
 from reconcile.utils.ocm import OCMMap
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY

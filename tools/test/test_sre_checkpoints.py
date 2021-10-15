@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-# import reconcile.queries as queries
+# from reconcile import queries
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 from tools.qontract_cli import sre_checkpoints
 

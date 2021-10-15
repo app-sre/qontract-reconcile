@@ -3,8 +3,8 @@ import json
 import copy
 import logging
 
-import reconcile.queries as queries
-import reconcile.utils.throughput as throughput
+from reconcile import queries
+from reconcile.utils import throughput
 
 from reconcile.utils.gitlab_api import GitLabApi
 
