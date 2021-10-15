@@ -11,6 +11,8 @@ else
 	DOCKER_CONF := $(HOME)/.docker
 endif
 
+CTR_STRUCTURE_IMG := gcr.io/gcp-runtimes/container-structure-test:latest
+
 build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
@@ -39,8 +41,10 @@ test-container-image: build
 #	Target to test the final image
 	@docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(CURDIR):/work gcr.io/gcp-runtimes/container-structure-test:latest \
-		test --config /work/dockerfiles/structure-test.yaml -i $(IMAGE_NAME):$(IMAGE_TAG)
+		-v $(CURDIR):/work \
+		 $(CTR_STRUCTURE_IMG) test \
+		--config /work/dockerfiles/structure-test.yaml \
+		-i $(IMAGE_NAME):$(IMAGE_TAG)
 
 test: test-app test-container-image
 
