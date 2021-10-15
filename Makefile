@@ -42,7 +42,7 @@ test-container-image: build
 		-v $(CURDIR):/work gcr.io/gcp-runtimes/container-structure-test:latest \
 		test --config /work/dockerfiles/structure-test.yaml -i $(IMAGE_NAME):$(IMAGE_TAG)
 
-test: test-app test-image
+test: test-app test-container-image
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
