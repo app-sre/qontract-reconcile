@@ -34,7 +34,7 @@ build-test:
 test: build-test build
 	docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v $(pwd):/work gcr.io/gcp-runtimes/container-structure-test:latest \
+		-v $(CURDIR):/work gcr.io/gcp-runtimes/container-structure-test:latest \
 		test --config /work/dockerfiles/structure-test.yaml -i $(IMAGE_NAME):$(IMAGE_TAG)
 	@docker run --rm $(IMAGE_TEST)
 
