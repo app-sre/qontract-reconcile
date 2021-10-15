@@ -32,7 +32,7 @@ build-test:
 	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
 test: build-test build
-	@docker run --rm \
+	docker run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(pwd):/work gcr.io/gcp-runtimes/container-structure-test:latest \
 		test --config /work/dockerfiles/structure-test.yaml -i $(IMAGE_NAME):$(IMAGE_TAG)
