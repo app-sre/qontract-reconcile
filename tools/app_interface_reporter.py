@@ -202,11 +202,12 @@ class Report:
             for namespace, slo_doc_names in namespaces.items():
                 for slo_doc_name, slos in slo_doc_names.items():
                     for slo_name, values in slos.items():
-                        parsed_metrics.append({'cluster': cluster,
-                                            'namespace': namespace,
-                                            'slo_name': slo_name,
-                                            'slo_doc_name': slo_doc_name,
-                                            **values})
+                        metric = {'cluster': cluster,
+                                  'namespace': namespace,
+                                  'slo_name': slo_name,
+                                  'slo_doc_name': slo_doc_name,
+                                  **values}
+                        parsed_metrics.append(metric)
         return parsed_metrics
 
     @staticmethod
@@ -390,83 +391,108 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
             if namespace['app']['name'] != app['name']:
                 continue
             app_namespaces.append(namespace)
-        vuln_mx = {}
-        validt_mx = {}
-        slo_mx = {}
-        for family in text_string_to_metric_families(vuln_metrics):
-            for sample in family.samples:
-                if sample.name == 'imagemanifestvuln_total':
-                    for app_namespace in app_namespaces:
-                        cluster = sample.labels['cluster']
-                        if app_namespace['cluster']['name'] != cluster:
-                            continue
-                        namespace = sample.labels['namespace']
-                        if app_namespace['name'] != namespace:
-                            continue
-                        severity = sample.labels['severity']
-                        if cluster not in vuln_mx:
-                            vuln_mx[cluster] = {}
-                        if namespace not in vuln_mx[cluster]:
-                            vuln_mx[cluster][namespace] = {}
-                        if severity not in vuln_mx[cluster][namespace]:
-                            value = int(sample.value)
-                            vuln_mx[cluster][namespace][severity] = value
-        for family in text_string_to_metric_families(validt_metrics):
-            for sample in family.samples:
-                if sample.name == 'deploymentvalidation_total':
-                    for app_namespace in app_namespaces:
-                        cluster = sample.labels['cluster']
-                        if app_namespace['cluster']['name'] != cluster:
-                            continue
-                        namespace = sample.labels['namespace']
-                        if app_namespace['name'] != namespace:
-                            continue
-                        validation = sample.labels['validation']
-                        # dvo: fail == 1, pass == 0, py: true == 1, false == 0
-                        # so: ({false|pass}, {true|fail})
-                        status = ('Passed',
-                                  'Failed')[int(sample.labels['status'])]
-                        if cluster not in validt_mx:
-                            validt_mx[cluster] = {}
-                        if namespace not in validt_mx[cluster]:
-                            validt_mx[cluster][namespace] = {}
-                        if validation not in validt_mx[cluster][namespace]:
-                            validt_mx[cluster][namespace][validation] = {}
-                        if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
-                            validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
-                        value = int(sample.value)
-                        validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
-        for family in text_string_to_metric_families(slo_metrics):
-            for sample in family.samples:
-                if sample.name == 'serviceslometrics':
-                    for app_namespace in app_namespaces:
-                        cluster = sample.labels['cluster']
-                        if app_namespace['cluster']['name'] != cluster:
-                            continue
-                        namespace = sample.labels['namespace']
-                        if app_namespace['name'] != namespace:
-                            continue
-                        slo_doc_name = sample.labels['slo_doc']
-                        slo_name = sample.labels['name']
-                        if cluster not in slo_mx:
-                            slo_mx[cluster] = {}
-                        if namespace not in slo_mx[cluster]:
-                            slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace][slo_doc_name]:
-                            slo_mx[cluster][namespace][slo_doc_name] = {}
-                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
-                                sample.labels['type']: sample.value
-                            }
-                        else:
-                            slo_mx[cluster][namespace][slo_name].update({
-                                sample.labels['type']: sample.value
-                            })
+        vuln_mx = get_vuln_mx(vuln_metrics, app_namespaces)
+        validt_mx = get_validt_mx(validt_metrics, app_namespaces)
+        slo_mx = get_slo_mx(slo_metrics, app_namespaces)
         app['container_vulnerabilities'] = vuln_mx
         app['deployment_validations'] = validt_mx
         app['service_slo'] = slo_mx
-
     return apps
+
+
+def get_vuln_mx(vuln_metrics, app_namespaces):
+    vuln_mx = {}
+    for family in text_string_to_metric_families(vuln_metrics):
+        for sample in family.samples:
+            if sample.name == 'imagemanifestvuln_total':
+                for app_namespace in app_namespaces:
+                    add_to_vuln_mx(sample, app_namespace, vuln_mx)
+    return vuln_mx
+
+
+def get_validt_mx(validt_metrics, app_namespaces):
+    validt_mx = {}
+    for family in text_string_to_metric_families(validt_metrics):
+        for sample in family.samples:
+            if sample.name == 'deploymentvalidation_total':
+                for app_namespace in app_namespaces:
+                    add_to_validt_mx(sample, app_namespace, validt_mx)
+    return validt_mx
+
+
+def get_slo_mx(slo_metrics, app_namespaces):
+    slo_mx = {}
+    for family in text_string_to_metric_families(slo_metrics):
+        for sample in family.samples:
+            if sample.name == 'serviceslometrics':
+                for app_namespace in app_namespaces:
+                    add_to_slo_mx(sample, app_namespace, slo_mx)
+    return slo_mx
+
+
+def add_to_vuln_mx(sample, app_namespace, vuln_mx):
+    cluster = sample.labels['cluster']
+    if app_namespace['cluster']['name'] != cluster:
+        return
+    namespace = sample.labels['namespace']
+    if app_namespace['name'] != namespace:
+        return
+    severity = sample.labels['severity']
+    if cluster not in vuln_mx:
+        vuln_mx[cluster] = {}
+    if namespace not in vuln_mx[cluster]:
+        vuln_mx[cluster][namespace] = {}
+    if severity not in vuln_mx[cluster][namespace]:
+        value = int(sample.value)
+        vuln_mx[cluster][namespace][severity] = value
+
+
+def add_to_validt_mx(sample, app_namespace, validt_mx):
+    cluster = sample.labels['cluster']
+    if app_namespace['cluster']['name'] != cluster:
+        return
+    namespace = sample.labels['namespace']
+    if app_namespace['name'] != namespace:
+        return
+    validation = sample.labels['validation']
+    # dvo: fail == 1, pass == 0, py: true == 1, false == 0
+    # so: ({false|pass}, {true|fail})
+    status = ('Passed', 'Failed')[int(sample.labels['status'])]
+    if cluster not in validt_mx:
+        validt_mx[cluster] = {}
+    if namespace not in validt_mx[cluster]:
+        validt_mx[cluster][namespace] = {}
+    if validation not in validt_mx[cluster][namespace]:
+        validt_mx[cluster][namespace][validation] = {}
+    if status not in validt_mx[cluster][namespace][validation]:  # noqa: E501
+        validt_mx[cluster][namespace][validation][status] = {}  # noqa: E501
+    value = int(sample.value)
+    validt_mx[cluster][namespace][validation][status] = value  # noqa: E501
+
+
+def add_to_slo_mx(sample, app_namespace, slo_mx):
+    cluster = sample.labels['cluster']
+    if app_namespace['cluster']['name'] != cluster:
+        return
+    namespace = sample.labels['namespace']
+    if app_namespace['name'] != namespace:
+        return
+    slo_doc_name = sample.labels['slo_doc']
+    slo_name = sample.labels['name']
+    if cluster not in slo_mx:
+        slo_mx[cluster] = {}
+    if namespace not in slo_mx[cluster]:
+        slo_mx[cluster][namespace] = {}
+    if slo_doc_name not in slo_mx[cluster][namespace][slo_doc_name]:
+        slo_mx[cluster][namespace][slo_doc_name] = {}
+    if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
+        slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
+            sample.labels['type']: sample.value
+        }
+    else:
+        slo_mx[cluster][namespace][slo_name].update({
+            sample.labels['type']: sample.value
+        })
 
 
 def get_build_history(job):
