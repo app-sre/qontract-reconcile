@@ -114,7 +114,10 @@ class OCM:
                 'vpc': cluster['network']['machine_cidr'],
                 'service': cluster['network']['service_cidr'],
                 'pod': cluster['network']['pod_cidr']
-            }
+            },
+            'server_url': cluster['api']['url'],
+            'console_url': cluster['console']['url'],
+            'domain': cluster['dns']['base_domain'],
         }
         cluster_nodes = cluster['nodes']
         nodes_count = cluster_nodes.get('compute')
