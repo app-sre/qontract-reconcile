@@ -202,11 +202,12 @@ class Report:
             for namespace, slo_doc_names in namespaces.items():
                 for slo_doc_name, slos in slo_doc_names.items():
                     for slo_name, values in slos.items():
-                        parsed_metrics.append({'cluster': cluster,
-                                            'namespace': namespace,
-                                            'slo_name': slo_name,
-                                            'slo_doc_name': slo_doc_name,
-                                            **values})
+                        metric = {'cluster': cluster,
+                                  'namespace': namespace,
+                                  'slo_name': slo_name,
+                                  'slo_doc_name': slo_doc_name,
+                                  **values}
+                        parsed_metrics.append(metric)
         return parsed_metrics
 
     @staticmethod
@@ -452,10 +453,10 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace][slo_doc_name]:
+                        if slo_doc_name not in slo_mx[cluster][namespace][slo_doc_name]:  # pylint: disable=line-too-long
                             slo_mx[cluster][namespace][slo_doc_name] = {}
-                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
+                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:  # noqa: E501
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {  # noqa: E501
                                 sample.labels['type']: sample.value
                             }
                         else:
