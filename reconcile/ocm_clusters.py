@@ -128,16 +128,23 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
             if not desired_spec.get('consoleUrl'):
                 clusters_updates[cluster_name]['root']['consoleUrl'] = \
-                    current_spec['console']['url']
+                    current_spec['console_url']
 
             if not desired_spec.get('serverUrl'):
                 clusters_updates[cluster_name]['root']['serverUrl'] = \
-                    current_spec['api']['url']
+                    current_spec['server_url']
 
             if not desired_spec.get('elbFQDN'):
-                logging.info(f"Current state is: {current_state}")
                 clusters_updates[cluster_name]['root']['elbFQDN'] = \
-                    f"elb.apps.{cluster_name}.{current_state['dns']['base_domain']}"
+                    f"elb.apps.{cluster_name}.{current_spec['domain']}"
+
+            if not desired_spec.get('prometheusUrl'):
+                clusters_updates[cluster_name]['root']['prometheusUrl'] = \
+                    f"https://prometheus.{cluster_name}.devshift.net"
+
+            if not desired_spec.get('alertmanagerUrl'):
+                clusters_updates[cluster_name]['root']['alertmanagerUrl'] = \
+                    f"https://alertmanager.{cluster_name}.devshift.net"
 
             desired_provision_shard_id = \
                 desired_spec['spec'].get('provision_shard_id')
