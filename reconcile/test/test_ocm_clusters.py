@@ -2,14 +2,14 @@ import sys
 
 from copy import deepcopy
 from testslide import TestCase, StrictMock, mock_callable
-from unittest.mock import patch
-from .fixtures import Fixtures
 
-import reconcile.queries as queries
-import reconcile.utils.mr.clusters_updates as cu
+from reconcile import queries
+
 import reconcile.utils.ocm as ocmmod
 import reconcile.ocm_clusters as occ
 from reconcile.utils.mr import clusters_updates
+
+from .fixtures import Fixtures
 
 fxt = Fixtures('clusters')
 
@@ -25,7 +25,7 @@ class TestFetchDesiredState(TestCase):
     def test_all_fine(self):
         rs = occ.fetch_desired_state(self.clusters)
 
-        self.assertEquals(
+        self.assertEqual(
             rs,
             {
                 'cluster1': {
@@ -137,13 +137,13 @@ class TestRun(TestCase):
         self.mock_callable(occ, 'fetch_desired_state').to_return_value(
             desired
         ).and_assert_called_once()
-        self.mock_callable(self.ocmmap, 'cluster_specs').for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
+        self.mock_callable(
+            self.ocmmap, 'cluster_specs'
+        ).for_call().to_return_value((current, {})).and_assert_called_once()
         self.mock_callable(occ, 'get_cluster_update_spec').to_return_value(
             ({},  False)
         ).and_assert_not_called()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as e:
             occ.run(True)
             self.assertEqual(e.args, (0, ))
 
@@ -168,8 +168,11 @@ class TestRun(TestCase):
             desired
         ).and_assert_called_once()
         self.mock_callable(occ.mr_client_gateway, 'init').for_call(
-            gitlab_project_id=None).to_return_value('not a value').and_assert_called_once()
-        self.mock_callable(self.ocmmap, 'cluster_specs').for_call().to_return_value(
+            gitlab_project_id=None
+        ).to_return_value('not a value').and_assert_called_once()
+        self.mock_callable(
+            self.ocmmap, 'cluster_specs'
+        ).for_call().to_return_value(
             (current, {})
         ).and_assert_called_once()
         self.mock_callable(occ, 'get_cluster_update_spec').to_return_value(
@@ -198,10 +201,11 @@ class TestRun(TestCase):
             desired
         ).and_assert_called_once()
         self.mock_callable(occ.mr_client_gateway, 'init').for_call(
-            gitlab_project_id=None).to_return_value('not a value').and_assert_called_once()
-        self.mock_callable(self.ocmmap, 'cluster_specs').for_call().to_return_value(
-            (current, {})
-        ).and_assert_called_once()
+            gitlab_project_id=None
+        ).to_return_value('not a value').and_assert_called_once()
+        self.mock_callable(
+            self.ocmmap, 'cluster_specs'
+        ).for_call().to_return_value((current, {})).and_assert_called_once()
         self.mock_callable(occ, 'get_cluster_update_spec').to_return_value(
             ({'id': 'anid'},  False)
         ).and_assert_called_once()
@@ -209,7 +213,7 @@ class TestRun(TestCase):
             clusters_updates.CreateClustersUpdates
         )
         self.mock_constructor(
-            cu, 'CreateClustersUpdates'
+            clusters_updates, 'CreateClustersUpdates'
         ).to_return_value(create_clusters_updates)
         self.mock_callable(
             create_clusters_updates, 'submit'

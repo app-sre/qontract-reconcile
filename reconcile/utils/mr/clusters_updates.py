@@ -16,7 +16,6 @@ class CreateClustersUpdates(MergeRequestBase):
 
         self.labels = [AUTO_MERGE, SKIP_CI]
 
-
     @property
     def title(self):
         return (f'[{self.name}] clusters updates')
@@ -36,7 +35,7 @@ class CreateClustersUpdates(MergeRequestBase):
 
             # check that there are updates to be made
             if (cluster_updates['spec'].items() <= content['spec'].items() and
-                cluster_updates['root'].items() <= content.items()):
+                    cluster_updates['root'].items() <= content.items()):
                 continue
             changes = True
 

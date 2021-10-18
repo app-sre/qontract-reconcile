@@ -75,8 +75,9 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is not None]
-    ocm_map = ocmmod.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                            settings=settings, init_provision_shards=True)
+    ocm_map = ocmmod.OCMMap(
+        clusters=clusters, integration=QONTRACT_INTEGRATION,
+        settings=settings, init_provision_shards=True)
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
@@ -110,7 +111,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s. ' +
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
-                clusters_updates[cluster_name]['spec']['version'] = current_version
+                clusters_updates[cluster_name]['spec']['version'] = current_version  # noqa: E501
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -151,7 +152,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             current_provision_shard_id = \
                 current_spec['spec']['provision_shard_id']
             if desired_provision_shard_id != current_provision_shard_id:
-                clusters_updates[cluster_name]['spec']['provision_shard_id'] = \
+                clusters_updates[cluster_name]['spec']['provision_shard_id'] =\
                     current_provision_shard_id
 
             if clusters_updates[cluster_name]:

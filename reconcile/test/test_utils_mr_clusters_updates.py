@@ -1,26 +1,27 @@
-from ruamel import yaml
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
-from .fixtures import Fixtures
+from ruamel import yaml
 
 import reconcile.utils.mr.clusters_updates as sut
 
+from .fixtures import Fixtures
 
 fxt = Fixtures('clusters')
 
 
 class TrivialClustersUpdates(sut.CreateClustersUpdates):
+    # pylint: disable=super-init-not-called
     def __init__(self, clusters_updates):
         self.cancelled = False
-        self.msg = ''
+        self.message = ''
         self.clusters_updates = clusters_updates
         self.branch = 'abranch'
         self.main_branch = 'main'
 
-    def cancel(self, msg):
+    def cancel(self, message):
         self.cancelled = True
-        self.msg = msg
+        self.message = message
 
 
 class TestProcess(TestCase):
@@ -42,10 +43,10 @@ class TestProcess(TestCase):
         cli = MagicMock()
         cli.project.files.get.return_value = self.raw_clusters.encode()
         c = TrivialClustersUpdates(
-            {'cluster1': {'spec': {'id': '4242'}, 'root': {}, 'path': '/a/path'}}
+            {'cluster1': {'spec': {'id': '42'}, 'root': {}, 'path': '/a/path'}}
         )
         c.process(cli)
-        self.clusters[0]['spec']['id'] = '4242'
+        self.clusters[0]['spec']['id'] = '42'
 
         cnt = yaml.dump(self.clusters[0],
                         Dumper=yaml.RoundTripDumper,
