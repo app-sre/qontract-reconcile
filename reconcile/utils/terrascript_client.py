@@ -1660,7 +1660,17 @@ class TerrascriptClient:
         aws_infrastructure_access = \
             common_values.get('aws_infrastructure_access') or None
         if aws_infrastructure_access:
-            if ocm_map:
+            # to provision a resource in a cluster's account, we need to
+            # be able to assume role into it.
+            # if assume_role is supplied - use it.
+            # if it is not supplied - try to get the role to assume through
+            # OCM AWS infrastructure access.
+            assume_role = aws_infrastructure_access.get('assume_role')
+            if assume_role:
+                output_name_0_13 = output_prefix + '__role_arn'
+                tf_resources.append(
+                    Output(output_name_0_13, value=assume_role))
+            elif ocm_map:
                 cluster = aws_infrastructure_access['cluster']['name']
                 ocm = ocm_map.get(cluster)
                 role_grants = \
@@ -1678,10 +1688,10 @@ class TerrascriptClient:
                         tf_resources.append(
                             Output(output_name_0_13, value=switch_role_arn))
             else:
-                assume_role = aws_infrastructure_access.get('assume_role')
-                output_name_0_13 = output_prefix + '__role_arn'
-                tf_resources.append(
-                    Output(output_name_0_13, value=assume_role))
+                raise KeyError(
+                    f'[{account}/{identifier}] '
+                    'expected one of ocm_map or assume_role'
+                )
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
