@@ -36,6 +36,7 @@ COPY --from=build-image /work /tmp/work
 
 RUN cp /tmp/work/devel:kubic:libcontainers:stable.repo /etc/yum.repos.d/ && \
     mkdir -p ${TF_PLUGIN_CACHE_DIR} && \
+    microdnf upgrade --assumeyes && \
     microdnf install \
         git \
         glibc-langpack-en \
