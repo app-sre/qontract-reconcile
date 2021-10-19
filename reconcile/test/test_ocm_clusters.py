@@ -34,8 +34,6 @@ class TestFetchDesiredState(TestCase):
                     'consoleUrl': '',
                     'serverUrl': '',
                     'elbFQDN': '',
-                    'prometheusUrl': '',
-                    'alertmanagerUrl': ''
                 }
             }
         )
@@ -126,8 +124,6 @@ class TestRun(TestCase):
                 'consoleUrl': 'aconsoleurl',
                 'serverUrl': 'aserverurl',
                 'elbFQDN': 'anelbfqdn',
-                'prometheusUrl': 'aprometheusurl',
-                'alertmanagerUrl': 'analertmanagerurl',
             }
         }
         desired = deepcopy(current)
