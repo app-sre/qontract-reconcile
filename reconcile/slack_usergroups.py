@@ -208,7 +208,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
                                                  pd_resource_id)
         if not pagerduty_names:
             continue
-        pagerduty_names = [name.split('+', 1)[0] for name in pagerduty_names]
+        pagerduty_names = [name.split('+', 1)[0] for name in pagerduty_names
+                           if 'nobody' not in name]
         if not pagerduty_names:
             continue
         slack_usernames = [get_slack_username(u)
@@ -217,8 +218,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
                            in pagerduty_names]
         not_found_pagerduty_names = \
             [pagerduty_name for pagerduty_name in pagerduty_names
-             if pagerduty_name not in all_pagerduty_names
-             and 'nobody' not in pagerduty_name]
+             if pagerduty_name not in all_pagerduty_names]
         if not_found_pagerduty_names:
             msg = (
                 '[{}] PagerDuty username not found in app-interface: {} '
