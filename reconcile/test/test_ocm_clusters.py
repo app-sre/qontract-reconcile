@@ -60,8 +60,6 @@ class TestGetClusterUpdateSpec(TestCase):
     def test_valid_change(self):
         desired = deepcopy(self.clusters[0])
         desired['spec']['instance_type'] = 'm42.superlarge'
-        print(desired)
-        print(self.clusters[0])
         self.assertEqual(
             occ.get_cluster_update_spec(
                 'cluster1',
@@ -71,7 +69,7 @@ class TestGetClusterUpdateSpec(TestCase):
             ({'instance_type': 'm42.superlarge'}, False)
         )
 
-    def test_changed_network(self):
+    def test_changed_network_banned(self):
         desired = deepcopy(self.clusters[0])
         self.clusters[0]['network']['vpc'] = '10.0.0.0/8'
         self.assertEqual(
