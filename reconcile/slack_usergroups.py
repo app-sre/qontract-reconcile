@@ -214,7 +214,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
         slack_usernames = [get_slack_username(u)
                            for u in users
                            if get_pagerduty_name(u)
-                           in pagerduty_names]
+                           in pagerduty_names
+                           and 'nobody' not in u]
         not_found_pagerduty_names = \
             [pagerduty_name for pagerduty_name in pagerduty_names
              if pagerduty_name not in all_pagerduty_names]
