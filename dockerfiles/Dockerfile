@@ -13,7 +13,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.5.3
+FROM quay.io/app-sre/qontract-reconcile-base:0.6.0
 
 RUN --mount=type=cache,target=/tmp/work/,from=build-image,source=/work \
     microdnf upgrade -y && \
