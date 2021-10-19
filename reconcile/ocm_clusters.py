@@ -22,8 +22,7 @@ ALLOWED_SPEC_UPDATE_FIELDS = {
 }
 
 OCM_GENERATED_FIELDS = ['network', 'consoleUrl', 'serverUrl', 'elbFQDN']
-PREDICTABLE_FIELDS = ['prometheusUrl', 'alertmanagerUrl', ]
-MANAGED_FIELDS = ['spec'] + OCM_GENERATED_FIELDS + PREDICTABLE_FIELDS
+MANAGED_FIELDS = ['spec'] + OCM_GENERATED_FIELDS
 
 
 def fetch_desired_state(clusters):
