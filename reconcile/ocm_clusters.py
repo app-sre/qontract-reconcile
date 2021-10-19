@@ -153,23 +153,24 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
 
-            if current_spec != desired_spec:
-                # check if cluster update is valid
-                update_spec, err = get_cluster_update_spec(
-                    cluster_name,
-                    current_spec,
-                    desired_spec,
-                )
-                if err:
-                    error = True
-                    continue
-                # update cluster
+            # check if cluster update, if any, is valid
+            update_spec, err = get_cluster_update_spec(
+                cluster_name,
+                current_spec,
+                desired_spec,
+            )
+            if err:
+                logging.warning(f"Invalid changes to spec: {update_spec}")
+                error = True
+                continue
+            # update cluster
+            # TODO(mafriedm): check dry_run in OCM API patch
+            if update_spec:
+                logging.info(['update_cluster', cluster_name])
                 logging.debug(
                     '[%s] desired spec %s is different ' +
                     'from current spec %s',
                     cluster_name, desired_spec, current_spec)
-                logging.info(['update_cluster', cluster_name])
-                # TODO(mafriedm): check dry_run in OCM API patch
                 if not dry_run:
                     ocm = ocm_map.get(cluster_name)
                     ocm.update_cluster(cluster_name, update_spec, dry_run)
