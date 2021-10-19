@@ -288,6 +288,7 @@ CLUSTERS_QUERY = """
     serverUrl
     consoleUrl
     kibanaUrl
+    elbFQDN
     prometheusUrl
     managedGroups
     managedClusterRoles
