@@ -138,7 +138,7 @@ class RepoOwners:
             except yaml.parser.ParserError:
                 owners = None
             if owners is None:
-                # Non-parsable OWNERS file
+                _LOG.warning('Non-parsable OWNERS file')
                 continue
 
             approvers = owners.get('approvers') or set()
