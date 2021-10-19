@@ -136,7 +136,7 @@ class TestRun(TestCase):
         ).for_call().to_return_value((current, {})).and_assert_called_once()
         self.mock_callable(occ, 'get_cluster_update_spec').to_return_value(
             ({},  False)
-        ).and_assert_not_called()
+        ).and_assert_called_once()
         with self.assertRaises(ValueError) as e:
             occ.run(True)
             self.assertEqual(e.args, (0, ))
@@ -171,7 +171,7 @@ class TestRun(TestCase):
         ).and_assert_called_once()
         self.mock_callable(occ, 'get_cluster_update_spec').to_return_value(
             ({},  False)
-        ).and_assert_not_called()
+        ).and_assert_called_once()
         with self.assertRaises(ValueError) as e:
             occ.run(False)
             self.assertEqual(e.args, (0, ))
