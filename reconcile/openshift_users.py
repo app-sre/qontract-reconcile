@@ -34,8 +34,10 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size)
-    results = threaded.run(get_cluster_users, oc_map.clusters(),
-                           thread_pool_size, oc_map=oc_map)
+    results = threaded.run(get_cluster_users,
+                           oc_map.clusters(include_errors=True),
+                           thread_pool_size,
+                           oc_map=oc_map)
     current_state = list(itertools.chain.from_iterable(results))
     return oc_map, current_state
 

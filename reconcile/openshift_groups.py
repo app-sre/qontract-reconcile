@@ -66,8 +66,9 @@ def create_groups_list(clusters, oc_map):
     groups_list = []
     for cluster_info in clusters:
         cluster = cluster_info['name']
-        if not oc_map.get(cluster):
-            continue
+        oc = oc_map.get(cluster)
+        if not oc:
+            logging.log(level=oc.log_level, msg=oc.message)
         groups = cluster_info['managedGroups']
         if groups is None:
             continue

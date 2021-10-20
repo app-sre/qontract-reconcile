@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Dict, Iterable
+from typing import Dict, Iterable, List
 
 import urllib3
 
@@ -1197,7 +1197,15 @@ class OC_Map:
                                         message=f"[{cluster}]"
                                         " cluster skipped"))
 
-    def clusters(self):
+    def clusters(self, include_errors=False) -> List[str]:
+        """
+        Get the names of the clusters in the map.
+        :param include_errors: includes clusters that had errors, meaning
+        that the value in OC_Map might be an OCLogMsg instead of OCNative, etc.
+        :return: list of cluster names
+        """
+        if include_errors:
+            return list(self.oc_map.keys())
         return [k for k, v in self.oc_map.items() if v]
 
     def cleanup(self):
@@ -1207,11 +1215,19 @@ class OC_Map:
 
 
 class OCLogMsg:
+    """
+    Track log messages associated with initializing OC clients in OC_Map.
+    """
     def __init__(self, log_level, message):
         self.log_level = log_level
         self.message = message
 
     def __bool__(self):
+        """
+        Returning False here makes this object falsy, which is used
+        elsewhere when differentiating between an OC client or a log
+        message.
+        """
         return False
 
 
