@@ -87,8 +87,7 @@ class TestRun(testslide.TestCase):
         self.ocmmap = testslide.StrictMock(ocm.OCMMap)
         self.mock_constructor(ocm, 'OCMMap').to_return_value(self.ocmmap)
         self.mock_callable(queries, 'get_aws_accounts').to_return_value([{
-            "name":
-            "desired_requester_account"
+            "name": "desired_requester_account"
         }])
         self.clusters = self.mock_callable(
             queries, 'get_clusters').to_return_value([

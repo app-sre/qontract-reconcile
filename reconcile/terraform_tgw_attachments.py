@@ -17,7 +17,7 @@ QONTRACT_INTEGRATION = 'terraform_tgw_attachments'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def build_desired_state_tgw_attachments(clusters, ocm_map, aws_api):
+def build_desired_state_tgw_attachments(clusters, ocm_map, awsapi):
     """
     Fetch state for TGW attachments between a cluster and all TGWs
     in an account in the same region as the cluster
@@ -63,7 +63,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, aws_api):
             account['assume_cidr'] = accepter['cidr_block']
             accepter_vpc_id, accepter_route_table_ids, \
                 accepter_subnets_id_az = \
-                aws_api.get_cluster_vpc_details(
+                awsapi.get_cluster_vpc_details(
                     account,
                     route_tables=peer_connection.get('manageRoutes'),
                     subnets=True,
@@ -79,7 +79,7 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, aws_api):
             accepter['account'] = account
 
             account_tgws = \
-                aws_api.get_tgws_details(
+                awsapi.get_tgws_details(
                     account,
                     cluster_region,
                     cluster_cidr_block,
@@ -131,11 +131,11 @@ def run(dry_run, print_only=False,
         ocm_map = {}
 
     accounts = queries.get_aws_accounts()
-    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
+    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
 
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state, err = \
-        build_desired_state_tgw_attachments(clusters, ocm_map, aws_api)
+        build_desired_state_tgw_attachments(clusters, ocm_map, awsapi)
     if err:
         sys.exit(1)
 
