@@ -316,6 +316,12 @@ objects:
             containers:
             - name: int
               image: ${IMAGE}:${IMAGE_TAG}
+              {{- if $job.command }}
+              args:
+              {{- range $i, $arg := regexSplit " +" ($job.command | toString) -1 }}
+              - "{{ $arg | trim }}"
+              {{- end}}
+              {{- end}}
               env:
               - name: RUN_ONCE
                 value: 'true'
