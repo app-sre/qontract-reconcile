@@ -34,6 +34,9 @@ class TestBuildDesiredStateAllClusters(testslide.TestCase):
                 }
             }
         ]
+        self.ocm = testslide.StrictMock(ocm.OCM)
+        self.ocm_map = testslide.StrictMock(ocm.OCMMap)
+        self.ocm_map.get = lambda clustername: self.ocm
         self.awsapi = testslide.StrictMock(aws_api.AWSApi)
         self.aws_account = {
             'name': 'accountname',
@@ -109,11 +112,11 @@ class TestBuildDesiredStateAllClusters(testslide.TestCase):
             }
         ]
         self.build_single_cluster.for_call(
-            self.clusters[0], {}, self.awsapi
+            self.clusters[0], self.ocm_map, self.awsapi
         ).to_return_value(expected).and_assert_called_once()
 
         rs = sut.build_desired_state_all_clusters(
-            self.clusters, {}, self.awsapi
+            self.clusters, self.ocm_map, self.awsapi
         )
         self.assertEqual(rs, (expected, False))
 
@@ -123,7 +126,7 @@ class TestBuildDesiredStateAllClusters(testslide.TestCase):
         ).and_assert_called_once()
         self.assertEqual(
             sut.build_desired_state_all_clusters(
-                self.clusters, {}, self.awsapi
+                self.clusters, self.ocm_map, self.awsapi
                 ),
             ([], True))
 
@@ -203,6 +206,9 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
             'vpc_id': 'peervpcid',
             'route_table_ids': ['peer_route_table_id']
         }
+        self.ocm = testslide.StrictMock(ocm.OCM)
+        self.ocm_map = testslide.StrictMock(ocm.OCMMap)
+        self.ocm_map.get = lambda clustername: self.ocm
         self.awsapi = testslide.StrictMock(aws_api.AWSApi)
         self.mock_constructor(
             aws_api, 'AWSApi'
@@ -217,14 +223,14 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
         self.mock_callable(
             sut, 'aws_account_from_infrastructure_access'
         ).for_call(
-            self.cluster, 'network-mgmt', {}
+            self.cluster, 'network-mgmt', self.ocm_map
         ).to_return_value(
             self.aws_account
         ).and_assert_called_once()
         self.mock_callable(
             sut, 'aws_account_from_infrastructure_access'
         ).for_call(
-            self.peer_cluster, 'network-mgmt', {}
+            self.peer_cluster, 'network-mgmt', self.ocm_map
         ).to_return_value(self.aws_account).and_assert_called_once()
         self.find_matching_peering.for_call(
             self.cluster, self.cluster['peering']['connections'][0],
@@ -287,7 +293,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
             }
         ]
         rs = sut.build_desired_state_single_cluster(
-            self.cluster, {}, self.awsapi
+            self.cluster, self.ocm_map, self.awsapi
         )
         self.assertEqual(rs, expected)
 
@@ -297,7 +303,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
             sut, 'aws_account_from_infrastructure_access'
         ).to_return_value(self.aws_account).and_assert_called_once()
         rs = sut.build_desired_state_single_cluster(
-            self.cluster, {}, self.awsapi
+            self.cluster, self.ocm_map, self.awsapi
         )
         self.assertEqual(rs, [])
 
@@ -308,7 +314,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
         self.find_matching_peering.to_return_value(None)
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_single_cluster(
-                self.cluster, {}, self.awsapi
+                self.cluster, self.ocm_map, self.awsapi
             )
 
     def test_no_vpc_in_aws(self):
@@ -324,19 +330,19 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_single_cluster(
-                self.cluster, {}, self.awsapi
+                self.cluster, self.ocm_map, self.awsapi
             )
 
     def test_no_peer_account(self):
         self.mock_callable(
             sut, 'aws_account_from_infrastructure_access'
         ).for_call(
-            self.cluster, 'network-mgmt', {}
+            self.cluster, 'network-mgmt', self.ocm_map
         ).to_return_value(self.aws_account)
         self.mock_callable(
             sut, 'aws_account_from_infrastructure_access'
         ).for_call(
-            self.peer_cluster, 'network-mgmt', {}
+            self.peer_cluster, 'network-mgmt', self.ocm_map
         ).to_return_value(None).and_assert_called_once()
         self.find_matching_peering.to_return_value(self.peer)
         self.mock_callable(
@@ -347,7 +353,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_single_cluster(
-                self.cluster, {}, self.awsapi
+                self.cluster, self.ocm_map, self.awsapi
             )
 
 

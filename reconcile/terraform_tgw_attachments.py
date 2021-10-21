@@ -17,7 +17,8 @@ QONTRACT_INTEGRATION = 'terraform_tgw_attachments'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def build_desired_state_tgw_attachments(clusters, ocm_map, awsapi):
+def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap,
+                                        awsapi: AWSApi):
     """
     Fetch state for TGW attachments between a cluster and all TGWs
     in an account in the same region as the cluster

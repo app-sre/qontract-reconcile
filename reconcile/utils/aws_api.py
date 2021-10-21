@@ -6,9 +6,16 @@ import time
 
 from datetime import datetime
 from threading import Lock
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
-import boto3
+from boto3 import Session
 import botocore
+
+from mypy_boto3_ec2 import EC2Client
+from mypy_boto3_ec2.type_defs import (
+    RouteTableTypeDef, SubnetTypeDef,
+    TransitGatewayTypeDef, TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
+)
 
 from reconcile.utils import threaded
 import reconcile.utils.lean_terraform_client as terraform
@@ -22,6 +29,9 @@ class InvalidResourceTypeError(Exception):
 
 class MissingARNError(Exception):
     pass
+
+
+Account = Dict[str, Any]
 
 
 class AWSApi:
@@ -43,16 +53,16 @@ class AWSApi:
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc['name']: acc for acc in accounts}
 
-    def init_sessions_and_resources(self, accounts):
+    def init_sessions_and_resources(self, accounts: Iterable[Account]):
         results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
-        self.sessions = {}
-        self.resources = {}
+        self.sessions: Dict[str, Session] = {}
+        self.resources: Dict[str, Any] = {}
         for account, secret in results:
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
             region_name = secret['region']
-            session = boto3.Session(
+            session = Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 region_name=region_name,
@@ -60,12 +70,12 @@ class AWSApi:
             self.sessions[account] = session
             self.resources[account] = {}
 
-    def get_session(self, account):
+    def get_session(self, account: str) -> Session:
         return self.sessions[account]
 
     @functools.lru_cache()
     def _account_ec2_client(self, account_name: str,
-                            region_name=None):
+                            region_name: Optional[str] = None) -> EC2Client:
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.client('ec2', region_name=region)
@@ -616,7 +626,7 @@ class AWSApi:
             ecrs = account['ecrs']
             for ecr in ecrs:
                 region_name = ecr['region']
-                session = boto3.Session(
+                session = Session(
                     aws_access_key_id=access_key,
                     aws_secret_access_key=secret_key,
                     region_name=region_name,
@@ -628,7 +638,7 @@ class AWSApi:
         self.auth_tokens = auth_tokens
 
     @staticmethod
-    def _get_account_assume_data(account):
+    def _get_account_assume_data(account: Account) -> Tuple[str, str, str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)
@@ -643,8 +653,8 @@ class AWSApi:
         return (account['name'], account['assume_role'],
                 account['assume_region'])
 
-    def _get_assume_role_session(self, account_name, assume_role,
-                                 assume_region):
+    def _get_assume_role_session(self, account_name: str, assume_role: str,
+                                 assume_region: str) -> Session:
         """
         Returns a session for a supplied role to assume:
 
@@ -668,7 +678,7 @@ class AWSApi:
         )
         credentials = response['Credentials']
 
-        assumed_session = boto3.Session(
+        assumed_session = Session(
             aws_access_key_id=credentials['AccessKeyId'],
             aws_secret_access_key=credentials['SecretAccessKey'],
             aws_session_token=credentials['SessionToken'],
@@ -678,8 +688,8 @@ class AWSApi:
         return assumed_session
 
     @functools.lru_cache()
-    def _get_assumed_role_client(self, account_name, assume_role,
-                                 assume_region):
+    def _get_assumed_role_client(self, account_name: str, assume_role: str,
+                                 assume_region: str) -> EC2Client:
         assumed_session = self._get_assume_role_session(account_name,
                                                         assume_role,
                                                         assume_region)
@@ -687,13 +697,14 @@ class AWSApi:
 
     @staticmethod
     @functools.lru_cache()
-    def get_account_vpcs(ec2):
+    def get_account_vpcs(ec2: EC2Client) -> List[VpcTypeDef]:
         vpcs = ec2.describe_vpcs()
         return vpcs.get('Vpcs', [])
 
     # filters a list of aws resources according to tags
     @staticmethod
-    def filter_on_tags(items, tags={}):
+    def filter_on_tags(items: Iterable[Any], tags: Mapping[str, str] = {}) \
+            -> List[Any]:
         res = []
         for item in items:
             tags_dict = {t['Key']: t['Value'] for t in item.get('Tags', [])}
@@ -703,14 +714,16 @@ class AWSApi:
 
     @staticmethod
     @functools.lru_cache()
-    def get_vpc_route_tables(vpc_id, ec2):
+    def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) \
+            -> List[RouteTableTypeDef]:
         rts = ec2.describe_route_tables(
                 Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
         return rts.get('RouteTables', [])
 
     @staticmethod
     @functools.lru_cache()
-    def get_vpc_subnets(vpc_id, ec2):
+    def get_vpc_subnets(vpc_id: str, ec2: EC2Client) \
+            -> List[SubnetTypeDef]:
         subnets = ec2.describe_subnets(
                     Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
         return subnets.get('Subnets', [])
@@ -800,31 +813,28 @@ class AWSApi:
 
     @staticmethod
     @functools.lru_cache()
-    def get_vpc_default_sg_id(ec2, vpc_id):
+    def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> Optional[str]:
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
-                {
-                    'Name': 'vpc-id',
-                    'Values': [vpc_id]
-                },
-                {
-                    'Name': 'group-name',
-                    'Values': ['default']
-                }]
-            )
+                {'Name': 'vpc-id', 'Values': [vpc_id]},
+                {'Name': 'group-name', 'Values': ['default']}
+            ]
+        )
         # there is only one default
-        for sg in vpc_security_groups.get('SecurityGroups'):
+        for sg in vpc_security_groups.get('SecurityGroups', []):
             return sg['GroupId']
 
         return None
 
     @staticmethod
     @functools.lru_cache()
-    def get_transit_gateways(ec2):
+    def get_transit_gateways(ec2: EC2Client) -> List[TransitGatewayTypeDef]:
         tgws = ec2.describe_transit_gateways()
         return tgws.get('TransitGateways', [])
 
-    def get_tgw_default_route_table_id(self, ec2, tgw_id, tags):
+    def get_tgw_default_route_table_id(self, ec2: EC2Client, tgw_id: str,
+                                       tags: Mapping[str, str]) \
+            -> Optional[str]:
         tgws = self.get_transit_gateways(ec2)
         tgws = self.filter_on_tags(tgws, tags)
         # we know the party TGW exists, so we can be
@@ -842,7 +852,8 @@ class AWSApi:
 
     @staticmethod
     @functools.lru_cache()
-    def get_transit_gateway_vpc_attachments(tgw_id, ec2):
+    def get_transit_gateway_vpc_attachments(tgw_id: str, ec2: EC2Client) \
+            -> List[TransitGatewayVpcAttachmentTypeDef]:
         atts = ec2.describe_transit_gateway_vpc_attachments(
                 Filters=[
                     {'Name': 'transit-gateway-id', 'Values': [tgw_id]}
@@ -960,7 +971,7 @@ class AWSApi:
                                 if vpc_attachment_state != 'available':
                                     continue
                                 sg_id = self.get_vpc_default_sg_id(
-                                    party_ec2, vpc_attachment_vpc_id)
+                                    vpc_attachment_vpc_id, party_ec2)
                                 if sg_id is not None:
                                     # that's it, we have all
                                     # the information we need
