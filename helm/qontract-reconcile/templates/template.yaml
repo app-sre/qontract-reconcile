@@ -348,11 +348,17 @@ objects:
                     key: CLIENT_ACCESS_TOKEN
               {{- with $job.extraEnv }}
               {{- range $i, $env := . }}
+              {{- if $env.secretKey}}
               - name: {{ $env.secretKey }}
                 valueFrom:
                   secretKeyRef:
                     name: {{ $env.secretName }}
                     key: {{ $env.secretKey }}
+              {{- end }}
+              {{- if $env.name }}
+              - name: {{ $env.name }}
+                value: {{ $env.value }}
+              {{- end }}
               {{- end }}
               {{- end }}
               {{- if $job.dashdotdb }}
