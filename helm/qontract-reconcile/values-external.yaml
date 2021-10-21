@@ -539,6 +539,17 @@ integrations:
       cpu: 200m
   logs:
     slack: true
+- name: gabi-authorized-users
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 200m
+    limits:
+      memory: 800Mi
+      cpu: 300m
+  extraArgs: --external --no-use-jump-host
+  logs:
+    slack: true
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:

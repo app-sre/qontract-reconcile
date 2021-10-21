@@ -1,0 +1,63 @@
+gql_response:
+  - name: gabi1
+    users:
+    - github_username: user1
+    - github_username: user2
+    instances:
+    - account: app-sre
+      identifier: gabi-db
+      namespace:
+        name: gabi-db
+        terraformResources:
+          - provider: rds
+            account: app-sre
+            identifier: gabi-db
+        cluster:
+          name: server
+          serverUrl: server
+          automationToken:
+            path: token
+            field: token
+
+server:
+  version:
+    major: 1
+  api/v1:
+    kind: APIResourceList
+    resources: 
+    - name: configmaps
+      kind: ConfigMap
+  api/v1/configmaps:
+    kind: ConfigMapList
+    apiVersion: v1
+    items: []
+  apis:
+    kind: APIGroupList
+    groups:
+    - name: project.openshift.io
+      versions:
+      - groupVersion: project.openshift.io/v1
+        version: v1
+      preferredVersion:
+        groupVersion: project.openshift.io/v1
+        version: v1
+  apis/project.openshift.io/v1:
+    kind: APIResourceList
+    resources: 
+    - name: projects
+      kind: Project
+  apis/project.openshift.io/v1/projects/gabi-db:
+    kind: Project
+    apiVersion: project.openshift.io/v1
+
+desired:
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: gabi1
+    annotations:
+      qontract.recycle: 'true'
+  data:
+    authorized-users.yaml: |-
+      user1
+      user2
