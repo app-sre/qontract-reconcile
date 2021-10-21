@@ -60,7 +60,7 @@ def aws_account_from_infrastructure_access(cluster, access_level: str,
                     ocm.get_aws_infrastructure_access_terraform_assume_role(
                         cluster['name'],
                         awsAccess['awsGroup']['account']['uid'],
-                        awsAccess['awsGroup']['account']['terraformUsername']
+                        awsAccess['awsGroup']['account']['terraformUsername'],
                     ),
                 'assume_region': cluster['spec']['region'],
                 'assume_cidr': cluster['network']['vpc']
