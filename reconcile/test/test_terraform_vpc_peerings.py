@@ -2,6 +2,7 @@ import sys
 import testslide
 
 import reconcile.terraform_vpc_peerings as integ
+from reconcile.utils import aws_api
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_client as terrascript
 from reconcile import queries
@@ -67,6 +68,9 @@ class TestAWSAccountFromInfrastructureAccess(testslide.TestCase):
 class TestRun(testslide.TestCase):
     def setUp(self):
         super().setUp()
+
+        self.awsapi = testslide.StrictMock(aws_api.AWSApi)
+        self.mock_constructor(aws_api, 'AWSApi').to_return_value(self.awsapi)
 
         self.build_desired_state_vpc = self.mock_callable(
             integ, 'build_desired_state_vpc')

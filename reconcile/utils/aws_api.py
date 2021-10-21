@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import os
@@ -62,6 +63,7 @@ class AWSApi:
     def get_session(self, account):
         return self.sessions[account]
 
+    @functools.lru_cache()
     def _account_ec2_client(self, account_name: str,
                             region_name=None):
         session = self.get_session(account_name)
@@ -675,6 +677,7 @@ class AWSApi:
 
         return assumed_session
 
+    @functools.lru_cache()
     def _get_assumed_role_client(self, account_name, assume_role,
                                  assume_region):
         assumed_session = self._get_assume_role_session(account_name,
@@ -683,6 +686,7 @@ class AWSApi:
         return assumed_session.client('ec2')
 
     @staticmethod
+    @functools.lru_cache()
     def get_account_vpcs(ec2):
         vpcs = ec2.describe_vpcs()
         return vpcs.get('Vpcs', [])
@@ -698,12 +702,14 @@ class AWSApi:
         return res
 
     @staticmethod
+    @functools.lru_cache()
     def get_vpc_route_tables(vpc_id, ec2):
         rts = ec2.describe_route_tables(
                 Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
         return rts.get('RouteTables', [])
 
     @staticmethod
+    @functools.lru_cache()
     def get_vpc_subnets(vpc_id, ec2):
         subnets = ec2.describe_subnets(
                     Filters=[{'Name': 'vpc-id', 'Values': [vpc_id]}])
@@ -793,6 +799,7 @@ class AWSApi:
         return results
 
     @staticmethod
+    @functools.lru_cache()
     def get_vpc_default_sg_id(ec2, vpc_id):
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
@@ -812,6 +819,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    @functools.lru_cache()
     def get_transit_gateways(ec2):
         tgws = ec2.describe_transit_gateways()
         return tgws.get('TransitGateways', [])
@@ -833,6 +841,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    @functools.lru_cache()
     def get_transit_gateway_vpc_attachments(tgw_id, ec2):
         atts = ec2.describe_transit_gateway_vpc_attachments(
                 Filters=[
