@@ -1,0 +1,35 @@
+---
+$schema: /openshift/cluster-1.yml
+labels:
+  service: ocm-quay
+name: cluster1
+description: A test cluster
+consoleUrl: ''
+kibanaUrl: ''
+prometheusUrl: ''
+alertmanagerUrl: ''
+serverUrl: ''
+elbFQDN: ''
+ocm:
+  $ref: /dependencies/ocm/production.yml
+spec:
+  id: ''
+  external_id: ''
+  provider: aws
+  region: eu-west-1
+  channel: candidate
+  version: 4.9.0-rc.7
+  initial_version: 4.8.10
+  multi_az: false
+  nodes: 9
+  instance_type: m5.xlarge
+  storage: 100
+  load_balancers: 4
+  private: false
+  provision_shard_id: 'ashardid'
+network:
+  vpc: 192.168.1.0/24
+  service: 192.168.2.0/24
+  pod: 192.168.3.0/24
+internal: false
+

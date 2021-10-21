@@ -34,14 +34,20 @@ class CreateClustersUpdates(MergeRequestBase):
                 self.cancel('Spec missing. Nothing to do.')
 
             # check that there are updates to be made
-            if cluster_updates.items() <= content['spec'].items():
+            if (cluster_updates['spec'].items() <= content['spec'].items() and
+                    cluster_updates['root'].items() <= content.items()):
                 continue
             changes = True
 
-            content['spec'].update(cluster_updates)
+            content['spec'].update(cluster_updates['spec'])
+            # Since spec is a dictionary we can't simply do
+            # content.update(cluster_updates) :(
+            content.update(cluster_updates['root'])
 
-            new_content = '---\n'
-            new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+            yaml.explicit_start = True
+            new_content = yaml.dump(content,
+                                    Dumper=yaml.RoundTripDumper,
+                                    explicit_start=True)
 
             msg = f'update cluster {cluster_name} spec fields'
             gitlab_cli.update_file(branch_name=self.branch,
