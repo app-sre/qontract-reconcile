@@ -6,21 +6,26 @@ import time
 
 from datetime import datetime
 from threading import Lock
+from typing import TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
 import botocore
 
-from mypy_boto3_ec2 import EC2Client
-from mypy_boto3_ec2.type_defs import (
-    RouteTableTypeDef, SubnetTypeDef,
-    TransitGatewayTypeDef, TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
-)
-
 from reconcile.utils import threaded
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from mypy_boto3_ec2 import EC2Client
+    from mypy_boto3_ec2.type_defs import (
+        RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
+        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
+    )
+else:
+    EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
+        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):

@@ -33,7 +33,6 @@ setup(
         "python-terraform>=0.10.0,<0.11.0",
         "boto3>=1.17.49,<=1.18.0",
         "botocore>=1.20.49,<=1.21.0",
-        "boto3-stubs[ec2,s3,rds]~=1.18",
         "urllib3>=1.25.4,<1.26.0",
         "slack_sdk>=3.10,<4.0",
         "pypd>=1.1.0,<1.2.0",
