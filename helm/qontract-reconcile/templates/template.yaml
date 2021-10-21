@@ -321,6 +321,10 @@ objects:
                 value: 'true'
               - name: DRY_RUN
                 value: ${DRY_RUN}
+              {{- if $integration.command }}
+              - name: COMMAND_NAME
+                value: {{ $integration.command }}
+              {{- end }}
               - name: INTEGRATION_NAME
                 value: {{ $integration.name }}
               - name: INTEGRATION_EXTRA_ARGS
