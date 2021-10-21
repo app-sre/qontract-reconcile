@@ -297,18 +297,18 @@ objects:
         {{- end }}
 {{- end }}
 {{- end }}
-{{- range $i, $integration := .Values.cronjobs }}
+{{- range $i, $job := .Values.cronjobs }}
 - apiVersion: batch/v1beta1
   kind: CronJob
   metadata:
     labels:
-      app: qontract-reconcile-{{ $integration.name }}
-    name: qontract-reconcile-{{ $integration.name }}
+      app: qontract-reconcile-{{ $job.name }}
+    name: qontract-reconcile-{{ $job.name }}
   spec:
-    schedule: "{{ $integration.cron }}"
-    concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
-    successfulJobHistoryLimit: {{ $integration.successfulJobHistoryLimit | default "3" }}
-    failedJobHistoryLimit: {{ $integration.failedJobHistoryLimit | default "1" }}
+    schedule: "{{ $job.cron }}"
+    concurrencyPolicy: {{ $job.concurrencyPolicy | default "Allow" }}
+    successfulJobHistoryLimit: {{ $job.successfulJobHistoryLimit | default "3" }}
+    failedJobHistoryLimit: {{ $job.failedJobHistoryLimit | default "1" }}
     jobTemplate:
       spec:
         template:
@@ -322,9 +322,9 @@ objects:
               - name: DRY_RUN
                 value: ${DRY_RUN}
               - name: INTEGRATION_NAME
-                value: {{ $integration.name }}
+                value: {{ $job.name }}
               - name: INTEGRATION_EXTRA_ARGS
-                value: "{{ $integration.extraArgs }}"
+                value: "{{ $job.extraArgs }}"
               - name: GITHUB_API
                 valueFrom:
                   configMapKeyRef:
@@ -340,7 +340,7 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
-              {{- with $integration.extraEnv }}
+              {{- with $job.extraEnv }}
               {{- range $i, $env := . }}
               - name: {{ $env.secretKey }}
                 valueFrom:
@@ -349,7 +349,7 @@ objects:
                     key: {{ $env.secretKey }}
               {{- end }}
               {{- end }}
-              {{- if $integration.dashdotdb }}
+              {{- if $job.dashdotdb }}
               - name: DASHDOTDB_SECRET
                 valueFrom:
                   secretKeyRef:
@@ -359,28 +359,28 @@ objects:
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
-              {{- if $integration.resources }}
+              {{- if $job.resources }}
               resources:
-                {{- if $integration.resources.limits }}
+                {{- if $job.resources.limits }}
                 limits:
-                  {{- if $integration.resources.limits.cpu }}
-                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_LIMIT{{ "}" }}
+                  {{- if $job.resources.limits.cpu }}
+                  cpu: {{ "${" }}{{ $job.name | upper | replace "-" "_" }}_CPU_LIMIT{{ "}" }}
                   {{- end }}
-                  {{- if $integration.resources.limits.memory }}
-                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_LIMIT{{ "}" }}
+                  {{- if $job.resources.limits.memory }}
+                  memory: {{ "${" }}{{ $job.name | upper | replace "-" "_" }}_MEMORY_LIMIT{{ "}" }}
                   {{- end }}
                 {{- end }}
-                {{- if $integration.resources.requests }}
+                {{- if $job.resources.requests }}
                 requests:
-                  {{- if $integration.resources.requests.cpu }}
-                  cpu: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_CPU_REQUEST{{ "}" }}
+                  {{- if $job.resources.requests.cpu }}
+                  cpu: {{ "${" }}{{ $job.name | upper | replace "-" "_" }}_CPU_REQUEST{{ "}" }}
                   {{- end }}
-                  {{- if $integration.resources.requests.memory }}
-                  memory: {{ "${" }}{{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST{{ "}" }}
+                  {{- if $job.resources.requests.memory }}
+                  memory: {{ "${" }}{{ $job.name | upper | replace "-" "_" }}_MEMORY_REQUEST{{ "}" }}
                   {{- end }}
                 {{- end }}
               {{- end }}
-            restartPolicy: {{ $integration.restartPolicy | default "OnFailure" }}
+            restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
             volumes:
             - name: qontract-reconcile-toml
               secret:
