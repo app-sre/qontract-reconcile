@@ -86,7 +86,37 @@ def build_entry_point_func(command_name: str) -> click.Command:
             f"Have a look at setup.py for valid entry points.")
 
 
-if __name__ == "__main__":
+def main():
+    """
+    This entry point script expects certain env variables
+    * COMMAND_NAME (optional, defaults to qontract-reconcile)
+      an entry point as defined in setup.py must be a click.Command
+    * INTEGRATION_NAME
+      used as name for the subcommand for command if present as a subcommand
+      on the click command
+    * INTEGRATION_EXTRA_ARGS (optional)
+      space separated list of arguments that will be passed to the command
+      or subcommand
+    * CONFIG
+      path to the config toml file
+    * LOG_FILE
+      path for the logfile to write to
+    * DRY_RUN (optional)
+      this is not a boolean but must contain the actual dry-run flag value,
+      so --dry-run or --no-dry-run
+    * RUN_ONCE (optional)
+      if 'true', execute the integration once and exit
+      otherwise run the integration in a loop controlled by SLEEP_DURATION_SECS
+      and SLEEP_ON_ERROR
+    * SLEEP_DURATION_SECS (default 600)
+      amount of seconds to sleep between successful integration runs
+    * SLEEP_ON_ERROR (default 10)
+      amount of seconds to sleep before another integration run is started
+
+    Based on those variables, the following command will be executed
+      $COMMAND --config $CONFIG $DRY_RUN $INTEGRATION_NAME $INTEGRATION_EXTRA_ARGS
+    """
+
     start_http_server(9090)
 
     command = build_entry_point_func(COMMAND_NAME)
@@ -126,3 +156,7 @@ if __name__ == "__main__":
             sys.exit(return_code)
 
         time.sleep(int(sleep))
+
+
+if __name__ == "__main__":
+    main()
