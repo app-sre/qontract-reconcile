@@ -79,6 +79,7 @@ provider
       name
     }
     access_level
+    assume_role
   }
 }
 ... on NamespaceTerraformResourceRole_v1 {

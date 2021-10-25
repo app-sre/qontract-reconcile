@@ -5,16 +5,34 @@ import semver
 from reconcile import queries
 
 from reconcile import mr_client_gateway
-from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
+import reconcile.utils.mr.clusters_updates as cu
 
-from reconcile.utils.ocm import OCMMap
+import reconcile.utils.ocm as ocmmod
 
 QONTRACT_INTEGRATION = 'ocm-clusters'
 
+ALLOWED_SPEC_UPDATE_FIELDS = {
+    'instance_type',
+    'storage',
+    'load_balancers',
+    'private',
+    'channel',
+    'autoscale',
+    'nodes'
+}
+
+OCM_GENERATED_FIELDS = ['network', 'consoleUrl', 'serverUrl', 'elbFQDN']
+MANAGED_FIELDS = ['spec'] + OCM_GENERATED_FIELDS
+
 
 def fetch_desired_state(clusters):
-    desired_state = {c['name']: {'spec': c['spec'], 'network': c['network']}
-                     for c in clusters}
+    # Not all our managed fields will exist in all clusters
+    desired_state = {
+        c['name']: {
+            f: c[f] for f in MANAGED_FIELDS if f in c
+        }
+        for c in clusters
+    }
     # remove unused keys
     for desired_spec in desired_state.values():
         # remove empty keys in spec
@@ -26,15 +44,7 @@ def fetch_desired_state(clusters):
 
 def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     """ Get a cluster spec to update. Returns an error if diff is invalid """
-    allowed_spec_update_fields = {
-        'instance_type',
-        'storage',
-        'load_balancers',
-        'private',
-        'channel',
-        'autoscale',
-        'nodes'
-    }
+
     error = False
     if current_spec['network'] != desired_spec['network']:
         error = True
@@ -52,7 +62,7 @@ def get_cluster_update_spec(cluster_name, current_spec, desired_spec):
     diffs = deleted
     diffs.update(updated)
 
-    invalid_fields = set(diffs.keys()) - allowed_spec_update_fields
+    invalid_fields = set(diffs.keys()) - ALLOWED_SPEC_UPDATE_FIELDS
     if invalid_fields:
         error = True
         logging.error(f'[{cluster_name}] invalid updates: {invalid_fields}')
@@ -64,8 +74,9 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('ocm') is not None]
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings, init_provision_shards=True)
+    ocm_map = ocmmod.OCMMap(
+        clusters=clusters, integration=QONTRACT_INTEGRATION,
+        settings=settings, init_provision_shards=True)
     current_state, pending_state = ocm_map.cluster_specs()
     desired_state = fetch_desired_state(clusters)
 
@@ -77,7 +88,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     for cluster_name, desired_spec in desired_state.items():
         current_spec = current_state.get(cluster_name)
         if current_spec:
-            clusters_updates[cluster_name] = {}
+            clusters_updates[cluster_name] = {'spec': {}, 'root': {}}
             cluster_path = 'data' + \
                 [c['path'] for c in clusters
                  if c['name'] == cluster_name][0]
@@ -98,7 +109,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                     'from current version %s. ' +
                     'version will be updated automatically in app-interface.',
                     cluster_name, desired_version, current_version)
-                clusters_updates[cluster_name]['version'] = current_version
+                clusters_updates[cluster_name]['spec']['version'] = current_version  # noqa: E501
             elif compare_result < 0:
                 logging.error(
                     '[%s] desired version %s is different ' +
@@ -107,19 +118,31 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 error = True
 
             if not desired_spec['spec'].get('id'):
-                clusters_updates[cluster_name]['id'] = \
+                clusters_updates[cluster_name]['spec']['id'] = \
                     current_spec['spec']['id']
 
             if not desired_spec['spec'].get('external_id'):
-                clusters_updates[cluster_name]['external_id'] = \
+                clusters_updates[cluster_name]['spec']['external_id'] = \
                     current_spec['spec']['external_id']
+
+            if not desired_spec.get('consoleUrl'):
+                clusters_updates[cluster_name]['root']['consoleUrl'] = \
+                    current_spec['console_url']
+
+            if not desired_spec.get('serverUrl'):
+                clusters_updates[cluster_name]['root']['serverUrl'] = \
+                    current_spec['server_url']
+
+            if not desired_spec.get('elbFQDN'):
+                clusters_updates[cluster_name]['root']['elbFQDN'] = \
+                    f"elb.apps.{cluster_name}.{current_spec['domain']}"
 
             desired_provision_shard_id = \
                 desired_spec['spec'].get('provision_shard_id')
             current_provision_shard_id = \
                 current_spec['spec']['provision_shard_id']
             if desired_provision_shard_id != current_provision_shard_id:
-                clusters_updates[cluster_name]['provision_shard_id'] = \
+                clusters_updates[cluster_name]['spec']['provision_shard_id'] =\
                     current_provision_shard_id
 
             if clusters_updates[cluster_name]:
@@ -130,23 +153,24 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
 
-            if current_spec != desired_spec:
-                # check if cluster update is valid
-                update_spec, err = get_cluster_update_spec(
-                    cluster_name,
-                    current_spec,
-                    desired_spec,
-                )
-                if err:
-                    error = True
-                    continue
-                # update cluster
+            # check if cluster update, if any, is valid
+            update_spec, err = get_cluster_update_spec(
+                cluster_name,
+                current_spec,
+                desired_spec,
+            )
+            if err:
+                logging.warning(f"Invalid changes to spec: {update_spec}")
+                error = True
+                continue
+            # update cluster
+            # TODO(mafriedm): check dry_run in OCM API patch
+            if update_spec:
+                logging.info(['update_cluster', cluster_name])
                 logging.debug(
                     '[%s] desired spec %s is different ' +
                     'from current spec %s',
                     cluster_name, desired_spec, current_spec)
-                logging.info(['update_cluster', cluster_name])
-                # TODO(mafriedm): check dry_run in OCM API patch
                 if not dry_run:
                     ocm = ocm_map.get(cluster_name)
                     ocm.update_cluster(cluster_name, update_spec, dry_run)
@@ -160,18 +184,21 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
 
     create_update_mr = False
     for cluster_name, cluster_updates in clusters_updates.items():
-        for k, v in cluster_updates.items():
-            if k == 'path':
-                continue
+        for k, v in cluster_updates['spec'].items():
             logging.info(
-                f"[{cluster_name}] desired key " +
+                f"[{cluster_name}] desired key in spec " +
                 f"{k} will be updated automatically " +
                 f"with value {v}."
             )
             create_update_mr = True
+        for k, v in cluster_updates['root'].items():
+            logging.info(
+                f"[{cluster_name}] desired root key {k} will "
+                f"be updated automatically with value {v}"
+            )
+            create_update_mr = True
     if create_update_mr and not dry_run:
-        mr = CreateClustersUpdates(clusters_updates)
+        mr = cu.CreateClustersUpdates(clusters_updates)
         mr.submit(cli=mr_cli)
 
-    if error:
-        sys.exit(1)
+    sys.exit(int(error))

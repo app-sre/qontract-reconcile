@@ -342,21 +342,21 @@ integrations:
 - name: terraform-vpc-peerings
   resources:
     requests:
-      memory: 2000Mi
-      cpu: 400m
-    limits:
       memory: 2600Mi
       cpu: 500m
+    limits:
+      memory: 3200Mi
+      cpu: 1400m
   logs:
     slack: true
 - name: terraform-tgw-attachments
   resources:
     requests:
       memory: 2300Mi
-      cpu: 200m
+      cpu: 400m
     limits:
       memory: 3000Mi
-      cpu: 400m
+      cpu: 600m
   logs:
     slack: true
 - name: ocm-addons
@@ -537,6 +537,17 @@ integrations:
     limits:
       memory: 150Mi
       cpu: 200m
+  logs:
+    slack: true
+- name: gabi-authorized-users
+  resources:
+    requests:
+      memory: 600Mi
+      cpu: 200m
+    limits:
+      memory: 800Mi
+      cpu: 300m
+  extraArgs: --external --no-use-jump-host
   logs:
     slack: true
 cronjobs:

@@ -17,7 +17,8 @@ QONTRACT_INTEGRATION = 'terraform_tgw_attachments'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
+def build_desired_state_tgw_attachments(clusters, ocm_map: OCMMap,
+                                        awsapi: AWSApi):
     """
     Fetch state for TGW attachments between a cluster and all TGWs
     in an account in the same region as the cluster
@@ -61,11 +62,9 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
                     )
             account['assume_region'] = accepter['region']
             account['assume_cidr'] = accepter['cidr_block']
-            aws_api = AWSApi(1, [account], settings=settings,
-                             init_users=False)
             accepter_vpc_id, accepter_route_table_ids, \
                 accepter_subnets_id_az = \
-                aws_api.get_cluster_vpc_details(
+                awsapi.get_cluster_vpc_details(
                     account,
                     route_tables=peer_connection.get('manageRoutes'),
                     subnets=True,
@@ -81,11 +80,11 @@ def build_desired_state_tgw_attachments(clusters, ocm_map, settings):
             accepter['account'] = account
 
             account_tgws = \
-                aws_api.get_tgws_details(
+                awsapi.get_tgws_details(
                     account,
                     cluster_region,
                     cluster_cidr_block,
-                    tags=json.loads(peer_connection.get('tags') or {}),
+                    tags=json.loads(peer_connection.get('tags') or '{}'),
                     route_tables=peer_connection.get('manageRoutes'),
                     security_groups=peer_connection.get(
                         'manageSecurityGroups'),
@@ -132,9 +131,12 @@ def run(dry_run, print_only=False,
         # on the tgw defition in the cluster file.
         ocm_map = {}
 
+    accounts = queries.get_aws_accounts()
+    awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
+
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state, err = \
-        build_desired_state_tgw_attachments(clusters, ocm_map, settings)
+        build_desired_state_tgw_attachments(clusters, ocm_map, awsapi)
     if err:
         sys.exit(1)
 

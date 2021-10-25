@@ -104,6 +104,7 @@ import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
+import reconcile.gabi_authorized_users
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -119,7 +120,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 TERRAFORM_VERSION = '0.13.7'
 TERRAFORM_VERSION_REGEX = r'^Terraform\sv([\d]+\.[\d]+\.[\d]+)$'
 
-OC_VERSION = '4.6.1'
+OC_VERSION = '4.8.11'
 OC_VERSION_REGEX = r'^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$'
 
 LOG_FMT = '[%(asctime)s] [%(levelname)s] ' \
@@ -1393,3 +1394,16 @@ def sendgrid_teammates(ctx):
 def cluster_deployment_mapper(ctx, vault_output_path):
     run_integration(reconcile.cluster_deployment_mapper, ctx.obj,
                     vault_output_path)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.gabi_authorized_users,
+                    ctx.obj, thread_pool_size, internal,
+                    use_jump_host)

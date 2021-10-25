@@ -15,7 +15,7 @@ from ipaddress import ip_network, ip_address
 import anymarkup
 import requests
 
-from terrascript import (Terrascript, provider, Terraform,
+from terrascript import (Terrascript, provider, Provider, Terraform,
                          Backend, Output, data)
 from terrascript.resource import (
     aws_db_instance, aws_db_parameter_group,
@@ -112,6 +112,20 @@ class aws_ecrpublic_repository(Resource):
     pass
 
 
+# temporary until we upgrade to a terrascript release
+# that supports this provider
+# https://github.com/mjuenema/python-terrascript/pull/166
+class time(Provider):
+    pass
+
+
+# temporary until we upgrade to a terrascript release
+# that supports this resource
+# https://github.com/mjuenema/python-terrascript/pull/166
+class time_sleep(Resource):
+    pass
+
+
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
                  thread_pool_size, accounts, oc_map=None, settings=None):
@@ -147,6 +161,14 @@ class TerrascriptClient:
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
                 region=config['region'])
+
+            # the time provider can be removed if all AWS accounts
+            # upgrade to a provider version with this bug fix
+            # https://github.com/hashicorp/terraform-provider-aws/pull/20926
+            ts += time(
+                version="0.7.2"
+            )
+
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
                         secret_key=config['aws_secret_access_key'],
@@ -1051,6 +1073,31 @@ class TerrascriptClient:
                     f"source {replica_source} for read replica " +
                     f"{identifier} not found")
 
+        # There seems to be a bug in tf-provider-aws when making replicas
+        # w/ ehanced-monitoring, causing tf to not wait long enough
+        # between the actions of creating an enhanced-monitoring IAM role
+        # and checking the permissions of that role on a RDS replica
+        # if the source-db already exists.
+        # Therefore we wait 30s between these actions.
+        # This sleep can be removed if all AWS accounts upgrade
+        # to a provider version with this bug fix.
+        # https://github.com/hashicorp/terraform-provider-aws/pull/20926
+        if enhanced_monitoring and replica_source:
+            sleep_vals = {}
+            sleep_vals['depends_on'] = [attachment_res_name]
+            sleep_vals['create_duration'] = "30s"
+
+            # time_sleep
+            # Terraform resource reference:
+            # https://registry.terraform.io
+            # /providers/hashicorp/time/latest/docs/resources/sleep
+            time_sleep_resource = time_sleep(identifier, **sleep_vals)
+
+            tf_resources.append(time_sleep_resource)
+            time_sleep_res_name = \
+                self.get_dependencies([time_sleep_resource])[0]
+            deps.append(time_sleep_res_name)
+
         kms_key_id = values.pop('kms_key_id', None)
         if kms_key_id is not None:
             if kms_key_id.startswith("arn:"):
@@ -1659,23 +1706,39 @@ class TerrascriptClient:
 
         aws_infrastructure_access = \
             common_values.get('aws_infrastructure_access') or None
-        if aws_infrastructure_access and ocm_map:
-            cluster = aws_infrastructure_access['cluster']['name']
-            ocm = ocm_map.get(cluster)
-            role_grants = \
-                ocm.get_aws_infrastructure_access_role_grants(cluster)
-            for user_arn, _, state, switch_role_link in role_grants:
-                # find correct user by identifier
-                user_id = self.get_user_id_from_arn(user_arn)
-                # output will only be added once
-                # terraform-resources created the user
-                # and ocm-aws-infrastructure-access granted it the role
-                if identifier == user_id and state != 'failed':
-                    switch_role_arn = \
-                        self.get_role_arn_from_role_link(switch_role_link)
-                    output_name_0_13 = output_prefix + '__role_arn'
-                    tf_resources.append(
-                        Output(output_name_0_13, value=switch_role_arn))
+        if aws_infrastructure_access:
+            # to provision a resource in a cluster's account, we need to
+            # be able to assume role into it.
+            # if assume_role is supplied - use it.
+            # if it is not supplied - try to get the role to assume through
+            # OCM AWS infrastructure access.
+            assume_role = aws_infrastructure_access.get('assume_role')
+            if assume_role:
+                output_name_0_13 = output_prefix + '__role_arn'
+                tf_resources.append(
+                    Output(output_name_0_13, value=assume_role))
+            elif ocm_map:
+                cluster = aws_infrastructure_access['cluster']['name']
+                ocm = ocm_map.get(cluster)
+                role_grants = \
+                    ocm.get_aws_infrastructure_access_role_grants(cluster)
+                for user_arn, _, state, switch_role_link in role_grants:
+                    # find correct user by identifier
+                    user_id = self.get_user_id_from_arn(user_arn)
+                    # output will only be added once
+                    # terraform-resources created the user
+                    # and ocm-aws-infrastructure-access granted it the role
+                    if identifier == user_id and state != 'failed':
+                        switch_role_arn = \
+                            self.get_role_arn_from_role_link(switch_role_link)
+                        output_name_0_13 = output_prefix + '__role_arn'
+                        tf_resources.append(
+                            Output(output_name_0_13, value=switch_role_arn))
+            else:
+                raise KeyError(
+                    f'[{account}/{identifier}] '
+                    'expected one of ocm_map or assume_role'
+                )
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
