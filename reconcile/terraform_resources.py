@@ -6,9 +6,9 @@ from textwrap import indent
 
 
 import reconcile.openshift_base as ob
-import reconcile.queries as queries
-import reconcile.utils.gql as gql
-import reconcile.utils.threaded as threaded
+from reconcile import queries
+from reconcile.utils import gql
+from reconcile.utils import threaded
 
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.semver_helper import make_semver
@@ -79,6 +79,7 @@ provider
       name
     }
     access_level
+    assume_role
   }
 }
 ... on NamespaceTerraformResourceRole_v1 {

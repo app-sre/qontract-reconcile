@@ -1,8 +1,8 @@
 import logging
 
-import reconcile.queries as queries
-import reconcile.openshift_users as openshift_users
-import reconcile.slack_usergroups as slack_usergroups
+from reconcile import queries
+from reconcile import openshift_users
+from reconcile import slack_usergroups
 
 from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.slack_api import UsergroupNotFoundException

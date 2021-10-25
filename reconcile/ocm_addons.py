@@ -3,7 +3,7 @@ import logging
 
 from operator import itemgetter
 
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
@@ -76,7 +76,12 @@ def act(dry_run, diffs, ocm_map):
             continue
         if not dry_run:
             if action == 'install':
-                ocm.install_addon(cluster, diff)
+                try:
+                    ocm.install_addon(cluster, diff)
+                except Exception as e:
+                    logging.error(f'could not install addon {addon_id}: {e}')
+                    err = True
+                    continue
             # uninstall is not supported
 
     return err

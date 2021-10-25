@@ -7,8 +7,8 @@ import re
 import click
 import sentry_sdk
 
-import reconcile.utils.config as config
-import reconcile.utils.gql as gql
+from reconcile.utils import config
+from reconcile.utils import gql
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -104,6 +104,7 @@ import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
+import reconcile.gabi_authorized_users
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1393,3 +1394,16 @@ def sendgrid_teammates(ctx):
 def cluster_deployment_mapper(ctx, vault_output_path):
     run_integration(reconcile.cluster_deployment_mapper, ctx.obj,
                     vault_output_path)
+
+
+@integration.command()
+@threaded()
+@binary(['oc', 'ssh'])
+@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
+@internal()
+@use_jump_host()
+@click.pass_context
+def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
+    run_integration(reconcile.gabi_authorized_users,
+                    ctx.obj, thread_pool_size, internal,
+                    use_jump_host)

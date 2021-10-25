@@ -5,7 +5,8 @@ from unittest.mock import patch
 from reconcile.utils.oc import (
     LABEL_MAX_KEY_NAME_LENGTH, LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
-    OC, OCDeprecated, PodNotReadyError, StatusCodeError, validate_labels)
+    OC, OCDeprecated, PodNotReadyError, StatusCodeError, validate_labels,
+    OC_Map, OCLogMsg)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
@@ -320,3 +321,43 @@ class TestValidateLabels(TestCase):
             f'{key_prefix}/{key_name}': value,
             'kubernetes.io/b@d': value})
         self.assertEqual(len(r), 10)
+
+
+class TestOCMapInit(TestCase):
+
+    def test_missing_serverurl(self):
+        """
+        When a cluster with a missing serverUrl is passed into OC_Map, it
+        should be skipped.
+        """
+        cluster = {
+            'name': 'test-1',
+            'serverUrl': '',
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        oc_map = OC_Map(clusters=[cluster])
+
+        self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
+        self.assertEqual(oc_map.get(cluster['name']).message,
+                         f'[{cluster["name"]}] has no serverUrl')
+        self.assertEqual(len(oc_map.clusters()), 0)
+
+    def test_missing_automationtoken(self):
+        """
+        When a cluster with a missing automationToken is passed into OC_Map, it
+        should be skipped.
+        """
+        cluster = {
+            'name': 'test-1',
+            'serverUrl': 'http://localhost',
+            'automationToken': None
+        }
+        oc_map = OC_Map(clusters=[cluster])
+
+        self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
+        self.assertEqual(oc_map.get(cluster['name']).message,
+                         f'[{cluster["name"]}] has no automation token')
+        self.assertEqual(len(oc_map.clusters()), 0)

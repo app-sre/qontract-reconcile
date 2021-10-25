@@ -5,7 +5,7 @@ import sendgrid
 
 from sretoolbox.utils import retry
 
-import reconcile.queries as queries
+from reconcile import queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.status import ExitCodes
 

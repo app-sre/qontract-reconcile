@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 from reconcile.utils.vault import VaultClient
 
 from reconcile.utils.aws_api import AWSApi

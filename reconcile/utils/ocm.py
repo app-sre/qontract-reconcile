@@ -1,3 +1,4 @@
+import functools
 import logging
 import re
 import requests
@@ -8,6 +9,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 
 STATUS_READY = 'ready'
+STATUS_FAILED = 'failed'
 
 AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
@@ -113,7 +115,10 @@ class OCM:
                 'vpc': cluster['network']['machine_cidr'],
                 'service': cluster['network']['service_cidr'],
                 'pod': cluster['network']['pod_cidr']
-            }
+            },
+            'server_url': cluster['api']['url'],
+            'console_url': cluster['console']['url'],
+            'domain': cluster['dns']['base_domain'],
         }
         cluster_nodes = cluster['nodes']
         nodes_count = cluster_nodes.get('compute')
@@ -309,6 +314,7 @@ class OCM:
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
+    @functools.lru_cache()
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
@@ -329,17 +335,13 @@ class OCM:
     def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
                                                             tf_account_id,
                                                             tf_user):
-        cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api).get('items', [])
+        role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
-        for rg in role_grants:
-            if rg['user_arn'] != user_arn:
+        for arn, role_id, _, console_url in role_grants:
+            if arn != user_arn:
                 continue
-            if rg['role']['id'] != 'network-mgmt':
+            if role_id != 'network-mgmt':
                 continue
-            console_url = rg['console_url']
             # split out only the url arguments
             account_and_role = console_url.split('?')[1]
             account, role = account_and_role.split('&')
@@ -1044,7 +1046,7 @@ class OCMMap:
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
         fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
-                  'name', 'bootstrapServerHost']
+                  'name', 'bootstrapServerHost', 'failed_reason']
         cluster_specs = []
         for ocm in self.ocm_map.values():
             clusters = ocm.get_kafka_clusters(fields=fields)

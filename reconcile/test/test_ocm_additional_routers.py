@@ -2,7 +2,7 @@ from unittest.mock import patch, call
 from unittest import TestCase
 
 from reconcile.utils.ocm import OCMMap
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.ocm_additional_routers as integ
 
 from .fixtures import Fixtures

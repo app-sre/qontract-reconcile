@@ -1,4 +1,4 @@
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import SKIP_CI

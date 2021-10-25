@@ -5,7 +5,7 @@ from textwrap import indent
 
 from jinja2 import Template
 
-import reconcile.utils.gql as gql
+from reconcile.utils import gql
 
 
 APP_INTERFACE_SETTINGS_QUERY = """
@@ -288,6 +288,7 @@ CLUSTERS_QUERY = """
     serverUrl
     consoleUrl
     kibanaUrl
+    elbFQDN
     prometheusUrl
     managedGroups
     managedClusterRoles
@@ -608,6 +609,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    delete
     labels
     managedRoles
     app {
@@ -719,11 +721,48 @@ NAMESPACES_QUERY = """
 }
 """
 
+NAMESPACES_MINIMAL_QUERY = """
+{
+  namespaces: namespaces_v1 {
+    name
+    delete
+    labels
+    cluster {
+      name
+      serverUrl
+      jumpHost {
+          hostname
+          knownHosts
+          user
+          port
+          identity {
+              path
+              field
+              format
+          }
+      }
+      automationToken {
+        path
+        field
+        format
+      }
+      internal
+      disable {
+        integrations
+      }
+    }
+  }
+}
+"""
 
-def get_namespaces():
+
+def get_namespaces(minimal=False):
     """ Returns all Namespaces """
     gqlapi = gql.get_api()
-    return gqlapi.query(NAMESPACES_QUERY)['namespaces']
+    if minimal:
+        return gqlapi.query(NAMESPACES_MINIMAL_QUERY)['namespaces']
+    else:
+        return gqlapi.query(NAMESPACES_QUERY)['namespaces']
 
 
 SA_TOKEN = """
@@ -2026,3 +2065,66 @@ PAGERDUTY_INSTANCES_QUERY = """
 def get_pagerduty_instances():
     gqlapi = gql.get_api()
     return gqlapi.query(PAGERDUTY_INSTANCES_QUERY)['pagerduty_instances']
+
+
+GABI_INSTANCES_QUERY = """
+{
+  gabi_instances: gabi_instances_v1 {
+    path
+    name
+    signoffManagers{
+      org_username
+    }
+    users{
+      github_username
+    }
+    instances{
+      account
+      identifier
+      namespace{
+        name
+        managedTerraformResources
+        terraformResources
+        {
+          provider
+          ... on NamespaceTerraformResourceRDS_v1
+          {
+            account
+            identifier
+          }
+        }
+        cluster {
+          name
+          serverUrl
+          jumpHost {
+            hostname
+            knownHosts
+            user
+            port
+            identity {
+              path
+              field
+              format
+            }
+          }
+          automationToken {
+            path
+            field
+            format
+          }
+          internal
+          disable {
+            integrations
+          }
+        }
+      }
+    }
+    expirationDate
+  }
+}
+"""
+
+
+def get_gabi_instances():
+    gqlapi = gql.get_api()
+    return gqlapi.query(GABI_INSTANCES_QUERY)['gabi_instances']

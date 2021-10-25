@@ -3,7 +3,7 @@ import sys
 
 from unittest import TestCase
 from unittest.mock import patch
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.requests_sender as integ
 
 

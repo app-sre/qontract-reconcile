@@ -1,9 +1,9 @@
 import sys
 import logging
 
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.terraform_resources as tfr
-import reconcile.utils.threaded as threaded
+from reconcile.utils import threaded
 
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.semver_helper import make_semver

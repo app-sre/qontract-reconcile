@@ -3,7 +3,7 @@ import logging
 import sys
 
 
-import reconcile.queries as queries
+from reconcile import queries
 import reconcile.openshift_base as ob
 
 from reconcile.utils.semver_helper import make_semver
@@ -38,6 +38,10 @@ def fetch_desired_state(namespaces, ri, oc_map):
             continue
         namespace_name = namespace_info['name']
         cluster_name = namespace_info['cluster']['name']
+        oc = oc_map.get(cluster_name)
+        if not oc:
+            logging.log(level=oc.log_level, msg=oc.message)
+            continue
         for sat in namespace_info['openshiftServiceAccountTokens']:
             sa_name = sat['serviceAccountName']
             sa_namespace_info = sat['namespace']

@@ -1,7 +1,7 @@
 import datetime
 
-import reconcile.utils.gql as gql
-import reconcile.queries as queries
+from reconcile.utils import gql
+from reconcile import queries
 
 from reconcile.utils.oc import OC_Map
 

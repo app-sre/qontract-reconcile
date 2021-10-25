@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from jinja2 import Template
-import ruamel.yaml as yaml
+from ruamel import yaml
+
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from reconcile.utils.mr.base import MergeRequestBase

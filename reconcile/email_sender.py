@@ -2,7 +2,7 @@ import sys
 import logging
 
 from reconcile.utils.smtp_client import SmtpClient
-import reconcile.queries as queries
+from reconcile import queries
 
 from reconcile.utils.state import State
 

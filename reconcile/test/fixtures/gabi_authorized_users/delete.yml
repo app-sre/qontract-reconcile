@@ -1,0 +1,41 @@
+server:
+  version:
+    major: 1
+  api/v1:
+    kind: APIResourceList
+    resources: 
+    - name: configmaps
+      kind: ConfigMap
+  api/v1/configmaps:
+    kind: ConfigMapList
+    apiVersion: v1
+    items:
+    - metadata:
+        name: gabi1
+        annotations:
+          qontract.integration: gabi-authorized-users
+          qontract.integration_version: 0.1.0
+          qontract.recycle: 'true'
+          qontract.sha256sum: abc
+      data:
+        authorized-users.yaml: |-
+          user1
+          user2
+  apis:
+    kind: APIGroupList
+    groups:
+    - name: project.openshift.io
+      versions:
+      - groupVersion: project.openshift.io/v1
+        version: v1
+      preferredVersion:
+        groupVersion: project.openshift.io/v1
+        version: v1
+  apis/project.openshift.io/v1:
+    kind: APIResourceList
+    resources: 
+    - name: projects
+      kind: Project
+  apis/project.openshift.io/v1/projects/gabi-db:
+    kind: Project
+    apiVersion: project.openshift.io/v1

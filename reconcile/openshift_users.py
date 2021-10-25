@@ -1,10 +1,10 @@
 import logging
 import itertools
 
-import reconcile.utils.threaded as threaded
-import reconcile.openshift_groups as openshift_groups
-import reconcile.openshift_rolebindings as openshift_rolebindings
-import reconcile.queries as queries
+from reconcile.utils import threaded
+from reconcile import openshift_groups
+from reconcile import openshift_rolebindings
+from reconcile import queries
 
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer

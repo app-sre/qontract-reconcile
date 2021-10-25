@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-import reconcile.utils.vault as vault
+from reconcile.utils import vault
 
 
 class SleepCalled(Exception):
