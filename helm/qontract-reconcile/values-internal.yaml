@@ -437,6 +437,6 @@ cronjobs:
   # first day of month
   cron: '0 1 1 * *'
   extraEnv:
-    - name: XDG_CACHE_HOME
-      value: /tmp/.cache
+  - name: XDG_CACHE_HOME
+    value: /tmp/.cache
   extraArgs: --gitlab-project-id=${APP_INTERFACE_PROJECT_ID} --reports-path=/tmp/report
