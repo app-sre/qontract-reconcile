@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM quay.io/app-sre/qontract-reconcile-builder:0.1.1 as build-image
 
 WORKDIR /work
