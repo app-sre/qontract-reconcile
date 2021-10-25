@@ -13,7 +13,8 @@ endif
 
 CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
 build:
-	@DOCKER_BUILDKIT=1 docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
+	docker version
+	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 push:
@@ -45,7 +46,7 @@ test-container-image: build
 		--config /work/dockerfiles/structure-test.yaml \
 		-i $(IMAGE_NAME):$(IMAGE_TAG)
 
-test: test-app test-container-image
+test: test-container-image
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
