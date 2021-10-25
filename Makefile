@@ -11,7 +11,7 @@ else
 	DOCKER_CONF := $(HOME)/.docker
 endif
 
-CTR_STRUCTURE_IMG := gcr.io/gcp-runtimes/container-structure-test:latest
+CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
 
 build:
 	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
