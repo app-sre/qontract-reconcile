@@ -208,7 +208,8 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
                                                  pd_resource_id)
         if not pagerduty_names:
             continue
-        pagerduty_names = [name.split('+', 1)[0] for name in pagerduty_names]
+        pagerduty_names = [name.split('+', 1)[0] for name in pagerduty_names
+                           if 'nobody' not in name]
         if not pagerduty_names:
             continue
         slack_usernames = [get_slack_username(u)
