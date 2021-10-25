@@ -12,9 +12,8 @@ else
 endif
 
 CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
-
 build:
-	@docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile .
+	@DOCKER_BUILDKIT=1 docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
 	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 push:
