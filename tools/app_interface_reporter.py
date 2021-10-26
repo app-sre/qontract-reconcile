@@ -460,7 +460,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                                 sample.labels['type']: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long # noqa: E501
                                 sample.labels['type']: sample.value
                             })
         app['container_vulnerabilities'] = vuln_mx
