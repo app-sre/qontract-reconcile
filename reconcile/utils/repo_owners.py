@@ -133,9 +133,12 @@ class RepoOwners:
         for owner_file in owner_files:
             raw_owners = self._git_cli.get_file(path=owner_file['path'],
                                                 ref=self._ref)
-            owners = yaml.safe_load(raw_owners.decode())
+            try:
+                owners = yaml.safe_load(raw_owners.decode())
+            except yaml.parser.ParserError:
+                owners = None
             if owners is None:
-                # Non-parsable OWNERS file
+                _LOG.warning('Non-parsable OWNERS file')
                 continue
 
             approvers = owners.get('approvers') or set()

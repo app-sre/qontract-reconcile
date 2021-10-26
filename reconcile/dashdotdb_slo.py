@@ -18,6 +18,9 @@ class DashdotdbSLO(DashdotdbBase):
         if service_slo is None:
             return None
 
+        for item in service_slo:
+            LOG.debug(f'About to POST SLO JSON item to dashdotDB:\n{item}\n')
+
         response = None
 
         if self.dry_run:
@@ -84,6 +87,7 @@ class DashdotdbSLO(DashdotdbBase):
                     "service": ns['app'],
                     "value": slo_value,
                     "target": slo_target,
+                    "SLODoc": {"name": slo_document['name']},
                 })
         return result
 

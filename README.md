@@ -1,4 +1,5 @@
-![](https://img.shields.io/github/license/app-sre/qontract-reconcile.svg?style=flat)
+![build](https://ci.ext.devshift.net/buildStatus/icon?job=app-sre-qontract-reconcile-gh-build-master)
+![license](https://img.shields.io/github/license/app-sre/qontract-reconcile.svg?style=flat)
 
 # qontract-reconcile
 

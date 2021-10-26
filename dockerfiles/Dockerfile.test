@@ -1,4 +1,4 @@
-FROM quay.io/app-sre/qontract-reconcile-base:0.5.0
+FROM quay.io/app-sre/qontract-reconcile-base:0.5.2
 
 USER root
 RUN dnf install -y python3-pip python3-devel python39-devel git make gcc gcc-c++ gnupg2 && \
