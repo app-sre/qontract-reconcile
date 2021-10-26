@@ -19,12 +19,12 @@ FROM quay.io/app-sre/qontract-reconcile-base:0.6.0
 # This layer is not needed in the final image, so we can leverage a cache mount
 # to get rid of it. Implement the cache mount un the RUN command when we are able to
 # to use the buildkit features.
-COPY --from=build-image /work/wheels /tmp/work/wheels/
+COPY --from=build-image /work/ /tmp/work/wheels/
 #RUN --mount=type=cache,target=/tmp/work/,from=build-image,source=/work \
 
 RUN microdnf upgrade -y && \
     python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
-    mv /work/run-integration.py /run-integration.py
+    cp /tmp/work/run-integration.py /run-integration.py
 
 CMD [ "/run-integration.py" ]
