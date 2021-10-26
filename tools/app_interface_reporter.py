@@ -453,14 +453,14 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace][slo_doc_name]:  # pylint: disable=line-too-long # noqa: E501
+                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long # noqa: E501
                             slo_mx[cluster][namespace][slo_doc_name] = {}
                         if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:  # noqa: E501
                             slo_mx[cluster][namespace][slo_doc_name][slo_name] = {  # noqa: E501
                                 sample.labels['type']: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_name].update({
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({
                                 sample.labels['type']: sample.value
                             })
         app['container_vulnerabilities'] = vuln_mx
