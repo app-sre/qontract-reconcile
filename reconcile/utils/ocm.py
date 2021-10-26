@@ -321,6 +321,7 @@ class OCM:
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
+    # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.

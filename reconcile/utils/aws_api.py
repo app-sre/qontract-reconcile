@@ -99,6 +99,7 @@ class AWSApi:
     def get_session(self, account: str) -> Session:
         return self.sessions[account]
 
+    # pylint: disable=method-hidden
     def _account_ec2_client(self, account_name: str,
                             region_name: Optional[str] = None) -> EC2Client:
         session = self.get_session(account_name)
@@ -712,6 +713,7 @@ class AWSApi:
 
         return assumed_session
 
+    # pylint: disable=method-hidden
     def _get_assumed_role_client(self, account_name: str, assume_role: str,
                                  assume_region: str) -> EC2Client:
         assumed_session = self._get_assume_role_session(account_name,
@@ -720,6 +722,7 @@ class AWSApi:
         return assumed_session.client('ec2')
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_account_vpcs(ec2: EC2Client) -> List[VpcTypeDef]:
         vpcs = ec2.describe_vpcs()
         return vpcs.get('Vpcs', [])
@@ -736,6 +739,7 @@ class AWSApi:
         return res
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) \
             -> List[RouteTableTypeDef]:
         rts = ec2.describe_route_tables(
@@ -743,6 +747,7 @@ class AWSApi:
         return rts.get('RouteTables', [])
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_subnets(vpc_id: str, ec2: EC2Client) \
             -> List[SubnetTypeDef]:
         subnets = ec2.describe_subnets(
@@ -833,6 +838,7 @@ class AWSApi:
         return results
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> Optional[str]:
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
@@ -847,6 +853,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_transit_gateways(ec2: EC2Client) -> List[TransitGatewayTypeDef]:
         tgws = ec2.describe_transit_gateways()
         return tgws.get('TransitGateways', [])
@@ -870,6 +877,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_transit_gateway_vpc_attachments(tgw_id: str, ec2: EC2Client) \
             -> List[TransitGatewayVpcAttachmentTypeDef]:
         atts = ec2.describe_transit_gateway_vpc_attachments(
