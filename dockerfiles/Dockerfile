@@ -19,7 +19,7 @@ FROM quay.io/app-sre/qontract-reconcile-base:0.6.0
 # This layer is not needed in the final image, so we can leverage a cache mount
 # to get rid of it. Implement the cache mount un the RUN command when we are able to
 # to use the buildkit features.
-COPY --from=build-image /work/ /tmp/work/wheels/
+COPY --from=build-image /work/ /tmp/work/
 #RUN --mount=type=cache,target=/tmp/work/,from=build-image,source=/work \
 
 RUN microdnf upgrade -y && \
