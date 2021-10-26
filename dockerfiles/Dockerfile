@@ -25,6 +25,6 @@ COPY --from=build-image /work/wheels /tmp/work/wheels/
 RUN microdnf upgrade -y && \
     python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
-    mv /tmp/work/run-integration.py /run-integration.py
+    mv /work/run-integration.py /run-integration.py
 
 CMD [ "/run-integration.py" ]
