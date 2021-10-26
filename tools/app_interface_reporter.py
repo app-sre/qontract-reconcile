@@ -447,7 +447,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                         namespace = sample.labels['namespace']
                         if app_namespace['name'] != namespace:
                             continue
-                        slo_doc_name = sample.labels['slo_doc']
+                        slo_doc_name = sample.labels['slodoc']
                         slo_name = sample.labels['name']
                         if cluster not in slo_mx:
                             slo_mx[cluster] = {}
