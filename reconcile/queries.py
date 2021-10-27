@@ -39,6 +39,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
         type
       }
     }
+    alertingServices
   }
 }
 """
