@@ -86,6 +86,27 @@ class TestGetClusterUpdateSpec(TestCase):
             )[1],
         )
 
+    def test_changed_disable_uwm(self):
+        desired = deepcopy(self.clusters[0])
+
+        desired['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        self.assertEqual(
+            occ.get_cluster_update_spec(
+                'cluster1', self.clusters[0], desired
+            ),
+            ({ocmmod.DISABLE_UWM_ATTR: 'true'}, False)
+        )
+
+    def test_non_set_disable_uwm(self):
+        desired = deepcopy(self.clusters[0])
+        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        self.assertEqual(
+            occ.get_cluster_update_spec(
+                'cluster1', self.clusters[0], desired
+            ),
+            ({}, False)
+        )
+
 
 class TestRun(TestCase):
     def setUp(self):
@@ -213,6 +234,98 @@ class TestRun(TestCase):
             create_clusters_updates, 'submit'
         ).for_call(cli='not a value').to_return_value(
             None).and_assert_called_once()
+        with self.assertRaises(ValueError) as e:
+            occ.run(False)
+            self.assertEqual(e.args, (0, ))
+
+    def test_changed_disable_uwm(self):
+        current = {
+            'cluster1': {
+                'spec': self.clusters[0]['spec'],
+                'network': self.clusters[0]['network'],
+                'consoleUrl': 'aconsoleurl',
+                'serverUrl': 'aserverurl',
+                'elbFQDN': 'anelbfqdn',
+                'prometheusUrl': 'aprometheusurl',
+                'alertmanagerUrl': 'analertmanagerurl',
+            }
+        }
+        self.clusters[0]['spec']['id'] = 'id'
+        self.clusters[0]['spec']['external_id'] = 'ext_id'
+
+        desired = deepcopy(current)
+        desired['cluster1']['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+
+        self.mock_callable(occ, 'fetch_desired_state').to_return_value(
+            desired
+        ).and_assert_called_once()
+
+        self.mock_callable(occ.mr_client_gateway, 'init').for_call(
+            gitlab_project_id=None
+        ).to_return_value('not a value').and_assert_called_once()
+
+        self.mock_callable(
+            self.ocmmap, 'cluster_specs'
+        ).for_call().to_return_value((current, {})).and_assert_called_once()
+
+        create_clusters_updates = StrictMock(
+            clusters_updates.CreateClustersUpdates
+        )
+        self.mock_constructor(
+            clusters_updates, 'CreateClustersUpdates'
+        ).to_return_value(create_clusters_updates)
+
+        self.mock_callable(
+            create_clusters_updates, 'submit'
+        ).for_call(cli='not a value').to_return_value(
+            None).and_assert_not_called()
+
+        with self.assertRaises(ValueError) as e:
+            occ.run(False)
+            self.assertEqual(e.args, (0, ))
+
+    def test_non_set_disable_uwm(self):
+        current = {
+            'cluster1': {
+                'spec': self.clusters[0]['spec'],
+                'network': self.clusters[0]['network'],
+                'consoleUrl': 'aconsoleurl',
+                'serverUrl': 'aserverurl',
+                'elbFQDN': 'anelbfqdn',
+                'prometheusUrl': 'aprometheusurl',
+                'alertmanagerUrl': 'analertmanagerurl',
+            }
+        }
+        self.clusters[0]['spec']['id'] = 'id'
+        self.clusters[0]['spec']['external_id'] = 'ext_id'
+
+        desired = deepcopy(current)
+        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+
+        self.mock_callable(occ, 'fetch_desired_state').to_return_value(
+            desired
+        ).and_assert_called_once()
+
+        self.mock_callable(occ.mr_client_gateway, 'init').for_call(
+            gitlab_project_id=None
+        ).to_return_value('not a value').and_assert_called_once()
+
+        self.mock_callable(
+            self.ocmmap, 'cluster_specs'
+        ).for_call().to_return_value((current, {})).and_assert_called_once()
+
+        create_clusters_updates = StrictMock(
+            clusters_updates.CreateClustersUpdates
+        )
+        self.mock_constructor(
+            clusters_updates, 'CreateClustersUpdates'
+        ).to_return_value(create_clusters_updates)
+
+        self.mock_callable(
+            create_clusters_updates, 'submit'
+        ).for_call(cli='not a value').to_return_value(
+            None).and_assert_called_once()
+
         with self.assertRaises(ValueError) as e:
             occ.run(False)
             self.assertEqual(e.args, (0, ))

@@ -359,6 +359,7 @@ CLUSTERS_QUERY = """
         min_replicas
         max_replicas
       }
+      disable_user_workload_monitoring
     }
     externalConfiguration {
       labels
