@@ -61,6 +61,13 @@ class OCM:
             self._init_addons()
         self._init_blocked_versions(blocked_versions)
 
+        # Setup caches on the instance itself to avoid leak
+        # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
+        # using @lru_cache decorators on methods would lek AWSApi instances
+        # since the cache keeps a reference to self.
+        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(
+                self.get_aws_infrastructure_access_role_grants)
+
     @retry()
     def _init_access_token(self):
         data = {
@@ -314,7 +321,7 @@ class OCM:
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.

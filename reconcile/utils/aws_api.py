@@ -58,6 +58,27 @@ class AWSApi:
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc['name']: acc for acc in accounts}
 
+        # Setup caches on the instance itself to avoid leak
+        # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
+        # using @lru_cache decorators on methods would lek AWSApi instances
+        # since the cache keeps a reference to self.
+        self._account_ec2_client = functools.lru_cache()(
+            self._account_ec2_client)
+        self._get_assumed_role_client = functools.lru_cache()(
+            self._get_assumed_role_client)
+        self.get_account_vpcs = functools.lru_cache()(
+            self.get_account_vpcs)
+        self.get_vpc_route_tables = functools.lru_cache()(
+            self.get_vpc_route_tables)
+        self.get_vpc_subnets = functools.lru_cache()(
+            self.get_vpc_subnets)
+        self.get_vpc_default_sg_id = functools.lru_cache()(
+            self.get_vpc_default_sg_id)
+        self.get_transit_gateways = functools.lru_cache()(
+            self.get_transit_gateways)
+        self.get_transit_gateway_vpc_attachments = functools.lru_cache()(
+            self.get_transit_gateway_vpc_attachments)
+
     def init_sessions_and_resources(self, accounts: Iterable[Account]):
         results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
@@ -78,7 +99,7 @@ class AWSApi:
     def get_session(self, account: str) -> Session:
         return self.sessions[account]
 
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def _account_ec2_client(self, account_name: str,
                             region_name: Optional[str] = None) -> EC2Client:
         session = self.get_session(account_name)
@@ -692,7 +713,7 @@ class AWSApi:
 
         return assumed_session
 
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def _get_assumed_role_client(self, account_name: str, assume_role: str,
                                  assume_region: str) -> EC2Client:
         assumed_session = self._get_assume_role_session(account_name,
@@ -701,7 +722,7 @@ class AWSApi:
         return assumed_session.client('ec2')
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_account_vpcs(ec2: EC2Client) -> List[VpcTypeDef]:
         vpcs = ec2.describe_vpcs()
         return vpcs.get('Vpcs', [])
@@ -718,7 +739,7 @@ class AWSApi:
         return res
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) \
             -> List[RouteTableTypeDef]:
         rts = ec2.describe_route_tables(
@@ -726,7 +747,7 @@ class AWSApi:
         return rts.get('RouteTables', [])
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_vpc_subnets(vpc_id: str, ec2: EC2Client) \
             -> List[SubnetTypeDef]:
         subnets = ec2.describe_subnets(
@@ -817,7 +838,7 @@ class AWSApi:
         return results
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> Optional[str]:
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
@@ -832,7 +853,7 @@ class AWSApi:
         return None
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_transit_gateways(ec2: EC2Client) -> List[TransitGatewayTypeDef]:
         tgws = ec2.describe_transit_gateways()
         return tgws.get('TransitGateways', [])
@@ -856,7 +877,7 @@ class AWSApi:
         return None
 
     @staticmethod
-    @functools.lru_cache()
+    # pylint: disable=method-hidden
     def get_transit_gateway_vpc_attachments(tgw_id: str, ec2: EC2Client) \
             -> List[TransitGatewayVpcAttachmentTypeDef]:
         atts = ec2.describe_transit_gateway_vpc_attachments(
