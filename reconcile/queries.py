@@ -713,6 +713,7 @@ NAMESPACES_QUERY = """
             cpu
             memory
           }
+          pods
         }
         scopes
       }
