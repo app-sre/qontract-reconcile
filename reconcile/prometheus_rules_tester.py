@@ -14,6 +14,7 @@ import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.status import ExitCodes
+from reconcile.utils.structs import CommandExecutionResult
 
 
 QONTRACT_INTEGRATION = 'prometheus_rules_tester'
@@ -139,9 +140,10 @@ def check_valid_services(rule):
             if not service:
                 continue
             if service not in allowed_services:
-                logging.error(
-                    f'service {service} is missing from alertingServices')
-                return False
+                return CommandExecutionResult(
+                    False,
+                    f'service {service} is missing from alertingServices'
+                )
 
     return True
 
