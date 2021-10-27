@@ -1,7 +1,9 @@
+from typing import Mapping, Optional
+
 from hvac.exceptions import Forbidden
 from sretoolbox.utils import retry
 
-from reconcile.utils import config
+from reconcile.utils import config, vault
 from reconcile.utils.vault import VaultClient
 
 
@@ -9,8 +11,18 @@ class VaultForbidden(Exception):
     pass
 
 
+class SecretNotFound(Exception):
+    pass
+
+
 class SecretReader:
-    def __init__(self, settings=None):
+    """Read secrets from either Vault or a config file."""
+
+    def __init__(self, settings: Optional[Mapping] = None) -> None:
+        """
+        :param settings: app-interface-settings object. It is a dictionary
+        containing `value: true` if Vault is to be used as the secret backend.
+        """
         self.settings = settings
         self._vault_client = None
 
@@ -21,7 +33,7 @@ class SecretReader:
         return self._vault_client
 
     @retry()
-    def read(self, secret):
+    def read(self, secret: Mapping[str, str]):
         """Returns a value of a key from Vault secret or configuration file.
 
         The input secret is a dictionary which contains the following fields:
@@ -31,21 +43,27 @@ class SecretReader:
         * version (optional) - Vault secret version to read
           * Note: if this is Vault secret and a v2 KV engine
 
-        The input settings is an optional app-interface-settings object
-        queried from app-interface. It is a dictionary containing `value: true`
-        if Vault is to be used as the secret backend.
-
         Default vault setting is false, to allow using a config file
         without creating app-interface-settings.
+
+        :raises secret_reader.SecretNotFound:
         """
 
         if self.settings and self.settings.get('vault'):
-            return self.vault_client.read(secret)
+            try:
+                data = self.vault_client.read(secret)
+            except vault.SecretNotFound as e:
+                raise SecretNotFound(*e.args) from e
         else:
-            return config.read(secret)
+            try:
+                data = config.read(secret)
+            except config.SecretNotFound as e:
+                raise SecretNotFound(*e.args) from e
+
+        return data
 
     @retry()
-    def read_all(self, secret):
+    def read_all(self, secret: Mapping[str, str]):
         """Returns a dictionary of keys and values
         from Vault secret or configuration file.
 
@@ -54,12 +72,10 @@ class SecretReader:
         * version (optional) - Vault secret version to read
           * Note: if this is Vault secret and a v2 KV engine
 
-        The input settings is an optional app-interface-settings object
-        queried from app-interface. It is a dictionary containing `value: true`
-        if Vault is to be used as the secret backend.
-
         Default vault setting is false, to allow using a config file
         without creating app-interface-settings.
+
+        :raises secret_reader.SecretNotFound:
         """
 
         if self.settings and self.settings.get('vault'):
@@ -68,6 +84,12 @@ class SecretReader:
             except Forbidden:
                 raise VaultForbidden(f'permission denied reading vault secret '
                                      f'at {secret["path"]}')
-            return data
+            except vault.SecretNotFound as e:
+                raise SecretNotFound(*e.args) from e
         else:
-            return config.read_all(secret)
+            try:
+                data = config.read_all(secret)
+            except config.SecretNotFound as e:
+                raise SecretNotFound(*e.args) from e
+
+        return data
