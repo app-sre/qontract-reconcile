@@ -19,7 +19,7 @@ from prometheus_client import Counter
 from kubernetes.client import Configuration, ApiClient
 from kubernetes.client.exceptions import ApiException
 
-from reconcile.utils.vault import SecretNotFound
+from reconcile.utils.secret_reader import SecretNotFound
 from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH

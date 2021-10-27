@@ -8,8 +8,7 @@ from reconcile.utils.oc import (
     OC, OCDeprecated, PodNotReadyError, StatusCodeError, validate_labels,
     OC_Map, OCLogMsg)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.vault import SecretNotFound
+from reconcile.utils.secret_reader import SecretReader, SecretNotFound
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
