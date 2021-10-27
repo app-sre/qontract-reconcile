@@ -1,3 +1,4 @@
+import functools
 import logging
 import re
 import requests
@@ -59,6 +60,13 @@ class OCM:
         if init_addons:
             self._init_addons()
         self._init_blocked_versions(blocked_versions)
+
+        # Setup caches on the instance itself to avoid leak
+        # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
+        # using @lru_cache decorators on methods would lek AWSApi instances
+        # since the cache keeps a reference to self.
+        self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(
+                self.get_aws_infrastructure_access_role_grants)
 
     @retry()
     def _init_access_token(self):
@@ -313,6 +321,7 @@ class OCM:
               f'groups/{group_id}/users/{user_id}'
         self._delete(api)
 
+    # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
@@ -333,17 +342,13 @@ class OCM:
     def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
                                                             tf_account_id,
                                                             tf_user):
-        cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api).get('items', [])
+        role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
-        for rg in role_grants:
-            if rg['user_arn'] != user_arn:
+        for arn, role_id, _, console_url in role_grants:
+            if arn != user_arn:
                 continue
-            if rg['role']['id'] != 'network-mgmt':
+            if role_id != 'network-mgmt':
                 continue
-            console_url = rg['console_url']
             # split out only the url arguments
             account_and_role = console_url.split('?')[1]
             account, role = account_and_role.split('&')

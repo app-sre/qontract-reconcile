@@ -6,19 +6,7 @@ import tempfile
 import yaml
 
 from reconcile.utils.defer import defer
-
-
-class PromtoolResult:
-    '''This class represents a promtool command execution result'''
-    def __init__(self, is_ok, message):
-        self.is_ok = is_ok
-        self.message = message
-
-    def __str__(self):
-        return str(self.message).replace('\n', '')
-
-    def __bool__(self):
-        return self.is_ok
+from reconcile.utils.structs import CommandExecutionResult
 
 
 def check_rule(yaml_spec):
@@ -43,13 +31,15 @@ def run_test(test_yaml_spec, rule_files):
                 fp.write(yaml.dump(yaml_spec).encode())
                 temp_rule_files[rule_file] = fp.name
     except Exception as e:
-        return PromtoolResult(False, f'Error building temp rule files: {e}')
+        return CommandExecutionResult(
+            False, f'Error building temp rule files: {e}')
 
     # build a test yaml prometheus files that uses the temp files created
     new_rule_files = []
     for rule_file in test_yaml_spec['rule_files']:
         if rule_file not in temp_rule_files:
-            raise PromtoolResult(False, f'{rule_file} not in rule_files dict')
+            raise CommandExecutionResult(
+                False, f'{rule_file} not in rule_files dict')
 
         new_rule_files.append(temp_rule_files[rule_file])
 
@@ -69,7 +59,8 @@ def _run_yaml_spec_cmd(cmd, yaml_spec):
             fp.flush()
             cmd.append(fp.name)
         except Exception as e:
-            return PromtoolResult(False, f'Error creating temporary file: {e}')
+            return CommandExecutionResult(
+                False, f'Error creating temporary file: {e}')
 
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE,
@@ -81,9 +72,9 @@ def _run_yaml_spec_cmd(cmd, yaml_spec):
             if e.stderr:
                 msg += f' {e.stderr.decode()}'
 
-            return PromtoolResult(False, msg)
+            return CommandExecutionResult(False, msg)
 
-    return PromtoolResult(True, result.stdout.decode())
+    return CommandExecutionResult(True, result.stdout.decode())
 
 
 def _cleanup(paths):

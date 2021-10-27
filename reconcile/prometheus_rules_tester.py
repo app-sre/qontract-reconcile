@@ -6,6 +6,7 @@ import traceback
 
 import yaml
 
+from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils import threaded
 from reconcile.utils import promtool
@@ -13,6 +14,7 @@ import reconcile.openshift_resources_base as orb
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.status import ExitCodes
+from reconcile.utils.structs import CommandExecutionResult
 
 
 QONTRACT_INTEGRATION = 'prometheus_rules_tester'
@@ -107,8 +109,53 @@ def get_prometheus_rules(cluster_name):
     return {path: data for path, data in rules.items() if data}
 
 
+# prometheus rule spec
+# spec:
+#   groups:
+#   - name: name
+#     rules:
+#     - alert: alertName
+#       annotations:
+#         ...
+#       expr: expression
+#       for: duration
+#       labels:
+#         service: serviceName
+#         ...
+def check_valid_services(rule):
+    '''Check that all services in Prometheus rules are known.
+    This replaces an enum in the json schema with a list
+    in app-interface settings.'''
+    allowed_services = \
+        queries.get_app_interface_settings()['alertingServices']
+    missing_services = set()
+    spec = rule['spec']
+    groups = spec['groups']
+    for g in groups:
+        group_rules = g['rules']
+        for r in group_rules:
+            rule_labels = r.get('labels')
+            if not rule_labels:
+                continue
+            service = rule_labels.get('service')
+            if not service:
+                continue
+            if service not in allowed_services:
+                missing_services.add(service)
+
+    if missing_services:
+        return CommandExecutionResult(
+            False,
+            f'services are missing from alertingServices: {missing_services}'
+        )
+
+    return CommandExecutionResult(True, '')
+
+
 def check_rule(rule):
-    rule['check_result'] = promtool.check_rule(yaml_spec=rule['spec'])
+    promtool_check_result = promtool.check_rule(yaml_spec=rule['spec'])
+    valid_services_result = check_valid_services(rule)
+    rule['check_result'] = promtool_check_result and valid_services_result
     return rule
 
 
