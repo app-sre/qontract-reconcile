@@ -128,6 +128,7 @@ def check_valid_services(rule):
     in app-interface settings.'''
     allowed_services = \
         queries.get_app_interface_settings()['alertingServices']
+    missing_services = set()
     spec = rule['spec']
     groups = spec['groups']
     for g in groups:
@@ -140,12 +141,15 @@ def check_valid_services(rule):
             if not service:
                 continue
             if service not in allowed_services:
-                return CommandExecutionResult(
-                    False,
-                    f'service {service} is missing from alertingServices'
-                )
+                missing_services.add(service)
 
-    return True
+    if missing_services:
+        return CommandExecutionResult(
+            False,
+            f'services are missing from alertingServices: {missing_services}'
+        )
+
+    return CommandExecutionResult(True, '')
 
 
 def check_rule(rule):
