@@ -108,7 +108,8 @@ def get_prometheus_rules(cluster_name):
 
 
 def check_rule(rule):
-    rule['check_result'] = promtool.check_rule(yaml_spec=rule['spec'])
+    promtool_check_result = promtool.check_rule(yaml_spec=rule['spec'])
+    rule['check_result'] = promtool_check_result
     return rule
 
 
