@@ -38,9 +38,10 @@ def construct_resource(quota):
         },
         "spec": {
             "hard": flatten(quota['resources']),
-            "scopes": quota['scopes'] or []
         }
     }
+    if quota['scopes']:
+        body['spec']['scopes'] = quota['scopes']
     return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
               error_details=quota['name'])
 
