@@ -94,7 +94,7 @@ class TerraformClient:
     def init_outputs(self):
         results = threaded.run(self.terraform_output, self.specs,
                                self.thread_pool_size)
-        self.outputs = {name: output for name, output in results}
+        self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
     def terraform_output(self, spec):

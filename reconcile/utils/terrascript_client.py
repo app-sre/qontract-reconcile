@@ -224,7 +224,7 @@ class TerrascriptClient:
     def populate_configs(self, accounts):
         results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
-        self.configs = {account: secret for account, secret in results}
+        self.configs = dict(results)
 
     def get_tf_secrets(self, account):
         account_name = account['name']

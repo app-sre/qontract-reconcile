@@ -154,7 +154,7 @@ class GitLabApi:
 
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get('app-sre')
-        return [m for m in app_sre_group.members.list()]
+        return list(app_sre_group.members.list())
 
     def check_group_exists(self, group_name):
         groups = self.gl.groups.list()

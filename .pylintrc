@@ -50,7 +50,6 @@ disable = attribute-defined-outside-init,
           unbalanced-tuple-unpacking,
           undefined-loop-variable,
           ungrouped-imports,
-          unnecessary-comprehension,
           # This makes calls to open too cumbersome
           unspecified-encoding,
           # Not all integrations need all the arguments we pass to
