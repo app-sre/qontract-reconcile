@@ -4004,6 +4004,7 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        # https://www.terraform.io/docs/providers/aws/r/route53_zone.html
         values = {
             'name': identifier,
             'tags': common_values['tags'],
@@ -4011,6 +4012,16 @@ class TerrascriptClient:
         zone_id = safe_resource_id(identifier)
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
+
+        # outputs
+        # zone id
+        output_name_0_13 = output_prefix + '__zone_id'
+        output_value = f'${{{zone_tf_resource.zone_id}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # name servers
+        output_name_0_13 = output_prefix + '__name_servers'
+        output_value = f'${{{zone_tf_resource.name_servers}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         # TODO: find the proper permissions
         policy = {
@@ -4021,7 +4032,7 @@ class TerrascriptClient:
                     "Action": ["route53:*"],
                     "Resource": 
                         "arn:aws:route53:::hostedzone/" +
-                        f"${{{zone_tf_resource.id}}}"
+                        f"${{{zone_tf_resource.zone_id}}}"
                 },
                 {
                     "Effect": "Allow",
