@@ -52,7 +52,10 @@ disable = attribute-defined-outside-init,
           ungrouped-imports,
           unnecessary-comprehension,
           unnecessary-lambda,
+          # This makes calls to open too cumbersome
           unspecified-encoding,
+          # Not all integrations need all the arguments we pass to
+          # their run function.
           unused-argument,
           consider-using-f-string,
           # This one matters - Python scoping messes up with our
