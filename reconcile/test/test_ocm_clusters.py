@@ -89,17 +89,17 @@ class TestGetClusterUpdateSpec(TestCase):
     def test_changed_disable_uwm(self):
         desired = deepcopy(self.clusters[0])
 
-        desired['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        desired['spec'][ocmmod.DISABLE_UWM_ATTR] = True
         self.assertEqual(
             occ.get_cluster_update_spec(
                 'cluster1', self.clusters[0], desired
             ),
-            ({ocmmod.DISABLE_UWM_ATTR: 'true'}, False)
+            ({ocmmod.DISABLE_UWM_ATTR: True}, False)
         )
 
     def test_non_set_disable_uwm(self):
         desired = deepcopy(self.clusters[0])
-        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = True
         self.assertEqual(
             occ.get_cluster_update_spec(
                 'cluster1', self.clusters[0], desired
@@ -254,7 +254,7 @@ class TestRun(TestCase):
         self.clusters[0]['spec']['external_id'] = 'ext_id'
 
         desired = deepcopy(current)
-        desired['cluster1']['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        desired['cluster1']['spec'][ocmmod.DISABLE_UWM_ATTR] = True
 
         self.mock_callable(occ, 'fetch_desired_state').to_return_value(
             desired
@@ -300,7 +300,7 @@ class TestRun(TestCase):
         self.clusters[0]['spec']['external_id'] = 'ext_id'
 
         desired = deepcopy(current)
-        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = 'true'
+        self.clusters[0]['spec'][ocmmod.DISABLE_UWM_ATTR] = True
 
         self.mock_callable(occ, 'fetch_desired_state').to_return_value(
             desired

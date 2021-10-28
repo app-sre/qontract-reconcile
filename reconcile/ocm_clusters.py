@@ -157,7 +157,7 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             desired_uwm = desired_spec['spec'].get(ocmmod.DISABLE_UWM_ATTR)
             current_uwm = current_spec['spec'].get(ocmmod.DISABLE_UWM_ATTR)
 
-            if not desired_uwm and current_uwm != desired_uwm:
+            if desired_uwm is None and current_uwm is not None:
                 clusters_updates[cluster_name]['spec'][ocmmod.DISABLE_UWM_ATTR] =\
                     current_uwm  # noqa: E501
 

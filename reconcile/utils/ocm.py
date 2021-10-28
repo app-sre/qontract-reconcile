@@ -187,7 +187,7 @@ class OCM:
                     'internal' if cluster_spec['private']
                     else 'external'
             },
-            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or 'true'
+            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or True
         }
 
         provision_shard_id = cluster_spec.get('provision_shard_id')
