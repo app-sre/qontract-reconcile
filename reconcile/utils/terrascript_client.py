@@ -907,6 +907,8 @@ class TerrascriptClient:
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
         elif provider == 'asg':
             self.populate_tf_resource_asg(resource, namespace_info)
+        elif provider == 'route53-zone':
+            self.populate_tf_resource_route53_zone(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3990,6 +3992,54 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__template_latest_version'
         output_value = '${' + template_resource.latest_version + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_route53_zone(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        values = {
+            'name': identifier,
+            'tags': common_values['tags'],
+        }
+        zone_id = safe_resource_id(identifier)
+        zone_tf_resource = aws_route53_zone(zone_id, **values)
+        tf_resources.append(zone_tf_resource)
+
+        # TODO: find the proper permissions
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["route53:*"],
+                    "Resource": 
+                        "arn:aws:route53:::hostedzone/" +
+                        f"${{{zone_tf_resource.id}}}"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": ["route53:ListHostedZones"],
+                    "Resource": "*"
+                }
+            ]
+        }
+
+        tf_resources.extend(
+            self.get_tf_iam_service_user(
+                zone_tf_resource,
+                identifier,
+                policy,
+                common_values['tags'],
+                output_prefix,
+            )
+        )
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
