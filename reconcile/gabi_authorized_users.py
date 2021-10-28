@@ -55,8 +55,10 @@ def fetch_desired_state(gabi_instances: Iterable[Mapping],
             tf_resources = namespace['terraformResources']
             found = False
             for t in tf_resources:
-                if (t['provider'], t['account'], t['identifier']) == \
-                        ('rds', account, identifier):
+                if t['provider'] != 'rds':
+                    continue
+                if (t['account'], t['identifier']) == \
+                        (account, identifier):
                     found = True
                     break
             if not found:
