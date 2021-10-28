@@ -199,12 +199,15 @@ class Report:
             return parsed_metrics
 
         for cluster, namespaces in service_slo.items():
-            for namespace, slos in namespaces.items():
-                for slo_name, values in slos.items():
-                    parsed_metrics.append({'cluster': cluster,
-                                           'namespace': namespace,
-                                           'slo_name': slo_name,
-                                           **values})
+            for namespace, slo_doc_names in namespaces.items():
+                for slo_doc_name, slos in slo_doc_names.items():
+                    for slo_name, values in slos.items():
+                        metric = {'cluster': cluster,
+                                  'namespace': namespace,
+                                  'slo_name': slo_name,
+                                  'slo_doc_name': slo_doc_name,
+                                  **values}
+                        parsed_metrics.append(metric)
         return parsed_metrics
 
     @staticmethod
@@ -444,17 +447,20 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
                         namespace = sample.labels['namespace']
                         if app_namespace['name'] != namespace:
                             continue
+                        slo_doc_name = sample.labels['slodoc']
                         slo_name = sample.labels['name']
                         if cluster not in slo_mx:
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if slo_name not in slo_mx[cluster][namespace]:
-                            slo_mx[cluster][namespace][slo_name] = {
+                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long # noqa: E501
+                            slo_mx[cluster][namespace][slo_doc_name] = {}
+                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:  # noqa: E501
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {  # noqa: E501
                                 sample.labels['type']: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_name].update({
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long # noqa: E501
                                 sample.labels['type']: sample.value
                             })
         app['container_vulnerabilities'] = vuln_mx
