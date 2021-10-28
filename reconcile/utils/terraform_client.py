@@ -211,7 +211,19 @@ class TerraformClient:
                             'account': name,
                             'user': resource_name
                         })
-
+                    if resource_type == 'aws_db_instance':
+                        deletion_protected = \
+                            resource_change['before'].get(
+                                'deletion_protection')
+                        if deletion_protected:
+                            disabled_deletion_detected = True
+                            logging.error(
+                                '\'delete\' action is not enabled for '
+                                'deletion protected RDS instance: '
+                                f'{resource_name}. Please set '
+                                'deletion_protection to false in a new MR. '
+                                'The new MR must be merged first.'
+                            )
         return disabled_deletion_detected, deleted_users
 
     @staticmethod
