@@ -48,7 +48,6 @@ disable = attribute-defined-outside-init,
           too-many-return-statements,
           too-many-statements,
           unbalanced-tuple-unpacking,
-          undefined-loop-variable,
           ungrouped-imports,
           # This makes calls to open too cumbersome
           unspecified-encoding,
