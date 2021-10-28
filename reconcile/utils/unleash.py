@@ -68,7 +68,7 @@ def get_feature_toggles(api_url, client_access_token, defer=None):
                            custom_headers=headers,
                            cache_directory=cache_dir)
     client.initialize_client()
-    defer(lambda: client.destroy())
+    defer(client.destroy)
 
     return {k: 'enabled' if v.enabled else 'disabled'
             for k, v in client.features.items()}

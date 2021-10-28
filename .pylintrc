@@ -51,7 +51,6 @@ disable = attribute-defined-outside-init,
           undefined-loop-variable,
           ungrouped-imports,
           unnecessary-comprehension,
-          unnecessary-lambda,
           # This makes calls to open too cumbersome
           unspecified-encoding,
           # Not all integrations need all the arguments we pass to

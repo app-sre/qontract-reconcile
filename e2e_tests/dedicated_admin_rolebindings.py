@@ -33,7 +33,7 @@ def test_cluster(cluster, oc_map, pattern):
 @defer
 def run(thread_pool_size=10, defer=None):
     oc_map = tb.get_oc_map(QONTRACT_E2E_TEST)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     pattern = tb.get_namespaces_pattern()
     threaded.run(test_cluster, oc_map.clusters(), thread_pool_size,
                  oc_map=oc_map,

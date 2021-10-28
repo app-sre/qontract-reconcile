@@ -101,7 +101,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     oc_map, current_state = \
         fetch_current_state(thread_pool_size, internal, use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)
 
     diffs = calculate_diff(current_state, desired_state)

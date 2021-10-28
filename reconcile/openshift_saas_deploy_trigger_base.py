@@ -60,7 +60,7 @@ def run(dry_run,
         )
     if error:
         return error
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     trigger_specs, diff_err = saasherder.get_diff(trigger_type, dry_run)
     # This will be populated by 'trigger' in the below loop and

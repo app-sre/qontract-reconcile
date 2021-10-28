@@ -365,7 +365,7 @@ def run(dry_run: bool, thread_pool_size: int = 10,
 
     _LOG.debug('Initializing OC_Map ...')
     oc_map = get_oc_map(namespaces, internal, use_jump_host, thread_pool_size)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     _LOG.debug('Collecting desired state ...')
     get_desired(inventory, oc_map, namespaces)

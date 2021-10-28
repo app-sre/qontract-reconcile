@@ -153,7 +153,7 @@ def run(dry_run=False, print_only=False,
     if tf is None:
         sys.exit(ExitCodes.ERROR)
 
-    defer(lambda: tf.cleanup())
+    defer(tf.cleanup)
 
     _, err = tf.plan(enable_deletion)
     if err:
