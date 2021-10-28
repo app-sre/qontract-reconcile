@@ -121,42 +121,31 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 
 This project targets Python version 3.6.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
 
-Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
+To create a venv in the venv/ directory and install all required
+dependencies, run the following:
 
 ```sh
-python3 -m venv venv
-source venv/bin/activate
-
-# make sure you are running the latest setuptools
-pip install --upgrade pip setuptools
-```
-
-Install the package:
-
-```sh
-pip install .
-
-# or use this for development mode so rebuild/reinstall isn't necessary after 
-# each change that is made during development
-pip install -e .
-
-# optionally install all test/type dependencies - useful when writing tests,
-# auto-completion in your IDE, etc.
-pip install -r requirements-dev.txt
+make dev-env
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
-You may also need need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
+You may also need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
 
 ### Requirements
 
-Please see [setup.py](setup.py).
+Please see [setup.py](setup.py) for abstract dependencies and 
+[requirements.txt](requirements.txt) for locked dependencies.
 
 Also, [requirements-test.txt](requirements-test.txt) exists for unit test 
 and linting dependencies, [requirements-type.txt](requirements-type.txt) 
 for type checking dependencies, and 
 [requirements-dev.txt](requirements-dev.txt) combines the two for 
 installing both in a development environment.
+
+#### Updating Dependencies
+
+`make update-deps` can be used to upgrade any dependencies that are 
+available and match the abstract dependencies in setup.py.
 
 ### Image build
 

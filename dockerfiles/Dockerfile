@@ -6,10 +6,13 @@ COPY e2e_tests e2e_tests
 COPY reconcile reconcile
 COPY tools tools
 COPY setup.py .
+COPY requirements.txt .
 
 # setup.py install is not used because it will install pre-releases:
 # https://github.com/pypa/setuptools/issues/855
-RUN python3 -m pip install .
+RUN python3 -m pip install --upgrade pip wheel && \
+    python3 -m pip install --no-deps . && \
+    python3 -m pip install -r requirements.txt
 
 COPY dockerfiles/hack/run-integration.py /run-integration.py
 CMD [ "/run-integration.py" ]
