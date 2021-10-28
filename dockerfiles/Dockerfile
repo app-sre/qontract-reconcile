@@ -12,7 +12,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.6.0
+FROM quay.io/app-sre/qontract-reconcile-base:0.6.1
 
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
