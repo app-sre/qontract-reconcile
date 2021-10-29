@@ -185,7 +185,8 @@ def get_gql_namespaces_in_shard() -> List[Any]:
     all_namespaces = queries.get_namespaces()
 
     return [ns for ns in all_namespaces
-            if is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
+            if not ns.get('delete') and
+            is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
 
 
 def get_oc_map(namespaces: List[Any], internal: Optional[bool],
