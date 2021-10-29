@@ -23,7 +23,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,

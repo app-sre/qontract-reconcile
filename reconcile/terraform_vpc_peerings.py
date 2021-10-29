@@ -449,7 +449,7 @@ def run(dry_run, print_only=False,
     if tf is None or any(errors):
         sys.exit(1)
 
-    defer(lambda: tf.cleanup())
+    defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     errors.append(err)

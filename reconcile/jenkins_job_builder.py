@@ -204,7 +204,7 @@ def run(dry_run, io_dir='throughput/', print_only=False,
         raise Exception("--config-name must works with --print-only mode")
     jjb, additional_repo_urls = \
         init_jjb(instance_name, config_name, print_only)
-    defer(lambda: jjb.cleanup())
+    defer(jjb.cleanup)
 
     if print_only:
         jjb.print_jobs(job_name=job_name)

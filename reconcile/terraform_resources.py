@@ -437,7 +437,7 @@ def run(dry_run, print_only=False,
               use_jump_host, account_name, extra_labels)
 
     if not dry_run:
-        defer(lambda: oc_map.cleanup())
+        defer(oc_map.cleanup)
 
     if print_only:
         cleanup_and_exit()

@@ -129,7 +129,7 @@ def run(dry_run, thread_pool_size=10,
         override_managed_types=['Secret'],
         internal=internal,
         use_jump_host=use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     current_state = ocm_map.kafka_cluster_specs()
     desired_state = fetch_desired_state(kafka_clusters)
