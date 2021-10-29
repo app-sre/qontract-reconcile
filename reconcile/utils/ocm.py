@@ -24,6 +24,8 @@ ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
 AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
 CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
 
+DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
+
 
 class OCM:
     """
@@ -117,6 +119,7 @@ class OCM:
                 'provision_shard_id':
                     self.get_provision_shard(cluster['id'])['id']
                     if init_provision_shards else None,
+                DISABLE_UWM_ATTR: cluster[DISABLE_UWM_ATTR]
             },
             'network': {
                 'vpc': cluster['network']['machine_cidr'],
@@ -183,7 +186,8 @@ class OCM:
                 'listening':
                     'internal' if cluster_spec['private']
                     else 'external'
-            }
+            },
+            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or True
         }
 
         provision_shard_id = cluster_spec.get('provision_shard_id')
@@ -258,6 +262,10 @@ class OCM:
             ocm_spec['nodes'] = {
                 'compute': cluster_spec['nodes']
             }
+
+        disable_uwm = cluster_spec.get(DISABLE_UWM_ATTR)
+        if disable_uwm is not None:
+            ocm_spec[DISABLE_UWM_ATTR] = disable_uwm
 
         params = {}
         if dry_run:
