@@ -40,13 +40,13 @@ def fetch_desired_state(gabi_instances: Iterable[Mapping],
                         ri: ResourceInventory) -> None:
     for g in gabi_instances:
         exp_date = datetime.strptime(g['expirationDate'], '%Y-%m-%d').date()
+        users = [u['github_username'] for u in g['users']]
         if exp_date < date.today():
-            continue
+            users = []
         elif (exp_date - date.today()).days > EXPIRATION_MAX:
             raise RunnerException(
                 f'The maximum expiration date of {g["name"]} '
                 f'shall not exceed {EXPIRATION_MAX} days form today')
-        users = [u['github_username'] for u in g['users']]
         resource = construct_gabi_oc_resource(g['name'], users)
         for i in g['instances']:
             namespace = i['namespace']
@@ -55,8 +55,10 @@ def fetch_desired_state(gabi_instances: Iterable[Mapping],
             tf_resources = namespace['terraformResources']
             found = False
             for t in tf_resources:
-                if (t['provider'], t['account'], t['identifier']) == \
-                        ('rds', account, identifier):
+                if t['provider'] != 'rds':
+                    continue
+                if (t['account'], t['identifier']) == \
+                        (account, identifier):
                     found = True
                     break
             if not found:

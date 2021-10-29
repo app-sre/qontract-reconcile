@@ -19,6 +19,7 @@ from prometheus_client import Counter
 from kubernetes.client import Configuration, ApiClient
 from kubernetes.client.exceptions import ApiException
 
+from reconcile.utils.secret_reader import SecretNotFound
 from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
@@ -1141,7 +1142,17 @@ class OC_Map:
         else:
             server_url = cluster_info['serverUrl']
             secret_reader = SecretReader(settings=self.settings)
-            token = secret_reader.read(automation_token)
+
+            try:
+                token = secret_reader.read(automation_token)
+            except SecretNotFound:
+                self.set_oc(
+                    cluster,
+                    OCLogMsg(
+                        log_level=logging.ERROR,
+                        message=f"[{cluster}] secret not found"))
+                return
+
             if self.use_jump_host:
                 jump_host = cluster_info.get('jumpHost')
             else:

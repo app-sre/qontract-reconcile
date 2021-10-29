@@ -8,6 +8,7 @@ from reconcile.utils.oc import (
     OC, OCDeprecated, PodNotReadyError, StatusCodeError, validate_labels,
     OC_Map, OCLogMsg)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.secret_reader import SecretReader, SecretNotFound
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
@@ -360,4 +361,25 @@ class TestOCMapInit(TestCase):
         self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
         self.assertEqual(oc_map.get(cluster['name']).message,
                          f'[{cluster["name"]}] has no automation token')
+        self.assertEqual(len(oc_map.clusters()), 0)
+
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_automationtoken_not_found(self, mock_secret_reader):
+
+        mock_secret_reader.side_effect = SecretNotFound
+
+        cluster = {
+            'name': 'test-1',
+            'serverUrl': 'http://localhost',
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+
+        oc_map = OC_Map(clusters=[cluster])
+
+        self.assertIsInstance(oc_map.get(cluster['name']), OCLogMsg)
+        self.assertEqual(oc_map.get(cluster['name']).message,
+                         f'[{cluster["name"]}] secret not found')
         self.assertEqual(len(oc_map.clusters()), 0)

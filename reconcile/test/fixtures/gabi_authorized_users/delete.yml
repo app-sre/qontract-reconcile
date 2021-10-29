@@ -39,3 +39,13 @@ server:
   apis/project.openshift.io/v1/projects/gabi-db:
     kind: Project
     apiVersion: project.openshift.io/v1
+
+desired:
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: gabi1
+    annotations:
+      qontract.recycle: 'true'
+  data:
+    authorized-users.yaml: ''

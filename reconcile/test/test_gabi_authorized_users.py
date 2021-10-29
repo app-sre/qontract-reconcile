@@ -97,9 +97,8 @@ class TestGabiAuthorizedUser(TestCase):
         gabi_u.run(dry_run=False)
         mock_apply.assert_not_called()
 
-    @patch.object(OR, 'calculate_sha256sum', autospec=True)
-    @patch.object(OCDeprecated, 'delete')
-    def test_gabi_authorized_users_expire(self, mock_delete, sha, mock_request,
+    @patch.object(ob, 'apply', autospec=True)
+    def test_gabi_authorized_users_expire(self, mock_apply, mock_request,
                                           get_gabi_instances, oc_version,
                                           secret_read, get_settings):
         # pylint: disable=no-self-use
@@ -107,6 +106,9 @@ class TestGabiAuthorizedUser(TestCase):
         get_gabi_instances.return_value = \
             mock_get_gabi_instances(expirationDate)
         mock_request.side_effect = delete_request
-        sha.return_value = 'abc'
         gabi_u.run(dry_run=False)
-        mock_delete.assert_called_once_with('gabi-db', 'ConfigMap', 'gabi1')
+        expected = OR(delete['desired'],
+                      gabi_u.QONTRACT_INTEGRATION,
+                      gabi_u.QONTRACT_INTEGRATION_VERSION)
+        args, _ = mock_apply.call_args
+        self.assertEqual(args[5], expected)
