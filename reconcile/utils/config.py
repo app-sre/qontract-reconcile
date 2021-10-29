@@ -3,6 +3,10 @@ import toml
 _config = None
 
 
+class ConfigNotFound(Exception):
+    pass
+
+
 class SecretNotFound(Exception):
     pass
 
