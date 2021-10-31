@@ -256,6 +256,7 @@ class _VaultClient:
                 path=write_path,
                 secret=data,
             )
+            self._read_all_v2.cache_clear()
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
