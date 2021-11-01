@@ -198,6 +198,10 @@ def process_tds(current: dict, desired: dict,
         rpool = DSFResponsePool(label=td_name, rs_chains=[failover_chain])
         ruleset = DSFRuleset(label=td_name, criteria_type='always',
                              response_pools=[rpool])
+
+        # Constructor does the actual resource creation and checking for
+        # creation completion.
+        # It returns returns a resource ID which we don't need
         TrafficDirector(td_name, ttl=td_ttl, rulesets=[ruleset],
                         nodes=[attach_node])
 
