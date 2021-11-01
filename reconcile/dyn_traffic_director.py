@@ -129,7 +129,7 @@ def fetch_desired_state() -> Dict[str, Dict]:
     return state
 
 
-def process_tds(current: dict, desired: dict,
+def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
                 dry_run: bool = True, enable_deletion: bool = False) -> bool:
     errors = False
 
