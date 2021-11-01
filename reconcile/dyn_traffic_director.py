@@ -170,9 +170,9 @@ def process_tds(current: dict, desired: dict,
         logging.info(msg)
 
         records = [
-            DSFCNAMERecord(record['hostname'], label='',
-                           automation='manual', weight=record['weight'])
-            for record in td_records
+            DSFCNAMERecord(r['hostname'], label='',
+                           automation='manual', weight=r['weight'])
+            for r in td_records
         ]
 
         attach_node = None
@@ -228,13 +228,11 @@ def process_tds(current: dict, desired: dict,
 
             if not dry_run:
                 # Generate a new list of CNAME records
-                records = []
-                for record in desired[name]['records']:
-                    records.append(
-                        DSFCNAMERecord(record['hostname'], label='',
-                                       automation='manual',
-                                       weight=record['weight'])
-                    )
+                records = [
+                    DSFCNAMERecord(r['hostname'], label='',
+                                   automation='manual', weight=r['weight'])
+                    for r in desired[name]['records']
+                ]
 
                 # Generate a new recordset
                 new_rset = DSFRecordSet('CNAME', label=desired[name]['name'],
