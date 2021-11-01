@@ -169,12 +169,11 @@ def process_tds(current: dict, desired: dict,
         msg = ['create_td', name]
         logging.info(msg)
 
-        records = []
-        for record in td_records:
-            records.append(
-                DSFCNAMERecord(record['hostname'], label='',
-                               automation='manual', weight=record['weight'])
-            )
+        records = [
+            DSFCNAMERecord(record['hostname'], label='',
+                           automation='manual', weight=record['weight'])
+            for record in td_records
+        ]
 
         attach_node = None
         zones = dyn_zones.get_all_zones()
