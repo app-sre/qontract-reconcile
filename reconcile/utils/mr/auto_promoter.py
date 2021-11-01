@@ -34,7 +34,7 @@ class AutoPromoter(MergeRequestBase):
             for saas_file_path in saas_file_paths:
                 raw_file = gitlab_cli.project.files.get(
                     file_path=saas_file_path,
-                    ref=self.main_branch
+                    ref=self.branch
                 )
                 content = yaml.load(raw_file.decode(),
                                     Loader=yaml.RoundTripLoader)
