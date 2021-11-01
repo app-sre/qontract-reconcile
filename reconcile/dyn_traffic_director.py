@@ -110,7 +110,7 @@ def fetch_desired_state() -> dict:
                 hostname = record['hostname']
             else:
                 raise InvalidRecord('either cluster or hostname must '
-                                    'be defined on a record')
+                                    f'be defined on a record. Got: {record}')
             records.append({
                 'hostname': hostname.rstrip('.'),
                 'weight': record['weight'],
