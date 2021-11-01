@@ -145,8 +145,7 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
     # Process removed TD services
     for name in removed:
         td_name = current[name]['name']
-        msg = ['delete_td', td_name]
-        logging.info(msg)
+        logging.info(['delete_td', td_name])
 
         if not enable_deletion:
             logging.info('deletion action is disabled. '
@@ -166,8 +165,7 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
         td_ttl = desired[name]['ttl']
         td_records = desired[name]['records']
 
-        msg = ['create_td', name]
-        logging.info(msg)
+        logging.info(['create_td', name])
 
         records = [
             DSFCNAMERecord(r['hostname'], label='',
@@ -215,16 +213,14 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
 
         # Check if ttl need to be updated
         if current[name]['ttl'] != desired[name]['ttl']:
-            msg = ['update_td_ttl', name, desired[name]['ttl']]
-            logging.info(msg)
+            logging.info(['update_td_ttl', name, desired[name]['ttl']])
 
             if not dry_run:
                 update_td.ttl = desired[name]['ttl']
 
         # Check if records need to be updated
         if current[name]['records'] != desired[name]['records']:
-            msg = ['update_td_records', name, desired[name]['records']]
-            logging.info(msg)
+            logging.info(['update_td_records', name, desired[name]['records']])
 
             if not dry_run:
                 # Generate a new list of CNAME records
@@ -250,8 +246,9 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
 
         # Check if node attachment need to be updated
         if current[name]['nodes'] != desired[name]['nodes']:
-            msg = ['update_td_node', name, desired[name]['nodes']]
-            logging.info(msg)
+            logging.info(
+                ['update_td_node', name, desired[name]['nodes']]
+            )
 
             if not dry_run:
                 # Find the DNS node to attach the TD service to
