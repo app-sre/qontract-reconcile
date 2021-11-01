@@ -133,9 +133,9 @@ def process_tds(current: dict, desired: dict,
                 dry_run: bool = True, enable_deletion: bool = False) -> bool:
     errors = False
 
-    added: List[str] = [name for name in desired if name not in current]
-    removed: List[str] = [name for name in current if name not in desired]
-    changed: List[str] = [
+    added = list(desired.keys() - current.keys())
+    removed = list(current.keys() - desired.keys())
+    changed = [
         dname
         for dname, d in desired.items()
         for cname, c in current.items()
