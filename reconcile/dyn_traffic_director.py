@@ -151,11 +151,9 @@ def process_tds(current: dict, desired: dict,
         if not enable_deletion:
             logging.info('deletion action is disabled. '
                          'Delete manually or enable deletion.')
-
-        if dry_run:
             continue
 
-        if not enable_deletion:
+        if dry_run:
             continue
 
         for curtd in dyn_services.get_all_dsf_services():
