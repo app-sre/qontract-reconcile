@@ -78,7 +78,7 @@ def fetch_current_state() -> Dict[str, Dict]:
                             })
 
         # need to be sorted for comparison later
-        records = sorted(records, key=lambda d: d['hostname'])
+        records.sort(key=lambda d: d['hostname'])
 
         state['tds'][td_name] = {
             'name': td_name,
@@ -117,7 +117,7 @@ def fetch_desired_state() -> Dict[str, Dict]:
             })
 
         # need to be sorted for comparison later
-        records = sorted(records, key=lambda d: d['hostname'])
+        records.sort(key=lambda d: d['hostname'])
 
         state['tds'][td_name] = {
             'name': td_name,
