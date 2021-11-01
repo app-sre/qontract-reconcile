@@ -177,8 +177,8 @@ def process_tds(current: dict, desired: dict,
 
         attach_node = None
         zones = dyn_zones.get_all_zones()
-        for zone in zones:
-            for node in zone.get_all_nodes():
+        for z in zones:
+            for node in z.get_all_nodes():
                 if node.fqdn == td_name:
                     attach_node = node
 
