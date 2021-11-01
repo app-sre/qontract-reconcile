@@ -1,5 +1,7 @@
 import logging
 from ruamel import yaml
+import json
+import hashlib
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
@@ -21,8 +23,14 @@ class AutoPromoter(MergeRequestBase):
 
     @property
     def title(self):
-        # TODO(mafriedm): update this to be more descriptive and unique
-        return (f'[{self.name}] openshift-saas-deploy automated promotion')
+        """
+        to make the MR title unique, add a sha256sum of the promotions to it
+        TODO: while adding a digest ensures uniqueness, this title is still not very descriptive
+        """
+        m = hashlib.sha256()
+        m.update(json.dumps(self.promotions, sort_keys=True).encode("utf-8"))
+        digest = m.hexdigest()[:6]
+        return (f'[{self.name}] openshift-saas-deploy automated promotion {digest}')
 
     def process(self, gitlab_cli):
         for item in self.promotions:
