@@ -1,7 +1,7 @@
 import logging
-from ruamel import yaml
 import json
 import hashlib
+from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
@@ -25,12 +25,14 @@ class AutoPromoter(MergeRequestBase):
     def title(self):
         """
         to make the MR title unique, add a sha256sum of the promotions to it
-        TODO: while adding a digest ensures uniqueness, this title is still not very descriptive
+        TODO: while adding a digest ensures uniqueness, this title is
+              still not very descriptive
         """
         m = hashlib.sha256()
         m.update(json.dumps(self.promotions, sort_keys=True).encode("utf-8"))
         digest = m.hexdigest()[:6]
-        return (f'[{self.name}] openshift-saas-deploy automated promotion {digest}')
+        return (f'[{self.name}] openshift-saas-deploy automated '
+                f'promotion {digest}')
 
     def process(self, gitlab_cli):
         for item in self.promotions:
@@ -69,13 +71,14 @@ class AutoPromoter(MergeRequestBase):
 
                 if saas_file_updated:
                     new_content = '---\n'
-                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                    new_content += yaml.dump(content,
+                                             Dumper=yaml.RoundTripDumper)
                     msg = f'auto promote {commit_sha} in {saas_file_path}'
                     gitlab_cli.update_file(branch_name=self.branch,
                                            file_path=saas_file_path,
                                            commit_message=msg,
                                            content=new_content)
                 else:
-                    LOG.info(f"commit sha {commit_sha} has already been promoted to all"
-                             f"targets in {content['name']} subscribing to"
-                             f"{','.join(item['publish'])}")
+                    LOG.info(f"commit sha {commit_sha} has already been "
+                             f"promoted to all targets in {content['name']} "
+                             f"subscribing to {','.join(item['publish'])}")
