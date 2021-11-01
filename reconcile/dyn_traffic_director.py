@@ -129,6 +129,22 @@ def fetch_desired_state() -> Dict[str, Dict]:
     return state
 
 
+def get_node(name: str):
+    zones = dyn_zones.get_all_zones()
+    for z in zones:
+        for n in z.get_all_nodes():
+            if n.fqdn == name:
+                return n
+    return None
+
+
+def get_traffic_director_service(name: str):
+    for td in dyn_services.get_all_dsf_services():
+        if td.label == name:
+            return td
+    return None
+
+
 def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
                 dry_run: bool = True, enable_deletion: bool = False) -> bool:
     errors = False
@@ -173,13 +189,7 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
             for r in td_records
         ]
 
-        attach_node = None
-        zones = dyn_zones.get_all_zones()
-        for z in zones:
-            for node in z.get_all_nodes():
-                if node.fqdn == td_name:
-                    attach_node = node
-
+        attach_node = get_node(td_name)
         if not attach_node:
             logging.error(
                 f"Could not find a DNS node named '{name}' to attach to"
@@ -206,10 +216,13 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
     # Process updated TD services
     for name in changed:
         # Find TD service to update
-        update_td: TrafficDirector = None
-        for td in dyn_services.get_all_dsf_services():
-            if td.label == name:
-                update_td = td
+        update_td = get_traffic_director_service(name)
+        if not update_td:
+            logging.error(
+                f"Could not find a Traffic Director service named '{name}'"
+            )
+            errors = True
+            continue
 
         # Check if ttl need to be updated
         if current[name]['ttl'] != desired[name]['ttl']:
@@ -252,13 +265,7 @@ def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
 
             if not dry_run:
                 # Find the DNS node to attach the TD service to
-                attach_node = None
-                zones = dyn_zones.get_all_zones()
-                for zone in zones:
-                    for node in zone.get_all_nodes():
-                        if node.fqdn == desired[name]['name']:
-                            attach_node = node
-
+                attach_node = get_node(desired[name]['name'])
                 if not attach_node:
                     logging.error(
                         f"Could not find a node named '{name}' to attach to"
