@@ -1,7 +1,11 @@
+import logging
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+
+
+LOG = logging.getLogger(__name__)
 
 
 class AutoPromoter(MergeRequestBase):
@@ -32,6 +36,7 @@ class AutoPromoter(MergeRequestBase):
             if not commit_sha:
                 continue
             for saas_file_path in saas_file_paths:
+                saas_file_updated = False
                 raw_file = gitlab_cli.project.files.get(
                     file_path=saas_file_path,
                     ref=self.branch
@@ -50,12 +55,19 @@ class AutoPromoter(MergeRequestBase):
                         if not subscribe:
                             continue
                         if any(c in subscribe for c in publish):
-                            target['ref'] = commit_sha
+                            if target['ref'] != commit_sha:
+                                target['ref'] = commit_sha
+                                saas_file_updated = True
 
-                new_content = '---\n'
-                new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
-                msg = f'auto promote {commit_sha} in {saas_file_path}'
-                gitlab_cli.update_file(branch_name=self.branch,
-                                       file_path=saas_file_path,
-                                       commit_message=msg,
-                                       content=new_content)
+                if saas_file_updated:
+                    new_content = '---\n'
+                    new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+                    msg = f'auto promote {commit_sha} in {saas_file_path}'
+                    gitlab_cli.update_file(branch_name=self.branch,
+                                           file_path=saas_file_path,
+                                           commit_message=msg,
+                                           content=new_content)
+                else:
+                    LOG.info(f"commit sha {commit_sha} has already been promoted to all"
+                             f"targets in {content['name']} subscribing to"
+                             f"{','.join(item['publish'])}")
