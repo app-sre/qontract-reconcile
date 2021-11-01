@@ -36,7 +36,7 @@ class UnsupportedRecordType(Exception):
     pass
 
 
-def fetch_current_state() -> dict:
+def fetch_current_state() -> Dict[str, Dict]:
     state: dict = {
         'tds': {},
     }
@@ -90,7 +90,7 @@ def fetch_current_state() -> dict:
     return state
 
 
-def fetch_desired_state() -> dict:
+def fetch_desired_state() -> Dict[str, Dict]:
     dyn_tds = queries.get_dyn_traffic_directors()
 
     state: dict = {
