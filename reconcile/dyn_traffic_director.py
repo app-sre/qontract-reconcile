@@ -145,8 +145,7 @@ def process_tds(current: dict, desired: dict,
     # Process removed TD services
     for name in removed:
         td_name = current[name]['name']
-        msg = ['delete_td']
-        msg.append(name)
+        msg = ['delete_td', td_name]
         logging.info(msg)
 
         if not enable_deletion:
@@ -169,8 +168,7 @@ def process_tds(current: dict, desired: dict,
         td_ttl = desired[name]['ttl']
         td_records = desired[name]['records']
 
-        msg = ['create_td']
-        msg.append(name)
+        msg = ['create_td', name]
         logging.info(msg)
 
         records = []
@@ -216,9 +214,7 @@ def process_tds(current: dict, desired: dict,
 
         # Check if ttl need to be updated
         if current[name]['ttl'] != desired[name]['ttl']:
-            msg = ['update_td_ttl']
-            msg.append(name)
-            msg.append(desired[name]['ttl'])
+            msg = ['update_td_ttl', name, desired[name]['ttl']]
             logging.info(msg)
 
             if not dry_run:
@@ -226,9 +222,7 @@ def process_tds(current: dict, desired: dict,
 
         # Check if records need to be updated
         if current[name]['records'] != desired[name]['records']:
-            msg = ['update_td_records']
-            msg.append(name)
-            msg.append(desired[name]['records'])
+            msg = ['update_td_records', name, desired[name]['records']]
             logging.info(msg)
 
             if not dry_run:
@@ -257,9 +251,7 @@ def process_tds(current: dict, desired: dict,
 
         # Check if node attachment need to be updated
         if current[name]['nodes'] != desired[name]['nodes']:
-            msg = ['update_td_node']
-            msg.append(name)
-            msg.append(desired[name]['nodes'])
+            msg = ['update_td_node', name, desired[name]['nodes']]
             logging.info(msg)
 
             if not dry_run:
