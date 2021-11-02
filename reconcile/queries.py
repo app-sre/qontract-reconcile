@@ -267,6 +267,7 @@ AWS_ACCOUNTS_QUERY = """
     ecrs {
       region
     }
+    partition
   }
 }
 """
