@@ -2265,7 +2265,8 @@ class TerrascriptClient:
                 "Effect": "Allow",
                 "Principal": "*",
                 "Action": "sqs:SendMessage",
-                "Resource": "arn:aws:sqs:*:*:" + sqs_identifier,
+                "Resource": f"arn:{self._get_partition(account)}:" +
+                            f"sqs:*:*:{sqs_identifier}",
                 "Condition": {
                     "ArnEquals": {
                         "aws:SourceArn":
@@ -2296,7 +2297,8 @@ class TerrascriptClient:
                     {
                         "Effect": "Allow",
                         "Principal": {
-                            "AWS": "arn:aws:iam::" + uid + ":root"
+                            "AWS": f"arn:{self._get_partition(account)}:" +
+                                   f"iam::{uid}:root"
                         },
                         "Action": "kms:*",
                         "Resource": "*"
@@ -2398,7 +2400,8 @@ class TerrascriptClient:
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
                     "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, sqs_identifier)
+                        f"arn:{self._get_partition(account)}:" +
+                        f"sqs:*:{uid}:{sqs_identifier}"
                     ]
                 },
                 {
