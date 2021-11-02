@@ -252,7 +252,7 @@ def check_saas_files_changes_only(changed_paths, diffs):
         if not found:
             non_saas_file_changed_paths.append(changed_path)
 
-    return len(non_saas_file_changed_paths) == 0
+    return len(non_saas_file_changed_paths) == 0 and len(changed_paths) != 0
 
 
 def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
@@ -366,6 +366,9 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     if len(changed_paths) != 0:
         gl.remove_label_from_merge_request(
             gitlab_merge_request_id, approved_label)
+        return
+
+    if not valid_saas_file_changes_only:
         return
 
     # add approved label to merge request!
