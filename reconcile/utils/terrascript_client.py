@@ -155,12 +155,12 @@ class TerrascriptClient:
                         region=region,
                         alias=region)
 
-            # Add default region, which will always be region in the secret
+            # Add default region, which will be in resourcesDefaultRegion
             ts += provider.aws(
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
-                region=config['region'])
+                region=config['resourcesDefaultRegion'])
 
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
@@ -232,6 +232,8 @@ class TerrascriptClient:
         secret = self.secret_reader.read_all(automation_token)
         secret['supportedDeploymentRegions'] = \
             account['supportedDeploymentRegions']
+        secret['resourcesDefaultRegion'] = \
+            account['resourcesDefaultRegion']
         return (account_name, secret)
 
     @staticmethod
