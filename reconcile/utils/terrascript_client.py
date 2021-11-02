@@ -160,7 +160,7 @@ class TerrascriptClient:
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
-                region=config['resourcesDefaultRegion'])
+                region=config['region'])
 
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
@@ -1913,7 +1913,8 @@ class TerrascriptClient:
                         "Effect": "Allow",
                         "Action": ["sqs:*"],
                         "Resource": [
-                            "arn:aws:sqs:*:{}:{}".format(uid, q)
+                            f"arn:{self._get_partition(account)}:" +
+                            f"sqs:*:{uid}:{q}"
                             for q in all_queues
                         ]
                     },
