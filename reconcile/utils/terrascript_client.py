@@ -183,6 +183,8 @@ class TerrascriptClient:
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
+        self.partitions = {a['name']: a.get('partition') or 'aws'
+                           for a in filtered_accounts}
         github_config = get_config()['github']
         self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
@@ -235,6 +237,9 @@ class TerrascriptClient:
         secret['resourcesDefaultRegion'] = \
             account['resourcesDefaultRegion']
         return (account_name, secret)
+
+    def _get_partition(self, account):
+        return self.partitions[account]
 
     @staticmethod
     def get_tf_iam_group(group_name):
