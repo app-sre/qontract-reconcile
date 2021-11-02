@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Mapping, Union
 import warnings
 
 from reconcile import queries
@@ -145,7 +145,8 @@ def get_traffic_director_service(name: str):
     return None
 
 
-def process_tds(current: Dict[str, Dict], desired: Dict[str, Dict],
+def process_tds(current: Mapping[str, Mapping[str, Any]],
+                desired: Mapping[str, Mapping[str, Any]],
                 dry_run: bool = True, enable_deletion: bool = False) -> bool:
     errors = False
 
