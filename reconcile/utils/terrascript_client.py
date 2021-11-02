@@ -160,7 +160,7 @@ class TerrascriptClient:
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
-                region=config['region'])
+                region=config['resourcesDefaultRegion'])
 
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
