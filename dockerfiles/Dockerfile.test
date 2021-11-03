@@ -1,17 +1,10 @@
-FROM quay.io/app-sre/qontract-reconcile-base:0.5.2
+FROM quay.io/app-sre/qontract-reconcile-builder:0.2.0
 
-USER root
-RUN dnf install -y python3-pip python3-devel python39-devel git make gcc gcc-c++ gnupg2 && \
+WORKDIR /package
+COPY . /package
+
+RUN microdnf upgrade -y && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
-
-RUN curl -L https://get.helm.sh/helm-v3.6.2-linux-amd64.tar.gz |tar xvz && \
-    mv linux-amd64/helm /usr/local/bin/helm && \
-    chmod +x /usr/local/bin/helm && \
-    rm -rf linux-amd64 && mkdir ~/.gnupg && \
-    echo no-user-agent > ~/.gnupg/gpg.conf
-
-COPY . /package
-WORKDIR /package
 
 CMD [ "tox" ]

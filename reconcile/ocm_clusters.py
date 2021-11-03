@@ -18,7 +18,8 @@ ALLOWED_SPEC_UPDATE_FIELDS = {
     'private',
     'channel',
     'autoscale',
-    'nodes'
+    'nodes',
+    ocmmod.DISABLE_UWM_ATTR
 }
 
 OCM_GENERATED_FIELDS = ['network', 'consoleUrl', 'serverUrl', 'elbFQDN']
@@ -152,6 +153,13 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
             for k in ['id', 'external_id', 'provision_shard_id']:
                 current_spec['spec'].pop(k, None)
                 desired_spec['spec'].pop(k, None)
+
+            desired_uwm = desired_spec['spec'].get(ocmmod.DISABLE_UWM_ATTR)
+            current_uwm = current_spec['spec'].get(ocmmod.DISABLE_UWM_ATTR)
+
+            if desired_uwm is None and current_uwm is not None:
+                clusters_updates[cluster_name]['spec'][ocmmod.DISABLE_UWM_ATTR] =\
+                    current_uwm  # noqa: E501
 
             # check if cluster update, if any, is valid
             update_spec, err = get_cluster_update_spec(

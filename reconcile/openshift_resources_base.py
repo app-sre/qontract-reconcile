@@ -682,7 +682,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
     oc_map, ri = \
         fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
                    init_api_resources=init_api_resources)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

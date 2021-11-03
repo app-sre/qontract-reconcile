@@ -94,7 +94,7 @@ class TerraformClient:
     def init_outputs(self):
         results = threaded.run(self.terraform_output, self.specs,
                                self.thread_pool_size)
-        self.outputs = {name: output for name, output in results}
+        self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
     def terraform_output(self, spec):
@@ -211,7 +211,19 @@ class TerraformClient:
                             'account': name,
                             'user': resource_name
                         })
-
+                    if resource_type == 'aws_db_instance':
+                        deletion_protected = \
+                            resource_change['before'].get(
+                                'deletion_protection')
+                        if deletion_protected:
+                            disabled_deletion_detected = True
+                            logging.error(
+                                '\'delete\' action is not enabled for '
+                                'deletion protected RDS instance: '
+                                f'{resource_name}. Please set '
+                                'deletion_protection to false in a new MR. '
+                                'The new MR must be merged first.'
+                            )
         return disabled_deletion_detected, deleted_users
 
     @staticmethod

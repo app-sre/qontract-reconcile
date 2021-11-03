@@ -267,6 +267,7 @@ AWS_ACCOUNTS_QUERY = """
     ecrs {
       region
     }
+    partition
   }
 }
 """
@@ -360,6 +361,7 @@ CLUSTERS_QUERY = """
         min_replicas
         max_replicas
       }
+      disable_user_workload_monitoring
     }
     externalConfiguration {
       labels

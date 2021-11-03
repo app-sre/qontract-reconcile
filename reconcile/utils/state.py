@@ -36,7 +36,7 @@ class State:
         self.bucket = os.environ['APP_INTERFACE_STATE_BUCKET']
         account = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
         accounts = [a for a in accounts if a['name'] == account]
-        aws_api = AWSApi(1, accounts, settings=settings)
+        aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
         session = aws_api.get_session(account)
 
         self.client = session.client('s3')

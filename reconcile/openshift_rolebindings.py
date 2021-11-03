@@ -179,7 +179,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         override_managed_types=['RoleBinding.authorization.openshift.io'],
         internal=internal,
         use_jump_host=use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     fetch_desired_state(ri, oc_map)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

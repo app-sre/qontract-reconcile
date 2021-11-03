@@ -45,7 +45,7 @@ class GithubMock:
                 self.spec_team = spec_team
 
             def get_members(self):
-                return map(lambda e: AttrDict(e), self.spec_team["members"])
+                return map(AttrDict, self.spec_team["members"])
 
             @property
             def id(self):
@@ -56,11 +56,11 @@ class GithubMock:
                 return self.spec_team["name"]
 
         def get_members(self):
-            return map(lambda e: AttrDict(e), self.spec_org["members"])
+            return map(AttrDict, self.spec_org["members"])
 
         def get_teams(self):
             return map(
-                lambda e: self.GithubTeamMock(e),
+                self.GithubTeamMock,
                 self.spec_org["teams"]
             )
 

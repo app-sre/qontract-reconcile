@@ -442,7 +442,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
                                        user, sentryUrl])
 
     def process_role(gh_user, sentryRole):
-        email = get_github_email(ghapi, user)
+        email = get_github_email(ghapi, gh_user)
         if email is not None:
             if email in user_roles:
                 raise ValueError

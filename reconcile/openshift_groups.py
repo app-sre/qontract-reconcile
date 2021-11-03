@@ -233,7 +233,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
 
     oc_map, current_state, ocm_clusters = \
         fetch_current_state(thread_pool_size, internal, use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)
 
     # we only manage dedicated-admins via OCM
