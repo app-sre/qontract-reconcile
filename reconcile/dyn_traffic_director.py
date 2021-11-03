@@ -36,7 +36,7 @@ class UnsupportedRecordType(Exception):
     pass
 
 
-def fetch_current_state() -> Dict[str, Dict]:
+def fetch_current_state() -> Dict[str, Dict]:  # pragma: no cover
     state: dict = {
         'tds': {},
     }
@@ -90,7 +90,7 @@ def fetch_current_state() -> Dict[str, Dict]:
     return state
 
 
-def fetch_desired_state() -> Dict[str, Dict]:
+def fetch_desired_state() -> Dict[str, Dict]:  # pragma: no cover
     dyn_tds = queries.get_dyn_traffic_directors()
 
     state: dict = {
@@ -147,7 +147,8 @@ def get_traffic_director_service(name: str):
 
 def process_tds(current: Mapping[str, Mapping[str, Any]],
                 desired: Mapping[str, Mapping[str, Any]],
-                dry_run: bool = True, enable_deletion: bool = False) -> bool:
+                dry_run: bool = True,
+                enable_deletion: bool = False) -> bool:  # pragma: no cover
     errors = False
 
     added = list(desired.keys() - current.keys())
