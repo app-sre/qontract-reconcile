@@ -1197,7 +1197,7 @@ class OC_Map:
                                         message=f"[{cluster}]"
                                         " cluster skipped"))
 
-    def clusters(self, include_errors=False) -> List[str]:
+    def clusters(self, include_errors: bool = False) -> List[str]:
         """
         Get the names of the clusters in the map.
         :param include_errors: includes clusters that had errors, meaning
