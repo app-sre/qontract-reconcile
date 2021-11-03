@@ -231,8 +231,6 @@ class OpenshiftTektonResources:
             self.build_one_per_saas_file_tkn_object_name(
                 pipeline_template['name'], saas_file['name'])
 
-        resources_configured = 0
-
         for section in ['tasks', 'finally']:
             for task in pipeline['spec'][section]:
                 if task['name'] not in task_templates_types:
@@ -247,8 +245,6 @@ class OpenshiftTektonResources:
                     task['taskRef']['name'] = \
                         self.build_one_per_saas_file_tkn_object_name(
                             task['name'], saas_file['name'])
-
-                resources_configured += 1
 
         return pipeline
 
