@@ -236,7 +236,8 @@ class OpenshiftTektonResources:
         for section in ['tasks', 'finally']:
             for task in pipeline['spec'][section]:
                 if task['name'] not in task_templates_types:
-                    raise Exception("Unknown task")
+                    # TODO: More info in text and custom exception
+                    raise Exception(f"Unknown task {task['name']}")
 
                 if task_templates_types[task['name']] == "onePerNamespace":
                     task['taskRef']['name'] = \
@@ -248,9 +249,6 @@ class OpenshiftTektonResources:
                             task['name'], saas_file['name'])
 
                 resources_configured += 1
-
-        if resources_configured != len(task_templates_types.keys()):
-            raise Exception("Pipeline template has unknown task references")
 
         return pipeline
 
