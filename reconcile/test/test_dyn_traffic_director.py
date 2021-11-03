@@ -59,7 +59,6 @@ def get_all_dsf_services_fixture(mocker):
     ]
 
 
-@httpretty.activate(allow_net_connect=False)
 def test_get_traffic_director_service(get_all_dsf_services_fixture):
     res = integ.get_traffic_director_service('bar')
     assert isinstance(res, integ.dyn_services.TrafficDirector)
