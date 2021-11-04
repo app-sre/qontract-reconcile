@@ -229,10 +229,10 @@ class OCM:
                 'compute_machine_type': {'id': instance_type}
             }
 
-        storage_quota = cluster_spec.get('storage_quota')
-        if storage_quota is not None:
+        storage = cluster_spec.get('storage')
+        if storage is not None:
             ocm_spec['storage_quota'] = {
-                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
+                'value': float(storage * 1073741824)  # 1024^3
             }
 
         load_balancers = cluster_spec.get('load_balancers')
