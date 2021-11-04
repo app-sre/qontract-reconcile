@@ -7,7 +7,7 @@ from reconcile.utils.github_api import GithubApi
 
 class TestGithubApi(TestCase):
 
-    @patch("reconcile.utils.github_api.GH_BASE_URL", "http://10.255.255.1")
+    @patch("reconcile.utils.github_api.GH_BASE_URL", "http://198.18.0.1")
     def test_github_client_timeout(self):
         with patch('reconcile.utils.github_api.SecretReader', autospec=True) \
           as secret_reader_mock:
