@@ -27,6 +27,7 @@ class MergeRequestProcessingError(Exception):
     Used when the merge request could not be processed for technical reasons
     """
 
+
 class MergeRequestBase(metaclass=ABCMeta):
     """
     Base abstract class for all merge request types.
@@ -130,8 +131,8 @@ class MergeRequestBase(metaclass=ABCMeta):
         try:
             # Avoiding duplicate MRs
             if gitlab_cli.mr_exists(title=self.title):
-                self.cancel(f"MR with the same name '{self.title}' already exists. "
-                            "Aborting MR creation.")
+                self.cancel(f"MR with the same name '{self.title}' "
+                            f"already exists. Aborting MR creation.")
 
             self.ensure_tmp_branch_exists(gitlab_cli)
 
@@ -170,7 +171,8 @@ class MergeRequestBase(metaclass=ABCMeta):
                 gitlab_cli.delete_branch(branch=self.branch)
                 self.branch_created = False
             except GitlabError as gitlab_error:
-                LOG.error(f"Failed to delete branch {self.branch}. Reason: {gitlab_error}")
+                LOG.error(f"Failed to delete branch {self.branch}. "
+                          f"Reason: {gitlab_error}")
                 # we are not going to let an otherwise fine MR
                 # processing fail just because of this
 
