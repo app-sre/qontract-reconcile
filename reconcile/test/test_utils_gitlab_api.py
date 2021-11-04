@@ -16,4 +16,4 @@ class TestGitlabApi(TestCase):
                 "sslVerify": False
             }
             with self.assertRaises(ConnectTimeout):
-                GitLabApi(instance, timeout=1)
+                GitLabApi(instance, timeout=0.1)
