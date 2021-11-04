@@ -47,21 +47,21 @@ class TestMergeRequestBaseProcessContractTests(TestCase):
         cli = build_gitlab_cli_mock()
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
-        self.assertTrue(cli.project.mergerequests.create.called)
+        cli.project.mergerequests.create.assert_called()
 
     def test_cancellation_on_duplicate_mr(self):
         cli = build_gitlab_cli_mock(mr_exists=True)
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
         self.assertTrue(mr.cancelled)
-        self.assertFalse(cli.project.mergerequests.create.called)
+        cli.project.mergerequests.create.assert_not_called()
 
     def test_cancellation_on_empty_mr(self):
         cli = build_gitlab_cli_mock(diffs=[])
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
         self.assertTrue(mr.cancelled)
-        self.assertFalse(cli.project.mergerequests.create.called)
+        cli.project.mergerequests.create.assert_not_called()
 
     def test_failure_during_branching(self):
         cli = build_gitlab_cli_mock(create_branch_error=GitlabError())
@@ -75,4 +75,4 @@ class TestMergeRequestBaseProcessContractTests(TestCase):
         mr = DummyMergeRequest(process_error=GitlabError())
         with self.assertRaises(MergeRequestProcessingError):
             mr.submit_to_gitlab(cli)
-        self.assertFalse(cli.project.mergerequests.create.called)
+        cli.project.mergerequests.create.assert_not_called()
