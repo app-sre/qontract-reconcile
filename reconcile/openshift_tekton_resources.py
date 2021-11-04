@@ -91,8 +91,11 @@ class OpenshiftTektonResources:
 
         tkn_providers = self._get_tkn_providers(saas_files)
 
-        # desired state
-        # add the saas files
+        # Build the desired state
+        # We need to add the saas files to the tkn_providers structure as
+        # there tasks and templates that will need to be created per saas file
+        # We could have complicated the SAAS_FILES query but that would have
+        # meant grabbing lots duplicated data
         for sf in saas_files:
             tkn_provider_name = sf['pipelinesProvider']['name']
             if 'saas_files' not in tkn_providers[tkn_provider_name]:
@@ -100,6 +103,10 @@ class OpenshiftTektonResources:
 
             tkn_providers[tkn_provider_name]['saas_files'].append(sf)
 
+        # We'll keep track of all desired resources here to add it to the
+        # inventory once we have created it via ob.fetch_current_state. We
+        # need to start with the desired state to know the names of the tekton
+        # objects that will be created in the providers' namespaces
         desired_resources = []
         for tkn_provider in tkn_providers.values():
             namespace = tkn_provider['namespace']['name']
@@ -108,23 +115,28 @@ class OpenshiftTektonResources:
                                                 DEFAULT_DEPLOY_RESOURCES)
 
             # a dict with task template names as keys and types as values
+            # we'll use it when building the pipeline object to make sure
+            # that all tasks referenced exist and to be able to set the
+            # the corresponding ['taskRef']['name']
             task_templates_types = {}
-            task_names = []
+
+            # desired tasks. We need to keep track of the tasks added in this
+            # namespace, hence we will use this instead of adding data
+            # directly to desired_resources
+            desired_tasks = []
             for task_template in tkn_provider['taskTemplates']:
                 task_templates_types[task_template['name']] = \
                     task_template['type']
 
                 if task_template['type'] == 'onePerNamespace':
                     task = self._build_one_per_namespace_task(task_template)
-                    task_names.append(task['metadata']['name'])
-                    desired_resources.append(self._build_desired_resource(
+                    desired_tasks.append(self._build_desired_resource(
                         task, task_template['path'], cluster, namespace))
                 elif task_template['type'] == 'onePerSaasFile':
                     for saas_file in tkn_provider['saas_files']:
                         task = self._build_one_per_saas_file_task(
                             task_template, saas_file, deploy_resources)
-                        task_names.append(task['metadata']['name'])
-                        desired_resources.append(self._build_desired_resource(
+                        desired_tasks.append(self._build_desired_resource(
                             task, task_template['path'], cluster, namespace))
                 else:
                     # TODO: Raise Custom Exception
@@ -136,24 +148,27 @@ class OpenshiftTektonResources:
             # over those resources
             tkn_provider['namespace']['managedResourceNames'] = [{
                 'resource': 'Task',
-                'resourceNames': task_names
+                'resourceNames': [t['name'] for t in desired_tasks]
             }]
+
+            desired_resources.extend(desired_tasks)
 
             # We only support pipelines from OpenshiftSaasDeploy
             pipeline_template = \
                 tkn_provider['pipelineTemplates']['openshiftSaasDeploy']
-            pipeline_names = []
+            desired_pipelines = []
             for saas_file in tkn_provider['saas_files']:
                 pipeline = self._build_one_per_saas_file_pipeline(
                     pipeline_template, saas_file, task_templates_types)
-                pipeline_names.append(pipeline['metadata']['name'])
-                desired_resources.append(self._build_desired_resource(
+                desired_pipelines.append(self._build_desired_resource(
                     pipeline, pipeline_template['path'], cluster, namespace))
 
             tkn_provider['namespace']['managedResourceNames'].append({
                 'resource': 'Pipeline',
-                'resourceNames': pipeline_names
+                'resourceNames': [p['name'] for p in desired_pipelines]
             })
+
+            desired_resources.extend(desired_pipelines)
 
         tkn_namespaces = [tknp['namespace'] for tknp in tkn_providers.values()]
         ri, oc_map = ob.fetch_current_state(
