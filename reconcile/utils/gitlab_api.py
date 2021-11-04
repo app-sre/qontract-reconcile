@@ -28,7 +28,7 @@ class MRState:
 
 class GitLabApi:
     def __init__(self, instance, project_id=None, ssl_verify=True,
-                 settings=None, project_url=None, saas_files=None):
+                 settings=None, project_url=None, saas_files=None, timeout=30):
         self.server = instance['url']
         secret_reader = SecretReader(settings=settings)
         token = secret_reader.read(instance['token'])
@@ -36,7 +36,7 @@ class GitLabApi:
         if ssl_verify is None:
             ssl_verify = True
         self.gl = gitlab.Gitlab(self.server, private_token=token,
-                                ssl_verify=ssl_verify)
+                                ssl_verify=ssl_verify, timeout=timeout)
         self._auth()
         self.user = self.gl.user
         if project_id is None:
