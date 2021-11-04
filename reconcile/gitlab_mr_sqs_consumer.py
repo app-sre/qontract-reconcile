@@ -4,6 +4,7 @@ SQS Consumer to create Gitlab merge requests.
 
 import json
 import logging
+import sys
 
 from reconcile import queries
 
@@ -26,6 +27,7 @@ def run(dry_run, gitlab_project_id):
     gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id,
                            settings=settings, saas_files=saas_files)
 
+    errors_occured = False
     while True:
         messages = sqs_cli.receive_messages()
         logging.info('received %s messages', len(messages))
@@ -58,5 +60,10 @@ def run(dry_run, gitlab_project_id):
                     # potential future processing.
                     # TODO - monitor age of messages in queue
                     logging.warning(ex)
+                    errors_occured = True
                 except mr.MergeRequestProcessingError as processing_error:
                     logging.error(processing_error)
+                    errors_occured = True
+
+    if errors_occured:
+        sys.exit(1)
