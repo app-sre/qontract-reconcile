@@ -113,9 +113,11 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
                 clusters_updates[cluster_name]['spec']['version'] = current_version  # noqa: E501
             elif compare_result < 0:
                 logging.error(
-                    '[%s] desired version %s is different ' +
-                    'from current version %s',
-                    cluster_name, desired_version, current_version)
+                    f'[{cluster_name}] version {desired_version} ' +
+                    f'is different from current version {current_version}. ' +
+                    f'please correct version to be {current_version}, ' +
+                    'as this field is only meant for tracking purposes. ' +
+                    'upgrades are determined by ocm-upgrade-scheduler.')
                 error = True
 
             if not desired_spec['spec'].get('id'):
