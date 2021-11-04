@@ -2,6 +2,7 @@ import os
 from unittest import TestCase
 from unittest.mock import patch
 
+import reconcile.utils.oc
 from reconcile.utils.oc import (
     LABEL_MAX_KEY_NAME_LENGTH, LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
@@ -383,3 +384,50 @@ class TestOCMapInit(TestCase):
         self.assertEqual(oc_map.get(cluster['name']).message,
                          f'[{cluster["name"]}] secret not found')
         self.assertEqual(len(oc_map.clusters()), 0)
+
+
+class TestOCMapGetClusters(TestCase):
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_clusters_errors_empty_return(self, mock_secret_reader):
+        """
+        clusters() shouldn't return the names of any clusters that didn't
+        initialize a client successfully.
+        """
+        cluster = {
+            'name': 'test-1',
+            'serverUrl': 'http://localhost',
+        }
+
+        oc_map = OC_Map(clusters=[cluster])
+
+        self.assertEqual(oc_map.clusters(), [])
+        self.assertIsInstance(oc_map.oc_map.get(cluster['name']), OCLogMsg)
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_clusters_errors_with_include_errors(
+            self, mock_secret_reader, mock_oc):
+        """
+        With the include_errors kwarg set to true, clusters that didn't
+        initialize a client are still included.
+        """
+        cluster_1 = {
+            'name': 'test-1',
+            'serverUrl': 'http://localhost',
+        }
+
+        cluster_2 = {
+            'name': 'test-2',
+            'serverUrl': 'http://localhost',
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+
+        cluster_names = [cluster_1['name'], cluster_2['name']]
+
+        oc_map = OC_Map(clusters=[cluster_1, cluster_2])
+
+        self.assertEqual(oc_map.clusters(include_errors=True), cluster_names)
+        self.assertIsInstance(oc_map.oc_map.get(cluster_1['name']), OCLogMsg)
