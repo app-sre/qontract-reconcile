@@ -1,3 +1,5 @@
+from typing import Optional
+
 from unittest import TestCase
 from unittest.mock import MagicMock
 from gitlab.exceptions import GitlabError
@@ -9,7 +11,7 @@ from reconcile.utils.mr.base import MergeRequestProcessingError
 
 class DummyMergeRequest(MergeRequestBase):
 
-    def __init__(self, process_error: Exception = None):
+    def __init__(self, process_error: Optional[Exception] = None):
         super().__init__()
         self.process_error = process_error
 
@@ -22,8 +24,9 @@ class DummyMergeRequest(MergeRequestBase):
 
 
 def build_gitlab_cli_mock(mr_exists: bool = False,
-                          diffs: list = None,
-                          create_branch_error: Exception = None) -> GitLabApi:
+                          diffs: Optional[list] = None,
+                          create_branch_error: Optional[Exception] = None) \
+        -> GitLabApi:
     cli = MagicMock(spec=GitLabApi)
     cli.mr_exists.return_value = mr_exists
     if create_branch_error:
@@ -43,7 +46,8 @@ class TestMergeRequestBaseProcessContractTests(TestCase):
     communication errors, gitlab errors, bugs :)
     """
 
-    def test_mr_opened(self):
+    @staticmethod
+    def test_mr_opened():
         cli = build_gitlab_cli_mock()
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
