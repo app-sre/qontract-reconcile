@@ -145,11 +145,11 @@ class MergeRequestBase(metaclass=ABCMeta):
 
             return gitlab_cli.project.mergerequests.create(self.gitlab_data)
         except CancelMergeRequest as mr_cancel:
-            self.delete_tmp_branch(gitlab_cli)
-            LOG.info(mr_cancel)
             # cancellation is a valid behaviour. it indicates, that the
             # operation is not required, therefore we will not signal
             # a problem back to the caller
+            self.delete_tmp_branch(gitlab_cli)
+            LOG.info(mr_cancel)
         except Exception as err:
             self.delete_tmp_branch(gitlab_cli)
             raise MergeRequestProcessingError(
@@ -171,10 +171,10 @@ class MergeRequestBase(metaclass=ABCMeta):
                 gitlab_cli.delete_branch(branch=self.branch)
                 self.branch_created = False
             except GitlabError as gitlab_error:
-                LOG.error(f"Failed to delete branch {self.branch}. "
-                          f"Reason: {gitlab_error}")
                 # we are not going to let an otherwise fine MR
                 # processing fail just because of this
+                LOG.error(f"Failed to delete branch {self.branch}. "
+                          f"Reason: {gitlab_error}")
 
     def diffs(self, gitlab_cli):
         return gitlab_cli.project.repository_compare(from_=self.main_branch,
