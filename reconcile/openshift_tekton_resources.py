@@ -91,22 +91,36 @@ class OpenshiftTektonResources:
 
         tkn_providers = self._get_tkn_providers(saas_files)
 
-        # Build the desired state
-        # We need to add the saas files to the tkn_providers structure as
-        # there tasks and templates that will need to be created per saas file
-        # We could have complicated the SAAS_FILES query but that would have
-        # meant grabbing lots duplicated data
-        for sf in saas_files:
-            tkn_provider_name = sf['pipelinesProvider']['name']
-            if 'saas_files' not in tkn_providers[tkn_provider_name]:
-                tkn_providers[tkn_provider_name]['saas_files'] = []
+        # We need to start with the desired state to know the names of the
+        # tekton objects that will be created in the providers' namespaces. We
+        # need to make sure that this integration only manages its resources
+        # and not the tekton resources already created via openshift-resources
+        desired_resources = self._fetch_desired_resources(tkn_providers)
 
-            tkn_providers[tkn_provider_name]['saas_files'].append(sf)
+        tkn_namespaces = [tknp['namespace'] for tknp in tkn_providers.values()]
+        ri, oc_map = ob.fetch_current_state(
+            namespaces=tkn_namespaces,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            override_managed_types=['Pipeline', 'Task'],
+            internal=self.internal,
+            use_jump_host=self.use_jump_host,
+            thread_pool_size=self.thread_pool_size)
 
-        # We'll keep track of all desired resources here to add it to the
-        # inventory once we have created it via ob.fetch_current_state. We
-        # need to start with the desired state to know the names of the tekton
-        # objects that will be created in the providers' namespaces
+        for desired_resource in desired_resources:
+            ri.add_desired(**desired_resource)
+
+        ob.realize_data(self.dry_run, oc_map, ri, self.thread_pool_size)
+
+        if ri.has_error_registered():
+            return False
+
+        return True
+    
+    # Create an array of dicts that will be used as args of ri.add_desired
+    # This will also add resourceNames inside tkn_providers['namespace']
+    # while we are migrating from the current system to this integration
+    def _fetch_desired_resources(self, tkn_providers):
         desired_resources = []
         for tkn_provider in tkn_providers.values():
             namespace = tkn_provider['namespace']['name']
@@ -142,10 +156,7 @@ class OpenshiftTektonResources:
                     # TODO: Raise Custom Exception
                     raise Exception("unknown type")
 
-            # This is a hack, but we will need it while we have the old
-            # resources being created from app-interface via
-            # openshift-resources. If not, this integration will try to take
-            # over those resources
+            # TODO: remove when tkn objects are managed with this integration
             tkn_provider['namespace']['managedResourceNames'] = [{
                 'resource': 'Task',
                 'resourceNames': [t['name'] for t in desired_tasks]
@@ -170,25 +181,7 @@ class OpenshiftTektonResources:
 
             desired_resources.extend(desired_pipelines)
 
-        tkn_namespaces = [tknp['namespace'] for tknp in tkn_providers.values()]
-        ri, oc_map = ob.fetch_current_state(
-            namespaces=tkn_namespaces,
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-            override_managed_types=['Pipeline', 'Task'],
-            internal=self.internal,
-            use_jump_host=self.use_jump_host,
-            thread_pool_size=self.thread_pool_size)
-
-        for desired_resource in desired_resources:
-            ri.add_desired(**desired_resource)
-
-        ob.realize_data(self.dry_run, oc_map, ri, self.thread_pool_size)
-
-        if ri.has_error_registered():
-            return False
-
-        return True
+        return desired_resources
 
     def _build_desired_resource(self, tkn_object, path, cluster, namespace):
         # TODO: exception handling
@@ -290,27 +283,35 @@ class OpenshiftTektonResources:
 
     def _get_tkn_providers(self, saas_files):
         errors = 0
-        tkn_providers = {}
+        all_tkn_providers = {}
         for pp in queries.get_pipelines_providers():
             if pp['provider'] != 'tekton':
                 continue
 
-            if pp['name'] in tkn_providers:
+            if pp['name'] in all_tkn_providers:
                 logger.error("Duplicated name {pp['name']} from {pp['path']}")
                 errors += 1
             else:
-                tkn_providers[pp['name']] = pp
+                all_tkn_providers[pp['name']] = pp
 
         if errors > 0:
             # TODO: raise proper exception
             raise Exception("duplicates")
 
         # Only get the providers that are used by the saas files
-        tkn_providers_names = set()
+        # Add the saas files belonging to it
+        tkn_providers = {}
         for saas_file in saas_files:
-            tkn_providers_names.add(saas_file['pipelinesProvider']['name'])
+            tkn_provider = saas_file['pipelinesProvider']['name']
+            if tkn_provider not in tkn_providers:
+                tkn_providers[tkn_provider] = all_tkn_providers[tkn_provider]
 
-        return {key: tkn_providers[key] for key in tkn_providers_names}
+            if 'saas_files' not in tkn_providers[tkn_provider]:
+                tkn_providers[tkn_provider]['saas_files'] = []
+
+            tkn_providers[tkn_provider]['saas_files'].append(saas_file)
+
+        return tkn_providers
 
     @staticmethod
     def _check_resource_max_length(name: str) -> None:
