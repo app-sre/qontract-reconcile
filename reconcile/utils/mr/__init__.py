@@ -1,4 +1,5 @@
-from reconcile.utils.mr.base import MergeRequestBase, MergeRequestProcessingError
+from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import MergeRequestProcessingError
 
 from reconcile.utils.mr.app_interface_reporter \
     import CreateAppInterfaceReporter
@@ -28,6 +29,7 @@ class UnknownMergeRequestType(Exception):
     """
     Used when the message type from the SQS message is unknown
     """
+
 
 def init_from_sqs_message(message):
     # First, let's find the classes that are inheriting from
