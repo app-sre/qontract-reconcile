@@ -1,4 +1,4 @@
-from reconcile.utils.mr.base import MergeRequestBase
+from reconcile.utils.mr.base import MergeRequestBase, MergeRequestProcessingError
 
 from reconcile.utils.mr.app_interface_reporter \
     import CreateAppInterfaceReporter
@@ -12,6 +12,8 @@ from reconcile.utils.mr.cluster_service_install_config import CSInstallConfig
 
 __all__ = [
     'init_from_sqs_message',
+    'UnknownMergeRequestType',
+    'MergeRequestProcessingError',
     'CreateAppInterfaceReporter',
     'CreateDeleteAwsAccessKey',
     'CreateClustersUpdates',
@@ -21,6 +23,11 @@ __all__ = [
     'CSInstallConfig',
 ]
 
+
+class UnknownMergeRequestType(Exception):
+    """
+    Used when the message type from the SQS message is unknown
+    """
 
 def init_from_sqs_message(message):
     # First, let's find the classes that are inheriting from
@@ -46,7 +53,7 @@ def init_from_sqs_message(message):
     # and fail early if that type is not on the map.
     msg_type = message.pop('pr_type')
     if msg_type not in types_map:
-        raise TypeError(f'type {msg_type} no supported')
+        raise UnknownMergeRequestType(f'type {msg_type} no supported')
 
     # Finally, get the class mapped to the type
     # and create an instance with all the remaining

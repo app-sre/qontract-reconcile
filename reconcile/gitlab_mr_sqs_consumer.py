@@ -31,23 +31,32 @@ def run(dry_run, gitlab_project_id):
         logging.info('received %s messages', len(messages))
 
         if not messages:
+            # sqs_cli.receive_messages delivers messages in chunks
+            # until the queue is empty... when that happens,
+            # we end this integration run
             break
 
-        for message in messages:
-            # Let's first delete all the message we received,
-            # otherwise they will come back in 30s.
-            receipt_handle = message[0]
-            sqs_cli.delete_message(str(receipt_handle))
+        # not all integrations are going to resend their MR messages
+        # therefore we need to be careful not to delete any messages
+        # before they have been properly handled
 
-        for message in messages:
-            # Time to process the messages. Any failure here is not
-            # critical, even though we already deleted the messaged,
-            # since the producers will keep re-sending the message
-            # until the MR gets merged to app-interface
-            receipt_handle, body = message[0], message[1]
+        for m in messages:
+            receipt_handle, body = m[0], m[1]
             logging.info('received message %s with body %s',
                          receipt_handle[:6], json.dumps(body))
 
             if not dry_run:
-                merge_request = mr.init_from_sqs_message(body)
-                merge_request.submit_to_gitlab(gitlab_cli=gitlab_cli)
+                try:
+                    merge_request = mr.init_from_sqs_message(body)
+                    merge_request.submit_to_gitlab(gitlab_cli=gitlab_cli)
+                    sqs_cli.delete_message(str(receipt_handle))
+                except mr.UnknownMergeRequestType as ex:
+                    # Received an unknown MR type.
+                    # This could be a producer being on a newer version
+                    # of qontract-reconcile than the consumer.
+                    # Therefore we don't delete it from the queue for
+                    # potential future processing.
+                    # TODO - monitor age of messages in queue
+                    logging.warning(ex)
+                except mr.MergeRequestProcessingError as processing_error:
+                    logging.error(processing_error)
