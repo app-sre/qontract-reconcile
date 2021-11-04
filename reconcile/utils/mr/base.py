@@ -152,6 +152,10 @@ class MergeRequestBase(metaclass=ABCMeta):
             LOG.info(mr_cancel)
         except Exception as err:
             self.delete_tmp_branch(gitlab_cli)
+            # NOTE
+            # sqs_msg_data might some day include confidential data and
+            # we will need to revisit implications that will come from
+            # logging this exception
             raise MergeRequestProcessingError(
                 f"error processing {self.name} changes "
                 f"{json.dumps(self.sqs_msg_data)} "
