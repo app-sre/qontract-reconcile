@@ -25,7 +25,8 @@ LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'openshift-tekton-resources'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
-OBJECTS_PREFIX = 'otr'
+# it must be a single character due to resource max length
+OBJECTS_PREFIX = 'o'
 RESOURCE_MAX_LENGTH = 63
 
 # Defaults
