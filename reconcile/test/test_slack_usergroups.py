@@ -1,13 +1,16 @@
 import copy
 from datetime import datetime, timedelta
 from unittest import TestCase
-from unittest.mock import create_autospec, call
+from unittest.mock import create_autospec, call, patch
 
 import pytest
 
 import reconcile.slack_usergroups as integ
 from reconcile.slack_usergroups import act
 from reconcile.utils.slack_api import SlackApi
+from reconcile import queries
+
+from .fixtures import Fixtures
 
 
 @pytest.fixture
@@ -85,6 +88,36 @@ class TestSupportFunctions(TestCase):
         }
         result = integ.get_pagerduty_name(user)
         self.assertEqual(result, 'pd')
+
+    @patch.object(integ, 'SlackApi', autospec=True)
+    @patch.object(queries, 'get_app_interface_settings', autospec=True)
+    @patch.object(queries, 'get_permissions_for_slack_usergroup',
+                  autospec=True)
+    def test_get_slack_map_return_expected(self, mock_get_permissions,
+                                           mock_get_app_interface_settings,
+                                           mock_slack_api):
+        mock_get_permissions.return_value = self.get_permissions_fixture()
+        slack_api_mock = create_autospec(SlackApi)
+        expected_slack_map = {
+            'coreos': {
+                'slack': slack_api_mock,
+                'managed_usergroups': [
+                    'app-sre-team',
+                    'app-sre-ic'
+                ]
+            }
+        }
+        result = integ.get_slack_map()
+        mock_slack_api.assert_called_once()
+        self.assertEqual(result['coreos']['managed_usergroups'],
+                         expected_slack_map['coreos']['managed_usergroups'])
+        self.assertIn('slack', result['coreos'])
+
+    @staticmethod
+    def get_permissions_fixture():
+        fxt = Fixtures('slack_usergroups')
+        permissions = fxt.get_anymarkup('permissions.yml')['permissions']
+        return [p for p in permissions if p['service'] == 'slack-usergroup']
 
 
 def test_act_no_changes_detected(base_state):

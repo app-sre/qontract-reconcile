@@ -2132,3 +2132,68 @@ GABI_INSTANCES_QUERY = """
 def get_gabi_instances():
     gqlapi = gql.get_api()
     return gqlapi.query(GABI_INSTANCES_QUERY)['gabi_instances']
+
+
+PERMISSIONS_QUERY = """
+{
+  permissions: permissions_v1 {
+    service
+    ...on PermissionSlackUsergroup_v1 {
+      channels
+      description
+      handle
+      ownersFromRepos
+      pagerduty {
+          name
+          instance {
+            name
+          }
+          scheduleID
+          escalationPolicyID
+        }
+      roles {
+        users {
+            name
+            org_username
+            slack_username
+            pagerduty_username
+        }
+    }
+      schedule {
+          schedule {
+            start
+            end
+            users {
+              org_username
+              slack_username
+            }
+          }
+        }
+      workspace {
+        name
+        token {
+          path
+          field
+        }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
+        }
+        managedUsergroups
+      }
+    }
+  }
+}
+"""
+
+
+def get_permissions_for_slack_usergroup():
+    gqlapi = gql.get_api()
+    permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
+    return [p for p in permissions if p['service'] == 'slack-usergroup']

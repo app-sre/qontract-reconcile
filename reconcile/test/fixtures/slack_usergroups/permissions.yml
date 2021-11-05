@@ -1,0 +1,63 @@
+permissions:
+  - service: github-org-team
+  - service: slack-usergroup
+    channels:
+      - sd-sre-platform
+      - sd-ims-backplane
+    description: backplane service owners (managed via app-interface)
+    handle: backplane-team
+    ownersFromRepos:
+      - someurl
+    pagerduty: null
+    roles:
+      - users: []
+    schedule: null
+    workspace:
+      name: coreos
+      token:
+        path: app-sre/creds/slack-app-sre-groups
+        field: bot_token
+        api_client:
+          global:
+            max_retries: 5
+            timeout: 30
+          methods:
+            - name: userslist
+              args: limit
+            - name:  conversationslist
+              args: limit
+      managedUsergroups:
+        - app-sre-team
+        - app-sre-ic
+  - service: slack-usergroup
+    channels:
+      - sd-sre-platform
+      - sre-operators
+    description: SREP managed-cluster-config owners (managed via app-interface)
+    handle: saas-osd-operators
+    ownersFromRepos:
+      - null 
+    pagerduty: null
+    roles:
+      - name: Rafael
+        org_username: razevedo
+        slack_username: null
+        pagerduty_username: null
+    schedule: null
+    workspace:
+      name: coreos
+      token:
+        path: app-sre/creds/slack-app-sre-groups
+        field: bot_token
+        api_client:
+          global:
+            max_retries: 5
+            timeout: 30
+          methods:
+            - name: userslist
+              args: limit
+            - name:  conversationslist
+              args: limit
+      managedUsergroups:
+        - app-sre-team
+        - app-sre-ic
