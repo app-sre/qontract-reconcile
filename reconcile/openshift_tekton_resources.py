@@ -59,7 +59,10 @@ SAAS_FILES_QUERY = """
 """
 
 
-class OTRNameTooLong(Exception):
+class OTRNameTooLongError(Exception):
+    pass
+
+class OTRBadConfigError(Exception):
     pass
 
 
@@ -83,21 +86,20 @@ def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
 
 def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
         -> dict[str, Any]:
-    errors = 0
+    duplicates = set()
     all_tkn_providers = {}
     for pp in queries.get_pipelines_providers():
         if pp['provider'] != 'tekton':
             continue
 
         if pp['name'] in all_tkn_providers:
-            LOG.error("Duplicated name {pp['name']} from {pp['path']}")
-            errors += 1
+            errors.add(pp['name'])
         else:
             all_tkn_providers[pp['name']] = pp
 
-    if errors > 0:
-        # TODO: raise proper exception
-        raise Exception("duplicates")
+    if duplicates:
+        raise OTRBadConfigError('There are duplicates in tekton providers'
+                                'names: {", ".join(duplicates)}')
 
     # Only get the providers that are used by the saas files
     # Add the saas files belonging to it
@@ -138,7 +140,8 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         # directly to desired_resources
         desired_tasks = []
         for task_template_config in tkn_provider['taskTemplates']:
-            task_templates_types[task_template_config['name']] = task_template_config['type']
+            task_templates_types[task_template_config['name']] = \
+                task_template_config['type']
 
             if task_template_config['type'] == 'onePerNamespace':
                 task = build_one_per_namespace_task(task_template_config)
@@ -154,8 +157,15 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
                                                task_template_config['path'],
                                                cluster, namespace))
             else:
-                # TODO: Raise Custom Exception
-                raise Exception("unknown type")
+                raise OTRBadConfigError(
+                    f"Unknown type [{task_template_config['type']}] in tekton "
+                    f"provider [{tkn_provider['name']}]")
+
+        if len(tkn_provider['taskTemplates']) != \
+                len(task_templates_types.keys()):
+            raise OTRBadConfigError(
+                'There are duplicates in task templates names in tekton '
+                f"provider [{tkn_provider['name']}]")
 
         # TODO: remove when tkn objects are managed with this integration
         tkn_provider['namespace']['managedResourceNames'] = [{
@@ -166,14 +176,14 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         desired_resources.extend(desired_tasks)
 
         # We only support pipelines from OpenshiftSaasDeploy
-        pipeline_template = \
+        pipeline_template_config = \
             tkn_provider['pipelineTemplates']['openshiftSaasDeploy']
         desired_pipelines = []
         for saas_file in tkn_provider['saas_files']:
             pipeline = build_one_per_saas_file_pipeline(
-                pipeline_template, saas_file, task_templates_types)
+                pipeline_template_config, saas_file, task_templates_types)
             desired_pipelines.append(
-                build_desired_resource(pipeline, pipeline_template['path'],
+                build_desired_resource(pipeline, pipeline_template_config['path'],
                                        cluster, namespace))
 
         tkn_provider['namespace']['managedResourceNames'].append({
@@ -186,10 +196,10 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
     return desired_resources
 
 
-def build_one_per_namespace_task(task_template_config: dict[str, str]) -> dict[str, Any]:
-    pp(task_template_config)
+def build_one_per_namespace_task(task_template_config: dict[str, str]) \
+        -> dict[str, Any]:
     variables = json.loads(task_template_config['variables']) \
-                if 'variables' in task_template_config else {}
+                if task_template_config.get('variables') else {}
     task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
         build_one_per_namespace_tkn_object_name(task_template_config['name'])
@@ -202,13 +212,13 @@ def build_one_per_saas_file_task(task_template_config: dict[str, str],
                                  deploy_resources: dict[str, dict[str, str]]) \
                                          -> dict[str, Any]:
     variables = json.loads(task_template_config['variables']) \
-                if 'variables' in task_template_config else {}
+                if task_template_config.get('variables') else {}
     task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
         build_one_per_saas_file_tkn_object_name(task_template_config['name'],
                                                 saas_file['name'])
     step_name = task_template_config.get('deployResourcesStepName',
-                                  'qontract-reconcile')
+                                         'qontract-reconcile')
 
     resources_configured = False
     for step in task['spec']['steps']:
@@ -219,9 +229,9 @@ def build_one_per_saas_file_task(task_template_config: dict[str, str],
             break
 
     if not resources_configured:
-        # TODO: raise proper exception
-        raise Exception(
-            f"Cannot find a step named {step_name} to set resources")
+        raise OTRBadConfigError(
+            f"Cannot find a step named [{step_name}] to set resources "
+            f"in task template [{task_template_config['name']}]")
 
     return task
 
@@ -231,7 +241,7 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
                                      task_templates_types: dict[str, str]) \
                                         -> dict[str, Any]:
     variables = json.loads(pipeline_template_config['variables']) \
-                if 'variables' in pipeline_template_config else {}
+                if pipeline_template_config.get('variables') else {}
     pipeline = load_tkn_template(pipeline_template_config['path'], variables)
     pipeline['metadata']['name'] = build_one_per_saas_file_tkn_object_name(
         pipeline_template_config['name'], saas_file['name'])
@@ -239,8 +249,9 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
     for section in ['tasks', 'finally']:
         for task in pipeline['spec'][section]:
             if task['name'] not in task_templates_types:
-                # TODO: More info in text and custom exception
-                raise Exception(f"Unknown task {task['name']}")
+                raise OTRBadConfigError(
+                    f"Unknown task {task['name']} in pipeline template "
+                    f"[{pipeline_template_config['name']}]")
 
             if task_templates_types[task['name']] == "onePerNamespace":
                 task['taskRef']['name'] = \
@@ -262,7 +273,6 @@ def load_tkn_template(path: str, variables: dict[str, str]):
 
 def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
                            namespace: str) -> dict[str, Union[str, OR]]:
-    # TODO: exception handling
     openshift_resource = OR(tkn_object,
                             QONTRACT_INTEGRATION,
                             QONTRACT_INTEGRATION_VERSION,
@@ -277,7 +287,7 @@ def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
 
 def check_resource_max_length(name: str) -> None:
     if len(name) > RESOURCE_MAX_LENGTH:
-        raise OTRNameTooLong(
+        raise OTRNameTooLongError(
             f"name {name} is longer than {RESOURCE_MAX_LENGTH} characters")
 
 
@@ -314,9 +324,11 @@ def run(dry_run: bool,
     # tekton objects that will be created in the providers' namespaces. We
     # need to make sure that this integration only manages its resources
     # and not the tekton resources already created via openshift-resources
+    LOG.debug("Fetching desired resources")
     desired_resources = fetch_desired_resources(tkn_providers)
 
     tkn_namespaces = [tknp['namespace'] for tknp in tkn_providers.values()]
+    LOG.debug("Fetching current resources")
     ri, oc_map = ob.fetch_current_state(
         namespaces=tkn_namespaces,
         integration=QONTRACT_INTEGRATION,
@@ -326,9 +338,11 @@ def run(dry_run: bool,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size)
 
+    LOG.debug("Adding desired resources to inventory")
     for desired_resource in desired_resources:
         ri.add_desired(**desired_resource)
 
+    LOG.debug("Realizing data")
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
