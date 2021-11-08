@@ -26,6 +26,9 @@ def init_users():
         for q in user.get('queries'):
             item = {'type': PathTypes.QUERY, 'path': 'data' + q['path']}
             users[u].append(item)
+        for g in user.get('gabi_instances'):
+            item = {'type': PathTypes.GABI, 'path': 'data' + g['path']}
+            users[u].append(item)
 
     return [{'username': username, 'paths': paths}
             for username, paths in users.items()]

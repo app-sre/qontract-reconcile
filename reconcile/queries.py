@@ -1057,6 +1057,9 @@ USERS_QUERY = """
     queries {
       path
     }
+    gabi_instances {
+      path
+    }
     {% endif %}
   }
 }
