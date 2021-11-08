@@ -3,7 +3,7 @@ from typing import List, cast
 import testslide
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
-import reconcile.utils.oc as oc
+from reconcile.utils import oc
 
 
 class TestInitSpecsToFetch(testslide.TestCase):
@@ -26,9 +26,6 @@ class TestInitSpecsToFetch(testslide.TestCase):
                     {"resource": "Template",
                      "resourceNames": ["tp1", "tp2"],
                      },
-                    {"resource": "Secret",
-                     "resourceNames": ["sc1"],
-                     }
                 ],
                 "openshiftResources": [
                     {"provider": "resource",
@@ -97,20 +94,14 @@ class TestInitSpecsToFetch(testslide.TestCase):
         ]
 
         rs = sut.init_specs_to_fetch(
-                self.resource_inventory,
-                self.oc_map,
-                namespaces=self.namespaces,
-            )
-
-        self.maxDiff = None
+            self.resource_inventory,
+            self.oc_map,
+            namespaces=self.namespaces,
+        )
         self.assert_specs_match(rs, expected)
 
     def test_namespaces_managed_with_overrides(self) -> None:
         self.namespaces[0]['managedResourceTypeOverrides'] = [
-            {
-                "resource": "Project",
-                "override": "something.project",
-            },
             {
                 "resource": "Template",
                 "override": "something.template"
@@ -183,10 +174,41 @@ class TestInitSpecsToFetch(testslide.TestCase):
 
     def test_namespaces_no_managedresourcetypes(self) -> None:
         self.namespaces[0]['managedResourceTypes'] = None
-
         rs = sut.init_specs_to_fetch(
             self.resource_inventory,
             self.oc_map,
             namespaces=self.namespaces,
         )
+
         self.assertEqual(rs, [])
+
+    def test_namespaces_extra_managed_resource_name(self) -> None:
+        # mypy doesn't recognize that this is a list
+        self.namespaces[0]['managedResourceNames'].append(  # type: ignore
+            {
+                "resource": "Secret",
+                "resourceNames": ["s1", "s2"],
+            },
+        )
+
+        with self.assertRaises(KeyError):
+            sut.init_specs_to_fetch(
+                self.resource_inventory,
+                self.oc_map,
+                namespaces=self.namespaces,
+            )
+
+    def test_namespaces_extra_override(self) -> None:
+        self.namespaces[0]['managedResourceTypeOverrides'] = [
+            {
+                "resource": "Project",
+                "override": "something.project",
+            }
+        ]
+
+        with self.assertRaises(KeyError):
+            sut.init_specs_to_fetch(
+                self.resource_inventory,
+                self.oc_map,
+                namespaces=self.namespaces
+            )

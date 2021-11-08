@@ -95,9 +95,9 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 if mrn['resource'] in managed_types:
                     resource_names[mrn['resource']] = mrn['resourceNames']
                 else:
-                    logging.info(
-                        f"Skipping non-managed resources {mrn} "
-                        f"on {cluster}/{namespace}"
+                    raise KeyError(
+                        f"Non-managed resource {mrn} listed on "
+                        f"{cluster}/{namespace}"
                     )
 
             for o in managed_resource_type_overrides:
@@ -106,9 +106,10 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 if o['resource'] in managed_types:
                     resource_type_overrides[o['resource']] = o['override']
                 else:
-                    logging.info(
-                        f"Skipping nom-managed override {o} "
-                        f"on {cluster}/{namespace}")
+                    raise KeyError(
+                        f"Non-managed override {o} listed "
+                        f"on {cluster}/{namespace}"
+                    )
 
             for kind, names in resource_names.items():
                 c_spec = StateSpec(
