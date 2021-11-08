@@ -8,7 +8,6 @@ import reconcile.openshift_base as osb
 import reconcile.jenkins_plugins as jenkins_base
 
 from reconcile import queries
-from reconcile.openshift_tekton_resources import OpenshiftTektonResources
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
@@ -17,6 +16,8 @@ from reconcile.utils.saasherder import SaasHerder, Providers, \
     UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
+from reconcile.openshift_tekton_resources import \
+    build_one_per_saas_file_tkn_object_name
 
 _trigger_lock = Lock()
 
@@ -277,11 +278,10 @@ def _trigger_tekton(spec,
     pipeline_name = pipelines_provider[
         'pipelineTemplates']['openshiftSaasDeploy']['saasFile']['name']
 
-    tkn_pipeline_name = \
-        OpenshiftTektonResources.build_one_per_saas_file_tkn_object_name(
-            pipeline_name, saas_file_name) \
-        if spec['configurable_resources'] \
-        else settings['saasDeployJobTemplate']
+    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+                            pipeline_name, saas_file_name) \
+                        if spec['configurable_resources'] \
+                        else settings['saasDeployJobTemplate']
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
     tkn_cluster_name = tkn_namespace_info['cluster']['name']
