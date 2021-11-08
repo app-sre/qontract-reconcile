@@ -280,8 +280,8 @@ def _trigger_tekton(spec,
 
     tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
                             pipeline_name, saas_file_name) \
-                        if spec['configurable_resources'] \
-                        else settings['saasDeployJobTemplate']
+        if spec['configurable_resources'] \
+        else settings['saasDeployJobTemplate']
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
     tkn_cluster_name = tkn_namespace_info['cluster']['name']

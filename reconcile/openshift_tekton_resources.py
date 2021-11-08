@@ -1,22 +1,15 @@
 import sys
 import logging
-import copy
 import json
 from typing import Any, Iterable, Optional, Union
-from pathlib import Path
-
-# TODO: remove!
-from pprint import pp
 
 import yaml
 import jinja2
 
 from reconcile import queries
 from reconcile import openshift_base as ob
-from reconcile import openshift_resources_base as orb
 from reconcile.status import ExitCodes
-from reconcile.utils import threaded, gql
-from reconcile.utils.oc import OC_Map, StatusCodeError
+from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
@@ -62,6 +55,7 @@ SAAS_FILES_QUERY = """
 class OTRNameTooLongError(Exception):
     pass
 
+
 class OTRBadConfigError(Exception):
     pass
 
@@ -86,16 +80,16 @@ def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
 
 def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
         -> dict[str, Any]:
-    duplicates = set()
+    duplicates: set[str] = set()
     all_tkn_providers = {}
-    for pp in queries.get_pipelines_providers():
-        if pp['provider'] != 'tekton':
+    for pipeline_provider in queries.get_pipelines_providers():
+        if pipeline_provider['provider'] != 'tekton':
             continue
 
-        if pp['name'] in all_tkn_providers:
-            errors.add(pp['name'])
+        if pipeline_provider['name'] in all_tkn_providers:
+            duplicates.add(pipeline_provider['name'])
         else:
-            all_tkn_providers[pp['name']] = pp
+            all_tkn_providers[pipeline_provider['name']] = pipeline_provider
 
     if duplicates:
         raise OTRBadConfigError('There are duplicates in tekton providers'
@@ -146,8 +140,10 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
             if task_template_config['type'] == 'onePerNamespace':
                 task = build_one_per_namespace_task(task_template_config)
                 desired_tasks.append(
-                    build_desired_resource(task, task_template_config['path'],
-                                           cluster, namespace))
+                    build_desired_resource(task,
+                                           task_template_config['path'],
+                                           cluster,
+                                           namespace))
             elif task_template_config['type'] == 'onePerSaasFile':
                 for saas_file in tkn_provider['saas_files']:
                     task = build_one_per_saas_file_task(
@@ -155,7 +151,8 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
                     desired_tasks.append(
                         build_desired_resource(task,
                                                task_template_config['path'],
-                                               cluster, namespace))
+                                               cluster,
+                                               namespace))
             else:
                 raise OTRBadConfigError(
                     f"Unknown type [{task_template_config['type']}] in tekton "
@@ -183,8 +180,10 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
             pipeline = build_one_per_saas_file_pipeline(
                 pipeline_template_config, saas_file, task_templates_types)
             desired_pipelines.append(
-                build_desired_resource(pipeline, pipeline_template_config['path'],
-                                       cluster, namespace))
+                build_desired_resource(pipeline,
+                                       pipeline_template_config['path'],
+                                       cluster,
+                                       namespace))
 
         tkn_provider['namespace']['managedResourceNames'].append({
             'resource': 'Pipeline',
@@ -271,6 +270,7 @@ def load_tkn_template(path: str, variables: dict[str, str]):
 
     return yaml.safe_load(body)
 
+
 def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
                            namespace: str) -> dict[str, Union[str, OR]]:
     openshift_resource = OR(tkn_object,
@@ -337,6 +337,7 @@ def run(dry_run: bool,
         internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size)
+    defer(oc_map.cleanup)
 
     LOG.debug("Adding desired resources to inventory")
     for desired_resource in desired_resources:
