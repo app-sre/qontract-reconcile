@@ -1,7 +1,7 @@
 import logging
 import itertools
 
-from typing import Optional, List, Iterable, Mapping
+from typing import Optional, Iterable, Mapping
 
 import yaml
 
@@ -53,7 +53,7 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                         clusters: Optional[Iterable[Mapping]] = None,
                         override_managed_types: Optional[Iterable[str]] = None,
                         managed_types_key: str = 'managedResourceTypes'
-                        ) -> List[StateSpec]:
+                        ) -> list[StateSpec]:
     state_specs = []
 
     if clusters and namespaces:
@@ -117,6 +117,21 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                     resource_type_override=resource_type_overrides.get(kind),
                     resource_names=names)
                 state_specs.append(c_spec)
+                managed_types.remove(kind)
+
+            # Produce "empty" StateSpec's for any resource type that
+            # doesn't have an explicit managedResourceName listed in
+            # the namespace
+            state_specs.extend(
+                StateSpec(
+                    "current",
+                    oc,
+                    cluster,
+                    namespace,
+                    t,
+                    resource_type_override=resource_type_overrides.get(t),
+                    resource_names=None
+                ) for t in managed_types)
 
             # Initialize desired state specs
             openshift_resources = namespace_info.get('openshiftResources')

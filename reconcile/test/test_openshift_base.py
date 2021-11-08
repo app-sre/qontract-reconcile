@@ -149,8 +149,19 @@ class TestInitSpecsToFetch(testslide.TestCase):
     def test_namespaces_no_managedresourcenames(self) -> None:
         self.namespaces[0]['managedResourceNames'] = None
         self.namespaces[0]['managedResourceTypeOverrides'] = None
-
+        self.maxDiff = None
         expected = [
+            sut.StateSpec(
+                type="current",
+                oc="stuff",
+                cluster="cs1",
+                namespace="ns1",
+                parent=None,
+                resource="Template",
+                resource_names=None,
+                resource_type_override=None,
+
+            ),
             sut.StateSpec(
                 type="desired",
                 oc="stuff",
