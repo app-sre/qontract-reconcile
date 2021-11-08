@@ -21,8 +21,7 @@ class CreateDeleteUser(MergeRequestBase):
 
         super().__init__()
 
-        # self.labels = [AUTO_MERGE]
-        self.labels = []
+        self.labels = [AUTO_MERGE]
 
     @property
     def title(self):

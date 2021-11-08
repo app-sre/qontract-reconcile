@@ -6,7 +6,7 @@ from reconcile.utils.mr.app_interface_reporter \
 from reconcile.utils.mr.aws_access import CreateDeleteAwsAccessKey
 from reconcile.utils.mr.clusters_updates import CreateClustersUpdates
 from reconcile.utils.mr.notificator import CreateAppInterfaceNotificator
-from reconcile.utils.mr.user_maintenance import CreateDeleteUser, PathTypes
+from reconcile.utils.mr.user_maintenance import CreateDeleteUser
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.mr.cluster_service_install_config import CSInstallConfig
 
