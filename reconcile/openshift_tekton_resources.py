@@ -2,7 +2,7 @@ import sys
 import logging
 import copy
 import json
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Iterable, Optional, Union
 from pathlib import Path
 
 # TODO: remove!
@@ -18,7 +18,7 @@ from reconcile.status import ExitCodes
 from reconcile.utils import threaded, gql
 from reconcile.utils.oc import OC_Map, StatusCodeError
 from reconcile.utils.defer import defer
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
 
 LOG = logging.getLogger(__name__)
@@ -34,11 +34,6 @@ DEFAULT_DEPLOY_RESOURCES = {'requests': {'cpu': '50m',
                                          'memory': '200Mi'},
                             'limits': {'cpu': '200m',
                                        'memory': '300Mi'}}
-# Type alias
-SaasFile = Dict[str, Any]
-TektonNamespace = Dict[str, Any]
-LoadedYamlResource = Dict[str, Any]
-
 SAAS_FILES_QUERY = """
 {
   saas_files: saas_files_v2 {
@@ -69,7 +64,7 @@ class OTRNameTooLong(Exception):
 
 
 # Builds a list of v2 saas files from qontract-server
-def get_saas_files(saas_file_name) -> List[SaasFile]:
+def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
     saas_files = [
         s for s in gql.get_api().query(SAAS_FILES_QUERY)['saas_files']
         if s.get('configurableResources')]
@@ -86,7 +81,8 @@ def get_saas_files(saas_file_name) -> List[SaasFile]:
     return saas_files
 
 
-def fetch_tkn_providers(saas_files):
+def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
+        -> dict[str, Any]:
     errors = 0
     all_tkn_providers = {}
     for pp in queries.get_pipelines_providers():
@@ -94,7 +90,7 @@ def fetch_tkn_providers(saas_files):
             continue
 
         if pp['name'] in all_tkn_providers:
-            logger.error("Duplicated name {pp['name']} from {pp['path']}")
+            LOG.error("Duplicated name {pp['name']} from {pp['path']}")
             errors += 1
         else:
             all_tkn_providers[pp['name']] = pp
@@ -122,7 +118,8 @@ def fetch_tkn_providers(saas_files):
 # Create an array of dicts that will be used as args of ri.add_desired
 # This will also add resourceNames inside tkn_providers['namespace']
 # while we are migrating from the current system to this integration
-def fetch_desired_resources(tkn_providers):
+def fetch_desired_resources(tkn_providers: dict[str, Any]) \
+        -> list[dict[str, Union[str, OR]]]:
     desired_resources = []
     for tkn_provider in tkn_providers.values():
         namespace = tkn_provider['namespace']['name']
@@ -140,20 +137,21 @@ def fetch_desired_resources(tkn_providers):
         # namespace, hence we will use this instead of adding data
         # directly to desired_resources
         desired_tasks = []
-        for task_template in tkn_provider['taskTemplates']:
-            task_templates_types[task_template['name']] = task_template['type']
+        for task_template_config in tkn_provider['taskTemplates']:
+            task_templates_types[task_template_config['name']] = task_template_config['type']
 
-            if task_template['type'] == 'onePerNamespace':
-                task = build_one_per_namespace_task(task_template)
+            if task_template_config['type'] == 'onePerNamespace':
+                task = build_one_per_namespace_task(task_template_config)
                 desired_tasks.append(
-                    build_desired_resource(task, task_template['path'],
+                    build_desired_resource(task, task_template_config['path'],
                                            cluster, namespace))
-            elif task_template['type'] == 'onePerSaasFile':
+            elif task_template_config['type'] == 'onePerSaasFile':
                 for saas_file in tkn_provider['saas_files']:
                     task = build_one_per_saas_file_task(
-                        task_template, saas_file, deploy_resources)
+                        task_template_config, saas_file, deploy_resources)
                     desired_tasks.append(
-                        build_desired_resource(task, task_template['path'],
+                        build_desired_resource(task,
+                                               task_template_config['path'],
                                                cluster, namespace))
             else:
                 # TODO: Raise Custom Exception
@@ -188,23 +186,28 @@ def fetch_desired_resources(tkn_providers):
     return desired_resources
 
 
-def build_one_per_namespace_task(task_template):
-    variables = json.loads(task_template.get('variables', {}))
-    task = load_tkn_template(task_template['path'], variables)
+def build_one_per_namespace_task(task_template_config: dict[str, str]) -> dict[str, Any]:
+    pp(task_template_config)
+    variables = json.loads(task_template_config['variables']) \
+                if 'variables' in task_template_config else {}
+    task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
-        build_one_per_namespace_tkn_object_name(task_template['name'])
+        build_one_per_namespace_tkn_object_name(task_template_config['name'])
 
     return task
 
 
-def build_one_per_saas_file_task(task_template, saas_file, deploy_resources):
-    variables = json.loads(task_template.get('variables')) \
-                if task_template.get('variables') else {}
-    task = load_tkn_template(task_template['path'], variables)
+def build_one_per_saas_file_task(task_template_config: dict[str, str],
+                                 saas_file: dict[str, Any],
+                                 deploy_resources: dict[str, dict[str, str]]) \
+                                         -> dict[str, Any]:
+    variables = json.loads(task_template_config['variables']) \
+                if 'variables' in task_template_config else {}
+    task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
-        build_one_per_saas_file_tkn_object_name(task_template['name'],
+        build_one_per_saas_file_tkn_object_name(task_template_config['name'],
                                                 saas_file['name'])
-    step_name = task_template.get('deployResourcesStepName',
+    step_name = task_template_config.get('deployResourcesStepName',
                                   'qontract-reconcile')
 
     resources_configured = False
@@ -223,14 +226,15 @@ def build_one_per_saas_file_task(task_template, saas_file, deploy_resources):
     return task
 
 
-def build_one_per_saas_file_pipeline(pipeline_template, saas_file,
-                                     task_templates_types):
-    variables = json.loads(pipeline_template.get('variables')) \
-                if pipeline_template.get('variables') else {}
-    pipeline = load_tkn_template(pipeline_template['path'], variables)
-    pipeline['metadata']['name'] = \
-        build_one_per_saas_file_tkn_object_name(pipeline_template['name'],
-                                                saas_file['name'])
+def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
+                                     saas_file: dict[str, Any],
+                                     task_templates_types: dict[str, str]) \
+                                        -> dict[str, Any]:
+    variables = json.loads(pipeline_template_config['variables']) \
+                if 'variables' in pipeline_template_config else {}
+    pipeline = load_tkn_template(pipeline_template_config['path'], variables)
+    pipeline['metadata']['name'] = build_one_per_saas_file_tkn_object_name(
+        pipeline_template_config['name'], saas_file['name'])
 
     for section in ['tasks', 'finally']:
         for task in pipeline['spec'][section]:
@@ -249,19 +253,20 @@ def build_one_per_saas_file_pipeline(pipeline_template, saas_file,
     return pipeline
 
 
-def load_tkn_template(path, variables):
+def load_tkn_template(path: str, variables: dict[str, str]):
     resource = gql.get_api().get_resource(path)
     body = jinja2.Template(resource['content'],
                            undefined=jinja2.StrictUndefined).render(variables)
 
     return yaml.safe_load(body)
 
-def build_desired_resource(tkn_object, path, cluster, namespace):
+def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
+                           namespace: str) -> dict[str, Union[str, OR]]:
     # TODO: exception handling
-    openshift_resource = OpenshiftResource(tkn_object,
-                                           QONTRACT_INTEGRATION,
-                                           QONTRACT_INTEGRATION_VERSION,
-                                           error_details=path)
+    openshift_resource = OR(tkn_object,
+                            QONTRACT_INTEGRATION,
+                            QONTRACT_INTEGRATION_VERSION,
+                            error_details=path)
 
     return {'cluster': cluster,
             'namespace': namespace,
