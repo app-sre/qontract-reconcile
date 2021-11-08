@@ -228,7 +228,7 @@ def get_desired_state(slack_map, pagerduty_map):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    permissions = queries.get_permissions()
+    permissions = queries.get_permissions_for_slack_usergroup()
     all_users = queries.get_users()
 
     desired_state = {}
