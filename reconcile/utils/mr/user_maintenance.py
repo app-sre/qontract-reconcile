@@ -2,6 +2,12 @@ from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
 
+class PathTypes:
+    USER = 0
+    REQUEST = 1
+    QUERY = 2
+
+
 class CreateDeleteUser(MergeRequestBase):
 
     name = 'create_delete_user_mr'
@@ -12,7 +18,8 @@ class CreateDeleteUser(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [AUTO_MERGE]
+        # self.labels = [AUTO_MERGE]
+        self.labels = []
 
     @property
     def title(self):
@@ -20,6 +27,9 @@ class CreateDeleteUser(MergeRequestBase):
 
     def process(self, gitlab_cli):
         for path in self.paths:
-            gitlab_cli.delete_file(branch_name=self.branch,
-                                   file_path=path,
-                                   commit_message=self.title)
+            if path['type'] in [PathTypes.USER,
+                                PathTypes.REQUEST,
+                                PathTypes.QUERY]:
+                gitlab_cli.delete_file(branch_name=self.branch,
+                                       file_path=path['path'],
+                                       commit_message=self.title)
