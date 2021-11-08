@@ -52,11 +52,11 @@ SAAS_FILES_QUERY = """
 """
 
 
-class OTRNameTooLongError(Exception):
+class OpenshiftTektonResourcesNameTooLongError(Exception):
     pass
 
 
-class OTRBadConfigError(Exception):
+class OpenshiftTektonResourcesBadConfigError(Exception):
     pass
 
 
@@ -92,8 +92,9 @@ def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
             all_tkn_providers[pipeline_provider['name']] = pipeline_provider
 
     if duplicates:
-        raise OTRBadConfigError('There are duplicates in tekton providers'
-                                'names: {", ".join(duplicates)}')
+        raise OpenshiftTektonResourcesBadConfigError(
+            'There are duplicates in tekton providers names: '
+            f'{", ".join(duplicates)}')
 
     # Only get the providers that are used by the saas files
     # Add the saas files belonging to it
@@ -154,13 +155,13 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
                                                cluster,
                                                namespace))
             else:
-                raise OTRBadConfigError(
+                raise OpenshiftTektonResourcesBadConfigError(
                     f"Unknown type [{task_template_config['type']}] in tekton "
                     f"provider [{tkn_provider['name']}]")
 
         if len(tkn_provider['taskTemplates']) != \
                 len(task_templates_types.keys()):
-            raise OTRBadConfigError(
+            raise OpenshiftTektonResourcesBadConfigError(
                 'There are duplicates in task templates names in tekton '
                 f"provider [{tkn_provider['name']}]")
 
@@ -228,7 +229,7 @@ def build_one_per_saas_file_task(task_template_config: dict[str, str],
             break
 
     if not resources_configured:
-        raise OTRBadConfigError(
+        raise OpenshiftTektonResourcesBadConfigError(
             f"Cannot find a step named [{step_name}] to set resources "
             f"in task template [{task_template_config['name']}]")
 
@@ -248,7 +249,7 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
     for section in ['tasks', 'finally']:
         for task in pipeline['spec'][section]:
             if task['name'] not in task_templates_types:
-                raise OTRBadConfigError(
+                raise OpenshiftTektonResourcesBadConfigError(
                     f"Unknown task {task['name']} in pipeline template "
                     f"[{pipeline_template_config['name']}]")
 
@@ -287,7 +288,7 @@ def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
 
 def check_resource_max_length(name: str) -> None:
     if len(name) > RESOURCE_MAX_LENGTH:
-        raise OTRNameTooLongError(
+        raise OpenshiftTektonResourcesNameTooLongError(
             f"name {name} is longer than {RESOURCE_MAX_LENGTH} characters")
 
 
