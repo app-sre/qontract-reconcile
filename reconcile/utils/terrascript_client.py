@@ -281,11 +281,14 @@ class TerrascriptClient:
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
+                        policy_arn = \
+                            f'arn:{self._get_partition(account_name)}:' + \
+                            f'iam::aws:policy/{policy}'
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy.replace('/', '_'),
                                 group=group_name,
-                                policy_arn='arn:aws:iam::aws:policy/' + policy,
+                                policy_arn=policy_arn,
                                 depends_on=self.get_dependencies(
                                     [tf_iam_group])
                             )
