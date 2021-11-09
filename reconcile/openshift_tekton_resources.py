@@ -121,8 +121,8 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
     for tkn_provider in tkn_providers.values():
         namespace = tkn_provider['namespace']['name']
         cluster = tkn_provider['namespace']['cluster']['name']
-        deploy_resources = tkn_provider.get('deployResources',
-                                            DEFAULT_DEPLOY_RESOURCES)
+        deploy_resources = tkn_provider.get('deployResources') or \
+                           DEFAULT_DEPLOY_RESOURCES
 
         # a dict with task template names as keys and types as values
         # we'll use it when building the pipeline object to make sure
