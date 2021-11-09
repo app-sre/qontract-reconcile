@@ -60,7 +60,7 @@ def build_entry_point_args(command: click.Command, config: str,
 
     # if the integration_name is a known sub command, we add it right before the extra_args
     if integration_name and isinstance(command, click.MultiCommand) and \
-            command.get_command(None, integration_name):
+            command.get_command(None, integration_name): # type: ignore
         args.append(integration_name)
 
     if extra_args is not None:
