@@ -52,8 +52,8 @@ logging.basicConfig(level=logging.INFO,
 
 
 def build_entry_point_args(command: click.Command, config: str,
-                           dry_run: str, integration_name: str,
-                           extra_args: str) -> list[str]:
+                           dry_run: Optional[str], integration_name: str,
+                           extra_args: Optional[str]) -> list[str]:
     args = ['--config', config]
     if dry_run is not None:
         args.append(dry_run)
@@ -138,9 +138,9 @@ def main():
             return_code = int(exc_obj.code)
         # We have to be generic since we don't know what can happen
         # in the integrations, but we want to continue the loop anyway
-        except Exception as exc_obj:
+        except Exception:
             sleep = SLEEP_ON_ERROR
-            LOG.exception(f"Error running {COMMAND_NAME}: %s", exc_obj)
+            LOG.exception(f"Error running {COMMAND_NAME}")
             return_code = ExitCodes.ERROR
 
         time_spent = time.monotonic() - start_time
