@@ -1,0 +1,98 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: push-gateway-task-status-metric
+spec:
+  params:
+  - name: saas_file_name
+    type: string
+  - name: env_name
+    type: string
+  - name: metric_name
+    type: string
+  - name: job_name
+    type: string
+  - name: task_name
+    type: string
+  - name: task_status
+    type: string
+  - name: pipeline_name
+    type: string
+  - name: pipelinerun_name
+    type: string
+  - name: retry_cooldown_seconds
+    type: string
+  - name: tkn_cluster_console_url
+    type: string
+  - name: tkn_namespace_name
+    type: string
+  steps:
+  - name: push-gateway-task-status-metric
+    image: quay.io/app-sre/ubi8-ubi-minimal:{{ ubi8_ubi_minimal_image_tag }}
+    resources:
+      requests:
+        cpu: 10m
+        memory: 20Mi
+      limits:
+        cpu: 20m
+        memory: 30Mi
+    env:
+    - name: PUSHGW_URL
+      valueFrom:
+        secretKeyRef:
+          name: push-gateway-basic-auth
+          key: server
+    - name: PUSHGW_CREDS_B64
+      valueFrom:
+        secretKeyRef:
+          name: push-gateway-basic-auth
+          key: credentials_b64
+    script: |
+      #!/usr/bin/env bash
+      #
+      # This script pushes a metric such as:
+      # app_sre_tekton_pipelinerun_task_status{container="pushgateway",endpoint="scrape",env_name="insights-production",job="openshift-saas-deploy-push-metric",namespace="app-sre-observability-production",pipeline_name="openshift-saas-deploy",pipelinerun_name="xjoin-operator-insights-production-20210504152500",pod="pushgateway-5-dkksf",saas_file_name="xjoin-operator",service="pushgateway-nginx-gate",task_name="openshift-saas-deploy",tkn_namespace_name="app-sre-pipelines",tkn_cluster_console_url="https://console-openshift-console.apps.appsrep05ue1.zqxk.p1.openshiftapps.com"}
+      # into Prometheus PushGateway
+      # There is an important detail here: We'll push into a group identified by the combination of saas_file_name and env_name,
+      # which we know it is unique. Even if we are pushing metrics with a different pipelinerun, the PushGateway will only keep
+      # one metric per group, the last one.
+
+      function log() {
+          echo "`date '+%Y-%m-%d %H:%M:%S'` -- $@" 1>&2
+      }
+
+      # From https://tekton.dev/docs/pipelines/pipelines/#adding-finally-to-the-pipeline
+      # Succeeded	all tasks have succeeded
+      # Failed	one or more tasks failed
+      # Completed	all tasks completed successfully including one or more skipped tasks
+      # None	no aggregate execution status available (i.e. none of the above), one or more tasks could be pending/running/cancelled/timedout
+      case "$(params.task_status)" in
+      'Succeeded') STATUS=0;;
+      'Failed')    STATUS=1;;
+      'Completed') STATUS=2;;
+      'None')      STATUS=3;;
+      *)           STATUS=9;;
+      esac
+
+      GROUP_URL="$PUSHGW_URL/metrics/job/$(params.job_name)/saas_file_name/$(params.saas_file_name)/env_name/$(params.env_name)"
+      PUSH_METRIC="$(params.metric_name){saas_file_name=\"$(params.saas_file_name)\",env_name=\"$(params.env_name)\",pipeline_name=\"$(params.pipeline_name)\",pipelinerun_name=\"$(params.pipelinerun_name)\",task_name=\"$(params.task_name)\",tkn_cluster_console_url=\"$(params.tkn_cluster_console_url)\",tkn_namespace_name=\"$(params.tkn_namespace_name)\"}"
+
+      log "PUTting '$PUSH_METRIC $STATUS' to $GROUP_URL"
+
+      HTTP_RESPONSE_CODE=$(curl -X PUT -m 10 -sS -w '%{http_code}' -o /dev/null -H "Authorization: Basic $PUSHGW_CREDS_B64" --data-binary @- "$GROUP_URL" <<EOF
+      # TYPE $(params.metric_name) gauge
+      $PUSH_METRIC $STATUS
+      EOF
+      )
+
+      CURL_RC=$?
+      EXIT_RC=0
+
+      if [[ "$CURL_RC" != 0 || ("$HTTP_RESPONSE_CODE" -ge 400 && "$HTTP_RESPONSE_CODE" -lt 600) ]]; then
+          EXIT_RC=1
+          log "sleeping $(params.retry_cooldown_seconds)"
+          sleep $(params.retry_cooldown_seconds)
+      fi
+
+      log "exiting with return code $EXIT_RC"
+      exit "$EXIT_RC"

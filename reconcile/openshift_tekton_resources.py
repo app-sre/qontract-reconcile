@@ -1,7 +1,7 @@
 import sys
 import logging
 import json
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Optional, Union
 
 import yaml
 import jinja2
@@ -23,11 +23,13 @@ OBJECTS_PREFIX = 'o'
 RESOURCE_MAX_LENGTH = 63
 
 # Defaults
+DEFAULT_DEPLOY_RESOURCES_STEP_NAME = 'qontract-reconcile'
 DEFAULT_DEPLOY_RESOURCES = {'requests': {'cpu': '50m',
                                          'memory': '200Mi'},
                             'limits': {'cpu': '200m',
                                        'memory': '300Mi'}}
-SAAS_FILES_QUERY = """
+# Queries
+SAAS_FILES_QUERY = '''
 {
   saas_files: saas_files_v2 {
     path
@@ -49,7 +51,7 @@ SAAS_FILES_QUERY = """
     }
   }
 }
-"""
+'''
 
 
 class OpenshiftTektonResourcesNameTooLongError(Exception):
@@ -60,8 +62,9 @@ class OpenshiftTektonResourcesBadConfigError(Exception):
     pass
 
 
-# Builds a list of v2 saas files from qontract-server
-def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
+def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
+    '''Fetch saas files that can be handled by this integration: those with
+    configurableResources set to True'''
     saas_files = [
         s for s in gql.get_api().query(SAAS_FILES_QUERY)['saas_files']
         if s.get('configurableResources')]
@@ -78,8 +81,12 @@ def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
     return saas_files
 
 
-def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
-        -> dict[str, Any]:
+def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
+    '''Fetch tekton providers data for the saas files handled here'''
+    saas_files = fetch_saas_files(saas_file_name)
+    if not saas_files:
+        return {}
+
     duplicates: set[str] = set()
     all_tkn_providers = {}
     for pipeline_provider in queries.get_pipelines_providers():
@@ -112,17 +119,17 @@ def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
     return tkn_providers
 
 
-# Create an array of dicts that will be used as args of ri.add_desired
-# This will also add resourceNames inside tkn_providers['namespace']
-# while we are migrating from the current system to this integration
 def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         -> list[dict[str, Union[str, OR]]]:
+    '''Create an array of dicts that will be used as args of ri.add_desired
+    This will also add resourceNames inside tkn_providers['namespace']
+    while we are migrating from the current system to this integration'''
     desired_resources = []
     for tknp in tkn_providers.values():
         namespace = tknp['namespace']['name']
         cluster = tknp['namespace']['cluster']['name']
         deploy_resources = tknp.get('deployResources') or \
-                           DEFAULT_DEPLOY_RESOURCES
+            DEFAULT_DEPLOY_RESOURCES
 
         # a dict with task template names as keys and types as values
         # we'll use it when building the pipeline object to make sure
@@ -162,7 +169,7 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         if len(tknp['taskTemplates']) != len(task_templates_types.keys()):
             raise OpenshiftTektonResourcesBadConfigError(
                 'There are duplicates in task templates names in tekton '
-                f"provider [{tknp['name']}]")
+                f"provider {tknp['name']}")
 
         # TODO: remove when tknp objects are managed with this integration
         tknp['namespace']['managedResourceNames'] = [{
@@ -197,8 +204,10 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
 
 def build_one_per_namespace_task(task_template_config: dict[str, str]) \
         -> dict[str, Any]:
+    '''Builds onePerNamespace Task objects. The name of the task template
+    will be used as Task name and there won't be any resource configuration'''
     variables = json.loads(task_template_config['variables']) \
-                if task_template_config.get('variables') else {}
+        if task_template_config.get('variables') else {}
     task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
         build_one_per_namespace_tkn_object_name(task_template_config['name'])
@@ -210,27 +219,32 @@ def build_one_per_saas_file_task(task_template_config: dict[str, str],
                                  saas_file: dict[str, Any],
                                  deploy_resources: dict[str, dict[str, str]]) \
                                          -> dict[str, Any]:
+    '''Builds onePerSaasFile Task objects. The name of the Task will be set
+    using the template config name and the saas file name. The step
+    corresponding to the openshift-saas-deploy run will get its resources
+    configured using either the defaults, the provider defaults or the saas
+    file configuration'''
     variables = json.loads(task_template_config['variables']) \
-                if task_template_config.get('variables') else {}
+        if task_template_config.get('variables') else {}
     task = load_tkn_template(task_template_config['path'], variables)
     task['metadata']['name'] = \
         build_one_per_saas_file_tkn_object_name(task_template_config['name'],
                                                 saas_file['name'])
     step_name = task_template_config.get('deployResourcesStepName',
-                                         'qontract-reconcile')
+                                         DEFAULT_DEPLOY_RESOURCES_STEP_NAME)
 
     resources_configured = False
     for step in task['spec']['steps']:
         if step['name'] == step_name:
-            step['resources'] = saas_file.get('deployResources',
-                                              deploy_resources)
+            step['resources'] = saas_file.get('deployResources') or \
+                deploy_resources
             resources_configured = True
             break
 
     if not resources_configured:
         raise OpenshiftTektonResourcesBadConfigError(
-            f"Cannot find a step named [{step_name}] to set resources "
-            f"in task template [{task_template_config['name']}]")
+            f"Cannot find a step named {step_name} to set resources "
+            f"in task template {task_template_config['name']}")
 
     return task
 
@@ -239,8 +253,10 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
                                      saas_file: dict[str, Any],
                                      task_templates_types: dict[str, str]) \
                                         -> dict[str, Any]:
+    '''Builds onePerSaasFile Pipeline objects. The task references names will
+    be set depending if the tasks are onePerNamespace or onePerSaasFile'''
     variables = json.loads(pipeline_template_config['variables']) \
-                if pipeline_template_config.get('variables') else {}
+        if pipeline_template_config.get('variables') else {}
     pipeline = load_tkn_template(pipeline_template_config['path'], variables)
     pipeline['metadata']['name'] = build_one_per_saas_file_tkn_object_name(
         pipeline_template_config['name'], saas_file['name'])
@@ -250,7 +266,7 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
             if task['name'] not in task_templates_types:
                 raise OpenshiftTektonResourcesBadConfigError(
                     f"Unknown task {task['name']} in pipeline template "
-                    f"[{pipeline_template_config['name']}]")
+                    f"{pipeline_template_config['name']}")
 
             if task_templates_types[task['name']] == "onePerNamespace":
                 task['taskRef']['name'] = \
@@ -263,7 +279,8 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
     return pipeline
 
 
-def load_tkn_template(path: str, variables: dict[str, str]):
+def load_tkn_template(path: str, variables: dict[str, str]) -> dict[str, Any]:
+    '''Fetches a yaml resource from qontract-server and parses it'''
     resource = gql.get_api().get_resource(path)
     body = jinja2.Template(resource['content'],
                            undefined=jinja2.StrictUndefined).render(variables)
@@ -273,6 +290,7 @@ def load_tkn_template(path: str, variables: dict[str, str]):
 
 def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
                            namespace: str) -> dict[str, Union[str, OR]]:
+    '''Returns a dict with ResourceInventory.add_desired args'''
     openshift_resource = OR(tkn_object,
                             QONTRACT_INTEGRATION,
                             QONTRACT_INTEGRATION_VERSION,
@@ -286,13 +304,15 @@ def build_desired_resource(tkn_object: dict[str, Any], path: str, cluster: str,
 
 
 def check_resource_max_length(name: str) -> None:
+    '''Checks the resource name is not too long as it may have problems while
+    being applied'''
     if len(name) > RESOURCE_MAX_LENGTH:
         raise OpenshiftTektonResourcesNameTooLongError(
             f"name {name} is longer than {RESOURCE_MAX_LENGTH} characters")
 
 
 def build_one_per_namespace_tkn_object_name(name: str) -> str:
-    """Returns the PushGateway Task name created by this integration"""
+    '''Builds a onePerNamespace object name'''
     name = f'{OBJECTS_PREFIX}-{name}'
     check_resource_max_length(name)
     return name
@@ -300,8 +320,9 @@ def build_one_per_namespace_tkn_object_name(name: str) -> str:
 
 def build_one_per_saas_file_tkn_object_name(template_name: str,
                                             saas_file_name: str) -> str:
-    """Given a saas file name, return the openshift-saas-deploy names used by
-    Tasks and Pipelines created by this integration"""
+    '''Builds a onePerSaasFile object name.  Given a saas file name, it returns
+    the openshift-saas-deploy names used by Tasks and Pipelines created by this
+    integration'''
     name = f"{OBJECTS_PREFIX}-{saas_file_name}-{template_name}"
     check_resource_max_length(name)
     return name
@@ -313,12 +334,12 @@ def run(dry_run: bool,
         use_jump_host: bool = True,
         saas_file_name: Optional[str] = None) -> None:
 
-    saas_files = get_saas_files(saas_file_name)
-    if not saas_files:
-        LOG.info("No saas files found to be processed")
-        sys.exit(ExitCodes.ERROR)
+    tkn_providers = fetch_tkn_providers(saas_file_name)
 
-    tkn_providers = fetch_tkn_providers(saas_files)
+    # TODO: This will need to be an error condition in the future
+    if not tkn_providers:
+        LOG.info("No saas files found to be processed")
+        sys.exit(0)
 
     # We need to start with the desired state to know the names of the
     # tekton objects that will be created in the providers' namespaces. We
