@@ -2,6 +2,8 @@ import logging
 
 from github.GithubException import UnknownObjectException
 
+from sretoolbox.utils import retry
+
 import reconcile.aws_support_cases_sos as aws_sos
 from reconcile import queries
 from reconcile.utils import threaded
@@ -18,6 +20,7 @@ def strip_repo_url(repo_url):
     return repo_url.rstrip('/').replace('.git', '')
 
 
+@retry(max_attempts=6)
 def get_all_repos_to_scan(repos):
     logging.info('getting full list of repos')
     all_repos = []
