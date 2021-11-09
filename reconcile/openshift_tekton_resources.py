@@ -68,9 +68,9 @@ def get_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
 
     if saas_file_name:
         saas_file = None
-        for s in saas_files:
-            if s['name'] == saas_file_name:
-                saas_file = s
+        for sf in saas_files:
+            if sf['name'] == saas_file_name:
+                saas_file = sf
                 break
 
         return [saas_file] if saas_file else []
@@ -99,15 +99,15 @@ def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
     # Only get the providers that are used by the saas files
     # Add the saas files belonging to it
     tkn_providers = {}
-    for saas_file in saas_files:
-        tkn_provider = saas_file['pipelinesProvider']['name']
-        if tkn_provider not in tkn_providers:
-            tkn_providers[tkn_provider] = all_tkn_providers[tkn_provider]
+    for sf in saas_files:
+        provider_name = sf['pipelinesProvider']['name']
+        if provider_name not in tkn_providers:
+            tkn_providers[provider_name] = all_tkn_providers[provider_name]
 
-        if 'saas_files' not in tkn_providers[tkn_provider]:
-            tkn_providers[tkn_provider]['saas_files'] = []
+        if 'saas_files' not in tkn_providers[provider_name]:
+            tkn_providers[provider_name]['saas_files'] = []
 
-        tkn_providers[tkn_provider]['saas_files'].append(saas_file)
+        tkn_providers[provider_name]['saas_files'].append(sf)
 
     return tkn_providers
 
@@ -118,10 +118,10 @@ def fetch_tkn_providers(saas_files: Iterable[dict[str, Any]]) \
 def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         -> list[dict[str, Union[str, OR]]]:
     desired_resources = []
-    for tkn_provider in tkn_providers.values():
-        namespace = tkn_provider['namespace']['name']
-        cluster = tkn_provider['namespace']['cluster']['name']
-        deploy_resources = tkn_provider.get('deployResources') or \
+    for tknp in tkn_providers.values():
+        namespace = tknp['namespace']['name']
+        cluster = tknp['namespace']['cluster']['name']
+        deploy_resources = tknp.get('deployResources') or \
                            DEFAULT_DEPLOY_RESOURCES
 
         # a dict with task template names as keys and types as values
@@ -134,7 +134,7 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
         # namespace, hence we will use this instead of adding data
         # directly to desired_resources
         desired_tasks = []
-        for task_template_config in tkn_provider['taskTemplates']:
+        for task_template_config in tknp['taskTemplates']:
             task_templates_types[task_template_config['name']] = \
                 task_template_config['type']
 
@@ -146,9 +146,9 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
                                            cluster,
                                            namespace))
             elif task_template_config['type'] == 'onePerSaasFile':
-                for saas_file in tkn_provider['saas_files']:
+                for sf in tknp['saas_files']:
                     task = build_one_per_saas_file_task(
-                        task_template_config, saas_file, deploy_resources)
+                        task_template_config, sf, deploy_resources)
                     desired_tasks.append(
                         build_desired_resource(task,
                                                task_template_config['path'],
@@ -157,16 +157,15 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
             else:
                 raise OpenshiftTektonResourcesBadConfigError(
                     f"Unknown type [{task_template_config['type']}] in tekton "
-                    f"provider [{tkn_provider['name']}]")
+                    f"provider [{tknp['name']}]")
 
-        if len(tkn_provider['taskTemplates']) != \
-                len(task_templates_types.keys()):
+        if len(tknp['taskTemplates']) != len(task_templates_types.keys()):
             raise OpenshiftTektonResourcesBadConfigError(
                 'There are duplicates in task templates names in tekton '
-                f"provider [{tkn_provider['name']}]")
+                f"provider [{tknp['name']}]")
 
-        # TODO: remove when tkn objects are managed with this integration
-        tkn_provider['namespace']['managedResourceNames'] = [{
+        # TODO: remove when tknp objects are managed with this integration
+        tknp['namespace']['managedResourceNames'] = [{
             'resource': 'Task',
             'resourceNames': [t['name'] for t in desired_tasks]
         }]
@@ -175,18 +174,18 @@ def fetch_desired_resources(tkn_providers: dict[str, Any]) \
 
         # We only support pipelines from OpenshiftSaasDeploy
         pipeline_template_config = \
-            tkn_provider['pipelineTemplates']['openshiftSaasDeploy']
+            tknp['pipelineTemplates']['openshiftSaasDeploy']
         desired_pipelines = []
-        for saas_file in tkn_provider['saas_files']:
+        for sf in tknp['saas_files']:
             pipeline = build_one_per_saas_file_pipeline(
-                pipeline_template_config, saas_file, task_templates_types)
+                pipeline_template_config, sf, task_templates_types)
             desired_pipelines.append(
                 build_desired_resource(pipeline,
                                        pipeline_template_config['path'],
                                        cluster,
                                        namespace))
 
-        tkn_provider['namespace']['managedResourceNames'].append({
+        tknp['namespace']['managedResourceNames'].append({
             'resource': 'Pipeline',
             'resourceNames': [p['name'] for p in desired_pipelines]
         })
