@@ -120,8 +120,8 @@ def main():
     start_http_server(9090)
 
     command = build_entry_point_func(COMMAND_NAME)
-    args = build_entry_point_args(command, CONFIG, DRY_RUN, INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS)
     while True:
+        args = build_entry_point_args(command, CONFIG, DRY_RUN, INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS)
         sleep = SLEEP_DURATION_SECS
         start_time = time.monotonic()
         # Running the integration via Click, so we don't have to replicate
