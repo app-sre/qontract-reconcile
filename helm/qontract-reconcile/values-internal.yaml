@@ -423,3 +423,20 @@ cronjobs:
   # once a day
   cron: '0 5 * * *'
   dashdotdb: true
+- name: app-interface-reporter
+  command: app-interface-reporter
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  # first day of month
+  cron: '0 1 1 * *'
+  extraEnv:
+  - name: XDG_CACHE_HOME
+    value: /tmp/.cache
+  extraArgs: --gitlab-project-id=${APP_INTERFACE_PROJECT_ID} --reports-path=/tmp/report
