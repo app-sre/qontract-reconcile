@@ -2143,6 +2143,7 @@ PERMISSIONS_QUERY = """
       description
       handle
       ownersFromRepos
+      skip
       pagerduty {
           name
           instance {
