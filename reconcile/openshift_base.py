@@ -93,10 +93,15 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 # managed_resource_name of each managed type
                 if mrn['resource'] in managed_types:
                     resource_names[mrn['resource']] = mrn['resourceNames']
+                elif override_managed_types:
+                    logging.debug(
+                        f"Skipping resource {mrn['resource']} in {cluster}/"
+                        f"{namespace} because the integration explicitly "
+                        "dismisses it")
                 else:
                     raise KeyError(
-                        f"Non-managed resource {mrn} listed on "
-                        f"{cluster}/{namespace}"
+                        f"Non-managed resource name {mrn} listed on "
+                        f"{cluster}/{namespace} (valid kinds: {managed_types})"
                     )
 
             for o in managed_resource_type_overrides:
@@ -104,10 +109,16 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 # override of each managed type
                 if o['resource'] in managed_types:
                     resource_type_overrides[o['resource']] = o['override']
+                elif override_managed_types:
+                    logging.debug(
+                        f"Skipping resource type override {o} listed on"
+                        f"{cluster}/{namespace} because the integration "
+                        "dismisses it explicitly"
+                    )
                 else:
                     raise KeyError(
-                        f"Non-managed override {o} listed "
-                        f"on {cluster}/{namespace}"
+                        f"Non-managed override {o} listed on "
+                        f"{cluster}/{namespace} (valid kinds: {managed_types})"
                     )
 
             for kind, names in resource_names.items():

@@ -3,7 +3,10 @@ from typing import List, cast
 import testslide
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+
+fxt = Fixtures("namespaces")
 
 
 class TestInitSpecsToFetch(testslide.TestCase):
@@ -17,23 +20,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
 
         self.oc_map = cast(oc.OC_Map, testslide.StrictMock(oc.OC_Map))
         self.mock_constructor(oc, 'OC_Map').to_return_value(self.oc_map)
-        self.namespaces = [
-            {
-                "name": "ns1",
-                "managedResourceTypes": ["Template"],
-                "cluster": {"name": "cs1"},
-                "managedResourceNames": [
-                    {"resource": "Template",
-                     "resourceNames": ["tp1", "tp2"],
-                     },
-                ],
-                "openshiftResources": [
-                    {"provider": "resource",
-                     "path": "/some/path.yml"
-                     }
-                ]
-            }
-        ]
+        self.namespaces = [fxt.get_anymarkup("valid-ns.yml")]
 
         self.mock_callable(
             self.resource_inventory, 'initialize_resource_type'
@@ -212,3 +199,47 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 self.oc_map,
                 namespaces=self.namespaces
             )
+
+    def test_namespaces_override_managed_type(self) -> None:
+        self.namespaces[0]['managedResourceTypeOverrides'] = [
+            {
+                "resource": "Project",
+                "override": "wonderful.project",
+            }
+        ]
+
+        expected = [
+            sut.StateSpec(
+                type="current",
+                oc="stuff",
+                cluster="cs1",
+                namespace="ns1",
+                parent=None,
+                resource="LimitRanges",
+                resource_names=None,
+                resource_type_override=None,
+
+            ),
+            sut.StateSpec(
+                type="desired",
+                oc="stuff",
+                cluster="cs1",
+                namespace="ns1",
+                resource={
+                    "provider": "resource",
+                    "path": "/some/path.yml"
+                },
+                parent=self.namespaces[0]
+            )
+        ]
+
+        self.maxDiff = None
+        self.mock_callable(
+            self.resource_inventory, 'initialize_resource_type'
+        ).for_call(
+            'cs1', 'ns1', 'LimitRanges'
+        ).to_return_value(None).and_assert_called_once()
+        rs = sut.init_specs_to_fetch(
+            self.resource_inventory, oc_map=self.oc_map,
+            namespaces=self.namespaces, override_managed_types=['LimitRanges'])
+        self.assert_specs_match(rs, expected)
