@@ -1,10 +1,11 @@
 import sys
 import logging
 
-from reconcile import queries
-import reconcile.terraform_resources as tfr
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
 
+import reconcile.terraform_resources as tfr
+
+from reconcile import queries
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript

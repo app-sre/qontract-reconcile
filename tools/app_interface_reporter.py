@@ -8,13 +8,13 @@ import click
 import requests
 import yaml
 
+from sretoolbox.utils.threaded import run
 from prometheus_client.parser import text_string_to_metric_families
 from dateutil.relativedelta import relativedelta
 
 from reconcile.utils import gql
 from reconcile.utils import config
 from reconcile.cli import threaded
-from reconcile.utils.threaded import run
 from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 import reconcile.jenkins_plugins as jenkins_base

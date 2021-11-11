@@ -3,13 +3,13 @@ import shutil
 import sys
 
 from textwrap import indent
+from sretoolbox.utils import threaded
 
 
 import reconcile.openshift_base as ob
+
 from reconcile import queries
 from reconcile.utils import gql
-from reconcile.utils import threaded
-
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer

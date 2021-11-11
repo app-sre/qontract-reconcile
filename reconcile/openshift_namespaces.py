@@ -2,7 +2,8 @@ import logging
 import sys
 
 from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, cast
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
+
 from reconcile import queries
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer

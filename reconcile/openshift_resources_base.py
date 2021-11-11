@@ -6,6 +6,7 @@ import sys
 from threading import Lock
 from textwrap import indent
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
 import anymarkup
 import jinja2
@@ -15,7 +16,6 @@ from reconcile import queries
 from reconcile.utils import amtool
 from reconcile.utils import gql
 from reconcile.utils import openssl
-from reconcile.utils import threaded
 
 from reconcile.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver

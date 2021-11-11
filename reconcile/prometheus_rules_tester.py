@@ -3,12 +3,12 @@ import logging
 import re
 import sys
 import traceback
-
 import yaml
+
+from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils import gql
-from reconcile.utils import threaded
 from reconcile.utils import promtool
 import reconcile.openshift_resources_base as orb
 

@@ -1,11 +1,10 @@
 import logging
 import itertools
 
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
+
 from reconcile import queries
 from reconcile import openshift_groups
-
-
 from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = 'ocm-groups'

@@ -6,10 +6,9 @@ from github import Github
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
-from reconcile.utils import threaded
 from reconcile import queries
-
 from reconcile import mr_client_gateway
 from reconcile.github_org import get_config
 from reconcile.ldap_users import init_users as init_users_and_paths

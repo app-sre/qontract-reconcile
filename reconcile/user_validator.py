@@ -5,12 +5,11 @@ import logging
 from github.GithubException import GithubException
 from requests.exceptions import ReadTimeout
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
-from reconcile.utils.gpg import gpg_key_valid
 from reconcile import queries
+from reconcile.utils.gpg import gpg_key_valid
 from reconcile.github_users import init_github
-from reconcile.utils import threaded
-
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 QONTRACT_INTEGRATION = 'user-validator'
