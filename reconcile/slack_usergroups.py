@@ -235,6 +235,9 @@ def get_desired_state(slack_map, pagerduty_map):
     for p in permissions:
         if p['service'] != 'slack-usergroup':
             continue
+        skip_flag = p['skip']
+        if skip_flag:
+            continue
         workspace = p['workspace']
         managed_usergroups = workspace['managedUsergroups']
         if managed_usergroups is None:
