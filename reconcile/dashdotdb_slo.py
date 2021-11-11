@@ -1,8 +1,9 @@
 import jinja2
 import requests
 
+from sretoolbox.utils import threaded
+
 from reconcile import queries
-from reconcile.utils import threaded
 from reconcile.dashdotdb_base import DashdotdbBase, LOG
 
 

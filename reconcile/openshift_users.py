@@ -1,7 +1,8 @@
 import logging
 import itertools
 
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
+
 from reconcile import openshift_groups
 from reconcile import openshift_rolebindings
 from reconcile import queries

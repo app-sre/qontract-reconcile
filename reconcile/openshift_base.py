@@ -6,10 +6,9 @@ from typing import Optional, Iterable, Mapping
 import yaml
 
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils import threaded
-
 from reconcile.utils.oc import FieldIsImmutableError
 from reconcile.utils.oc import MayNotChangeOnceSetError
 from reconcile.utils.oc import PrimaryClusterIPCanNotBeUnsetError

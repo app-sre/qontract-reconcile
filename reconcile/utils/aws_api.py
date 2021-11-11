@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
+from sretoolbox.utils import threaded
 import botocore
 
-from reconcile.utils import threaded
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader

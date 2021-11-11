@@ -14,6 +14,7 @@ from typing import Dict, Iterable, List
 import urllib3
 
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 from prometheus_client import Counter
 
 from kubernetes.client import Configuration, ApiClient
@@ -24,7 +25,6 @@ from reconcile.utils.metrics import reconcile_time
 from reconcile.status import RunningState
 from reconcile.utils.jump_host import JumpHostSSH
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils import threaded
 from openshift.dynamic.exceptions import (NotFoundError,
                                           ServerTimeoutError,
                                           InternalServerError,

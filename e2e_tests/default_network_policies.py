@@ -1,9 +1,10 @@
 import re
 import logging
 
+from sretoolbox.utils import threaded
+
 import e2e_tests.test_base as tb
 import e2e_tests.network_policy_test_base as npt
-from reconcile.utils import threaded
 
 from reconcile.utils.defer import defer
 

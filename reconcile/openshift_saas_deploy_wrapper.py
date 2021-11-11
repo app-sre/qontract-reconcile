@@ -1,7 +1,8 @@
 import sys
 
+from sretoolbox.utils import threaded
+
 import reconcile.openshift_saas_deploy as osd
-from reconcile.utils import threaded
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.saas_file_owners import read_diffs_from_file as \

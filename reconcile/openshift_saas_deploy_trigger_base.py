@@ -2,12 +2,12 @@ import logging
 import datetime
 
 from threading import Lock
+from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as osb
-from reconcile import queries
 import reconcile.jenkins_plugins as jenkins_base
-from reconcile.utils import threaded
 
+from reconcile import queries
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
