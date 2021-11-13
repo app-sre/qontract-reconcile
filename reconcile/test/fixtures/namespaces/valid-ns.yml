@@ -1,0 +1,14 @@
+---
+name: ns1
+cluster:
+  name: cs1
+managedResourceTypes:
+  - Template
+managedResourceNames:
+  - resource: Template
+    resourceNames:
+      - tp1
+      - tp2
+openshiftResources:
+  - provider: resource
+    path: /some/path.yml
