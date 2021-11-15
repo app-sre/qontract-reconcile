@@ -118,7 +118,7 @@ class TestOpenshiftTektonResources(TestCase):
         tkn_providers = otr.fetch_tkn_providers(None)
         keys_expected = set([self.provider1['name'],
                              self.provider2_wr['name']])
-        self.assertEqual(set(tkn_providers.keys()), keys_expected)
+        self.assertEqual(tkn_providers.keys(), keys_expected)
 
     def test_duplicate_providers(self) -> None:
         self.test_data.saas_files = [self.saas1]
