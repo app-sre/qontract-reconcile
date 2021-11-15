@@ -102,7 +102,7 @@ class TestOpenshiftTektonResources(TestCase):
 
     def test_get_all_saas_files(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas3_ignored]
-        self.assertEqual(len(otr.fetch_saas_files(None)), 1)
+        self.assertEqual(otr.fetch_saas_files(None), [self.saas1])
 
     def test_get_one_saas_file(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas2]
