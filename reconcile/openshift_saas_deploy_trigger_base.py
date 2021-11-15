@@ -16,6 +16,8 @@ from reconcile.utils.saasherder import SaasHerder, Providers, \
     UNIQUE_SAAS_FILE_ENV_COMBO_LEN
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
+from reconcile.openshift_tekton_resources import \
+    build_one_per_saas_file_tkn_object_name
 
 _trigger_lock = Lock()
 
@@ -274,13 +276,34 @@ def _trigger_tekton(spec,
     env_name = spec['env_name']
     pipelines_provider = spec['pipelines_provider']
 
+    if spec['configurable_resources']:
+        pipeline_template_name = pipelines_provider[
+            'pipelineTemplates']['openshiftSaasDeploy']['name']
+        tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+            pipeline_template_name, saas_file_name)
+    else:
+        tkn_pipeline_name = settings['saasDeployJobTemplate']
+
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
     tkn_cluster_name = tkn_namespace_info['cluster']['name']
     tkn_cluster_console_url = tkn_namespace_info['cluster']['consoleUrl']
+
+    # if pipeline does not exist it means that either it hasn't been
+    # statically created from app-interface or it hasn't been dynamically
+    # created from openshift-tekton-resources. In either case, we return here
+    # to avoid triggering anything or updating the state. We don't return an
+    # error as this is an expected condition when adding a new saas file
+    if not _pipeline_exists(tkn_pipeline_name, tkn_cluster_name,
+                            tkn_namespace_name, oc_map):
+        logging.warning(f"Pipeline {tkn_pipeline_name} does not exist in "
+                        f"{tkn_cluster_name}/{tkn_namespace_name}.")
+        return False
+
     tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
         saas_file_name,
         env_name,
+        tkn_pipeline_name,
         tkn_cluster_console_url,
         tkn_namespace_name,
         settings,
@@ -312,8 +335,15 @@ def _trigger_tekton(spec,
     return error
 
 
+def _pipeline_exists(name, tkn_cluster_name, tkn_namespace_name, oc_map):
+    oc = oc_map.get(tkn_cluster_name)
+    return oc.get(namespace=tkn_namespace_name, kind='Pipeline', name=name,
+                  allow_not_found=True)
+
+
 def _construct_tekton_trigger_resource(saas_file_name,
                                        env_name,
+                                       tkn_pipeline_name,
                                        tkn_cluster_console_url,
                                        tkn_namespace_name,
                                        settings,
@@ -341,6 +371,7 @@ def _construct_tekton_trigger_resource(saas_file_name,
     ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
     # max name length can be 63. leaving 12 for the timestamp - 51
     name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
+
     body = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",
@@ -349,7 +380,7 @@ def _construct_tekton_trigger_resource(saas_file_name,
         },
         "spec": {
             "pipelineRef": {
-                "name": settings['saasDeployJobTemplate']
+                "name": tkn_pipeline_name
             },
             "params": [
                 {

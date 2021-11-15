@@ -1470,6 +1470,11 @@ SAAS_FILES_QUERY_V2 = """
             }
           }
         }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+          }
+        }
       }
     }
     slack {
@@ -1501,6 +1506,7 @@ SAAS_FILES_QUERY_V2 = """
     clusterAdmin
     imagePatterns
     use_channel_in_image_tag
+    configurableResources
     authentication {
       code {
         path
