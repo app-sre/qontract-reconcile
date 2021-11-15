@@ -137,6 +137,28 @@ class TestOpenshiftTektonResources(TestCase):
         # we have one task per namespace and a pipeline + task per saas file
         self.assertEqual(len(desired_resources), 8)
 
+    def test_fetch_desired_resources_names(self) -> None:
+        self.test_data.saas_files = [self.saas1]
+        self.test_data.providers = [self.provider1]
+        desired_resources = otr.fetch_desired_resources(
+            otr.fetch_tkn_providers(None))
+
+        expected_task_names = set([
+            'o-push-gateway-openshift-saas-deploy-task-status-metric',
+            'o-openshift-saas-deploy-saas1'])
+        expected_pipeline_name = 'o-openshift-saas-deploy-saas1'
+
+        task_names = set()
+        for dr in desired_resources:
+            body = dr['value'].body
+            if body['kind'] == 'Task':
+                task_names.add(body['metadata']['name'])
+            else:
+                pipeline_name = body['metadata']['name']
+
+        self.assertEqual(task_names, expected_task_names)
+        self.assertEqual(pipeline_name, expected_pipeline_name)
+
     # we check we have what we need in tkn_providers. This test should
     # be removed when this integration controls all tekton resources
     def test_managed_resources_from_desired_resources(self) -> None:
@@ -246,7 +268,7 @@ class TestOpenshiftTektonResources(TestCase):
     def test_task_templates_resource_too_long(self) -> None:
         self.test_data.saas_files = [self.saas1]
         self.test_data.providers = [self.provider1]
-        msg = r'name o-saas1-openshift-saas-deploy is longer than 1 characters'
+        msg = r'name o-openshift-saas-deploy-saas1 is longer than 1 characters'
         self.assertRaisesRegex(otr.OpenshiftTektonResourcesNameTooLongError,
                                msg, otr.fetch_desired_resources,
                                otr.fetch_tkn_providers(None))

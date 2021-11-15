@@ -324,7 +324,7 @@ def build_one_per_saas_file_tkn_object_name(template_name: str,
     '''Builds a onePerSaasFile object name.  Given a saas file name, it returns
     the openshift-saas-deploy names used by Tasks and Pipelines created by this
     integration'''
-    name = f"{OBJECTS_PREFIX}-{saas_file_name}-{template_name}"
+    name = f"{OBJECTS_PREFIX}-{template_name}-{saas_file_name}"
     check_resource_max_length(name)
     return name
 
