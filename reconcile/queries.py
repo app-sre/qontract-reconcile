@@ -1349,6 +1349,9 @@ SAAS_FILES_QUERY_V1 = """
       }
       image {
         path
+        field
+        version
+        format
       }
     }
     parameters
@@ -1507,6 +1510,9 @@ SAAS_FILES_QUERY_V2 = """
       }
       image {
         path
+        field
+        version
+        format
       }
     }
     parameters
