@@ -1,5 +1,8 @@
 import logging
 import itertools
+
+from typing import Optional, Iterable, Mapping
+
 import yaml
 
 from sretoolbox.utils import retry
@@ -44,11 +47,12 @@ class StateSpec:
         self.resource_names = resource_names
 
 
-def init_specs_to_fetch(ri, oc_map,
-                        namespaces=None,
-                        clusters=None,
-                        override_managed_types=None,
-                        managed_types_key='managedResourceTypes'):
+def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
+                        namespaces: Optional[Iterable[Mapping]] = None,
+                        clusters: Optional[Iterable[Mapping]] = None,
+                        override_managed_types: Optional[Iterable[str]] = None,
+                        managed_types_key: str = 'managedResourceTypes'
+                        ) -> list[StateSpec]:
     state_specs = []
 
     if clusters and namespaces:
@@ -56,9 +60,10 @@ def init_specs_to_fetch(ri, oc_map,
     elif namespaces:
         for namespace_info in namespaces:
             if override_managed_types is None:
-                managed_types = namespace_info.get(managed_types_key)
+                managed_types = set(namespace_info.get(managed_types_key)
+                                    or [])
             else:
-                managed_types = override_managed_types
+                managed_types = set(override_managed_types)
 
             if not managed_types:
                 continue
@@ -72,36 +77,72 @@ def init_specs_to_fetch(ri, oc_map,
                 continue
 
             namespace = namespace_info['name']
+            # These may exit but have a value of None
             managed_resource_names = \
-                namespace_info.get('managedResourceNames')
+                namespace_info.get('managedResourceNames') or []
             managed_resource_type_overrides = \
-                namespace_info.get('managedResourceTypeOverrides')
+                namespace_info.get('managedResourceTypeOverrides') or []
 
             # Initialize current state specs
             for resource_type in managed_types:
                 ri.initialize_resource_type(cluster, namespace, resource_type)
-                # Handle case of specific managed resources
-                resource_names = \
-                    [mrn['resourceNames'] for mrn in managed_resource_names
-                     if mrn['resource'] == resource_type] \
-                    if managed_resource_names else None
-                # Handle case of resource type override
-                resource_type_override = \
-                    [mnto['override'] for mnto
-                     in managed_resource_type_overrides
-                     if mnto['resource'] == resource_type] \
-                    if managed_resource_type_overrides else None
-                # If not None, there is a single element in the list
-                if resource_names:
-                    [resource_names] = resource_names
-                if resource_type_override:
-                    [resource_type_override] = resource_type_override
+            resource_names = {}
+            resource_type_overrides = {}
+            for mrn in managed_resource_names:
+                # Current implementation guarantees only one
+                # managed_resource_name of each managed type
+                if mrn['resource'] in managed_types:
+                    resource_names[mrn['resource']] = mrn['resourceNames']
+                elif override_managed_types:
+                    logging.debug(
+                        f"Skipping resource {mrn['resource']} in {cluster}/"
+                        f"{namespace} because the integration explicitly "
+                        "dismisses it")
+                else:
+                    raise KeyError(
+                        f"Non-managed resource name {mrn} listed on "
+                        f"{cluster}/{namespace} (valid kinds: {managed_types})"
+                    )
+
+            for o in managed_resource_type_overrides:
+                # Current implementation guarantees only one
+                # override of each managed type
+                if o['resource'] in managed_types:
+                    resource_type_overrides[o['resource']] = o['override']
+                elif override_managed_types:
+                    logging.debug(
+                        f"Skipping resource type override {o} listed on"
+                        f"{cluster}/{namespace} because the integration "
+                        "dismisses it explicitly"
+                    )
+                else:
+                    raise KeyError(
+                        f"Non-managed override {o} listed on "
+                        f"{cluster}/{namespace} (valid kinds: {managed_types})"
+                    )
+
+            for kind, names in resource_names.items():
                 c_spec = StateSpec(
                     "current", oc, cluster, namespace,
-                    resource_type,
-                    resource_type_override=resource_type_override,
-                    resource_names=resource_names)
+                    kind,
+                    resource_type_override=resource_type_overrides.get(kind),
+                    resource_names=names)
                 state_specs.append(c_spec)
+                managed_types.remove(kind)
+
+            # Produce "empty" StateSpec's for any resource type that
+            # doesn't have an explicit managedResourceName listed in
+            # the namespace
+            state_specs.extend(
+                StateSpec(
+                    "current",
+                    oc,
+                    cluster,
+                    namespace,
+                    t,
+                    resource_type_override=resource_type_overrides.get(t),
+                    resource_names=None
+                ) for t in managed_types)
 
             # Initialize desired state specs
             openshift_resources = namespace_info.get('openshiftResources')
@@ -112,7 +153,7 @@ def init_specs_to_fetch(ri, oc_map,
     elif clusters:
         # set namespace to something indicative
         namespace = 'cluster'
-        for cluster_info in clusters or []:
+        for cluster_info in clusters:
             cluster = cluster_info['name']
             oc = oc_map.get(cluster)
             if not oc:

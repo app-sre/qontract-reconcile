@@ -3,6 +3,8 @@ import json
 import logging
 import sys
 
+from typing import Iterable, Tuple, Optional, Any
+
 from threading import Lock
 from textwrap import indent
 from sretoolbox.utils import retry
@@ -616,15 +618,17 @@ def fetch_states(spec, ri):
 
 
 def fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
-               init_api_resources=False):
+               init_api_resources=False, overrides=None):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
+    logging.debug(f"Overriding keys {overrides}")
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size,
                     init_api_resources=init_api_resources)
-    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces)
+    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces,
+                                         override_managed_types=overrides)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
     return oc_map, ri
@@ -642,24 +646,29 @@ def filter_namespaces_by_cluster_and_namespace(namespaces,
     return namespaces
 
 
-def canonicalize_namespaces(namespaces, providers):
+def canonicalize_namespaces(
+        namespaces: Iterable[dict[str, Any]], providers: list[str]
+) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     canonicalized_namespaces = []
+    override = None
+    logging.debug(f"Received providers {providers}")
     for namespace_info in namespaces:
         ob.aggregate_shared_resources(namespace_info, 'openshiftResources')
-        openshift_resources = namespace_info.get('openshiftResources')
-        if openshift_resources:
-            for resource in openshift_resources[:]:
-                if resource['provider'] not in providers:
-                    openshift_resources.remove(resource)
-        if openshift_resources:
-            if len(providers) == 1:
-                if providers[0] == 'vault-secret':
-                    namespace_info['managedResourceTypes'] = ['Secret']
-                elif providers[0] == 'route':
-                    namespace_info['managedResourceTypes'] = ['Route']
+        openshift_resources: list = \
+            namespace_info.get('openshiftResources') or []
+        ors = [r for r in openshift_resources if r['provider'] in providers]
+        if ors and providers:
+            # For the time being we only care about the first item in
+            # providers
+            # TODO: confvert it to a scalar?
+            if providers[0] == 'vault-secret':
+                override = ['Secret']
+            elif providers[0] == 'route':
+                override = ['Route']
+            namespace_info['openshiftResources'] = ors
             canonicalized_namespaces.append(namespace_info)
-
-    return canonicalized_namespaces
+    logging.info(f"Overriding {override}")
+    return canonicalized_namespaces, override
 
 
 @defer
@@ -680,10 +689,10 @@ def run(dry_run, thread_pool_size=10, internal=None,
             cluster_name,
             namespace_name
         )
-    namespaces = canonicalize_namespaces(namespaces, providers)
+    namespaces, overrides = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = \
         fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
-                   init_api_resources=init_api_resources)
+                   init_api_resources=init_api_resources, overrides=overrides)
     defer(oc_map.cleanup)
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)

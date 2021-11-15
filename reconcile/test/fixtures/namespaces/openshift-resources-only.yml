@@ -1,0 +1,13 @@
+---
+name: ns1
+cluster:
+  name: cs1
+managedResourceTypes:
+  - Template
+openshiftResources:
+  - provider: resource
+    path: /some/path.yml
+  - provider: vault-secret
+    path: /secret/place.yml
+  - provider: route
+    path: /route/network.yml
