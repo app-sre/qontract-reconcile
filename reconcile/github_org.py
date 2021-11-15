@@ -26,6 +26,7 @@ ORGS_QUERY = """
       path
       field
       version
+      format
     }
     managedTeams
   }

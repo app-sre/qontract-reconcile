@@ -20,6 +20,8 @@ QUERY = """
       token {
         path
         field
+        version
+        format
       }
       deleteMethod
     }

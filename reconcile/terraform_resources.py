@@ -40,6 +40,7 @@ provider
     path
     field
     version
+    format
   }
   annotations
 }
@@ -179,6 +180,8 @@ provider
   secret {
     path
     field
+    version
+    format
   }
   domain {
     domain_name
@@ -203,6 +206,7 @@ provider
     path
     field
     version
+    format
   }
   output_resource_name
   annotations
@@ -257,6 +261,7 @@ TF_NAMESPACES_QUERY = """
         identity {
           path
           field
+          version
           format
         }
       }

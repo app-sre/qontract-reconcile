@@ -13,6 +13,8 @@ INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     plugins
   }

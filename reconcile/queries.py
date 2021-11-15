@@ -27,6 +27,8 @@ APP_INTERFACE_SETTINGS_QUERY = """
       secret {
         path
         field
+        version
+        format
       }
     }
     sqlQuery {
@@ -133,6 +135,8 @@ JENKINS_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     previousUrls
     plugins
@@ -170,6 +174,8 @@ GITLAB_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     managedGroups
     projectRequests {
@@ -196,6 +202,8 @@ GITHUB_INSTANCE_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -219,6 +227,8 @@ GITHUB_ORGS_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -304,6 +314,7 @@ CLUSTERS_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
@@ -532,6 +543,7 @@ CLUSTERS_MINIMAL_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
@@ -601,6 +613,7 @@ KAFKA_CLUSTERS_QUERY = """
           identity {
             path
             field
+            version
             format
           }
         }
@@ -659,6 +672,8 @@ NAMESPACES_QUERY = """
             pullCredentials {
               path
               field
+              version
+              format
             }
             tags
             tagsExclude
@@ -676,6 +691,7 @@ NAMESPACES_QUERY = """
           identity {
               path
               field
+              version
               format
           }
       }
@@ -756,9 +772,10 @@ NAMESPACES_MINIMAL_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       automationToken {
@@ -800,6 +817,7 @@ namespace {
       identity {
         path
         field
+        version
         format
       }
     }
@@ -832,9 +850,10 @@ SERVICEACCOUNT_TOKENS_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       automationToken {
@@ -1238,6 +1257,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
         {
           path
           field
+          version
           format
         }
         internal
@@ -1285,6 +1305,8 @@ SAAS_FILES_QUERY_V1 = """
       token {
         path
         field
+        version
+        format
       }
       deleteMethod
     }
@@ -1297,6 +1319,8 @@ SAAS_FILES_QUERY_V1 = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1320,6 +1344,8 @@ SAAS_FILES_QUERY_V1 = """
       code {
         path
         field
+        version
+        format
       }
       image {
         path
@@ -1352,9 +1378,10 @@ SAAS_FILES_QUERY_V1 = """
                 user
                 port
                 identity {
-                    path
-                    field
-                    format
+                  path
+                  field
+                  version
+                  format
                 }
             }
             automationToken {
@@ -1424,6 +1451,7 @@ SAAS_FILES_QUERY_V2 = """
               identity {
                 path
                 field
+                version
                 format
               }
             }
@@ -1450,6 +1478,8 @@ SAAS_FILES_QUERY_V2 = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1472,6 +1502,8 @@ SAAS_FILES_QUERY_V2 = """
       code {
         path
         field
+        version
+        format
       }
       image {
         path
@@ -1504,9 +1536,10 @@ SAAS_FILES_QUERY_V2 = """
                 user
                 port
                 identity {
-                    path
-                    field
-                    format
+                  path
+                  field
+                  version
+                  format
                 }
             }
             automationToken {
@@ -1663,6 +1696,7 @@ PIPELINES_PROVIDERS_QUERY = """
             identity {
               path
               field
+              version
               format
             }
           }
@@ -1709,6 +1743,8 @@ JIRA_BOARDS_QUERY = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1746,6 +1782,8 @@ UNLEASH_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     notifications {
       slack {
@@ -1756,6 +1794,8 @@ UNLEASH_INSTANCES_QUERY = """
             token {
               path
               field
+              version
+              format
             }
           }
           api_client {
@@ -1849,6 +1889,8 @@ SLACK_WORKSPACES_QUERY = """
       token {
         path
         field
+        version
+        format
       }
       channel
       icon_emoji
@@ -1893,6 +1935,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         identity {
           path
           field
+          version
           format
         }
       }
@@ -1945,6 +1988,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         {
           path
           field
+          version
           format
         }
         internal
@@ -1977,6 +2021,8 @@ SENDGRID_ACCOUNTS_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -2008,6 +2054,8 @@ QUAY_REPOS_QUERY = """
           pullCredentials {
             path
             field
+            version
+            format
           }
           tags
           tagsExclude
@@ -2092,6 +2140,8 @@ PAGERDUTY_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -2140,6 +2190,7 @@ GABI_INSTANCES_QUERY = """
             identity {
               path
               field
+              version
               format
             }
           }
@@ -2208,6 +2259,8 @@ PERMISSIONS_QUERY = """
         token {
           path
           field
+          version
+          format
         }
         api_client {
           global {
