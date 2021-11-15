@@ -13,6 +13,7 @@ from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.saasherder import Providers
 
 LOG = logging.getLogger(__name__)
 QONTRACT_INTEGRATION = 'openshift-tekton-resources'
@@ -90,7 +91,7 @@ def fetch_tkn_providers(saas_file_name: Optional[str]) -> dict[str, Any]:
     duplicates: set[str] = set()
     all_tkn_providers = {}
     for pipeline_provider in queries.get_pipelines_providers():
-        if pipeline_provider['provider'] != 'tekton':
+        if pipeline_provider['provider'] != Providers.TEKTON:
             continue
 
         if pipeline_provider['name'] in all_tkn_providers:
