@@ -492,6 +492,7 @@ CLUSTERS_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -532,6 +533,7 @@ CLUSTERS_MINIMAL_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -593,6 +595,7 @@ KAFKA_CLUSTERS_QUERY = """
         automationToken {
           path
           field
+          version
           format
         }
       }
@@ -667,6 +670,7 @@ NAMESPACES_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -748,6 +752,7 @@ NAMESPACES_MINIMAL_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -789,6 +794,7 @@ namespace {
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -822,6 +828,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -1341,11 +1348,13 @@ SAAS_FILES_QUERY_V1 = """
             automationToken {
               path
               field
+              version
               format
             }
             clusterAdminAutomationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1409,6 +1418,7 @@ SAAS_FILES_QUERY_V2 = """
             automationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1490,11 +1500,13 @@ SAAS_FILES_QUERY_V2 = """
             automationToken {
               path
               field
+              version
               format
             }
             clusterAdminAutomationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1645,6 +1657,7 @@ PIPELINES_PROVIDERS_QUERY = """
           automationToken {
             path
             field
+            version
             format
           }
           internal
@@ -1885,6 +1898,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -2010,6 +2024,7 @@ SLO_DOCUMENTS_QUERY = """
         automationToken {
           path
           field
+          version
           format
         }
         prometheusUrl
@@ -2117,6 +2132,7 @@ GABI_INSTANCES_QUERY = """
           automationToken {
             path
             field
+            version
             format
           }
           internal

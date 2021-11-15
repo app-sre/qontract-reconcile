@@ -29,7 +29,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError,
                                                 ResourceInventory,
                                                 ResourceKeyExistsError)
-from reconcile.utils.vault import SecretVersionNotFound
+from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
 
 
@@ -126,6 +126,7 @@ NAMESPACES_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -484,7 +485,7 @@ def fetch_openshift_resource(resource, parent):
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key)
-        except SecretVersionNotFound as e:
+        except (SecretVersionNotFound, SecretVersionIsNone) as e:
             raise FetchVaultSecretError(e)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']
