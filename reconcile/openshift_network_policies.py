@@ -30,6 +30,7 @@ NAMESPACES_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal

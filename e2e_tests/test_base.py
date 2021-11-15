@@ -25,6 +25,7 @@ CLUSTERS_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
     disable {

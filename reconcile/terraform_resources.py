@@ -263,6 +263,7 @@ TF_NAMESPACES_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
