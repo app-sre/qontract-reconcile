@@ -248,6 +248,8 @@ AWS_ACCOUNTS_QUERY = """
     automationToken {
       path
       field
+      version
+      format
     }
     garbageCollection
     enableDeletion
@@ -332,6 +334,8 @@ CLUSTERS_QUERY = """
           automationToken {
             path
             field
+            version
+            format
           }
         }
         roles {
@@ -408,6 +412,8 @@ CLUSTERS_QUERY = """
               automationToken {
                 path
                 field
+                version
+                format
               }
             }
             vpc_id
@@ -423,6 +429,8 @@ CLUSTERS_QUERY = """
             automationToken {
               path
               field
+              version
+              format
             }
           }
           tags
@@ -435,6 +443,8 @@ CLUSTERS_QUERY = """
             automationToken {
               path
               field
+              version
+              format
             }
           }
           tags
@@ -460,6 +470,8 @@ CLUSTERS_QUERY = """
                   automationToken {
                     path
                     field
+                    version
+                    format
                   }
                 }
               }
@@ -1784,6 +1796,8 @@ DNS_ZONES_QUERY = """
       automationToken {
         path
         field
+        version
+        format
       }
     }
     unmanaged_record_names
