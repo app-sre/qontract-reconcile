@@ -17,6 +17,8 @@ QUAY_REPOS_QUERY = """
         automationToken {
           path
           field
+          version
+          format
         }
         instance {
           name

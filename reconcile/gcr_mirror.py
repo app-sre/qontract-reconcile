@@ -31,6 +31,8 @@ class QuayMirror:
         pushCredentials {
           path
           field
+          version
+          format
         }
       }
     }
@@ -50,6 +52,8 @@ class QuayMirror:
               pullCredentials {
                 path
                 field
+                version
+                format
               }
               tags
               tagsExclude

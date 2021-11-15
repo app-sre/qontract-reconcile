@@ -36,10 +36,12 @@ class QuayMirror:
         pushCredentials {
           path
           field
+          version
+          format
         }
         instance {
-            name
-            url
+          name
+          url
         }
       }
     }

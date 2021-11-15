@@ -115,9 +115,10 @@ NAMESPACES_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       spec {

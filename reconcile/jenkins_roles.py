@@ -17,6 +17,8 @@ PERMISSIONS_QUERY = """
         token {
           path
           field
+          version
+          format
         }
       }
     }

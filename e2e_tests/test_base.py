@@ -19,6 +19,7 @@ CLUSTERS_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
