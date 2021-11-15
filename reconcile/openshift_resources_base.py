@@ -667,7 +667,7 @@ def canonicalize_namespaces(
                 override = ['Route']
             namespace_info['openshiftResources'] = ors
             canonicalized_namespaces.append(namespace_info)
-    logging.info(f"Overriding {override}")
+    logging.debug(f"Overriding {override}")
     return canonicalized_namespaces, override
 
 
