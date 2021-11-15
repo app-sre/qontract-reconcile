@@ -104,7 +104,7 @@ class RepoOwners:
 
         if candidates:
             # The longest owned_path is the chosen
-            elected = max(candidates, key=lambda x: len(x))
+            elected = max(candidates, key=len)
             return self._set_to_sorted_list(self.owners_map[elected])
 
         return {'approvers': [],

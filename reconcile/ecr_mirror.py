@@ -4,8 +4,7 @@ import logging
 from sretoolbox.container import Image
 from sretoolbox.container import Skopeo
 from sretoolbox.container.skopeo import SkopeoCmdError
-
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi

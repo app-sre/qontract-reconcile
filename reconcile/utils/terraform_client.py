@@ -6,15 +6,15 @@ import shutil
 
 from collections import defaultdict
 from threading import Lock
-
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from ruamel import yaml
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
-from reconcile.utils import threaded, gql
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 import reconcile.utils.lean_terraform_client as lean_tf
 
+from reconcile.utils import gql
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
@@ -94,7 +94,7 @@ class TerraformClient:
     def init_outputs(self):
         results = threaded.run(self.terraform_output, self.specs,
                                self.thread_pool_size)
-        self.outputs = {name: output for name, output in results}
+        self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
     def terraform_output(self, spec):

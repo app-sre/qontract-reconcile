@@ -1,17 +1,16 @@
 import json
 import logging
 import sys
+
 from threading import Lock
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
-
 from kubernetes.client.exceptions import ApiException
+from sretoolbox.utils import threaded
 
 from reconcile import queries
-from reconcile.utils import threaded
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map, OCNative, StatusCodeError
 from reconcile.utils.oc import validate_labels
-
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.state import State
 
@@ -185,7 +184,8 @@ def get_gql_namespaces_in_shard() -> List[Any]:
     all_namespaces = queries.get_namespaces()
 
     return [ns for ns in all_namespaces
-            if is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
+            if not ns.get('delete') and
+            is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
 
 
 def get_oc_map(namespaces: List[Any], internal: Optional[bool],
@@ -365,7 +365,7 @@ def run(dry_run: bool, thread_pool_size: int = 10,
 
     _LOG.debug('Initializing OC_Map ...')
     oc_map = get_oc_map(namespaces, internal, use_jump_host, thread_pool_size)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     _LOG.debug('Collecting desired state ...')
     get_desired(inventory, oc_map, namespaces)

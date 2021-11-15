@@ -113,6 +113,8 @@ qontract-reconcile --config config.toml --dry-run <subcommand>
 qontract-reconcile --config config.toml <subcommand>
 ```
 
+> Note: you can use the `QONTRACT_CONFIG` environment variable instead of using `--config`.
+
 ## OpenShift usage
 
 OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.

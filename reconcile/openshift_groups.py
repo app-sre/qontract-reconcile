@@ -2,10 +2,10 @@ import sys
 import logging
 import itertools
 
-from reconcile.utils import gql
-from reconcile.utils import threaded
-from reconcile import queries
+from sretoolbox.utils import threaded
 
+from reconcile.utils import gql
+from reconcile import queries
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
@@ -66,8 +66,9 @@ def create_groups_list(clusters, oc_map):
     groups_list = []
     for cluster_info in clusters:
         cluster = cluster_info['name']
-        if not oc_map.get(cluster):
-            continue
+        oc = oc_map.get(cluster)
+        if not oc:
+            logging.log(level=oc.log_level, msg=oc.message)
         groups = cluster_info['managedGroups']
         if groups is None:
             continue
@@ -232,7 +233,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
 
     oc_map, current_state, ocm_clusters = \
         fetch_current_state(thread_pool_size, internal, use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     desired_state = fetch_desired_state(oc_map)
 
     # we only manage dedicated-admins via OCM

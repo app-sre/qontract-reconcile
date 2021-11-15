@@ -4,7 +4,6 @@ from datetime import datetime
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
-from reconcile.utils import gql
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
@@ -12,80 +11,6 @@ from reconcile.utils.repo_owners import RepoOwners
 from reconcile.utils.slack_api import SlackApi, SlackApiError, SlackApiConfig
 from reconcile import queries
 
-
-PERMISSIONS_QUERY = """
-{
-  permissions: permissions_v1 {
-    service
-    ...on PermissionSlackUsergroup_v1 {
-      handle
-      workspace {
-        name
-        token {
-          path
-          field
-        }
-        api_client {
-          global {
-            max_retries
-            timeout
-          }
-          methods {
-            name
-            args
-          }
-        }
-        managedUsergroups
-      }
-    }
-  }
-}
-"""
-
-ROLES_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      name
-      org_username
-      slack_username
-      pagerduty_username
-    }
-    permissions {
-      service
-      ...on PermissionSlackUsergroup_v1 {
-        handle
-        workspace {
-          name
-          managedUsergroups
-        }
-        pagerduty {
-          name
-          instance {
-            name
-          }
-          scheduleID
-          escalationPolicyID
-        }
-        channels
-        description
-        ownersFromRepos
-        schedule {
-          schedule {
-            start
-            end
-            users {
-              org_username
-              slack_username
-            }
-          }
-        }
-      }
-    }
-  }
-}
-"""
 
 DATE_FORMAT = '%Y-%m-%d %H:%M'
 QONTRACT_INTEGRATION = 'slack-usergroups'
@@ -107,22 +32,15 @@ class GitApi:
         raise ValueError(f"Unable to handle URL: {url}")
 
 
-def get_permissions():
-    gqlapi = gql.get_api()
-    permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
-    return [p for p in permissions if p['service'] == 'slack-usergroup']
-
-
 def get_slack_map():
     settings = queries.get_app_interface_settings()
-    permissions = get_permissions()
+    permissions = queries.get_permissions_for_slack_usergroup()
     slack_map = {}
     for sp in permissions:
         workspace = sp['workspace']
         workspace_name = workspace['name']
         if workspace_name in slack_map:
             continue
-
         slack_api_kwargs = {
             'settings': settings,
         }
@@ -141,7 +59,6 @@ def get_slack_map():
             "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec
-
     return slack_map
 
 
@@ -311,69 +228,66 @@ def get_desired_state(slack_map, pagerduty_map):
                 (ex. state['coreos']['app-sre-ic']
     :rtype: dict
     """
-    gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    permissions = queries.get_permissions_for_slack_usergroup()
     all_users = queries.get_users()
 
     desired_state = {}
-    for r in roles:
-        for p in r['permissions']:
-            if p['service'] != 'slack-usergroup':
-                continue
+    for p in permissions:
+        if p['service'] != 'slack-usergroup':
+            continue
+        skip_flag = p['skip']
+        if skip_flag:
+            continue
+        workspace = p['workspace']
+        managed_usergroups = workspace['managedUsergroups']
+        if managed_usergroups is None:
+            continue
 
-            workspace = p['workspace']
-            managed_usergroups = workspace['managedUsergroups']
-            if managed_usergroups is None:
-                continue
+        workspace_name = workspace['name']
+        usergroup = p['handle']
+        description = p['description']
+        if usergroup not in managed_usergroups:
+            raise KeyError(
+                f'[{workspace_name}] usergroup {usergroup} \
+                    not in managed usergroups {managed_usergroups}'
+                )
 
-            workspace_name = workspace['name']
-            usergroup = p['handle']
-            description = p['description']
-            if usergroup not in managed_usergroups:
-                logging.warning(
-                    '[{}] usergroup {} not in managed usergroups {}'.format(
-                        workspace_name,
-                        usergroup,
-                        managed_usergroups
-                    ))
-                continue
+        slack = slack_map[workspace_name]['slack']
+        ugid = slack.get_usergroup_id(usergroup)
 
-            slack = slack_map[workspace_name]['slack']
-            ugid = slack.get_usergroup_id(usergroup)
-            user_names = [get_slack_username(u) for u in r['users']]
+        all_user_names = \
+            [get_slack_username(u) for r in p['roles'] for u in r['users']]
+        slack_usernames_pagerduty = \
+            get_slack_usernames_from_pagerduty(
+                p['pagerduty'], all_users, usergroup, pagerduty_map)
+        all_user_names.extend(slack_usernames_pagerduty)
 
-            slack_usernames_pagerduty = \
-                get_slack_usernames_from_pagerduty(p['pagerduty'],
-                                                   all_users, usergroup,
-                                                   pagerduty_map)
-            user_names.extend(slack_usernames_pagerduty)
+        slack_usernames_repo = get_slack_usernames_from_owners(
+                p['ownersFromRepos'], all_users, usergroup)
+        all_user_names.extend(slack_usernames_repo)
 
-            slack_usernames_repo = get_slack_usernames_from_owners(
-                    p['ownersFromRepos'], all_users, usergroup)
-            user_names.extend(slack_usernames_repo)
+        slack_usernames_schedule = get_slack_usernames_from_schedule(
+            p['schedule']
+        )
+        all_user_names.extend(slack_usernames_schedule)
 
-            slack_usernames_schedule = get_slack_usernames_from_schedule(
-                p['schedule']
-            )
-            user_names.extend(slack_usernames_schedule)
+        user_names = list(set(all_user_names))
+        users = slack.get_users_by_names(user_names)
 
-            users = slack.get_users_by_names(user_names)
+        channel_names = [] if p['channels'] is None else p['channels']
+        channels = slack.get_channels_by_names(channel_names)
 
-            channel_names = [] if p['channels'] is None else p['channels']
-            channels = slack.get_channels_by_names(channel_names)
-
-            try:
-                desired_state[workspace_name][usergroup]['users'].update(users)
-            except KeyError:
-                desired_state.setdefault(workspace_name, {})[usergroup] = {
-                    "workspace": workspace_name,
-                    "usergroup": usergroup,
-                    "usergroup_id": ugid,
-                    "users": users,
-                    "channels": channels,
-                    "description": description,
-                }
-
+        try:
+            desired_state[workspace_name][usergroup]['users'].update(users)
+        except KeyError:
+            desired_state.setdefault(workspace_name, {})[usergroup] = {
+                "workspace": workspace_name,
+                "usergroup": usergroup,
+                "usergroup_id": ugid,
+                "users": users,
+                "channels": channels,
+                "description": description,
+            }
     return desired_state
 
 

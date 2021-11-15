@@ -27,6 +27,10 @@ class SecretAccessForbidden(Exception):
     pass
 
 
+class SecretVersionIsNone(Exception):
+    pass
+
+
 class SecretVersionNotFound(Exception):
     pass
 
@@ -138,6 +142,10 @@ class _VaultClient:
         path_split = path.split('/')
         mount_point = path_split[0]
         read_path = '/'.join(path_split[1:])
+        if version is None:
+            msg = ('version can not be null '
+                   f'for secret with path \'{path}\'.')
+            raise SecretVersionIsNone(msg)
         try:
             secret = self._client.secrets.kv.v2.read_secret_version(
                 mount_point=mount_point,

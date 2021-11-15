@@ -27,6 +27,8 @@ APP_INTERFACE_SETTINGS_QUERY = """
       secret {
         path
         field
+        version
+        format
       }
     }
     sqlQuery {
@@ -133,6 +135,8 @@ JENKINS_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     previousUrls
     plugins
@@ -170,6 +174,8 @@ GITLAB_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     managedGroups
     projectRequests {
@@ -196,6 +202,8 @@ GITHUB_INSTANCE_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -219,6 +227,8 @@ GITHUB_ORGS_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -248,6 +258,8 @@ AWS_ACCOUNTS_QUERY = """
     automationToken {
       path
       field
+      version
+      format
     }
     garbageCollection
     enableDeletion
@@ -267,6 +279,7 @@ AWS_ACCOUNTS_QUERY = """
     ecrs {
       region
     }
+    partition
   }
 }
 """
@@ -301,6 +314,7 @@ CLUSTERS_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
@@ -331,6 +345,8 @@ CLUSTERS_QUERY = """
           automationToken {
             path
             field
+            version
+            format
           }
         }
         roles {
@@ -360,6 +376,7 @@ CLUSTERS_QUERY = """
         min_replicas
         max_replicas
       }
+      disable_user_workload_monitoring
     }
     externalConfiguration {
       labels
@@ -406,6 +423,8 @@ CLUSTERS_QUERY = """
               automationToken {
                 path
                 field
+                version
+                format
               }
             }
             vpc_id
@@ -421,6 +440,8 @@ CLUSTERS_QUERY = """
             automationToken {
               path
               field
+              version
+              format
             }
           }
           tags
@@ -433,6 +454,8 @@ CLUSTERS_QUERY = """
             automationToken {
               path
               field
+              version
+              format
             }
           }
           tags
@@ -458,6 +481,8 @@ CLUSTERS_QUERY = """
                   automationToken {
                     path
                     field
+                    version
+                    format
                   }
                 }
               }
@@ -490,6 +515,7 @@ CLUSTERS_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -517,6 +543,7 @@ CLUSTERS_MINIMAL_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
@@ -530,6 +557,7 @@ CLUSTERS_MINIMAL_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -585,12 +613,14 @@ KAFKA_CLUSTERS_QUERY = """
           identity {
             path
             field
+            version
             format
           }
         }
         automationToken {
           path
           field
+          version
           format
         }
       }
@@ -642,6 +672,8 @@ NAMESPACES_QUERY = """
             pullCredentials {
               path
               field
+              version
+              format
             }
             tags
             tagsExclude
@@ -659,12 +691,14 @@ NAMESPACES_QUERY = """
           identity {
               path
               field
+              version
               format
           }
       }
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -738,14 +772,16 @@ NAMESPACES_MINIMAL_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -781,12 +817,14 @@ namespace {
       identity {
         path
         field
+        version
         format
       }
     }
     automationToken {
       path
       field
+      version
       format
     }
     internal
@@ -812,14 +850,16 @@ SERVICEACCOUNT_TOKENS_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -1055,6 +1095,9 @@ USERS_QUERY = """
     queries {
       path
     }
+    gabi_instances {
+      path
+    }
     {% endif %}
   }
 }
@@ -1214,6 +1257,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
         {
           path
           field
+          version
           format
         }
         internal
@@ -1261,6 +1305,8 @@ SAAS_FILES_QUERY_V1 = """
       token {
         path
         field
+        version
+        format
       }
       deleteMethod
     }
@@ -1273,6 +1319,8 @@ SAAS_FILES_QUERY_V1 = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1296,6 +1344,8 @@ SAAS_FILES_QUERY_V1 = """
       code {
         path
         field
+        version
+        format
       }
       image {
         path
@@ -1328,19 +1378,22 @@ SAAS_FILES_QUERY_V1 = """
                 user
                 port
                 identity {
-                    path
-                    field
-                    format
+                  path
+                  field
+                  version
+                  format
                 }
             }
             automationToken {
               path
               field
+              version
               format
             }
             clusterAdminAutomationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1398,12 +1451,14 @@ SAAS_FILES_QUERY_V2 = """
               identity {
                 path
                 field
+                version
                 format
               }
             }
             automationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1423,6 +1478,8 @@ SAAS_FILES_QUERY_V2 = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1445,6 +1502,8 @@ SAAS_FILES_QUERY_V2 = """
       code {
         path
         field
+        version
+        format
       }
       image {
         path
@@ -1477,19 +1536,22 @@ SAAS_FILES_QUERY_V2 = """
                 user
                 port
                 identity {
-                    path
-                    field
-                    format
+                  path
+                  field
+                  version
+                  format
                 }
             }
             automationToken {
               path
               field
+              version
               format
             }
             clusterAdminAutomationToken {
               path
               field
+              version
               format
             }
             internal
@@ -1634,12 +1696,14 @@ PIPELINES_PROVIDERS_QUERY = """
             identity {
               path
               field
+              version
               format
             }
           }
           automationToken {
             path
             field
+            version
             format
           }
           internal
@@ -1679,6 +1743,8 @@ JIRA_BOARDS_QUERY = """
           token {
             path
             field
+            version
+            format
           }
           channel
           icon_emoji
@@ -1716,6 +1782,8 @@ UNLEASH_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
     notifications {
       slack {
@@ -1726,6 +1794,8 @@ UNLEASH_INSTANCES_QUERY = """
             token {
               path
               field
+              version
+              format
             }
           }
           api_client {
@@ -1766,6 +1836,8 @@ DNS_ZONES_QUERY = """
       automationToken {
         path
         field
+        version
+        format
       }
     }
     unmanaged_record_names
@@ -1817,6 +1889,8 @@ SLACK_WORKSPACES_QUERY = """
       token {
         path
         field
+        version
+        format
       }
       channel
       icon_emoji
@@ -1861,6 +1935,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         identity {
           path
           field
+          version
           format
         }
       }
@@ -1880,6 +1955,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -1912,6 +1988,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         {
           path
           field
+          version
           format
         }
         internal
@@ -1944,6 +2021,8 @@ SENDGRID_ACCOUNTS_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -1975,6 +2054,8 @@ QUAY_REPOS_QUERY = """
           pullCredentials {
             path
             field
+            version
+            format
           }
           tags
           tagsExclude
@@ -2005,6 +2086,7 @@ SLO_DOCUMENTS_QUERY = """
         automationToken {
           path
           field
+          version
           format
         }
         prometheusUrl
@@ -2058,6 +2140,8 @@ PAGERDUTY_INSTANCES_QUERY = """
     token {
       path
       field
+      version
+      format
     }
   }
 }
@@ -2106,12 +2190,14 @@ GABI_INSTANCES_QUERY = """
             identity {
               path
               field
+              version
               format
             }
           }
           automationToken {
             path
             field
+            version
             format
           }
           internal
@@ -2130,3 +2216,71 @@ GABI_INSTANCES_QUERY = """
 def get_gabi_instances():
     gqlapi = gql.get_api()
     return gqlapi.query(GABI_INSTANCES_QUERY)['gabi_instances']
+
+
+PERMISSIONS_QUERY = """
+{
+  permissions: permissions_v1 {
+    service
+    ...on PermissionSlackUsergroup_v1 {
+      channels
+      description
+      handle
+      ownersFromRepos
+      skip
+      pagerduty {
+          name
+          instance {
+            name
+          }
+          scheduleID
+          escalationPolicyID
+        }
+      roles {
+        users {
+            name
+            org_username
+            slack_username
+            pagerduty_username
+        }
+    }
+      schedule {
+          schedule {
+            start
+            end
+            users {
+              org_username
+              slack_username
+            }
+          }
+        }
+      workspace {
+        name
+        token {
+          path
+          field
+          version
+          format
+        }
+        api_client {
+          global {
+            max_retries
+            timeout
+          }
+          methods {
+            name
+            args
+          }
+        }
+        managedUsergroups
+      }
+    }
+  }
+}
+"""
+
+
+def get_permissions_for_slack_usergroup():
+    gqlapi = gql.get_api()
+    permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
+    return [p for p in permissions if p['service'] == 'slack-usergroup']

@@ -3,13 +3,13 @@ import shutil
 import sys
 
 from textwrap import indent
+from sretoolbox.utils import threaded
 
 
 import reconcile.openshift_base as ob
+
 from reconcile import queries
 from reconcile.utils import gql
-from reconcile.utils import threaded
-
 from reconcile.aws_iam_keys import run as disable_keys
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
@@ -40,6 +40,7 @@ provider
     path
     field
     version
+    format
   }
   annotations
 }
@@ -179,6 +180,8 @@ provider
   secret {
     path
     field
+    version
+    format
   }
   domain {
     domain_name
@@ -203,6 +206,7 @@ provider
     path
     field
     version
+    format
   }
   output_resource_name
   annotations
@@ -257,12 +261,14 @@ TF_NAMESPACES_QUERY = """
         identity {
           path
           field
+          version
           format
         }
       }
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -437,7 +443,7 @@ def run(dry_run, print_only=False,
               use_jump_host, account_name, extra_labels)
 
     if not dry_run:
-        defer(lambda: oc_map.cleanup())
+        defer(oc_map.cleanup)
 
     if print_only:
         cleanup_and_exit()

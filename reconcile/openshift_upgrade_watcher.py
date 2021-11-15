@@ -23,7 +23,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,
@@ -34,7 +34,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
         slack = init_slack_workspace(QONTRACT_INTEGRATION)
 
     now = datetime.utcnow()
-    for cluster in oc_map.clusters():
+    for cluster in oc_map.clusters(include_errors=True):
         oc = oc_map.get(cluster)
         if not oc:
             logging.log(level=oc.log_level, msg=oc.message)

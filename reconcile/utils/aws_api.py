@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
+from sretoolbox.utils import threaded
 import botocore
 
-from reconcile.utils import threaded
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader
@@ -234,7 +234,7 @@ class AWSApi:
             client = s.client('route53')
             results = \
                 self.paginate(client, 'list_hosted_zones', 'HostedZones')
-            zones = [z for z in results]
+            zones = list(results)
             for zone in zones:
                 results = \
                     self.paginate(client, 'list_resource_record_sets',
@@ -642,7 +642,7 @@ class AWSApi:
         auth_tokens = {}
         results = threaded.run(self.get_tf_secrets, accounts_with_ecr,
                                self.thread_pool_size)
-        account_secrets = {account: secret for account, secret in results}
+        account_secrets = dict(results)
         for account in accounts_with_ecr:
             account_name = account['name']
             account_secret = account_secrets[account_name]

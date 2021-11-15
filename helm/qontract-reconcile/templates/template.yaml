@@ -211,11 +211,17 @@ objects:
             value: "${USE_NATIVE_CLIENT}"
           {{- with $integration.extraEnv }}
           {{- range $i, $env := . }}
+          {{- if $env.secretKey }}
           - name: {{ $env.secretKey }}
             valueFrom:
               secretKeyRef:
                 name: {{ $env.secretName }}
                 key: {{ $env.secretKey }}
+          {{- end }}
+          {{- if $env.name }}
+          - name: {{ $env.name }}
+            value: {{ $env.value }}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- if $integration.resources }}
@@ -321,6 +327,10 @@ objects:
                 value: 'true'
               - name: DRY_RUN
                 value: ${DRY_RUN}
+              {{- if $integration.command }}
+              - name: COMMAND_NAME
+                value: {{ $integration.command }}
+              {{- end }}
               - name: INTEGRATION_NAME
                 value: {{ $integration.name }}
               - name: INTEGRATION_EXTRA_ARGS
@@ -342,11 +352,17 @@ objects:
                     key: CLIENT_ACCESS_TOKEN
               {{- with $integration.extraEnv }}
               {{- range $i, $env := . }}
+              {{- if $env.secretKey}}
               - name: {{ $env.secretKey }}
                 valueFrom:
                   secretKeyRef:
                     name: {{ $env.secretName }}
                     key: {{ $env.secretKey }}
+              {{- end }}
+              {{- if $env.name }}
+              - name: {{ $env.name }}
+                value: {{ $env.value }}
+              {{- end }}
               {{- end }}
               {{- end }}
               {{- if $integration.dashdotdb }}

@@ -1,8 +1,7 @@
 import logging
 
 from dateutil import parser as dateparser
-
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi

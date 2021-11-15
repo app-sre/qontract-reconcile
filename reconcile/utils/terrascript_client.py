@@ -67,10 +67,9 @@ from terrascript.resource import (
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
+from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
-from reconcile.utils import threaded
-
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
@@ -155,12 +154,12 @@ class TerrascriptClient:
                         region=region,
                         alias=region)
 
-            # Add default region, which will always be region in the secret
+            # Add default region, which will be in resourcesDefaultRegion
             ts += provider.aws(
                 access_key=config['aws_access_key_id'],
                 secret_key=config['aws_secret_access_key'],
                 version=self.versions.get(name),
-                region=config['region'])
+                region=config['resourcesDefaultRegion'])
 
             # the time provider can be removed if all AWS accounts
             # upgrade to a provider version with this bug fix
@@ -183,6 +182,8 @@ class TerrascriptClient:
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
+        self.partitions = {a['name']: a.get('partition') or 'aws'
+                           for a in filtered_accounts}
         github_config = get_config()['github']
         self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
@@ -224,7 +225,7 @@ class TerrascriptClient:
     def populate_configs(self, accounts):
         results = threaded.run(self.get_tf_secrets, accounts,
                                self.thread_pool_size)
-        self.configs = {account: secret for account, secret in results}
+        self.configs = dict(results)
 
     def get_tf_secrets(self, account):
         account_name = account['name']
@@ -232,7 +233,12 @@ class TerrascriptClient:
         secret = self.secret_reader.read_all(automation_token)
         secret['supportedDeploymentRegions'] = \
             account['supportedDeploymentRegions']
+        secret['resourcesDefaultRegion'] = \
+            account['resourcesDefaultRegion']
         return (account_name, secret)
+
+    def _get_partition(self, account):
+        return self.partitions[account]
 
     @staticmethod
     def get_tf_iam_group(group_name):
@@ -275,11 +281,14 @@ class TerrascriptClient:
                         # this may change in the near future
                         # to include inline policies and not
                         # only managed policies, as it is currently
+                        policy_arn = \
+                            f'arn:{self._get_partition(account_name)}:' + \
+                            f'iam::aws:policy/{policy}'
                         tf_iam_group_policy_attachment = \
                             aws_iam_group_policy_attachment(
                                 group_name + '-' + policy.replace('/', '_'),
                                 group=group_name,
-                                policy_arn='arn:aws:iam::aws:policy/' + policy,
+                                policy_arn=policy_arn,
                                 depends_on=self.get_dependencies(
                                     [tf_iam_group])
                             )
@@ -1906,7 +1915,8 @@ class TerrascriptClient:
                         "Effect": "Allow",
                         "Action": ["sqs:*"],
                         "Resource": [
-                            "arn:aws:sqs:*:{}:{}".format(uid, q)
+                            f"arn:{self._get_partition(account)}:" +
+                            f"sqs:*:{uid}:{q}"
                             for q in all_queues
                         ]
                     },
@@ -2258,7 +2268,8 @@ class TerrascriptClient:
                 "Effect": "Allow",
                 "Principal": "*",
                 "Action": "sqs:SendMessage",
-                "Resource": "arn:aws:sqs:*:*:" + sqs_identifier,
+                "Resource": f"arn:{self._get_partition(account)}:" +
+                            f"sqs:*:*:{sqs_identifier}",
                 "Condition": {
                     "ArnEquals": {
                         "aws:SourceArn":
@@ -2289,7 +2300,8 @@ class TerrascriptClient:
                     {
                         "Effect": "Allow",
                         "Principal": {
-                            "AWS": "arn:aws:iam::" + uid + ":root"
+                            "AWS": f"arn:{self._get_partition(account)}:" +
+                                   f"iam::{uid}:root"
                         },
                         "Action": "kms:*",
                         "Resource": "*"
@@ -2391,7 +2403,8 @@ class TerrascriptClient:
                     "Effect": "Allow",
                     "Action": ["sqs:*"],
                     "Resource": [
-                        "arn:aws:sqs:*:{}:{}".format(uid, sqs_identifier)
+                        f"arn:{self._get_partition(account)}:" +
+                        f"sqs:*:{uid}:{sqs_identifier}"
                     ]
                 },
                 {

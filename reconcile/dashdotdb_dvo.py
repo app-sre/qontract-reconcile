@@ -1,6 +1,7 @@
 import requests
 
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
+
 from reconcile import queries
 from reconcile.dashdotdb_base import DashdotdbBase, LOG
 

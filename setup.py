@@ -9,7 +9,7 @@ setup(
 
     author="Red Hat App-SRE Team",
     author_email="sd-app-sre@redhat.com",
-
+    python_requires=">=3.9",
     description="Collection of tools to reconcile services with their desired "
                 "state as defined in the app-interface DB.",
 
@@ -19,7 +19,7 @@ setup(
     package_data={'reconcile': ['templates/*.j2']},
 
     install_requires=[
-        "sretoolbox==0.15.0",
+        "sretoolbox==1.1.0",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
@@ -64,7 +64,7 @@ setup(
         'Development Status :: 2 - Pre-Alpha',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.9',
     ],
     entry_points={
         'console_scripts': [

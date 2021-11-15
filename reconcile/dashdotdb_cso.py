@@ -1,7 +1,8 @@
 import requests
 
+from sretoolbox.utils import threaded
+
 from reconcile import queries
-from reconcile.utils import threaded
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
 from reconcile.dashdotdb_base import DashdotdbBase, LOG

@@ -7,6 +7,7 @@ from reconcile.utils import ldap_client
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
+from reconcile.utils.mr.user_maintenance import PathTypes
 
 
 QONTRACT_INTEGRATION = 'ldap-users'
@@ -15,15 +16,20 @@ QONTRACT_INTEGRATION = 'ldap-users'
 def init_users():
     app_int_users = queries.get_users(refs=True)
 
-    users = defaultdict(set)
+    users = defaultdict(list)
     for user in app_int_users:
         u = user['org_username']
-        p = 'data' + user['path']
-        users[u].add(p)
+        item = {'type': PathTypes.USER, 'path': 'data' + user['path']}
+        users[u].append(item)
         for r in user.get('requests'):
-            users[u].add('data' + r['path'])
+            item = {'type': PathTypes.REQUEST, 'path': 'data' + r['path']}
+            users[u].append(item)
         for q in user.get('queries'):
-            users[u].add('data' + q['path'])
+            item = {'type': PathTypes.QUERY, 'path': 'data' + q['path']}
+            users[u].append(item)
+        for g in user.get('gabi_instances'):
+            item = {'type': PathTypes.GABI, 'path': 'data' + g['path']}
+            users[u].append(item)
 
     return [{'username': username, 'paths': paths}
             for username, paths in users.items()]

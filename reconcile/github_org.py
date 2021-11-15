@@ -26,6 +26,7 @@ ORGS_QUERY = """
       path
       field
       version
+      format
     }
     managedTeams
   }
@@ -70,6 +71,7 @@ CLUSTERS_QUERY = """
     automationToken {
       path
       field
+      version
       format
     }
   }

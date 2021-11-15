@@ -2,7 +2,8 @@ import logging
 import sys
 
 from typing import List, Dict, Optional, Any, Iterable, Mapping, Tuple, cast
-from reconcile.utils import threaded
+from sretoolbox.utils import threaded
+
 from reconcile import queries
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
@@ -140,7 +141,7 @@ def run(dry_run: bool, thread_pool_size=10,
                     thread_pool_size=thread_pool_size,
                     init_projects=True)
 
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     results = threaded.run(manage_namespaces, desired_state,
                            thread_pool_size, return_exceptions=True,

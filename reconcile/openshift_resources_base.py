@@ -3,9 +3,12 @@ import json
 import logging
 import sys
 
+from typing import Iterable, Tuple, Optional, Any
+
 from threading import Lock
 from textwrap import indent
 from sretoolbox.utils import retry
+from sretoolbox.utils import threaded
 
 import anymarkup
 import jinja2
@@ -15,7 +18,6 @@ from reconcile import queries
 from reconcile.utils import amtool
 from reconcile.utils import gql
 from reconcile.utils import openssl
-from reconcile.utils import threaded
 
 from reconcile.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver
@@ -29,7 +31,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError,
                                                 ResourceInventory,
                                                 ResourceKeyExistsError)
-from reconcile.utils.vault import SecretVersionNotFound
+from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
 
 
@@ -115,9 +117,10 @@ NAMESPACES_QUERY = """
           user
           port
           identity {
-              path
-              field
-              format
+            path
+            field
+            version
+            format
           }
       }
       spec {
@@ -126,6 +129,7 @@ NAMESPACES_QUERY = """
       automationToken {
         path
         field
+        version
         format
       }
       internal
@@ -484,7 +488,7 @@ def fetch_openshift_resource(resource, parent):
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 validate_alertmanager_config=validate_alertmanager_config,
                 alertmanager_config_key=alertmanager_config_key)
-        except SecretVersionNotFound as e:
+        except (SecretVersionNotFound, SecretVersionIsNone) as e:
             raise FetchVaultSecretError(e)
     elif provider == 'route':
         tls_path = resource['vault_tls_secret_path']
@@ -614,15 +618,17 @@ def fetch_states(spec, ri):
 
 
 def fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
-               init_api_resources=False):
+               init_api_resources=False, overrides=None):
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
+    logging.debug(f"Overriding keys {overrides}")
     oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
                     settings=settings, internal=internal,
                     use_jump_host=use_jump_host,
                     thread_pool_size=thread_pool_size,
                     init_api_resources=init_api_resources)
-    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces)
+    state_specs = ob.init_specs_to_fetch(ri, oc_map, namespaces=namespaces,
+                                         override_managed_types=overrides)
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri)
 
     return oc_map, ri
@@ -640,24 +646,29 @@ def filter_namespaces_by_cluster_and_namespace(namespaces,
     return namespaces
 
 
-def canonicalize_namespaces(namespaces, providers):
+def canonicalize_namespaces(
+        namespaces: Iterable[dict[str, Any]], providers: list[str]
+) -> Tuple[list[dict[str, Any]], Optional[list[str]]]:
     canonicalized_namespaces = []
+    override = None
+    logging.debug(f"Received providers {providers}")
     for namespace_info in namespaces:
         ob.aggregate_shared_resources(namespace_info, 'openshiftResources')
-        openshift_resources = namespace_info.get('openshiftResources')
-        if openshift_resources:
-            for resource in openshift_resources[:]:
-                if resource['provider'] not in providers:
-                    openshift_resources.remove(resource)
-        if openshift_resources:
-            if len(providers) == 1:
-                if providers[0] == 'vault-secret':
-                    namespace_info['managedResourceTypes'] = ['Secret']
-                elif providers[0] == 'route':
-                    namespace_info['managedResourceTypes'] = ['Route']
+        openshift_resources: list = \
+            namespace_info.get('openshiftResources') or []
+        ors = [r for r in openshift_resources if r['provider'] in providers]
+        if ors and providers:
+            # For the time being we only care about the first item in
+            # providers
+            # TODO: confvert it to a scalar?
+            if providers[0] == 'vault-secret':
+                override = ['Secret']
+            elif providers[0] == 'route':
+                override = ['Route']
+            namespace_info['openshiftResources'] = ors
             canonicalized_namespaces.append(namespace_info)
-
-    return canonicalized_namespaces
+    logging.info(f"Overriding {override}")
+    return canonicalized_namespaces, override
 
 
 @defer
@@ -678,11 +689,11 @@ def run(dry_run, thread_pool_size=10, internal=None,
             cluster_name,
             namespace_name
         )
-    namespaces = canonicalize_namespaces(namespaces, providers)
+    namespaces, overrides = canonicalize_namespaces(namespaces, providers)
     oc_map, ri = \
         fetch_data(namespaces, thread_pool_size, internal, use_jump_host,
-                   init_api_resources=init_api_resources)
-    defer(lambda: oc_map.cleanup())
+                   init_api_resources=init_api_resources, overrides=overrides)
+    defer(oc_map.cleanup)
 
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

@@ -1,10 +1,11 @@
 import time
 import logging
 
+from sretoolbox.utils import threaded
+
 import e2e_tests.test_base as tb
 import e2e_tests.dedicated_admin_test_base as dat
 import e2e_tests.network_policy_test_base as npt
-from reconcile.utils import threaded
 
 from reconcile.utils.defer import defer
 
@@ -32,7 +33,7 @@ def test_cluster(cluster, oc_map, ns_under_test):
 @defer
 def run(thread_pool_size=10, defer=None):
     oc_map = tb.get_oc_map(QONTRACT_E2E_TEST)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     ns_under_test = tb.get_test_namespace_name()
     threaded.run(test_cluster, oc_map.clusters(), thread_pool_size,
                  oc_map=oc_map,

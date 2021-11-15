@@ -19,12 +19,14 @@ CLUSTERS_QUERY = """
       identity {
         path
         field
+        version
         format
       }
     }
     automationToken {
       path
       field
+      version
       format
     }
     disable {

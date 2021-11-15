@@ -25,12 +25,12 @@ class GithubApi:
     :type settings: dict
     """
 
-    def __init__(self, instance, repo_url, settings):
+    def __init__(self, instance, repo_url, settings, timeout=30):
         parsed_repo_url = urlparse(repo_url)
         repo = parsed_repo_url.path.strip('/')
         secret_reader = SecretReader(settings=settings)
         token = secret_reader.read(instance['token'])
-        git_cli = github.Github(token, base_url=GH_BASE_URL)
+        git_cli = github.Github(token, base_url=GH_BASE_URL, timeout=timeout)
         self.repo = git_cli.get_repo(repo)
 
     def get_repository_tree(self, ref='master'):

@@ -151,6 +151,7 @@ def config_file(function):
     help_msg = 'Path to configuration file in toml format.'
     function = click.option('--config', 'configfile',
                             required=True,
+                            default=os.environ.get('QONTRACT_CONFIG'),
                             help=help_msg)(function)
     return function
 

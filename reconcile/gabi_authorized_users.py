@@ -55,8 +55,10 @@ def fetch_desired_state(gabi_instances: Iterable[Mapping],
             tf_resources = namespace['terraformResources']
             found = False
             for t in tf_resources:
-                if (t['provider'], t['account'], t['identifier']) == \
-                        ('rds', account, identifier):
+                if t['provider'] != 'rds':
+                    continue
+                if (t['account'], t['identifier']) == \
+                        (account, identifier):
                     found = True
                     break
             if not found:
@@ -95,7 +97,7 @@ def run(dry_run: bool, thread_pool_size: int = 10,
         override_managed_types=['ConfigMap'],
         internal=internal,
         use_jump_host=use_jump_host)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
     fetch_desired_state(gabi_instances, ri)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

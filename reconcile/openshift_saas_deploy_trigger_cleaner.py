@@ -38,7 +38,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         settings=settings, internal=internal,
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size)
-    defer(lambda: oc_map.cleanup())
+    defer(oc_map.cleanup)
 
     for pp in pipelines_providers:
         retention = pp.get('retention')
