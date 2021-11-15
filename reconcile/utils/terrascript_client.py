@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -64,6 +65,7 @@ from terrascript.resource import (
     aws_lb_target_group_attachment,
     aws_lb_listener,
     aws_lb_listener_rule,
+    random_id,
 )
 # temporary to create aws_ecrpublic_repository
 from terrascript import Resource
@@ -167,6 +169,8 @@ class TerrascriptClient:
             ts += time(
                 version="0.7.2"
             )
+
+            ts += provider.random()
 
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
@@ -3454,10 +3458,31 @@ class TerrascriptClient:
         write_weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
+            target_ips = t['ips']
+
+            # https://www.terraform.io/docs/providers/random/r/id
+            # The random ID will regenerate based on the 'keepers' values
+            # So as long as the 'keepers' values don't change the ID will
+            # remain the same
+            # We generate a hash of the sorted list of IPs as a value to
+            # compare against across terraform runs
+            target_ips_hash = hashlib.sha256(
+                str(sorted(target_ips)).encode()).hexdigest()
+            lbt_random_id_values = {
+                'keepers': {
+                    'name': target_name,
+                    'ips': target_ips_hash,
+                },
+                'byte_length': 4,
+            }
+            lbt_random_id = random_id(
+                f'{identifier}-{target_name}', **lbt_random_id_values)
+            tf_resources.append(lbt_random_id)
+
             # https://www.terraform.io/docs/providers/aws/r/
             # lb_target_group.html
             values = {
-                'name': target_name,
+                'name': f'{target_name}-${{{lbt_random_id.hex}}}',
                 'port': 443,
                 'protocol': 'HTTPS',
                 'protocol_version': 'HTTP1',
@@ -3468,6 +3493,9 @@ class TerrascriptClient:
                     'path': '/',
                     'protocol': 'HTTPS',
                     'port': 443,
+                },
+                'lifecycle': {
+                    'create_before_destroy': True,
                 }
             }
             lbt_identifier = f'{identifier}-{target_name}'
