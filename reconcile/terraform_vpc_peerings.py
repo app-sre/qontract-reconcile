@@ -178,6 +178,9 @@ def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
     """
     desired_state = []
     error = False
+    if not ocm_map:
+        logging.warning('cluster-vpc is not yet supported without OCM')
+        return desired_state, error
 
     for cluster_info in clusters:
         try:
@@ -275,6 +278,9 @@ def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     """
     desired_state = []
     error = False
+    if not ocm_map:
+        logging.warning('account-vpc-mesh is not yet supported without OCM')
+        return desired_state, error
 
     for cluster_info in clusters:
         try:
@@ -322,12 +328,19 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
         account = peer_vpc['account']
         # assume_role is the role to assume to provision the peering
         # connection request, through the accepter AWS account.
-        account['assume_role'] = \
-            ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster,
-            peer_vpc['account']['uid'],
-            peer_vpc['account']['terraformUsername']
-        )
+        provided_assume_role = peer_connection.get('assumeRole')
+        # if an assume_role is provided, it means we don't need
+        # to get the information from OCM. it likely means that
+        # there is no OCM at all.
+        if provided_assume_role:
+            account['assume_role'] = provided_assume_role
+        else:
+            account['assume_role'] = \
+                ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster,
+                peer_vpc['account']['uid'],
+                peer_vpc['account']['terraformUsername']
+            )
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
         requester_vpc_id, requester_route_table_ids, _ = \
@@ -383,8 +396,15 @@ def run(dry_run, print_to_file=None,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                         settings=settings)
+    with_ocm = any(c.get('ocm') for c in clusters)
+    if with_ocm:
+        ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+                             settings=settings)
+    else:
+        # this is a case for an OCP cluster which is not provisioned
+        # through OCM. it is expected that an 'assume_role' is provided
+        # on the vpc peering defition in the cluster file.
+        ocm_map = {}
 
     accounts = queries.get_aws_accounts()
     awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
