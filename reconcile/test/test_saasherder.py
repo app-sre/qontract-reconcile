@@ -1,15 +1,14 @@
-import yaml
-
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
-from .fixtures import Fixtures
+import yaml
 
 from github import GithubException
 
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 
+from .fixtures import Fixtures
 
 class TestCheckSaasFileEnvComboUnique(TestCase):
     def test_check_saas_file_env_combo_unique(self):
