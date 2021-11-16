@@ -1,6 +1,7 @@
 import os
 import logging
 
+from typing import List, Optional
 from reconcile import queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
@@ -8,6 +9,48 @@ from reconcile.utils.gitlab_api import GitLabApi
 
 
 QONTRACT_INTEGRATION = 'gitlab-labeler'
+
+
+def guess_onboarding_status(changed_paths: List[str]) -> Optional[str]:
+    """
+    Guess the onboarding status of a given MR from the changed paths of the
+    MR.
+    """
+    apps = queries.get_apps()
+    #   logging.info(apps)
+    app_name = get_app_name(changed_paths)
+    if app_name is not None:
+        app = None
+        for a in apps:
+            if a['name'] == app_name:
+                app = a
+
+    if app is not None:
+        logging.info(app['onboardingStatus'])
+        return app['onboardingStatus']
+
+    return None
+
+
+def get_app_name(changed_paths: List[str]) -> Optional[str]:
+    """
+    Guess the service name of a given MR from the changed paths of the
+    MR. This will allow to add the onboarding status to the MR's as label
+    """
+    for path in changed_paths:
+        if 'data/services/' in path:
+            path_slices = path.split('/')
+            try:
+                if path_slices[2] == "insights":
+                    app_name = path_slices[3]
+                else:
+                    app_name = path_slices[2]
+                return app_name
+            except IndexError:
+                logging.info("Error getting app name")
+                return None
+
+    return None
 
 
 def guess_labels(project_labels, changed_paths):
@@ -30,6 +73,10 @@ def guess_labels(project_labels, changed_paths):
                        and t not in ignore_tokens]
             if matches:
                 guesses.add(label)
+
+    onboarding_status = guess_onboarding_status(changed_paths)
+    if onboarding_status is not None:
+        guesses.add(onboarding_status)
 
     return list(guesses)
 
