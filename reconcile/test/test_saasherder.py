@@ -10,6 +10,7 @@ from reconcile.utils.saasherder import SaasHerder
 
 from .fixtures import Fixtures
 
+
 class TestCheckSaasFileEnvComboUnique(TestCase):
     def test_check_saas_file_env_combo_unique(self):
         saas_files = [
