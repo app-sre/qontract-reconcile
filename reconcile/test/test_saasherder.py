@@ -1,6 +1,3 @@
-import json
-import logging
-
 import yaml
 
 from unittest import TestCase
@@ -293,21 +290,28 @@ class TestPopulateDesiredState(TestCase):
             SaasHerder, '_initiate_github', autospec=True, return_value=None,
         )
         self.get_file_contents_patcher = patch.object(
-            SaasHerder, '_get_file_contents', wraps=self.fake_get_file_contents,
+            SaasHerder,
+            '_get_file_contents',
+            wraps=self.fake_get_file_contents,
         )
         self.initiate_gh_patcher.start()
         self.get_file_contents_patcher.start()
 
         # Mock image checking.
         self.get_check_images_patcher = patch.object(
-            SaasHerder, '_check_images',  autospec=True, return_value=None,
+            SaasHerder,
+            '_check_images',
+            autospec=True,
+            return_value=None,
         )
         self.get_check_images_patcher.start()
 
     def fake_get_file_contents(self, options):
-        self.assertEqual('https://github.com/rhobs/configuration', options['url'])
+        self.assertEqual(
+            'https://github.com/rhobs/configuration', options['url'])
 
-        content = self.fxts.get(options['ref'] + (options['path'].replace('/', '_')))
+        content = self.fxts.get(
+            options['ref'] + (options['path'].replace('/', '_')))
         return yaml.safe_load(content), "yolo", options['ref']
 
     def tearDown(self):
@@ -321,7 +325,8 @@ class TestPopulateDesiredState(TestCase):
     def test_populate_desired_state_saas_file_delete(self):
         spec = {'delete': True}
 
-        desired_state = self.saasherder.populate_desired_state_saas_file(spec, None)
+        desired_state \
+            = self.saasherder.populate_desired_state_saas_file(spec, None)
         self.assertIsNone(desired_state)
 
     def test_populate_desired_state_cases(self):
@@ -338,7 +343,9 @@ class TestPopulateDesiredState(TestCase):
         cnt = 0
         for (cluster, namespace, resource_type, data) in ri:
             for _, d_item in data['desired'].items():
-                expected = yaml.safe_load(self.fxts.get(f"expected_{cluster}_{namespace}_{resource_type}.json"))
+                expected = yaml.safe_load(self.fxts.get(
+                        f"expected_{cluster}_{namespace}_{resource_type}.json",
+                ))
                 self.assertEqual(expected,  d_item.body)
                 cnt += 1
 
