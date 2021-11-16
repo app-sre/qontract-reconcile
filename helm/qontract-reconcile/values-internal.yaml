@@ -216,6 +216,19 @@ integrations:
   logs:
     slack: true
   trigger: true
+- name: openshift-tekton-resources
+  # resources are tentative for the moment
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      memory: 1000Mi
+      cpu: 600m
+  extraArgs: --no-use-jump-host
+  logs:
+    slack: true
+  internalCertificates: true
 - name: terraform-resources
   resources:
     requests:
