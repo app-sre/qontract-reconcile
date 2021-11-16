@@ -1,4 +1,5 @@
 import os
+import json
 
 import anymarkup
 
@@ -21,3 +22,6 @@ class Fixtures:
 
     def get_anymarkup(self, fixture):
         return anymarkup.parse(self.get(fixture), force_types=None)
+
+    def get_json(self, fixture):
+        return json.loads(self.get(fixture))

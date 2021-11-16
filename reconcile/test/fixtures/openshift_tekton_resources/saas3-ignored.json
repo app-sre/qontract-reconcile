@@ -1,0 +1,10 @@
+{
+  "path": "saas3-ignored.yaml",
+  "name": "saas3-ignored",
+  "configurableResources": null,
+  "pipelinesProvider": {
+    "name": "provider3-ignored",
+    "provider": "tekton"
+  },
+  "deployResources": null
+}

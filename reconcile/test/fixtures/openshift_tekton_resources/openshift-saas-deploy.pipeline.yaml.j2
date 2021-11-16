@@ -1,0 +1,51 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: openshift-saas-deploy
+spec:
+  params:
+  - name: saas_file_name
+    type: string
+  - name: env_name
+    type: string
+  - name: tkn_cluster_console_url
+    type: string
+  - name: tkn_namespace_name
+    type: string
+  tasks:
+  - name: openshift-saas-deploy
+    taskRef:
+      name: openshift-saas-deploy
+    params:
+    - name: saas_file_name
+      value: "$(params.saas_file_name)"
+    - name: env_name
+      value: "$(params.env_name)"
+  finally:
+  - name: push-gateway-openshift-saas-deploy-task-status-metric
+    retries: 10
+    taskRef:
+      name: push-gateway-openshift-saas-deploy-task-status-metric
+    params:
+    - name: saas_file_name
+      value: "$(params.saas_file_name)"
+    - name: env_name
+      value: "$(params.env_name)"
+    - name: metric_name
+      value: app_sre_tekton_pipelinerun_task_status
+    - name: job_name
+      value: openshift-saas-deploy-push-metric
+    - name: task_name
+      value: openshift-saas-deploy
+    - name: task_status
+      value: "$(tasks.openshift-saas-deploy.status)"
+    - name: pipeline_name
+      value: openshift-saas-deploy
+    - name: pipelinerun_name
+      value: "$(context.pipelineRun.name)"
+    - name: retry_cooldown_seconds
+      value: "60"
+    - name: tkn_cluster_console_url
+      value: "$(params.tkn_cluster_console_url)"
+    - name: tkn_namespace_name
+      value: "$(params.tkn_namespace_name)"

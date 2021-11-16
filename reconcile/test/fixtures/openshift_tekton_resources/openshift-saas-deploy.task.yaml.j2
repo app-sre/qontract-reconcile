@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: openshift-saas-deploy
+spec:
+  params:
+  - name: saas_file_name
+    type: string
+  - name: env_name
+    type: string
+  steps:
+  - name: qontract-reconcile-prepare
+    image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
+    command: ["/bin/sh", "-c"]
+    args: ['mkdir artifacts']
+    resources:
+      requests:
+        cpu: 10m
+        memory: 20Mi
+      limits:
+        cpu: 20m
+        memory: 30Mi
+  - name: qontract-reconcile-config
+    image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
+    command: ["/bin/sh", "-c"]
+    args: ['echo "$(CONFIG_TOML)" | base64 -d > config.toml']
+    resources:
+      requests:
+        cpu: 10m
+        memory: 20Mi
+      limits:
+        cpu: 20m
+        memory: 30Mi
+    env:
+    - name: CONFIG_TOML
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: config.toml.base64
+  - name: qontract-reconcile
+    image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
+    command: ["/bin/sh", "-c"]
+    args: ['qontract-reconcile --config config.toml openshift-saas-deploy --saas-file-name $(params.saas_file_name) --env-name $(params.env_name) --io-dir artifacts/']
+    env:
+    - name: APP_INTERFACE_STATE_BUCKET
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: app-interface.state.bucket.name
+    - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: app-interface.state.bucket.account.name
+    - name: gitlab_pr_submitter_queue_url
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: gitlab.pr-submitter.queue.url
+    - name: GITHUB_API
+      valueFrom:
+        secretKeyRef:
+          name: qontract-reconcile
+          key: github.api.url
+  - name: qontract-reconcile-publish
+    image: quay.io/app-sre/qontract-reconcile:{{ qontract_reconcile_image_tag }}
+    command: ["/bin/sh", "-c"]
+    args: ['for f in $(find artifacts/ -type f); do echo $f; cat $f; done']
+    resources:
+      requests:
+        cpu: 10m
+        memory: 20Mi
+      limits:
+        cpu: 20m
+        memory: 30Mi

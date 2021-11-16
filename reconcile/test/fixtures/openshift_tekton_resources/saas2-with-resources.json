@@ -1,0 +1,19 @@
+{
+  "path": "saas2-with-resources.yaml",
+  "name": "saas2-with-resources",
+  "configurableResources": true,
+  "pipelinesProvider": {
+    "name": "provider2-with-resources",
+    "provider": "tekton"
+  },
+  "deployResources": {
+    "requests": {
+      "cpu": "100m",
+      "memory": "200Mi"
+    },
+    "limits": {
+      "cpu": "1",
+      "memory": "1Gi"
+    }
+  }
+}

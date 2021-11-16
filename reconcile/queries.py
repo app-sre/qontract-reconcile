@@ -1718,6 +1718,32 @@ PIPELINES_PROVIDERS_QUERY = """
           }
         }
       }
+      taskTemplates {
+        ...on PipelinesProviderTektonObjectTemplate_v1 {
+          name
+          type
+          path
+          variables
+        }
+      }
+      pipelineTemplates {
+        openshiftSaasDeploy {
+          name
+          type
+          path
+          variables
+        }
+      }
+      deployResources {
+        requests {
+          cpu
+          memory
+        }
+        limits {
+          cpu
+          memory
+        }
+      }
     }
   }
 }
