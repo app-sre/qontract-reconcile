@@ -1,0 +1,16 @@
+{
+  "apiVersion":"v1",
+  "data":{
+    "rbac.yaml":"something: important\nfor: sure"
+  },
+  "kind":"ConfigMap",
+  "metadata":{
+    "annotations":{
+      "qontract.recycle":"true"
+    },
+    "labels":{
+      "app.kubernetes.io/version":"v900.1.1"
+    },
+    "name":"some-app"
+  }
+}
