@@ -3406,6 +3406,7 @@ class TerrascriptClient:
                     'to_port': 80,
                     'protocol': 'tcp',
                     'cidr_blocks': ['0.0.0.0/0'],
+                    'ipv6_cidr_blocks': ['::/0'],
                     **empty_required_sg_values,
                 },
                 {
@@ -3414,6 +3415,7 @@ class TerrascriptClient:
                     'to_port': 443,
                     'protocol': 'tcp',
                     'cidr_blocks': ['0.0.0.0/0'],
+                    'ipv6_cidr_blocks': ['::/0'],
                     **empty_required_sg_values,
                 }
             ],
@@ -3425,6 +3427,7 @@ class TerrascriptClient:
                     'to_port': 80,
                     'protocol': 'tcp',
                     'cidr_blocks': ['0.0.0.0/0'],
+                    'ipv6_cidr_blocks': ['::/0'],
                     **empty_required_sg_values,
                 },
                 {
@@ -3433,6 +3436,7 @@ class TerrascriptClient:
                     'to_port': 443,
                     'protocol': 'tcp',
                     'cidr_blocks': ['0.0.0.0/0'],
+                    'ipv6_cidr_blocks': ['::/0'],
                     **empty_required_sg_values,
                 }
             ]
@@ -3444,6 +3448,7 @@ class TerrascriptClient:
         values = {
             'name': identifier,
             'internal': False,
+            'ip_address_type': 'dualstack',
             'load_balancer_type': 'application',
             'security_groups': [f'${{{sg_tf_resource.id}}}'],
             'subnets': [s['id'] for s in vpc['subnets']],
