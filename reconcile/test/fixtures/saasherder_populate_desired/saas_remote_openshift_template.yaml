@@ -1,0 +1,76 @@
+---
+$schema: /app-sre/saas-file-2.yml
+
+name: saas-remote-openshift-template-test
+description: Test
+
+_placeholders:
+  - &STAGING_NAMESPACE
+    name: "yolo-stage"
+    environment:
+      name: "stage"
+    cluster:
+      name: "stage-1"
+  - &PRODUCTION_NAMESPACE
+    name: "yolo"
+    environment:
+      name: "production "
+    cluster:
+      name: "prod-1"
+
+managedResourceTypes:
+- Deployment
+- Service
+- ConfigMap
+
+imagePatterns:
+- quay.io/observatorium
+- secret.quay.io/observatorium
+
+parameters:
+  OBSERVATORIUM_METRICS_NAMESPACE: yolo
+  OBSERVATORIUM_LOGS_NAMESPACE: yolo-but-for-logs
+
+resourceTemplates:
+- name: template1
+  path: /resource/1.yaml
+  url: https://github.com/rhobs/configuration
+  parameters:
+    OBSERVATORIUM_API_IMAGE: secret.quay.io/observatorium/api
+  targets:
+  - namespace: *STAGING_NAMESPACE
+    ref: 4ba049635dd62d57605ea74890c08caef067ed13
+    parameters:
+      VERSION: v900.1.1
+      NAMESPACE: yolo-stage
+      OBSERVATORIUM_METRICS_NAMESPACE: yolo-stage
+      OBSERVATORIUM_LOGS_NAMESPACE: yolo-but-for-logs-stage
+      REPLICAS: 3
+      OBSERVATORIUM_API_CPU_LIMIT: 1
+      OBSERVATORIUM_API_CPU_REQUEST: 100m
+      OBSERVATORIUM_API_MEMORY_LIMIT: 1Gi
+      OBSERVATORIUM_API_MEMORY_REQUEST: 256Mi
+      SERVICE_ACCOUNT_NAME: maor-for-president
+  - namespace: *PRODUCTION_NAMESPACE
+    ref: 17358120d2019d171f93a0c92e059b6b9acc7a03
+    parameters:
+      VERSION: v100.1.1
+      NAMESPACE: yolo
+      REPLICAS: 5
+      OBSERVATORIUM_API_CPU_REQUEST: 100m
+      OBSERVATORIUM_API_CPU_LIMIT: 1
+      OBSERVATORIUM_API_MEMORY_REQUEST: 256Mi
+      OBSERVATORIUM_API_MEMORY_LIMIT: 1Gi
+      SERVICE_ACCOUNT_NAME: maor-for-president
+      OBSERVATORIUM_API_IMAGE: quay.io/observatorium/api
+- name: template2
+  path: /resource/2.yaml
+  url: https://github.com/rhobs/configuration
+  targets:
+  - namespace: *STAGING_NAMESPACE
+    ref: 4ba049635dd62d57605ea74890c08caef067ed13
+    parameters:
+      VERSION: experimental
+  - namespace: *PRODUCTION_NAMESPACE
+    ref: 4ba049635dd62d57605ea74890c08caef067ed13
+

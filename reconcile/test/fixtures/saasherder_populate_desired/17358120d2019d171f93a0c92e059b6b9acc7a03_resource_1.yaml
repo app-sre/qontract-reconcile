@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: resource1
+objects:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/version: ${VERSION}
+      name: some-app
+    spec:
+      replicas: ${{REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: some-app
+      strategy:
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: some-app
+            app.kubernetes.io/version: ${VERSION}
+        spec:
+          containers:
+            - args:
+                - --different_metrics.read.endpoint=http://observatorium-thanos-query-frontend.${OBSERVATORIUM_METRICS_NAMESPACE}.svc.cluster.local:9090
+                - --different_metrics.write.endpoint=http://observatorium-thanos-receive.${OBSERVATORIUM_METRICS_NAMESPACE}.svc.cluster.local:19291
+                - --different_metrics.read.endpoint=http://observatorium-loki-query-frontend-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --different_metrics.tail.endpoint=http://observatorium-loki-querier-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --different_metrics.write.endpoint=http://observatorium-loki-distributor-http.${OBSERVATORIUM_LOGS_NAMESPACE}.svc.cluster.local:3100
+                - --different_metrics.rate-limiter.grpc-address=observatorium-gubernator.${NAMESPACE}.svc.cluster.local:8081
+                - --different_metrics.concurrent-request-limit=${OBSERVATORIUM_API_PER_POD_CONCURRENT_REQUETST_LIMIT}
+              image: ${OBSERVATORIUM_API_IMAGE}:${VERSION}
+              name: observatorium-api
+              resources:
+                limits:
+                  cpu: ${OBSERVATORIUM_API_CPU_LIMIT}
+                  memory: ${OBSERVATORIUM_API_MEMORY_LIMIT}
+                requests:
+                  cpu: ${OBSERVATORIUM_API_CPU_REQUEST}
+                  memory: ${OBSERVATORIUM_API_MEMORY_REQUEST}
+          serviceAccountName: ${SERVICE_ACCOUNT_NAME}
+parameters:
+  - name: NAMESPACE
+    value: observatorium
+  - name: OBSERVATORIUM_METRICS_NAMESPACE
+    value: observatorium-metrics
+  - name: OBSERVATORIUM_LOGS_NAMESPACE
+    value: observatorium-logs
+  - name: OBSERVATORIUM_API_CPU_LIMIT
+    value: "1"
+  - name: OBSERVATORIUM_API_CPU_REQUEST
+    value: 100m
+  - name: VERSION
+    value: master-2021-03-26-v0.1.1-200-gea0242a
+  - name: OBSERVATORIUM_API_IMAGE
+    value: quay.io/observatorium/api
+  - name: OBSERVATORIUM_API_MEMORY_LIMIT
+    value: 1Gi
+  - name: OBSERVATORIUM_API_MEMORY_REQUEST
+    value: 256Mi
+  - name: REPLICAS
+    value: "3"
+  - name: OBSERVATORIUM_API_PER_POD_CONCURRENT_REQUETST_LIMIT
+    value: "50"
+  - name: SERVICE_ACCOUNT_NAME
+    value: prometheus-telemeter
