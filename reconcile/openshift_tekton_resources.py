@@ -339,7 +339,7 @@ def run(dry_run: bool,
 
     # TODO: This will need to be an error condition in the future
     if not tkn_providers:
-        LOG.info("No saas files found to be processed")
+        LOG.debug("No saas files found to be processed")
         sys.exit(0)
 
     # We need to start with the desired state to know the names of the
