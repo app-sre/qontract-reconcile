@@ -11,12 +11,16 @@ _placeholders:
       name: "stage"
     cluster:
       name: "stage-1"
+    app:
+      name: app-1
   - &PRODUCTION_NAMESPACE
     name: "yolo"
     environment:
       name: "production "
     cluster:
       name: "prod-1"
+    app:
+      name: app-1
 
 managedResourceTypes:
 - Deployment
