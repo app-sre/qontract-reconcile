@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Mapping, Union
+from typing import Any, Dict, List, Mapping
 import warnings
 
 from reconcile import queries
@@ -21,6 +21,7 @@ with warnings.catch_warnings():
     from dyn.tm.services.dsf import DSFResponsePool  # type: ignore
     from dyn.tm.services.dsf import DSFRuleset  # type: ignore
     from dyn.tm.services.dsf import TrafficDirector  # type: ignore
+    from dyn.tm.zones import Node  # type: ignore
 
 QONTRACT_INTEGRATION = 'dyn-traffic-director'
 
@@ -36,46 +37,268 @@ class UnsupportedRecordType(Exception):
     pass
 
 
-def fetch_current_state() -> Dict[str, Dict]:  # pragma: no cover
-    state: dict = {
+class DynResourceNotFound(Exception):
+    pass
+
+
+class CreateTrafficDirectorError(Exception):
+    pass
+
+
+class DeleteTrafficDirectorError(Exception):
+    pass
+
+
+class UpdateTrafficDirectorError(Exception):
+    pass
+
+
+def _get_dyn_node(name: str) -> Node:
+    """Retrieve a Dyn DNS Node using the Dyn API
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    zones = dyn_zones.get_all_zones()
+    for z in zones:
+        for n in z.get_all_nodes():
+            if n.fqdn == name:
+                return n
+
+    raise DynResourceNotFound(f"could not find a DNS node named {name}")
+
+
+def _get_dyn_traffic_director_service(name: str) -> TrafficDirector:
+    """Retrieve a Dyn Traffic Director Service using the Dyn API
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    for td in dyn_services.get_all_dsf_services():
+        if td.label == name:
+            return td
+
+    raise DynResourceNotFound(
+        f"could not find a Traffic Director service named {name}")
+
+
+def _new_dyn_cname_record(hostname: str, weight: int = 100) -> DSFCNAMERecord:
+    """Instantiate an opinionated DSFCNAMERecord object"""
+    return DSFCNAMERecord(hostname, weight=weight, label='',
+                          automation='manual')
+
+
+def _new_dyn_traffic_director_service(name, ttl=DEFAULT_TD_TTL, records=None,
+                                      attach_nodes=None) -> TrafficDirector:
+    """Creates an opinionated Dyn Traffic Director service
+
+    - Creates a CNAME recordset
+    - Expects all records to be DSFCNAMERecord type
+    - Creates a single failover chain pointing to the recordset
+    - Creates a single pool pointing to the failover chain
+    - Creates a single ruleset that always responds and points to the pool
+
+    NOTE: The dyn module TrafficDirector constructor has side effects and calls
+          the Dyn API multiple times. It is possible that Dyn resources are
+          created even if the constructor failed
+    """
+
+    if records is None:
+        records = []
+    if attach_nodes is None:
+        attach_nodes = []
+
+    try:
+        record_set = DSFRecordSet('CNAME', label=name,
+                                  automation='manual', records=records)
+        failover_chain = DSFFailoverChain(label=name,
+                                          record_sets=[record_set])
+        rpool = DSFResponsePool(label=name, rs_chains=[failover_chain])
+        ruleset = DSFRuleset(label=name, criteria_type='always',
+                             response_pools=[rpool])
+
+        # Constructor does the actual resource creation and checking for
+        # creation completion.
+        # It returns returns a resource ID which we don't need
+        return TrafficDirector(name, ttl=ttl, rulesets=[ruleset],
+                               nodes=attach_nodes)
+    except Exception as e:
+        raise CreateTrafficDirectorError(
+            f'Exception caught during creation of Traffic Director: {name} '
+            f'The exception was: {e}'
+        )
+
+
+def _get_dyn_traffic_director_ruleset(td: TrafficDirector,
+                                      ruleset_label: str) -> DSFRuleset:
+    """Retrieves a ruleset of a TrafficDirector service
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    for ruleset in td.rulesets:
+        if ruleset.label == ruleset_label:
+            return ruleset
+
+    raise DynResourceNotFound(
+        f"could not find ruleset named {ruleset_label}"
+        f"under traffic director service {td.label}"
+    )
+
+
+def _get_dyn_traffic_director_response_pool(ruleset: DSFRuleset,
+                                            rpool_label: str
+                                            ) -> DSFResponsePool:
+    """Retrieves a response pool of a TrafficDirector Ruleset
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    for rpool in ruleset.response_pools:
+        if rpool.label == rpool_label:
+            return rpool
+
+    raise DynResourceNotFound(
+        f"could not find response pool named {rpool_label}"
+        f"under ruleset {ruleset.label}"
+    )
+
+
+def _get_dyn_traffic_director_chain(rpool: DSFResponsePool,
+                                    chain_label: str) -> DSFFailoverChain:
+    """Retrieves a chain of a TrafficDirector Response Pool
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    for chain in rpool.rs_chains:
+        if chain.label == chain_label:
+            return chain
+
+    raise DynResourceNotFound(
+        f"could not find failover chain named {chain_label}"
+        f"under resource pool named {rpool.label}"
+    )
+
+
+def _get_dyn_traffic_director_recordset(chain: DSFFailoverChain,
+                                        rset_label: str) -> DSFRecordSet:
+    """Retrieves a RecordSet of a TrafficDirector Failover Chain
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    for rset in chain.record_sets:
+        if rset.label == rset_label:
+            return rset
+
+    raise DynResourceNotFound(
+        f"could not find record set named {rset_label}"
+        f"under failover chain named {chain.label}"
+    )
+
+
+def _get_dyn_traffic_director_records(td: TrafficDirector, ruleset_label: str,
+                                      rpool_label: str, chain_label: str,
+                                      rset_label: str):
+    """Retrieves the records of a TrafficDirector service for a given ruleset,
+    pool, chain and recordset
+
+    NOTE: A Dyn Session (dyn.tm.session.DynectSession) must have been
+          initialized prior to using this method. DynectSession is a singleton
+          that does not require to be passed around to call APIs
+    """
+    # Need to follow the hierarchy
+    # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet <- Record
+    try:
+        ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
+        rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
+        chain = _get_dyn_traffic_director_chain(rpool, chain_label)
+        recordset = _get_dyn_traffic_director_recordset(chain, rset_label)
+    except DynResourceNotFound as e:
+        raise DynResourceNotFound(
+            f'could not retrieve records for traffic director: {td.label}, '
+            f'ruleset: {ruleset_label}, resourcepool: {rpool_label}, '
+            f'failoverchain: {chain_label}, recordset: {rset_label}. '
+            f'The specific error was: {e}'
+        )
+    return recordset.records
+
+
+def _update_dyn_traffic_director_records(td: TrafficDirector, records: List,
+                                         ruleset_label: str, rpool_label: str,
+                                         chain_label: str, rset_label: str):
+    """Updates the records of a TrafficDirector service for a given ruleset,
+    responsepool and failover chain
+
+    NOTE: This calls the Dyn API to apply the change
+    """
+    new_rset = DSFRecordSet('CNAME', label=td.label, automation='manual',
+                            records=records)
+
+    # Need to follow the hierarchy
+    # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet <- Record
+    try:
+        ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
+        rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
+        chain = _get_dyn_traffic_director_chain(rpool, chain_label)
+        current_recordset = _get_dyn_traffic_director_recordset(chain,
+                                                                rset_label)
+    except DynResourceNotFound as e:
+        raise DynResourceNotFound(
+            f'could not retrieve records for traffic director: {td.label}, '
+            f'ruleset: {ruleset_label}, resourcepool: {rpool_label}, '
+            f'failoverchain: {chain_label}, recordset: {rset_label}. '
+            f'The specific error was: {e}'
+        )
+
+    new_rset.add_to_failover_chain(chain)
+    current_recordset.delete()
+
+
+def fetch_current_state() -> Dict[str, Dict]:
+    state: Dict = {
         'tds': {},
     }
 
-    for td in dyn_services.get_all_dsf_services():
-        td_name: str = td.label
-        td_nodes: List[str] = [node['fqdn'] for node in td.nodes
-                               if 'fqdn' in node]
-        td_ttl: int = td.ttl
+    traffic_directors = dyn_services.get_all_dsf_services()
+    for td in traffic_directors:
+        td_name = td.label
+        td_nodes = [node['fqdn']
+                    for node in td.nodes]
+        td_ttl = td.ttl
+        td_records = _get_dyn_traffic_director_records(td,
+                                                       ruleset_label=td_name,
+                                                       rpool_label=td_name,
+                                                       chain_label=td_name,
+                                                       rset_label=td_name)
 
-        records: List[Dict[str, Union[str, int]]] = []
-        # Need to follow the hierarchy, even though the one we create/manage
-        # is flat (only one of each)
-        # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet <- Record
-        for ruleset in td.rulesets:
-            for pool in ruleset.response_pools:
-                for chain in pool.rs_chains:
-                    for recordset in chain.record_sets:
-                        for record in recordset.records:
-                            rdata = record.rdata()
-                            if 'cname_rdata' not in rdata:
-                                raise UnsupportedRecordType(
-                                    f'record type {type(record)} is not '
-                                    f'supported: {record}'
-                                )
+        records: List[Dict[str, Any]] = []
+        for record in td_records:
+            rdata = record.rdata()
+            if 'cname_rdata' not in rdata:
+                raise UnsupportedRecordType(
+                    f'record type {type(record)} is not '
+                    f'supported: {record}'
+                )
 
-                            cname_rdata = record.rdata()['cname_rdata']
-                            if 'cname' not in cname_rdata:
-                                raise UnsupportedRecordType(
-                                    f'record missing a cname field: {record}'
-                                )
+            cname_rdata = record.rdata()['cname_rdata']
+            if 'cname' not in cname_rdata:
+                raise UnsupportedRecordType(
+                    f'record missing a cname field: {record}'
+                )
 
-                            records.append({
-                                'hostname':
-                                # strip trailing dot added by Dyn
-                                cname_rdata['cname'].rstrip('.'),
-                                'weight':
-                                int(cname_rdata.get('weight', DEFAULT_WEIGHT)),
-                            })
+            records.append({
+                # strip trailing dot added by Dyn
+                'hostname': cname_rdata['cname'].rstrip('.'),
+                'weight': int(cname_rdata.get('weight', DEFAULT_WEIGHT)),
+            })
 
         # need to be sorted for comparison later
         records.sort(key=lambda d: d['hostname'])
@@ -90,10 +313,10 @@ def fetch_current_state() -> Dict[str, Dict]:  # pragma: no cover
     return state
 
 
-def fetch_desired_state() -> Dict[str, Dict]:  # pragma: no cover
+def fetch_desired_state() -> Dict[str, Dict]:
     dyn_tds = queries.get_dyn_traffic_directors()
 
-    state: dict = {
+    state: Dict = {
         'tds': {},
     }
 
@@ -102,7 +325,7 @@ def fetch_desired_state() -> Dict[str, Dict]:  # pragma: no cover
         td_records: List[Dict] = td.get('records', [])
         td_ttl: int = td.get('ttl', DEFAULT_TD_TTL)
 
-        records: List[Dict[str, Union[str, int]]] = []
+        records: List[Dict[str, Any]] = []
         for record in td_records:
             if record['cluster']:
                 hostname = record['cluster']['elbFQDN']
@@ -129,28 +352,110 @@ def fetch_desired_state() -> Dict[str, Dict]:  # pragma: no cover
     return state
 
 
-def get_node(name: str):
-    zones = dyn_zones.get_all_zones()
-    for z in zones:
-        for n in z.get_all_nodes():
-            if n.fqdn == name:
-                return n
-    return None
+def create_td(name: str, ttl: int, records: List[Dict[str, Any]],
+              dry_run: bool):
+    """Create a new Traffic Director service
+
+    Returns whether errors have been encountered during processing
+    """
+    logging.info(['create_td', name])
+
+    # Generate list of Dyn records from the desired records
+    td_records = [
+        _new_dyn_cname_record(r['hostname'], weight=r['weight'])
+        for r in records
+    ]
+
+    # Find the DNS node to attach to
+    attach_node = _get_dyn_node(name)
+
+    if dry_run:
+        return
+
+    # Create the new TD service
+    td = _new_dyn_traffic_director_service(name, ttl=ttl,
+                                           records=td_records,
+                                           attach_nodes=[attach_node])
+    if not td:
+        raise CreateTrafficDirectorError(
+            f'Could not create Traffic Director {name}')
 
 
-def get_traffic_director_service(name: str):
-    for td in dyn_services.get_all_dsf_services():
-        if td.label == name:
-            return td
-    return None
+def delete_td(name: str, dry_run: bool, enable_deletion=False):
+    logging.info(['delete_td', name])
+
+    if not enable_deletion:
+        logging.info('deletion action is disabled. '
+                     'Delete manually or enable deletion.')
+        return
+
+    if dry_run:
+        return
+
+    # Find the TD service to delete and delete it
+    td = _get_dyn_traffic_director_service(name)
+    if not td:
+        raise DeleteTrafficDirectorError(
+            f'Could not find Traffic Director service: {name}')
+
+    td.delete()
+
+
+def update_td(name: str, current: Mapping[str, Any],
+              desired: Mapping[str, Any], dry_run: bool):
+    # Find TD service to update
+    td = _get_dyn_traffic_director_service(name)
+    if not td:
+        raise UpdateTrafficDirectorError(
+            f'Could not find Traffic Director service: {name}')
+
+    # Check if ttl need to be updated
+    current_ttl = current['ttl']
+    desired_ttl = desired['ttl']
+    if current_ttl != desired_ttl:
+        logging.info(['update_td_ttl', name, desired_ttl])
+
+        if not dry_run:
+            td.ttl = desired_ttl
+
+    # Check if records need to be updated
+    current_records = current['records']
+    desired_records = desired['records']
+    if current_records != desired_records:
+        logging.info(['update_td_records', name, desired_records])
+
+        if not dry_run:
+            # Generate a new list of CNAME records
+            records = [
+                _new_dyn_cname_record(r['hostname'], weight=r['weight'])
+                for r in desired_records
+            ]
+
+            _update_dyn_traffic_director_records(td, records,
+                                                 ruleset_label=name,
+                                                 rpool_label=name,
+                                                 chain_label=name,
+                                                 rset_label=name)
+
+    # Check if node attachment need to be updated
+    current_nodes = current['nodes']
+    desired_nodes = desired['nodes']
+    if current_nodes != desired_nodes:
+        logging.info(['update_td_node', name, desired_nodes])
+
+        if not dry_run:
+            # Find the DNS node to attach the TD service to
+            attach_node = _get_dyn_node(name)
+            if not attach_node:
+                raise UpdateTrafficDirectorError(
+                    f'Could not find DNS node {name}')
+            td.nodes = [attach_node]
 
 
 def process_tds(current: Mapping[str, Mapping[str, Any]],
                 desired: Mapping[str, Mapping[str, Any]],
                 dry_run: bool = True,
-                enable_deletion: bool = False) -> bool:  # pragma: no cover
-    errors = False
-
+                enable_deletion: bool = False):
     added = list(desired.keys() - current.keys())
     removed = list(current.keys() - desired.keys())
     changed = [
@@ -160,123 +465,29 @@ def process_tds(current: Mapping[str, Mapping[str, Any]],
         if dname == cname if d != c
     ]
 
-    # Process removed TD services
-    for name in removed:
-        td_name = current[name]['name']
-        logging.info(['delete_td', td_name])
-
-        if not enable_deletion:
-            logging.info('deletion action is disabled. '
-                         'Delete manually or enable deletion.')
-            continue
-
-        if dry_run:
-            continue
-
-        for curtd in dyn_services.get_all_dsf_services():
-            if curtd.label == td_name:
-                curtd.delete()
-
     # Process added TD services
     for name in added:
-        td_name = desired[name]['name']
-        td_ttl = desired[name]['ttl']
-        td_records = desired[name]['records']
-
-        logging.info(['create_td', name])
-
-        records = [
-            DSFCNAMERecord(r['hostname'], label='',
-                           automation='manual', weight=r['weight'])
-            for r in td_records
-        ]
-
-        attach_node = get_node(td_name)
-        if not attach_node:
+        try:
+            create_td(name, desired[name]['ttl'],
+                      desired[name]['records'], dry_run)
+        except Exception as e:
+            # We do not want to proceed with deleting or updating TD services
+            # if we failed to create new ones. This is because renaming a TD
+            # service essentially is a "create new & delete old" operation
+            logging.exception(e)
             logging.error(
-                f"Could not find a DNS node named '{name}' to attach to"
+                'Errors occurred during creation of new Traffic Director. '
+                'Aborting before delete and update phases'
             )
-            errors = True
+            return
 
-        if dry_run:
-            continue
-
-        record_set = DSFRecordSet('CNAME', label=td_name,
-                                  automation='manual', records=records)
-        failover_chain = DSFFailoverChain(label=td_name,
-                                          record_sets=[record_set])
-        rpool = DSFResponsePool(label=td_name, rs_chains=[failover_chain])
-        ruleset = DSFRuleset(label=td_name, criteria_type='always',
-                             response_pools=[rpool])
-
-        # Constructor does the actual resource creation and checking for
-        # creation completion.
-        # It returns returns a resource ID which we don't need
-        TrafficDirector(td_name, ttl=td_ttl, rulesets=[ruleset],
-                        nodes=[attach_node])
+    # Process removed TD services
+    for name in removed:
+        delete_td(name, dry_run, enable_deletion)
 
     # Process updated TD services
     for name in changed:
-        # Find TD service to update
-        update_td = get_traffic_director_service(name)
-        if not update_td:
-            logging.error(
-                f"Could not find a Traffic Director service named '{name}'"
-            )
-            errors = True
-            continue
-
-        # Check if ttl need to be updated
-        if current[name]['ttl'] != desired[name]['ttl']:
-            logging.info(['update_td_ttl', name, desired[name]['ttl']])
-
-            if not dry_run:
-                update_td.ttl = desired[name]['ttl']
-
-        # Check if records need to be updated
-        if current[name]['records'] != desired[name]['records']:
-            logging.info(['update_td_records', name, desired[name]['records']])
-
-            if not dry_run:
-                # Generate a new list of CNAME records
-                records = [
-                    DSFCNAMERecord(r['hostname'], label='',
-                                   automation='manual', weight=r['weight'])
-                    for r in desired[name]['records']
-                ]
-
-                # Generate a new recordset
-                new_rset = DSFRecordSet('CNAME', label=desired[name]['name'],
-                                        automation='manual',
-                                        records=records)
-                # ... must follow the hierarchy
-                # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet
-                for ruleset in update_td.rulesets:
-                    for pool in ruleset.response_pools:
-                        for chain in pool.rs_chains:
-                            for rset in chain.record_sets:
-                                if rset.label == desired[name]['name']:
-                                    new_rset.add_to_failover_chain(chain)
-                                    rset.delete()
-
-        # Check if node attachment need to be updated
-        if current[name]['nodes'] != desired[name]['nodes']:
-            logging.info(
-                ['update_td_node', name, desired[name]['nodes']]
-            )
-
-            if not dry_run:
-                # Find the DNS node to attach the TD service to
-                attach_node = get_node(desired[name]['name'])
-                if not attach_node:
-                    logging.error(
-                        f"Could not find a node named '{name}' to attach to"
-                    )
-                    errors = True
-
-                update_td.nodes = [attach_node]
-
-    return errors
+        update_td(name, current[name], desired[name], dry_run)
 
 
 def run(dry_run: bool, enable_deletion: bool):
@@ -285,7 +496,7 @@ def run(dry_run: bool, enable_deletion: bool):
 
     creds_path = get_config().get('dyn', {}).get('secrets_path', None)
     if not creds_path:
-        raise ConfigNotFound("Dyn config missing from config file")
+        raise ConfigNotFound('Dyn config missing from config file')
 
     creds = secret_reader.read_all({'path': creds_path})
     dyn_session.DynectSession(creds['customer'],
