@@ -503,24 +503,23 @@ class TestGetSaasFileAttribute(TestCase):
             'attrib', default=True)
         self.assertFalse(att)
 
-
 class TestGetConfigDiffs(TestCase):
 
     cluster = "test-cluster"
     namespace = "test-namespace"
 
     def setUp(self) -> None:
-        state_patcher = \
+        self.state_patcher = \
             patch("reconcile.utils.saasherder.State", autospec=True)
-        self.state_mock = state_patcher.start().return_value
+        self.state_mock = self.state_patcher.start().return_value
 
-        ig_patcher = \
+        self.ig_patcher = \
             patch.object(SaasHerder, "_initiate_github", autospec=True)
-        ig_patcher.start()
+        self.ig_patcher.start()
 
-        gfc_patcher = \
+        self.gfc_patcher = \
             patch.object(SaasHerder, "_get_file_contents", autospec=True)
-        gfc_mock = gfc_patcher.start()
+        gfc_mock = self.gfc_patcher.start()
 
         self.saas_file = fxt.get_anymarkup('saas_file_deployment.yml')
         template = fxt.get_anymarkup('template_1.yml')
@@ -545,6 +544,11 @@ class TestGetConfigDiffs(TestCase):
 
         if self.ri.has_error_registered():
             raise Exception("Errors registered in Resourceinventory")
+
+    def tearDown(self):
+        self.state_patcher.stop()
+        self.ig_patcher.stop()
+        self.gfc_patcher.stop()
 
     def test_config_hash_is_filled(self):
         job_spec = \
