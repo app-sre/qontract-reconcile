@@ -1,4 +1,5 @@
 import copy
+from typing import Any
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
@@ -10,8 +11,6 @@ from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.saasherder import PARENT_CONFIG_HASH_ATTR
 
 from .fixtures import Fixtures
-
-fxt = Fixtures('saasherder')
 
 
 class TestCheckSaasFileEnvComboUnique(TestCase):
@@ -503,10 +502,19 @@ class TestGetSaasFileAttribute(TestCase):
             'attrib', default=True)
         self.assertFalse(att)
 
-class TestGetConfigDiffs(TestCase):
 
-    cluster = "test-cluster"
-    namespace = "test-namespace"
+class TestConfigHashTriggers(TestCase):
+    cluster: str
+    namespace: str
+    fxt: Any
+    template: Any
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fxt = Fixtures('saasherder')
+        cls.cluster = "test-cluster"
+        cls.namespace = "test-namespace"
+        cls.template = cls.fxt.get_anymarkup('template_1.yml')
 
     def setUp(self) -> None:
         self.state_patcher = \
@@ -521,9 +529,8 @@ class TestGetConfigDiffs(TestCase):
             patch.object(SaasHerder, "_get_file_contents", autospec=True)
         gfc_mock = self.gfc_patcher.start()
 
-        self.saas_file = fxt.get_anymarkup('saas_file_deployment.yml')
-        template = fxt.get_anymarkup('template_1.yml')
-        gfc_mock.return_value = (template, "url", "ahash")
+        self.saas_file = self.fxt.get_anymarkup('saas_file_deployment.yml')
+        gfc_mock.return_value = (self.template, "url", "ahash")
 
         self.ri = ResourceInventory()
         for kind in ["Service", "Deployment"]:
