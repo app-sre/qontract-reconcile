@@ -3,6 +3,8 @@ import json
 import logging
 import os
 import itertools
+import hashlib
+import copy
 import yaml
 
 from gitlab.exceptions import GitlabError
@@ -19,6 +21,8 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+
+PARENT_CONFIG_HASH_ATTR = "parent_config_hash"
 
 
 class Providers:
@@ -560,6 +564,8 @@ class SaasHerder():
                 f"unknown provider: {provider}")
 
         target_promotion['commit_sha'] = commit_sha
+        target_promotion[PARENT_CONFIG_HASH_ATTR] = \
+            options[PARENT_CONFIG_HASH_ATTR]
         return resources, html_url, target_promotion
 
     @staticmethod
@@ -725,7 +731,8 @@ class SaasHerder():
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
 
-        # Iterate over resource templates (multiple per saas_file).
+        target_configs = self.get_saas_targets_config(saas_file)
+        # iterate over resource templates (multiple per saas_file)
         for rt in resource_templates:
             rt_name = rt['name']
             url = rt['url']
@@ -743,8 +750,18 @@ class SaasHerder():
                 if target.get('disable'):
                     # Warning is logged during SaasHerder initiation.
                     continue
-                cluster, namespace = \
-                    self._get_cluster_and_namespace(target)
+                cluster = target['namespace']['cluster']['name']
+                namespace = target['namespace']['name']
+                env_name = target['namespace']['environment']['name']
+
+                key = f"{saas_file_name}/{rt_name}/{cluster}/" + \
+                    f"{namespace}/{env_name}"
+
+                config = target_configs[key]
+                m = hashlib.sha256()
+                m.update(json.dumps(config, sort_keys=True).encode("utf-8"))
+                digest = m.hexdigest()[:16]
+
                 process_template_options = {
                     'saas_file_name': saas_file_name,
                     'resource_template_name': rt_name,
@@ -755,7 +772,9 @@ class SaasHerder():
                     'hash_length': hash_length,
                     'target': target,
                     'parameters': consolidated_parameters,
-                    'github': github
+                    'github': github,
+                    PARENT_CONFIG_HASH_ATTR: digest
+
                 }
                 check_images_options_base = {
                     'saas_file_name': saas_file_name,
@@ -1086,6 +1105,38 @@ class SaasHerder():
         return list(itertools.chain.from_iterable(results))
 
     def get_configs_diff_saas_file(self, saas_file):
+        # Dict by key
+        targets = self.get_saas_targets_config(saas_file)
+
+        pipelines_provider = self._get_pipelines_provider(saas_file)
+        configurable_resources = saas_file.get('configurableResources', False)
+        trigger_specs = []
+
+        for key, desired_target_config in targets.items():
+            current_target_config = self.state.get(key, None)
+            # skip if there is no change in target configuration
+            if current_target_config == desired_target_config:
+                continue
+
+            saas_file_name, rt_name, cluster_name, \
+                namespace_name, env_name = key.split("/")
+
+            job_spec = {
+                'saas_file_name': saas_file_name,
+                'env_name': env_name,
+                'timeout': saas_file.get('timeout') or None,
+                'pipelines_provider': pipelines_provider,
+                'configurable_resources': configurable_resources,
+                'rt_name': rt_name,
+                'cluster_name': cluster_name,
+                'namespace_name': namespace_name,
+                'target_config': desired_target_config
+            }
+            trigger_specs.append(job_spec)
+        return trigger_specs
+
+    def get_saas_targets_config(self, saas_file):
+        configs = {}
         saas_file_name = saas_file['name']
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
@@ -1093,16 +1144,21 @@ class SaasHerder():
         configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         trigger_specs = []
+
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
             url = rt['url']
             path = rt['path']
             rt_parameters = rt.get('parameters')
-            for desired_target_config in rt['targets']:
+            for v in rt['targets']:
+                # Create a copy to avoid modifying saas_file values
+                desired_target_config = copy.deepcopy(v)
                 namespace = desired_target_config['namespace']
+
                 cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
+
                 desired_target_config['namespace'] = \
                     self.sanitize_namespace(namespace)
                 # add parent parameters to target config
@@ -1117,24 +1173,8 @@ class SaasHerder():
                 # get current target config from state
                 key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
                     f"{namespace_name}/{env_name}"
-                current_target_config = self.state.get(key, None)
-                # skip if there is no change in target configuration
-                if current_target_config == desired_target_config:
-                    continue
-                job_spec = {
-                    'saas_file_name': saas_file_name,
-                    'env_name': env_name,
-                    'timeout': timeout,
-                    'configurable_resources': configurable_resources,
-                    'pipelines_provider': pipelines_provider,
-                    'rt_name': rt_name,
-                    'cluster_name': cluster_name,
-                    'namespace_name': namespace_name,
-                    'target_config': desired_target_config
-                }
-                trigger_specs.append(job_spec)
-
-        return trigger_specs
+                configs[key] = desired_target_config
+        return configs
 
     @staticmethod
     def _get_pipelines_provider(saas_file):
@@ -1202,12 +1242,20 @@ class SaasHerder():
             if subscribe:
                 for channel in subscribe:
                     state_key = f"promotions/{channel}/{commit_sha}"
-                    value = self.state.get(state_key, {})
-                    success = value.get('success')
+                    stateobj = self.state.get(state_key, {})
+                    success = stateobj.get('success')
                     if not success:
                         logging.error(
                             f'Commit {commit_sha} was not ' +
                             f'published with success to channel {channel}'
+                        )
+                        return False
+                    config_sha = stateobj.get(PARENT_CONFIG_HASH_ATTR)
+                    if config_sha != item[PARENT_CONFIG_HASH_ATTR]:
+                        logging.error(
+                            f'Commit {commit_sha} is ' +
+                            f'published with success to channel {channel}'
+                            f'but parent config hash {config_sha} differs'
                         )
                         return False
 
@@ -1231,7 +1279,8 @@ class SaasHerder():
                     # publish to state to pass promotion gate
                     state_key = f"promotions/{channel}/{commit_sha}"
                     value = {
-                        'success': success
+                        'success': success,
+                        PARENT_CONFIG_HASH_ATTR: item.get(PARENT_CONFIG_HASH_ATTR)  # noqa: E501
                     }
                     self.state.add(state_key, value, force=True)
                     logging.info(

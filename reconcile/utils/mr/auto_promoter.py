@@ -9,6 +9,8 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 
 LOG = logging.getLogger(__name__)
 
+PARENT_CONFIG_HASH_ATTR = "parent_config_hash"
+
 
 class AutoPromoter(MergeRequestBase):
 
@@ -43,6 +45,7 @@ class AutoPromoter(MergeRequestBase):
             if not publish:
                 continue
             commit_sha = item.get('commit_sha')
+            parent_config_hash = item.get(PARENT_CONFIG_HASH_ATTR)
             if not commit_sha:
                 continue
             for saas_file_path in saas_file_paths:
@@ -67,6 +70,12 @@ class AutoPromoter(MergeRequestBase):
                         if any(c in subscribe for c in publish):
                             if target['ref'] != commit_sha:
                                 target['ref'] = commit_sha
+                                saas_file_updated = True
+
+                            if target.get(PARENT_CONFIG_HASH_ATTR) != \
+                                    parent_config_hash:
+                                target[PARENT_CONFIG_HASH_ATTR] = \
+                                    parent_config_hash
                                 saas_file_updated = True
 
                 if saas_file_updated:

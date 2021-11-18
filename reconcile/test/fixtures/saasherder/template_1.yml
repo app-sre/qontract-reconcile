@@ -1,0 +1,68 @@
+---
+parameters:
+- name: IMAGE_TAG
+  value: ''
+  required: true
+- name: REPLICAS_COUNT
+  value: "2"
+  required: true
+apiVersion: v1
+kind: Template
+metadata:
+  name: test-template
+objects:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: test-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: test-app
+    replicas: ${{REPLICAS_COUNT}}
+    template:
+      metadata:
+        labels:
+          app: test-app
+      spec:
+        serviceAccountName: test-app-sa
+        containers:
+          - name: test-app-ctr
+            image: test-registry/test-app:${IMAGE_TAG}
+            imagePullPolicy: Always
+            resources:
+              limits:
+                cpu: 500m
+                memory: 2000Mi
+              requests:
+                cpu: 300m
+                memory: 400Mi
+            ports:
+              - name: service-port
+                containerPort: 8080
+            livenessProbe:
+              httpGet:
+                path: /health
+                port: 8080
+              initialDelaySeconds: 30
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 8080
+            env:
+              - name: TEST_ENV_VAR
+                value: TEST_ENV_VALUE
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: test-app
+    name: test-service
+  spec:
+    ports:
+      - name: test-service-port
+        port: 8090
+        protocol: TCP
+        targetPort: 8090
+    selector:
+      app: test-app

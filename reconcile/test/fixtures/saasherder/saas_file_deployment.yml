@@ -1,0 +1,51 @@
+name: saas-file-deployment
+apiVersion: v2
+path: path
+app:
+  name: test-app
+pipelinesProvider:
+  name: tekton-pipelines-cluster
+  provider: tekton
+  namespace:
+    name: test-namespace
+    cluster:
+      name: test-cluster
+      consoleUrl: test-console-url
+      serverUrl: test-server-url
+      jumpHost: null
+      automationToken:
+        path: path-of-automation-token
+        field: token
+        format: null
+        internal: false
+        disable: null
+managedResourceTypes:
+  - DeploymentConfig
+  - Service
+imagePatterns:
+  - test-image-patterns-url
+resourceTemplates:
+  - name: test-resource-template
+    url: https://test-url-resource-template
+    path: "/template.yml"
+    hash_length: 24
+    targets:
+      - namespace:
+          name: test-namespace
+          environment:
+            name: test-environment
+            parameters:
+              PARAM1: value-for-target-param1
+          cluster:
+            name: test-cluster
+            serverUrl: test-server-url
+          app:
+            name: test-app
+        ref: a000000000000000000000000000000000000000
+        promotion:
+          auto: true
+          publish:
+            - test-publish-channel
+          subscribe:
+            - test-subscribe-channel
+
