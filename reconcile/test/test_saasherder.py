@@ -604,11 +604,6 @@ class TestGetConfigDiffs(TestCase):
         self.assertTrue(result)
 
     def test_promotion_state_config_hash_not_match_no_validates(self):
-        configs = \
-            self.saasherder.get_saas_targets_config(self.saas_file)
-
-        desired_tc = list(configs.values())[0]
-        promotion = desired_tc['promotion']
         promotion_result = {
             "success": True,
             PARENT_CONFIG_HASH_ATTR: "will_not_match"
