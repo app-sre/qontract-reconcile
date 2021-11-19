@@ -4,7 +4,8 @@ import logging
 import os
 import itertools
 import hashlib
-import copy
+from collections import ChainMap
+
 import yaml
 
 from gitlab.exceptions import GitlabError
@@ -756,8 +757,8 @@ class SaasHerder():
 
                 key = f"{saas_file_name}/{rt_name}/{cluster}/" + \
                     f"{namespace}/{env_name}"
-
-                config = target_configs[key]
+                # Convert to dict, ChainMap is not JSON serializable
+                config = dict(target_configs[key])
                 m = hashlib.sha256()
                 m.update(json.dumps(config, sort_keys=True).encode("utf-8"))
                 digest = m.hexdigest()[:16]
@@ -1151,14 +1152,18 @@ class SaasHerder():
             path = rt['path']
             rt_parameters = rt.get('parameters')
             for v in rt['targets']:
-                # Create a copy to avoid modifying saas_file values
-                desired_target_config = copy.deepcopy(v)
+                # ChainMap will store modifications avoiding a deep copy
+                desired_target_config = ChainMap({}, v)
                 namespace = desired_target_config['namespace']
 
                 cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
 
+                # This will add the namespace key/value to the chainMap, but
+                # the target will remain with the original value
+                # When the namespace key is looked up, the chainmap will
+                # return the modified attribute ( set in the first mapping)
                 desired_target_config['namespace'] = \
                     self.sanitize_namespace(namespace)
                 # add parent parameters to target config
