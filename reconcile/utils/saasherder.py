@@ -1141,10 +1141,6 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
-        timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
-        pipelines_provider = self._get_pipelines_provider(saas_file)
-        trigger_specs = []
 
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
