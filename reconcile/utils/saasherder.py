@@ -757,7 +757,7 @@ class SaasHerder():
 
                 key = f"{saas_file_name}/{rt_name}/{cluster}/" + \
                     f"{namespace}/{env_name}"
-                # Convert to dict, ChainMap is not JSON serializable
+                # Convert to dict, ChainMap is not JSON serializable
                 config = dict(target_configs[key])
                 m = hashlib.sha256()
                 m.update(json.dumps(config, sort_keys=True).encode("utf-8"))
