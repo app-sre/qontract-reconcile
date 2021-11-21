@@ -490,8 +490,9 @@ class TerrascriptClient:
                     record_id = f"{record_id}_{counts[record_id]}"
 
                 # Use default TTL if none is specified
+                # or if this record is an alias
                 # None/zero is accepted but not a good default
-                if record.get('ttl') is None:
+                if not record.get('alias') and record.get('ttl') is None:
                     record['ttl'] = default_ttl
 
                 # Define healthcheck if needed
