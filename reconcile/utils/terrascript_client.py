@@ -3527,7 +3527,7 @@ class TerrascriptClient:
             }
             write_weighted_target_groups.append(write_weighted_item)
 
-            for ip in t['ips']:
+            for ip in target_ips:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # lb_target_group_attachment.html
                 values = {
