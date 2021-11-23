@@ -8,7 +8,6 @@ from datetime import datetime
 from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
-from typing_extensions import Literal
 
 from boto3 import Session
 from sretoolbox.utils import threaded
