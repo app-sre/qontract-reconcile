@@ -184,6 +184,11 @@ class TerraformClient:
         if resource_changes is None:
             return disabled_deletion_detected, deleted_users
 
+        always_enabled_deletions = {
+            'random_id',
+            'aws_lb_target_group_attachment',
+        }
+
         # https://www.terraform.io/docs/internals/json-format.html
         for resource_change in resource_changes:
             resource_type = resource_change['type']
@@ -199,6 +204,8 @@ class TerraformClient:
                     logging.info([action, name, resource_type, resource_name])
                     self.should_apply = True
                 if action == 'delete':
+                    if resource_type in always_enabled_deletions:
+                        continue
                     if not deletions_allowed:
                         disabled_deletion_detected = True
                         logging.error(
