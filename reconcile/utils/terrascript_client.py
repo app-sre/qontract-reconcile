@@ -3394,7 +3394,7 @@ class TerrascriptClient:
                 cluster['name'],
                 account['uid'],
                 account['terraformUsername'],
-            ),
+            )
         account['assume_region'] = cluster['spec']['region']
         service_name = \
             f"{namespace_info['name']}/{openshift_service}"

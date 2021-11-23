@@ -848,7 +848,7 @@ class AWSApi:
         lbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
         result_ips = set()
         for lb in lbs:
-            lb_name = lb['LoadBalancerArn']
+            lb_name = lb['LoadBalancerName']
             tag_descriptions = elb_client.describe_tags(
                 LoadBalancerNames=[lb_name]
             )['TagDescriptions']
