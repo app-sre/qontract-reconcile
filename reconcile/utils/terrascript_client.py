@@ -3379,6 +3379,7 @@ class TerrascriptClient:
             self.add_resource(account, tf_resource)
 
     def _get_alb_target_ips_by_openshift_service(self,
+                                                 identifier,
                                                  openshift_service,
                                                  account_name,
                                                  namespace_info,
@@ -3398,10 +3399,17 @@ class TerrascriptClient:
         account['assume_region'] = cluster['spec']['region']
         service_name = \
             f"{namespace_info['name']}/{openshift_service}"
-        return awsapi.get_alb_network_interface_ips(
+        ips = awsapi.get_alb_network_interface_ips(
             account,
             service_name
         )
+        if not ips:
+            raise ValueError(
+                f'[{account_name}/{identifier}] expected at least one '
+                f'network interface IP for openshift service {service_name}'
+            )
+
+        return ips
 
     def populate_tf_resource_alb(self, resource, namespace_info,
                                  ocm_map=None):
@@ -3498,6 +3506,7 @@ class TerrascriptClient:
             t_ips = t.get('ips')
             if t_openshift_service:
                 target_ips = self._get_alb_target_ips_by_openshift_service(
+                    identifier,
                     t_openshift_service,
                     account,
                     namespace_info,
