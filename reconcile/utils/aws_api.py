@@ -715,11 +715,12 @@ class AWSApi:
 
     # pylint: disable=method-hidden
     def _get_assumed_role_client(self, account_name: str, assume_role: str,
-                                 assume_region: str) -> EC2Client:
+                                 assume_region: str,
+                                 client_type: str = 'ec2') -> EC2Client:
         assumed_session = self._get_assume_role_session(account_name,
                                                         assume_role,
                                                         assume_region)
-        return assumed_session.client('ec2')
+        return assumed_session.client(client_type)
 
     @staticmethod
     # pylint: disable=method-hidden
