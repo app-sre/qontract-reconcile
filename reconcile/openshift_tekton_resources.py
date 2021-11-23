@@ -25,8 +25,8 @@ RESOURCE_MAX_LENGTH = 63
 
 # Defaults
 DEFAULT_DEPLOY_RESOURCES_STEP_NAME = 'qontract-reconcile'
-DEFAULT_DEPLOY_RESOURCES = {'requests': {'cpu': '50m',
-                                         'memory': '200Mi'},
+DEFAULT_DEPLOY_RESOURCES = {'requests': {'cpu': '200m',
+                                         'memory': '300Mi'},
                             'limits': {'cpu': '200m',
                                        'memory': '300Mi'}}
 # Queries
