@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import json
 import logging
 import os
@@ -3521,14 +3520,9 @@ class TerrascriptClient:
             # The random ID will regenerate based on the 'keepers' values
             # So as long as the 'keepers' values don't change the ID will
             # remain the same
-            # We generate a hash of the sorted list of IPs as a value to
-            # compare against across terraform runs
-            target_ips_hash = hashlib.sha256(
-                str(sorted(target_ips)).encode()).hexdigest()
             lbt_random_id_values = {
                 'keepers': {
                     'name': target_name,
-                    'ips': target_ips_hash,
                 },
                 'byte_length': 4,
             }
