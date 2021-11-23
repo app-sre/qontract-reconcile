@@ -715,11 +715,12 @@ class AWSApi:
 
     # pylint: disable=method-hidden
     def _get_assumed_role_client(self, account_name: str, assume_role: str,
-                                 assume_region: str) -> EC2Client:
+                                 assume_region: str,
+                                 client_type='ec2') -> EC2Client:
         assumed_session = self._get_assume_role_session(account_name,
                                                         assume_role,
                                                         assume_region)
-        return assumed_session.client('ec2')
+        return assumed_session.client(client_type)
 
     @staticmethod
     # pylint: disable=method-hidden
@@ -836,6 +837,35 @@ class AWSApi:
                 results.append(item)
 
         return results
+
+    def get_alb_network_interface_ips(self, account, service_name):
+        assumed_role_data = self._get_account_assume_data(account)
+        ec2_client = self._get_assumed_role_client(*assumed_role_data, 'ec2')
+        elb_client = self._get_assumed_role_client(*assumed_role_data, 'elb')
+        service_tag = \
+            {'Key': 'kubernetes.io/service-name', 'Value': service_name}
+        nis = ec2_client.describe_network_interfaces()['NetworkInterfaces']
+        lbs = elb_client.describe_load_balancers()['LoadBalancerDescriptions']
+        result_ips = set()
+        for lb in lbs:
+            lb_name = lb['LoadBalancerName']
+            tag_descriptions = elb_client.describe_tags(
+                LoadBalancerNames=[lb_name]
+            )['TagDescriptions']
+            for td in tag_descriptions:
+                tags = td['Tags']
+                if service_tag not in tags:
+                    continue
+                # found a load balancer we want to work with
+                # find all network interfaces related to it
+                for ni in nis:
+                    if ni['Description'] != f"ELB {lb_name}":
+                        continue
+                    # found a network interface!
+                    ip = ni['PrivateIpAddress']
+                    result_ips.add(ip)
+
+        return result_ips
 
     @staticmethod
     # pylint: disable=method-hidden

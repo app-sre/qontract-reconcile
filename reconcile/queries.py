@@ -247,6 +247,7 @@ AWS_ACCOUNTS_QUERY = """
     path
     name
     uid
+    terraformUsername
     consoleUrl
     resourcesDefaultRegion
     supportedDeploymentRegions

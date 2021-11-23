@@ -231,6 +231,7 @@ provider
       write
     }
     ips
+    openshift_service
   }
   paths {
     read
@@ -270,6 +271,9 @@ TF_NAMESPACES_QUERY = """
         field
         version
         format
+      }
+      spec {
+        region
       }
       internal
     }
