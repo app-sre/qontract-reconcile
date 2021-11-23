@@ -231,6 +231,7 @@ provider
       write
     }
     ips
+    openshift_service
   }
   paths {
     read

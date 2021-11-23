@@ -3464,7 +3464,14 @@ class TerrascriptClient:
         write_weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
-            target_ips = t['ips']
+            t_openshift_service = t.get('openshift_service')
+            t_ips = t.get('ips')
+            if t_openshift_service:
+                raise NotImplemented('alb target openshift_service')
+            elif t_ips:
+                target_ips = t_ips
+            else:
+                raise KeyError('expected one of openshift_service or ips.')
 
             # https://www.terraform.io/docs/providers/random/r/id
             # The random ID will regenerate based on the 'keepers' values
