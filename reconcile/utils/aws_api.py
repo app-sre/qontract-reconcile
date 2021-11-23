@@ -837,6 +837,9 @@ class AWSApi:
 
         return results
 
+    def get_alb_network_interface_ips(self, account, service_name):
+        raise NotImplemented('get_alb_network_interface_ips')
+
     @staticmethod
     # pylint: disable=method-hidden
     def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> Optional[str]:

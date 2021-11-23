@@ -72,6 +72,7 @@ from terrascript import Resource
 from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
@@ -133,6 +134,7 @@ class TerrascriptClient:
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
+        self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
         self.secret_reader = SecretReader(settings=settings)
@@ -183,6 +185,7 @@ class TerrascriptClient:
             locks[name] = Lock()
         self.tss = tss
         self.locks = locks
+        self.accounts = {a['name']: a for a in filtered_accounts}
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
@@ -876,7 +879,8 @@ class TerrascriptClient:
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
         elif provider == 'alb':
-            self.populate_tf_resource_alb(resource, namespace_info)
+            self.populate_tf_resource_alb(resource, namespace_info,
+                                          ocm_map=ocm_map)
         else:
             raise UnknownProviderError(provider)
 
@@ -3374,7 +3378,33 @@ class TerrascriptClient:
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def populate_tf_resource_alb(self, resource, namespace_info):
+    def _get_alb_target_ips_by_openshift_service(self,
+                                                 openshift_service,
+                                                 account_name,
+                                                 namespace_info,
+                                                 ocm_map):
+        account = self.accounts[account_name]
+        awsapi = AWSApi(1, [account],
+                        settings=self.settings,
+                        init_users=False)
+        cluster = namespace_info['cluster']
+        ocm = ocm_map.get(cluster['name'])
+        account['assume_role'] = \
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster['name'],
+                account['uid'],
+                account['terraformUsername'],
+            ),
+        account['assume_region'] = cluster['spec']['region']
+        service_name = \
+            f"{namespace_info['name']}/{openshift_service}"
+        return awsapi.get_alb_network_interface_ips(
+            account,
+            service_name
+        )
+
+    def populate_tf_resource_alb(self, resource, namespace_info,
+                                 ocm_map=None):
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -3467,7 +3497,12 @@ class TerrascriptClient:
             t_openshift_service = t.get('openshift_service')
             t_ips = t.get('ips')
             if t_openshift_service:
-                raise NotImplemented('alb target openshift_service')
+                target_ips = self._get_alb_target_ips_by_openshift_service(
+                    t_openshift_service,
+                    account,
+                    namespace_info,
+                    ocm_map
+                )
             elif t_ips:
                 target_ips = t_ips
             else:

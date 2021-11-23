@@ -272,6 +272,9 @@ TF_NAMESPACES_QUERY = """
         version
         format
       }
+      spec {
+        region
+      }
       internal
     }
   }
