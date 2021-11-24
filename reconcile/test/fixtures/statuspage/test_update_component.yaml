@@ -1,0 +1,97 @@
+appInterface:
+  state:
+    comp_1: comp_id_1
+    comp_2: comp_id_2
+    comp_3: comp_id_3
+    comp_4: comp_id_4
+  pages:
+  - name: page_1
+    pageId: page_1
+    apiUrl: 'https://api.statuspage.io'
+    credentials:
+      path: app-sre/creds/status.redhat.com
+      field: all
+    provider: atlassian
+    components:
+    - name: comp_1
+      displayName: Component 1
+      description: null
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
+    - name: comp_2
+      displayName: Component 2
+      description: new description
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
+    - name: comp_3
+      displayName: Component 3
+      description: null
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
+    - name: comp_4
+      displayName: Component 4
+      description: null
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
+
+atlassianApi:
+  components:
+    page_1:
+    # actual components
+    - id: comp_id_1
+      name: Component 1 Old
+      descripton: null
+      position: 1
+      status: Ok
+      automation_email: automate-me@please.com
+      group_id: group_id_1
+      group: false
+      group_name: group_1
+    - id: comp_id_2
+      name: Component 2
+      descripton: null
+      position: 2
+      status: Ok
+      automation_email: automate-me@please.com
+      group_id: group_id_1
+      group: false
+      group_name: group_1
+    - id: comp_id_3
+      name: Component 3
+      descripton: null
+      position: 3
+      status: Ok
+      automation_email: automate-me@please.com
+      group_id: group_id_2
+      group: false
+      group_name: group_2
+    - id: comp_id_4
+      name: Component 4
+      descripton: null
+      position: 1
+      status: Ok
+      automation_email: automate-me@please.com
+      group_id: group_id_1
+      group: false
+      group_name: group_1
+    # groups
+    - id: group_id_1
+      name:  group_1
+      descripton: null
+      position: 1
+      status: Ok
+      automation_email: null
+      group_id: null
+      group: true
+    - id: group_id_2
+      name:  group_2
+      descripton: null
+      position: 2
+      status: Ok
+      automation_email: null
+      group_id: null
+      group: true
