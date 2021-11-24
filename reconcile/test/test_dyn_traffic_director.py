@@ -79,9 +79,9 @@ def test_process_tds_noop(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert not mock_create_td.called
-    assert not mock_delete_td.called
-    assert not mock_update_td.called
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_not_called()
 
 
 def test_process_tds_added_td(mocker):
@@ -96,9 +96,9 @@ def test_process_tds_added_td(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert mock_create_td.called
-    assert not mock_delete_td.called
-    assert not mock_update_td.called
+    mock_create_td.assert_called_once()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_not_called()
 
 
 def test_process_tds_deleted_td(mocker):
@@ -113,9 +113,9 @@ def test_process_tds_deleted_td(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert not mock_create_td.called
-    assert mock_delete_td.called
-    assert not mock_update_td.called
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_called_once()
+    mock_update_td.assert_not_called()
 
 
 def test_process_tds_updated_td_nodes(mocker):
@@ -131,9 +131,9 @@ def test_process_tds_updated_td_nodes(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert not mock_create_td.called
-    assert not mock_delete_td.called
-    assert mock_update_td.called
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_called_once()
 
 
 def test_process_tds_updated_td_ttl(mocker):
@@ -148,9 +148,9 @@ def test_process_tds_updated_td_ttl(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert not mock_create_td.called
-    assert not mock_delete_td.called
-    assert mock_update_td.called
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_called_once()
 
 
 def test_process_tds_updated_td_records(mocker):
@@ -166,6 +166,6 @@ def test_process_tds_updated_td_records(mocker):
     integ.process_tds(current, desired, dry_run=True,
                       enable_deletion=False)
 
-    assert not mock_create_td.called
-    assert not mock_delete_td.called
-    assert mock_update_td.called
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_called_once()
