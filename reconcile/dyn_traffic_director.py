@@ -216,18 +216,10 @@ def _get_dyn_traffic_director_records(td: TrafficDirector, ruleset_label: str,
     """
     # Need to follow the hierarchy
     # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet <- Record
-    try:
-        ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
-        rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
-        chain = _get_dyn_traffic_director_chain(rpool, chain_label)
-        recordset = _get_dyn_traffic_director_recordset(chain, rset_label)
-    except DynResourceNotFound as e:
-        raise DynResourceNotFound(
-            f'could not retrieve records for traffic director: {td.label}, '
-            f'ruleset: {ruleset_label}, resourcepool: {rpool_label}, '
-            f'failoverchain: {chain_label}, recordset: {rset_label}. '
-            f'The specific error was: {e}'
-        )
+    ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
+    rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
+    chain = _get_dyn_traffic_director_chain(rpool, chain_label)
+    recordset = _get_dyn_traffic_director_recordset(chain, rset_label)
     return recordset.records
 
 
@@ -244,21 +236,13 @@ def _update_dyn_traffic_director_records(td: TrafficDirector, records: List,
 
     # Need to follow the hierarchy
     # TD <- Ruleset -> ResponsePool <- FailoverChain <- RecordSet <- Record
-    try:
-        ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
-        rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
-        chain = _get_dyn_traffic_director_chain(rpool, chain_label)
-        current_recordset = _get_dyn_traffic_director_recordset(chain,
-                                                                rset_label)
-    except DynResourceNotFound as e:
-        raise DynResourceNotFound(
-            f'could not retrieve records for traffic director: {td.label}, '
-            f'ruleset: {ruleset_label}, resourcepool: {rpool_label}, '
-            f'failoverchain: {chain_label}, recordset: {rset_label}. '
-            f'The specific error was: {e}'
-        )
+    ruleset = _get_dyn_traffic_director_ruleset(td, ruleset_label)
+    rpool = _get_dyn_traffic_director_response_pool(ruleset, rpool_label)
+    chain = _get_dyn_traffic_director_chain(rpool, chain_label)
+    current_recordset = _get_dyn_traffic_director_recordset(chain, rset_label)
 
     new_rset.add_to_failover_chain(chain)
+
     current_recordset.delete()
 
 
