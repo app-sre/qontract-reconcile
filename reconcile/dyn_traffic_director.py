@@ -439,7 +439,7 @@ def update_td(name: str, current: Mapping[str, Any],
 def process_tds(current: Mapping[str, Mapping[str, Any]],
                 desired: Mapping[str, Mapping[str, Any]],
                 dry_run: bool = True,
-                enable_deletion: bool = False):
+                enable_deletion: bool = False) -> None:
     added = list(desired.keys() - current.keys())
     removed = list(current.keys() - desired.keys())
     changed = [
