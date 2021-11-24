@@ -9,6 +9,7 @@ import sentry_sdk
 
 from reconcile.utils import config
 from reconcile.utils import gql
+import reconcile.dyn_traffic_director
 import reconcile.github_org
 import reconcile.github_owners
 import reconcile.github_users
@@ -1433,3 +1434,10 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
     run_integration(reconcile.gabi_authorized_users,
                     ctx.obj, thread_pool_size, internal,
                     use_jump_host)
+
+
+@integration.command()
+@enable_deletion(default=False)
+@click.pass_context
+def dyn_traffic_director(ctx, enable_deletion):
+    run_integration(reconcile.dyn_traffic_director, ctx.obj, enable_deletion)

@@ -18,6 +18,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `aws-support-cases-sos`: Scan AWS support cases for reports of leaked keys and remove them (only submits PR)
 - `dashdotdb-cso`: Collects the ImageManifestVuln CRs from all the clusters and posts them to Dashdotdb.
 - `dashdotdb-dvo`: Collects the DeploymentValidations from all the clusters and posts them to Dashdotdb.
+- `dyn-traffic-director`: Manage Traffic Director services in Dyn DNS
 - `ecr-mirror`: Mirrors external images into AWS ECR.
 - `gcr-mirror`: Mirrors external images into Google Container Registry.
 - `github-repo-invites`: Accept GitHub repository invitations for known repositories.
