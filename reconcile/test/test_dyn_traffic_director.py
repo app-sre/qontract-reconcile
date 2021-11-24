@@ -67,6 +67,23 @@ def generate_state(td_count: int, node_count: int, records_count: int,
     }
 
 
+def test_process_tds_empty_state(mocker):
+    """Tests that nothing happens given empty states"""
+    current = generate_state(0, 0, 0, 0)
+    desired = generate_state(0, 0, 0, 0)
+
+    mock_create_td = mocker.patch.object(integ, 'create_td', autospec=True)
+    mock_delete_td = mocker.patch.object(integ, 'delete_td', autospec=True)
+    mock_update_td = mocker.patch.object(integ, 'update_td', autospec=True)
+
+    integ.process_tds(current, desired, dry_run=True,
+                      enable_deletion=False)
+
+    mock_create_td.assert_not_called()
+    mock_delete_td.assert_not_called()
+    mock_update_td.assert_not_called()
+
+
 def test_process_tds_noop(mocker):
     """Tests that nothing happens given identical current & desired inputs"""
     current = generate_state(1, 1, 3, 30)
