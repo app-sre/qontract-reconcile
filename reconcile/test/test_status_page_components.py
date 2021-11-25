@@ -64,13 +64,14 @@ def stub_resolve_secret():
     return f
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
 class TestReconcileLogic(TestCase):
 
+    @staticmethod
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
     @patch.object(AtlassianStatusPage, '_create_component')
     @patch.object(AtlassianStatusPage, '_fetch_components')
-    def test_create_component(self, fetch_mock, create_mock, vault_mock):
+    def test_create_component(fetch_mock, create_mock, vault_mock):
         """
         Test if the creation logic is called for a component missing on the
         status page.
@@ -87,9 +88,12 @@ class TestReconcileLogic(TestCase):
             component_to_dict(page.components[0], "group_id_1")
         )
 
+    @staticmethod
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
     @patch.object(StatusPage, '_bind_component')
     @patch.object(AtlassianStatusPage, '_fetch_components')
-    def test_bind_component(self, fetch_mock, bind_mock, vault_mock):
+    def test_bind_component(fetch_mock, bind_mock, vault_mock):
         """
         Test if bind logic is called for a component that already exists on
         the status page but is not bound to the one in desired state.
@@ -107,6 +111,8 @@ class TestReconcileLogic(TestCase):
         bind_mock.assert_called_with(False, page.components[0],
                                      "comp_id_1", state)
 
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
     @patch.object(AtlassianStatusPage, '_update_component')
     @patch.object(AtlassianStatusPage, '_fetch_components')
     def test_update_component(self, fetch_mock, update_mock, vault_mock):
@@ -136,6 +142,8 @@ class TestReconcileLogic(TestCase):
             component_to_dict(page.components[2], "group_id_1"))
         self.assertEqual(update_mock.call_count, 3)
 
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
     @patch.object(AtlassianStatusPage, 'delete_component')
     @patch.object(AtlassianStatusPage, '_fetch_components')
     def test_delete_component(self, fetch_mock, delete_mock, vault_mock):
@@ -156,6 +164,8 @@ class TestReconcileLogic(TestCase):
         delete_mock.assert_called_with(False, "comp_id_1")
         self.assertEqual(delete_mock.call_count, 1)
 
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
     @patch.object(AtlassianStatusPage, '_fetch_components')
     def test_group_exists(self, fetch_mock, vault_mock):
         """
@@ -171,7 +181,7 @@ class TestReconcileLogic(TestCase):
 
         with self.assertRaises(ValueError) as cm:
             page.reconcile(dry_run, StateStub())
-        self.assertRegexpMatches(str(cm.exception), r"^Group.*does not exist$")
+        self.assertRegex(str(cm.exception), r"^Group.*does not exist$")
 
 
 class TestComponentOrdering(TestCase):
@@ -231,17 +241,22 @@ class TestStateManagement(TestCase):
 
 class TestDryRunBehaviour(TestCase):
 
+    @staticmethod
     @patch.object(AtlassianStatusPage, '_fetch_components')
     @patch.object(AtlassianStatusPage, "_create_component")
-    def test_dry_run_on_create(self, create_mock, fetch_mock):
-        self._exec_dry_run_test_on_create(True, create_mock, fetch_mock)
+    def test_dry_run_on_create(create_mock, fetch_mock):
+        TestDryRunBehaviour._exec_dry_run_test_on_create(True, create_mock,
+                                                         fetch_mock)
 
+    @staticmethod
     @patch.object(AtlassianStatusPage, '_fetch_components')
     @patch.object(AtlassianStatusPage, "_create_component")
-    def test_no_dry_run_on_create(self, create_mock, fetch_mock):
-        self._exec_dry_run_test_on_create(False, create_mock, fetch_mock)
+    def test_no_dry_run_on_create(create_mock, fetch_mock):
+        TestDryRunBehaviour._exec_dry_run_test_on_create(False, create_mock,
+                                                         fetch_mock)
 
-    def _exec_dry_run_test_on_create(self, dry_run, create_mock, fetch_mock):
+    @staticmethod
+    def _exec_dry_run_test_on_create(dry_run, create_mock, fetch_mock):
         create_mock.create.return_value = "id"
         fetch_mock.return_value = []
         provider = AtlassianStatusPage(page_id="page_id",
@@ -257,17 +272,22 @@ class TestDryRunBehaviour(TestCase):
         else:
             create_mock.assert_called()
 
+    @staticmethod
     @patch.object(AtlassianStatusPage, '_fetch_components')
     @patch.object(AtlassianStatusPage, "_update_component")
-    def test_dry_run_on_update(self, update_mock, fetch_mock):
-        self._exec_dry_run_test_on_update(True, update_mock, fetch_mock)
+    def test_dry_run_on_update(update_mock, fetch_mock):
+        TestDryRunBehaviour._exec_dry_run_test_on_update(True, update_mock,
+                                                         fetch_mock)
 
+    @staticmethod
     @patch.object(AtlassianStatusPage, '_fetch_components')
     @patch.object(AtlassianStatusPage, "_update_component")
-    def test_no_dry_run_on_update(self, update_mock, fetch_mock):
-        self._exec_dry_run_test_on_update(False, update_mock, fetch_mock)
+    def test_no_dry_run_on_update(update_mock, fetch_mock):
+        TestDryRunBehaviour._exec_dry_run_test_on_update(False, update_mock,
+                                                         fetch_mock)
 
-    def _exec_dry_run_test_on_update(self, dry_run, update_mock, fetch_mock):
+    @staticmethod
+    def _exec_dry_run_test_on_update(dry_run, update_mock, fetch_mock):
         fetch_mock.return_value = [
             AtlassianComponent(
                 id="comp_id_1",
