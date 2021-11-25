@@ -96,9 +96,9 @@ class TestAggregatedList:
 
         diff = left.diff(right)
 
-        assert diff['delete'] == []
-        assert diff['update-insert'] == []
-        assert diff['update-delete'] == []
+        assert not diff['delete']
+        assert not diff['update-insert']
+        assert not diff['update-delete']
 
         assert diff['insert'] == [{'params': {'a': 1}, 'items': ['qwerty']}]
 
@@ -111,9 +111,9 @@ class TestAggregatedList:
 
         diff = left.diff(right)
 
-        assert diff['insert'] == []
-        assert diff['update-insert'] == []
-        assert diff['update-delete'] == []
+        assert not diff['insert']
+        assert not diff['update-insert']
+        assert not diff['update-delete']
 
         assert diff['delete'] == [{'params': {'a': 1}, 'items': ['qwerty']}]
 
@@ -127,9 +127,9 @@ class TestAggregatedList:
 
         diff = left.diff(right)
 
-        assert diff['insert'] == []
-        assert diff['delete'] == []
-        assert diff['update-delete'] == []
+        assert not diff['insert']
+        assert not diff['delete']
+        assert not diff['update-delete']
 
         assert diff['update-insert'] == [
             {'items': ['qwerty2'], 'params': {'a': 1}}
@@ -147,7 +147,7 @@ class TestAggregatedList:
 
         assert diff['insert'] == []
         assert diff['delete'] == []
-        assert diff['update-insert'] == []
+        assert not diff['update-insert']
 
         assert diff['update-delete'] == [
             {'items': ['qwerty2'], 'params': {'a': 1}}
@@ -234,7 +234,7 @@ class TestAggregatedDiffRunner:
 
         runner.run()
 
-        assert recorder == []
+        assert not recorder
 
     @staticmethod
     def test_unknown_diff_on():
