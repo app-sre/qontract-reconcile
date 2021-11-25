@@ -248,13 +248,13 @@ def run(dry_run: bool = False):
     state = get_state()
     status_pages = fetch_pages()
 
-    page_reconcile_error_occured = False
+    error = False
     for page in status_pages:
         try:
             page.reconcile(dry_run, state)
         except Exception:
             LOG.exception(f"failed to reconcile statuspage {page.name}")
-            page_reconcile_error_occured = True
+            error = True
 
-    if page_reconcile_error_occured:
+    if error:
         sys.exit(1)
