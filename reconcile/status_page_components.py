@@ -4,7 +4,7 @@ from typing import Optional, Any
 from collections.abc import Iterable
 import sys
 
-from pydantic import BaseModel, Field, validate_arguments
+from pydantic import BaseModel, Field
 from pydantic.networks import HttpUrl
 import statuspageio  # type: ignore
 
