@@ -300,6 +300,7 @@ class TestDryRunBehaviour(TestCase):
         provider = AtlassianStatusPage(page_id="page_id",
                                        api_url="https://a.com",
                                        token="token")
+        provider.rebuild_state()
 
         component = StatusComponent(name="comp_1", displayName="comp_1",
                                     groupName=None)

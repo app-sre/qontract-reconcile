@@ -83,9 +83,11 @@ class StatusPage(BaseModel):
 
     def get_page_provider(self) -> StatusPageProvider:
         if self.provider == "atlassian":
-            return AtlassianStatusPage(page_id=self.page_id,
-                                       api_url=self.api_url,
-                                       token=self.credentials.get("token"))
+            provider = AtlassianStatusPage(page_id=self.page_id,
+                                           api_url=self.api_url,
+                                           token=self.credentials.get("token"))
+            provider.rebuild_state()
+            return provider
         else:
             raise ValueError(f"provider {self.provider} is not supported")
 
@@ -139,11 +141,7 @@ class AtlassianStatusPage(StatusPageProvider):
     components_by_displayname: dict[str, AtlassianComponent] = {}
     group_name_to_id: dict[str, str] = {}
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._rebuild_state()
-
-    def _rebuild_state(self):
+    def rebuild_state(self):
         components = self._fetch_components()
         self.components_by_id = {c.id: c for c in components}
         self.components_by_displayname = {c.name: c for c in components}
@@ -215,7 +213,7 @@ class AtlassianStatusPage(StatusPageProvider):
     def delete_component(self, dry_run: bool, id: str) -> None:
         if not dry_run:
             self._client().components.delete(id)
-            self._rebuild_state()
+            self.rebuild_state()
 
     def _fetch_components(self) -> list[AtlassianComponent]:
         raw_components = self._client().components.list()
