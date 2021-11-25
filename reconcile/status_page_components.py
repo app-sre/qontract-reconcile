@@ -110,7 +110,8 @@ class StatusPage(BaseModel):
                 LOG.info(f"delete component {name_for_current_component} "
                          f"from page {self.name}")
                 page_provider.delete_component(dry_run, current_id)
-                state.rm(name_for_current_component)
+                if not dry_run:
+                    state.rm(name_for_current_component)
 
         # create and update
         for desired in self.components:
