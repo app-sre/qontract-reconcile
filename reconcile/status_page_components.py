@@ -65,7 +65,7 @@ class StatusPageProvider(BaseModel):
         return None
 
     @abstractmethod
-    def delete_component(self, dry_run: bool, id: str):
+    def delete_component(self, dry_run: bool, id: str) -> None:
         return None
 
 
