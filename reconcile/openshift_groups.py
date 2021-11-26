@@ -50,7 +50,14 @@ def get_cluster_state(group_items, oc_map):
         logging.log(level=oc.log_level, msg=oc.message)
         return results
     group_name = group_items["group_name"]
-    group = oc.get_group_if_exists(group_name)
+    try:
+        group = oc.get_group_if_exists(group_name)
+    except Exception as e:
+        msg = (
+            'could not get group state for cluster/group combination: {}/{}'
+        ).format(cluster, group_name)
+        logging.error(msg)
+        raise e
     if group is None:
         return results
     for user in group['users'] or []:
