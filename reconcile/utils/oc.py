@@ -962,6 +962,7 @@ class OCNative(OCDeprecated):
 
         return items
 
+    @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get(self, namespace, kind, name=None, allow_not_found=False):
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
