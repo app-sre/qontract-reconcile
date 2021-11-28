@@ -15,3 +15,18 @@ class TestSupportFunctions(TestCase):
             tsclient.safe_resource_id("*.foo.example.com"),
             "_star_foo_example_com"
         )
+
+    def test_aws_username_org(self):
+        result = 'org'
+        user = {
+            'org_username': result
+        }
+        self.assertEqual(tsclient._get_aws_username(user), result)
+
+    def test_aws_username_aws(self):
+        result = 'aws'
+        user = {
+            'org_username': 'org',
+            'aws_username': result
+        }
+        self.assertEqual(tsclient._get_aws_username(user), result)
