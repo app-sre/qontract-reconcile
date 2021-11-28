@@ -94,7 +94,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access']
+                 'aws_infrastructure_access', 'elasticsearch_version']
 
 
 class UnknownProviderError(Exception):
@@ -3027,7 +3027,7 @@ class TerrascriptClient:
     @staticmethod
     def validate_elasticsearch_version(version):
         """ Validate ElasticSearch version. """
-        return version in [7.7, 7.4, 7.1,
+        return version in [7.10, 7.9, 7.8, 7.7, 7.4, 7.1,
                            6.8, 6.7, 6.5, 6.4, 6.3, 6.2, 6.0,
                            5.6, 5.5, 5.3, 5.1,
                            2.3,
@@ -3071,11 +3071,11 @@ class TerrascriptClient:
                 ", and - (hyphen). " +
                 f"{values['identifier']}")
 
-        elasticsearch_version = values.get('elasticsearch_version', 7.7)
+        elasticsearch_version = values.get('elasticsearch_version')
         if not self.validate_elasticsearch_version(elasticsearch_version):
             raise ElasticSearchResourceVersionInvalidError(
                 f"[{account}] Invalid ElasticSearch version" +
-                f" {values['elasticsearch_version']} provided" +
+                f" {elasticsearch_version} provided" +
                 f" for resource {values['identifier']}.")
 
         es_values = {}
