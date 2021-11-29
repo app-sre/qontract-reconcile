@@ -107,6 +107,7 @@ import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
 import reconcile.gabi_authorized_users
+import reconcile.status_page_components
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1441,3 +1442,9 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
 @click.pass_context
 def dyn_traffic_director(ctx, enable_deletion):
     run_integration(reconcile.dyn_traffic_director, ctx.obj, enable_deletion)
+
+
+@integration.command()
+@click.pass_context
+def status_page_components(ctx):
+    run_integration(reconcile.status_page_components, ctx.obj)
