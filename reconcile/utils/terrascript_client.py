@@ -191,10 +191,11 @@ class TerrascriptClient:
         self.partitions = {a['name']: a.get('partition') or 'aws'
                            for a in filtered_accounts}
         self.logtoes_zip = ''
+        self.logtoes_zip_lock = Lock()
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
-            with Lock():
+            with self.logtoes_zip_lock:
                 # this may have already happened, so we check again
                 if not self.logtoes_zip:
                     github_config = get_config()['github']
