@@ -2346,3 +2346,36 @@ DYN_TRAFFIC_DIRECTORS_QUERY = """
 def get_dyn_traffic_directors():
     gqlapi = gql.get_api()
     return gqlapi.query(DYN_TRAFFIC_DIRECTORS_QUERY)['dyn_traffic_directors']
+
+
+STATUS_PAGE_QUERY = """
+{
+  status_pages: status_page_v1 {
+    name
+    pageId
+    apiUrl
+    provider
+    credentials {
+      path
+      field
+      version
+      format
+    }
+    components {
+      name
+      displayName
+      description
+      path
+      groupName
+      apps {
+        name
+      }
+    }
+  }
+}
+"""
+
+
+def get_status_pages():
+    gqlapi = gql.get_api()
+    return gqlapi.query(STATUS_PAGE_QUERY)['status_pages']
