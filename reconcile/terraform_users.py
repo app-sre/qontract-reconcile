@@ -13,6 +13,7 @@ TF_QUERY = """
   roles: roles_v1 {
     users {
       org_username
+      aws_username
       public_gpg_key
     }
     aws_groups {

@@ -308,6 +308,10 @@ class TerrascriptClient:
                     groups[account_name][group_name] = 'Done'
         return groups
 
+    @staticmethod
+    def _get_aws_username(user):
+        return user.get('aws_username') or user['org_username']
+
     def populate_iam_users(self, roles):
         for role in roles:
             users = role['users']
@@ -330,7 +334,7 @@ class TerrascriptClient:
                 self.add_resource(account_name, tf_output)
 
                 for user in users:
-                    user_name = user['org_username']
+                    user_name = self._get_aws_username(user)
 
                     # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
