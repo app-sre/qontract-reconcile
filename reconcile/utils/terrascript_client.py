@@ -190,12 +190,12 @@ class TerrascriptClient:
                                 for a in filtered_accounts}
         self.partitions = {a['name']: a.get('partition') or 'aws'
                            for a in filtered_accounts}
-        github_config = get_config()['github']
-        self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
+            github_config = get_config()['github']
+            self.token = github_config['app-sre']['token']
             self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
             return self.logtoes_zip
