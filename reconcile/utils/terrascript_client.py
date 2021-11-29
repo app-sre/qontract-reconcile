@@ -190,13 +190,18 @@ class TerrascriptClient:
                                 for a in filtered_accounts}
         self.partitions = {a['name']: a.get('partition') or 'aws'
                            for a in filtered_accounts}
-        github_config = get_config()['github']
-        self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
+        self.logtoes_zip_lock = Lock()
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
-            self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
+            with self.logtoes_zip_lock:
+                # this may have already happened, so we check again
+                if not self.logtoes_zip:
+                    github_config = get_config()['github']
+                    self.token = github_config['app-sre']['token']
+                    self.logtoes_zip = \
+                        self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
             return self.logtoes_zip
         else:
@@ -303,6 +308,10 @@ class TerrascriptClient:
                     groups[account_name][group_name] = 'Done'
         return groups
 
+    @staticmethod
+    def _get_aws_username(user):
+        return user.get('aws_username') or user['org_username']
+
     def populate_iam_users(self, roles):
         for role in roles:
             users = role['users']
@@ -325,7 +334,7 @@ class TerrascriptClient:
                 self.add_resource(account_name, tf_output)
 
                 for user in users:
-                    user_name = user['org_username']
+                    user_name = self._get_aws_username(user)
 
                     # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
