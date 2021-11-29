@@ -362,6 +362,15 @@ integrations:
     secretKey: gitlab_pr_submitter_queue_url
   extraArgs: ${APP_INTERFACE_PROJECT_ID}
   state: true
+- name: status-page-components
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  state: true
 cronjobs:
 - name: jenkins-job-builds-cleaner
   concurrencyPolicy: "Forbid"
