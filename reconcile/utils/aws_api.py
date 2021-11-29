@@ -861,6 +861,8 @@ class AWSApi:
                 for ni in nis:
                     if ni['Description'] != f"ELB {lb_name}":
                         continue
+                    if ni['Status'] != 'in-use':
+                        continue
                     # found a network interface!
                     ip = ni['PrivateIpAddress']
                     result_ips.add(ip)

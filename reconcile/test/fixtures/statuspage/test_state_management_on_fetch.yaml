@@ -1,0 +1,24 @@
+appInterface:
+  state:
+    comp_1: comp_id_1
+  pages:
+  - name: page_1
+    pageId: page_1
+    apiUrl: 'https://api.statuspage.io'
+    credentials:
+      path: app-sre/creds/status.redhat.com
+      field: all
+    provider: atlassian
+    components:
+    - name: comp_1
+      displayName: Component 1
+      description: null
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
+    - name: comp_2
+      displayName: Component 2
+      description: null
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []
