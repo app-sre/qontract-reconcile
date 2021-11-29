@@ -8,11 +8,6 @@ class ElasticSearchResourceMissingSubnetIdError(Exception):
         super().__init__(str(msg))
 
 
-class ElasticSearchResourceVersionInvalidError(Exception):
-    def __init__(self, msg):
-        super().__init__(str(msg))
-
-
 class ElasticSearchResourceZoneAwareSubnetInvalidError(Exception):
     def __init__(self, msg):
         super().__init__(str(msg))

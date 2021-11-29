@@ -80,7 +80,6 @@ from reconcile.exceptions import FetchResourceError
 from reconcile.utils.elasticsearch_exceptions \
     import (ElasticSearchResourceNameInvalidError,
             ElasticSearchResourceMissingSubnetIdError,
-            ElasticSearchResourceVersionInvalidError,
             ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 
@@ -3030,15 +3029,6 @@ class TerrascriptClient:
                 for tf_resource in tf_resources]
 
     @staticmethod
-    def validate_elasticsearch_version(version):
-        """ Validate ElasticSearch version. """
-        return version in [7.7, 7.4, 7.1,
-                           6.8, 6.7, 6.5, 6.4, 6.3, 6.2, 6.0,
-                           5.6, 5.5, 5.3, 5.1,
-                           2.3,
-                           1.5]
-
-    @staticmethod
     def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
@@ -3076,16 +3066,11 @@ class TerrascriptClient:
                 ", and - (hyphen). " +
                 f"{values['identifier']}")
 
-        elasticsearch_version = values.get('elasticsearch_version', 7.7)
-        if not self.validate_elasticsearch_version(elasticsearch_version):
-            raise ElasticSearchResourceVersionInvalidError(
-                f"[{account}] Invalid ElasticSearch version" +
-                f" {values['elasticsearch_version']} provided" +
-                f" for resource {values['identifier']}.")
-
         es_values = {}
         es_values["domain_name"] = identifier
-        es_values["elasticsearch_version"] = elasticsearch_version
+        es_values["elasticsearch_version"] = \
+            values.get('elasticsearch_version')
+
         ebs_options = values.get('ebs_options', {})
 
         es_values["ebs_options"] = {
