@@ -1,0 +1,26 @@
+---
+$schema: /app-sre/app-1.yml
+
+
+labels:
+  service: test-app3
+
+name: test-app3
+
+description: |
+  Fixture app 3
+
+architectureDocument: https://TODO
+sopsUrl: https://gitlab.cee.redhat.com/TODO
+grafanaUrl: https://TODO
+onboardingStatus: OnBoarded
+
+escalationPolicy:
+  $ref: /teams/placeholder-escalation.yml
+serviceOwners:
+- name: Test team
+  email: testteam@redhat.com
+
+dependencies:
+- $ref: /dependencies/ci-ext/service.yml
+
