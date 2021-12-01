@@ -1,7 +1,7 @@
 import os
 import logging
 
-from typing import List, Optional, Dict, Set, Iterable
+from typing import Optional, Dict, Set, Iterable
 from reconcile import queries
 
 from reconcile.gitlab_housekeeping import MERGE_LABELS_PRIORITY, HOLD_LABELS
@@ -22,7 +22,7 @@ def get_app_list() -> Dict:
     return app_info
 
 
-def get_parents_list() -> List[str]:
+def get_parents_list() -> list[str]:
     """
     Get a set of all service names that are parents of another service
     """
@@ -46,23 +46,24 @@ def guess_onboarding_status(changed_paths: Iterable[str],
     for path in changed_paths:
         if 'data/services/' in path:
             path_slices = path.split('/')
-            try:
-                if path_slices[2] in parent_apps:
-                    app = apps[path_slices[3]]
-                    if app is not None:
-                        labels.add(app['onboardingStatus'])
-                else:
-                    app = apps[path_slices[2]]
-                    if app is not None:
-                        labels.add(app['onboardingStatus'])
-                    else:
-                        return None
-            except (IndexError, KeyError):
-                logging.info("Error getting app name")
-                return None
+            app_name = path_slices[2]
 
-    labels_list = list(labels)
-    return labels_list[0] if len(labels_list) == 1 else None
+            if app_name in parent_apps:
+                child_app = path_slices[3]
+                if child_app in apps:
+                    app = apps[child_app]
+                    labels.add(app['onboardingStatus'])
+            else:
+                if app_name in apps:
+                    app = apps[app_name]
+                    labels.add(app['onboardingStatus'])
+                else:
+                    logging.debug("Error getting app name " + path)
+
+    if len(labels) == 1:
+        return labels.pop()
+    else:
+        return None
 
 
 def guess_labels(project_labels, changed_paths):
@@ -89,7 +90,6 @@ def guess_labels(project_labels, changed_paths):
     parent_apps = get_parents_list()
     onboarding_status = guess_onboarding_status(changed_paths, apps,
                                                 parent_apps)
-    logging.info(onboarding_status)
     if onboarding_status is not None:
         guesses.add(onboarding_status)
 
