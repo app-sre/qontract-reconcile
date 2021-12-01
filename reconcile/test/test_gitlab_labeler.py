@@ -90,20 +90,20 @@ class TestOnboardingGuesser(TestCase):
     def test_get_app_list_2(self):
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_app_list()
-        assert t == {'normalapp': {'onboardingStatus': 'BestEffort',
-                                   'parentApp': None},
-                     'normalapp2': {'onboardingStatus': 'BestEffort',
-                                    'parentApp': None}}
+        self.assertEqual(t, {'normalapp': {'onboardingStatus': 'BestEffort',
+                                           'parentApp': None},
+                             'normalapp2': {'onboardingStatus': 'BestEffort',
+                                            'parentApp': None}})
 
     def test_get_parents_list(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
         t = gl.get_parents_list()
-        assert t == ['parentapp']
+        self.assertEqual(t, ['parentapp'])
 
     def test_get_parents_list_empty(self):
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_parents_list()
-        assert not t
+        self.assertEqual(t, [])
 
     def test_guess_onboarding_status_child(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -112,7 +112,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/parentapp/childapp']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        assert t == 'BestEffort'
+        self.assertEqual(t, 'BestEffort')
 
     def test_guess_onboarding_status_normal(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -121,7 +121,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/normalapp2']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        assert t == 'BestEffort'
+        self.assertEqual(t, 'BestEffort')
 
     def test_guess_onboarding_status_no_app(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -130,7 +130,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/test/test']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        assert t is None
+        self.assertIsNone(t)
 
     def test_guess_onboarding_status_key_error(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -139,4 +139,4 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/normalapp3']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        assert t is None
+        self.assertIsNone(t)
