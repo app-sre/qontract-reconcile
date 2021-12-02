@@ -3733,10 +3733,6 @@ class TerrascriptClient:
         tf_resources.append(aws_version_resource)
 
         # outputs
-        for k, v in secret_data.items():
-            output_name_0_13 = output_prefix + '__' + k
-            output_value = v
-            tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__arn'
         output_value = '${' + aws_version_resource.arn + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
