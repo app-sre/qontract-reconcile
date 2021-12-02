@@ -240,6 +240,19 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceSecretsManager_v1 {
+  account
+  region
+  identifier
+  secret {
+    path
+    field
+    version
+    format
+  }
+  output_resource_name
+  annotations
+}
 """
 
 

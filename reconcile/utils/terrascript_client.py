@@ -64,6 +64,8 @@ from terrascript.resource import (
     aws_lb_target_group_attachment,
     aws_lb_listener,
     aws_lb_listener_rule,
+    aws_secretsmanager_secret,
+    aws_secretsmanager_secret_version,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -888,6 +890,8 @@ class TerrascriptClient:
         elif provider == 'alb':
             self.populate_tf_resource_alb(resource, namespace_info,
                                           ocm_map=ocm_map)
+        elif provider == 'secrets-manager':
+            self.populate_tf_resource_secrets_manager(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3687,6 +3691,53 @@ class TerrascriptClient:
         # dns name
         output_name_0_13 = output_prefix + '__dns_name'
         output_value = f'${{{lb_tf_resource.dns_name}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_secrets_manager(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        values = {
+            "name": identifier
+        }
+
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+
+        aws_secret_resource = aws_secretsmanager_secret(identifier, **values)
+        tf_resources.append(aws_secret_resource)
+
+        secret = common_values.get('secret')
+        secret_data = self.secret_reader.read_all(secret)
+
+        version_values = {
+            "secret_id": '${' + aws_secret_resource.id + '}',
+            "secret_string": json.dumps(secret_data, sort_keys=True)
+        }
+
+        if self._multiregion_account_(account):
+            version_values['provider'] = 'aws.' + region
+
+        aws_version_resource = \
+            aws_secretsmanager_secret_version(identifier, **version_values)
+        tf_resources.append(aws_version_resource)
+
+        # outputs
+        output_name_0_13 = output_prefix + '__arn'
+        output_value = '${' + aws_version_resource.arn + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        output_name_0_13 = output_prefix + '__version_id'
+        output_value = '${' + aws_version_resource.version_id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
