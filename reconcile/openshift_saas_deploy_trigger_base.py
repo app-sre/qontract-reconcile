@@ -210,7 +210,6 @@ def trigger(spec,
             saasherder,
             oc_map,
             already_triggered,
-            settings,
             trigger_type,
             integration,
             integration_version)
@@ -267,7 +266,6 @@ def _trigger_tekton(spec,
                     saasherder,
                     oc_map,
                     already_triggered,
-                    settings,
                     trigger_type,
                     integration,
                     integration_version):
@@ -276,13 +274,10 @@ def _trigger_tekton(spec,
     env_name = spec['env_name']
     pipelines_provider = spec['pipelines_provider']
 
-    if spec['configurable_resources']:
-        pipeline_template_name = pipelines_provider[
-            'pipelineTemplates']['openshiftSaasDeploy']['name']
-        tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
-            pipeline_template_name, saas_file_name)
-    else:
-        tkn_pipeline_name = settings['saasDeployJobTemplate']
+    pipeline_template_name = pipelines_provider[
+        'pipelineTemplates']['openshiftSaasDeploy']['name']
+    tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
+        pipeline_template_name, saas_file_name)
 
     tkn_namespace_info = pipelines_provider['namespace']
     tkn_namespace_name = tkn_namespace_info['name']
@@ -306,7 +301,6 @@ def _trigger_tekton(spec,
         tkn_pipeline_name,
         tkn_cluster_console_url,
         tkn_namespace_name,
-        settings,
         integration,
         integration_version
     )
@@ -346,7 +340,6 @@ def _construct_tekton_trigger_resource(saas_file_name,
                                        tkn_pipeline_name,
                                        tkn_cluster_console_url,
                                        tkn_namespace_name,
-                                       settings,
                                        integration,
                                        integration_version):
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
@@ -357,7 +350,6 @@ def _construct_tekton_trigger_resource(saas_file_name,
         tkn_cluster_console_url (string): Cluster console URL of the cluster
                                           where the pipeline runs
         tkn_namespace_name (string): namespace where the pipeline runs
-        settings (dict): App-interface settings
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
 

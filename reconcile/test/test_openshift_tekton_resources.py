@@ -83,10 +83,8 @@ class TestOpenshiftTektonResources(TestCase):
         self.saas1 = self.fxt.get_json('saas1.json')
         self.saas2 = self.fxt.get_json('saas2.json')
         self.saas2_wr = self.fxt.get_json('saas2-with-resources.json')
-        self.saas3_ignored = self.fxt.get_json('saas3-ignored.json')
         self.provider1 = self.fxt.get_json('provider1.json')
         self.provider2_wr = self.fxt.get_json('provider2-with-resources.json')
-        self.provider3_ignored = self.fxt.get_json('provider3-ignored.json')
 
         # Patcher for GqlApi methods
         self.gql_patcher = patch.object(gql, 'get_api', autospec=True)
@@ -100,20 +98,14 @@ class TestOpenshiftTektonResources(TestCase):
         """ cleanup patches created in self.setUp"""
         self.gql_patcher.stop()
 
-    def test_get_all_saas_files(self) -> None:
-        self.test_data.saas_files = [self.saas1, self.saas3_ignored]
-        self.assertEqual(otr.fetch_saas_files(None), [self.saas1])
-
     def test_get_one_saas_file(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas2]
         saas_files = otr.fetch_saas_files(self.saas1['name'])
         self.assertEqual(saas_files, [self.saas1])
 
     def test_fetch_tkn_providers(self) -> None:
-        self.test_data.saas_files = [
-            self.saas1, self.saas2, self.saas3_ignored]
-        self.test_data.providers = [
-            self.provider1, self.provider2_wr, self.provider3_ignored]
+        self.test_data.saas_files = [self.saas1, self.saas2]
+        self.test_data.providers = [self.provider1, self.provider2_wr]
 
         tkn_providers = otr.fetch_tkn_providers(None)
         keys_expected = set([self.provider1['name'],
