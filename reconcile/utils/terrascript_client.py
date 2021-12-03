@@ -172,7 +172,9 @@ class TerrascriptClient:
                 version="0.7.2"
             )
 
-            ts += provider.random()
+            ts += provider.random(
+                version="3.1.0"
+            )
 
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
@@ -1781,6 +1783,8 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        assume_role = resource['assume_role']
+        assume_role = {k: v for k, v in assume_role.items() if v is not None}
         # assume role policy
         assume_role_policy = {
             "Version": "2012-10-17",
@@ -1788,9 +1792,7 @@ class TerrascriptClient:
                 {
                     "Action": "sts:AssumeRole",
                     "Effect": "Allow",
-                    "Principal": {
-                        "AWS": resource['assume_role']
-                    },
+                    "Principal": assume_role
                 }
             ]
         }
