@@ -251,6 +251,10 @@ class _VaultClient:
         write_path = '/'.join(path_split[1:])
 
         try:
+            # If version is set to None, the latest version is returned.
+            # https://github.com/hvac/hvac/blob/
+            # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
+            # hvac/api/secrets_engines/kv_v2.py#L85
             current_data = self._read_all_v2(path, version=None)
             if current_data == data:
                 return
