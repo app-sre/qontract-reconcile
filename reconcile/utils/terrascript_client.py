@@ -3694,6 +3694,10 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__dns_name'
         output_value = f'${{{lb_tf_resource.dns_name}}}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
+        # vpc cidr block
+        output_name_0_13 = output_prefix + '__vpc_cidr_block'
+        output_value = vpc_cidr_block
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
