@@ -251,6 +251,14 @@ class _VaultClient:
         write_path = '/'.join(path_split[1:])
 
         try:
+            current_data = self._read_all_v2(path, version=None)
+            if current_data == data:
+                return
+        except SecretNotFound:
+            # if the secret is not found we need to write it
+            pass
+
+        try:
             self._client.secrets.kv.v2.create_or_update_secret(
                 mount_point=mount_point,
                 path=write_path,
