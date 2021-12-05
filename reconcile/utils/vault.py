@@ -267,7 +267,6 @@ class _VaultClient:
         except SecretVersionNotFound:
             # if the secret is not found we need to write it
             logging.debug(f'secret not found in {path}, will create it')
-            pass
 
         try:
             self._client.secrets.kv.v2.create_or_update_secret(
