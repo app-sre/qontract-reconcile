@@ -258,7 +258,7 @@ class _VaultClient:
         mount_point = path_split[0]
         write_path = '/'.join(path_split[1:])
 
-        try:         
+        try:
             current_data = \
                 self._read_all_v2(path, version=SECRET_VERSION_LATEST)
             if current_data == data:
