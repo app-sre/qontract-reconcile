@@ -484,6 +484,25 @@ def bot_login(ctx, cluster_name):
 
 
 @get.command()
+@click.argument('account_name')
+@click.pass_context
+def aws_creds(ctx, account_name):
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    accounts = queries.get_aws_accounts()
+    accounts = [a for a in accounts if a['name'] == account_name]
+    if len(accounts) == 0:
+        print(f"{account_name} not found.")
+        sys.exit(1)
+
+    account = accounts[0]
+    secret = secret_reader.read_all(account['automationToken'])
+    print(f"export AWS_REGION={account['resourcesDefaultRegion']}")
+    print(f"export AWS_ACCESS_KEY_ID={secret['aws_access_key_id']}")
+    print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
+
+
+@get.command()
 @click.argument('name', default='')
 @click.pass_context
 def namespaces(ctx, name):
