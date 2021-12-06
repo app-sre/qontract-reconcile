@@ -479,7 +479,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
             # Only add users if the team they are a part of is in the same
             # sentry instance we are querying for information
             if team['instance']['consoleUrl'] == sentryUrl:
-                if team['name'] not in team_members.keys():
+                if team['name'] not in team_members:
                     team_members[team['name']] = members
                 else:
                     team_members[team['name']].extend(members)
