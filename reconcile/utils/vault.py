@@ -43,6 +43,9 @@ class VaultConnectionError(Exception):
     pass
 
 
+SECRET_VERSION_LATEST = "LATEST"
+
+
 class _VaultClient:
     """
     A class representing a Vault client. Allows read/write operations.
@@ -146,6 +149,11 @@ class _VaultClient:
             msg = ('version can not be null '
                    f'for secret with path \'{path}\'.')
             raise SecretVersionIsNone(msg)
+        elif version == SECRET_VERSION_LATEST:
+            # https://github.com/hvac/hvac/blob/
+            # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
+            # hvac/api/secrets_engines/kv_v2.py#L85
+            version = None
         try:
             secret = self._client.secrets.kv.v2.read_secret_version(
                 mount_point=mount_point,
@@ -246,9 +254,30 @@ class _VaultClient:
             self._write_v1(secret_path, data)
 
     def _write_v2(self, path, data):
-        # do not forget to run `self._read_all_v2.cache_clear()`
-        # if this ever get's implemented
-        raise NotImplementedError('vault_client write v2')
+        path_split = path.split('/')
+        mount_point = path_split[0]
+        write_path = '/'.join(path_split[1:])
+
+        try:
+            current_data = \
+                self._read_all_v2(path, version=SECRET_VERSION_LATEST)
+            if current_data == data:
+                logging.debug(f'current data is up-to-date, skipping {path}')
+                return
+        except SecretVersionNotFound:
+            # if the secret is not found we need to write it
+            logging.debug(f'secret not found in {path}, will create it')
+
+        try:
+            self._client.secrets.kv.v2.create_or_update_secret(
+                mount_point=mount_point,
+                path=write_path,
+                secret=data,
+            )
+            self._read_all_v2.cache_clear()
+        except hvac.exceptions.Forbidden:
+            msg = f"permission denied accessing secret '{path}'"
+            raise SecretAccessForbidden(msg)
 
     def _write_v1(self, path, data):
         try:
