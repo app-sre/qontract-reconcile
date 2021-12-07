@@ -900,7 +900,6 @@ class SaasHerder():
     def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
         saas_file_name = saas_file['name']
         timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         github = self._initiate_github(saas_file)
         trigger_specs = []
@@ -947,7 +946,6 @@ class SaasHerder():
                         'saas_file_name': saas_file_name,
                         'env_name': env_name,
                         'timeout': timeout,
-                        'configurable_resources': configurable_resources,
                         'pipelines_provider': pipelines_provider,
                         'rt_name': rt_name,
                         'cluster_name': cluster_name,
@@ -1002,7 +1000,6 @@ class SaasHerder():
                                          current_state):
         saas_file_name = saas_file['name']
         timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
@@ -1051,7 +1048,6 @@ class SaasHerder():
                             'saas_file_name': saas_file_name,
                             'env_name': env_name,
                             'timeout': timeout,
-                            'configurable_resources': configurable_resources,
                             'pipelines_provider': pipelines_provider,
                             'rt_name': rt_name,
                             'cluster_name': cluster_name,
@@ -1090,7 +1086,6 @@ class SaasHerder():
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
         timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
@@ -1125,7 +1120,6 @@ class SaasHerder():
                     'saas_file_name': saas_file_name,
                     'env_name': env_name,
                     'timeout': timeout,
-                    'configurable_resources': configurable_resources,
                     'pipelines_provider': pipelines_provider,
                     'rt_name': rt_name,
                     'cluster_name': cluster_name,
