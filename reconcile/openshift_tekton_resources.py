@@ -35,6 +35,7 @@ SAAS_FILES_QUERY = '''
   saas_files: saas_files_v2 {
     path
     name
+    configurableResources
     pipelinesProvider {
       name
       provider
@@ -63,8 +64,11 @@ class OpenshiftTektonResourcesBadConfigError(Exception):
 
 
 def fetch_saas_files(saas_file_name: Optional[str]) -> list[dict[str, Any]]:
-    '''Fetch saas v2 files'''
-    saas_files = gql.get_api().query(SAAS_FILES_QUERY)['saas_files']
+    '''Fetch saas files that can be handled by this integration: those with
+    configurableResources set to True'''
+    saas_files = [
+        s for s in gql.get_api().query(SAAS_FILES_QUERY)['saas_files']
+        if s.get('configurableResources')]
 
     if saas_file_name:
         saas_file = None
