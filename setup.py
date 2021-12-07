@@ -19,7 +19,7 @@ setup(
     package_data={'reconcile': ['templates/*.j2']},
 
     install_requires=[
-        "sretoolbox==1.2.2",
+        "sretoolbox~=1.2",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
