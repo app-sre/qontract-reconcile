@@ -19,6 +19,12 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 
+class AccountUser:
+    def __init__(self, account, user):
+        self.account = account
+        self.user = user
+
+
 class TerraformClient:
     def __init__(self, integration, integration_version,
                  integration_prefix, accounts, working_dirs, thread_pool_size,
@@ -64,7 +70,7 @@ class TerraformClient:
             console_urls = self.format_output(
                 output, self.OUTPUT_TYPE_CONSOLEURLS)
             for user_name, enc_password in user_passwords.items():
-                if user_name in existing_users:
+                if AccountUser(account, user_name) not in self.created_users:
                     continue
                 new_users.append((account, console_urls[account],
                                   user_name, enc_password))
@@ -121,12 +127,15 @@ class TerraformClient:
                                enable_deletion=enable_deletion)
 
         self.deleted_users = []
-        for disabled_deletion_detected, deleted_users, error in results:
+        self.created_users = []
+        for disabled_deletion_detected, deleted_users, created_users, error \
+                in results:
             if error:
                 errors = True
             if disabled_deletion_detected:
                 disabled_deletions_detected = True
                 self.deleted_users.extend(deleted_users)
+            self.created_users.extend(created_users)
         return disabled_deletions_detected, errors
 
     def dump_deleted_users(self, io_dir):
@@ -146,9 +155,9 @@ class TerraformClient:
                                               parallelism=self.parallelism,
                                               out=name)
         error = self.check_output(name, 'plan', return_code, stdout, stderr)
-        disabled_deletion_detected, deleted_users = \
+        disabled_deletion_detected, deleted_users, created_users = \
             self.log_plan_diff(name, tf, enable_deletion)
-        return disabled_deletion_detected, deleted_users, error
+        return disabled_deletion_detected, deleted_users, created_users, error
 
     def log_plan_diff(self, name, tf, enable_deletion):
         disabled_deletion_detected = False
@@ -159,6 +168,7 @@ class TerraformClient:
         # or if the integration's enable_deletion is true
         deletions_allowed = enable_deletion or account_enable_deletion
         deleted_users = []
+        created_users = []
 
         output = self.terraform_show(name, tf.working_dir)
         format_version = output.get('format_version')
@@ -203,6 +213,9 @@ class TerraformClient:
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                     self.should_apply = True
+                if action == 'create':
+                    if resource_type == 'aws_iam_user_login_profile':
+                        created_users.append(AccountUser(name, resource_name))
                 if action == 'delete':
                     if resource_type in always_enabled_deletions:
                         continue
@@ -231,7 +244,7 @@ class TerraformClient:
                                 'deletion_protection to false in a new MR. '
                                 'The new MR must be merged first.'
                             )
-        return disabled_deletion_detected, deleted_users
+        return disabled_deletion_detected, deleted_users, created_users
 
     @staticmethod
     def terraform_show(name, working_dir):
