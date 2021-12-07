@@ -1,7 +1,6 @@
 {
   "path": "saas4.yaml",
   "name": "saas4",
-  "configurableResources": true,
   "pipelinesProvider": {
     "name": "provider4-with-task-duplicates",
     "provider": "tekton"
