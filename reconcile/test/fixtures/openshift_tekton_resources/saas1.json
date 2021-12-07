@@ -1,6 +1,7 @@
 {
   "path": "saas1.yaml",
   "name": "saas1",
+  "configurableResources": true,
   "pipelinesProvider": {
     "name": "provider1",
     "provider": "tekton"
