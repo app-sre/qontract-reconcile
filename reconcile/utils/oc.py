@@ -101,6 +101,10 @@ class UnableToApplyError(Exception):
     pass
 
 
+class InconsistentProjectCountError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function):
@@ -225,10 +229,7 @@ class OCDeprecated:
             self.get_version()
         self.init_projects = init_projects
         if self.init_projects:
-            self.projects = \
-                [p['metadata']['name']
-                 for p
-                 in self.get_all('Project.project.openshift.io')['items']]
+            self.projects = self.get_project_names(consistent=True)
         self.init_api_resources = init_api_resources
         if self.init_api_resources:
             self.api_resources = self.get_api_resources()
@@ -370,7 +371,7 @@ class OCDeprecated:
             return name in self.projects
 
         try:
-            self.get(None, 'Project.project.openshift.io', name)
+            self.get_projects(name=name)
         except StatusCodeError as e:
             if 'NotFound' in str(e):
                 return False
@@ -471,6 +472,22 @@ class OCDeprecated:
         # this is actually a 10 second timeout, because: oc reasons
         cmd = ['version', '--request-timeout=5']
         return self._run(cmd)
+
+    @retry(exceptions=InconsistentProjectCountError)
+    def get_project_names(self, consistent=False):
+        projects = self.get_projects()
+        if consistent:
+            projects_attempt_2 = self.get_projects()
+            if len(projects) != len(projects_attempt_2):
+                raise InconsistentProjectCountError(self.cluster_name)
+
+        return [p['metadata']['name'] for p in projects]
+
+    def get_projects(self, name=None):
+        if name:
+            return self.get(None, 'Project.project.openshift.io', name)
+        else:
+            return self.get_all('Project.project.openshift.io')['items']
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
     def wait_for_job_running(self, namespace, name):
@@ -798,10 +815,7 @@ class OCNative(OCDeprecated):
         self.object_clients = {}
         self.init_projects = init_projects
         if self.init_projects:
-            self.projects = \
-                [p['metadata']['name']
-                 for p
-                 in self.get_all('Project.project.openshift.io')['items']]
+            self.projects = self.get_project_names(consistent=True)
         self.init_api_resources = init_api_resources
         if self.init_api_resources:
             self.api_resources = self.api_kind_version.keys()
