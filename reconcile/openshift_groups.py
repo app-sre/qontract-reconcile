@@ -2,6 +2,7 @@ import sys
 import logging
 import itertools
 
+from datetime import datetime, date
 from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
@@ -9,6 +10,9 @@ from reconcile import queries
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
+from reconcile.utils.aggregated_list import RunnerException
+
+EXPIRATION_MAX = 90
 
 ROLES_QUERY = """
 {
@@ -17,6 +21,7 @@ ROLES_QUERY = """
     users {
       github_username
     }
+    expirationDate
     access {
       cluster {
         name
@@ -111,6 +116,13 @@ def fetch_desired_state(oc_map):
     desired_state = []
 
     for r in roles:
+        exp_date = datetime.strptime(r['expirationDate'], '%Y-%m-%d').date()
+        if exp_date < date.today():
+            continue
+        elif (exp_date - date.today()).days > EXPIRATION_MAX:
+            raise RunnerException(
+                f'The maximum expiration date of {r["name"]} '
+                f'shall not exceed {EXPIRATION_MAX} days form today')
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
                 continue
