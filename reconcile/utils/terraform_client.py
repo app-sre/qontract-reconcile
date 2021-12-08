@@ -10,6 +10,7 @@ from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from ruamel import yaml
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
+from dataclasses import dataclass
 
 import reconcile.utils.lean_terraform_client as lean_tf
 
@@ -19,10 +20,10 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
 
 
+@dataclass
 class AccountUser:
-    def __init__(self, account, user):
-        self.account = account
-        self.user = user
+    account: str
+    user: str
 
 
 class TerraformClient:
