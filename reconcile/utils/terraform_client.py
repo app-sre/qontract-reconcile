@@ -192,7 +192,7 @@ class TerraformClient:
 
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
-            return disabled_deletion_detected, deleted_users
+            return disabled_deletion_detected, deleted_users, created_users
 
         always_enabled_deletions = {
             'random_id',
