@@ -65,7 +65,6 @@ class TerraformClient:
         new_users = []
         self.init_outputs()  # get updated output
         for account, output in self.outputs.items():
-            existing_users = self.users[account]
             user_passwords = self.format_output(
                 output, self.OUTPUT_TYPE_PASSWORDS)
             console_urls = self.format_output(
