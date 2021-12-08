@@ -6,11 +6,11 @@ import shutil
 
 from collections import defaultdict
 from threading import Lock
+from dataclasses import dataclass
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from ruamel import yaml
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
-from dataclasses import dataclass
 
 import reconcile.utils.lean_terraform_client as lean_tf
 
