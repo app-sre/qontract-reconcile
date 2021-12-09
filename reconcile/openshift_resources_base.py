@@ -126,6 +126,9 @@ NAMESPACES_QUERY = """
       spec {
         version
       }
+      network {
+        pod
+      }
       automationToken {
         path
         field
