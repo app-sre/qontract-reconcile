@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import itertools
+from contextlib import suppress
 import yaml
 
 from gitlab.exceptions import GitlabError
@@ -566,31 +567,33 @@ class SaasHerder():
     def _collect_images(resource):
         images = set()
         # resources with pod templates
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # init containers
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["initContainers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CronJob
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["jobTemplate"]["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CatalogSource templates
-        try:
+        with suppress(KeyError):
             images.add(resource["spec"]["image"])
-        except KeyError:
-            pass
+        # ClowdApp deployments
+        with suppress(KeyError):
+            deployments = resource["spec"]["deployments"]
+            for d in deployments:
+                images.add(d["podSpec"]["image"])
+        # ClowdApp jobs
+        with suppress(KeyError):
+            jobs = resource["spec"]["jobs"]
+            for j in jobs:
+                images.add(j["podSpec"]["image"])
 
         return images
 
