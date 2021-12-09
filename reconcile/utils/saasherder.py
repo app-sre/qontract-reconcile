@@ -5,6 +5,7 @@ import os
 import itertools
 import yaml
 
+from contextlib import suppress
 from gitlab.exceptions import GitlabError
 from github import Github, GithubException
 from requests import exceptions as rqexc
@@ -566,45 +567,33 @@ class SaasHerder():
     def _collect_images(resource):
         images = set()
         # resources with pod templates
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # init containers
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["initContainers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CronJob
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["jobTemplate"]["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CatalogSource templates
-        try:
+        with suppress(KeyError):
             images.add(resource["spec"]["image"])
-        except KeyError:
-            pass
         # ClowdApp deployments
-        try:
+        with suppress(KeyError):
             deployments = resource["spec"]["deployments"]
             for d in deployments:
                 images.add(d["podSpec"]["image"])
-        except KeyError:
-            pass
         # ClowdApp jobs
-        try:
+        with suppress(KeyError):
             deployments = resource["spec"]["jobs"]
             for d in deployments:
                 images.add(d["podSpec"]["image"])
-        except KeyError:
-            pass
 
         return images
 
