@@ -77,6 +77,7 @@ def collect_state():
                 cluster = namespace_info['cluster']['name']
                 environment = namespace_info['environment']['name']
                 target_ref = target['ref']
+                target_disable = target.get('disable')
                 target_delete = target.get('delete')
                 target_parameters = \
                     json.loads(target.get('parameters') or '{}')
@@ -96,6 +97,7 @@ def collect_state():
                     'parameters': parameters,
                     'saas_file_definitions':
                         copy.deepcopy(saas_file_definitions),
+                    'disable': target_disable,
                     'delete': target_delete,
                 })
     return state
