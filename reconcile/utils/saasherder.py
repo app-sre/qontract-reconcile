@@ -591,9 +591,16 @@ class SaasHerder():
             images.add(resource["spec"]["image"])
         except KeyError:
             pass
-        # ClowdApp
+        # ClowdApp deployments
         try:
             deployments = resource["spec"]["deployments"]
+            for d in deployments:
+                images.add(d["podSpec"]["image"])
+        except KeyError:
+            pass
+        # ClowdApp jobs
+        try:
+            deployments = resource["spec"]["jobs"]
             for d in deployments:
                 images.add(d["podSpec"]["image"])
         except KeyError:
