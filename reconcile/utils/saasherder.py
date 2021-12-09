@@ -3,9 +3,9 @@ import json
 import logging
 import os
 import itertools
+from contextlib import suppress
 import yaml
 
-from contextlib import suppress
 from gitlab.exceptions import GitlabError
 from github import Github, GithubException
 from requests import exceptions as rqexc
