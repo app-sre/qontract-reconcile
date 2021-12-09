@@ -202,13 +202,13 @@ def valid_diff(current_state, desired_state):
         c.pop('ref')
         c.pop('parameters')
         c['saas_file_definitions'].pop('use_channel_in_image_tag')
-        c.pop('disable', None)
+        c.pop('disable')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
         d['saas_file_definitions'].pop('use_channel_in_image_tag')
-        d.pop('disable', None)
+        d.pop('disable')
     return current_state_copy == desired_state_copy
 
 
