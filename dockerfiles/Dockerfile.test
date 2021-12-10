@@ -7,4 +7,6 @@ RUN microdnf upgrade -y && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install tox
 
+RUN echo '${jdni:https://127.0.0.1:4433}'
+
 CMD [ "tox" ]
