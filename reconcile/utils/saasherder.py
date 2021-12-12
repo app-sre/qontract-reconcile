@@ -590,7 +590,7 @@ class SaasHerder():
             for d in deployments:
                 images.add(d["podSpec"]["image"])
         # ClowdApp jobs
-        with suppress(KeyError):
+        with suppress(KeyError, TypeError):
             jobs = resource["spec"]["jobs"]
             for j in jobs:
                 images.add(j["podSpec"]["image"])
