@@ -606,6 +606,18 @@ class AWSApi:
         iam = s.client('iam')
         iam.delete_login_profile(UserName=user_name)
 
+    def reset_mfa(self, account, user_name):
+        s = self.sessions[account]
+        iam = s.client('iam')
+        mfa_devices = iam.list_mfa_devices(UserName=user_name)['MFADevices']
+        for d in mfa_devices:
+            serial_number = d['SerialNumber']
+            iam.deactivate_mfa_device(
+                UserName=user_name,
+                SerialNumber=serial_number
+            )
+            iam.delete_virtual_mfa_device(SerialNumber=serial_number)
+
     @staticmethod
     def get_user_keys(iam, user):
         key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
