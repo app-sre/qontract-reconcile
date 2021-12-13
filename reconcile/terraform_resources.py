@@ -226,6 +226,7 @@ provider
     }
   }
   certificate_arn
+  idle_timeout
   targets {
     name
     default
