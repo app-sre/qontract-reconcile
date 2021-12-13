@@ -90,6 +90,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `saas-file-owners`: Adds an `approved` label on merge requests based on approver schema for saas files.
 - `user-validator`: Validate user files.
 - `integrations-validator`: Ensures all integrations are defined in App-Interface.
+- `statuspage-components`: Manages components on statuspage.io hosted status pages
 
 ### e2e-tests
 
