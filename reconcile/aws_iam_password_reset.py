@@ -38,4 +38,5 @@ def run(dry_run):
                 aws_api = AWSApi(1, [a], settings=settings)
 
             aws_api.reset_password(account_name, user_name)
+            aws_api.reset_mfa(account_name, user_name)
             state.add(state_key)
