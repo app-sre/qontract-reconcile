@@ -3494,8 +3494,9 @@ class TerrascriptClient:
             'depends_on': self.get_dependencies([sg_tf_resource]),
         }
 
-        if 'idle_timeout' in resource:
-            values['idle_timeout'] = resource['idle_timeout']
+        idle_timeout = resource.get('idle_timeout')
+        if idle_timeout:
+            values['idle_timeout'] = idle_timeout
 
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
