@@ -1410,6 +1410,16 @@ SAAS_FILES_QUERY_V1 = """
           auto
           publish
           subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
         }
         parameters
         upstream
@@ -1577,6 +1587,16 @@ SAAS_FILES_QUERY_V2 = """
           auto
           publish
           subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
         }
         parameters
         upstream {
