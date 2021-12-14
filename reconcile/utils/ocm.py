@@ -1061,7 +1061,7 @@ class OCMMap:
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
         fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
-                  'name', 'bootstrapServerHost', 'failed_reason']
+                  'name', 'bootstrap_server_host', 'failed_reason']
         cluster_specs = []
         for ocm in self.ocm_map.values():
             clusters = ocm.get_kafka_clusters(fields=fields)
@@ -1070,7 +1070,7 @@ class OCMMap:
 
     def kafka_service_account_specs(self):
         """ Get dictionary of Kafka service account specs in the OCM map. """
-        fields = ['name', 'clientID']
+        fields = ['name', 'client_id']
         service_account_specs = []
         for ocm in self.ocm_map.values():
             service_accounts = ocm.get_kafka_service_accounts(fields=fields)
