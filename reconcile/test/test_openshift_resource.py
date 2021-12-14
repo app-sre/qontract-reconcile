@@ -146,7 +146,7 @@ class TestOpenshiftResource:
                 timedelta(days=(openshift_resource.EXPIRATION_MAX+1))
         resource = mock_openshift_role_bindings(expirationDate)
         for r in resource:
-            assert openshift_resource.checkExpirationDate(b) is False
+            assert openshift_resource.checkExpirationDate(r) is False
 
 
 def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:
