@@ -31,7 +31,7 @@ resourceTemplates:
     hash_length: 24
     targets:
       - namespace:
-          name: test-namespace
+          name: test-ns-publisher
           environment:
             name: test-environment
             parameters:
@@ -45,7 +45,28 @@ resourceTemplates:
         promotion:
           auto: true
           publish:
-            - test-publish-channel
+            - test-channel
+      - namespace:
+          name: test-ns-subscriber
+          environment:
+            name: test-environment
+            parameters:
+              PARAM1: value-for-target-param1
+          cluster:
+            name: test-cluster
+            serverUrl: test-server-url
+          app:
+            name: test-app
+        ref: a000000000000000000000000000000000000000
+        promotion:
+          auto: true
+          promotion_data:
+            - channel: test-channel
+              data:
+                type: parent_saas_config
+                parent_saas: saas-file-deployment
+                parent_config_hash: b23d1c0b1ffaf1f6
           subscribe:
-            - test-subscribe-channel
+            - test-channel
+
 

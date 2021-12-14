@@ -8,7 +8,7 @@ import yaml
 from github import GithubException
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
-from reconcile.utils.saasherder import PARENT_CONFIG_HASH_ATTR
+from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 
 from .fixtures import Fixtures
 
@@ -513,10 +513,12 @@ class TestConfigHashTriggers(TestCase):
     def setUpClass(cls):
         cls.fxt = Fixtures('saasherder')
         cls.cluster = "test-cluster"
-        cls.namespace = "test-namespace"
         cls.template = cls.fxt.get_anymarkup('template_1.yml')
 
     def setUp(self) -> None:
+        self.all_saas_files = \
+            [self.fxt.get_anymarkup('saas_file_deployment.yml')]
+
         self.state_patcher = \
             patch("reconcile.utils.saasherder.State", autospec=True)
         self.state_mock = self.state_patcher.start().return_value
@@ -533,9 +535,10 @@ class TestConfigHashTriggers(TestCase):
         gfc_mock.return_value = (self.template, "url", "ahash")
 
         self.ri = ResourceInventory()
-        for kind in ["Service", "Deployment"]:
-            self.ri.initialize_resource_type(
-                self.cluster, self.namespace, kind)
+        for ns in ["test-ns-publisher", "test-ns-subscriber"]:
+            for kind in ["Service", "Deployment"]:
+                self.ri.initialize_resource_type(
+                    self.cluster, ns, kind)
 
         self.saasherder = SaasHerder(
             [self.saas_file],
@@ -561,14 +564,14 @@ class TestConfigHashTriggers(TestCase):
         job_spec = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)[0]
         promotion = job_spec["target_config"]["promotion"]
-        self.assertIsNotNone(promotion[PARENT_CONFIG_HASH_ATTR])
+        self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
     def test_same_configs_do_not_trigger(self):
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
-        desired_tc = list(configs.values())[0]
-        self.state_mock.get.return_value = desired_tc
+        desired_tcs = list(configs.values())
+        self.state_mock.get.side_effect = desired_tcs
 
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
@@ -578,11 +581,11 @@ class TestConfigHashTriggers(TestCase):
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
-        desired_tc = list(configs.values())[0]
-        current_tc = copy.deepcopy(desired_tc)
-        current_tc["promotion"][PARENT_CONFIG_HASH_ATTR] = "old_hash"
+        desired_tcs = list(configs.values())
+        current_tcs = copy.deepcopy(desired_tcs)
+        current_tcs[1]["promotion"][TARGET_CONFIG_HASH] = "old_hash"
 
-        self.state_mock.get.return_value = current_tc
+        self.state_mock.get.side_effect = current_tcs
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
@@ -591,16 +594,19 @@ class TestConfigHashTriggers(TestCase):
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
-        desired_tc = list(configs.values())[0]
-        current_tc = copy.deepcopy(desired_tc)
-        del(current_tc["promotion"][PARENT_CONFIG_HASH_ATTR])
+        desired_tcs = list(configs.values())
+        current_tcs = copy.deepcopy(desired_tcs)
 
-        self.state_mock.get.return_value = current_tc
+        del(current_tcs[1]["promotion"][TARGET_CONFIG_HASH])
+
+        self.state_mock.get.side_effect = current_tcs
+
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
 
     def test_promotion_state_config_hash_match_validates(self):
+
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
@@ -608,19 +614,22 @@ class TestConfigHashTriggers(TestCase):
         promotion = desired_tc['promotion']
         promotion_result = {
             "success": True,
-            PARENT_CONFIG_HASH_ATTR: promotion[PARENT_CONFIG_HASH_ATTR]
+            "saas_file": self.saas_file["name"],
+            TARGET_CONFIG_HASH: promotion[TARGET_CONFIG_HASH]
         }
         self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions()
+        result = self.saasherder.validate_promotions(self.all_saas_files)
         self.assertTrue(result)
 
     def test_promotion_state_config_hash_not_match_no_validates(self):
         promotion_result = {
             "success": True,
-            PARENT_CONFIG_HASH_ATTR: "will_not_match"
+            "saas_file": self.saas_file["name"],
+            TARGET_CONFIG_HASH: "will_not_match"
+
         }
         self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions()
+        result = self.saasherder.validate_promotions(self.all_saas_files)
         self.assertFalse(result)
 
     def test_promotion_without_state_config_hash_validates(self):
@@ -628,5 +637,5 @@ class TestConfigHashTriggers(TestCase):
             "success": True,
         }
         self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions()
-        self.assertFalse(result)
+        result = self.saasherder.validate_promotions(self.all_saas_files)
+        self.assertTrue(result)
