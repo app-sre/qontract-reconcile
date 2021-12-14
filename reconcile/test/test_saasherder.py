@@ -559,12 +559,18 @@ class TestConfigHashTriggers(TestCase):
         self.gfc_patcher.stop()
 
     def test_config_hash_is_filled(self):
+        """ Ensures the get_config_diff_saas_file fills the promotion_data
+            on the publisher target
+        """
         job_spec = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)[0]
         promotion = job_spec["target_config"]["promotion"]
         self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
     def test_same_configs_do_not_trigger(self):
+        """ Ensures that if the same config is found, no job is triggered
+            current Config is fetched from the state
+        """
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
@@ -576,6 +582,8 @@ class TestConfigHashTriggers(TestCase):
         self.assertListEqual(job_specs, [])
 
     def test_config_hash_change_do_trigger(self):
+        """ Ensures a new job is triggered if the parent config hash changes
+        """
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
@@ -589,19 +597,28 @@ class TestConfigHashTriggers(TestCase):
         self.assertEqual(len(job_specs), 1)
 
     def test_add_config_hash_do_trigger(self):
+        """ Ensures a new job is triggered if the parent config hash is missing
+        """
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
         desired_tcs = list(configs.values())
         current_tcs = copy.deepcopy(desired_tcs)
 
-        del(current_tcs[1]["promotion"][TARGET_CONFIG_HASH])
+        # Get the fixture saas file as is and remove the promotion data
+        # on the current target config.
+        del(current_tcs[1]["promotion"]["promotion_data"])
 
         self.state_mock.get.side_effect = current_tcs
 
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
+
+    """ Promotion validations are checked with pr_check once the MRs have been
+        raised. Thw following tests checks that validate_promotion works as
+        expected
+    """
 
     def test_promotion_state_config_hash_match_validates(self):
 
