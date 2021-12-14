@@ -2,16 +2,15 @@ import sys
 import logging
 import itertools
 
-from datetime import datetime, date
 from sretoolbox.utils import threaded
 
+from reconcile.utils import openshift_resource
 from reconcile.utils import gql
 from reconcile import queries
 from reconcile import openshift_rolebindings
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
-from reconcile.utils.aggregated_list import RunnerException
 
 EXPIRATION_MAX = 90
 

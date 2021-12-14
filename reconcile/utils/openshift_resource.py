@@ -29,6 +29,8 @@ DNS_NAMES_URL = \
 
 IGNORABLE_DATA_FIELDS = ['service-ca.crt']
 
+EXPIRATION_MAX = 90
+
 
 class OpenshiftResource:
     def __init__(self, body, integration, integration_version,
@@ -429,6 +431,15 @@ class OpenshiftResource:
         m = hashlib.sha256()
         m.update(body.encode('utf-8'))
         return m.hexdigest()
+
+
+def checkExpirationDate(role):
+    exp_date = datetime.datetime \
+        .strptime(role['expirationDate'], '%Y-%m-%d').date()
+    if exp_date < datetime.date.today():
+        return True
+    elif (exp_date - datetime.date.today()).days > EXPIRATION_MAX:
+        return False
 
 
 class ResourceInventory:

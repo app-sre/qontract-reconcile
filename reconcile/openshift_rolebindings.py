@@ -3,15 +3,15 @@ import datetime
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob
+from reconcile.utils import openshift_resource
 
-from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-EXPIRATION_MAX = 90
+# EXPIRATION_MAX = 90
 
 ROLES_QUERY = """
 {
@@ -24,7 +24,6 @@ ROLES_QUERY = """
       github_username
       openshift_serviceaccount
     }
-    expirationDate
     access {
       namespace {
         name
