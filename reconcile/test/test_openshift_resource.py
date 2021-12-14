@@ -144,8 +144,8 @@ class TestOpenshiftResource:
     def test_check_temp_role_expiration_date():
         expirationDate = date.today() + \
                 timedelta(days=(openshift_resource.EXPIRATION_MAX+1))
-        beep = mock_openshift_role_bindings(expirationDate)
-        for b in beep:
+        resource = mock_openshift_role_bindings(expirationDate)
+        for r in resource:
             assert openshift_resource.checkExpirationDate(b) is False
 
 
