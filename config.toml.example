@@ -30,3 +30,9 @@ base_dn = "ou=users,dc=example,dc=com"
 secret_path = 'secrets/path/to/smtp/creds'
 # (mandatory) mail address to send mails to
 mail_address = 'example.com'
+
+[dyn]
+# This section is required by `qontract-reconcile dyn-traffic-director`
+
+# (mandatory) path to dyn credentials in vault
+secrets_path = 'secrets/path/to/dyn/creds'

@@ -20,6 +20,16 @@ integrations:
   logs:
     slack: true
   state: true
+- name: dyn-traffic-director
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 150Mi
+      cpu: 200m
+  logs:
+    slack: true
 - name: github
   resources:
     requests:

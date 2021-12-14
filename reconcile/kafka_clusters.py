@@ -65,8 +65,8 @@ def get_kafa_service_account(kafka_service_accounts,
     if service_accounts:
         result_sa = copy.deepcopy(service_accounts[0])
         # since this is an existing service account
-        # we do not get it's clientSecret. read it from vault
-        cs_key = 'clientSecret'
+        # we do not get it's client_secret. read it from vault
+        cs_key = 'client_secret'
         result_sa[cs_key] = \
             read_input_from_vault(
                 vault_throughput_path, kafka_cluster_name, cs_key)
@@ -77,7 +77,7 @@ def get_kafa_service_account(kafka_service_accounts,
         logging.info(['create_service_account', kafka_cluster_name])
         if not dry_run:
             ocm = ocm_map.get(kafka_cluster_name)
-            sa_fields = ['clientID', 'clientSecret']
+            sa_fields = ['client_id', 'client_secret']
             result_sa = \
                 ocm.create_kafka_service_account(
                     kafka_cluster_name, fields=sa_fields)
@@ -185,7 +185,7 @@ def run(dry_run, thread_pool_size=10,
         )
         # let's create a Secret in all referencing namespaces
         kafka_namespaces = kafka_cluster['namespaces']
-        secret_fields = ['bootstrapServerHost']
+        secret_fields = ['bootstrap_server_host']
         data = {k: v for k, v in current_cluster.items()
                 if k in secret_fields}
         data.update(kafka_service_account)

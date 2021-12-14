@@ -77,6 +77,7 @@ def collect_state():
                 cluster = namespace_info['cluster']['name']
                 environment = namespace_info['environment']['name']
                 target_ref = target['ref']
+                target_disable = target.get('disable')
                 target_delete = target.get('delete')
                 target_parameters = \
                     json.loads(target.get('parameters') or '{}')
@@ -96,6 +97,7 @@ def collect_state():
                     'parameters': parameters,
                     'saas_file_definitions':
                         copy.deepcopy(saas_file_definitions),
+                    'disable': target_disable,
                     'delete': target_delete,
                 })
     return state
@@ -200,13 +202,13 @@ def valid_diff(current_state, desired_state):
         c.pop('ref')
         c.pop('parameters')
         c['saas_file_definitions'].pop('use_channel_in_image_tag')
-        c.pop('disable', None)
+        c.pop('disable')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
         d['saas_file_definitions'].pop('use_channel_in_image_tag')
-        d.pop('disable', None)
+        d.pop('disable')
     return current_state_copy == desired_state_copy
 
 

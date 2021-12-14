@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import json
 import logging
 import os
@@ -65,6 +64,8 @@ from terrascript.resource import (
     aws_lb_target_group_attachment,
     aws_lb_listener,
     aws_lb_listener_rule,
+    aws_secretsmanager_secret,
+    aws_secretsmanager_secret_version,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -72,6 +73,7 @@ from terrascript import Resource
 from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
@@ -80,7 +82,6 @@ from reconcile.exceptions import FetchResourceError
 from reconcile.utils.elasticsearch_exceptions \
     import (ElasticSearchResourceNameInvalidError,
             ElasticSearchResourceMissingSubnetIdError,
-            ElasticSearchResourceVersionInvalidError,
             ElasticSearchResourceZoneAwareSubnetInvalidError)
 
 
@@ -133,6 +134,7 @@ class TerrascriptClient:
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.oc_map = oc_map
+        self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
         self.secret_reader = SecretReader(settings=settings)
@@ -170,7 +172,9 @@ class TerrascriptClient:
                 version="0.7.2"
             )
 
-            ts += provider.random()
+            ts += provider.random(
+                version="3.1.0"
+            )
 
             b = Backend("s3",
                         access_key=config['aws_access_key_id'],
@@ -183,18 +187,24 @@ class TerrascriptClient:
             locks[name] = Lock()
         self.tss = tss
         self.locks = locks
+        self.accounts = {a['name']: a for a in filtered_accounts}
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
                                 for a in filtered_accounts}
         self.partitions = {a['name']: a.get('partition') or 'aws'
                            for a in filtered_accounts}
-        github_config = get_config()['github']
-        self.token = github_config['app-sre']['token']
         self.logtoes_zip = ''
+        self.logtoes_zip_lock = Lock()
 
     def get_logtoes_zip(self, release_url):
         if not self.logtoes_zip:
-            self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
+            with self.logtoes_zip_lock:
+                # this may have already happened, so we check again
+                if not self.logtoes_zip:
+                    github_config = get_config()['github']
+                    self.token = github_config['app-sre']['token']
+                    self.logtoes_zip = \
+                        self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
             return self.logtoes_zip
         else:
@@ -301,6 +311,10 @@ class TerrascriptClient:
                     groups[account_name][group_name] = 'Done'
         return groups
 
+    @staticmethod
+    def _get_aws_username(user):
+        return user.get('aws_username') or user['org_username']
+
     def populate_iam_users(self, roles):
         for role in roles:
             users = role['users']
@@ -323,7 +337,7 @@ class TerrascriptClient:
                 self.add_resource(account_name, tf_output)
 
                 for user in users:
-                    user_name = user['org_username']
+                    user_name = self._get_aws_username(user)
 
                     # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
@@ -490,8 +504,9 @@ class TerrascriptClient:
                     record_id = f"{record_id}_{counts[record_id]}"
 
                 # Use default TTL if none is specified
+                # or if this record is an alias
                 # None/zero is accepted but not a good default
-                if record.get('ttl') is None:
+                if not record.get('alias') and record.get('ttl') is None:
                     record['ttl'] = default_ttl
 
                 # Define healthcheck if needed
@@ -875,7 +890,10 @@ class TerrascriptClient:
             self.populate_tf_resource_s3_cloudfront_public_key(resource,
                                                                namespace_info)
         elif provider == 'alb':
-            self.populate_tf_resource_alb(resource, namespace_info)
+            self.populate_tf_resource_alb(resource, namespace_info,
+                                          ocm_map=ocm_map)
+        elif provider == 'secrets-manager':
+            self.populate_tf_resource_secrets_manager(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -1765,6 +1783,8 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        assume_role = resource['assume_role']
+        assume_role = {k: v for k, v in assume_role.items() if v is not None}
         # assume role policy
         assume_role_policy = {
             "Version": "2012-10-17",
@@ -1772,9 +1792,7 @@ class TerrascriptClient:
                 {
                     "Action": "sts:AssumeRole",
                     "Effect": "Allow",
-                    "Principal": {
-                        "AWS": resource['assume_role']
-                    },
+                    "Principal": assume_role
                 }
             ]
         }
@@ -3021,15 +3039,6 @@ class TerrascriptClient:
                 for tf_resource in tf_resources]
 
     @staticmethod
-    def validate_elasticsearch_version(version):
-        """ Validate ElasticSearch version. """
-        return version in [7.7, 7.4, 7.1,
-                           6.8, 6.7, 6.5, 6.4, 6.3, 6.2, 6.0,
-                           5.6, 5.5, 5.3, 5.1,
-                           2.3,
-                           1.5]
-
-    @staticmethod
     def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
@@ -3067,16 +3076,11 @@ class TerrascriptClient:
                 ", and - (hyphen). " +
                 f"{values['identifier']}")
 
-        elasticsearch_version = values.get('elasticsearch_version', 7.7)
-        if not self.validate_elasticsearch_version(elasticsearch_version):
-            raise ElasticSearchResourceVersionInvalidError(
-                f"[{account}] Invalid ElasticSearch version" +
-                f" {values['elasticsearch_version']} provided" +
-                f" for resource {values['identifier']}.")
-
         es_values = {}
         es_values["domain_name"] = identifier
-        es_values["elasticsearch_version"] = elasticsearch_version
+        es_values["elasticsearch_version"] = \
+            values.get('elasticsearch_version')
+
         ebs_options = values.get('ebs_options', {})
 
         es_values["ebs_options"] = {
@@ -3373,7 +3377,41 @@ class TerrascriptClient:
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
 
-    def populate_tf_resource_alb(self, resource, namespace_info):
+    def _get_alb_target_ips_by_openshift_service(self,
+                                                 identifier,
+                                                 openshift_service,
+                                                 account_name,
+                                                 namespace_info,
+                                                 ocm_map):
+        account = self.accounts[account_name]
+        awsapi = AWSApi(1, [account],
+                        settings=self.settings,
+                        init_users=False)
+        cluster = namespace_info['cluster']
+        ocm = ocm_map.get(cluster['name'])
+        account['assume_role'] = \
+            ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster['name'],
+                account['uid'],
+                account['terraformUsername'],
+            )
+        account['assume_region'] = cluster['spec']['region']
+        service_name = \
+            f"{namespace_info['name']}/{openshift_service}"
+        ips = awsapi.get_alb_network_interface_ips(
+            account,
+            service_name
+        )
+        if not ips:
+            raise ValueError(
+                f'[{account_name}/{identifier}] expected at least one '
+                f'network interface IP for openshift service {service_name}'
+            )
+
+        return ips
+
+    def populate_tf_resource_alb(self, resource, namespace_info,
+                                 ocm_map=None):
         account, identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
@@ -3455,6 +3493,11 @@ class TerrascriptClient:
             'tags': common_values['tags'],
             'depends_on': self.get_dependencies([sg_tf_resource]),
         }
+
+        idle_timeout = resource.get('idle_timeout')
+        if idle_timeout:
+            values['idle_timeout'] = idle_timeout
+
         lb_tf_resource = aws_lb(identifier, **values)
         tf_resources.append(lb_tf_resource)
 
@@ -3463,20 +3506,28 @@ class TerrascriptClient:
         write_weighted_target_groups = []
         for t in resource['targets']:
             target_name = t['name']
-            target_ips = t['ips']
+            t_openshift_service = t.get('openshift_service')
+            t_ips = t.get('ips')
+            if t_openshift_service:
+                target_ips = self._get_alb_target_ips_by_openshift_service(
+                    identifier,
+                    t_openshift_service,
+                    account,
+                    namespace_info,
+                    ocm_map
+                )
+            elif t_ips:
+                target_ips = t_ips
+            else:
+                raise KeyError('expected one of openshift_service or ips.')
 
             # https://www.terraform.io/docs/providers/random/r/id
             # The random ID will regenerate based on the 'keepers' values
             # So as long as the 'keepers' values don't change the ID will
             # remain the same
-            # We generate a hash of the sorted list of IPs as a value to
-            # compare against across terraform runs
-            target_ips_hash = hashlib.sha256(
-                str(sorted(target_ips)).encode()).hexdigest()
             lbt_random_id_values = {
                 'keepers': {
                     'name': target_name,
-                    'ips': target_ips_hash,
                 },
                 'byte_length': 4,
             }
@@ -3526,7 +3577,7 @@ class TerrascriptClient:
             }
             write_weighted_target_groups.append(write_weighted_item)
 
-            for ip in t['ips']:
+            for ip in target_ips:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # lb_target_group_attachment.html
                 values = {
@@ -3647,6 +3698,57 @@ class TerrascriptClient:
         # dns name
         output_name_0_13 = output_prefix + '__dns_name'
         output_value = f'${{{lb_tf_resource.dns_name}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # vpc cidr block
+        output_name_0_13 = output_prefix + '__vpc_cidr_block'
+        output_value = vpc_cidr_block
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_secrets_manager(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        values = {
+            "name": identifier
+        }
+
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            values['provider'] = 'aws.' + region
+
+        aws_secret_resource = aws_secretsmanager_secret(identifier, **values)
+        tf_resources.append(aws_secret_resource)
+
+        secret = common_values.get('secret')
+        secret_data = self.secret_reader.read_all(secret)
+
+        version_values = {
+            "secret_id": '${' + aws_secret_resource.id + '}',
+            "secret_string": json.dumps(secret_data, sort_keys=True)
+        }
+
+        if self._multiregion_account_(account):
+            version_values['provider'] = 'aws.' + region
+
+        aws_version_resource = \
+            aws_secretsmanager_secret_version(identifier, **version_values)
+        tf_resources.append(aws_version_resource)
+
+        # outputs
+        output_name_0_13 = output_prefix + '__arn'
+        output_value = '${' + aws_version_resource.arn + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        output_name_0_13 = output_prefix + '__version_id'
+        output_value = '${' + aws_version_resource.version_id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:

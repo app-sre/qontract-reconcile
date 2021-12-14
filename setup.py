@@ -19,7 +19,7 @@ setup(
     package_data={'reconcile': ['templates/*.j2']},
 
     install_requires=[
-        "sretoolbox==1.1.0",
+        "sretoolbox~=1.2",
         "Click>=7.0,<8.0",
         "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
@@ -56,6 +56,9 @@ setup(
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
         "croniter>=1.0.15,<1.1.0",
+        "dyn~=1.8.1",
+        "transity-statuspageio>=0.0.3,<0.1",
+        "pydantic>=1.8.2,<1.9.0",
     ],
 
     test_suite="tests",

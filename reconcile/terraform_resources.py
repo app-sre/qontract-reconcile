@@ -86,7 +86,10 @@ provider
 ... on NamespaceTerraformResourceRole_v1 {
   account
   identifier
-  assume_role
+  assume_role {
+    AWS
+    Service
+  }
   inline_policy
   output_resource_name
   annotations
@@ -223,6 +226,7 @@ provider
     }
   }
   certificate_arn
+  idle_timeout
   targets {
     name
     default
@@ -231,10 +235,24 @@ provider
       write
     }
     ips
+    openshift_service
   }
   paths {
     read
     write
+  }
+  output_resource_name
+  annotations
+}
+... on NamespaceTerraformResourceSecretsManager_v1 {
+  account
+  region
+  identifier
+  secret {
+    path
+    field
+    version
+    format
   }
   output_resource_name
   annotations
@@ -270,6 +288,9 @@ TF_NAMESPACES_QUERY = """
         field
         version
         format
+      }
+      spec {
+        region
       }
       internal
     }

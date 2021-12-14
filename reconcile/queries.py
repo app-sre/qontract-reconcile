@@ -247,6 +247,7 @@ AWS_ACCOUNTS_QUERY = """
     path
     name
     uid
+    terraformUsername
     consoleUrl
     resourcesDefaultRegion
     supportedDeploymentRegions
@@ -1516,7 +1517,6 @@ SAAS_FILES_QUERY_V2 = """
     clusterAdmin
     imagePatterns
     use_channel_in_image_tag
-    configurableResources
     authentication {
       code {
         path
@@ -2342,3 +2342,59 @@ def get_permissions_for_slack_usergroup():
     gqlapi = gql.get_api()
     permissions = gqlapi.query(PERMISSIONS_QUERY)['permissions']
     return [p for p in permissions if p['service'] == 'slack-usergroup']
+
+
+DYN_TRAFFIC_DIRECTORS_QUERY = """
+{
+  dyn_traffic_directors: dyn_traffic_directors_v1 {
+    name
+    ttl
+    records {
+      cluster {
+        name
+        elbFQDN
+      }
+      hostname
+      weight
+    }
+  }
+}
+"""
+
+
+def get_dyn_traffic_directors():
+    gqlapi = gql.get_api()
+    return gqlapi.query(DYN_TRAFFIC_DIRECTORS_QUERY)['dyn_traffic_directors']
+
+
+STATUS_PAGE_QUERY = """
+{
+  status_pages: status_page_v1 {
+    name
+    pageId
+    apiUrl
+    provider
+    credentials {
+      path
+      field
+      version
+      format
+    }
+    components {
+      name
+      displayName
+      description
+      path
+      groupName
+      apps {
+        name
+      }
+    }
+  }
+}
+"""
+
+
+def get_status_pages():
+    gqlapi = gql.get_api()
+    return gqlapi.query(STATUS_PAGE_QUERY)['status_pages']

@@ -6,6 +6,7 @@ import itertools
 import hashlib
 from collections import ChainMap
 
+from contextlib import suppress
 import yaml
 
 from gitlab.exceptions import GitlabError
@@ -576,31 +577,33 @@ class SaasHerder():
     def _collect_images(resource):
         images = set()
         # resources with pod templates
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # init containers
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["template"]
             for c in template["spec"]["initContainers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CronJob
-        try:
+        with suppress(KeyError):
             template = resource["spec"]["jobTemplate"]["spec"]["template"]
             for c in template["spec"]["containers"]:
                 images.add(c["image"])
-        except KeyError:
-            pass
         # CatalogSource templates
-        try:
+        with suppress(KeyError):
             images.add(resource["spec"]["image"])
-        except KeyError:
-            pass
+        # ClowdApp deployments
+        with suppress(KeyError):
+            deployments = resource["spec"]["deployments"]
+            for d in deployments:
+                images.add(d["podSpec"]["image"])
+        # ClowdApp jobs
+        with suppress(KeyError, TypeError):
+            jobs = resource["spec"]["jobs"]
+            for j in jobs:
+                images.add(j["podSpec"]["image"])
 
         return images
 
@@ -922,7 +925,6 @@ class SaasHerder():
     def get_moving_commits_diff_saas_file(self, saas_file, dry_run):
         saas_file_name = saas_file['name']
         timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         github = self._initiate_github(saas_file)
         trigger_specs = []
@@ -969,7 +971,6 @@ class SaasHerder():
                         'saas_file_name': saas_file_name,
                         'env_name': env_name,
                         'timeout': timeout,
-                        'configurable_resources': configurable_resources,
                         'pipelines_provider': pipelines_provider,
                         'rt_name': rt_name,
                         'cluster_name': cluster_name,
@@ -1024,7 +1025,6 @@ class SaasHerder():
                                          current_state):
         saas_file_name = saas_file['name']
         timeout = saas_file.get('timeout') or None
-        configurable_resources = saas_file.get('configurableResources', False)
         pipelines_provider = self._get_pipelines_provider(saas_file)
         trigger_specs = []
         for rt in saas_file['resourceTemplates']:
@@ -1073,7 +1073,6 @@ class SaasHerder():
                             'saas_file_name': saas_file_name,
                             'env_name': env_name,
                             'timeout': timeout,
-                            'configurable_resources': configurable_resources,
                             'pipelines_provider': pipelines_provider,
                             'rt_name': rt_name,
                             'cluster_name': cluster_name,
@@ -1151,7 +1150,6 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
-
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
             url = rt['url']

@@ -140,7 +140,7 @@ def get_slack_usernames_from_pagerduty(pagerduties, users, usergroup,
             msg = (
                 '[{}] PagerDuty username not found in app-interface: {} '
                 '(hint: user files should contain '
-                'pagerduty_username if it is different then org_username)'
+                'pagerduty_username if it is different than org_username)'
             ).format(usergroup, not_found_pagerduty_names)
             logging.warning(msg)
         all_slack_usernames.extend(slack_usernames)
