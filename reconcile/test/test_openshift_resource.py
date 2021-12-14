@@ -1,5 +1,9 @@
+from datetime import date, timedelta
+from typing import Dict, List
+
 import pytest
 
+from reconcile.utils import openshift_resource
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError)
@@ -11,6 +15,9 @@ fxt = Fixtures('openshift_resource')
 
 TEST_INT = 'test_openshift_resources'
 TEST_INT_VER = make_semver(1, 9, 2)
+
+apply = Fixtures('openshift_resource') \
+    .get_anymarkup('expiration_date_check.yml')
 
 
 class TestOpenshiftResource:
@@ -132,3 +139,17 @@ class TestOpenshiftResource:
         }
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
         assert not openshift_resource.has_owner_reference()
+
+    @staticmethod
+    def test_check_temp_role_expiration_date():
+        expirationDate = date.today() + \
+                timedelta(days=(openshift_resource.EXPIRATION_MAX+1))
+        beep = mock_openshift_role_bindings(expirationDate)
+        for b in beep:
+            assert openshift_resource.checkExpirationDate(b) is False
+
+
+def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:
+    openshift_rolebindings_roles = apply['gql_response']
+    openshift_rolebindings_roles[0]['expirationDate'] = str(expirationDate)
+    return openshift_rolebindings_roles

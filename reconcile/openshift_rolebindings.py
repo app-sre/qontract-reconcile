@@ -1,17 +1,16 @@
 import sys
-from datetime import datetime, date
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob
+from reconcile.utils import openshift_resource
 
-from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-EXPIRATION_MAX = 90
+# EXPIRATION_MAX = 90
 
 ROLES_QUERY = """
 {
@@ -24,7 +23,6 @@ ROLES_QUERY = """
       github_username
       openshift_serviceaccount
     }
-    expirationDate
     access {
       namespace {
         name
@@ -35,6 +33,7 @@ ROLES_QUERY = """
       }
       role
     }
+    expirationDate
   }
 }
 """
@@ -93,13 +92,14 @@ def fetch_desired_state(ri, oc_map):
     roles = gqlapi.query(ROLES_QUERY)['roles']
     users_desired_state = []
     for role in roles:
-        exp_date = datetime.strptime(role['expirationDate'], '%Y-%m-%d').date()
-        if exp_date < date.today():
+        expDate = openshift_resource.checkExpirationDate(role)
+        if expDate is True:
             continue
-        elif (exp_date - date.today()).days > EXPIRATION_MAX:
-            raise RunnerException(
+        elif expDate is False:
+            raise ValueError(
                 f'The maximum expiration date of {role["name"]} '
-                f'shall not exceed {EXPIRATION_MAX} days form today')
+                f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
+                    days from today')
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
