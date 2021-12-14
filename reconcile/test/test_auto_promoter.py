@@ -28,9 +28,10 @@ class TestPromotions(TestCase):
         self.assertEqual(ret, expected)
 
     def test_init_parent_saas_config_dataclass(self):
-        data = {'parent_saas': 'saas_file',
-                TARGET_CONFIG_HASH: '123123123',
-                'type': 'parent_saas_config'
+        data = {
+            'parent_saas': 'saas_file',
+            TARGET_CONFIG_HASH: '123123123',
+            'type': 'parent_saas_config'
         }
 
         obj = ParentSaasConfigPromotion(**data)
