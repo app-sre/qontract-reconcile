@@ -39,6 +39,14 @@ def build_desired_state(zones):
             'records': []
         }
 
+        # a vpc will be referenced for a zone to be considered private
+        vpc = zone.get('vpc')
+        if vpc:
+            zone_values['vpc'] = {
+                'vpc_id': vpc['vpc_id'],
+                'vpc_region': vpc['region']
+            }
+
         # Check if we have unmanaged_record_names (urn) and compile them
         # all as regular expressions
         urn_compiled = []
