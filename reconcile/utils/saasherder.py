@@ -1322,15 +1322,15 @@ class SaasHerder():
             commit_sha = item['commit_sha']
             publish = item.get('publish')
             if publish:
+                value = {
+                    'success': success,
+                    'saas_file': item["saas_file"],
+                    TARGET_CONFIG_HASH: item.get(TARGET_CONFIG_HASH)
+                }
                 all_subscribed_saas_file_paths = set()
                 for channel in publish:
                     # publish to state to pass promotion gate
                     state_key = f"promotions/{channel}/{commit_sha}"
-                    value = {
-                        'success': success,
-                        'saas_file': item["saas_file"],
-                        TARGET_CONFIG_HASH: item.get(TARGET_CONFIG_HASH)
-                    }
                     self.state.add(state_key, value, force=True)
                     logging.info(
                         f'Commit {commit_sha} was published ' +
