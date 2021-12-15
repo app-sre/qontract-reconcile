@@ -76,11 +76,16 @@ class AutoPromoter(MergeRequestBase):
                     AutoPromoter.init_promotion_data(channel, promotion)
                 modified = True
             else:
-                for item in channel_data:
+                for i in range(len(channel_data)):
+                    item = channel_data[i]
                     if item["type"] == ParentSaasConfigPromotion.TYPE:
-                        psc = ParentSaasConfigPromotion(**item)
-                        if psc.target_config_hash != \
-                                promotion[TARGET_CONFIG_HASH]:
+                        target_psc = ParentSaasConfigPromotion(**item)
+                        promotion_psc = ParentSaasConfigPromotion(
+                            parent_saas=promotion["saas_file"],
+                            target_config_hash=promotion[TARGET_CONFIG_HASH]
+                        )
+                        if target_psc != promotion_psc:
+                            channel_data[i] = asdict(promotion_psc)
                             modified = True
 
             return modified

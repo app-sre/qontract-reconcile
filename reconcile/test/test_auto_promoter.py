@@ -45,6 +45,7 @@ class TestPromotions(TestCase):
            "auto": True,
            "publish": ["test-channel"],
            "commit_sha": "ahash",
+           "saas_file": "saas_file",
            TARGET_CONFIG_HASH: "111111111",
         }
 
@@ -65,12 +66,17 @@ class TestPromotions(TestCase):
             promotion, target_promotion, ["test-channel"])
         self.assertTrue(modified)
 
+        tp = target_promotion["promotion_data"][0]
+        tp_hash = tp["data"][0]["target_config_hash"]
+        self.assertEqual(tp_hash, "111111111")
+
     def test_process_promotion_dont_update_when_equal_config_hashes(self):
         promotion = {
            "saas_file_paths": ["destination-saas-file"],
            "auto": True,
            "publish": ["test-channel"],
            "commit_sha": "ahash",
+           "saas_file": "saas_file",
            TARGET_CONFIG_HASH: "111111111",
         }
 
