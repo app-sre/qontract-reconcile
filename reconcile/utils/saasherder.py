@@ -767,7 +767,7 @@ class SaasHerder():
                     f"{namespace}/{env_name}"
                 )
                 # Convert to dict, ChainMap is not JSON serializable
-                digest = self.get_target_config_hash(target_configs[key])
+                digest = SaasHerder.get_target_config_hash(target_configs[key])
 
                 process_template_options = {
                     'saas_file_name': saas_file_name,
@@ -1137,7 +1137,8 @@ class SaasHerder():
             trigger_specs.append(job_spec)
         return trigger_specs
 
-    def get_target_config_hash(self, target_config):
+    @staticmethod
+    def get_target_config_hash(target_config):
         # Ensure dict, ChainMap is not JSON serializable
         tc_dict = dict(target_config)
         m = hashlib.sha256()
@@ -1294,7 +1295,7 @@ class SaasHerder():
                     # Promotion dict is modified in _process_template method
                     # remove
                     tc_hash = \
-                        self.get_target_config_hash(promotion_config)
+                        SaasHerder.get_target_config_hash(promotion_config)
 
                     # Compare the config hash with the published one
                     # This ensures the parent job has succed with the current
