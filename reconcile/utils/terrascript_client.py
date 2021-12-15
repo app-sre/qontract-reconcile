@@ -483,6 +483,7 @@ class TerrascriptClient:
             zone_id = safe_resource_id(f"{zone['name']}")
             zone_values = {
                 'name': zone['name'],
+                'vpc': zone.get('vpc'),
                 'comment': 'Managed by Terraform'
             }
             zone_resource = aws_route53_zone(zone_id, **zone_values)
