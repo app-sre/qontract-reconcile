@@ -39,6 +39,29 @@ class TestPromotions(TestCase):
         self.assertEqual(obj.target_config_hash, data[TARGET_CONFIG_HASH])
         self.assertEqual(obj.parent_saas, data["parent_saas"])
 
+    def test_process_promotion_init_promotion_data(self):
+        promotion = {
+           "saas_file_paths": ["destination-saas-file"],
+           "auto": True,
+           "publish": ["test-channel"],
+           "commit_sha": "ahash",
+           "saas_file": "saas_file",
+           TARGET_CONFIG_HASH: "111111111",
+        }
+
+        target_promotion = {
+            "auto": True,
+            "subscribe": ["test-channel"],
+        }
+
+        modified = AutoPromoter.process_promotion(
+            promotion, target_promotion, ["test-channel"])
+        self.assertTrue(modified)
+
+        tp = target_promotion["promotion_data"][0]
+        tp_hash = tp["data"][0]["target_config_hash"]
+        self.assertEqual(tp_hash, "111111111")
+
     def test_process_promotion_update_when_config_hash_changes(self):
         promotion = {
            "saas_file_paths": ["destination-saas-file"],

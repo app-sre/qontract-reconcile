@@ -68,16 +68,19 @@ class AutoPromoter(MergeRequestBase):
                           for v in target_promotion.get('promotion_data', [])
                           if v["channel"] in target_channels}
 
+        if not promotion_data:
+            target_promotion["promotion_data"] = []
+
         modified = False
         for channel in target_channels:
             channel_data = promotion_data.get(channel)
             if channel_data is None:
                 channel_data = \
                     AutoPromoter.init_promotion_data(channel, promotion)
+                target_promotion["promotion_data"].append(channel_data)
                 modified = True
             else:
-                for i in range(len(channel_data)):
-                    item = channel_data[i]
+                for i, item in enumerate(channel_data):
                     if item["type"] == ParentSaasConfigPromotion.TYPE:
                         target_psc = ParentSaasConfigPromotion(**item)
                         promotion_psc = ParentSaasConfigPromotion(
