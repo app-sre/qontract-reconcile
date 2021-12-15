@@ -1898,6 +1898,10 @@ DNS_ZONES_QUERY = """
         format
       }
     }
+    vpc {
+      vpc_id
+      region
+    }
     unmanaged_record_names
     records {
       name
