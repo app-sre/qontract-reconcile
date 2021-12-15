@@ -68,8 +68,8 @@ class AutoPromoter(MergeRequestBase):
                           for v in target_promotion.get('promotion_data', [])
                           if v["channel"] in target_channels}
 
+        modified = False
         for channel in target_channels:
-            modified = False
             channel_data = promotion_data.get(channel)
             if channel_data is None:
                 channel_data = \
