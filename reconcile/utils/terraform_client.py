@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 
+from datetime import datetime
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from reconcile.utils import gql
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
+DATE_FORMAT = '%Y-%m-%d'
 
 
 @dataclass
@@ -250,6 +252,18 @@ class TerraformClient:
         return disabled_deletion_detected, deleted_users, created_users
 
     def deletion_approved(self, account_name, resource_type, resource_name):
+        account = self.accounts[account_name]
+        deletion_approvals = account.get('deletionApprovals')
+        if not deletion_approvals:
+            return False
+        now = datetime.utcnow()
+        for da in deletion_approvals:
+            expiration = datetime.strptime(da['expiration'], DATE_FORMAT)
+            if resource_type == da['type'] \
+                    and resource_name == da['name'] \
+                    and expiration <= now:
+                return True
+
         return False
 
     @staticmethod
