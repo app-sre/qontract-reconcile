@@ -103,10 +103,10 @@ def settings(ctx):
 @click.argument('name', default='')
 @click.pass_context
 def aws_accounts(ctx, name):
-    accounts = queries.get_aws_accounts()
-    if name:
-        accounts = [a for a in accounts if a['name'] == name]
-
+    accounts = queries.get_aws_accounts(name=name)
+    if not accounts:
+        print('no aws accounts found')
+        sys.exit(1)
     columns = ['name', 'consoleUrl']
     print_output(ctx.obj['options'], accounts, columns)
 
