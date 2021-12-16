@@ -1,3 +1,4 @@
+import os
 import logging
 import itertools
 
@@ -298,6 +299,12 @@ def get_aws_accounts(reset_passwords=False, name=None):
         name=name,
     )
     return gqlapi.query(query)['accounts']
+
+
+def get_state_aws_account():
+  """ Returns an AWS account to use for state management """
+  name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+  return get_aws_accounts(name=name)
 
 
 CLUSTERS_QUERY = """
