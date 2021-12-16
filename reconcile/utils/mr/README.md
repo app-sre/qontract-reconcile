@@ -94,7 +94,7 @@ from reconcile import queries
 from reconcile.utils.sqs_gateway import SQSGateway
 
 
-accounts = queries.get_aws_accounts()
+accounts = queries.get_queue_aws_accounts()
 settings = queries.get_app_interface_settings()
 sqs_cli = SQSGateway(accounts, settings=settings)
 ```
@@ -117,7 +117,7 @@ from reconcile import queries
 from reconcile.utils.sqs_gateway import SQSGateway
 
 
-accounts = queries.get_aws_accounts()
+accounts = queries.get_queue_aws_accounts()
 settings = queries.get_app_interface_settings()
 
 sqs_cli = SQSGateway(accounts, settings=settings)
