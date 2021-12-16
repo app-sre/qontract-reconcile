@@ -312,15 +312,15 @@ def get_aws_accounts(reset_passwords=False, name=None, uid=None):
 
 
 def get_state_aws_accounts(reset_passwords=False):
-  """ Returns AWS accounts to use for state management """
-  name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
-  return get_aws_accounts(reset_passwords=reset_passwords, name=name)
+    """ Returns AWS accounts to use for state management """
+    name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+    return get_aws_accounts(reset_passwords=reset_passwords, name=name)
 
 
 def get_queue_aws_accounts():
-  """ Returns AWS accounts to use for queue management """
-  uid = os.environ['gitlab_pr_submitter_queue_url'].split('/')[3]
-  return get_aws_accounts(uid=uid)
+    """ Returns AWS accounts to use for queue management """
+    uid = os.environ['gitlab_pr_submitter_queue_url'].split('/')[3]
+    return get_aws_accounts(uid=uid)
 
 
 CLUSTERS_QUERY = """
