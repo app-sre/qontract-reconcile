@@ -205,14 +205,14 @@ def valid_diff(current_state, desired_state):
         c.pop('parameters')
         c['saas_file_definitions'].pop('use_channel_in_image_tag')
         c.pop('disable')
-        c.pop('deploy_resources')
+        c.pop('saas_file_deploy_resources')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
         d['saas_file_definitions'].pop('use_channel_in_image_tag')
         d.pop('disable')
-        d.pop('deploy_resources')
+        d.pop('saas_file_deploy_resources')
     return current_state_copy == desired_state_copy
 
 
