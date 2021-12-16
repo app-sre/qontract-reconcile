@@ -301,10 +301,10 @@ def get_aws_accounts(reset_passwords=False, name=None):
     return gqlapi.query(query)['accounts']
 
 
-def get_state_aws_account():
+def get_state_aws_account(reset_passwords=False):
   """ Returns an AWS account to use for state management """
   name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
-  return get_aws_accounts(name=name)
+  return get_aws_accounts(reset_passwords=reset_passwords, name=name)
 
 
 CLUSTERS_QUERY = """
