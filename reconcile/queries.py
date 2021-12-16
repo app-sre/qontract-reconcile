@@ -243,7 +243,11 @@ def get_github_orgs():
 
 AWS_ACCOUNTS_QUERY = """
 {
-  accounts: awsaccounts_v1 {
+  accounts: awsaccounts_v1
+  {% if name %}
+  (name: "{{ name }}")
+  {% endif %}
+  {
     path
     name
     uid
@@ -286,11 +290,12 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
-def get_aws_accounts(reset_passwords=False):
+def get_aws_accounts(reset_passwords=False, name=None):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
     query = Template(AWS_ACCOUNTS_QUERY).render(
         reset_passwords=reset_passwords,
+        name=name,
     )
     return gqlapi.query(query)['accounts']
 
