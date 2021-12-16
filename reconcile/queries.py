@@ -1478,6 +1478,16 @@ SAAS_FILES_QUERY_V2 = """
         }
       }
     }
+    deployResources {
+      requests {
+        cpu
+        memory
+      }
+      limits {
+        cpu
+        memory
+      }
+    }
     slack {
       output
       workspace {
