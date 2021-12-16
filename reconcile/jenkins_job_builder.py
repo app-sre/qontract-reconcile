@@ -214,7 +214,7 @@ def run(dry_run, io_dir='throughput/', print_only=False,
             jjb.generate(io_dir, 'printout')
         sys.exit(0)
 
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,

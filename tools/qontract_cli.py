@@ -874,7 +874,7 @@ def state(ctx):
 @click.pass_context
 def ls(ctx, integration):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     keys = state.ls()
     # if integration in not defined the 2th token will be the integration name
@@ -893,7 +893,7 @@ def ls(ctx, integration):
 @click.pass_context
 def get(ctx, integration, key):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     value = state.get(key)
     print(value)
@@ -905,7 +905,7 @@ def get(ctx, integration, key):
 @click.pass_context
 def add(ctx, integration, key):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.add(key)
 
@@ -917,7 +917,7 @@ def add(ctx, integration, key):
 @click.pass_context
 def set(ctx, integration, key, value):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.add(key, value=value, force=True)
 
@@ -928,7 +928,7 @@ def set(ctx, integration, key, value):
 @click.pass_context
 def rm(ctx, integration, key):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration, accounts, settings=settings)
     state.rm(key)
 

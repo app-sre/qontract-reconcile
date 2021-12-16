@@ -137,7 +137,7 @@ def act(dry_run, state, unleash_instance, diffs):
 
 def run(dry_run):
     unleash_instances = queries.get_unleash_instances()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     settings = queries.get_app_interface_settings()
     state = State(
         integration=QONTRACT_INTEGRATION,
