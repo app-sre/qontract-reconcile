@@ -305,18 +305,9 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             logging.info(['delete_sts_and_apply', cluster, namespace,
                           resource_type, resource.name])
-            owned_pods = oc.get_owned_pods(namespace, resource)
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=False)
             oc.apply(namespace=namespace, resource=annotated)
-            logging.info(['recycle_sts_pods', cluster, namespace,
-                          resource_type, resource.name])
-            # the resource was applied without cascading, we proceed
-            # to recycle the pods belonging to the old resource.
-            # note: we really just delete pods and let the new resource
-            # recreate them. we delete one by one and wait for a new
-            # pod to become ready before proceeding to the next one.
-            oc.recycle_orphan_pods(namespace, owned_pods)
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
