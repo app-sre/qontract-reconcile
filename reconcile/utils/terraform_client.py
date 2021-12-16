@@ -261,7 +261,7 @@ class TerraformClient:
             expiration = datetime.strptime(da['expiration'], DATE_FORMAT)
             if resource_type == da['type'] \
                     and resource_name == da['name'] \
-                    and expiration <= now:
+                    and now <= expiration:
                 return True
 
         return False
