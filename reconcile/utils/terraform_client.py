@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 
+from datetime import datetime
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
@@ -18,12 +19,17 @@ from reconcile.utils import gql
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
+DATE_FORMAT = '%Y-%m-%d'
 
 
 @dataclass
 class AccountUser:
     account: str
     user: str
+
+
+class DeletionApprovalExpirationValueError(Exception):
+    pass
 
 
 class TerraformClient:
@@ -219,7 +225,10 @@ class TerraformClient:
                 if action == 'delete':
                     if resource_type in always_enabled_deletions:
                         continue
-                    if not deletions_allowed:
+
+                    if not deletions_allowed and not \
+                            self.deletion_approved(
+                                name, resource_type, resource_name):
                         disabled_deletion_detected = True
                         logging.error(
                             '\'delete\' action is not enabled. ' +
@@ -245,6 +254,28 @@ class TerraformClient:
                                 'The new MR must be merged first.'
                             )
         return disabled_deletion_detected, deleted_users, created_users
+
+    def deletion_approved(self, account_name, resource_type, resource_name):
+        account = self.accounts[account_name]
+        deletion_approvals = account.get('deletionApprovals')
+        if not deletion_approvals:
+            return False
+        now = datetime.utcnow()
+        for da in deletion_approvals:
+            try:
+                expiration = datetime.strptime(da['expiration'], DATE_FORMAT)
+            except ValueError:
+                raise DeletionApprovalExpirationValueError(
+                    f"[{account_name}] expiration not does not match "
+                    f"date format {DATE_FORMAT}. details: "
+                    f"type: {da['type']}, name: {da['name']}"
+                )
+            if resource_type == da['type'] \
+                    and resource_name == da['name'] \
+                    and now <= expiration:
+                return True
+
+        return False
 
     @staticmethod
     def terraform_show(name, working_dir):

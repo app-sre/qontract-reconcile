@@ -264,6 +264,11 @@ AWS_ACCOUNTS_QUERY = """
     }
     garbageCollection
     enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
     disable {
       integrations
     }
