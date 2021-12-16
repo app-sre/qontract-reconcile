@@ -219,7 +219,10 @@ class TerraformClient:
                 if action == 'delete':
                     if resource_type in always_enabled_deletions:
                         continue
-                    if not deletions_allowed:
+
+                    if not deletions_allowed and not \
+                            self.deletion_approved(
+                                name, resource_type, resource_name):
                         disabled_deletion_detected = True
                         logging.error(
                             '\'delete\' action is not enabled. ' +
@@ -245,6 +248,9 @@ class TerraformClient:
                                 'The new MR must be merged first.'
                             )
         return disabled_deletion_detected, deleted_users, created_users
+
+    def deletion_approved(self, account_name, resource_type, resource_name):
+        return False
 
     @staticmethod
     def terraform_show(name, working_dir):
