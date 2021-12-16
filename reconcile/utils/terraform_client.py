@@ -28,6 +28,10 @@ class AccountUser:
     user: str
 
 
+class DeletionApprovalExpirationValueError(Exception):
+    pass
+
+
 class TerraformClient:
     def __init__(self, integration, integration_version,
                  integration_prefix, accounts, working_dirs, thread_pool_size,
@@ -258,7 +262,14 @@ class TerraformClient:
             return False
         now = datetime.utcnow()
         for da in deletion_approvals:
-            expiration = datetime.strptime(da['expiration'], DATE_FORMAT)
+            try:
+                expiration = datetime.strptime(da['expiration'], DATE_FORMAT)
+            except ValueError:
+                raise DeletionApprovalExpirationValueError(
+                    f"[{account_name}] expiration not does not match "
+                    f"date format {DATE_FORMAT}. details: "
+                    f"type: {da['type']}, name: {da['name']}"
+                )
             if resource_type == da['type'] \
                     and resource_name == da['name'] \
                     and now <= expiration:

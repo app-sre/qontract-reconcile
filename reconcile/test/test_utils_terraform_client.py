@@ -85,3 +85,25 @@ class TestDeletionApproved(TestCase):
         )
         result = tf.deletion_approved('a1', 't1', 'n1')
         self.assertTrue(result)
+
+    def test_expiration_value_error(self):
+        account = {
+            'name': 'a1',
+            'deletionApprovals': [
+                {
+                    'type': 't1',
+                    'name': 'n1',
+                    'expiration': '2000'
+                }
+            ]
+        }
+        tf = tfclient.TerraformClient(
+            'integ',
+            'v1',
+            'integ_pfx',
+            [account],
+            {},
+            1
+        )
+        with self.assertRaises(tfclient.DeletionApprovalExpirationValueError):
+            tf.deletion_approved('a1', 't1', 'n1')
