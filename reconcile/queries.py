@@ -810,6 +810,7 @@ def get_namespaces(minimal=False):
 
 
 SA_TOKEN = """
+name
 namespace {
   name
   cluster {

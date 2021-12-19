@@ -54,7 +54,7 @@ def fetch_desired_state(namespaces, ri, oc_map):
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
             sa_token = oc.sa_get_token(sa_namespace_name, sa_name)
-            oc_resource_name = \
+            oc_resource_name = sat.get('name') or \
                 f"{sa_cluster_name}-{sa_namespace_name}-{sa_name}"
             oc_resource = construct_sa_token_oc_resource(
                 oc_resource_name, sa_name, sa_token)
