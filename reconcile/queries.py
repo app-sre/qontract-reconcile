@@ -1786,6 +1786,9 @@ JIRA_BOARDS_QUERY = """
       serverUrl
       token {
         path
+        field
+        version
+        format
       }
     }
     slack {
