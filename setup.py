@@ -38,7 +38,7 @@ setup(
         "pypd>=1.1.0,<1.2.0",
         "Jinja2>=2.10.1,<2.11.0",
         "jira~=3.1",
-        "pyOpenSSL>=19.0.0,<20.0.0",
+        "pyOpenSSL~=21.0",
         "ruamel.yaml>=0.16.5,<0.17.0",
         "terrascript==0.9.0",
         "tabulate>=0.8.6,<0.9.0",
