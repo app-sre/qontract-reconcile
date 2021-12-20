@@ -52,6 +52,11 @@ provider
   overrides
   sqs_identifier
   s3_events
+  event_notifications {
+    destination_type
+    destination
+    event_type
+  }
   bucket_policy
   output_resource_name
   storage_class
@@ -501,7 +506,6 @@ def run(dry_run, print_only=False,
         err = tf.apply()
         if err:
             cleanup_and_exit(tf, err)
-
     tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
 
     actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,

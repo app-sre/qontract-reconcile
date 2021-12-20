@@ -31,6 +31,7 @@ from terrascript.resource import (
     aws_elasticache_replication_group,
     aws_elasticache_parameter_group,
     aws_iam_user_policy_attachment,
+    aws_sns_topic,
     aws_sqs_queue, aws_dynamodb_table,
     aws_ecr_repository, aws_s3_bucket_policy,
     aws_cloudfront_origin_access_identity,
@@ -95,7 +96,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
-                 'storage_class', 'kms_encryption',
+                 'event_notifications', 'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
@@ -1514,7 +1515,7 @@ class TerrascriptClient:
         endpoint = 's3.{}.amazonaws.com'.format(region)
         output_name_0_13 = output_prefix + '__endpoint'
         tf_resources.append(Output(output_name_0_13, value=endpoint))
-
+        
         sqs_identifier = common_values.get('sqs_identifier', None)
         if sqs_identifier is not None:
             sqs_values = {
@@ -1547,6 +1548,60 @@ class TerrascriptClient:
 
             notification_tf_resource = aws_s3_bucket_notification(
                 sqs_identifier, **notification_values)
+            tf_resources.append(notification_tf_resource)
+        
+        event_notifications = common_values.get('event_notifications')
+        
+        for event_notification in event_notifications:
+            destination_type = event_notification['destination_type']
+            detination_identifier = event_notification['destination']
+            event_type = event_notification['event_type']
+
+            if detination_identifier is not None:
+                identifier_is_arn = True if detination_identifier.startswith('arn:') else False
+            if identifier_is_arn:
+                resource_name = detination_identifier.split(':')[-1]           
+                resource_arn = detination_identifier
+            else:
+                resource_name = detination_identifier
+                resource_arn = '${data.aws_sns_topic.' + detination_identifier + '.arn}'
+                
+            resource_values = {
+                'name': resource_name
+            }
+            resource_provider = values.get('provider')
+            if resource_provider:
+                resource_values['provider'] = resource_provider
+                
+            if destination_type == 'sns':
+                resource_data = data.aws_sns_topic(resource_name, **resource_values)
+                notification_value_key = 'topic'
+            elif destination_type == 'sqs':
+                resource_data = data.aws_sqs_queue(resource_name, **resource_values)
+                notification_value_key = 'queue'
+
+            tf_resources.append(resource_data) 
+            s3_events = event_type
+            notification_values = {
+                'bucket': '${' + bucket_tf_resource.id + '}',
+                notification_value_key: [{
+                    'id': resource_name,
+                    notification_value_key+'_arn': resource_arn,
+                    'events': s3_events
+                }]
+            }
+
+            filter_prefix = event_notification.get('filter_prefix', None)
+            if filter_prefix is not None:
+                notification_values[notification_value_key][0]['filter_prefix'] = \
+                    filter_prefix
+            filter_suffix = event_notification.get('filter_suffix', None)
+            if filter_suffix is not None:
+                notification_values[notification_value_key][0]['filter_suffix'] = \
+                    filter_suffix
+
+            notification_tf_resource = aws_s3_bucket_notification(
+                identifier+'-'+resource_name, **notification_values)
             tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get('bucket_policy')
