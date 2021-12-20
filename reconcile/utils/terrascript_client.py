@@ -66,6 +66,9 @@ from terrascript.resource import (
     aws_lb_listener_rule,
     aws_secretsmanager_secret,
     aws_secretsmanager_secret_version,
+    aws_iam_instance_profile,
+    aws_launch_template,
+    aws_autoscaling_group,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -83,6 +86,7 @@ from reconcile.utils.elasticsearch_exceptions \
     import (ElasticSearchResourceNameInvalidError,
             ElasticSearchResourceMissingSubnetIdError,
             ElasticSearchResourceZoneAwareSubnetInvalidError)
+import reconcile.openshift_resources_base as orb
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
@@ -95,7 +99,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access']
+                 'aws_infrastructure_access', 'cloudinit_configs']
 
 
 class UnknownProviderError(Exception):
@@ -174,6 +178,10 @@ class TerrascriptClient:
 
             ts += provider.random(
                 version="3.1.0"
+            )
+
+            ts += provider.template(
+                version="2.2.0"
             )
 
             b = Backend("s3",
@@ -895,6 +903,8 @@ class TerrascriptClient:
                                           ocm_map=ocm_map)
         elif provider == 'secrets-manager':
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
+        elif provider == 'asg':
+            self.populate_tf_resource_asg(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -3002,12 +3012,17 @@ class TerrascriptClient:
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
     @staticmethod
-    def get_values(path):
+    def get_raw_values(path):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
             raise FetchResourceError(str(e))
+        return raw_values
+
+    @staticmethod
+    def get_values(path):
+        raw_values = TerrascriptClient.get_raw_values(path)
         try:
             values = anymarkup.parse(
                 raw_values['content'],
@@ -3750,6 +3765,138 @@ class TerrascriptClient:
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__version_id'
         output_value = '${' + aws_version_resource.version_id + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_asg(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        tags = common_values['tags']
+        tags['Name'] = identifier
+
+        template_values = {
+            "name": identifier,
+            "image_id": common_values.get('image_id'),
+            "vpc_security_group_ids":
+                common_values.get('vpc_security_group_ids'),
+            "update_default_version":
+                common_values.get('update_default_version'),
+            "block_device_mappings":
+                common_values.get('block_device_mappings'),
+            "tags": tags,
+            "tag_specifications": [
+                {
+                    "resource_type": "instance",
+                    "tags": tags
+                },
+                {
+                    "resource_type": "volume",
+                    "tags": tags
+                }
+            ]
+        }
+
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            template_values['provider'] = 'aws.' + region
+
+        role_name = common_values.get('iam_role_name')
+        if role_name:
+            profile_value = {
+                "name": identifier,
+                "role": role_name
+            }
+            if self._multiregion_account_(account):
+                profile_value['provider'] = 'aws.' + region
+            profile_resource = \
+                aws_iam_instance_profile(identifier, **profile_value)
+            tf_resources.append(profile_resource)
+            template_values['iam_instance_profile'] = {
+                "name": profile_resource.name
+            }
+
+        cloudinit_configs = common_values.get('cloudinit_configs')
+        if cloudinit_configs:
+            vars = {}
+            variables = common_values.get('variables')
+            if variables:
+                vars = json.loads(variables)
+            vars.update({'aws_region': region})
+            vars.update({'aws_account_id': self.uids.get(account)})
+            part = []
+            for c in cloudinit_configs:
+                raw = self.get_raw_values(c['content'])
+                content = orb.process_extracurlyjinja2_template(
+                    body=raw['content'], vars=vars)
+                # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
+                content = content.replace("${", "$${")
+                content = content.replace("%{", "%%{")
+                part.append({
+                    "filename": c.get('filename'),
+                    "content_type": c.get('content_type'),
+                    "content": content
+                })
+            cloudinit_value = {
+                "gzip": True,
+                "base64_encode": True,
+                "part": part
+            }
+            cloudinit_data = data.template_cloudinit_config(
+                identifier, **cloudinit_value)
+            tf_resources.append(cloudinit_data)
+            template_values['user_data'] = '${' + cloudinit_data.rendered + '}'
+        template_resource = aws_launch_template(identifier, **template_values)
+        tf_resources.append(template_resource)
+
+        asg_value = {
+            "name": identifier,
+            "max_size": common_values.get('max_size'),
+            "min_size": common_values.get('min_size'),
+            "availability_zones": common_values.get('availability_zones'),
+            "capacity_rebalance": common_values.get('capacity_rebalance'),
+            "mixed_instances_policy": {
+                "instances_distribution": common_values.get(
+                    'instances_distribution'),
+                "launch_template": {
+                    "launch_template_specification": {
+                        "launch_template_id":
+                            '${' + template_resource.id + '}',
+                        "version":
+                            '${' + template_resource.latest_version + '}'
+                    }
+                }
+            },
+            "instance_refresh": {
+                "strategy": "Rolling",
+                "preferences":
+                    common_values.get('instance_refresh_preferences')
+            }
+        }
+        instance_types = common_values.get('instance_types')
+        if instance_types:
+            override = [{"instance_type": i} for i in instance_types]
+            (asg_value['mixed_instances_policy']
+                      ['launch_template']['override']) = override
+        asg_value['tags'] = [{
+            "key": k,
+            "value": v,
+            "propagate_at_launch": True
+            } for k, v in tags.items()]
+        asg_resource = aws_autoscaling_group(identifier, **asg_value)
+        tf_resources.append(asg_resource)
+
+        # outputs
+        output_name_0_13 = output_prefix + '__template_latest_version'
+        output_value = '${' + template_resource.latest_version + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
