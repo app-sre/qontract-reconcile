@@ -3,9 +3,6 @@ import json
 import logging
 import os
 import itertools
-import hashlib
-from collections import ChainMap
-
 from contextlib import suppress
 import yaml
 
@@ -23,8 +20,6 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
-
-TARGET_CONFIG_HASH = "target_config_hash"
 
 
 class Providers:
@@ -566,11 +561,6 @@ class SaasHerder():
                 f"unknown provider: {provider}")
 
         target_promotion['commit_sha'] = commit_sha
-        # This target_promotion data is used in publish_promotions
-        if target_promotion.get('publish'):
-            target_promotion['saas_file'] = saas_file_name
-            target_promotion[TARGET_CONFIG_HASH] = options[TARGET_CONFIG_HASH]
-
         return resources, html_url, target_promotion
 
     @staticmethod
@@ -738,8 +728,7 @@ class SaasHerder():
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
 
-        target_configs = self.get_saas_targets_config(saas_file)
-        # iterate over resource templates (multiple per saas_file)
+        # Iterate over resource templates (multiple per saas_file).
         for rt in resource_templates:
             rt_name = rt['name']
             url = rt['url']
@@ -757,18 +746,8 @@ class SaasHerder():
                 if target.get('disable'):
                     # Warning is logged during SaasHerder initiation.
                     continue
-
-                cluster = target['namespace']['cluster']['name']
-                namespace = target['namespace']['name']
-                env_name = target['namespace']['environment']['name']
-
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster}/"
-                    f"{namespace}/{env_name}"
-                )
-                # Convert to dict, ChainMap is not JSON serializable
-                digest = SaasHerder.get_target_config_hash(target_configs[key])
-
+                cluster, namespace = \
+                    self._get_cluster_and_namespace(target)
                 process_template_options = {
                     'saas_file_name': saas_file_name,
                     'resource_template_name': rt_name,
@@ -779,8 +758,7 @@ class SaasHerder():
                     'hash_length': hash_length,
                     'target': target,
                     'parameters': consolidated_parameters,
-                    'github': github,
-                    TARGET_CONFIG_HASH: digest
+                    'github': github
                 }
                 check_images_options_base = {
                     'saas_file_name': saas_file_name,
@@ -1107,68 +1085,22 @@ class SaasHerder():
         return list(itertools.chain.from_iterable(results))
 
     def get_configs_diff_saas_file(self, saas_file):
-        # Dict by key
-        targets = self.get_saas_targets_config(saas_file)
-
-        pipelines_provider = self._get_pipelines_provider(saas_file)
-        configurable_resources = saas_file.get('configurableResources', False)
-        trigger_specs = []
-
-        for key, desired_target_config in targets.items():
-            current_target_config = self.state.get(key, None)
-            # skip if there is no change in target configuration
-            if current_target_config == desired_target_config:
-                continue
-
-            saas_file_name, rt_name, cluster_name, \
-                namespace_name, env_name = key.split("/")
-
-            job_spec = {
-                'saas_file_name': saas_file_name,
-                'env_name': env_name,
-                'timeout': saas_file.get('timeout') or None,
-                'pipelines_provider': pipelines_provider,
-                'configurable_resources': configurable_resources,
-                'rt_name': rt_name,
-                'cluster_name': cluster_name,
-                'namespace_name': namespace_name,
-                'target_config': desired_target_config
-            }
-            trigger_specs.append(job_spec)
-        return trigger_specs
-
-    @staticmethod
-    def get_target_config_hash(target_config):
-        # Ensure dict, ChainMap is not JSON serializable
-        tc_dict = dict(target_config)
-        m = hashlib.sha256()
-        m.update(json.dumps(tc_dict, sort_keys=True).encode("utf-8"))
-        digest = m.hexdigest()[:16]
-        return digest
-
-    def get_saas_targets_config(self, saas_file):
-        configs = {}
         saas_file_name = saas_file['name']
         saas_file_parameters = saas_file.get('parameters')
         saas_file_managed_resource_types = saas_file['managedResourceTypes']
+        timeout = saas_file.get('timeout') or None
+        pipelines_provider = self._get_pipelines_provider(saas_file)
+        trigger_specs = []
         for rt in saas_file['resourceTemplates']:
             rt_name = rt['name']
             url = rt['url']
             path = rt['path']
             rt_parameters = rt.get('parameters')
-            for v in rt['targets']:
-                # ChainMap will store modifications avoiding a deep copy
-                desired_target_config = ChainMap({}, v)
+            for desired_target_config in rt['targets']:
                 namespace = desired_target_config['namespace']
-
                 cluster_name = namespace['cluster']['name']
                 namespace_name = namespace['name']
                 env_name = namespace['environment']['name']
-
-                # This will add the namespace key/value to the chainMap, but
-                # the target will remain with the original value
-                # When the namespace key is looked up, the chainmap will
-                # return the modified attribute ( set in the first mapping)
                 desired_target_config['namespace'] = \
                     self.sanitize_namespace(namespace)
                 # add parent parameters to target config
@@ -1180,12 +1112,26 @@ class SaasHerder():
                 desired_target_config['url'] = url
                 desired_target_config['path'] = path
                 desired_target_config['rt_parameters'] = rt_parameters
-                key = (
-                    f"{saas_file_name}/{rt_name}/{cluster_name}/"
+                # get current target config from state
+                key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
                     f"{namespace_name}/{env_name}"
-                )
-                configs[key] = desired_target_config
-        return configs
+                current_target_config = self.state.get(key, None)
+                # skip if there is no change in target configuration
+                if current_target_config == desired_target_config:
+                    continue
+                job_spec = {
+                    'saas_file_name': saas_file_name,
+                    'env_name': env_name,
+                    'timeout': timeout,
+                    'pipelines_provider': pipelines_provider,
+                    'rt_name': rt_name,
+                    'cluster_name': cluster_name,
+                    'namespace_name': namespace_name,
+                    'target_config': desired_target_config
+                }
+                trigger_specs.append(job_spec)
+
+        return trigger_specs
 
     @staticmethod
     def _get_pipelines_provider(saas_file):
@@ -1239,7 +1185,7 @@ class SaasHerder():
             f"{namespace_name}/{env_name}"
         self.state.add(key, value=target_config, force=True)
 
-    def validate_promotions(self, all_saas_files):
+    def validate_promotions(self):
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met. """
@@ -1248,13 +1194,13 @@ class SaasHerder():
                 continue
             # validate that the commit sha being promoted
             # was succesfully published to the subscribed channel(s)
+            commit_sha = item['commit_sha']
             subscribe = item.get('subscribe')
             if subscribe:
-                commit_sha = item['commit_sha']
                 for channel in subscribe:
                     state_key = f"promotions/{channel}/{commit_sha}"
-                    stateobj = self.state.get(state_key, {})
-                    success = stateobj.get('success')
+                    value = self.state.get(state_key, {})
+                    success = value.get('success')
                     if not success:
                         logging.error(
                             f'Commit {commit_sha} was not ' +
@@ -1262,76 +1208,28 @@ class SaasHerder():
                         )
                         return False
 
-                    parent_config_hash = stateobj.get(TARGET_CONFIG_HASH)
-                    promoter_saas_name = stateobj.get("saas_file")
-
-                    if not parent_config_hash or not promoter_saas_name:
-                        logging.info("Promotion without parent saas config")
-                        return True
-
-                    # Get the saas object from graphql
-                    for saas in all_saas_files:
-                        if saas['name'] == promoter_saas_name:
-                            promoter_saas_obj = saas
-                    # Get the target configurations in the promoter saas
-                    promoter_tcs = \
-                        self.get_saas_targets_config(promoter_saas_obj)
-
-                    # Get the promoter tc filtering by channel
-                    # Channel is unique
-                    for tc in promoter_tcs.values():
-                        promotion = tc.get('promotion')
-                        if not promotion:
-                            continue
-                        publish = promotion.get('publish')
-                        if not publish:
-                            continue
-                        for promoter_channel in publish:
-                            if promoter_channel == channel:
-                                promotion_config = tc
-                                break
-
-                    # Get the tc config hash
-                    # Promotion dict is modified in _process_template method
-                    # remove
-                    tc_hash = \
-                        SaasHerder.get_target_config_hash(promotion_config)
-
-                    # Compare the config hash with the published one
-                    # This ensures the parent job has succed with the current
-                    # configuration
-                    if tc_hash != parent_config_hash:
-                        logging.error(
-                            "Promotion state object was generated with an old"
-                            "configuration of the parent job"
-                        )
-                        return False
         return True
 
-    def publish_promotions(self, success, all_saas_files, mr_cli):
+    def publish_promotions(self, success, saas_files, mr_cli):
         """
-        If there were promotion sections in the participating saas file
+        If there were promotion sections in the participating saas files
         publish the results for future promotion validations. """
         subscribe_saas_file_path_map = \
-            self._get_subscribe_saas_file_path_map(
-                all_saas_files, auto_only=True)
+            self._get_subscribe_saas_file_path_map(saas_files, auto_only=True)
         trigger_promotion = False
-
         for item in self.promotions:
             if item is None:
                 continue
             commit_sha = item['commit_sha']
             publish = item.get('publish')
             if publish:
-                value = {
-                    'success': success,
-                    'saas_file': item["saas_file"],
-                    TARGET_CONFIG_HASH: item.get(TARGET_CONFIG_HASH)
-                }
                 all_subscribed_saas_file_paths = set()
                 for channel in publish:
                     # publish to state to pass promotion gate
                     state_key = f"promotions/{channel}/{commit_sha}"
+                    value = {
+                        'success': success
+                    }
                     self.state.add(state_key, value, force=True)
                     logging.info(
                         f'Commit {commit_sha} was published ' +
@@ -1343,9 +1241,7 @@ class SaasHerder():
                     if subscribed_saas_file_paths:
                         all_subscribed_saas_file_paths.update(
                             subscribed_saas_file_paths)
-
                 item['saas_file_paths'] = list(all_subscribed_saas_file_paths)
-
                 if all_subscribed_saas_file_paths:
                     trigger_promotion = True
 
