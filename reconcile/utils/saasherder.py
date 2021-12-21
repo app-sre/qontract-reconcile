@@ -1237,7 +1237,7 @@ class SaasHerder():
         target_config = job_spec['target_config']
         key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
             f"{namespace_name}/{env_name}"
-        self.state.add(key, value=target_config, force=True)
+        self.state.add(key, value=dict(target_config), force=True)
 
     def validate_promotions(self, all_saas_files):
         """
