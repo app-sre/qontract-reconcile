@@ -257,6 +257,20 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceASG_v1 {
+  account
+  region
+  identifier
+  defaults
+  cloudinit_configs {
+    filename
+    content_type
+    content
+  }
+  variables
+  output_resource_name
+  annotations
+}
 """
 
 

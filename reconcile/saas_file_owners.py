@@ -58,6 +58,7 @@ def collect_state():
     for saas_file in saas_files:
         saas_file_path = saas_file['path']
         saas_file_name = saas_file['name']
+        saas_file_deploy_resources = saas_file.get('deployResources')
         saas_file_parameters = json.loads(saas_file.get('parameters') or '{}')
         saas_file_definitions = {
             'managed_resource_types': saas_file['managedResourceTypes'],
@@ -88,6 +89,7 @@ def collect_state():
                 state.append({
                     'saas_file_path': saas_file_path,
                     'saas_file_name': saas_file_name,
+                    'saas_file_deploy_resources': saas_file_deploy_resources,
                     'resource_template_name': resource_template_name,
                     'cluster': cluster,
                     'namespace': namespace,
@@ -203,12 +205,14 @@ def valid_diff(current_state, desired_state):
         c.pop('parameters')
         c['saas_file_definitions'].pop('use_channel_in_image_tag')
         c.pop('disable')
+        c.pop('saas_file_deploy_resources')
     desired_state_copy = copy.deepcopy(desired_state)
     for d in desired_state_copy:
         d.pop('ref')
         d.pop('parameters')
         d['saas_file_definitions'].pop('use_channel_in_image_tag')
         d.pop('disable')
+        d.pop('saas_file_deploy_resources')
     return current_state_copy == desired_state_copy
 
 

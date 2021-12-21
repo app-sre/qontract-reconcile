@@ -12,18 +12,8 @@ class JiraClient:
         jira_server = jira_board['server']
         self.server = jira_server['serverUrl']
         token = jira_server['token']
-        basic_auth = self.get_basic_auth(token)
-        self.jira = JIRA(self.server, basic_auth=basic_auth)
-
-    def get_basic_auth(self, token):
-        required_keys = ['username', 'password']
-        secret = self.secret_reader.read_all(token)
-        ok = all(elem in secret.keys() for elem in required_keys)
-        if not ok:
-            raise KeyError(
-                '[{}] secret is missing required keys'.format(self.project))
-
-        return (secret['username'], secret['password'])
+        token_auth = self.secret_reader.read(token)
+        self.jira = JIRA(self.server, token_auth=token_auth)
 
     def get_issues(self, fields=None):
         block_size = 100

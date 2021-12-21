@@ -264,6 +264,11 @@ AWS_ACCOUNTS_QUERY = """
     }
     garbageCollection
     enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
     disable {
       integrations
     }
@@ -805,6 +810,7 @@ def get_namespaces(minimal=False):
 
 
 SA_TOKEN = """
+name
 namespace {
   name
   cluster {
@@ -1488,6 +1494,16 @@ SAAS_FILES_QUERY_V2 = """
         }
       }
     }
+    deployResources {
+      requests {
+        cpu
+        memory
+      }
+      limits {
+        cpu
+        memory
+      }
+    }
     slack {
       output
       workspace {
@@ -1791,6 +1807,9 @@ JIRA_BOARDS_QUERY = """
       serverUrl
       token {
         path
+        field
+        version
+        format
       }
     }
     slack {
