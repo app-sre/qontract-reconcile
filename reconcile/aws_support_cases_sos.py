@@ -1,3 +1,4 @@
+import itertools
 import logging
 
 from reconcile import queries
@@ -59,9 +60,19 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10,
     existing_keys = aws.get_users_keys()
     aws_support_cases = aws.get_support_cases()
     keys_to_delete_from_cases = get_keys_to_delete(aws_support_cases)
-    keys_to_delete = [ktd for ktd in keys_to_delete_from_cases
-                      if deleted_keys.get(ktd['account']) is not None
-                      and existing_keys.get(ktd['account']) is not None
-                      and ktd['key'] not in deleted_keys[ktd['account']]
-                      and ktd['key'] in existing_keys[ktd['account']]]
+    keys_to_delete = []
+    for ktd in keys_to_delete_from_cases:
+        ktd_account = ktd['account']
+        ktd_key = ktd['key']
+        account_deleted_keys = deleted_keys.get(ktd_account)
+        if account_deleted_keys and ktd_key in account_deleted_keys:
+            continue
+        account_existing_keys = existing_keys.get(ktd_account)
+        if account_existing_keys:
+            keys_only = \
+                itertools.chain.from_iterable(account_existing_keys.values())
+            if ktd_key not in keys_only:
+                continue
+        keys_to_delete.append(ktd)
+
     act(dry_run, gitlab_project_id, accounts, keys_to_delete)
