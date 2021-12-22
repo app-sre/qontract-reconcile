@@ -1,4 +1,3 @@
-import copy
 from typing import Any
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
@@ -501,7 +500,11 @@ class TestGetSaasFileAttribute(TestCase):
         self.assertFalse(att)
 
 
-class TestConfigHashTriggers(TestCase):
+class TestConfigHashPromotionsValidation(TestCase):
+    """ TestCase to test SaasHerder promotions validation. SaasHerder is
+    initialized with ResourceInventory population. Like is done in
+    openshift-saas-deploy"""
+
     cluster: str
     namespace: str
     fxt: Any
@@ -515,7 +518,7 @@ class TestConfigHashTriggers(TestCase):
 
     def setUp(self) -> None:
         self.all_saas_files = \
-            [self.fxt.get_anymarkup('saas_file_deployment.yml')]
+            [self.fxt.get_anymarkup('saas.gql.yml')]
 
         self.state_patcher = \
             patch("reconcile.utils.saasherder.State", autospec=True)
@@ -525,18 +528,26 @@ class TestConfigHashTriggers(TestCase):
             patch.object(SaasHerder, "_initiate_github", autospec=True)
         self.ig_patcher.start()
 
+        self.image_auth_patcher = \
+            patch.object(SaasHerder, "_initiate_image_auth")
+        self.image_auth_patcher.start()
+
         self.gfc_patcher = \
             patch.object(SaasHerder, "_get_file_contents", autospec=True)
         gfc_mock = self.gfc_patcher.start()
 
-        self.saas_file = self.fxt.get_anymarkup('saas_file_deployment.yml')
+        self.saas_file = \
+            self.fxt.get_anymarkup('saas.gql.yml')
+        # ApiVersion is set in the saas gql query method in queries module
+        self.saas_file["apiVersion"] = "v2"
+
         gfc_mock.return_value = (self.template, "url", "ahash")
 
-        self.ri = ResourceInventory()
-        for ns in ["test-ns-publisher", "test-ns-subscriber"]:
-            for kind in ["Service", "Deployment"]:
-                self.ri.initialize_resource_type(
-                    self.cluster, ns, kind)
+        self.deploy_current_state_fxt = \
+            self.fxt.get_anymarkup('saas_deploy.state.json')
+
+        self.post_deploy_current_state_fxt = \
+            self.fxt.get_anymarkup('saas_post_deploy.state.json')
 
         self.saasherder = SaasHerder(
             [self.saas_file],
@@ -545,11 +556,20 @@ class TestConfigHashTriggers(TestCase):
             integration='',
             integration_version='',
             accounts={"name": "test-account"},  # Initiates State in SaasHerder
-            settings={}
+            settings={
+                "hashLength": 24
+            }
         )
 
-        self.saasherder.populate_desired_state(self.ri)
+        # IMPORTANT: Populating desired state modify self.saas_files within
+        # saasherder object.
+        self.ri = ResourceInventory()
+        for ns in ["test-ns-publisher", "test-ns-subscriber"]:
+            for kind in ["Service", "Deployment"]:
+                self.ri.initialize_resource_type(
+                    self.cluster, ns, kind)
 
+        self.saasherder.populate_desired_state(self.ri)
         if self.ri.has_error_registered():
             raise Exception("Errors registered in Resourceinventory")
 
@@ -559,24 +579,122 @@ class TestConfigHashTriggers(TestCase):
         self.gfc_patcher.stop()
 
     def test_config_hash_is_filled(self):
-        """ Ensures the get_config_diff_saas_file fills the promotion_data
-            on the publisher target
+        """ Ensures the get_config_diff_saas_file fills the promotion data
+            on the publisher target. This data is used in publish_promotions
+            method to add the hash to subscribed targets.
+            IMPORTANT: This is not the promotion_data within promotion. This
+            fields are set by _process_template method in saasherder
         """
         job_spec = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)[0]
         promotion = job_spec["target_config"]["promotion"]
         self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
-    def test_same_configs_do_not_trigger(self):
-        """ Ensures that if the same config is found, no job is triggered
-            current Config is fetched from the state
+    def test_promotion_state_config_hash_match_validates(self):
+        """ A promotion is valid if the pusblisher state got from the state
+            is equal to the one set in the subscriber target promotion data.
+            This is the happy path, publisher job state target config hash is
+            the same set in the subscriber job
         """
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
-        desired_tcs = list(configs.values())
-        self.state_mock.get.side_effect = desired_tcs
+        tcs = list(configs.values())
+        publisher_config_hash = tcs[0]['promotion'][TARGET_CONFIG_HASH]
 
+        publisher_state = {
+            "success": True,
+            "saas_file": self.saas_file["name"],
+            TARGET_CONFIG_HASH: publisher_config_hash
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions(self.all_saas_files)
+        self.assertTrue(result)
+
+    def test_promotion_state_config_hash_not_match_no_validates(self):
+        """ Promotion is not valid if the parent target config hash set in
+        promotion data is not the same set in the publisher job state. This
+        could happen if a new publisher job has before the subscriber job
+        """
+        publisher_state = {
+            "success": True,
+            "saas_file": self.saas_file["name"],
+            TARGET_CONFIG_HASH: "will_not_match"
+        }
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions(self.all_saas_files)
+        self.assertFalse(result)
+
+    def test_promotion_without_state_config_hash_validates(self):
+        """ Existent states won't have promotion data. If there is an ongoing
+            promotion, this ensures it will happen.
+        """
+        promotion_result = {
+            "success": True,
+        }
+        self.state_mock.get.return_value = promotion_result
+        result = self.saasherder.validate_promotions(self.all_saas_files)
+        self.assertTrue(result)
+
+
+class TestConfigHashTrigger(TestCase):
+    """ TestCase to test Openshift SAAS deploy configs trigger. SaasHerder is
+    initialized WITHOUT ResourceInventory population. Like is done in the
+    config changes trigger"""
+
+    cluster: str
+    namespace: str
+    fxt: Any
+    template: Any
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fxt = Fixtures('saasherder')
+        cls.cluster = "test-cluster"
+
+    def setUp(self) -> None:
+        self.all_saas_files = \
+            [self.fxt.get_anymarkup('saas.gql.yml')]
+
+        self.state_patcher = \
+            patch("reconcile.utils.saasherder.State", autospec=True)
+        self.state_mock = self.state_patcher.start().return_value
+
+        self.saas_file = \
+            self.fxt.get_anymarkup('saas.gql.yml')
+        # ApiVersion is set in the saas gql query method in queries module
+        self.saas_file["apiVersion"] = "v2"
+
+        self.deploy_current_state_fxt = \
+            self.fxt.get_anymarkup('saas_deploy.state.json')
+
+        self.post_deploy_current_state_fxt = \
+            self.fxt.get_anymarkup('saas_post_deploy.state.json')
+
+        self.state_mock.get.side_effect = [
+            self.deploy_current_state_fxt,
+            self.post_deploy_current_state_fxt
+        ]
+
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            accounts={"name": "test-account"},  # Initiates State in SaasHerder
+            settings={
+                "hashLength": 24
+            }
+        )
+
+    def tearDown(self):
+        self.state_patcher.stop()
+
+    def test_same_configs_do_not_trigger(self):
+        """ Ensures that if the same config is found, no job is triggered
+            current Config is fetched from the state
+        """
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertListEqual(job_specs, [])
@@ -587,70 +705,10 @@ class TestConfigHashTriggers(TestCase):
         configs = \
             self.saasherder.get_saas_targets_config(self.saas_file)
 
-        desired_tcs = list(configs.values())
-        current_tcs = copy.deepcopy(desired_tcs)
-        current_tcs[1]["promotion"][TARGET_CONFIG_HASH] = "old_hash"
-
-        self.state_mock.get.side_effect = current_tcs
-        job_specs = \
-            self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertEqual(len(job_specs), 1)
-
-    def test_add_config_hash_do_trigger(self):
-        """ Ensures a new job is triggered if the parent config hash is missing
-        """
-        configs = \
-            self.saasherder.get_saas_targets_config(self.saas_file)
-
-        desired_tcs = list(configs.values())
-        current_tcs = copy.deepcopy(desired_tcs)
-
-        # Get the fixture saas file as is and remove the promotion data
-        # on the current target config.
-        del(current_tcs[1]["promotion"]["promotion_data"])
-
-        self.state_mock.get.side_effect = current_tcs
+        desired_tc = list(configs.values())[1]
+        desired_promo_data = desired_tc["promotion"]["promotion_data"]
+        desired_promo_data[0]["data"][TARGET_CONFIG_HASH] = "Changed"
 
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
-
-    """ Promotion validations are checked with pr_check once the MRs have been
-        raised. Thw following tests checks that validate_promotion works as
-        expected
-    """
-
-    def test_promotion_state_config_hash_match_validates(self):
-
-        configs = \
-            self.saasherder.get_saas_targets_config(self.saas_file)
-
-        desired_tc = list(configs.values())[0]
-        promotion = desired_tc['promotion']
-        promotion_result = {
-            "success": True,
-            "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: promotion[TARGET_CONFIG_HASH]
-        }
-        self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions(self.all_saas_files)
-        self.assertTrue(result)
-
-    def test_promotion_state_config_hash_not_match_no_validates(self):
-        promotion_result = {
-            "success": True,
-            "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: "will_not_match"
-
-        }
-        self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions(self.all_saas_files)
-        self.assertFalse(result)
-
-    def test_promotion_without_state_config_hash_validates(self):
-        promotion_result = {
-            "success": True,
-        }
-        self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions(self.all_saas_files)
-        self.assertTrue(result)
