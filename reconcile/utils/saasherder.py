@@ -766,7 +766,6 @@ class SaasHerder():
                     f"{saas_file_name}/{rt_name}/{cluster}/"
                     f"{namespace}/{env_name}"
                 )
-                # Convert to dict, ChainMap is not JSON serializable
                 digest = SaasHerder.get_target_config_hash(target_configs[key])
 
                 process_template_options = {
@@ -1155,7 +1154,6 @@ class SaasHerder():
 
     @staticmethod
     def get_target_config_hash(target_config):
-        # Ensure dict, ChainMap is not JSON serializable
         m = hashlib.sha256()
         m.update(json.dumps(target_config, sort_keys=True).encode("utf-8"))
         digest = m.hexdigest()[:16]
@@ -1199,6 +1197,9 @@ class SaasHerder():
                     f"{saas_file_name}/{rt_name}/{cluster_name}/"
                     f"{namespace_name}/{env_name}"
                 )
+                # Convert to dict, ChainMap is not JSON serializable
+                # desired_target_config needs to be serialized to generate
+                # its config hash and to be stored in S3
                 configs[key] = dict(desired_target_config)
         return configs
 
