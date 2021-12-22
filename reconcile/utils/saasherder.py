@@ -1184,7 +1184,7 @@ class SaasHerder():
                     f"{saas_file_name}/{rt_name}/{cluster_name}/"
                     f"{namespace_name}/{env_name}"
                 )
-                configs[key] = desired_target_config
+                configs[key] = dict(desired_target_config)
         return configs
 
     @staticmethod
