@@ -1106,6 +1106,16 @@ class SaasHerder():
                                self.thread_pool_size)
         return list(itertools.chain.from_iterable(results))
 
+    @staticmethod
+    def removeNoneValues(d):
+        new = {}
+        for k, v in d.items():
+            if v is not None:
+                if isinstance(v, dict):
+                    v = SaasHerder.removeNoneValues(v)
+                new[k] = v
+        return new
+
     def get_configs_diff_saas_file(self, saas_file):
         # Dict by key
         targets = self.get_saas_targets_config(saas_file)
@@ -1116,8 +1126,15 @@ class SaasHerder():
 
         for key, desired_target_config in targets.items():
             current_target_config = self.state.get(key, None)
-            # skip if there is no change in target configuration
-            if current_target_config == desired_target_config:
+
+            # Continue if there are no diffs between configs.
+            # Compare existent values only, gql queries return None
+            # values for non set attributes so any change in the saas
+            # schema will trigger a job even though the saas file does
+            # not have the new parameters set.
+            ctc = SaasHerder.removeNoneValues(current_target_config)
+            dtc = SaasHerder.removeNoneValues(desired_target_config)
+            if ctc == dtc:
                 continue
 
             saas_file_name, rt_name, cluster_name, \
