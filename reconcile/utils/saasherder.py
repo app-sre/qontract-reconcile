@@ -1157,7 +1157,7 @@ class SaasHerder():
     @staticmethod
     def get_target_config_hash(target_config):
         m = hashlib.sha256()
-        m.update(json.dumps(tc_dict, sort_keys=True).encode("utf-8"))
+        m.update(json.dumps(target_config, sort_keys=True).encode("utf-8"))
         digest = m.hexdigest()[:16]
         return digest
 
