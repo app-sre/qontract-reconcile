@@ -1156,8 +1156,6 @@ class SaasHerder():
 
     @staticmethod
     def get_target_config_hash(target_config):
-        # Ensure dict, ChainMap is not JSON serializable
-        tc_dict = dict(target_config)
         m = hashlib.sha256()
         m.update(json.dumps(tc_dict, sort_keys=True).encode("utf-8"))
         digest = m.hexdigest()[:16]
@@ -1185,7 +1183,7 @@ class SaasHerder():
                 # This will add the namespace key/value to the chainMap, but
                 # the target will remain with the original value
                 # When the namespace key is looked up, the chainmap will
-                # return the modified attribute ( set in the first mapping)
+                # return the modified attribute (set in the first mapping)
                 desired_target_config['namespace'] = \
                     self.sanitize_namespace(namespace)
                 # add parent parameters to target config
@@ -1201,7 +1199,7 @@ class SaasHerder():
                     f"{saas_file_name}/{rt_name}/{cluster_name}/"
                     f"{namespace_name}/{env_name}"
                 )
-                configs[key] = desired_target_config
+                configs[key] = dict(desired_target_config)
         return configs
 
     @staticmethod
@@ -1252,9 +1250,11 @@ class SaasHerder():
         cluster_name = job_spec['cluster_name']
         namespace_name = job_spec['namespace_name']
         target_config = job_spec['target_config']
-        key = f"{saas_file_name}/{rt_name}/{cluster_name}/" + \
+        key = (
+            f"{saas_file_name}/{rt_name}/{cluster_name}/"
             f"{namespace_name}/{env_name}"
-        self.state.add(key, value=dict(target_config), force=True)
+        )
+        self.state.add(key, value=target_config, force=True)
 
     def validate_promotions(self, all_saas_files):
         """
