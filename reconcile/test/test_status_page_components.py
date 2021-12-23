@@ -3,7 +3,7 @@ from unittest.mock import patch
 from typing import Optional
 
 from reconcile.status_page_components import (
-  AtlassianComponent, AtlassianStatusPage, StatusComponent, StatusPage, fetch_pages, get_state, update_component_status)
+  AtlassianComponent, AtlassianStatusPage, StatusComponent, StatusPage)
 from reconcile.utils.vaultsecretref import VaultSecretRef
 from .fixtures import Fixtures
 
@@ -330,12 +330,12 @@ class TestComponentStatusUpdate(TestCase):
         with self.assertRaises(ValueError):
             page.update_component_status(True, "comp_x", "operational", state)
 
-
+    @staticmethod
     @patch.object(VaultSecretRef, '_resolve_secret',
                   new_callable=stub_resolve_secret)
     @patch.object(AtlassianStatusPage, '_fetch_components')
     @patch.object(AtlassianStatusPage, 'update_component_status')
-    def test_update(self, update_mock, fetch_mock, vault_mock):
+    def test_update(update_mock, fetch_mock, vault_mock):
         fixture_name = "test_component_status_update.yaml"
 
         page = get_page_fixtures(fixture_name)[0]
@@ -346,7 +346,6 @@ class TestComponentStatusUpdate(TestCase):
         page.update_component_status(True, "comp_1", "operational", state)
 
         update_mock.assert_called_with(True, "comp_id_1", "operational")
-
 
     @patch.object(VaultSecretRef, '_resolve_secret',
                   new_callable=stub_resolve_secret)
