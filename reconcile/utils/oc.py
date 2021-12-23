@@ -1072,6 +1072,7 @@ class OC_Map:
                  init_projects=False, init_api_resources=False,
                  cluster_admin=False):
         self.oc_map = {}
+        self.privileged_oc_map = {}
         self.calling_integration = integration
         self.calling_e2e_test = e2e_test
         self.settings = settings
@@ -1087,18 +1088,31 @@ class OC_Map:
             raise KeyError('expected only one of clusters or namespaces.')
         elif clusters:
             threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
-                         cluster_admin=cluster_admin)
+                         privileged=cluster_admin)
         elif namespaces:
-            clusters = []
-            cluster_names = []
+            clusters = {}
+            privileged_clusters = {}
             for ns_info in namespaces:
-                cluster = ns_info['cluster']
-                name = cluster['name']
-                if name not in cluster_names:
-                    cluster_names.append(name)
-                    clusters.append(cluster)
-            threaded.run(self.init_oc_client, clusters, self.thread_pool_size,
-                         cluster_admin=cluster_admin)
+                # init a namespace with clusterAdmin with both auth tokens
+                # OC_Map is used in various places and even when a namespace
+                # declares clusterAdmin token usage, many of those places are
+                # happy with regular dedicated-admin and will request a cluster
+                # with oc_map.get(cluster) without specifying privileged access
+                # specifically
+                c = ns_info['cluster']
+                clusters[c['name']] = c
+                privileged = ns_info.get("clusterAdmin", False) or \
+                    cluster_admin
+                if privileged:
+                    privileged_clusters[c['name']] = c
+            if clusters:
+                threaded.run(self.init_oc_client, clusters.values(),
+                             self.thread_pool_size,
+                             privileged=False)
+            if privileged_clusters:
+                threaded.run(self.init_oc_client, privileged_clusters.values(),
+                             self.thread_pool_size,
+                             privileged=True)
         else:
             raise KeyError('expected one of clusters or namespaces.')
 
@@ -1113,9 +1127,11 @@ class OC_Map:
                 self.jh_ports[key] = port
             jh['localPort'] = self.jh_ports[key]
 
-    def init_oc_client(self, cluster_info, cluster_admin):
+    def init_oc_client(self, cluster_info, privileged: bool):
         cluster = cluster_info['name']
-        if self.oc_map.get(cluster):
+        if not privileged and self.oc_map.get(cluster):
+            return None
+        if privileged and self.privileged_oc_map.get(cluster):
             return None
         if self.cluster_disabled(cluster_info):
             return None
@@ -1127,7 +1143,7 @@ class OC_Map:
             if not self.internal and cluster_info['internal']:
                 return
 
-        if cluster_admin:
+        if privileged:
             automation_token = cluster_info.get('clusterAdminAutomationToken')
         else:
             automation_token = cluster_info.get('automationToken')
@@ -1136,14 +1152,18 @@ class OC_Map:
             self.set_oc(cluster,
                         OCLogMsg(log_level=logging.ERROR,
                                  message=f"[{cluster}]"
-                                 " has no automation token"))
+                                 " has no automation token"),
+                        privileged)
         # serverUrl isn't set when a new cluster is initially created.
         elif not cluster_info.get('serverUrl'):
             self.set_oc(
                 cluster,
                 OCLogMsg(
                     log_level=logging.ERROR,
-                    message=f"[{cluster}] has no serverUrl"))
+                    message=f"[{cluster}] has no serverUrl"
+                ),
+                privileged
+            )
         else:
             server_url = cluster_info['serverUrl']
             insecure_skip_tls_verify = \
@@ -1157,7 +1177,8 @@ class OC_Map:
                     cluster,
                     OCLogMsg(
                         log_level=logging.ERROR,
-                        message=f"[{cluster}] secret not found"))
+                        message=f"[{cluster}] secret not found"),
+                    privileged)
                 return
 
             if self.use_jump_host:
@@ -1174,16 +1195,20 @@ class OC_Map:
                     init_api_resources=self.init_api_resources,
                     insecure_skip_tls_verify=insecure_skip_tls_verify,
                 )
-                self.set_oc(cluster, oc_client)
+                self.set_oc(cluster, oc_client, privileged)
             except StatusCodeError as e:
                 self.set_oc(cluster,
                             OCLogMsg(log_level=logging.ERROR,
                                      message=f"[{cluster}]"
-                                     f" is unreachable: {e}"))
+                                     f" is unreachable: {e}"),
+                            privileged)
 
-    def set_oc(self, cluster, value):
+    def set_oc(self, cluster: str, value, privileged: bool):
         with self._lock:
-            self.oc_map[cluster] = value
+            if privileged:
+                self.privileged_oc_map[cluster] = value
+            else:
+                self.oc_map[cluster] = value
 
     def cluster_disabled(self, cluster_info):
         try:
@@ -1201,25 +1226,34 @@ class OC_Map:
 
         return False
 
-    def get(self, cluster):
-        return self.oc_map.get(cluster,
-                               OCLogMsg(log_level=logging.DEBUG,
-                                        message=f"[{cluster}]"
-                                        " cluster skipped"))
+    def get(self, cluster: str, privileged: bool = False):
+        cluster_map = self.privileged_oc_map if privileged else self.oc_map
+        return cluster_map.get(
+            cluster,
+            OCLogMsg(
+                log_level=logging.DEBUG,
+                message=f"[{cluster}] cluster skipped"
+                )
+            )
 
-    def clusters(self, include_errors: bool = False) -> List[str]:
+    def clusters(self, include_errors: bool = False,
+                 privileged: bool = False) -> List[str]:
         """
         Get the names of the clusters in the map.
         :param include_errors: includes clusters that had errors, meaning
         that the value in OC_Map might be an OCLogMsg instead of OCNative, etc.
         :return: list of cluster names
         """
+        cluster_map = self.privileged_oc_map if privileged else self.oc_map
         if include_errors:
-            return list(self.oc_map.keys())
-        return [k for k, v in self.oc_map.items() if v]
+            return list(cluster_map.keys())
+        return [k for k, v in cluster_map.items() if v]
 
     def cleanup(self):
         for oc in self.oc_map.values():
+            if oc:
+                oc.cleanup()
+        for oc in self.privileged_oc_map.values():
             if oc:
                 oc.cleanup()
 

@@ -87,6 +87,7 @@ NAMESPACES_QUERY = """
 {
   namespaces: namespaces_v1 {
     name
+    clusterAdmin
     managedResourceTypes
     managedResourceTypeOverrides {
       resource
@@ -131,6 +132,12 @@ NAMESPACES_QUERY = """
         pod
       }
       automationToken {
+        path
+        field
+        version
+        format
+      }
+      clusterAdminAutomationToken {
         path
         field
         version
@@ -541,7 +548,8 @@ def fetch_current_state(oc, ri, cluster, namespace, resource_type,
         )
 
 
-def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
+def fetch_desired_state(oc, ri, cluster, namespace, resource,
+                        parent, privileged: bool):
     global _log_lock
 
     if oc is None:
@@ -567,7 +575,8 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent):
             namespace,
             openshift_resource.kind,
             openshift_resource.name,
-            openshift_resource
+            openshift_resource,
+            privileged
         )
     except KeyError:
         # This is failing because in the managed_type loop (where the
@@ -606,7 +615,7 @@ def fetch_states(spec, ri):
         if spec.type == "desired":
             fetch_desired_state(spec.oc, ri, spec.cluster,
                                 spec.namespace, spec.resource,
-                                spec.parent)
+                                spec.parent, spec.privileged)
 
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)

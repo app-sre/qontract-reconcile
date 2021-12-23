@@ -30,7 +30,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
 
         self.mock_callable(
             self.oc_map, 'get'
-        ).for_call("cs1").to_return_value("stuff")
+        ).for_call("cs1", False).to_return_value("stuff")
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
     def test_only_cluster_or_namespace(self) -> None:
