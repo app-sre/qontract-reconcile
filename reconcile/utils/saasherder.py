@@ -1106,12 +1106,12 @@ class SaasHerder():
         return list(itertools.chain.from_iterable(results))
 
     @staticmethod
-    def removeNoneValues(d):
+    def remove_none_values(d):
         new = {}
         for k, v in d.items():
             if v is not None:
                 if isinstance(v, dict):
-                    v = SaasHerder.removeNoneValues(v)
+                    v = SaasHerder.remove_none_values(v)
                 new[k] = v
         return new
 
@@ -1130,8 +1130,8 @@ class SaasHerder():
             # values for non set attributes so any change in the saas
             # schema will trigger a job even though the saas file does
             # not have the new parameters set.
-            ctc = SaasHerder.removeNoneValues(current_target_config)
-            dtc = SaasHerder.removeNoneValues(desired_target_config)
+            ctc = SaasHerder.remove_none_values(current_target_config)
+            dtc = SaasHerder.remove_none_values(desired_target_config)
             if ctc == dtc:
                 continue
 
