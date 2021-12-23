@@ -8,8 +8,8 @@ import requests
 import yaml
 
 from tabulate import tabulate
-from reconcile.status_page_components import (update_component_status,
-                                             fetch_pages)
+from reconcile.status_page_components import (
+    update_component_status, fetch_pages)
 
 from reconcile.utils import dnsutils
 from reconcile.utils import gql
