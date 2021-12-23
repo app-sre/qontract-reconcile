@@ -69,7 +69,7 @@ class StatusPageProvider(BaseModel):
         return None
 
     @abstractmethod
-    def update_component_status(self, dry_run:bool,
+    def update_component_status(self, dry_run: bool,
                                 id: str, status: str) -> None:
         return None
 
@@ -98,7 +98,7 @@ class StatusPage(BaseModel):
 
     def get_component_by_name(self, name) -> Optional[StatusComponent]:
         return next(
-            filter(lambda c: c.name == name, self.components), # type: ignore
+            filter(lambda c: c.name == name, self.components),  # type: ignore
             None
         )
 
@@ -153,10 +153,12 @@ class StatusPage(BaseModel):
             state.add(component.name, component_id, force=True)
             component.component_id = component_id
 
+
 ATLASSIAN_COMPONENT_STATES = [
     "operational", "under_maintenance", "degraded_performance",
     "partial_outage", "major_outage"
 ]
+
 
 class AtlassianStatusPage(StatusPageProvider):
 
