@@ -68,6 +68,11 @@ class StatusPageProvider(BaseModel):
     def delete_component(self, dry_run: bool, id: str) -> None:
         return None
 
+    @abstractmethod
+    def update_component_status(self, dry_run:bool,
+                                id: str, status: str) -> None:
+        return None
+
 
 class StatusPage(BaseModel):
     """
@@ -90,6 +95,24 @@ class StatusPage(BaseModel):
             return provider
         else:
             raise ValueError(f"provider {self.provider} is not supported")
+
+    def get_component_by_name(self, name) -> Optional[StatusComponent]:
+        return next(
+            filter(lambda c: c.name == name, self.components), # type: ignore
+            None
+        )
+
+    def update_component_status(self, dry_run: bool,
+                                component_name: str, component_status: str,
+                                state: State) -> None:
+        component_id = state.get(component_name)
+        if component_id:
+            page_provider = self.get_page_provider()
+            page_provider.update_component_status(dry_run,
+                                                  component_id,
+                                                  component_status)
+        else:
+            raise ValueError(f"component {component_name} unknown")
 
     def reconcile(self, dry_run: bool, state: State):
         name_to_id_state = state.get_all("")
@@ -226,6 +249,23 @@ class AtlassianStatusPage(StatusPageProvider):
             for c in raw_components
         ]
 
+    def supported_component_states(_):
+        return [
+            "operational", "under_maintenance", "degraded_performance",
+            "partial_outage", "major_outage"
+        ]
+
+    def update_component_status(self, dry_run: bool,
+                                id: str, status: str) -> None:
+        if status in self.supported_component_states():
+            if not dry_run:
+                self._update_component(id, {"status": status})
+        else:
+            raise ValueError(
+                f"unsupported state {status} - "
+                f"must be one of {self.supported_component_states()}"
+            )
+
     def _client(self):
         return statuspageio.Client(api_key=self.token,
                                    page_id=self.page_id,
@@ -242,6 +282,21 @@ def get_state() -> State:
     return State(integration=QONTRACT_INTEGRATION,
                  accounts=accounts,
                  settings=settings)
+
+
+def update_component_status(dry_run: bool,
+                            component_name: str, component_status: str):
+    state = get_state()
+    updated = False
+    for page in fetch_pages():
+        component = page.get_component_by_name(component_name)
+        if component:
+            page.update_component_status(dry_run,
+                                         component_name, component_status,
+                                         state)
+            updated = True
+    if not updated:
+        raise ValueError(f"component {component_name} not found")
 
 
 def run(dry_run: bool = False):

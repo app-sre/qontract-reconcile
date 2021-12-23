@@ -3,7 +3,7 @@ from unittest.mock import patch
 from typing import Optional
 
 from reconcile.status_page_components import (
-  AtlassianComponent, AtlassianStatusPage, StatusComponent, StatusPage)
+  AtlassianComponent, AtlassianStatusPage, StatusComponent, StatusPage, fetch_pages, get_state, update_component_status)
 from reconcile.utils.vaultsecretref import VaultSecretRef
 from .fixtures import Fixtures
 
@@ -32,6 +32,9 @@ class StateStub:
             self.state = state
         else:
             self.state = {}
+
+    def get(self, key):
+        return self.state.get(key)
 
     def get_all(self, _):
         return self.state
@@ -310,3 +313,51 @@ class TestDryRunBehaviour(TestCase):
             update_mock.assert_not_called()
         else:
             update_mock.assert_called()
+
+
+class TestComponentStatusUpdate(TestCase):
+
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
+    @patch.object(AtlassianStatusPage, '_fetch_components')
+    def test_update_missing_component(self, fetch_mock, vault_mock):
+        fixture_name = "test_component_status_update.yaml"
+
+        page = get_page_fixtures(fixture_name)[0]
+        fetch_mock.return_value = []
+        state = get_state_fixture(fixture_name)
+
+        with self.assertRaises(ValueError):
+            page.update_component_status(True, "comp_x", "operational", state)
+
+
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
+    @patch.object(AtlassianStatusPage, '_fetch_components')
+    @patch.object(AtlassianStatusPage, 'update_component_status')
+    def test_update(self, update_mock, fetch_mock, vault_mock):
+        fixture_name = "test_component_status_update.yaml"
+
+        page = get_page_fixtures(fixture_name)[0]
+        fetch_mock.return_value = \
+            get_atlassian_component_fixtures(fixture_name, page.name)
+        state = get_state_fixture(fixture_name)
+
+        page.update_component_status(True, "comp_1", "operational", state)
+
+        update_mock.assert_called_with(True, "comp_id_1", "operational")
+
+
+    @patch.object(VaultSecretRef, '_resolve_secret',
+                  new_callable=stub_resolve_secret)
+    @patch.object(AtlassianStatusPage, '_fetch_components')
+    def test_wrong_status(self, fetch_mock, vault_mock):
+        fixture_name = "test_component_status_update.yaml"
+
+        page = get_page_fixtures(fixture_name)[0]
+        fetch_mock.return_value = \
+            get_atlassian_component_fixtures(fixture_name, page.name)
+        state = get_state_fixture(fixture_name)
+
+        with self.assertRaises(ValueError):
+            page.update_component_status(True, "comp_1", "invalid", state)
