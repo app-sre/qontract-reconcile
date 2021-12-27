@@ -8,6 +8,8 @@ import requests
 import yaml
 
 from tabulate import tabulate
+from reconcile.status_page_components import (
+    update_component_status, fetch_pages)
 
 from reconcile.utils import dnsutils
 from reconcile.utils import gql
@@ -860,6 +862,40 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     else:
         users = [slack.get_random_deleted_user()]
     slack.update_usergroup_users(ugid, users)
+
+
+@get.command()
+@click.pass_context
+def statuspage_components(ctx):
+    data = []
+    for page in fetch_pages():
+        for component in page.components:
+            data.append({
+                "component_name": component.name,
+                "component_display_name": component.display_name,
+                "page": page.name
+            })
+    columns = ['component_name', 'component_display_name', 'page']
+    print_output(ctx.obj['options'], data, columns)
+
+
+@set.command()
+@click.argument('component_name')
+@click.argument('component_status')
+@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
+def statuspage_component_status(component_name, component_status):
+    """Set the status of a status page component.
+
+    COMPONENT_NAME is the name of a component; get a list with
+        'qontract-cli get statuspage-components'
+
+    COMPONENT_STATUS one of: operational, under_maintenance,
+        degraded_performance, partial_outage, major_outage
+    """
+    try:
+        update_component_status(False, component_name, component_status)
+    except Exception as e:
+        print(f"failed - {e}")
 
 
 @root.group()
