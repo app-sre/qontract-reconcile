@@ -255,7 +255,8 @@ def wait_for_namespace_exists(oc, namespace):
 
 
 def apply(dry_run, oc_map: OC_Map, cluster, namespace, resource_type, resource,
-          wait_for_namespace, privileged: bool, recycle_pods=True):
+          wait_for_namespace, recycle_pods: bool = True,
+          privileged: bool = False):
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster, privileged)
@@ -339,7 +340,7 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
 
 
 def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
-           enable_deletion, privileged: bool):
+           enable_deletion, privileged: bool = False):
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not enable_deletion:
@@ -373,7 +374,7 @@ def _realize_resource_data(unpacked_ri_item,
                            override_enable_deletion,
                            recycle_pods):
     cluster, namespace, resource_type, data = unpacked_ri_item
-    actions = []
+    actions: list[dict] = []
     if ri.has_error_registered(cluster=cluster):
         msg = (
             "[{}] skipping realize_data for "
@@ -447,7 +448,7 @@ def _realize_resource_data(unpacked_ri_item,
             privileged = data['use_admin_token'].get(name, False)
             apply(dry_run, oc_map, cluster, namespace,
                   resource_type, d_item, wait_for_namespace,
-                  privileged, recycle_pods=recycle_pods)
+                  recycle_pods, privileged)
             action = {
                 'action': ACTION_APPLIED,
                 'cluster': cluster,

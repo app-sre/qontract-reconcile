@@ -798,7 +798,7 @@ class SaasHerder():
                     'instance_name': instance_name,
                     'upstream': target.get('upstream'),
                     'delete': target.get('delete'),
-                    'privileged': saas_file.get('clusterAdmin', False)
+                    'privileged': saas_file.get('clusterAdmin', False) is True
                 }
                 specs.append(spec)
 
