@@ -25,3 +25,10 @@ def checkout(commit, wd):
     proc.communicate()
     if proc.returncode != 0:
         raise GitError('git checkout failed: {}'.format(commit))
+
+
+def is_file_in_git_repo(file_path):
+    real_path = os.path.realpath(file_path)
+    dir_path = os.path.dirname(real_path)
+    git_path = os.path.join(dir_path, '.git')
+    return os.path.exists(git_path)
