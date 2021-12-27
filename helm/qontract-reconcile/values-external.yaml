@@ -233,7 +233,7 @@ integrations:
       memory: 900Mi
       cpu: 800m
   extraArgs: --external --no-use-jump-host
-  shards: 10
+  shards: 15
   logs:
     slack: true
 - name: openshift-network-policies
