@@ -1145,15 +1145,20 @@ class OC_Map:
 
         if privileged:
             automation_token = cluster_info.get('clusterAdminAutomationToken')
+            token_name = "admin automation token"
         else:
             automation_token = cluster_info.get('automationToken')
+            token_name = "automation token"
 
         if automation_token is None:
-            self.set_oc(cluster,
-                        OCLogMsg(log_level=logging.ERROR,
-                                 message=f"[{cluster}]"
-                                 " has no automation token"),
-                        privileged)
+            self.set_oc(
+                cluster,
+                OCLogMsg(
+                    log_level=logging.ERROR,
+                    message=f"[{cluster}] has no {token_name}"
+                ),
+                privileged
+            )
         # serverUrl isn't set when a new cluster is initially created.
         elif not cluster_info.get('serverUrl'):
             self.set_oc(
