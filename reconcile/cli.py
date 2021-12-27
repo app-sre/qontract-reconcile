@@ -518,7 +518,7 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
-# @binary(['git', 'git-secrets'])
+@binary(['git', 'git-secrets'])
 @click.pass_context
 def github_scanner(ctx, gitlab_project_id, thread_pool_size):
     run_integration(reconcile.github_scanner, ctx.obj,
