@@ -29,7 +29,7 @@ def get_accounts_names():
 
 def tfr_run_wrapper(account_name,
                     dry_run,
-                    print_only,
+                    print_to_file,
                     enable_deletion,
                     io_dir,
                     internal_thread_pool_size,
@@ -41,7 +41,7 @@ def tfr_run_wrapper(account_name,
     exit_code = 0
     try:
         tfr.run(dry_run=dry_run,
-                print_only=print_only,
+                print_to_file=print_to_file,
                 enable_deletion=enable_deletion,
                 io_dir=io_dir,
                 thread_pool_size=internal_thread_pool_size,
@@ -56,7 +56,7 @@ def tfr_run_wrapper(account_name,
     return exit_code
 
 
-def run(dry_run, print_only=False,
+def run(dry_run, print_to_file=None,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='', extra_labels=None):
@@ -72,7 +72,7 @@ def run(dry_run, print_only=False,
     exit_codes = threaded.run(
         tfr_run_wrapper, account_names, thread_pool_size,
         dry_run=dry_run,
-        print_only=print_only,
+        print_to_file=print_to_file,
         enable_deletion=enable_deletion,
         io_dir=io_dir,
         internal_thread_pool_size=thread_pool_size,

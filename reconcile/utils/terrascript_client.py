@@ -2908,15 +2908,16 @@ class TerrascriptClient:
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def dump(self, print_only=False, existing_dirs=None):
+    def dump(self, print_to_file=None, existing_dirs=None):
         if existing_dirs is None:
             working_dirs = {}
         else:
             working_dirs = existing_dirs
         for name, ts in self.tss.items():
-            if print_only:
-                print('##### {} #####'.format(name))
-                print(str(ts))
+            if print_to_file:
+                with open(print_to_file, 'w') as f:
+                    f.write('##### {} #####\n'.format(name))
+                    f.write(str(ts))
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
