@@ -71,7 +71,7 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 continue
 
             cluster = namespace_info['cluster']['name']
-            privileged = namespace_info.get("clusterAdmin", False)
+            privileged = namespace_info.get("clusterAdmin", False) is True
             oc = oc_map.get(cluster, privileged)
             if not oc:
                 if oc.log_level >= logging.ERROR:
