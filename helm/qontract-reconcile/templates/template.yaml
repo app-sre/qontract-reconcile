@@ -193,6 +193,7 @@ objects:
           - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
             value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
           {{- end }}
+          {{- if not $integration.disableUnleash }}
           - name: UNLEASH_API_URL
             valueFrom:
               secretKeyRef:
@@ -203,6 +204,7 @@ objects:
               secretKeyRef:
                 name: unleash
                 key: CLIENT_ACCESS_TOKEN
+          {{- end }}
           - name: SLOW_OC_RECONCILE_THRESHOLD
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
