@@ -111,6 +111,7 @@ NAMESPACES_QUERY = """
         org
         team
       }
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
