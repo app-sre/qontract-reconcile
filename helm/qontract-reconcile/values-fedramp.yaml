@@ -9,6 +9,7 @@ integrations:
       memory: 1040Mi
       cpu: 500m
   state: true
+  disableUnleash: true
 - name: openshift-namespaces
   resources:
     requests:
@@ -17,6 +18,7 @@ integrations:
     limits:
       memory: 500Mi
       cpu: 500m
+  disableUnleash: true
 - name: openshift-network-policies
   resources:
     requests:
@@ -25,6 +27,7 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  disableUnleash: true
 - name: openshift-resources
   resources:
     requests:
@@ -33,6 +36,7 @@ integrations:
     limits:
       memory: 500Mi
       cpu: 500m
+  disableUnleash: true
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -41,6 +45,7 @@ integrations:
     limits:
       memory: 500Mi
       cpu: 500m
+  disableUnleash: true
 - name: terraform-aws-route53
   resources:
     requests:
@@ -49,6 +54,7 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 500m
+  disableUnleash: true
 - name: terraform-resources
   resources:
     requests:
@@ -57,6 +63,7 @@ integrations:
     limits:
       memory: 700Mi
       cpu: 400m
+  disableUnleash: true
   extraArgs: --vault-output-path osd-fedramp/integrations-output
 - name: terraform-tgw-attachments
   resources:
@@ -66,3 +73,4 @@ integrations:
     limits:
       memory: 2000Mi
       cpu: 600m
+  disableUnleash: true
