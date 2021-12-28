@@ -30,5 +30,8 @@ def checkout(commit, wd):
 def is_file_in_git_repo(file_path):
     real_path = os.path.realpath(file_path)
     dir_path = os.path.dirname(real_path)
-    git_path = os.path.join(dir_path, '.git')
-    return os.path.exists(git_path)
+    with open(os.devnull, 'w') as dev_null:
+        proc = Popen(['git', 'git rev-parse', '--is-inside-work-tree'],
+                    cwd=dir_path, stdout=dev_null, stderr=dev_null)
+        proc.communicate()
+    return proc.returncode == 0
