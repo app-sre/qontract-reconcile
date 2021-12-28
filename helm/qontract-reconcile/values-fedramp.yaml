@@ -1,0 +1,68 @@
+integrations:
+- name: openshift-namespace-labels
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 400m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 500m
+  state: true
+- name: openshift-namespaces
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 400m
+    limits:
+      memory: 500Mi
+      cpu: 500m
+- name: openshift-network-policies
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+- name: openshift-resources
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 400m
+    limits:
+      memory: 500Mi
+      cpu: 500m
+- name: openshift-vault-secrets
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 400m
+    limits:
+      memory: 500Mi
+      cpu: 500m
+- name: terraform-aws-route53
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 100m
+    limits:
+      memory: 1000Mi
+      cpu: 500m
+- name: terraform-resources
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 200m
+    limits:
+      memory: 700Mi
+      cpu: 400m
+  extraArgs: --vault-output-path osd-fedramp/integrations-output
+- name: terraform-tgw-attachments
+  resources:
+    requests:
+      memory: 1500Mi
+      cpu: 400m
+    limits:
+      memory: 2000Mi
+      cpu: 600m
