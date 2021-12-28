@@ -285,6 +285,7 @@ TF_NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
         hostname
         knownHosts

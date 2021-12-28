@@ -312,6 +312,7 @@ CLUSTERS_QUERY = """
     prometheusUrl
     managedGroups
     managedClusterRoles
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -541,6 +542,7 @@ CLUSTERS_MINIMAL_QUERY = """
     consoleUrl
     kibanaUrl
     prometheusUrl
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -611,6 +613,7 @@ KAFKA_CLUSTERS_QUERY = """
       cluster {
         name
         serverUrl
+        insecureSkipTLSVerify
         jumpHost {
           hostname
           knownHosts
@@ -689,6 +692,7 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -772,6 +776,7 @@ NAMESPACES_MINIMAL_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -816,6 +821,7 @@ namespace {
   cluster {
     name
     serverUrl
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -851,6 +857,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -1382,6 +1389,7 @@ SAAS_FILES_QUERY_V1 = """
           cluster {
             name
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
                 hostname
                 knownHosts
@@ -1453,6 +1461,7 @@ SAAS_FILES_QUERY_V2 = """
             name
             consoleUrl
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
               hostname
               knownHosts
@@ -1558,6 +1567,7 @@ SAAS_FILES_QUERY_V2 = """
           cluster {
             name
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
                 hostname
                 knownHosts
@@ -1716,6 +1726,7 @@ PIPELINES_PROVIDERS_QUERY = """
         cluster {
           name
           serverUrl
+          insecureSkipTLSVerify
           jumpHost {
             hostname
             knownHosts
@@ -1988,6 +1999,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     hiveCluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
         hostname
         knownHosts
@@ -2243,6 +2255,7 @@ GABI_INSTANCES_QUERY = """
         cluster {
           name
           serverUrl
+          insecureSkipTLSVerify
           jumpHost {
             hostname
             knownHosts

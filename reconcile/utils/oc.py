@@ -188,7 +188,7 @@ class OCProcessReconcileTimeDecoratorMsg:
 class OCDeprecated:
     def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
-                 local=False):
+                 local=False, insecure_skip_tls_verify=False):
         """Initiates an OC client
 
         Args:
@@ -207,6 +207,8 @@ class OCDeprecated:
             'oc',
             '--kubeconfig', '/dev/null'
         ]
+        if insecure_skip_tls_verify:
+            oc_base_cmd.extend(['--insecure-skip-tls-verify'])
         if server:
             oc_base_cmd.extend(['--server', server])
 
@@ -778,10 +780,11 @@ class OCDeprecated:
 class OCNative(OCDeprecated):
     def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
-                 local=False):
+                 local=False, insecure_skip_tls_verify=False):
         super().__init__(cluster_name, server, token, jh, settings,
                          init_projects=False, init_api_resources=False,
-                         local=local)
+                         local=local,
+                         insecure_skip_tls_verify=insecure_skip_tls_verify)
 
         # server is set to None for certain use cases like saasherder which
         # uses local operations, such as process(). A refactor to provide that
@@ -1018,7 +1021,7 @@ class OC:
 
     def __new__(cls, cluster_name, server, token, jh=None, settings=None,
                 init_projects=False, init_api_resources=False,
-                local=False):
+                local=False, insecure_skip_tls_verify=False):
         use_native = os.environ.get('USE_NATIVE_CLIENT', '')
         if len(use_native) > 0:
             use_native = use_native.lower() in ['true', 'yes']
@@ -1043,13 +1046,13 @@ class OC:
                 cluster_name=cluster_name, native_client=True).inc()
             return OCNative(cluster_name, server, token, jh, settings,
                             init_projects, init_api_resources,
-                            local)
+                            local, insecure_skip_tls_verify)
         else:
             OC.client_status.labels(
                 cluster_name=cluster_name, native_client=False).inc()
             return OCDeprecated(cluster_name, server, token, jh, settings,
                                 init_projects, init_api_resources,
-                                local)
+                                local, insecure_skip_tls_verify)
 
 
 class OC_Map:
@@ -1142,6 +1145,8 @@ class OC_Map:
                     message=f"[{cluster}] has no serverUrl"))
         else:
             server_url = cluster_info['serverUrl']
+            insecure_skip_tls_verify = \
+                cluster_info.get('insecureSkipTLSVerify')
             secret_reader = SecretReader(settings=self.settings)
 
             try:
@@ -1161,10 +1166,13 @@ class OC_Map:
             if jump_host:
                 self.set_jh_ports(jump_host)
             try:
-                oc_client = OC(cluster, server_url, token, jump_host,
-                               settings=self.settings,
-                               init_projects=self.init_projects,
-                               init_api_resources=self.init_api_resources)
+                oc_client = OC(
+                    cluster, server_url, token, jump_host,
+                    settings=self.settings,
+                    init_projects=self.init_projects,
+                    init_api_resources=self.init_api_resources,
+                    insecure_skip_tls_verify=insecure_skip_tls_verify,
+                )
                 self.set_oc(cluster, oc_client)
             except StatusCodeError as e:
                 self.set_oc(cluster,
