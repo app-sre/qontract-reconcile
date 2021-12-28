@@ -33,8 +33,10 @@ def build_desired_state(zones):
         account_name = account['name']
 
         zone_name = zone['name']
+        zone_identifier = zone.get('identifier') or zone_name
         zone_values = {
             'name': zone_name,
+            'identifier': zone_identifier,
             'account_name': account_name,
             'records': []
         }

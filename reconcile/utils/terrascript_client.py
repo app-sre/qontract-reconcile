@@ -488,7 +488,7 @@ class TerrascriptClient:
             acct_name = zone['account_name']
 
             # Ensure zone is in the state for the given account
-            zone_id = safe_resource_id(f"{zone['name']}")
+            zone_id = safe_resource_id(f"{zone.pop('identifier')}")
             zone_values = {
                 'name': zone['name'],
                 'vpc': zone.get('vpc'),

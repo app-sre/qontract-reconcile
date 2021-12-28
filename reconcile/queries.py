@@ -1917,6 +1917,7 @@ DNS_ZONES_QUERY = """
 {
   zones: dns_zone_v1 {
     name
+    identifier
     account {
       name
       uid
