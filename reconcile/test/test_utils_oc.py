@@ -267,6 +267,7 @@ class TestGetObjRootOwner(TestCase):
             oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestPodOwnedPVCNames(TestCase):
     def setUp(self):
         self.oc = OC('cluster', 'server', 'token', local=True)
@@ -288,6 +289,7 @@ class TestPodOwnedPVCNames(TestCase):
         self.assertEqual(owned_pvc_names[0], 'cm')
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetStorage(TestCase):
     def setUp(self):
         self.oc = OC('cluster', 'server', 'token', local=True)
