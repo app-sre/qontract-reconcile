@@ -267,6 +267,57 @@ class TestGetObjRootOwner(TestCase):
             oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
 
 
+class TestPodOwnedPVCNames(TestCase):
+    def setUp(self):
+        self.oc = OC('cluster', 'server', 'token', local=True)
+
+    def test_no_volumes(self):
+        pods = [{'volumes': []}]
+        owned_pvc_names = self.oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_other_volumes(self):
+        pods = [{'volumes': [{'configMap': {'name': 'cm'}}]}]
+        owned_pvc_names = self.oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_ok(self):
+        pods = [{'volumes': [{'persistentVolumeClaim': {'claimName': 'cm'}}]}]
+        owned_pvc_names = self.oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 1)
+        self.assertEqual(owned_pvc_names[0], 'cm')
+
+
+class TestGetStorage(TestCase):
+    def setUp(self):
+        self.oc = OC('cluster', 'server', 'token', local=True)
+
+    def test_none(self):
+        resource = {'spec': 'whatever'}
+        storage = self.oc.get_storage(resource)
+        self.assertIsNone(storage)
+
+    def test_ok(self):
+        size = "100Gi"
+        resource = {
+            'spec': {
+                'volumeClaimTemplates': [
+                    {
+                        'spec': {
+                            'resources': {
+                                'requests': {
+                                    'storage': size
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        result = self.oc.get_storage(resource)
+        self.assertEqual(result, size)
+
+
 class TestValidateLabels(TestCase):
     def test_ok(self):
         self.assertFalse(validate_labels({'my.company.com/key-name': 'value'}))
