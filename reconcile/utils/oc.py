@@ -920,6 +920,7 @@ class OCNative(OCDeprecated):
                                 r.group_version, obj.preferred)
         return kind_groupversion
 
+    @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind, **kwargs):
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
