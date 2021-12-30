@@ -519,6 +519,8 @@ integrations:
     limits:
       memory: 400Mi
       cpu: 200m
+  logs:
+    slack: true
 - name: ocp-release-mirror
   resources:
     requests:
