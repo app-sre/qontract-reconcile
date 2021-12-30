@@ -51,7 +51,8 @@ class PagerDutyApi:
             time_zone='UTC')
         entries = s['final_schedule']['rendered_schedule_entries']
 
-        return [self.get_user(entry['user']['id']) for entry in entries]
+        return [self.get_user(entry['user']['id']) for entry in entries
+                if not entry['user'].get('deleted_at')]
 
     def get_escalation_policy_users(self, escalation_policy_id, now):
         ep = pypd.EscalationPolicy.fetch(
