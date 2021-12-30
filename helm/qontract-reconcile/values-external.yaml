@@ -514,10 +514,10 @@ integrations:
 - name: slack-cluster-usergroups
   resources:
     requests:
-      memory: 80Mi
+      memory: 200Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 400Mi
       cpu: 200m
 - name: ocp-release-mirror
   resources:
