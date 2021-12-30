@@ -472,7 +472,7 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 @binary(['terraform'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@enable_deletion(default=False)
+@enable_deletion(default=True)
 @click.pass_context
 def terraform_aws_route53(ctx, print_only, enable_deletion,
                           thread_pool_size):
