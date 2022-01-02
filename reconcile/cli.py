@@ -477,7 +477,7 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 @integration.command()
 @print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
@@ -1091,7 +1091,7 @@ def user_validator(ctx):
 @throughput
 @vault_output_path
 @threaded(default=20)
-@binary(['terraform', 'oc'])
+@binary(['terraform', 'oc', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1119,7 +1119,7 @@ def terraform_resources(ctx, print_to_file, enable_deletion,
 @throughput
 @vault_output_path
 @threaded(default=20)
-@binary(['terraform', 'oc'])
+@binary(['terraform', 'oc', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1144,7 +1144,7 @@ def terraform_resources_wrapper(ctx, print_to_file, enable_deletion,
 @print_to_file
 @throughput
 @threaded(default=20)
-@binary(['terraform', 'gpg'])
+@binary(['terraform', 'gpg', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
@@ -1161,7 +1161,7 @@ def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
 @integration.command()
 @print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
@@ -1176,7 +1176,7 @@ def terraform_vpc_peerings(ctx, print_to_file, enable_deletion,
 @integration.command()
 @print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
