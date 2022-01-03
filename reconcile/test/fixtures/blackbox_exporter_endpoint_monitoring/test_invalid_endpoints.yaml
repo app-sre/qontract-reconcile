@@ -1,0 +1,21 @@
+appInterface:
+  apps:
+  - name: app-without-endpoints
+    onboardingStatus: OnBoarded
+  - name: app-with-endpoints-but-no-monitors
+    onboardingStatus: OnBoarded
+    endPoints:
+    - name: test
+      description: test
+      url: https://httpstat.us/200
+  - name: app-with-endpoints-but-different-provider
+    onboardingStatus: OnBoarded
+    endPoints:
+    - name: test
+      description: test
+      url: https://httpstat.us/200
+      monitoring:
+        provider:
+          name: blackbox-exporter-http-2xx
+          description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
+          provider: another-provider
