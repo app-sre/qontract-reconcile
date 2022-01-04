@@ -2,8 +2,9 @@
 # see https://github.com/python/mypy/issues/9160
 # type: ignore[misc]
 from typing import Any
-from unittest import TestCase
 from unittest.mock import patch, create_autospec
+
+import pytest
 
 from reconcile.queries import PIPELINES_PROVIDERS_QUERY
 from reconcile import openshift_tekton_resources as otr
@@ -45,9 +46,12 @@ class TstData:
         self._saas_files = saas_files
 
 
-class TestOpenshiftTektonResources(TestCase):
+# This was originally written in unittest, hence the use of xunit-style
+# setup/teardown methods instead of pytest fixtures.
+class TestOpenshiftTektonResources():
 
-    def _test_deploy_resources_in_task(self, desired_resources, task_name,
+    @staticmethod
+    def _test_deploy_resources_in_task(desired_resources, task_name,
                                        deploy_resources) -> None:
         '''Helper method to test if deploy resources have been properly set'''
         for dr in desired_resources:
@@ -55,7 +59,7 @@ class TestOpenshiftTektonResources(TestCase):
                 task = dr['value'].body
                 for step in task['spec']['steps']:
                     if step['name'] == otr.DEFAULT_DEPLOY_RESOURCES_STEP_NAME:
-                        self.assertEqual(step['resources'], deploy_resources)
+                        assert step['resources'] == deploy_resources
                 break
 
     def mock_gql_get_resource(self, path: str) -> dict[str, str]:
@@ -74,7 +78,7 @@ class TestOpenshiftTektonResources(TestCase):
         else:
             raise TstUnsupportedGqlQueryError("Unsupported query")
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         self.test_data = TstData()
 
         self.fxt = Fixtures('openshift_tekton_resources')
@@ -94,14 +98,14 @@ class TestOpenshiftTektonResources(TestCase):
         gqlapi_mock.query.side_effect = self.mock_gql_query
         gqlapi_mock.get_resource.side_effect = self.mock_gql_get_resource
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         """ cleanup patches created in self.setUp"""
         self.gql_patcher.stop()
 
     def test_get_one_saas_file(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas2]
         saas_files = otr.fetch_saas_files(self.saas1['name'])
-        self.assertEqual(saas_files, [self.saas1])
+        assert saas_files == [self.saas1]
 
     def test_fetch_tkn_providers(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas2]
@@ -110,14 +114,15 @@ class TestOpenshiftTektonResources(TestCase):
         tkn_providers = otr.fetch_tkn_providers(None)
         keys_expected = set([self.provider1['name'],
                              self.provider2_wr['name']])
-        self.assertEqual(tkn_providers.keys(), keys_expected)
+        assert tkn_providers.keys() == keys_expected
 
     def test_duplicate_providers(self) -> None:
         self.test_data.saas_files = [self.saas1]
         self.test_data.providers = [self.provider1, self.provider1]
         msg = r'There are duplicates in tekton providers names: provider1'
-        self.assertRaisesRegex(otr.OpenshiftTektonResourcesBadConfigError, msg,
-                               otr.fetch_tkn_providers, None)
+        with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError,
+                           match=msg):
+            otr.fetch_tkn_providers(None)
 
     def test_fetch_desired_resources(self) -> None:
         self.test_data.saas_files = [self.saas1, self.saas2, self.saas2_wr]
@@ -127,7 +132,7 @@ class TestOpenshiftTektonResources(TestCase):
             otr.fetch_tkn_providers(None))
 
         # we have one task per namespace and a pipeline + task per saas file
-        self.assertEqual(len(desired_resources), 8)
+        assert len(desired_resources) == 8
 
     def test_fetch_desired_resources_names(self) -> None:
         self.test_data.saas_files = [self.saas1]
@@ -148,8 +153,8 @@ class TestOpenshiftTektonResources(TestCase):
             else:
                 pipeline_name = body['metadata']['name']
 
-        self.assertEqual(task_names, expected_task_names)
-        self.assertEqual(pipeline_name, expected_pipeline_name)
+        assert task_names == expected_task_names
+        assert pipeline_name == expected_pipeline_name
 
     # we check we have what we need in tkn_providers. This test should
     # be removed when this integration controls all tekton resources
@@ -164,22 +169,22 @@ class TestOpenshiftTektonResources(TestCase):
         p2_managed = tkn_providers[self.provider2_wr['name']]['namespace'][
             'managedResourceNames']
 
-        self.assertEqual(len(p1_managed), 2)
-        self.assertEqual(len(p2_managed), 2)
+        assert len(p1_managed) == 2
+        assert len(p2_managed) == 2
 
         # 1 namespace task, 1 saas file task, 1 saas file pipeline
         for managed in p1_managed:
             if managed['resource'] == 'Task':
-                self.assertEqual(len(managed['resourceNames']), 2)
+                assert len(managed['resourceNames']) == 2
             else:
-                self.assertEqual(len(managed['resourceNames']), 1)
+                assert len(managed['resourceNames']) == 1
 
         # 1 namespace task, 2 saas file tasks, 2 saas file pipelines
         for managed in p2_managed:
             if managed['resource'] == 'Task':
-                self.assertEqual(len(managed['resourceNames']), 3)
+                assert len(managed['resourceNames']) == 3
             else:
-                self.assertEqual(len(managed['resourceNames']), 2)
+                assert len(managed['resourceNames']) == 2
 
     def test_set_deploy_resources_default(self) -> None:
         self.test_data.saas_files = [self.saas1]
@@ -229,9 +234,9 @@ class TestOpenshiftTektonResources(TestCase):
 
         msg = r'There are duplicates in task templates names in tekton ' \
               r'provider provider4-with-task-duplicates'
-        self.assertRaisesRegex(otr.OpenshiftTektonResourcesBadConfigError, msg,
-                               otr.fetch_desired_resources,
-                               otr.fetch_tkn_providers(None))
+        with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError,
+                           match=msg):
+            otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
     def test_task_templates_unknown_task(self) -> None:
         self.provider5_wut = \
@@ -242,9 +247,9 @@ class TestOpenshiftTektonResources(TestCase):
 
         msg = r'Unknown task this-is-an-unknown-task in pipeline template ' \
               r'openshift-saas-deploy'
-        self.assertRaisesRegex(otr.OpenshiftTektonResourcesBadConfigError, msg,
-                               otr.fetch_desired_resources,
-                               otr.fetch_tkn_providers(None))
+        with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError,
+                           match=msg):
+            otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
     @patch(f'{MODULE}.DEFAULT_DEPLOY_RESOURCES_STEP_NAME', 'unknown-step')
     def test_task_templates_unknown_deploy_resources_step(self) -> None:
@@ -252,15 +257,15 @@ class TestOpenshiftTektonResources(TestCase):
         self.test_data.providers = [self.provider1]
         msg = r'Cannot find a step named unknown-step to set resources in ' \
               r'task template openshift-saas-deploy'
-        self.assertRaisesRegex(otr.OpenshiftTektonResourcesBadConfigError, msg,
-                               otr.fetch_desired_resources,
-                               otr.fetch_tkn_providers(None))
+        with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError,
+                           match=msg):
+            otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
 
     @patch(f'{MODULE}.RESOURCE_MAX_LENGTH', 1)
     def test_task_templates_resource_too_long(self) -> None:
         self.test_data.saas_files = [self.saas1]
         self.test_data.providers = [self.provider1]
         msg = r'name o-openshift-saas-deploy-saas1 is longer than 1 characters'
-        self.assertRaisesRegex(otr.OpenshiftTektonResourcesNameTooLongError,
-                               msg, otr.fetch_desired_resources,
-                               otr.fetch_tkn_providers(None))
+        with pytest.raises(otr.OpenshiftTektonResourcesNameTooLongError,
+                           match=msg):
+            otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
