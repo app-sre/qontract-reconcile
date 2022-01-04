@@ -712,3 +712,32 @@ class TestConfigHashTrigger(TestCase):
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
+
+
+
+class TestRemoveNonAttributes(TestCase):
+    def testSimpleDict(self):
+        input = {
+            "a": 1,
+            "b": {},
+            "d": None,
+            "e": {
+                "aa": "aa",
+                "bb": None
+            }
+        }
+        expected = {
+            "a": 1,
+            "b": {},
+            "e": {
+                "aa": "aa"
+            }
+        }
+        res = SaasHerder.remove_none_values(input)
+        self.assertEqual(res, expected)
+
+    def testNoneValue(self):
+        input = None
+        expected = {}
+        res = SaasHerder.remove_none_values(input)
+        self.assertEqual(res, expected)
