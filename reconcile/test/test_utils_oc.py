@@ -524,7 +524,4 @@ class TestOCMapGetClusters(TestCase):
             oc_map.get(cluster_1['name']),
             OC
         )
-        self.assertIsInstance(
-            oc_map.get(cluster_1['name'], privileged=True),
-            OCLogMsg
-        )
+        self.assertFalse(oc_map.get(cluster_1['name'], privileged=True))
