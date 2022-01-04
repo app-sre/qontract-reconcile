@@ -1107,6 +1107,8 @@ class SaasHerder():
 
     @staticmethod
     def remove_none_values(d):
+        if d is None:
+            return {}
         new = {}
         for k, v in d.items():
             if v is not None:
