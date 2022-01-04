@@ -74,20 +74,31 @@ def guess_labels(project_labels, changed_paths):
     """
     not_allowed_labels = MERGE_LABELS_PRIORITY + HOLD_LABELS
     ignore_tokens = ['cicd', 'saas', 'rds', 'services']
-    guesses = set()
-    for label in project_labels:
-        if label in not_allowed_labels:
-            continue
-        for path in changed_paths:
-            path_dir = os.path.dirname(path)
-            path_tokens = path_dir.split('/')
-            matches = [t for t in path_tokens if t
-                       and t in label
-                       and t not in ignore_tokens]
-            if matches:
-                guesses.add(label)
+
     apps = get_app_list()
     parent_apps = get_parents_list()
+
+    guesses = set()
+    tenants = []
+    matches = []
+
+    for path in changed_paths:
+        path_dir = os.path.dirname(path)
+        path_tokens = path_dir.split('/')
+
+        tenants += [t for t in path_tokens if t not in ignore_tokens and
+                    t in apps]
+        matches += [t for t in path_tokens if t not in ignore_tokens and
+                    t in project_labels]
+
+    for t in tenants:
+        if t not in not_allowed_labels:
+            guesses.add("tenant-" + t)
+
+    for m in matches:
+        if m not in not_allowed_labels:
+            guesses.add(m)
+
     onboarding_status = guess_onboarding_status(changed_paths, apps,
                                                 parent_apps)
     if onboarding_status is not None:
@@ -107,6 +118,12 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None):
         gl.get_merge_request_changed_paths(gitlab_merge_request_id)
     guessed_labels = guess_labels(project_labels, changed_paths)
     labels_to_add = [b for b in guessed_labels if b not in labels]
-    if labels_to_add:
-        logging.info(['add_labels', labels_to_add])
+    labels_to_create = [b for b in labels_to_add if b not in project_labels]
+
+    logging.info(['create_labels', labels_to_create])
+    logging.info(['add_labels', labels_to_add])
+
+    if not dry_run and labels_to_add:
+        for label in labels_to_create:
+            gl.create_label(label, "#0000FF")
         gl.add_labels_to_merge_request(gitlab_merge_request_id, labels_to_add)
