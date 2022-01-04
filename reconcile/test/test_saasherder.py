@@ -713,6 +713,15 @@ class TestConfigHashTrigger(TestCase):
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(job_specs), 1)
 
+    def test_non_existent_config_triggers(self):
+        self.state_mock.get.side_effect = [
+            self.deploy_current_state_fxt,
+            None
+        ]
+        job_specs = \
+            self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertEqual(len(job_specs), 1)
+
 
 class TestRemoveNonAttributes(TestCase):
     def testSimpleDict(self):
