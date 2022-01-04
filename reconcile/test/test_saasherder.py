@@ -714,7 +714,6 @@ class TestConfigHashTrigger(TestCase):
         self.assertEqual(len(job_specs), 1)
 
 
-
 class TestRemoveNonAttributes(TestCase):
     def testSimpleDict(self):
         input = {
