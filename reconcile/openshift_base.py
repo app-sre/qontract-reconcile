@@ -254,9 +254,9 @@ def wait_for_namespace_exists(oc, namespace):
         raise Exception(f'namespace {namespace} does not exist')
 
 
-def apply(dry_run, oc_map: OC_Map, cluster, namespace, resource_type, resource,
-          wait_for_namespace, recycle_pods: bool = True,
-          privileged: bool = False):
+def apply(dry_run: bool, oc_map: OC_Map, cluster: str, namespace: str,
+          resource_type: OR, resource, wait_for_namespace: bool,
+          recycle_pods: bool = True, privileged: bool = False) -> None:
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster, privileged)
@@ -339,8 +339,9 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
         oc.create(namespace, annotated)
 
 
-def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
-           enable_deletion, privileged: bool = False):
+def delete(dry_run: bool, oc_map: OC_Map, cluster: str, namespace: str,
+           resource_type: str, name: str, enable_deletion: bool,
+           privileged: bool = False) -> None:
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not enable_deletion:
