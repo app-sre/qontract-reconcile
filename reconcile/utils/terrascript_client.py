@@ -97,7 +97,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
-                 'storage_class', 'kms_encryption',
+                 'event_notifications', 'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
@@ -1550,6 +1550,74 @@ class TerrascriptClient:
             notification_tf_resource = aws_s3_bucket_notification(
                 sqs_identifier, **notification_values)
             tf_resources.append(notification_tf_resource)
+
+        event_notifications = common_values.get('event_notifications')
+        sns_notifications = []
+        sqs_notifications = []
+
+        for event_notification in event_notifications:
+            destination_type = event_notification['destination_type']
+            destination_identifier = event_notification['destination']
+            event_type = event_notification['event_type']
+
+            if destination_type == 'sns':
+                notification_type = 'topic'
+                resource_arn_data = 'data.aws_sns_topic'
+            elif destination_type == 'sqs':
+                notification_type = 'queue'
+                resource_arn_data = 'data.aws_sqs_queue'
+
+            if destination_identifier.startswith('arn:'):
+                resource_name = destination_identifier.split(':')[-1]
+                resource_arn = destination_identifier
+            else:
+                resource_name = destination_identifier
+                resource_values = {
+                    'name': resource_name
+                }
+                resource_provider = values.get('provider')
+                if resource_provider:
+                    resource_values['provider'] = resource_provider
+                if destination_type == 'sns':
+                    resource_data = data.aws_sns_topic(resource_name,
+                                                       **resource_values)
+                elif destination_type == 'sqs':
+                    resource_data = data.aws_sqs_queue(resource_name,
+                                                       **resource_values)
+                tf_resources.append(resource_data)
+                resource_arn = '${'+resource_arn_data+'.' \
+                    + destination_identifier + '.arn}'
+
+            notification_config = {
+                'id': resource_name,
+                notification_type+'_arn': resource_arn,
+                'events': event_type
+            }
+
+            filter_prefix = event_notification.get('filter_prefix', None)
+            if filter_prefix is not None:
+                notification_config['filter_prefix'] = filter_prefix
+            filter_suffix = event_notification.get('filter_suffix', None)
+            if filter_suffix is not None:
+                notification_config['filter_suffix'] = filter_suffix
+
+            if destination_type == 'sns':
+                sns_notifications.append(notification_config)
+            elif destination_type == 'sqs':
+                sqs_notifications.append(notification_config)
+
+        if event_notifications:
+            notifications = {
+                'bucket': '${' + bucket_tf_resource.id + '}'
+            }
+        if sns_notifications:
+            notifications['topic'] = sns_notifications
+        if sqs_notifications:
+            notifications['queue'] = sqs_notifications
+
+        notification_tf_resource = aws_s3_bucket_notification(
+                identifier+'-event-notifications', **notifications)
+        tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get('bucket_policy')
         if bucket_policy:
