@@ -3,6 +3,7 @@
 # type: ignore[misc]
 from typing import Any
 from unittest.mock import patch, create_autospec
+from copy import deepcopy
 
 import pytest
 
@@ -118,7 +119,8 @@ class TestOpenshiftTektonResources():
 
     def test_duplicate_providers(self) -> None:
         self.test_data.saas_files = [self.saas1]
-        self.test_data.providers = [self.provider1, self.provider1]
+        provider1_duplicate = deepcopy(self.provider1)
+        self.test_data.providers = [self.provider1, provider1_duplicate]
         msg = r'There are duplicates in tekton providers names: provider1'
         with pytest.raises(otr.OpenshiftTektonResourcesBadConfigError,
                            match=msg):

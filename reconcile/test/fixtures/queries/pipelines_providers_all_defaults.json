@@ -1,0 +1,61 @@
+{
+  "pipelines_providers": [
+    {
+      "name": "provider1",
+      "provider": "tekton",
+      "defaults": {
+        "retention": {
+          "days": 7,
+          "minimum": 100
+        },
+        "taskTemplates": [
+          {
+            "name": "openshift-saas-deploy",
+            "type": "onePerSaasFile",
+            "path": "openshift-saas-deploy.task.yaml.j2",
+            "variables": "{\"qontract_reconcile_image_tag\":\"latest\"}"
+          },
+          {
+            "name": "push-gateway-openshift-saas-deploy-task-status-metric",
+            "type": "onePerNamespace",
+            "path": "push-gateway-task-status-metric.task.yaml.j2",
+            "variables": "{\"ubi8_ubi_minimal_image_tag\":\"latest\"}"
+          }
+        ],
+        "pipelineTemplates": {
+          "openshiftSaasDeploy": {
+            "name": "openshift-saas-deploy",
+            "type": "onePerSaasFile",
+            "path": "openshift-saas-deploy.pipeline.yaml.j2",
+            "variables": null
+          }
+        },
+        "deployResources": {
+          "requests": {
+            "cpu": "100m",
+            "memory": "200Mi"
+          },
+          "limits": {
+            "cpu": "1",
+            "memory": "1Gi"
+          }
+        }
+      },
+      "namespace": {
+        "name": "provider1",
+        "cluster": {
+          "name": "appsres03ue1",
+          "serverUrl": "",
+          "jumpHost": null,
+          "automationToken": {
+            "path": "",
+            "field": "token",
+            "format": null
+          },
+          "internal": true,
+          "disable": null
+        }
+      }
+    }
+  ]
+}

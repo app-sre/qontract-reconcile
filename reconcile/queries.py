@@ -1496,6 +1496,13 @@ SAAS_FILES_QUERY_V2 = """
             }
           }
         }
+        defaults {
+          pipelineTemplates {
+            openshiftSaasDeploy {
+              name
+            }
+          }
+        }
         pipelineTemplates {
           openshiftSaasDeploy {
             name
@@ -1736,11 +1743,39 @@ PIPELINES_PROVIDERS_QUERY = """
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
-    retention {
-      days
-      minimum
-    }
     ...on PipelinesProviderTekton_v1 {
+      defaults {
+        retention {
+          days
+          minimum
+        }
+        taskTemplates {
+          ...on PipelinesProviderTektonObjectTemplate_v1 {
+            name
+            type
+            path
+            variables
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+            type
+            path
+            variables
+          }
+        }
+        deployResources {
+          requests {
+            cpu
+            memory
+          }
+          limits {
+            cpu
+            memory
+          }
+        }
+      }
       namespace {
         name
         cluster {
@@ -1770,6 +1805,10 @@ PIPELINES_PROVIDERS_QUERY = """
             integrations
           }
         }
+      }
+      retention {
+        days
+        minimum
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -1806,7 +1845,18 @@ PIPELINES_PROVIDERS_QUERY = """
 def get_pipelines_providers():
     """ Returns PipelinesProvider resources defined in app-interface."""
     gqlapi = gql.get_api()
-    return gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+    pipelines_providers = \
+        gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+
+    for pp in pipelines_providers:
+        # TODO: In the near future 'defaults' will be mandatory. In the
+        # meantime, let's make sure we always get a dictionary
+        defaults = pp.pop('defaults') or {}
+        for k, v in defaults.items():
+            if k not in pp or not pp[k]:
+                pp[k] = v
+
+    return pipelines_providers
 
 
 JIRA_BOARDS_QUERY = """
