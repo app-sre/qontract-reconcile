@@ -194,6 +194,8 @@ def version_history(ctx):
     results = []
     for ocm_name, history_data in history.items():
         for version, version_data in history_data['versions'].items():
+            if not version:
+                continue
             for workload, workload_data in version_data['workloads'].items():
                 item = {
                     'ocm': ocm_name,
