@@ -525,3 +525,60 @@ class TestOCMapGetClusters(TestCase):
             OC
         )
         self.assertFalse(oc_map.get(cluster_1['name'], privileged=True))
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_internal_clusters(self, selfmock_secret_reader,
+                               mock_oc):
+        cluster = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'internal': True,
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace = {
+            'name': 'ns1',
+            'cluster': cluster
+
+        }
+
+        # internal cluster must be in oc_map when internal is enabled
+        internal_oc_map = OC_Map(internal=True, namespaces=[namespace])
+        self.assertIsInstance(
+            internal_oc_map.get(cluster['name']),
+            OC
+        )
+
+        # internal cluster must not be in oc_map when internal is disabled
+        oc_map = OC_Map(internal=False, namespaces=[namespace])
+        self.assertFalse(oc_map.get(cluster['name']))
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_disabled_integration(self, selfmock_secret_reader,
+                                  mock_oc):
+        calling_int = 'calling_integration'
+        cluster = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'disable': {
+                'integrations': [
+                    calling_int.replace('_', '-')
+                ]
+            },
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace = {
+            'name': 'ns1',
+            'cluster': cluster
+
+        }
+
+        oc_map = OC_Map(integration=calling_int, namespaces=[namespace])
+        self.assertFalse(oc_map.get(cluster['name']))
