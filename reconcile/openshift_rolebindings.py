@@ -94,7 +94,7 @@ def fetch_desired_state(ri, oc_map):
     for role in roles:
         if not openshift_resource.role_still_valid(role):
             raise ValueError(
-                f'The maximum expiration date of {r["name"]} '
+                f'The maximum expiration date of {role["name"]} '
                 f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
                     days from today')
         permissions = [{'cluster': a['namespace']['cluster']['name'],
