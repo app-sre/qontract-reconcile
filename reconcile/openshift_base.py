@@ -307,7 +307,7 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
                           resource_type, resource.name])
             current_resource = oc.get(namespace, resource_type, resource.name)
             current_storage = oc.get_storage(current_resource)
-            desired_storage = oc.get_storage(resource)
+            desired_storage = oc.get_storage(resource.body)
             resize_required = current_storage != desired_storage
             if resize_required:
                 owned_pods = oc.get_owned_pods(namespace, resource)
