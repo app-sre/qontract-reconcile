@@ -282,8 +282,13 @@ class TestPodOwnedPVCNames(TestCase):
         self.assertEqual(len(owned_pvc_names), 0)
 
     def test_ok(self):
-        pods = [{'spec': {'volumes':
-            [{'persistentVolumeClaim': {'claimName': 'cm'}}]}}]
+        pods = [{
+            'spec': {
+                'volumes': [{
+                    'persistentVolumeClaim': {'claimName': 'cm'}
+                }]
+            }
+        }]
         oc = OC('cluster', 'server', 'token', local=True)
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 1)
