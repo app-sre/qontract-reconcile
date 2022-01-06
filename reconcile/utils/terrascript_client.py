@@ -3735,10 +3735,10 @@ class TerrascriptClient:
                         'target_group':[]
                     },
                 },
-                'condition': [{
-                    'http_request_method': {'values': http_methods},
-                    'path_pattern': {'values': [condition['path']]}
-                }],
+                'condition': [
+                    {'http_request_method': {'values': http_methods}},
+                    {'path_pattern': {'values': [condition['path']]}}
+                ],
                 'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
             }
 
