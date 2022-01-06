@@ -234,7 +234,6 @@ provider
   }
   certificate_arn
   idle_timeout
-  annotations
   targets {
     name
     default
@@ -251,6 +250,8 @@ provider
       weight
     }
   }
+  output_resource_name
+  annotations
 }
 ... on NamespaceTerraformResourceSecretsManager_v1 {
   account
