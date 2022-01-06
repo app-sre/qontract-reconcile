@@ -270,19 +270,20 @@ class TestGetObjRootOwner(TestCase):
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestPodOwnedPVCNames(TestCase):
     def test_no_volumes(self):
-        pods = [{'volumes': []}]
+        pods = [{'spec': {'volumes': []}}]
         oc = OC('cluster', 'server', 'token', local=True)
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 0)
 
     def test_other_volumes(self):
-        pods = [{'volumes': [{'configMap': {'name': 'cm'}}]}]
+        pods = [{'spec': {'volumes': [{'configMap': {'name': 'cm'}}]}}]
         oc = OC('cluster', 'server', 'token', local=True)
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 0)
 
     def test_ok(self):
-        pods = [{'volumes': [{'persistentVolumeClaim': {'claimName': 'cm'}}]}]
+        pods = [{'spec': {'volumes':
+            [{'persistentVolumeClaim': {'claimName': 'cm'}}]}}]
         oc = OC('cluster', 'server', 'token', local=True)
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 1)
