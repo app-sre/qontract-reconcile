@@ -24597,6 +24597,15 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -24635,6 +24644,15 @@ objects:
 
             <match integration>
               @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[slack-cluster-usergroups] %s\`\`\`"
+              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -25947,11 +25965,11 @@ parameters:
 - name: SLACK_CLUSTER_USERGROUPS_CPU_LIMIT
   value: 200m
 - name: SLACK_CLUSTER_USERGROUPS_MEMORY_LIMIT
-  value: 200Mi
+  value: 400Mi
 - name: SLACK_CLUSTER_USERGROUPS_CPU_REQUEST
   value: 100m
 - name: SLACK_CLUSTER_USERGROUPS_MEMORY_REQUEST
-  value: 80Mi
+  value: 200Mi
 - name: OCP_RELEASE_MIRROR_CPU_LIMIT
   value: 300m
 - name: OCP_RELEASE_MIRROR_MEMORY_LIMIT
