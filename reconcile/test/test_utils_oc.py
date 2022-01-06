@@ -267,6 +267,64 @@ class TestGetObjRootOwner(TestCase):
             oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
+class TestPodOwnedPVCNames(TestCase):
+    def test_no_volumes(self):
+        pods = [{'spec': {'volumes': []}}]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_other_volumes(self):
+        pods = [{'spec': {'volumes': [{'configMap': {'name': 'cm'}}]}}]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_ok(self):
+        pods = [{
+            'spec': {
+                'volumes': [{
+                    'persistentVolumeClaim': {'claimName': 'cm'}
+                }]
+            }
+        }]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 1)
+        self.assertEqual(list(owned_pvc_names)[0], 'cm')
+
+
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
+class TestGetStorage(TestCase):
+    def test_none(self):
+        resource = {'spec': {'what': 'ever'}}
+        oc = OC('cluster', 'server', 'token', local=True)
+        storage = oc.get_storage(resource)
+        self.assertIsNone(storage)
+
+    def test_ok(self):
+        size = "100Gi"
+        resource = {
+            'spec': {
+                'volumeClaimTemplates': [
+                    {
+                        'spec': {
+                            'resources': {
+                                'requests': {
+                                    'storage': size
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        oc = OC('cluster', 'server', 'token', local=True)
+        result = oc.get_storage(resource)
+        self.assertEqual(result, size)
+
+
 class TestValidateLabels(TestCase):
     def test_ok(self):
         self.assertFalse(validate_labels({'my.company.com/key-name': 'value'}))

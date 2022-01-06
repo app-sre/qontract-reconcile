@@ -5,6 +5,7 @@ import os
 import re
 import tempfile
 import time
+from contextlib import suppress
 from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
@@ -348,6 +349,13 @@ class OCDeprecated:
         return self._msg_to_process_reconcile_time(namespace, resource.body)
 
     @OCDecorators.process_reconcile_time
+    def patch(self, namespace, kind, name, patch):
+        cmd = ['patch', '-n', namespace, kind, name, '-p', json.dumps(patch)]
+        self._run(cmd)
+        resource = {'kind': kind, 'metadata': {'name': name}}
+        return self._msg_to_process_reconcile_time(namespace, resource)
+
+    @OCDecorators.process_reconcile_time
     def delete(self, namespace, kind, name, cascade=True):
         cmd = ['delete', '-n', namespace, kind, name,
                f'--cascade={str(cascade).lower()}']
@@ -513,6 +521,32 @@ class OCDeprecated:
                 owned_pods.append(p)
 
         return owned_pods
+
+    @staticmethod
+    def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
+        owned_pvc_names = set()
+        for p in pods:
+            vols = p['spec'].get('volumes')
+            if not vols:
+                continue
+            for v in vols:
+                with suppress(KeyError):
+                    cn = v['persistentVolumeClaim']['claimName']
+                    owned_pvc_names.add(cn)
+
+        return owned_pvc_names
+
+    @staticmethod
+    def get_storage(resource):
+        # resources with volumeClaimTemplates
+        with suppress(KeyError, IndexError):
+            vct = resource['spec']['volumeClaimTemplates'][0]
+            return vct['spec']['resources']['requests']['storage']
+
+    def resize_pvcs(self, namespace, pvc_names, size):
+        patch = {'spec': {'resources': {'requests': {'storage': size}}}}
+        for p in pvc_names:
+            self.patch(namespace, 'PersistentVolumeClaim', p, patch)
 
     def recycle_orphan_pods(self, namespace, pods):
         for p in pods:

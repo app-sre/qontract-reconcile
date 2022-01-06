@@ -305,18 +305,24 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             logging.info(['delete_sts_and_apply', cluster, namespace,
                           resource_type, resource.name])
-            owned_pods = oc.get_owned_pods(namespace, resource)
+            current_resource = oc.get(namespace, resource_type, resource.name)
+            current_storage = oc.get_storage(current_resource)
+            desired_storage = oc.get_storage(resource.body)
+            resize_required = current_storage != desired_storage
+            if resize_required:
+                owned_pods = oc.get_owned_pods(namespace, resource)
+                owned_pvc_names = oc.get_pod_owned_pvc_names(owned_pods)
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=False)
             oc.apply(namespace=namespace, resource=annotated)
-            logging.info(['recycle_sts_pods', cluster, namespace,
-                          resource_type, resource.name])
-            # the resource was applied without cascading, we proceed
-            # to recycle the pods belonging to the old resource.
-            # note: we really just delete pods and let the new resource
-            # recreate them. we delete one by one and wait for a new
-            # pod to become ready before proceeding to the next one.
-            oc.recycle_orphan_pods(namespace, owned_pods)
+            # the resource was applied without cascading.
+            # if the change was in the storage, we need to
+            # take care of the resize ourselves.
+            # ref: https://github.com/kubernetes/enhancements/pull/2842
+            if resize_required:
+                logging.info(['resizing_pvcs', cluster, namespace,
+                              owned_pvc_names])
+                oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
