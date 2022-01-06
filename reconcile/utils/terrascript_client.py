@@ -3714,6 +3714,8 @@ class TerrascriptClient:
             'read': ['GET', 'HEAD', 'OPTIONS'],
             'write': ['POST', 'PUT', 'PATCH', 'DELETE']
         }
+        http_methods_lookup['all'] = http_methods_lookup['read'] \
+            + http_methods_lookup['write']
 
         for rule_num, rule in enumerate(resource['rules']):
             condition = rule['condition']
@@ -3732,7 +3734,7 @@ class TerrascriptClient:
                 'action': {
                     'type': 'forward',
                     'forward': {
-                        'target_group':[]
+                        'target_group': []
                     },
                 },
                 'condition': [
