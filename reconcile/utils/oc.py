@@ -526,7 +526,7 @@ class OCDeprecated:
     def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
         owned_pvc_names = set()
         for p in pods:
-            vols = p.get('volumes')
+            vols = p['spec'].get('volumes')
             if not vols:
                 continue
             for v in vols:
