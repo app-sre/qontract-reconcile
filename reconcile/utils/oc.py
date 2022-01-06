@@ -537,7 +537,7 @@ class OCDeprecated:
         return owned_pvc_names
 
     @staticmethod
-    def get_storage(resource: dict) -> Optional[str]:
+    def get_storage(resource):
         # resources with volumeClaimTemplates
         with suppress(KeyError, IndexError):
             vct = resource['spec']['volumeClaimTemplates'][0]
