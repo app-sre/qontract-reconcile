@@ -3753,10 +3753,8 @@ class TerrascriptClient:
                 target_resource = valid_targets[target_name]
 
                 values['action']['forward']['target_group'].append({
-                    'target_group': {
-                        'arn': f'${{{target_resource.arn}}}',
-                        'weight': a['weight']
-                    }
+                    'arn': f'${{{target_resource.arn}}}',
+                    'weight': a['weight']
                 })
                 weight_sum += a['weight']
 
