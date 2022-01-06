@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
 import urllib3
 
@@ -523,7 +523,7 @@ class OCDeprecated:
         return owned_pods
 
     @staticmethod
-    def get_pod_owned_pvc_names(pods):
+    def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
         owned_pvc_names = set()
         for p in pods:
             vols = p.get('volumes')
@@ -537,7 +537,7 @@ class OCDeprecated:
         return owned_pvc_names
 
     @staticmethod
-    def get_storage(resource):
+    def get_storage(resource: dict) -> Optional[str]:
         # resources with volumeClaimTemplates
         with suppress(KeyError, IndexError):
             vct = resource['spec']['volumeClaimTemplates'][0]
