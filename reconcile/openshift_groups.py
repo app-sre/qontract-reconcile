@@ -116,18 +116,11 @@ def fetch_desired_state(oc_map):
 
     for r in roles:
         gql.get_api
-        # checkExpirationDate = openshift_resource.roll_still_valid(r)
         if not openshift_resource.role_still_valid(r):
             raise ValueError(
                 f'The maximum expiration date of {r["name"]} '
                 f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
                     days from today')
-        # if checkExpirationDate is True:
-        #     continue
-        # elif checkExpirationDate is False:
-        #     raise ValueError(
-        #         f'The maximum expiration date of {r["name"]} '
-        #         f'shall not exceed {EXPIRATION_MAX} days from today')
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
                 continue
