@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List
 
 import urllib3
 
