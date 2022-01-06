@@ -3722,6 +3722,7 @@ class TerrascriptClient:
 
             values = {
                 'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+                'priority': rule_num + 1,
                 'action': {
                     'type': 'forward',
                     'forward': {
@@ -3768,7 +3769,7 @@ class TerrascriptClient:
                     f' given: {weight_sum}'
                 )
 
-            lblr_identifier = f'{identifier}-rule-{rule_num:02d}'
+            lblr_identifier = f'{identifier}-rule-{rule_num+1:02d}'
             lblr_tf_resource = \
                 aws_lb_listener_rule(lblr_identifier, **values)
 
