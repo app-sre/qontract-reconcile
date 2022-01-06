@@ -455,8 +455,6 @@ class OpenshiftResource:
 def role_still_valid(role):
     exp_date = datetime.datetime \
         .strptime(role['expirationDate'], '%Y-%m-%d').date()
-    # datetime.date.today()
-    # if (exp_date - datetime.date.today()).days <= EXPIRATION_MAX:
     if (exp_date - datetime.datetime.utcnow().date()).days <= EXPIRATION_MAX:
         return True
     return False
