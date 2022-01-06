@@ -42,7 +42,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def setup(print_only, thread_pool_size):
+def setup(print_to_file, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
@@ -59,7 +59,7 @@ def setup(print_only, thread_pool_size):
     if err:
         return None
 
-    working_dirs = ts.dump(print_only)
+    working_dirs = ts.dump(print_to_file)
 
     return accounts, working_dirs
 
@@ -99,11 +99,11 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(dry_run, print_only=False,
+def run(dry_run, print_to_file=None,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
-    accounts, working_dirs = setup(print_only, thread_pool_size)
-    if print_only:
+    accounts, working_dirs = setup(print_to_file, thread_pool_size)
+    if print_to_file:
         cleanup_and_exit()
     if working_dirs is None:
         err = True

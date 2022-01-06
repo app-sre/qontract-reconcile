@@ -378,7 +378,7 @@ def build_desired_state_vpc(clusters, ocm_map: OCMMap, awsapi: AWSApi):
 
 
 @defer
-def run(dry_run, print_only=False,
+def run(dry_run, print_to_file=None,
         enable_deletion=False, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
@@ -433,9 +433,9 @@ def run(dry_run, print_only=False,
         settings=settings)
     ts.populate_additional_providers(participating_accounts)
     ts.populate_vpc_peerings(desired_state)
-    working_dirs = ts.dump(print_only=print_only)
+    working_dirs = ts.dump(print_to_file=print_to_file)
 
-    if print_only:
+    if print_to_file:
         sys.exit(0 if dry_run else int(any(errors)))
 
     tf = terraform.TerraformClient(

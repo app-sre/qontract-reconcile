@@ -78,6 +78,7 @@ from sretoolbox.utils import threaded
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
@@ -105,6 +106,11 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
+
+
+class PrintToFileInGitRepositoryError(Exception):
+    def __init__(self, msg):
+        super().__init__("can not print to a git repository: " + str(msg))
 
 
 def safe_resource_id(s):
@@ -2908,15 +2914,18 @@ class TerrascriptClient:
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def dump(self, print_only=False, existing_dirs=None):
+    def dump(self, print_to_file=None, existing_dirs=None):
         if existing_dirs is None:
             working_dirs = {}
         else:
             working_dirs = existing_dirs
         for name, ts in self.tss.items():
-            if print_only:
-                print('##### {} #####'.format(name))
-                print(str(ts))
+            if print_to_file:
+                if is_file_in_git_repo(print_to_file):
+                    raise PrintToFileInGitRepositoryError(print_to_file)
+                with open(print_to_file, 'w') as f:
+                    f.write('##### {} #####\n'.format(name))
+                    f.write(str(ts))
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
