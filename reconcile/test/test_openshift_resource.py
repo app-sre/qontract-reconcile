@@ -141,12 +141,62 @@ class TestOpenshiftResource:
         assert not openshift_resource.has_owner_reference()
 
     @staticmethod
-    def test_check_temp_role_expiration_date():
-        expirationDate = date.today() + \
+    def test_check_temp_role_after_expiration_date():
+        expiration_date = date.today() + \
                 timedelta(days=(openshift_resource.EXPIRATION_MAX+1))
-        resource = mock_openshift_role_bindings(expirationDate)
+        resource = mock_openshift_role_bindings(expiration_date)
         for r in resource:
-            assert openshift_resource.checkExpirationDate(r) is False
+            assert openshift_resource.role_still_valid(r) is False
+
+    @staticmethod
+    def test_check_temp_role_before_expiration_date():
+        expiration_date = date.today() + \
+                timedelta(days=(openshift_resource.EXPIRATION_MAX-1))
+        resource = mock_openshift_role_bindings(expiration_date)
+        for r in resource:
+            assert openshift_resource.role_still_valid(r) is True
+
+    @staticmethod
+    def test_check_invalid_expiration_date():
+        resource = fxt.get_anymarkup(
+            'invalid_expiration_date.yml')
+
+        with pytest.raises(ConstructResourceError):
+            openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+            assert openshift_resource.has_valid_expiration_date() is None
+
+    @staticmethod
+    def test_has_expiration_date():
+        resource = {
+            'kind': 'kind',
+            'expirationDate': '01-01-2022',
+            'metadata': {
+                'name': 'resource',
+                'ownerReferences': [
+                    {
+                        'name': 'owner'
+                    }
+                ]
+            }
+        }
+        openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+        assert openshift_resource.has_expiration_date()
+
+    @staticmethod
+    def test_has_no_expiration_date():
+        resource = {
+            'kind': 'kind',
+            'metadata': {
+                'name': 'resource',
+                'ownerReferences': [
+                    {
+                        'name': 'owner'
+                    }
+                ]
+            }
+        }
+        openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
+        assert not openshift_resource.has_expiration_date()
 
 
 def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:

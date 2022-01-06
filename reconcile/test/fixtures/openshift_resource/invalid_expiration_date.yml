@@ -1,0 +1,21 @@
+gql_response:
+  - name: expirationCheck
+    users:
+    - github_username: user1
+    - github_username: user2
+    expirationDate: invalid-date
+    instances:
+    - account: app-sre
+      identifier: expirationCheck-db
+      namespace:
+        name: expirationCheck-db
+        terraformResources:
+          - provider: rds
+            account: app-sre
+            identifier: expirationCheck-db
+        cluster:
+          name: server
+          serverUrl: server
+          automationToken:
+            path: token
+            field: token

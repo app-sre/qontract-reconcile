@@ -92,14 +92,8 @@ def fetch_desired_state(ri, oc_map):
     roles = gqlapi.query(ROLES_QUERY)['roles']
     users_desired_state = []
     for role in roles:
-        expDate = openshift_resource.checkExpirationDate(role)
-        if expDate is True:
+        if not openshift_resource.role_still_valid(role):
             continue
-        elif expDate is False:
-            raise ValueError(
-                f'The maximum expiration date of {role["name"]} '
-                f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
-                    days from today')
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
