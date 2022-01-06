@@ -129,7 +129,7 @@ def build_desired_state(zones):
 
 @defer
 def run(dry_run=False, print_only=False,
-        enable_deletion=False, thread_pool_size=10, defer=None):
+        enable_deletion=True, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones()
 
