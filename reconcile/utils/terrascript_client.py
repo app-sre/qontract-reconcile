@@ -3714,20 +3714,11 @@ class TerrascriptClient:
             'read': ['GET', 'HEAD', 'OPTIONS'],
             'write': ['POST', 'PUT', 'PATCH', 'DELETE']
         }
-        http_methods_lookup['all'] = http_methods_lookup['read'] \
-            + http_methods_lookup['write']
 
         for rule_num, rule in enumerate(resource['rules']):
             condition = rule['condition']
             action = rule['action']
-            config_methods = condition.get('methods')
-
-            if config_methods not in http_methods_lookup:
-                raise KeyError(
-                    f"invalid methods: {config_methods}"
-                    " should be one of 'read' or 'write'"
-                )
-            http_methods = http_methods_lookup[config_methods]
+            config_methods = condition.get('methods', None)
 
             values = {
                 'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
@@ -3738,11 +3729,22 @@ class TerrascriptClient:
                     },
                 },
                 'condition': [
-                    {'http_request_method': {'values': http_methods}},
                     {'path_pattern': {'values': [condition['path']]}}
                 ],
                 'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
             }
+
+            if config_methods:
+                if config_methods not in http_methods_lookup:
+                    raise KeyError(
+                        f"invalid methods: {config_methods}"
+                        " should be one of 'read' or 'write'"
+                    )
+
+                http_methods = http_methods_lookup[config_methods]
+                values['condition'].append(
+                    {'http_request_method': {'values': http_methods}}
+                )
 
             weight_sum = 0
             for a in action:
