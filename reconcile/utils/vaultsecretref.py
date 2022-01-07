@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from reconcile.utils.vault import VaultClient, _VaultClient
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass
 class VaultSecretRef:
 
     _ALL_FIELDS = "all"
