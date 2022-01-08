@@ -80,7 +80,7 @@ def build_probe(provider: EndpointMonitoringProvider,
     blackbox_exporter = provider.blackboxExporter
     if blackbox_exporter:
         prober_url = parse_prober_url(blackbox_exporter.exporterUrl)
-        body = {
+        body: dict[str, Any] = {
             "apiVersion": "monitoring.coreos.com/v1",
             "kind": "Probe",
             "metadata": {
@@ -92,15 +92,17 @@ def build_probe(provider: EndpointMonitoringProvider,
             },
             "spec": {
                 "jobName": f"endpoint-monitoring-{provider.name}",
-                "interval": provider.checkInterval,
+                "interval": provider.checkInterval or "10s",
                 "module": blackbox_exporter.module,
                 "prober": prober_url,
                 "targets": {
                     "staticConfig": {
-                        "relabelingConfigs": {
-                            "action": "labeldrop",
-                            "regex": "namespace"
-                        },
+                        "relabelingConfigs": [
+                            {
+                                "action": "labeldrop",
+                                "regex": "namespace"
+                            }
+                        ],
                         "labels": provider.metric_labels,
                         "static": [
                             ep.url for ep in endpoints
@@ -109,6 +111,8 @@ def build_probe(provider: EndpointMonitoringProvider,
                 }
             }
         }
+        if provider.timeout:
+            body["spec"]["scrapeTimeout"] = provider.timeout
         return OpenshiftResource(
             body,
             QONTRACT_INTEGRATION,

@@ -13,8 +13,8 @@ appInterface:
           description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
           provider: blackbox-exporter
           metricLabels: "{\"environment\":\"staging\"}"
-          timeout: null,
-          checkInterval: null
+          timeout: 25s
+          checkInterval: 10s
           blackboxExporter:
             module: http_2xx
             namespace:
@@ -40,8 +40,8 @@ appInterface:
           description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
           provider: blackbox-exporter
           metricLabels: "{\"environment\":\"staging\"}"
-          timeout: null,
-          checkInterval: null
+          timeout: 25s
+          checkInterval: 10s
           blackboxExporter:
             module: http_2xx
             namespace:

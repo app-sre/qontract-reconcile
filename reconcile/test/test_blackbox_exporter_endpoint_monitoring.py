@@ -77,6 +77,11 @@ def test_probe_building(mocker):
     labels = spec["targets"]["staticConfig"]["labels"]
     assert labels.get("environment") == "staging"
 
+    # verify timeout and interval
+    assert spec["scrapeTimeout"] == provider.timeout
+    assert spec["interval"] == provider.checkInterval
+
+    # verify targets
     assert "https://test1.url" in spec["targets"]["staticConfig"]["static"]
     assert "https://test2.url" in spec["targets"]["staticConfig"]["static"]
 
