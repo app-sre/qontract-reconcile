@@ -84,14 +84,14 @@ def build_probe(provider: EndpointMonitoringProvider,
             "apiVersion": "monitoring.coreos.com/v1",
             "kind": "Probe",
             "metadata": {
-                "name": f"endpoint-monitoring-{provider.name}",
+                "name": provider.name,
                 "namespace": blackbox_exporter.namespace.get("name"),
                 "labels": {
                     "prometheus": "app-sre"
                 }
             },
             "spec": {
-                "jobName": f"endpoint-monitoring-{provider.name}",
+                "jobName": provider.name,
                 "interval": provider.checkInterval or "10s",
                 "module": blackbox_exporter.module,
                 "prober": prober_url,

@@ -100,6 +100,6 @@ def test_filling_desired_state(mocker):
         cluster="app-sre-stage-01",
         namespace="openshift-customer-monitoring",
         resource_type="Probe",
-        name="endpoint-monitoring-blackbox-exporter-http-2xx",
+        name="blackbox-exporter-http-2xx",
         value=ANY
     )
