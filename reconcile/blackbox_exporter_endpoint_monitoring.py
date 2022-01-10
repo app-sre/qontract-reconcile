@@ -130,8 +130,7 @@ def get_endpoints() -> dict[EndpointMonitoringProvider, list[Endpoint]]:
             if monitoring:
                 if monitoring["provider"]["provider"] == "blackbox-exporter":
                     ep = Endpoint(**ep_data)
-                    if ep.monitoring.provider not in endpoints:
-                        endpoints[ep.monitoring.provider] = []
+                    endpoints.setdefault(ep.monitoring.provider, [])
                     endpoints[ep.monitoring.provider].append(ep)
 
     return endpoints
