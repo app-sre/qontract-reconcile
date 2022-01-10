@@ -1,4 +1,3 @@
-from unittest import TestCase
 from unittest.mock import patch, create_autospec
 
 from typing import Any, Optional
@@ -25,43 +24,17 @@ class TestData:
         self._apps = apps
 
 
-class TestOnboardingGuesser(TestCase):
+# This was originally written in unittest, hence the use of xunit-style
+# setup/teardown methods instead of pytest fixtures.
+class TestOnboardingGuesser():
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         self.test_data = TestData()
 
         self.fxt = Fixtures('apps')
-        self.app1 = {'path': '/services/parent/normalapp/app.yml',
-                     'name': 'normalapp', 'onboardingStatus': 'BestEffort',
-                     'serviceOwners':
-                     [{'name': 'Service Owner',
-                       'email': 'serviceowner@test.com'}],
-                     'parentApp': None, 'codeComponents':
-                     [{'url': 'https://github.com/test',
-                       'resource': 'upstream', 'gitlabRepoOwners': None,
-                       'gitlabHousekeeping': None, 'jira': None}]}
-
-        self.app2 = {'path': '/services/parent/normalapp2/app.yml',
-                     'name': 'normalapp2', 'onboardingStatus': 'BestEffort',
-                     'serviceOwners':
-                     [{'name': 'Service Owner',
-                      'email': 'serviceowner@test.com'}],
-                     'parentApp': None, 'codeComponents':
-                     [{'url': 'https://github.com/test',
-                       'resource': 'upstream', 'gitlabRepoOwners': None,
-                       'gitlabHousekeeping': None, 'jira': None}]}
-
-        self.app3 = {'path': '/services/parent/childapp/app.yml',
-                     'name': 'childapp', 'onboardingStatus': 'BestEffort',
-                     'serviceOwners':
-                     [{'name': 'Service Owner',
-                       'email': 'serviceowner@test.com'}],
-                     'parentApp': {'path': '/services/parentapp/app.yml',
-                                   'name': 'parentapp'},
-                     'codeComponents':
-                     [{'url': 'https://github.com/test',
-                       'resource': 'upstream', 'gitlabRepoOwners': None,
-                       'gitlabHousekeeping': None, 'jira': None}]}
+        self.app1 = self.fxt.get_json('app1.json')
+        self.app2 = self.fxt.get_json('app2.json')
+        self.app3 = self.fxt.get_json('childapp.json')
 
         # Patcher for GqlApi methods
         self.gql_patcher = patch.object(gql, 'get_api', autospec=True)
@@ -77,7 +50,7 @@ class TestOnboardingGuesser(TestCase):
         else:
             return None
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         """ cleanup patches created in self.setUp"""
         self.gql_patcher.stop()
 
@@ -90,20 +63,20 @@ class TestOnboardingGuesser(TestCase):
     def test_get_app_list_2(self):
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_app_list()
-        self.assertEqual(t, {'normalapp': {'onboardingStatus': 'BestEffort',
-                                           'parentApp': None},
-                             'normalapp2': {'onboardingStatus': 'BestEffort',
-                                            'parentApp': None}})
+        assert t, {'normalapp': {'onboardingStatus': 'BestEffort',
+                                 'parentApp': None},
+                   'normalapp2': {'onboardingStatus': 'BestEffort',
+                                  'parentApp': None}}
 
     def test_get_parents_list(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
         t = gl.get_parents_list()
-        self.assertEqual(t, ['parentapp'])
+        assert t == {'parentapp'}
 
     def test_get_parents_list_empty(self):
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_parents_list()
-        self.assertEqual(t, [])
+        assert t == set()
 
     def test_guess_onboarding_status_child(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -112,7 +85,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/parentapp/childapp']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        self.assertEqual(t, 'BestEffort')
+        assert t == 'BestEffort'
 
     def test_guess_onboarding_status_normal(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -121,7 +94,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/normalapp2']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        self.assertEqual(t, 'BestEffort')
+        assert t == 'BestEffort'
 
     def test_guess_onboarding_status_no_app(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -130,7 +103,7 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/test/test']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        self.assertIsNone(t)
+        assert t is None
 
     def test_guess_onboarding_status_key_error(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
@@ -139,4 +112,4 @@ class TestOnboardingGuesser(TestCase):
         changed_paths = ['data/services/normalapp3']
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
-        self.assertIsNone(t)
+        assert t is None
