@@ -1,9 +1,6 @@
 appInterface:
   apps:
-  - name: testapp
-    onboardingStatus: OnBoarded
-    labels: "{\"service\":\"testservice\"}"
-    endPoints:
+  - endPoints:
     - name: test
       description: test
       url: https://httpstat.us/200

@@ -2439,9 +2439,6 @@ def get_status_pages():
 CLOSED_BOX_MONITORING_PROBES_QUERY = """
 {
   apps: apps_v1 {
-    name
-    labels
-    onboardingStatus
     endPoints {
       name
       description

@@ -1,16 +1,15 @@
 appInterface:
   apps:
-  - name: app-without-endpoints
-    onboardingStatus: OnBoarded
+  - name: xxx
+  - endPoints: null
+  - endPoints: []
   - name: app-with-endpoints-but-no-monitors
     onboardingStatus: OnBoarded
     endPoints:
     - name: test
       description: test
       url: https://httpstat.us/200
-  - name: app-with-endpoints-but-different-provider
-    onboardingStatus: OnBoarded
-    endPoints:
+  - endPoints:
     - name: test
       description: test
       url: https://httpstat.us/200

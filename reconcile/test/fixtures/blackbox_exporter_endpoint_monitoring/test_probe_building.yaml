@@ -1,9 +1,6 @@
 appInterface:
   apps:
-  - name: testapp_1
-    onboardingStatus: OnBoarded
-    labels: "{\"service\":\"testservice\"}"
-    endPoints:
+  - endPoints:
     - name: test_1
       description: test_1
       url: https://test1.url
@@ -27,10 +24,7 @@ appInterface:
                   path: app-sre/creds/kube-configs/app-sre-stage-01
                   field: token
             exporterUrl: http://exporterhost:9115/probe
-  - name: testapp_2
-    onboardingStatus: OnBoarded
-    labels: "{\"service\":\"testservice\"}"
-    endPoints:
+  - endPoints:
     - name: test_2
       description: test_2
       url: https://test2.url
