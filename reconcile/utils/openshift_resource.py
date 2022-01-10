@@ -449,6 +449,12 @@ class ResourceInventory:
 
     def add_desired(self, cluster, namespace, resource_type, name, value,
                     privileged=False):
+        # privileged permissions to apply resources to clusters are managed on
+        # a per-namespace level in qontract-schema namespace files, but are
+        # tracked on a per-resource level in ResourceInventory and the
+        # state-specs that lead up to add_desired calls. while this is a
+        # mismatch between schema and implementation for now, it will enable
+        # us to implement per-resource configuration in the future
         with self._lock:
             desired = \
                 (self._clusters[cluster][namespace][resource_type]
