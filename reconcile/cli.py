@@ -118,6 +118,8 @@ from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ
 from reconcile.utils.unleash import get_feature_toggle_state
+from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
+from reconcile.utils.git import is_file_in_git_repo
 
 
 TERRAFORM_VERSION = '0.13.7'
@@ -1106,6 +1108,8 @@ def user_validator(ctx):
 def terraform_resources(ctx, print_to_file, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
                         light, vault_output_path, account_name):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_resources,
                     ctx.obj, print_to_file,
                     enable_deletion, io_dir, thread_pool_size,
@@ -1133,6 +1137,8 @@ def terraform_resources(ctx, print_to_file, enable_deletion,
 def terraform_resources_wrapper(ctx, print_to_file, enable_deletion,
                                 io_dir, thread_pool_size, internal,
                                 use_jump_host, light, vault_output_path):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_resources_wrapper,
                     ctx.obj, print_to_file,
                     enable_deletion, io_dir, thread_pool_size,
@@ -1152,6 +1158,8 @@ def terraform_resources_wrapper(ctx, print_to_file, enable_deletion,
 @click.pass_context
 def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
                     thread_pool_size, send_mails):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_users,
                     ctx.obj, print_to_file,
                     enable_deletion, io_dir,
@@ -1168,6 +1176,8 @@ def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
 @click.pass_context
 def terraform_vpc_peerings(ctx, print_to_file, enable_deletion,
                            thread_pool_size):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_vpc_peerings,
                     ctx.obj, print_to_file,
                     enable_deletion, thread_pool_size)
@@ -1183,6 +1193,8 @@ def terraform_vpc_peerings(ctx, print_to_file, enable_deletion,
 @click.pass_context
 def terraform_tgw_attachments(ctx, print_to_file, enable_deletion,
                               thread_pool_size):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_tgw_attachments,
                     ctx.obj, print_to_file,
                     enable_deletion, thread_pool_size)
