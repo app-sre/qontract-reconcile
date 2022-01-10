@@ -19,7 +19,7 @@ from reconcile.utils import amtool
 from reconcile.utils import gql
 from reconcile.utils import openssl
 
-from reconcile.exceptions import FetchResourceError
+from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.jinja2_ext import B64EncodeExtension
