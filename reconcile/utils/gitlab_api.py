@@ -357,6 +357,12 @@ class GitLabApi:
 
         return all_items
 
+    def create_label(self, label_text: str, label_color: str) -> None:
+        self.project.labels.create({
+            'name': label_text,
+            'color': label_color
+        })
+
     def add_label(self, item, item_type, label):
         note_body = (
             'item has been marked as {0}. '
