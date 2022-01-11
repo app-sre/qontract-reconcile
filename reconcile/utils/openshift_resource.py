@@ -29,8 +29,6 @@ DNS_NAMES_URL = \
 
 IGNORABLE_DATA_FIELDS = ['service-ca.crt']
 
-EXPIRATION_MAX = 90
-
 
 class OpenshiftResource:
     def __init__(self, body, integration, integration_version,
@@ -231,22 +229,11 @@ class OpenshiftResource:
     def has_owner_reference(self):
         return bool(self.body['metadata'].get('ownerReferences', []))
 
-    def has_expiration_date(self):
-        return bool(self.body.get('expirationDate'))
-
     def has_valid_sha256sum(self):
         try:
             current_sha256sum = \
                 self.body['metadata']['annotations']['qontract.sha256sum']
             return current_sha256sum == self.sha256sum()
-        except KeyError:
-            return False
-
-    def has_valid_expiration_date(self):
-        try:
-            current_expiration_date = \
-                self.body['expirationDate']
-            return current_expiration_date == self.expiration_date()
         except KeyError:
             return False
 
@@ -292,13 +279,6 @@ class OpenshiftResource:
 
         annotations = body['metadata']['annotations']
         return annotations['qontract.sha256sum']
-
-    def expiration_date(self):
-        body = self.annotate().body
-
-        # annotations = body['expirationDate']
-        # return annotations['expirationDate']
-        return body['expirationDate']
 
     def toJSON(self):
         return self.serialize(self.body)
@@ -449,15 +429,6 @@ class OpenshiftResource:
         m = hashlib.sha256()
         m.update(body.encode('utf-8'))
         return m.hexdigest()
-
-
-# consider moving this somewhere else
-def role_still_valid(role):
-    exp_date = datetime.datetime \
-        .strptime(role['expirationDate'], '%Y-%m-%d').date()
-    if (exp_date - datetime.datetime.utcnow().date()).days <= EXPIRATION_MAX:
-        return True
-    return False
 
 
 class ResourceInventory:

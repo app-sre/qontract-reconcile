@@ -4,14 +4,13 @@ import itertools
 
 from sretoolbox.utils import threaded
 
-from reconcile.utils import openshift_resource
 from reconcile.utils import gql
 from reconcile import queries
+from reconcile import openshift_rolebindings
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-EXPIRATION_MAX = 90
 
 ROLES_QUERY = """
 {
@@ -116,10 +115,15 @@ def fetch_desired_state(oc_map):
 
     for r in roles:
         gql.get_api
-        if not openshift_resource.role_still_valid(r):
+        if not openshift_rolebindings \
+                .has_valid_expiration_date(r['expirationDate']):
+            raise ValueError(
+                f'expirationDate field is not formatted as YYYY-MM-DD, '
+                f'currently set as {r["expirationDate"]}')
+        if not openshift_rolebindings.role_still_valid(r):
             raise ValueError(
                 f'The maximum expiration date of {r["name"]} '
-                f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
+                f'shall not exceed {openshift_rolebindings.EXPIRATION_MAX} \
                     days from today')
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
