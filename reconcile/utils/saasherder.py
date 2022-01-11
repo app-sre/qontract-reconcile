@@ -20,6 +20,7 @@ from reconcile.github_org import get_config
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
+                                                ResourceInventory,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
@@ -797,12 +798,13 @@ class SaasHerder():
                     'instance_name': instance_name,
                     'upstream': target.get('upstream'),
                     'delete': target.get('delete'),
+                    'privileged': saas_file.get('clusterAdmin', False) is True
                 }
                 specs.append(spec)
 
         return specs
 
-    def populate_desired_state_saas_file(self, spec, ri):
+    def populate_desired_state_saas_file(self, spec, ri: ResourceInventory):
         if spec['delete']:
             # to delete resources, we avoid adding them to the desired state
             return
@@ -873,7 +875,8 @@ class SaasHerder():
                     namespace,
                     resource_kind,
                     resource_name,
-                    oc_resource
+                    oc_resource,
+                    privileged=spec['privileged']
                 )
             except ResourceKeyExistsError:
                 ri.register_error()
