@@ -24,6 +24,8 @@ LOG = logging.getLogger(__name__)
 class BlackboxMonitoringProvider:
 
     module: str
+    # the namespace of a blackbox-exporter provider is mapped as dict
+    # since its only use with ob.fetch_current_state is as a dict
     namespace: dict[str, Any] = field(compare=False, hash=False)
     exporterUrl: str
 
