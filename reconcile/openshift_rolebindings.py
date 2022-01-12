@@ -3,7 +3,6 @@ import datetime
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob
-from reconcile.utils import openshift_resource
 
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
@@ -11,7 +10,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-# EXPIRATION_MAX = 90
+EXPIRATION_MAX = 90
 
 ROLES_QUERY = """
 {
@@ -95,17 +94,12 @@ def fetch_desired_state(ri, oc_map):
     for role in roles:
         if not has_valid_expiration_date(role['expirationDate']):
             raise ValueError(
-<<<<<<< HEAD
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
                 f'currently set as {role["expirationDate"]}')
         if not role_still_valid(role):
             raise ValueError(
                 f'The maximum expiration date of {role["name"]} '
                 f'shall not exceed {EXPIRATION_MAX} \
-=======
-                f'The maximum expiration date of {role["name"]} '
-                f'shall not exceed {openshift_resource.EXPIRATION_MAX} \
->>>>>>> 29a3139 (renaming variable)
                     days from today')
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
