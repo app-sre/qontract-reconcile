@@ -35,6 +35,7 @@ class TestOnboardingGuesser():
         self.app1 = self.fxt.get_json('app1.json')
         self.app2 = self.fxt.get_json('app2.json')
         self.app3 = self.fxt.get_json('childapp.json')
+        self.app4 = self.fxt.get_json('parentapp.json')
 
         # Patcher for GqlApi methods
         self.gql_patcher = patch.object(gql, 'get_api', autospec=True)
@@ -86,6 +87,15 @@ class TestOnboardingGuesser():
 
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
         assert t == 'BestEffort'
+
+    def test_guess_onboarding_status_parent(self):
+        self.test_data.apps = [self.app1, self.app2, self.app3, self.app4]
+        parents = gl.get_parents_list()
+        apps = gl.get_app_list()
+        changed_paths = ['data/services/parentapp/test']
+
+        t = gl.guess_onboarding_status(changed_paths, apps, parents)
+        assert t == 'OnBoarded'
 
     def test_guess_onboarding_status_normal(self):
         self.test_data.apps = [self.app1, self.app2, self.app3]
