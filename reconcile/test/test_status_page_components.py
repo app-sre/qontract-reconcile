@@ -1,4 +1,3 @@
-from unittest.mock import patch
 from typing import Optional
 import re
 
@@ -69,21 +68,21 @@ def stub_resolve_secret():
     return f
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_create_component')
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_create_component(fetch_mock, create_mock, vault_mock):
+def test_create_component(mocker):
     """
     Test if the creation logic is called for a component missing on the
     status page.
     """
     fixture_name = "test_create_component.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    create_mock = mocker.patch.object(AtlassianStatusPage, '_create_component')
     create_mock.return_value = None
-    page = get_page_fixtures(fixture_name)[0]
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
 
+    page = get_page_fixtures(fixture_name)[0]
     page.reconcile(False, StateStub())
 
     create_mock.assert_called_with(
@@ -91,18 +90,19 @@ def test_create_component(fetch_mock, create_mock, vault_mock):
     )
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(StatusPage, '_bind_component')
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_bind_component(fetch_mock, bind_mock, vault_mock):
+def test_bind_component(mocker):
     """
     Test if bind logic is called for a component that already exists on
     the status page but is not bound to the one in desired state.
     """
     fixture_name = "test_bind_component.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    bind_mock = mocker.patch.object(StatusPage, '_bind_component')
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
+
     page = get_page_fixtures(fixture_name)[0]
     state = StateStub()
 
@@ -113,11 +113,7 @@ def test_bind_component(fetch_mock, bind_mock, vault_mock):
     bind_mock.assert_called_with(False, page.components[0], "comp_id_1", state)
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_update_component')
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_update_component(fetch_mock, update_mock, vault_mock):
+def test_update_component(mocker):
     """
     Test if updates are triggered for components when their name, group
     or description changes. The fixture for this test includes three
@@ -125,9 +121,14 @@ def test_update_component(fetch_mock, update_mock, vault_mock):
     that is up to date.
     """
     fixture_name = "test_update_component.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    update_mock = mocker.patch.object(AtlassianStatusPage, '_update_component')
     update_mock.return_value = None
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
+
     page = get_page_fixtures(fixture_name)[0]
     assert len(page.components) == 4
 
@@ -145,20 +146,21 @@ def test_update_component(fetch_mock, update_mock, vault_mock):
     assert update_mock.call_count == 3
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, 'delete_component')
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_delete_component(fetch_mock, delete_mock, vault_mock):
+def test_delete_component(mocker):
     """
     Test if deletion is triggerd for a component that does not exist
     anymore in app-interface, but is still known to the State and to
     the status page.
     """
     fixture_name = "test_delete_component.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    delete_mock = mocker.patch.object(AtlassianStatusPage, 'delete_component')
     delete_mock.return_value = None
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
+
     page = get_page_fixtures(fixture_name)[0]
     state = get_state_fixture(fixture_name)
 
@@ -168,17 +170,17 @@ def test_delete_component(fetch_mock, delete_mock, vault_mock):
     assert delete_mock.call_count == 1
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_group_exists(fetch_mock, vault_mock):
+def test_group_exists(mocker):
     """
     Test if the creation logic is yielding an exception when a group is
     referenced, that does not exist.
     """
     fixture_name = "test_group_does_not_exist.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    vault_mock = mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                                     new_callable=stub_resolve_secret)
     vault_mock.return_value = {"token": "token"}
     page = get_page_fixtures(fixture_name)[0]
     dry_run = True
@@ -188,20 +190,20 @@ def test_group_exists(fetch_mock, vault_mock):
     assert re.match(r"^Group.*does not exist$", str(ex.value))
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, 'apply_component')
-def test_state_management_on_fetch(apply_mock, fetch_mock, vault_mock):
+def test_state_management_on_fetch(mocker):
     """
     Test if state management correctly relates component ids with
     components declared in desired state.
     """
     fixture_name = "test_state_management_on_fetch.yaml"
+    apply_mock = mocker.patch.object(AtlassianStatusPage, 'apply_component')
     apply_mock.return_value = None
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = []
-    page = get_page_fixtures(fixture_name)[0]
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
 
+    page = get_page_fixtures(fixture_name)[0]
     page.reconcile(True, get_state_fixture(fixture_name))
 
     for c in page.components:
@@ -211,40 +213,38 @@ def test_state_management_on_fetch(apply_mock, fetch_mock, vault_mock):
             assert c.component_id is None
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_state_management_on_bind(fetch_mock, vault_mock):
+def test_state_management_on_bind(mocker):
     """
     Test if state management correctly binds components with their
     corresponding id on the status page.
     """
     fixture_name = "test_state_management_on_bind.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, '_fetch_components')
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, "page_1")
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
     state = StateStub()
-    page = get_page_fixtures(fixture_name)[0]
 
+    page = get_page_fixtures(fixture_name)[0]
     page.reconcile(False, state)
 
     assert page.components[0].component_id == "comp_id_1"
     assert state.get_all("")["comp_1"] == "comp_id_1"
 
 
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, "_create_component")
-def test_dry_run_on_create(create_mock, fetch_mock):
-    _exec_dry_run_test_on_create(True, create_mock, fetch_mock)
+def test_dry_run_on_create(mocker):
+    _exec_dry_run_test_on_create(mocker, True)
 
 
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, "_create_component")
-def test_no_dry_run_on_create(create_mock, fetch_mock):
-    _exec_dry_run_test_on_create(False, create_mock, fetch_mock)
+def test_no_dry_run_on_create(mocker):
+    _exec_dry_run_test_on_create(mocker, False)
 
 
-def _exec_dry_run_test_on_create(dry_run, create_mock, fetch_mock):
+def _exec_dry_run_test_on_create(mocker, dry_run):
+    create_mock = mocker.patch.object(AtlassianStatusPage, "_create_component")
     create_mock.create.return_value = "id"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, "_fetch_components")
     fetch_mock.return_value = []
     provider = AtlassianStatusPage(page_id="page_id",
                                    api_url="https://a.com",
@@ -260,19 +260,17 @@ def _exec_dry_run_test_on_create(dry_run, create_mock, fetch_mock):
         create_mock.assert_called()
 
 
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, "_update_component")
-def test_dry_run_on_update(update_mock, fetch_mock):
-    _exec_dry_run_test_on_update(True, update_mock, fetch_mock)
+def test_dry_run_on_update(mocker):
+    _exec_dry_run_test_on_update(mocker, True)
 
 
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, "_update_component")
-def test_no_dry_run_on_update(update_mock, fetch_mock):
-    _exec_dry_run_test_on_update(False, update_mock, fetch_mock)
+def test_no_dry_run_on_update(mocker):
+    _exec_dry_run_test_on_update(mocker, False)
 
 
-def _exec_dry_run_test_on_update(dry_run, update_mock, fetch_mock):
+def _exec_dry_run_test_on_update(mocker, dry_run):
+    update_mock = mocker.patch.object(AtlassianStatusPage, "_update_component")
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, "_fetch_components")
     fetch_mock.return_value = [
         AtlassianComponent(
             id="comp_id_1",
@@ -297,30 +295,31 @@ def _exec_dry_run_test_on_update(dry_run, update_mock, fetch_mock):
         update_mock.assert_called()
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_update_missing_component(fetch_mock, vault_mock):
+def test_update_missing_component(mocker):
     fixture_name = "test_component_status_update.yaml"
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, "_fetch_components")
+    fetch_mock.return_value = []
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
 
     page = get_page_fixtures(fixture_name)[0]
-    fetch_mock.return_value = []
     state = get_state_fixture(fixture_name)
 
     with pytest.raises(ValueError):
         page.update_component_status(True, "comp_x", "operational", state)
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-@patch.object(AtlassianStatusPage, 'update_component_status')
-def test_update(update_mock, fetch_mock, vault_mock):
+def test_update(mocker):
     fixture_name = "test_component_status_update.yaml"
 
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
     page = get_page_fixtures(fixture_name)[0]
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, "_fetch_components")
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, page.name)
+    update_mock = mocker.patch.object(AtlassianStatusPage,
+                                      "update_component_status")
     state = get_state_fixture(fixture_name)
 
     page.update_component_status(True, "comp_1", "operational", state)
@@ -328,13 +327,12 @@ def test_update(update_mock, fetch_mock, vault_mock):
     update_mock.assert_called_with(True, "comp_id_1", "operational")
 
 
-@patch.object(VaultSecretRef, '_resolve_secret',
-              new_callable=stub_resolve_secret)
-@patch.object(AtlassianStatusPage, '_fetch_components')
-def test_wrong_status(fetch_mock, vault_mock):
+def test_wrong_status(mocker):
     fixture_name = "test_component_status_update.yaml"
-
+    mocker.patch.object(VaultSecretRef, '_resolve_secret',
+                        new_callable=stub_resolve_secret)
     page = get_page_fixtures(fixture_name)[0]
+    fetch_mock = mocker.patch.object(AtlassianStatusPage, "_fetch_components")
     fetch_mock.return_value = \
         get_atlassian_component_fixtures(fixture_name, page.name)
     state = get_state_fixture(fixture_name)
