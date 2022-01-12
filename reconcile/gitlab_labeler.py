@@ -54,6 +54,9 @@ def guess_onboarding_status(changed_paths: Iterable[str],
                 if child_app in apps:
                     app = apps[child_app]
                     labels.add(app['onboardingStatus'])
+                else:
+                    app = apps[app_name]
+                    labels.add(app['onboardingStatus'])
             else:
                 if app_name in apps:
                     app = apps[app_name]
@@ -88,8 +91,10 @@ def guess_labels(project_labels: Iterable[str],
         path_dir = os.path.dirname(path)
         path_tokens = path_dir.split('/')
 
-        tenants += [t for t in path_tokens if t not in ignore_tokens and
-                    t in apps]
+        if 'data/services/' in path:
+            tenants += [t for t in path_tokens if t not in ignore_tokens and
+                        t in apps]
+
         matches += [t for t in path_tokens if t not in ignore_tokens and
                     t in project_labels]
 
