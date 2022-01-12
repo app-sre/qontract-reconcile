@@ -10,6 +10,12 @@ from .fixtures import Fixtures
 
 class TestQueries:
     def setup_method(self) -> None:
+        '''This starts a patch on gql.query method which will answer with the
+        contents of self.fixture_data.'''
+
+        # Resetting this to make sure it is set from every test
+        self.fixture_data: dict[str, Any] = {}
+
         self.gql_patcher = patch.object(gql, 'get_api', autospec=True)
         self.gql = self.gql_patcher.start()
         gqlapi_mock = create_autospec(gql.GqlApi)
@@ -17,7 +23,7 @@ class TestQueries:
         gqlapi_mock.query.side_effect = self.mock_gql_query
 
     def teardown_method(self) -> None:
-        """Cleanup patches created in self.setup_method"""
+        '''Cleanup patches created in self.setup_method'''
         self.gql_patcher.stop()
 
     def mock_gql_query(self, query: str) -> dict[str, Any]:
