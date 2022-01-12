@@ -122,14 +122,14 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
     labels_to_add = [b for b in guessed_labels if b not in labels]
     labels_to_create = [b for b in labels_to_add if b not in project_labels]
 
+    # This integration cannot check dry-run mode as it's always running with
+    # dry_run flag to true.
     if labels_to_create:
         logging.info(['create_labels', labels_to_create])
-        if not dry_run:
-            for label in labels_to_create:
-                gl.create_label(label, LABEL_COLOR)
+        for label in labels_to_create:
+            gl.create_label(label, LABEL_COLOR)
 
     if labels_to_add:
         logging.info(['add_labels', labels_to_add])
-        if not dry_run:
-            gl.add_labels_to_merge_request(gitlab_merge_request_id,
-                                           labels_to_add)
+        gl.add_labels_to_merge_request(gitlab_merge_request_id,
+                                       labels_to_add)
