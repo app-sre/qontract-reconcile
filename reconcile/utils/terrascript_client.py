@@ -3591,8 +3591,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
-        read_weighted_target_groups = []
-        write_weighted_target_groups = []
+        valid_targets = {}
         for t in resource['targets']:
             target_name = t['name']
             t_openshift_service = t.get('openshift_service')
@@ -3646,25 +3645,12 @@ class TerrascriptClient:
             lbt_identifier = f'{identifier}-{target_name}'
             lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
             tf_resources.append(lbt_tf_resource)
+            valid_targets[target_name] = lbt_tf_resource
 
             if t['default']:
                 if default_target:
                     raise KeyError('expected only a single default target')
                 default_target = lbt_tf_resource
-
-            # initiate weighted target groups to use for listener rule
-            # read
-            read_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['read'],
-            }
-            read_weighted_target_groups.append(read_weighted_item)
-            # write
-            write_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['write'],
-            }
-            write_weighted_target_groups.append(write_weighted_item)
 
             for ip in target_ips:
                 # https://www.terraform.io/docs/providers/aws/r/
@@ -3673,7 +3659,7 @@ class TerrascriptClient:
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
-                    'depends_on': self.get_dependencies([lbt_tf_resource]),
+                    'depends_on': self.get_dependencies([lbt_tf_resource])
                 }
                 if not ip_address(ip) in ip_network(vpc_cidr_block):
                     values['availability_zone'] = 'all'
@@ -3724,64 +3710,70 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
-        # read
-        read_weights = [t['weight'] for t in read_weighted_target_groups]
-        if sum(read_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': read_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
+        http_methods_lookup = {
+            'read': ['GET', 'HEAD', 'OPTIONS'],
+            'write': ['POST', 'PUT', 'PATCH', 'DELETE']
+        }
+
+        for rule_num, rule in enumerate(resource['rules']):
+            condition = rule['condition']
+            action = rule['action']
+            config_methods = condition.get('methods', None)
+
+            values = {
+                'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+                'priority': rule_num + 1,
+                'action': {
+                    'type': 'forward',
+                    'forward': {
+                        'target_group': []
                     },
                 },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['GET', 'HEAD']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        read_paths = resource.get('paths', {}).get('read')
-        if read_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': read_paths}})
-        lblr_read_identifier = f'{identifier}-read'
-        lblr_read_tf_resource = \
-            aws_lb_listener_rule(lblr_read_identifier, **values)
-        tf_resources.append(lblr_read_tf_resource)
-        # write
-        write_weights = [t['weight'] for t in write_weighted_target_groups]
-        if sum(write_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': write_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
-                    },
-                },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['POST', 'PUT', 'DELETE']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        write_paths = resource.get('paths', {}).get('write')
-        if write_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': write_paths}})
-        lblr_write_identifier = f'{identifier}-write'
-        lblr_write_tf_resource = \
-            aws_lb_listener_rule(lblr_write_identifier, **values)
-        tf_resources.append(lblr_write_tf_resource)
+                'condition': [
+                    {'path_pattern': {'values': [condition['path']]}}
+                ],
+                'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+            }
+
+            if config_methods:
+                if config_methods not in http_methods_lookup:
+                    raise KeyError(
+                        f"invalid methods: {config_methods}"
+                        " should be one of 'read' or 'write'"
+                    )
+
+                http_methods = http_methods_lookup[config_methods]
+                values['condition'].append(
+                    {'http_request_method': {'values': http_methods}}
+                )
+
+            weight_sum = 0
+            for a in action:
+                target_name = a['target']
+                if target_name not in valid_targets:
+                    raise KeyError(
+                        f'{target_name} not a valid target name'
+                    )
+
+                target_resource = valid_targets[target_name]
+
+                values['action']['forward']['target_group'].append({
+                    'arn': f'${{{target_resource.arn}}}',
+                    'weight': a['weight']
+                })
+                weight_sum += a['weight']
+
+            if weight_sum != 100:
+                raise ValueError(
+                    'sum of weights for a rule should be 100'
+                    f' given: {weight_sum}'
+                )
+
+            lblr_identifier = f'{identifier}-rule-{rule_num+1:02d}'
+            lblr_tf_resource = \
+                aws_lb_listener_rule(lblr_identifier, **values)
+
+            tf_resources.append(lblr_tf_resource)
 
         # outputs
         # dns name

@@ -237,16 +237,18 @@ provider
   targets {
     name
     default
-    weights {
-      read
-      write
-    }
     ips
     openshift_service
   }
-  paths {
-    read
-    write
+  rules {
+    condition {
+      path
+      methods
+    }
+    action {
+      target
+      weight
+    }
   }
   output_resource_name
   annotations
