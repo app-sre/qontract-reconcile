@@ -3726,7 +3726,11 @@ class TerrascriptClient:
                 'action': {
                     'type': 'forward',
                     'forward': {
-                        'target_group': []
+                        'target_group': [],
+                        'stickiness': {
+                            'enabled': False,
+                            'duration': 1,
+                        }
                     },
                 },
                 'condition': [
