@@ -1877,9 +1877,7 @@ def get_pipelines_providers():
         gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
 
     for pp in pipelines_providers:
-        # TODO: In the near future 'defaults' will be mandatory. In the
-        # meantime, let's make sure we always get a dictionary
-        defaults = pp.pop('defaults') or {}
+        defaults = pp.pop('defaults')
         for k, v in defaults.items():
             if k not in pp or not pp[k]:
                 pp[k] = v

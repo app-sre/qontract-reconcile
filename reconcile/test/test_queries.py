@@ -56,14 +56,3 @@ class TestQueries:
 
         for k in ['retention', 'deployResources']:
             assert data['pipelines_providers'][0][k] == pps[0][k]
-
-    # TODO: remove this when defaults option is mandatory
-    def test_get_pipelines_providers_no_defaults(self) -> None:
-        data = Fixtures('queries'). \
-            get_json('pipelines_providers_no_defaults.json')
-        self.fixture_data = deepcopy(data)
-        pps = queries.get_pipelines_providers()
-
-        for k in ['retention', 'taskTemplates', 'pipelineTemplates',
-                  'deployResources']:
-            assert data['pipelines_providers'][0][k] == pps[0][k]

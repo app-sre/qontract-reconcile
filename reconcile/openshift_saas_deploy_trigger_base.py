@@ -274,10 +274,8 @@ def _trigger_tekton(spec,
     env_name = spec['env_name']
     pipelines_provider = spec['pipelines_provider']
 
-    # TODO: we will remove this condition when defaults are mandatory
-    if pipelines_provider['defaults']:
-        pipeline_template_name = pipelines_provider['defaults'][
-            'pipelineTemplates']['openshiftSaasDeploy']['name']
+    pipeline_template_name = pipelines_provider['defaults'][
+        'pipelineTemplates']['openshiftSaasDeploy']['name']
 
     if pipelines_provider['pipelineTemplates']:
         pipeline_template_name = pipelines_provider[
