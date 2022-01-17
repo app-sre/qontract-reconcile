@@ -47,6 +47,7 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
+  disableUnleash: true
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -103,7 +104,5 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
-  logs:
-    slack: true
   cache: true
   disableUnleash: true
