@@ -3710,11 +3710,6 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
-        http_methods_lookup = {
-            'read': ['GET', 'HEAD', 'OPTIONS'],
-            'write': ['POST', 'PUT', 'PATCH', 'DELETE']
-        }
-
         for rule_num, rule in enumerate(resource['rules']):
             condition = rule['condition']
             action = rule['action']
@@ -3740,15 +3735,8 @@ class TerrascriptClient:
             }
 
             if config_methods:
-                if config_methods not in http_methods_lookup:
-                    raise KeyError(
-                        f"invalid methods: {config_methods}"
-                        " should be one of 'read' or 'write'"
-                    )
-
-                http_methods = http_methods_lookup[config_methods]
                 values['condition'].append(
-                    {'http_request_method': {'values': http_methods}}
+                    {'http_request_method': {'values': config_methods}}
                 )
 
             weight_sum = 0
