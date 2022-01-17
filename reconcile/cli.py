@@ -118,6 +118,8 @@ from reconcile.utils.aggregated_list import RunnerException
 from reconcile.utils.binary import binary, binary_version
 from reconcile.utils.environ import environ
 from reconcile.utils.unleash import get_feature_toggle_state
+from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
+from reconcile.utils.git import is_file_in_git_repo
 
 
 TERRAFORM_VERSION = '0.13.7'
@@ -262,6 +264,14 @@ def print_only(function):
     function = click.option('--print-only/--no-print-only',
                             help='only print the config file.',
                             default=False)(function)
+
+    return function
+
+
+def print_to_file(function):
+    function = click.option('--print-to-file',
+                            help='print the config to file.',
+                            default=None)(function)
 
     return function
 
@@ -467,17 +477,17 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
 
 
 @integration.command()
-@print_only
+@print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@enable_deletion(default=False)
+@enable_deletion(default=True)
 @click.pass_context
-def terraform_aws_route53(ctx, print_only, enable_deletion,
+def terraform_aws_route53(ctx, print_to_file, enable_deletion,
                           thread_pool_size):
     run_integration(reconcile.terraform_aws_route53, ctx.obj,
-                    print_only, enable_deletion, thread_pool_size)
+                    print_to_file, enable_deletion, thread_pool_size)
 
 
 @integration.command()
@@ -1079,11 +1089,11 @@ def user_validator(ctx):
 
 
 @integration.command()
-@print_only
+@print_to_file
 @throughput
 @vault_output_path
 @threaded(default=20)
-@binary(['terraform', 'oc'])
+@binary(['terraform', 'oc', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1095,11 +1105,13 @@ def user_validator(ctx):
               default=False,
               help='run without executing terraform plan and apply.')
 @click.pass_context
-def terraform_resources(ctx, print_only, enable_deletion,
+def terraform_resources(ctx, print_to_file, enable_deletion,
                         io_dir, thread_pool_size, internal, use_jump_host,
                         light, vault_output_path, account_name):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_resources,
-                    ctx.obj, print_only,
+                    ctx.obj, print_to_file,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path,
                     account_name=account_name,
@@ -1107,11 +1119,11 @@ def terraform_resources(ctx, print_only, enable_deletion,
 
 
 @integration.command()
-@print_only
+@print_to_file
 @throughput
 @vault_output_path
 @threaded(default=20)
-@binary(['terraform', 'oc'])
+@binary(['terraform', 'oc', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1122,61 +1134,69 @@ def terraform_resources(ctx, print_only, enable_deletion,
               default=False,
               help='run without executing terraform plan and apply.')
 @click.pass_context
-def terraform_resources_wrapper(ctx, print_only, enable_deletion,
+def terraform_resources_wrapper(ctx, print_to_file, enable_deletion,
                                 io_dir, thread_pool_size, internal,
                                 use_jump_host, light, vault_output_path):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_resources_wrapper,
-                    ctx.obj, print_only,
+                    ctx.obj, print_to_file,
                     enable_deletion, io_dir, thread_pool_size,
                     internal, use_jump_host, light, vault_output_path,
                     extra_labels=ctx.obj.get('extra_labels', {}))
 
 
 @integration.command()
-@print_only
+@print_to_file
 @throughput
 @threaded(default=20)
-@binary(['terraform', 'gpg'])
+@binary(['terraform', 'gpg', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=True)
 @send_mails(default=True)
 @click.pass_context
-def terraform_users(ctx, print_only, enable_deletion, io_dir,
+def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
                     thread_pool_size, send_mails):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_users,
-                    ctx.obj, print_only,
+                    ctx.obj, print_to_file,
                     enable_deletion, io_dir,
                     thread_pool_size, send_mails)
 
 
 @integration.command()
-@print_only
+@print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @click.pass_context
-def terraform_vpc_peerings(ctx, print_only, enable_deletion,
+def terraform_vpc_peerings(ctx, print_to_file, enable_deletion,
                            thread_pool_size):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_vpc_peerings,
-                    ctx.obj, print_only,
+                    ctx.obj, print_to_file,
                     enable_deletion, thread_pool_size)
 
 
 @integration.command()
-@print_only
+@print_to_file
 @threaded()
-@binary(['terraform'])
+@binary(['terraform', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @enable_deletion(default=False)
 @click.pass_context
-def terraform_tgw_attachments(ctx, print_only, enable_deletion,
+def terraform_tgw_attachments(ctx, print_to_file, enable_deletion,
                               thread_pool_size):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(reconcile.terraform_tgw_attachments,
-                    ctx.obj, print_only,
+                    ctx.obj, print_to_file,
                     enable_deletion, thread_pool_size)
 
 

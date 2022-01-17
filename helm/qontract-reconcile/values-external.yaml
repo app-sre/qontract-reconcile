@@ -143,18 +143,6 @@ integrations:
       memory: 200Mi
       cpu: 200m
   state: true
-- name: github-scanner
-  resources:
-    requests:
-      memory: 500Mi
-      cpu: 600m
-    limits:
-      memory: 1000Mi
-      cpu: 800m
-  extraArgs: --thread-pool-size 1
-  extraEnv:
-  - secretName: ${APP_INTERFACE_SQS_SECRET_NAME}
-    secretKey: gitlab_pr_submitter_queue_url
 - name: aws-support-cases-sos
   resources:
     requests:
@@ -245,7 +233,7 @@ integrations:
       memory: 900Mi
       cpu: 800m
   extraArgs: --external --no-use-jump-host
-  shards: 10
+  shards: 15
   logs:
     slack: true
 - name: openshift-network-policies
@@ -526,11 +514,13 @@ integrations:
 - name: slack-cluster-usergroups
   resources:
     requests:
-      memory: 80Mi
+      memory: 200Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 400Mi
       cpu: 200m
+  logs:
+    slack: true
 - name: ocp-release-mirror
   resources:
     requests:

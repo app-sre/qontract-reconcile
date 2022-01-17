@@ -274,8 +274,15 @@ def _trigger_tekton(spec,
     env_name = spec['env_name']
     pipelines_provider = spec['pipelines_provider']
 
-    pipeline_template_name = pipelines_provider[
-        'pipelineTemplates']['openshiftSaasDeploy']['name']
+    # TODO: we will remove this condition when defaults are mandatory
+    if pipelines_provider['defaults']:
+        pipeline_template_name = pipelines_provider['defaults'][
+            'pipelineTemplates']['openshiftSaasDeploy']['name']
+
+    if pipelines_provider['pipelineTemplates']:
+        pipeline_template_name = pipelines_provider[
+            'pipelineTemplates']['openshiftSaasDeploy']['name']
+
     tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
         pipeline_template_name, saas_file_name)
 

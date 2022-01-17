@@ -52,6 +52,13 @@ provider
   overrides
   sqs_identifier
   s3_events
+  event_notifications {
+    destination_type
+    destination
+    event_type
+    filter_prefix
+    filter_suffix
+  }
   bucket_policy
   output_resource_name
   storage_class
@@ -230,16 +237,18 @@ provider
   targets {
     name
     default
-    weights {
-      read
-      write
-    }
     ips
     openshift_service
   }
-  paths {
-    read
-    write
+  rules {
+    condition {
+      path
+      methods
+    }
+    action {
+      target
+      weight
+    }
   }
   output_resource_name
   annotations
@@ -257,6 +266,20 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceASG_v1 {
+  account
+  region
+  identifier
+  defaults
+  cloudinit_configs {
+    filename
+    content_type
+    content
+  }
+  variables
+  output_resource_name
+  annotations
+}
 """
 
 
@@ -271,6 +294,7 @@ TF_NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
         hostname
         knownHosts
@@ -374,7 +398,7 @@ def init_working_dirs(accounts, thread_pool_size,
     return ts, working_dirs
 
 
-def setup(dry_run, print_only, thread_pool_size, internal,
+def setup(dry_run, print_to_file, thread_pool_size, internal,
           use_jump_host, account_name, extra_labels):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
@@ -408,7 +432,7 @@ def setup(dry_run, print_only, thread_pool_size, internal,
         ocm_map = None
     ts.populate_resources(tf_namespaces, existing_secrets, account_name,
                           ocm_map=ocm_map)
-    ts.dump(print_only, existing_dirs=working_dirs)
+    ts.dump(print_to_file, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, tf_namespaces
 
@@ -453,20 +477,20 @@ def write_outputs_to_vault(vault_path, ri):
 
 
 @defer
-def run(dry_run, print_only=False,
+def run(dry_run, print_to_file=None,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, internal=None, use_jump_host=True,
         light=False, vault_output_path='',
         account_name=None, extra_labels=None, defer=None):
 
     ri, oc_map, tf, tf_namespaces = \
-        setup(dry_run, print_only, thread_pool_size, internal,
+        setup(dry_run, print_to_file, thread_pool_size, internal,
               use_jump_host, account_name, extra_labels)
 
     if not dry_run:
         defer(oc_map.cleanup)
 
-    if print_only:
+    if print_to_file:
         cleanup_and_exit()
     if tf is None:
         err = True

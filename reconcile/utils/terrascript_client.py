@@ -66,6 +66,9 @@ from terrascript.resource import (
     aws_lb_listener_rule,
     aws_secretsmanager_secret,
     aws_secretsmanager_secret_version,
+    aws_iam_instance_profile,
+    aws_launch_template,
+    aws_autoscaling_group,
     random_id,
 )
 # temporary to create aws_ecrpublic_repository
@@ -75,14 +78,17 @@ from sretoolbox.utils import threaded
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
-from reconcile.exceptions import FetchResourceError
+from reconcile.utils.exceptions import (FetchResourceError,
+                                        PrintToFileInGitRepositoryError)
 from reconcile.utils.elasticsearch_exceptions \
     import (ElasticSearchResourceNameInvalidError,
             ElasticSearchResourceMissingSubnetIdError,
             ElasticSearchResourceZoneAwareSubnetInvalidError)
+import reconcile.openshift_resources_base as orb
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
@@ -91,11 +97,11 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
-                 'storage_class', 'kms_encryption',
+                 'event_notifications', 'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access']
+                 'aws_infrastructure_access', 'cloudinit_configs']
 
 
 class UnknownProviderError(Exception):
@@ -174,6 +180,10 @@ class TerrascriptClient:
 
             ts += provider.random(
                 version="3.1.0"
+            )
+
+            ts += provider.template(
+                version="2.2.0"
             )
 
             b = Backend("s3",
@@ -895,6 +905,8 @@ class TerrascriptClient:
                                           ocm_map=ocm_map)
         elif provider == 'secrets-manager':
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
+        elif provider == 'asg':
+            self.populate_tf_resource_asg(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -1537,6 +1549,74 @@ class TerrascriptClient:
 
             notification_tf_resource = aws_s3_bucket_notification(
                 sqs_identifier, **notification_values)
+            tf_resources.append(notification_tf_resource)
+
+        event_notifications = common_values.get('event_notifications')
+        sns_notifications = []
+        sqs_notifications = []
+
+        if event_notifications:
+            for event_notification in event_notifications:
+                destination_type = event_notification['destination_type']
+                destination_identifier = event_notification['destination']
+                event_type = event_notification['event_type']
+
+                if destination_type == 'sns':
+                    notification_type = 'topic'
+                    resource_arn_data = 'data.aws_sns_topic'
+                elif destination_type == 'sqs':
+                    notification_type = 'queue'
+                    resource_arn_data = 'data.aws_sqs_queue'
+
+                if destination_identifier.startswith('arn:'):
+                    resource_name = destination_identifier.split(':')[-1]
+                    resource_arn = destination_identifier
+                else:
+                    resource_name = destination_identifier
+                    resource_values = {
+                        'name': resource_name
+                    }
+                    resource_provider = values.get('provider')
+                    if resource_provider:
+                        resource_values['provider'] = resource_provider
+                    if destination_type == 'sns':
+                        resource_data = data.aws_sns_topic(resource_name,
+                                                           **resource_values)
+                    elif destination_type == 'sqs':
+                        resource_data = data.aws_sqs_queue(resource_name,
+                                                           **resource_values)
+                    tf_resources.append(resource_data)
+                    resource_arn = '${'+resource_arn_data+'.' \
+                        + destination_identifier + '.arn}'
+
+                notification_config = {
+                    'id': resource_name,
+                    notification_type+'_arn': resource_arn,
+                    'events': event_type
+                }
+
+                filter_prefix = event_notification.get('filter_prefix', None)
+                if filter_prefix is not None:
+                    notification_config['filter_prefix'] = filter_prefix
+                filter_suffix = event_notification.get('filter_suffix', None)
+                if filter_suffix is not None:
+                    notification_config['filter_suffix'] = filter_suffix
+
+                if destination_type == 'sns':
+                    sns_notifications.append(notification_config)
+                elif destination_type == 'sqs':
+                    sqs_notifications.append(notification_config)
+
+            notifications = {
+                'bucket': '${' + bucket_tf_resource.id + '}'
+            }
+            if sns_notifications:
+                notifications['topic'] = sns_notifications
+            if sqs_notifications:
+                notifications['queue'] = sqs_notifications
+
+            notification_tf_resource = aws_s3_bucket_notification(
+                    identifier+'-event-notifications', **notifications)
             tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get('bucket_policy')
@@ -2898,15 +2978,18 @@ class TerrascriptClient:
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def dump(self, print_only=False, existing_dirs=None):
+    def dump(self, print_to_file=None, existing_dirs=None):
         if existing_dirs is None:
             working_dirs = {}
         else:
             working_dirs = existing_dirs
         for name, ts in self.tss.items():
-            if print_only:
-                print('##### {} #####'.format(name))
-                print(str(ts))
+            if print_to_file:
+                if is_file_in_git_repo(print_to_file):
+                    raise PrintToFileInGitRepositoryError(print_to_file)
+                with open(print_to_file, 'w') as f:
+                    f.write('##### {} #####\n'.format(name))
+                    f.write(str(ts))
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
@@ -3002,12 +3085,17 @@ class TerrascriptClient:
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
     @staticmethod
-    def get_values(path):
+    def get_raw_values(path):
         gqlapi = gql.get_api()
         try:
             raw_values = gqlapi.get_resource(path)
         except gql.GqlGetResourceError as e:
             raise FetchResourceError(str(e))
+        return raw_values
+
+    @staticmethod
+    def get_values(path):
+        raw_values = TerrascriptClient.get_raw_values(path)
         try:
             values = anymarkup.parse(
                 raw_values['content'],
@@ -3503,8 +3591,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
-        read_weighted_target_groups = []
-        write_weighted_target_groups = []
+        valid_targets = {}
         for t in resource['targets']:
             target_name = t['name']
             t_openshift_service = t.get('openshift_service')
@@ -3558,25 +3645,12 @@ class TerrascriptClient:
             lbt_identifier = f'{identifier}-{target_name}'
             lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
             tf_resources.append(lbt_tf_resource)
+            valid_targets[target_name] = lbt_tf_resource
 
             if t['default']:
                 if default_target:
                     raise KeyError('expected only a single default target')
                 default_target = lbt_tf_resource
-
-            # initiate weighted target groups to use for listener rule
-            # read
-            read_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['read'],
-            }
-            read_weighted_target_groups.append(read_weighted_item)
-            # write
-            write_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['write'],
-            }
-            write_weighted_target_groups.append(write_weighted_item)
 
             for ip in target_ips:
                 # https://www.terraform.io/docs/providers/aws/r/
@@ -3585,7 +3659,7 @@ class TerrascriptClient:
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
-                    'depends_on': self.get_dependencies([lbt_tf_resource]),
+                    'depends_on': self.get_dependencies([lbt_tf_resource])
                 }
                 if not ip_address(ip) in ip_network(vpc_cidr_block):
                     values['availability_zone'] = 'all'
@@ -3636,64 +3710,74 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
-        # read
-        read_weights = [t['weight'] for t in read_weighted_target_groups]
-        if sum(read_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': read_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
+        http_methods_lookup = {
+            'read': ['GET', 'HEAD', 'OPTIONS'],
+            'write': ['POST', 'PUT', 'PATCH', 'DELETE']
+        }
+
+        for rule_num, rule in enumerate(resource['rules']):
+            condition = rule['condition']
+            action = rule['action']
+            config_methods = condition.get('methods', None)
+
+            values = {
+                'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+                'priority': rule_num + 1,
+                'action': {
+                    'type': 'forward',
+                    'forward': {
+                        'target_group': [],
+                        'stickiness': {
+                            'enabled': False,
+                            'duration': 1,
+                        }
                     },
                 },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['GET', 'HEAD']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        read_paths = resource.get('paths', {}).get('read')
-        if read_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': read_paths}})
-        lblr_read_identifier = f'{identifier}-read'
-        lblr_read_tf_resource = \
-            aws_lb_listener_rule(lblr_read_identifier, **values)
-        tf_resources.append(lblr_read_tf_resource)
-        # write
-        write_weights = [t['weight'] for t in write_weighted_target_groups]
-        if sum(write_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': write_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
-                    },
-                },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['POST', 'PUT', 'DELETE']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        write_paths = resource.get('paths', {}).get('write')
-        if write_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': write_paths}})
-        lblr_write_identifier = f'{identifier}-write'
-        lblr_write_tf_resource = \
-            aws_lb_listener_rule(lblr_write_identifier, **values)
-        tf_resources.append(lblr_write_tf_resource)
+                'condition': [
+                    {'path_pattern': {'values': [condition['path']]}}
+                ],
+                'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+            }
+
+            if config_methods:
+                if config_methods not in http_methods_lookup:
+                    raise KeyError(
+                        f"invalid methods: {config_methods}"
+                        " should be one of 'read' or 'write'"
+                    )
+
+                http_methods = http_methods_lookup[config_methods]
+                values['condition'].append(
+                    {'http_request_method': {'values': http_methods}}
+                )
+
+            weight_sum = 0
+            for a in action:
+                target_name = a['target']
+                if target_name not in valid_targets:
+                    raise KeyError(
+                        f'{target_name} not a valid target name'
+                    )
+
+                target_resource = valid_targets[target_name]
+
+                values['action']['forward']['target_group'].append({
+                    'arn': f'${{{target_resource.arn}}}',
+                    'weight': a['weight']
+                })
+                weight_sum += a['weight']
+
+            if weight_sum != 100:
+                raise ValueError(
+                    'sum of weights for a rule should be 100'
+                    f' given: {weight_sum}'
+                )
+
+            lblr_identifier = f'{identifier}-rule-{rule_num+1:02d}'
+            lblr_tf_resource = \
+                aws_lb_listener_rule(lblr_identifier, **values)
+
+            tf_resources.append(lblr_tf_resource)
 
         # outputs
         # dns name
@@ -3750,6 +3834,138 @@ class TerrascriptClient:
         tf_resources.append(Output(output_name_0_13, value=output_value))
         output_name_0_13 = output_prefix + '__version_id'
         output_value = '${' + aws_version_resource.version_id + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        for tf_resource in tf_resources:
+            self.add_resource(account, tf_resource)
+
+    def populate_tf_resource_asg(self, resource, namespace_info):
+        account, identifier, common_values, \
+            output_prefix, output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        tags = common_values['tags']
+        tags['Name'] = identifier
+
+        template_values = {
+            "name": identifier,
+            "image_id": common_values.get('image_id'),
+            "vpc_security_group_ids":
+                common_values.get('vpc_security_group_ids'),
+            "update_default_version":
+                common_values.get('update_default_version'),
+            "block_device_mappings":
+                common_values.get('block_device_mappings'),
+            "tags": tags,
+            "tag_specifications": [
+                {
+                    "resource_type": "instance",
+                    "tags": tags
+                },
+                {
+                    "resource_type": "volume",
+                    "tags": tags
+                }
+            ]
+        }
+
+        region = common_values.get('region') or \
+            self.default_regions.get(account)
+        if self._multiregion_account_(account):
+            template_values['provider'] = 'aws.' + region
+
+        role_name = common_values.get('iam_role_name')
+        if role_name:
+            profile_value = {
+                "name": identifier,
+                "role": role_name
+            }
+            if self._multiregion_account_(account):
+                profile_value['provider'] = 'aws.' + region
+            profile_resource = \
+                aws_iam_instance_profile(identifier, **profile_value)
+            tf_resources.append(profile_resource)
+            template_values['iam_instance_profile'] = {
+                "name": profile_resource.name
+            }
+
+        cloudinit_configs = common_values.get('cloudinit_configs')
+        if cloudinit_configs:
+            vars = {}
+            variables = common_values.get('variables')
+            if variables:
+                vars = json.loads(variables)
+            vars.update({'aws_region': region})
+            vars.update({'aws_account_id': self.uids.get(account)})
+            part = []
+            for c in cloudinit_configs:
+                raw = self.get_raw_values(c['content'])
+                content = orb.process_extracurlyjinja2_template(
+                    body=raw['content'], vars=vars)
+                # https://www.terraform.io/docs/language/expressions/strings.html#escape-sequences
+                content = content.replace("${", "$${")
+                content = content.replace("%{", "%%{")
+                part.append({
+                    "filename": c.get('filename'),
+                    "content_type": c.get('content_type'),
+                    "content": content
+                })
+            cloudinit_value = {
+                "gzip": True,
+                "base64_encode": True,
+                "part": part
+            }
+            cloudinit_data = data.template_cloudinit_config(
+                identifier, **cloudinit_value)
+            tf_resources.append(cloudinit_data)
+            template_values['user_data'] = '${' + cloudinit_data.rendered + '}'
+        template_resource = aws_launch_template(identifier, **template_values)
+        tf_resources.append(template_resource)
+
+        asg_value = {
+            "name": identifier,
+            "max_size": common_values.get('max_size'),
+            "min_size": common_values.get('min_size'),
+            "availability_zones": common_values.get('availability_zones'),
+            "capacity_rebalance": common_values.get('capacity_rebalance'),
+            "mixed_instances_policy": {
+                "instances_distribution": common_values.get(
+                    'instances_distribution'),
+                "launch_template": {
+                    "launch_template_specification": {
+                        "launch_template_id":
+                            '${' + template_resource.id + '}',
+                        "version":
+                            '${' + template_resource.latest_version + '}'
+                    }
+                }
+            },
+            "instance_refresh": {
+                "strategy": "Rolling",
+                "preferences":
+                    common_values.get('instance_refresh_preferences')
+            }
+        }
+        instance_types = common_values.get('instance_types')
+        if instance_types:
+            override = [{"instance_type": i} for i in instance_types]
+            (asg_value['mixed_instances_policy']
+                      ['launch_template']['override']) = override
+        asg_value['tags'] = [{
+            "key": k,
+            "value": v,
+            "propagate_at_launch": True
+            } for k, v in tags.items()]
+        asg_resource = aws_autoscaling_group(identifier, **asg_value)
+        tf_resources.append(asg_resource)
+
+        # outputs
+        output_name_0_13 = output_prefix + '__template_latest_version'
+        output_value = '${' + template_resource.latest_version + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:

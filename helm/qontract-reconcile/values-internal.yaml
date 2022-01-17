@@ -2,10 +2,10 @@ integrations:
 - name: slack-usergroups
   resources:
     requests:
-      memory: 80Mi
+      memory: 200Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 400Mi
       cpu: 200m
   logs:
     slack: true
@@ -260,16 +260,6 @@ integrations:
   logs:
     slack: true
 - name: gitlab-permissions
-  resources:
-    requests:
-      memory: 100Mi
-      cpu: 100m
-    limits:
-      memory: 200Mi
-      cpu: 200m
-  logs:
-    slack: true
-- name: gitlab-integrations
   resources:
     requests:
       memory: 100Mi

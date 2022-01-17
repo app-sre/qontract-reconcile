@@ -267,6 +267,64 @@ class TestGetObjRootOwner(TestCase):
             oc.get_obj_root_owner('namespace', obj, allow_not_found=False)
 
 
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
+class TestPodOwnedPVCNames(TestCase):
+    def test_no_volumes(self):
+        pods = [{'spec': {'volumes': []}}]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_other_volumes(self):
+        pods = [{'spec': {'volumes': [{'configMap': {'name': 'cm'}}]}}]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 0)
+
+    def test_ok(self):
+        pods = [{
+            'spec': {
+                'volumes': [{
+                    'persistentVolumeClaim': {'claimName': 'cm'}
+                }]
+            }
+        }]
+        oc = OC('cluster', 'server', 'token', local=True)
+        owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
+        self.assertEqual(len(owned_pvc_names), 1)
+        self.assertEqual(list(owned_pvc_names)[0], 'cm')
+
+
+@patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
+class TestGetStorage(TestCase):
+    def test_none(self):
+        resource = {'spec': {'what': 'ever'}}
+        oc = OC('cluster', 'server', 'token', local=True)
+        storage = oc.get_storage(resource)
+        self.assertIsNone(storage)
+
+    def test_ok(self):
+        size = "100Gi"
+        resource = {
+            'spec': {
+                'volumeClaimTemplates': [
+                    {
+                        'spec': {
+                            'resources': {
+                                'requests': {
+                                    'storage': size
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        oc = OC('cluster', 'server', 'token', local=True)
+        result = oc.get_storage(resource)
+        self.assertEqual(result, size)
+
+
 class TestValidateLabels(TestCase):
     def test_ok(self):
         self.assertFalse(validate_labels({'my.company.com/key-name': 'value'}))
@@ -431,3 +489,154 @@ class TestOCMapGetClusters(TestCase):
 
         self.assertEqual(oc_map.clusters(include_errors=True), cluster_names)
         self.assertIsInstance(oc_map.oc_map.get(cluster_1['name']), OCLogMsg)
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_namespace_with_cluster_admin(self, mock_secret_reader, mock_oc):
+        cluster_1 = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'clusterAdminAutomationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            },
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        cluster_2 = {
+            'name': 'cl2',
+            'serverUrl': 'http://localhost',
+            'clusterAdminAutomationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            },
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace_1 = {
+            'name': 'ns1',
+            'clusterAdmin': True,
+            'cluster': cluster_1
+
+        }
+
+        namespace_2 = {
+            'name': 'ns2',
+            'cluster': cluster_2
+
+        }
+
+        oc_map = OC_Map(namespaces=[namespace_1, namespace_2])
+
+        self.assertEqual(oc_map.clusters(), ["cl1", "cl2"])
+        self.assertEqual(oc_map.clusters(privileged=True), ["cl1"])
+
+        # both clusters are present as non privileged clusters in the map
+        self.assertIsInstance(oc_map.get(cluster_1['name']), OC)
+        self.assertIsInstance(oc_map.get(cluster_2['name']), OC)
+
+        # only cluster_1 is present as privileged cluster in the map
+        self.assertIsInstance(
+            oc_map.get(cluster_1['name'], privileged=True),
+            OC
+        )
+        self.assertIsInstance(
+            oc_map.get(cluster_2['name'], privileged=True),
+            OCLogMsg
+        )
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_missing_cluster_automation_token(self, mock_secret_reader,
+                                              mock_oc):
+        cluster_1 = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace_1 = {
+            'name': 'ns1',
+            'clusterAdmin': True,
+            'cluster': cluster_1
+
+        }
+
+        oc_map = OC_Map(namespaces=[namespace_1])
+
+        # check that non-priv OC got instantiated but priv one not
+        self.assertEqual(oc_map.clusters(), ["cl1"])
+        self.assertEqual(oc_map.clusters(privileged=True), [])
+        self.assertEqual(
+            oc_map.clusters(include_errors=True, privileged=True),
+            [cluster_1['name']]
+        )
+
+        self.assertIsInstance(
+            oc_map.get(cluster_1['name']),
+            OC
+        )
+        self.assertFalse(oc_map.get(cluster_1['name'], privileged=True))
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_internal_clusters(self, selfmock_secret_reader,
+                               mock_oc):
+        cluster = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'internal': True,
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace = {
+            'name': 'ns1',
+            'cluster': cluster
+
+        }
+
+        # internal cluster must be in oc_map when internal is enabled
+        internal_oc_map = OC_Map(internal=True, namespaces=[namespace])
+        self.assertIsInstance(
+            internal_oc_map.get(cluster['name']),
+            OC
+        )
+
+        # internal cluster must not be in oc_map when internal is disabled
+        oc_map = OC_Map(internal=False, namespaces=[namespace])
+        self.assertFalse(oc_map.get(cluster['name']))
+
+    @patch.object(reconcile.utils.oc, 'OC', autospec=True)
+    @patch.object(SecretReader, 'read', autospec=True)
+    def test_disabled_integration(self, selfmock_secret_reader,
+                                  mock_oc):
+        calling_int = 'calling_integration'
+        cluster = {
+            'name': 'cl1',
+            'serverUrl': 'http://localhost',
+            'disable': {
+                'integrations': [
+                    calling_int.replace('_', '-')
+                ]
+            },
+            'automationToken': {
+                'path': 'some-path',
+                'field': 'some-field'
+            }
+        }
+        namespace = {
+            'name': 'ns1',
+            'cluster': cluster
+
+        }
+
+        oc_map = OC_Map(integration=calling_int, namespaces=[namespace])
+        self.assertFalse(oc_map.get(cluster['name']))

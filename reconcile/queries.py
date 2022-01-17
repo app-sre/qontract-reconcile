@@ -276,6 +276,11 @@ AWS_ACCOUNTS_QUERY = """
     }
     garbageCollection
     enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
     disable {
       integrations
     }
@@ -335,6 +340,7 @@ CLUSTERS_QUERY = """
     prometheusUrl
     managedGroups
     managedClusterRoles
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -564,6 +570,7 @@ CLUSTERS_MINIMAL_QUERY = """
     consoleUrl
     kibanaUrl
     prometheusUrl
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -634,6 +641,7 @@ KAFKA_CLUSTERS_QUERY = """
       cluster {
         name
         serverUrl
+        insecureSkipTLSVerify
         jumpHost {
           hostname
           knownHosts
@@ -712,6 +720,7 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -795,6 +804,7 @@ NAMESPACES_MINIMAL_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -833,11 +843,13 @@ def get_namespaces(minimal=False):
 
 
 SA_TOKEN = """
+name
 namespace {
   name
   cluster {
     name
     serverUrl
+    insecureSkipTLSVerify
     jumpHost {
       hostname
       knownHosts
@@ -873,6 +885,7 @@ SERVICEACCOUNT_TOKENS_QUERY = """
     cluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
           hostname
           knownHosts
@@ -1404,6 +1417,7 @@ SAAS_FILES_QUERY_V1 = """
           cluster {
             name
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
                 hostname
                 knownHosts
@@ -1439,6 +1453,16 @@ SAAS_FILES_QUERY_V1 = """
           auto
           publish
           subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
         }
         parameters
         upstream
@@ -1475,6 +1499,7 @@ SAAS_FILES_QUERY_V2 = """
             name
             consoleUrl
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
               hostname
               knownHosts
@@ -1496,6 +1521,13 @@ SAAS_FILES_QUERY_V2 = """
             internal
             disable {
               integrations
+            }
+          }
+        }
+        defaults {
+          pipelineTemplates {
+            openshiftSaasDeploy {
+              name
             }
           }
         }
@@ -1580,6 +1612,7 @@ SAAS_FILES_QUERY_V2 = """
           cluster {
             name
             serverUrl
+            insecureSkipTLSVerify
             jumpHost {
                 hostname
                 knownHosts
@@ -1615,6 +1648,16 @@ SAAS_FILES_QUERY_V2 = """
           auto
           publish
           subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
         }
         parameters
         upstream {
@@ -1728,16 +1771,45 @@ PIPELINES_PROVIDERS_QUERY = """
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
-    retention {
-      days
-      minimum
-    }
     ...on PipelinesProviderTekton_v1 {
+      defaults {
+        retention {
+          days
+          minimum
+        }
+        taskTemplates {
+          ...on PipelinesProviderTektonObjectTemplate_v1 {
+            name
+            type
+            path
+            variables
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+            type
+            path
+            variables
+          }
+        }
+        deployResources {
+          requests {
+            cpu
+            memory
+          }
+          limits {
+            cpu
+            memory
+          }
+        }
+      }
       namespace {
         name
         cluster {
           name
           serverUrl
+          insecureSkipTLSVerify
           jumpHost {
             hostname
             knownHosts
@@ -1761,6 +1833,10 @@ PIPELINES_PROVIDERS_QUERY = """
             integrations
           }
         }
+      }
+      retention {
+        days
+        minimum
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -1797,7 +1873,18 @@ PIPELINES_PROVIDERS_QUERY = """
 def get_pipelines_providers():
     """ Returns PipelinesProvider resources defined in app-interface."""
     gqlapi = gql.get_api()
-    return gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+    pipelines_providers = \
+        gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+
+    for pp in pipelines_providers:
+        # TODO: In the near future 'defaults' will be mandatory. In the
+        # meantime, let's make sure we always get a dictionary
+        defaults = pp.pop('defaults') or {}
+        for k, v in defaults.items():
+            if k not in pp or not pp[k]:
+                pp[k] = v
+
+    return pipelines_providers
 
 
 JIRA_BOARDS_QUERY = """
@@ -1809,6 +1896,9 @@ JIRA_BOARDS_QUERY = """
       serverUrl
       token {
         path
+        field
+        version
+        format
       }
     }
     slack {
@@ -2007,6 +2097,7 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
     hiveCluster {
       name
       serverUrl
+      insecureSkipTLSVerify
       jumpHost {
         hostname
         knownHosts
@@ -2262,6 +2353,7 @@ GABI_INSTANCES_QUERY = """
         cluster {
           name
           serverUrl
+          insecureSkipTLSVerify
           jumpHost {
             hostname
             knownHosts

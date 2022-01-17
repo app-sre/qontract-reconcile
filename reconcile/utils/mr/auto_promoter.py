@@ -1,22 +1,32 @@
 import logging
 import json
 import hashlib
+from typing import Any, Dict, Mapping
+from dataclasses import dataclass
+from dataclasses import asdict
 from ruamel import yaml
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
-
 LOG = logging.getLogger(__name__)
+
+TARGET_CONFIG_HASH = "target_config_hash"
+
+
+@dataclass
+class ParentSaasConfigPromotion:
+    TYPE = "parent_saas_config"
+    parent_saas: str
+    target_config_hash: str
+    type: str = TYPE
 
 
 class AutoPromoter(MergeRequestBase):
-
     name = 'auto_promoter'
 
     def __init__(self, promotions):
         self.promotions = promotions
-
         super().__init__()
 
         self.labels = [AUTO_MERGE]
@@ -34,6 +44,55 @@ class AutoPromoter(MergeRequestBase):
         return (f'[{self.name}] openshift-saas-deploy automated '
                 f'promotion {digest}')
 
+    @staticmethod
+    def init_promotion_data(channel: str,
+                            promotion: Mapping[str, Any]) -> Dict[str, Any]:
+        psc = ParentSaasConfigPromotion(
+            parent_saas=promotion["saas_file"],
+            target_config_hash=promotion[TARGET_CONFIG_HASH]
+        )
+        return {
+            "channel": channel,
+            "data": [
+                asdict(psc)
+            ]
+        }
+
+    @staticmethod
+    def process_promotion(promotion,
+                          target_promotion,
+                          target_channels):
+
+        # Existent subscribe data channel data
+        promotion_data = {v["channel"]: v["data"]
+                          for v in target_promotion.get('promotion_data', [])
+                          if v["channel"] in target_channels}
+
+        if not promotion_data:
+            target_promotion["promotion_data"] = []
+
+        modified = False
+        for channel in target_channels:
+            channel_data = promotion_data.get(channel)
+            if channel_data is None:
+                channel_data = \
+                    AutoPromoter.init_promotion_data(channel, promotion)
+                target_promotion["promotion_data"].append(channel_data)
+                modified = True
+            else:
+                for i, item in enumerate(channel_data):
+                    if item["type"] == ParentSaasConfigPromotion.TYPE:
+                        target_psc = ParentSaasConfigPromotion(**item)
+                        promotion_psc = ParentSaasConfigPromotion(
+                            parent_saas=promotion["saas_file"],
+                            target_config_hash=promotion[TARGET_CONFIG_HASH]
+                        )
+                        if target_psc != promotion_psc:
+                            channel_data[i] = asdict(promotion_psc)
+                            modified = True
+
+            return modified
+
     def process(self, gitlab_cli):
         for item in self.promotions:
             saas_file_paths = item.get('saas_file_paths')
@@ -47,12 +106,20 @@ class AutoPromoter(MergeRequestBase):
                 continue
             for saas_file_path in saas_file_paths:
                 saas_file_updated = False
-                raw_file = gitlab_cli.project.files.get(
-                    file_path=saas_file_path,
-                    ref=self.branch
-                )
+                try:
+                    # This will only work with gitlab cli, not with SQS
+                    # this method is only triggered by gitlab_sqs_consumer
+                    # not by openshift_saas_deploy
+                    raw_file = gitlab_cli.project.files.get(
+                        file_path=saas_file_path,
+                        ref=self.branch
+                    )
+                except Exception as e:
+                    logging.error(e)
+
                 content = yaml.load(raw_file.decode(),
                                     Loader=yaml.RoundTripLoader)
+
                 for rt in content['resourceTemplates']:
                     for target in rt['targets']:
                         target_promotion = target.get('promotion')
@@ -64,9 +131,22 @@ class AutoPromoter(MergeRequestBase):
                         subscribe = target_promotion.get('subscribe')
                         if not subscribe:
                             continue
-                        if any(c in subscribe for c in publish):
+
+                        channels = [c for c in subscribe if c in publish]
+                        if len(channels) > 0:
+                            # Update REF on target if differs.
                             if target['ref'] != commit_sha:
                                 target['ref'] = commit_sha
+                                saas_file_updated = True
+
+                            # Update Promotion data
+                            modified = \
+                                AutoPromoter.process_promotion(
+                                    item,
+                                    target_promotion,
+                                    channels)
+
+                            if modified:
                                 saas_file_updated = True
 
                 if saas_file_updated:

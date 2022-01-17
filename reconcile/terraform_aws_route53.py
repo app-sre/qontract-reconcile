@@ -128,8 +128,8 @@ def build_desired_state(zones):
 
 
 @defer
-def run(dry_run=False, print_only=False,
-        enable_deletion=False, thread_pool_size=10, defer=None):
+def run(dry_run=False, print_to_file=None,
+        enable_deletion=True, thread_pool_size=10, defer=None):
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones()
 
@@ -146,9 +146,9 @@ def run(dry_run=False, print_only=False,
     desired_state = build_desired_state(zones)
 
     ts.populate_route53(desired_state)
-    working_dirs = ts.dump(print_only=print_only)
+    working_dirs = ts.dump(print_to_file=print_to_file)
 
-    if print_only:
+    if print_to_file:
         sys.exit(ExitCodes.SUCCESS)
 
     tf = Terraform(QONTRACT_INTEGRATION,

@@ -36,7 +36,8 @@ class ValidationErrorJobFailed(Exception):
 
 class StateSpec:
     def __init__(self, type, oc, cluster, namespace, resource, parent=None,
-                 resource_type_override=None, resource_names=None):
+                 resource_type_override=None, resource_names=None,
+                 privileged=False):
         self.type = type
         self.oc = oc
         self.cluster = cluster
@@ -45,6 +46,7 @@ class StateSpec:
         self.parent = parent
         self.resource_type_override = resource_type_override
         self.resource_names = resource_names
+        self.privileged = privileged
 
 
 def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
@@ -69,7 +71,8 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
                 continue
 
             cluster = namespace_info['cluster']['name']
-            oc = oc_map.get(cluster)
+            privileged = namespace_info.get("clusterAdmin", False) is True
+            oc = oc_map.get(cluster, privileged)
             if not oc:
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
@@ -148,7 +151,8 @@ def init_specs_to_fetch(ri: ResourceInventory, oc_map: OC_Map,
             openshift_resources = namespace_info.get('openshiftResources')
             for openshift_resource in openshift_resources or []:
                 d_spec = StateSpec("desired", oc, cluster, namespace,
-                                   openshift_resource, namespace_info)
+                                   openshift_resource, namespace_info,
+                                   privileged=privileged)
                 state_specs.append(d_spec)
     elif clusters:
         # set namespace to something indicative
@@ -250,11 +254,12 @@ def wait_for_namespace_exists(oc, namespace):
         raise Exception(f'namespace {namespace} does not exist')
 
 
-def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
-          wait_for_namespace, recycle_pods=True):
+def apply(dry_run: bool, oc_map: OC_Map, cluster: str, namespace: str,
+          resource_type: OR, resource, wait_for_namespace: bool,
+          recycle_pods: bool = True, privileged: bool = False) -> None:
     logging.info(['apply', cluster, namespace, resource_type, resource.name])
 
-    oc = oc_map.get(cluster)
+    oc = oc_map.get(cluster, privileged)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
         return None
@@ -305,18 +310,24 @@ def apply(dry_run, oc_map, cluster, namespace, resource_type, resource,
 
             logging.info(['delete_sts_and_apply', cluster, namespace,
                           resource_type, resource.name])
-            owned_pods = oc.get_owned_pods(namespace, resource)
+            current_resource = oc.get(namespace, resource_type, resource.name)
+            current_storage = oc.get_storage(current_resource)
+            desired_storage = oc.get_storage(resource.body)
+            resize_required = current_storage != desired_storage
+            if resize_required:
+                owned_pods = oc.get_owned_pods(namespace, resource)
+                owned_pvc_names = oc.get_pod_owned_pvc_names(owned_pods)
             oc.delete(namespace=namespace, kind=resource_type,
                       name=resource.name, cascade=False)
             oc.apply(namespace=namespace, resource=annotated)
-            logging.info(['recycle_sts_pods', cluster, namespace,
-                          resource_type, resource.name])
-            # the resource was applied without cascading, we proceed
-            # to recycle the pods belonging to the old resource.
-            # note: we really just delete pods and let the new resource
-            # recreate them. we delete one by one and wait for a new
-            # pod to become ready before proceeding to the next one.
-            oc.recycle_orphan_pods(namespace, owned_pods)
+            # the resource was applied without cascading.
+            # if the change was in the storage, we need to
+            # take care of the resize ourselves.
+            # ref: https://github.com/kubernetes/enhancements/pull/2842
+            if resize_required:
+                logging.info(['resizing_pvcs', cluster, namespace,
+                              owned_pvc_names])
+                oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 
     if recycle_pods:
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
@@ -334,15 +345,16 @@ def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
         oc.create(namespace, annotated)
 
 
-def delete(dry_run, oc_map, cluster, namespace, resource_type, name,
-           enable_deletion):
+def delete(dry_run: bool, oc_map: OC_Map, cluster: str, namespace: str,
+           resource_type: str, name: str, enable_deletion: bool,
+           privileged: bool = False) -> None:
     logging.info(['delete', cluster, namespace, resource_type, name])
 
     if not enable_deletion:
         logging.error('\'delete\' action is disabled due to previous errors.')
         return
 
-    oc = oc_map.get(cluster)
+    oc = oc_map.get(cluster, privileged)
     if not oc:
         logging.log(level=oc.log_level, msg=oc.message)
         return None
@@ -360,7 +372,8 @@ def check_unused_resource_types(ri):
 
 
 def _realize_resource_data(unpacked_ri_item,
-                           dry_run, oc_map, ri,
+                           dry_run, oc_map: OC_Map,
+                           ri: ResourceInventory,
                            take_over,
                            caller,
                            wait_for_namespace,
@@ -368,7 +381,7 @@ def _realize_resource_data(unpacked_ri_item,
                            override_enable_deletion,
                            recycle_pods):
     cluster, namespace, resource_type, data = unpacked_ri_item
-    actions = []
+    actions: list[dict] = []
     if ri.has_error_registered(cluster=cluster):
         msg = (
             "[{}] skipping realize_data for "
@@ -439,15 +452,17 @@ def _realize_resource_data(unpacked_ri_item,
                       OR.serialize(OR.canonicalize(d_item.body)))
 
         try:
+            privileged = data['use_admin_token'].get(name, False)
             apply(dry_run, oc_map, cluster, namespace,
                   resource_type, d_item, wait_for_namespace,
-                  recycle_pods=recycle_pods)
+                  recycle_pods, privileged)
             action = {
                 'action': ACTION_APPLIED,
                 'cluster': cluster,
                 'namespace': namespace,
                 'kind': resource_type,
-                'name': d_item.name
+                'name': d_item.name,
+                'privileged': privileged
             }
             actions.append(action)
         except StatusCodeError as e:
@@ -480,14 +495,16 @@ def _realize_resource_data(unpacked_ri_item,
             continue
 
         try:
+            privileged = data['use_admin_token'].get(name, False)
             delete(dry_run, oc_map, cluster, namespace,
-                   resource_type, name, enable_deletion)
+                   resource_type, name, enable_deletion, privileged)
             action = {
                 'action': ACTION_DELETED,
                 'cluster': cluster,
                 'namespace': namespace,
                 'kind': resource_type,
-                'name': name
+                'name': name,
+                'privileged': privileged
             }
             actions.append(action)
         except StatusCodeError as e:
@@ -498,7 +515,8 @@ def _realize_resource_data(unpacked_ri_item,
     return actions
 
 
-def realize_data(dry_run, oc_map, ri, thread_pool_size,
+def realize_data(dry_run, oc_map: OC_Map, ri: ResourceInventory,
+                 thread_pool_size,
                  take_over=False,
                  caller=None,
                  wait_for_namespace=False,

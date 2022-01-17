@@ -24,7 +24,7 @@ from reconcile.utils import throughput
 
 
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.exceptions import FetchResourceError
+from reconcile.utils.exceptions import FetchResourceError
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 

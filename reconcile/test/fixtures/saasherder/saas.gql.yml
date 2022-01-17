@@ -1,0 +1,361 @@
+{
+        "path": "/services/test-saas-deployment-pipelines/cicd/deploy.yml",
+        "name": "test-saas-deployments-deploy",
+        "app": {
+          "name": "app-interface"
+        },
+        "pipelinesProvider": {
+          "name": "tekton-app-sre-pipelines-appsres03ue1",
+          "provider": "tekton",
+          "namespace": {
+            "name": "app-sre-pipelines",
+            "cluster": {
+              "name": "appsres03ue1",
+              "consoleUrl": "https://console-openshift-console.apps.appsres03ue1.5nvu.p1.openshiftapps.com",
+              "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+              "jumpHost": null,
+              "automationToken": {
+                "path": "app-sre/creds/kube-configs/appsres03ue1",
+                "field": "token",
+                "version": null,
+                "format": null
+              },
+              "internal": true,
+              "disable": null
+            }
+          },
+          "pipelineTemplates": {
+            "openshiftSaasDeploy": {
+              "name": "openshift-saas-deploy"
+            }
+          }
+        },
+        "deployResources": null,
+        "slack": {
+          "output": null,
+          "workspace": {
+            "name": "coreos",
+            "integrations": [
+              {
+                "name": "jira-watcher",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre-info",
+                "icon_emoji": "jira",
+                "username": "Jira"
+              },
+              {
+                "name": "openshift-saas-deploy",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre-info",
+                "icon_emoji": "openshift",
+                "username": "saas notifier"
+              },
+              {
+                "name": "unleash-watcher",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre-info",
+                "icon_emoji": "unleash",
+                "username": "unleash"
+              },
+              {
+                "name": "sentry-helper",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre",
+                "icon_emoji": "sentry",
+                "username": "Sentry"
+              },
+              {
+                "name": "slack-sender",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "changeme",
+                "icon_emoji": ":eyes:",
+                "username": "app-sre-notification"
+              },
+              {
+                "name": "openshift-upgrade-watcher",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre",
+                "icon_emoji": "openshift",
+                "username": "OpenShift"
+              },
+              {
+                "name": "slack-cluster-usergroups",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre",
+                "icon_emoji": "openshift",
+                "username": "OpenShift"
+              },
+              {
+                "name": "qontract-cli",
+                "token": {
+                  "path": "app-sre/creds/slack-app-sre-groups",
+                  "field": "bot_token",
+                  "version": null,
+                  "format": null
+                },
+                "channel": "sd-app-sre",
+                "icon_emoji": "app-sre",
+                "username": "AppSRE"
+              }
+            ]
+          },
+          "channel": "sd-app-sre-info",
+          "notifications": null
+        },
+        "managedResourceTypes": [
+          "Job"
+        ],
+        "takeover": null,
+        "compare": null,
+        "publishJobLogs": null,
+        "clusterAdmin": null,
+        "imagePatterns": [
+          "quay.io/centos/centos:centos8"
+        ],
+        "use_channel_in_image_tag": null,
+        "authentication": {
+          "code": null,
+          "image": {
+            "path": "app-sre/quay/app-sre-pull",
+            "field": "all",
+            "version": null,
+            "format": null
+          }
+        },
+        "parameters": null,
+        "resourceTemplates": [
+          {
+            "name": "test-saas-deployments",
+            "url": "https://github.com/app-sre/test-saas-deployments",
+            "path": "/openshift/deploy-template.yml",
+            "provider": null,
+            "hash_length": null,
+            "parameters": "{\"PARAM\":\"test\"}",
+            "targets": [
+              {
+                "namespace": {
+                  "name": "test-ns-publisher",
+                  "environment": {
+                    "name": "App-SRE-stage",
+                    "parameters": "{\"CHANNEL\":\"staging\"}"
+                  },
+                  "app": {
+                    "name": "test-saas-deployments"
+                  },
+                  "cluster": {
+                    "name": "appsres03ue1",
+                    "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+                    "jumpHost": null,
+                    "automationToken": {
+                      "path": "app-sre/creds/kube-configs/appsres03ue1",
+                      "field": "token",
+                      "version": null,
+                      "format": null
+                    },
+                    "clusterAdminAutomationToken": null,
+                    "internal": true,
+                    "disable": null
+                  }
+                },
+                "ref": "main",
+                "promotion": {
+                  "auto": null,
+                  "publish": [
+                    "test-saas-deployments-deploy"
+                  ],
+                  "subscribe": null,
+                  "promotion_data": null
+                },
+                "parameters": null,
+                "upstream": null,
+                "disable": null,
+                "delete": null
+              },
+              {
+                "namespace": {
+                  "name": "test-ns-subscriber",
+                  "environment": {
+                    "name": "App-SRE-stage",
+                    "parameters": "{\"CHANNEL\":\"staging\"}"
+                  },
+                  "app": {
+                    "name": "test-saas-deployments"
+                  },
+                  "cluster": {
+                    "name": "appsres03ue1",
+                    "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+                    "jumpHost": null,
+                    "automationToken": {
+                      "path": "app-sre/creds/kube-configs/appsres03ue1",
+                      "field": "token",
+                      "version": null,
+                      "format": null
+                    },
+                    "clusterAdminAutomationToken": null,
+                    "internal": true,
+                    "disable": null
+                  }
+                },
+                "ref": "main",
+                "promotion": {
+                  "auto": True,
+                  "subscribe": [
+                    "test-saas-deployments-deploy"
+                  ],
+                  "promotion_data": [{
+                    "channel": "test-saas-deployments-deploy",
+                    "data": {
+                      "type": "parent_saas_config",
+                      "parent_saas": "test-saas-deployments-deploy",
+                      "target_config_hash": "ed2af38cf21f268c"
+                    }
+                  }],
+                  "publish": null,
+                },
+                "parameters": null,
+                "upstream": null,
+                "disable": null,
+                "delete": null
+              }
+
+            ]
+          }
+        ],
+        "roles": [
+          {
+            "users": [
+              {
+                "org_username": "jmelisba",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "pbergene",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "yihuang",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "lmunozme",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "agallofr",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "jchevret",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "asegundo",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "ashvarev",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "snesic",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "goberlec",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "anjaasta",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "gpont",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "akonarde",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "mafriedm",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "fehuang",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "skryzhni",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "jbeakley",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "jreyes",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "essilva",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "tpate",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "rporresm",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "rrati",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "steahan",
+                "tag_on_merge_requests": null
+              },
+              {
+                "org_username": "patmarti",
+                "tag_on_merge_requests": null
+              }
+            ]
+          }
+        ]
+      }
