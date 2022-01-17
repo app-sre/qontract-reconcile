@@ -123,7 +123,7 @@ def get_version_history(dry_run, upgrade_policies, ocm_map):
         dict: version history per OCM instance
     """
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,

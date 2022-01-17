@@ -19,7 +19,7 @@ QONTRACT_INTEGRATION = 'gitlab-mr-sqs-consumer'
 def run(dry_run, gitlab_project_id):
     settings = queries.get_app_interface_settings()
 
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_queue_aws_accounts()
     sqs_cli = SQSGateway(accounts, settings=settings)
 
     instance = queries.get_gitlab_instance()

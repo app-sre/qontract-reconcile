@@ -1,3 +1,4 @@
+import os
 import logging
 import itertools
 
@@ -243,7 +244,18 @@ def get_github_orgs():
 
 AWS_ACCOUNTS_QUERY = """
 {
-  accounts: awsaccounts_v1 {
+  accounts: awsaccounts_v1
+  {% if search %}
+  (
+    {% if name %}
+    name: "{{ name }}"
+    {% endif %}
+    {% if uid %}
+    name: "{{ uid }}"
+    {% endif %}
+  )
+  {% endif %}
+  {
     path
     name
     uid
@@ -291,13 +303,29 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
-def get_aws_accounts(reset_passwords=False):
+def get_aws_accounts(reset_passwords=False, name=None, uid=None):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
+    search = name or uid
     query = Template(AWS_ACCOUNTS_QUERY).render(
         reset_passwords=reset_passwords,
+        search=search,
+        name=name,
+        uid=uid,
     )
     return gqlapi.query(query)['accounts']
+
+
+def get_state_aws_accounts(reset_passwords=False):
+    """ Returns AWS accounts to use for state management """
+    name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+    return get_aws_accounts(reset_passwords=reset_passwords, name=name)
+
+
+def get_queue_aws_accounts():
+    """ Returns AWS accounts to use for queue management """
+    uid = os.environ['gitlab_pr_submitter_queue_url'].split('/')[3]
+    return get_aws_accounts(uid=uid)
 
 
 CLUSTERS_QUERY = """
