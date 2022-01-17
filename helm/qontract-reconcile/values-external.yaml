@@ -375,6 +375,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+  logs:
+    slack: true
 - name: ocm-clusters
   resources:
     requests:
@@ -408,6 +410,8 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --vault-input-path app-sre/integrations-input
+  logs:
+    slack: true
 - name: ocm-machine-pools
   resources:
     requests:
