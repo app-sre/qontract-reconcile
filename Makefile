@@ -1,5 +1,6 @@
 .PHONY: build push rc build-test test-app test-container-image test clean
 
+CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 IMAGE_TEST := reconcile-test
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
@@ -13,16 +14,16 @@ endif
 
 CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
 build:
-	@DOCKER_BUILDKIT=1 docker build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
-	@docker tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
+	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 push:
-	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
-	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
+	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
+	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 
 rc:
-	@docker build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc -f dockerfiles/Dockerfile .
-	@docker --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
+	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc -f dockerfiles/Dockerfile .
+	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
 	@helm lint helm/qontract-reconcile
@@ -31,15 +32,15 @@ generate:
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-fedramp.yaml > openshift/qontract-reconcile-fedramp.yaml
 
 build-test:
-	@docker build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
+	@$(CONTAINER_ENGINE) build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
 test-app: build-test
 #	Target to test app with tox on docker
-	@docker run --rm $(IMAGE_TEST)
+	@$(CONTAINER_ENGINE) run --rm $(IMAGE_TEST)
 
 test-container-image: build
 #	Target to test the final image
-	@docker run --rm \
+	@$(CONTAINER_ENGINE) run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR):/work \
 		 $(CTR_STRUCTURE_IMG) test \
