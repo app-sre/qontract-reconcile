@@ -37,6 +37,16 @@ integrations:
       memory: 500Mi
       cpu: 500m
   disableUnleash: true
+- name: openshift-routes
+  resources:
+    requests:
+      # Known peaks are at 770Mi
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 300m
 - name: openshift-vault-secrets
   resources:
     requests:
@@ -73,4 +83,27 @@ integrations:
     limits:
       memory: 2000Mi
       cpu: 600m
+  disableUnleash: true
+- name: jenkins-job-builder
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  state: true
+  cache: true
+  disableUnleash: true
+- name: jenkins-webhooks
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  logs:
+    slack: true
+  cache: true
   disableUnleash: true
