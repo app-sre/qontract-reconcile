@@ -371,7 +371,7 @@ def run(dry_run: bool, thread_pool_size: int = 10,
     get_desired(inventory, oc_map, namespaces)
 
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration=QONTRACT_INTEGRATION,
                   accounts=accounts, settings=settings)
     _LOG.debug('Collecting managed state ...')
