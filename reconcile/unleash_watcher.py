@@ -88,7 +88,7 @@ def init_slack_map(unleash_instance):
         username = slack_info['username']
 
         slack_api_kwargs = {
-            'settings': settings,
+            'secret_reader_settings': settings,
             'init_usergroups': False,
             'channel': channel,
             'icon_emoji': icon_emoji,

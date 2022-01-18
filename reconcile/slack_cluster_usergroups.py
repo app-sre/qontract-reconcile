@@ -4,8 +4,7 @@ from reconcile import queries
 from reconcile import openshift_users
 from reconcile import slack_usergroups
 
-from reconcile.slack_base import init_slack_workspace
-from reconcile.utils.slack_api import UsergroupNotFoundException
+from reconcile.utils.slack_api import UsergroupNotFoundException, SlackApi
 
 QONTRACT_INTEGRATION = 'slack-cluster-usergroups'
 
@@ -127,7 +126,7 @@ def get_current_state(slack, usergroups):
 
 
 def run(dry_run):
-    slack = init_slack_workspace(QONTRACT_INTEGRATION)
+    slack = SlackApi.create_using_queries(QONTRACT_INTEGRATION)
     desired_state = get_desired_state(slack)
     usergroups = []
     for _, workspace_state in desired_state.items():

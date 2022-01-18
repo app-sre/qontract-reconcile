@@ -82,7 +82,7 @@ def test_instantiate_slack_api_with_config(mocker):
     token = {'path': 'some/path', 'field': 'some-field'}
     slack_api = SlackApi('some-workspace', token, config)
 
-    assert slack_api.config is config
+    assert slack_api.api_config is config
 
 
 def test__get_default_args(slack_api):
@@ -115,7 +115,7 @@ def test__get_with_matching_method_config(slack_api):
 
     api_config = SlackApiConfig()
     api_config.set_method_config('conversations.list', {'limit': 500})
-    slack_api.client.config = api_config
+    slack_api.client.api_config = api_config
 
     slack_api.client._get('channels')
 
@@ -135,7 +135,7 @@ def test__get_without_matching_method_config(slack_api):
 
     api_config = SlackApiConfig()
     api_config.set_method_config('conversations.list', {'limit': 500})
-    slack_api.client.config = api_config
+    slack_api.client.api_config = api_config
 
     slack_api.client._get('something')
 
