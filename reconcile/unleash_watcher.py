@@ -1,12 +1,13 @@
 import logging
+from typing import Dict
 
 from reconcile import queries
+from reconcile.utils.slack_api import SlackApi
 
 from reconcile.utils.unleash import get_feature_toggles
-from reconcile.utils.slack_api import SlackApi, SlackApiConfig
+from reconcile.slack_base import slackapi_from_dict
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
-
 
 QONTRACT_INTEGRATION = 'unleash-watcher'
 
@@ -68,40 +69,14 @@ def calculate_diff(current_state, previous_state):
     return diffs
 
 
-def init_slack_map(unleash_instance):
+def init_slack_map(unleash_instance) -> Dict[str, SlackApi]:
     settings = queries.get_app_interface_settings()
     slack_notifications = unleash_instance['notifications']['slack']
     slack_map = {}
     for slack_info in slack_notifications:
-        workspace = slack_info['workspace']
-        workspace_name = workspace['name']
-        slack_integrations = workspace['integrations']
-        client_config = workspace.get('api_client')
-        slack_config = \
-            [i for i in slack_integrations
-             if i['name'] == QONTRACT_INTEGRATION]
-        [slack_config] = slack_config
-
-        token = slack_config['token']
         channel = slack_info['channel']
-        icon_emoji = slack_info['icon_emoji']
-        username = slack_info['username']
-
-        slack_api_kwargs = {
-            'settings': settings,
-            'init_usergroups': False,
-            'channel': channel,
-            'icon_emoji': icon_emoji,
-            'username': username
-        }
-
-        if client_config:
-            slack_api_kwargs['api_config'] = \
-                SlackApiConfig.from_dict(client_config)
-
-        slack = SlackApi(workspace_name, token, **slack_api_kwargs)
-
-        slack_map[channel] = slack
+        slack_map[channel] = slackapi_from_dict(slack_info, settings,
+                                                QONTRACT_INTEGRATION)
 
     return slack_map
 

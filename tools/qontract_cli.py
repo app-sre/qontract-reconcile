@@ -8,6 +8,8 @@ import requests
 import yaml
 
 from tabulate import tabulate
+
+from reconcile.slack_base import slackapi_from_queries
 from reconcile.status_page_components import (
     update_component_status, fetch_pages)
 
@@ -20,7 +22,6 @@ import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 import reconcile.ocm_upgrade_scheduler as ous
 
-from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -857,8 +858,7 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
-    settings = queries.get_app_interface_settings()
-    slack = init_slack_workspace('qontract-cli')
+    slack = slackapi_from_queries('qontract-cli')
     ugid = slack.get_usergroup_id(usergroup)
     if username:
         mail_address = settings['smtp']['mailAddress']

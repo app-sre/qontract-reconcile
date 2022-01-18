@@ -42,7 +42,7 @@ def get_slack_map():
         if workspace_name in slack_map:
             continue
         slack_api_kwargs = {
-            'settings': settings,
+            'secret_reader_settings': settings,
         }
 
         client_config = workspace.get('api_client')

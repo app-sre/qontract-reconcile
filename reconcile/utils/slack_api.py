@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Sequence, Dict, Any, Mapping, Optional, Union
+from typing import Sequence, Dict, Any, Mapping, Optional, Union, ItemsView, \
+    Iterable
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -8,9 +9,6 @@ from slack_sdk.http_retry import RateLimitErrorRetryHandler, RetryHandler, \
     RetryState, HttpRequest, HttpResponse
 
 from reconcile.utils.secret_reader import SecretReader
-
-MAX_RETRIES = 5
-TIMEOUT = 30
 
 
 class UserNotFoundException(Exception):
@@ -23,13 +21,14 @@ class UsergroupNotFoundException(Exception):
 
 class ServerErrorRetryHandler(RetryHandler):
     """Retry handler for 5xx errors."""
+
     def _can_retry(
-        self,
-        *,
-        state: RetryState,
-        request: HttpRequest,
-        response: Optional[HttpResponse] = None,
-        error: Optional[Exception] = None
+            self,
+            *,
+            state: RetryState,
+            request: HttpRequest,
+            response: Optional[HttpResponse] = None,
+            error: Optional[Exception] = None
     ) -> bool:
         return response is not None and response.status_code >= 500
 
@@ -39,6 +38,8 @@ class SlackApiConfig:
     Aggregates Slack API configuration objects to be used passed to a
     SlackApi object.
     """
+    MAX_RETRIES = 5
+    TIMEOUT = 30
 
     def __init__(self,
                  timeout: int = TIMEOUT,
@@ -107,59 +108,57 @@ class SlackApiConfig:
 class SlackApi:
     """Wrapper around Slack API calls"""
 
+    RESOURCE_GET_CONVERSATIONS = 'conversations'
+    RESOURCE_GET_USERS = 'users'
+    RESOURCE_GET_USERGROUPS = 'usergroups'
+    RESOURCE_GET_RESULT_KEYS = {
+        RESOURCE_GET_CONVERSATIONS: 'channels',
+        RESOURCE_GET_USERS: 'members',
+        RESOURCE_GET_USERGROUPS: 'usergroups'
+    }
+
     def __init__(self,
                  workspace_name: str,
                  token: Mapping[str, str],
                  api_config: Optional[SlackApiConfig] = None,
-                 settings: Optional[Mapping[str, Any]] = None,
-                 init_usergroups=True,
+                 secret_reader_settings: Optional[Mapping[str, Any]] = None,
                  channel: Optional[str] = None,
-                 **chat_kwargs) -> None:
+                 icon_emoji: Optional[str] = None,
+                 username: Optional[str] = None) -> None:
         """
         :param workspace_name: Slack workspace name (ex. coreos)
         :param token: data to pass to SecretReader.read() to get the token
         :param api_config: Slack API configuration
-        :param settings: settings to pass to SecretReader
-        :param init_usergroups: whether or not to get a list of all Slack
-        usergroups when instantiated
-        :param channel: the Slack channel to post messages to, only used
-        when posting messages to a channel
-        :param chat_kwargs: any other kwargs that can be used to post Slack
-        channel messages
+        :param secret_reader_settings: settings to pass to SecretReader
+        :param channel: the Slack channel to post messages to, only
+        used when posting messages to a channel
         """
+        self._cached_results: Dict[str, Any] = {}
         self.workspace_name = workspace_name
+        self.channel = channel
 
-        if api_config:
-            self.config = api_config
-        else:
-            self.config = SlackApiConfig()
+        self.icon_emoji = icon_emoji
+        self.username = username
 
-        secret_reader = SecretReader(settings=settings)
+        secret_reader = SecretReader(settings=secret_reader_settings)
         slack_token = secret_reader.read(token)
 
-        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
-        self._configure_client_retry()
+        if api_config:
+            self.api_config = api_config
+        else:
+            self.api_config = SlackApiConfig()
 
-        self._results: Dict[str, Any] = {}
+        # mandatory for client to work, do not move to app-interface
+        self.api_config.set_method_config(
+            f'{self.RESOURCE_GET_USERGROUPS}.list', {'include_users': True})
 
-        self.channel = channel
-        self.chat_kwargs = chat_kwargs
+        self._sc = WebClient(token=slack_token,
+                             timeout=self.api_config.timeout)
 
-        if init_usergroups:
-            self._initiate_usergroups()
-
-    def _configure_client_retry(self) -> None:
-        """
-        Add retry handlers in addition to the defaults provided by the Slack
-        client.
-        """
-        rate_limit_handler = RateLimitErrorRetryHandler(
-            max_retry_count=self.config.max_retries)
-        server_error_handler = ServerErrorRetryHandler(
-            max_retry_count=self.config.max_retries)
-
-        self._sc.retry_handlers.append(rate_limit_handler)
-        self._sc.retry_handlers.append(server_error_handler)
+        self._sc.retry_handlers.append(RateLimitErrorRetryHandler(
+            max_retry_count=self.api_config.max_retries))
+        self._sc.retry_handlers.append(ServerErrorRetryHandler(
+            max_retry_count=self.api_config.max_retries))
 
     def chat_post_message(self, text: str) -> None:
         """
@@ -177,7 +176,8 @@ class SlackApi:
 
         def do_send(c: str, t: str):
             self._sc.chat_postMessage(channel=c, text=t,
-                                      **self.chat_kwargs)
+                                      username=self.username,
+                                      icon_emoji=self.icon_emoji)
 
         try:
             do_send(self.channel, text)
@@ -223,25 +223,16 @@ class SlackApi:
         usergroup = self.get_usergroup(handle)
         return usergroup['id']
 
-    def _initiate_usergroups(self) -> None:
-        """
-        Initiates usergroups list.
-
-        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
-        Slack API
-        """
-        result = self._sc.usergroups_list(include_users=True)
-        self.usergroups = result['usergroups']
-
     def get_usergroup(self, handle):
-        usergroup = [g for g in self.usergroups if g['handle'] == handle]
+        groups = self._resource_get_or_cached(self.RESOURCE_GET_USERGROUPS)
+        usergroup = [g for g in groups if groups[g]['handle'] == handle]
         if len(usergroup) != 1:
             raise UsergroupNotFoundException(handle)
-        [usergroup] = usergroup
-        return usergroup
+        return groups[usergroup[0]]
 
     def update_usergroup(self, id: str, channels_list: Sequence[str],
                          description: str) -> None:
+        # TODO: Add test
         """
         Update an existing usergroup.
 
@@ -254,6 +245,7 @@ class SlackApi:
         """
         self._sc.usergroups_update(usergroup=id, channels=channels_list,
                                    description=description)
+        self._cache_invalidate(self.RESOURCE_GET_USERGROUPS)
 
     def update_usergroup_users(self, id: str,
                                users_list: Sequence[str]) -> None:
@@ -273,6 +265,7 @@ class SlackApi:
 
         try:
             self._sc.usergroups_users_update(usergroup=id, users=users_list)
+            self._cache_invalidate(self.RESOURCE_GET_USERGROUPS)
         except SlackApiError as e:
             # Slack can throw an invalid_users error when emptying groups, but
             # it will still empty the group (so this can be ignored).
@@ -280,7 +273,7 @@ class SlackApi:
                 raise
 
     def get_random_deleted_user(self):
-        for user_id, user_data in self._get('users').items():
+        for user_id, user_data in self._get_users():
             if user_data['deleted'] is True:
                 return user_id
 
@@ -310,60 +303,85 @@ class SlackApi:
 
         return result['user']['id']
 
-    def get_channels_by_names(self, channels_names):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_names(self, channels_names: Iterable[str]) \
+            -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_channels()
                 if v['name'] in channels_names}
 
-    def get_channels_by_ids(self, channels_ids):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_ids(self, channels_ids: Iterable[str]) \
+            -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_channels()
                 if k in channels_ids}
 
-    def get_users_by_names(self, user_names):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_names(self, user_names: Iterable[str]) -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_users()
                 if v['name'] in user_names}
 
-    def get_users_by_ids(self, users_ids):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_ids(self, users_ids: Iterable[str]) -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_users()
                 if k in users_ids}
 
-    def _get(self, resource: str) -> Dict[str, Any]:
+    def _get_channels(self) -> ItemsView:
+        return self._resource_get_or_cached(
+            self.RESOURCE_GET_CONVERSATIONS).items()
+
+    def _get_users(self) -> ItemsView:
+        return self._resource_get_or_cached(self.RESOURCE_GET_USERS).items()
+
+    def _cache_invalidate(self, resource: str):
+        if resource in self._cached_results:
+            del self._cached_results[resource]
+
+    def _resource_get_or_cached(self, resource: str) -> Dict[str, Any]:
         """
-        Get Slack resources by type. This method uses a cache to ensure that
-        each resource type is only fetched once.
+         Get Slack resources by type. This method uses a cache to ensure that
+         each resource type is only fetched once.
 
-        :param resource: resource type
-        :return: data from API call
-        """
-        result_key = 'members' if resource == 'users' else resource
-        api_key = 'conversations' if resource == 'channels' else resource
-        results = {}
-        additional_kwargs: Dict[str, Union[str, int]] = {'cursor': ''}
+         :param resource: resource type
+         :return: data from API call
+         """
 
-        if resource in self._results:
-            return self._results[resource]
+        if resource in self._cached_results:
+            return self._cached_results[resource]
 
-        if self.config:
-            method_config = self.config.get_method_config(
-                f'{api_key}.list')
-            if method_config:
-                additional_kwargs.update(method_config)
+        additional_kwargs: Dict[str, Union[str, int, bool]] = {'cursor': ''}
+        if self.api_config:
+            method_config = self.api_config.get_method_config(
+                f'{resource}.list')
 
+        if method_config:
+            additional_kwargs.update(method_config)
+
+        self._cached_results[resource] = self._paginated_get(resource,
+                                                             additional_kwargs)
+
+        return self._cached_results[resource]
+
+    def _paginated_get(self, resource: str,
+                       additional_kwargs: Dict[str, Union[str, int, bool]]) \
+            -> Dict[str, Any]:
+        if resource not in self.RESOURCE_GET_RESULT_KEYS:
+            result_key = resource
+        else:
+            result_key = self.RESOURCE_GET_RESULT_KEYS[resource]
+
+        resource_results: Dict[str, Any] = {}
         while True:
             result = self._sc.api_call(
-                "{}.list".format(api_key),
+                "{}.list".format(resource),
                 http_verb='GET',
                 params=additional_kwargs
             )
 
             for r in result[result_key]:
-                results[r['id']] = r
+                resource_results[r['id']] = r
 
-            cursor = result['response_metadata']['next_cursor']
+            cursor = None
+            if 'response_metadata' in result:
+                cursor = result['response_metadata']['next_cursor']
 
-            if cursor == '':
+            if cursor is None or cursor == '':
                 break
 
             additional_kwargs['cursor'] = cursor
-
-        self._results[resource] = results
-        return results
+        return resource_results
