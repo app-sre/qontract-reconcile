@@ -251,7 +251,7 @@ AWS_ACCOUNTS_QUERY = """
     name: "{{ name }}"
     {% endif %}
     {% if uid %}
-    name: "{{ uid }}"
+    uid: "{{ uid }}"
     {% endif %}
   )
   {% endif %}
