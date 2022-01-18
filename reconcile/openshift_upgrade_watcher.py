@@ -3,8 +3,8 @@ import logging
 from datetime import datetime
 
 from reconcile import queries
+from reconcile.slack_base import slackapi_from_queries
 
-from reconcile.slack_base import init_slack_workspace
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.state import State
 from reconcile.utils.defer import defer
@@ -31,7 +31,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True,
     )
 
     if not dry_run:
-        slack = init_slack_workspace(QONTRACT_INTEGRATION)
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION)
 
     now = datetime.utcnow()
     for cluster in oc_map.clusters(include_errors=True):

@@ -1,12 +1,11 @@
 import logging
 
 from reconcile import queries
+from reconcile.slack_base import slackapi_from_dict
 
 from reconcile.utils.jira_client import JiraClient
-from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 from reconcile.utils.sharding import is_in_shard_round_robin
 from reconcile.utils.state import State
-
 
 QONTRACT_INTEGRATION = 'jira-watcher'
 
@@ -61,35 +60,10 @@ def calculate_diff(server, current_state, previous_state):
 def init_slack(jira_board):
     settings = queries.get_app_interface_settings()
     slack_info = jira_board['slack']
-    workspace = slack_info['workspace']
-    workspace_name = workspace['name']
-    slack_integrations = workspace['integrations']
-    client_config = workspace.get('api_client')
-    jira_config = \
-        [i for i in slack_integrations if i['name'] == QONTRACT_INTEGRATION]
-    [jira_config] = jira_config
 
-    token = jira_config['token']
-    default_channel = jira_config['channel']
-    icon_emoji = jira_config['icon_emoji']
-    username = jira_config['username']
-    channel = slack_info.get('channel') or default_channel
-
-    slack_api_kwargs = {
-        'settings': settings,
-        'init_usergroups': False,
-        'channel': channel,
-        'icon_emoji': icon_emoji,
-        'username': username
-    }
-
-    if client_config:
-        slack_api_kwargs['api_config'] = \
-            SlackApiConfig.from_dict(client_config)
-
-    slack = SlackApi(workspace_name, token, **slack_api_kwargs)
-
-    return slack
+    return slackapi_from_dict(slack_info, settings,
+                              QONTRACT_INTEGRATION,
+                              channel=slack_info.get('channel'))
 
 
 def act(dry_run, jira_board, diffs):

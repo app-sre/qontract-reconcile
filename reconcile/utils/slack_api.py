@@ -1,14 +1,15 @@
 import json
 import logging
-from typing import Sequence, Dict, Any, Mapping, Optional, Union
+from typing import Sequence, Dict, Any, Mapping, Optional, Union, ItemsView, \
+    Iterable
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry import RateLimitErrorRetryHandler, RetryHandler, \
     RetryState, HttpRequest, HttpResponse
 
-from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.config import get_config
+from reconcile.utils.secret_reader import SecretReader
 
 MAX_RETRIES = 5
 TIMEOUT = 30
@@ -24,13 +25,14 @@ class UsergroupNotFoundException(Exception):
 
 class ServerErrorRetryHandler(RetryHandler):
     """Retry handler for 5xx errors."""
+
     def _can_retry(
-        self,
-        *,
-        state: RetryState,
-        request: HttpRequest,
-        response: Optional[HttpResponse] = None,
-        error: Optional[Exception] = None
+            self,
+            *,
+            state: RetryState,
+            request: HttpRequest,
+            response: Optional[HttpResponse] = None,
+            error: Optional[Exception] = None
     ) -> bool:
         return response is not None and response.status_code >= 500
 
@@ -108,11 +110,14 @@ class SlackApiConfig:
 class SlackApi:
     """Wrapper around Slack API calls"""
 
+    RESOURCE_GET_CHANNELS = 'channels'
+    RESOURCE_GET_USERS = 'users'
+
     def __init__(self,
                  workspace_name: str,
                  token: Mapping[str, str],
                  api_config: Optional[SlackApiConfig] = None,
-                 settings: Optional[Mapping[str, Any]] = None,
+                 secret_reader_settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
                  channel: Optional[str] = None,
                  **chat_kwargs) -> None:
@@ -120,25 +125,27 @@ class SlackApi:
         :param workspace_name: Slack workspace name (ex. coreos)
         :param token: data to pass to SecretReader.read() to get the token
         :param api_config: Slack API configuration
-        :param settings: settings to pass to SecretReader
+        :param secret_reader_settings: settings to pass to SecretReader
         :param init_usergroups: whether or not to get a list of all Slack
+        :param join_on_init: whether or not to join chanel on init
         usergroups when instantiated
-        :param channel: the Slack channel to post messages to, only used
-        when posting messages to a channel
+        :param channel: the Slack channel to post messages to, only
+        used when posting messages to a channel
         :param chat_kwargs: any other kwargs that can be used to post Slack
         channel messages
         """
         self.workspace_name = workspace_name
 
         if api_config:
-            self.config = api_config
+            self.api_config = api_config
         else:
-            self.config = SlackApiConfig()
+            self.api_config = SlackApiConfig()
 
-        secret_reader = SecretReader(settings=settings)
+        secret_reader = SecretReader(settings=secret_reader_settings)
         slack_token = secret_reader.read(token)
 
-        self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
+        self._sc = WebClient(token=slack_token,
+                             timeout=self.api_config.timeout)
         self._configure_client_retry()
 
         self._results: Dict[str, Any] = {}
@@ -155,9 +162,9 @@ class SlackApi:
         client.
         """
         rate_limit_handler = RateLimitErrorRetryHandler(
-            max_retry_count=self.config.max_retries)
+            max_retry_count=self.api_config.max_retries)
         server_error_handler = ServerErrorRetryHandler(
-            max_retry_count=self.config.max_retries)
+            max_retry_count=self.api_config.max_retries)
 
         self._sc.retry_handlers.append(rate_limit_handler)
         self._sc.retry_handlers.append(server_error_handler)
@@ -252,7 +259,7 @@ class SlackApi:
                 raise
 
     def get_random_deleted_user(self):
-        for user_id, user_data in self._get('users').items():
+        for user_id, user_data in self.get_users():
             if user_data['deleted'] is True:
                 return user_id
 
@@ -285,21 +292,29 @@ class SlackApi:
 
         return result['user']['id']
 
-    def get_channels_by_names(self, channels_names):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_names(self, channels_names: Iterable[str]) \
+            -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_channels()
                 if v['name'] in channels_names}
 
-    def get_channels_by_ids(self, channels_ids):
-        return {k: v['name'] for k, v in self._get('channels').items()
+    def get_channels_by_ids(self, channels_ids: Iterable[str]) \
+            -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_channels()
                 if k in channels_ids}
 
-    def get_users_by_names(self, user_names):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_names(self, user_names: Iterable[str]) -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_users()
                 if v['name'] in user_names}
 
-    def get_users_by_ids(self, users_ids):
-        return {k: v['name'] for k, v in self._get('users').items()
+    def get_users_by_ids(self, users_ids: Iterable[str]) -> Dict[str, str]:
+        return {k: v['name'] for k, v in self._get_users()
                 if k in users_ids}
+
+    def _get_channels(self) -> ItemsView:
+        return self._get(self.RESOURCE_GET_CHANNELS).items()
+
+    def _get_users(self) -> ItemsView:
+        return self._get(self.RESOURCE_GET_USERS).items()
 
     def _get(self, resource: str) -> Dict[str, Any]:
         """
@@ -317,8 +332,8 @@ class SlackApi:
         if resource in self._results:
             return self._results[resource]
 
-        if self.config:
-            method_config = self.config.get_method_config(
+        if self.api_config:
+            method_config = self.api_config.get_method_config(
                 f'{api_key}.list')
             if method_config:
                 additional_kwargs.update(method_config)
