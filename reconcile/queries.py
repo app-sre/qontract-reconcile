@@ -428,6 +428,7 @@ CLUSTERS_QUERY = """
       route_selectors
     }
     network {
+      type
       vpc
       service
       pod
