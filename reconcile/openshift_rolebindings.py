@@ -96,7 +96,7 @@ def fetch_desired_state(ri, oc_map):
             raise ValueError(
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
                 f'currently set as {role["expirationDate"]}')
-        if not role_still_valid(role):
+        if not role_still_valid(role['expirationDate']):
             raise ValueError(
                 f'The maximum expiration date of {role["name"]} '
                 f'shall not exceed {EXPIRATION_MAX} \
@@ -198,17 +198,27 @@ def run(dry_run, thread_pool_size=10, internal=None,
         sys.exit(1)
 
 
-def has_valid_expiration_date(exp_date):
-    date_format = "%Y-%m-%d"
+def has_valid_expiration_date(role):
     date_bool = True
     try:
-        date_bool = bool(datetime.datetime.strptime(exp_date, date_format))
+        role.get('expirationDate')
+    except AttributeError:
+        return date_bool
+    date_format = "%Y-%m-%d"
+    exp_date_role = role['expirationDate']
+    try:
+        date_bool = \
+            bool(datetime.datetime.strptime(exp_date_role, date_format))
     except ValueError:
         date_bool = False
     return date_bool
 
 
 def role_still_valid(role):
+    try:
+        role.get('expirationDate')
+    except AttributeError:
+        return True
     exp_date = datetime.datetime \
         .strptime(role['expirationDate'], '%Y-%m-%d').date()
     if (exp_date - datetime.datetime.utcnow().date()).days <= EXPIRATION_MAX:

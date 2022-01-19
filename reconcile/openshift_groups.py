@@ -114,7 +114,6 @@ def fetch_desired_state(oc_map):
     desired_state = []
 
     for r in roles:
-        gql.get_api
         if not openshift_rolebindings \
                 .has_valid_expiration_date(r['expirationDate']):
             raise ValueError(

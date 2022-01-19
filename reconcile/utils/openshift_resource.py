@@ -451,15 +451,6 @@ class OpenshiftResource:
         return m.hexdigest()
 
 
-# consider moving this somewhere else
-def role_still_valid(role):
-    exp_date = datetime.datetime \
-        .strptime(role['expirationDate'], '%Y-%m-%d').date()
-    if (exp_date - datetime.datetime.utcnow().date()).days <= EXPIRATION_MAX:
-        return True
-    return False
-
-
 class ResourceInventory:
     def __init__(self):
         self._clusters = {}
