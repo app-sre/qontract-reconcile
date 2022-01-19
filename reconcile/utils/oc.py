@@ -515,7 +515,7 @@ class OCDeprecated:
         pods = self.get(namespace, 'Pod')['items']
         owned_pods = []
         for p in pods:
-            owner = self.get_obj_root_owner(namespace, p)
+            owner = self.get_obj_root_owner(namespace, p, allow_not_found=True)
             if (resource.kind, resource.name) == \
                     (owner['kind'], owner['metadata']['name']):
                 owned_pods.append(p)

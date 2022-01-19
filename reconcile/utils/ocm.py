@@ -122,6 +122,7 @@ class OCM:
                 DISABLE_UWM_ATTR: cluster[DISABLE_UWM_ATTR]
             },
             'network': {
+                'type': cluster['network'].get('type') or 'OpenShiftSDN',
                 'vpc': cluster['network']['machine_cidr'],
                 'service': cluster['network']['service_cidr'],
                 'pod': cluster['network']['pod_cidr']
@@ -178,6 +179,7 @@ class OCM:
             },
             'load_balancer_quota': cluster_spec['load_balancers'],
             'network': {
+                'type': cluster_network.get('type') or 'OpenShiftSDN',
                 'machine_cidr': cluster_network['vpc'],
                 'service_cidr': cluster_network['service'],
                 'pod_cidr': cluster_network['pod'],
