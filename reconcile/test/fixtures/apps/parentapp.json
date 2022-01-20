@@ -1,0 +1,21 @@
+{
+    "path": "/services/parentapp/app.yml",
+    "name": "parentapp",
+    "onboardingStatus": "OnBoarded",
+    "serviceOwners": [
+        {
+            "name": "Service Owner",
+            "email": "serviceowner@test.com"
+        }
+    ],
+    "parentApp": null,
+    "codeComponents": [
+        {
+            "url": "https://github.com/test",
+            "resource": "upstream",
+            "gitlabRepoOwners": null,
+            "gitlabHousekeeping": null,
+            "jira": null
+        }
+    ]
+}

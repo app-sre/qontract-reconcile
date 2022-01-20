@@ -1,4 +1,5 @@
 from subprocess import CalledProcessError
+import os
 import sys
 
 from unittest import TestCase
@@ -10,6 +11,7 @@ import reconcile.requests_sender as integ
 class TestRunInteg(TestCase):
 
     def setUp(self):
+        os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT'] = 'anaccount'
         self.user = {
             'org_username': 'myorg',
             'public_gpg_key': 'mykey',

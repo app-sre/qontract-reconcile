@@ -1,9 +1,34 @@
 {
   "name": "provider2-with-resources",
   "provider": "tekton",
-  "retention": {
-    "days": 7,
-    "minimum": 100
+  "defaults": null,
+  "defaults": {
+    "retention": {
+      "days": 7,
+      "minimum": 100
+    },
+    "taskTemplates": [
+      {
+        "name": "openshift-saas-deploy",
+        "type": "onePerSaasFile",
+        "path": "openshift-saas-deploy.task.yaml.j2",
+        "variables": "{\"qontract_reconcile_image_tag\":\"latest\"}"
+      },
+      {
+        "name": "push-gateway-openshift-saas-deploy-task-status-metric",
+        "type": "onePerNamespace",
+        "path": "push-gateway-task-status-metric.task.yaml.j2",
+        "variables": "{\"ubi8_ubi_minimal_image_tag\":\"latest\"}"
+      }
+    ],
+    "pipelineTemplates": {
+      "openshiftSaasDeploy": {
+        "name": "openshift-saas-deploy",
+        "type": "onePerSaasFile",
+        "path": "openshift-saas-deploy.pipeline.yaml.j2",
+        "variables": null
+      }
+    }
   },
   "namespace": {
     "name": "provider2-with-resources",
@@ -18,28 +43,6 @@
       },
       "internal": true,
       "disable": null
-    }
-  },
-  "taskTemplates": [
-    {
-      "name": "openshift-saas-deploy",
-      "type": "onePerSaasFile",
-      "path": "openshift-saas-deploy.task.yaml.j2",
-      "variables": "{\"qontract_reconcile_image_tag\":\"latest\"}"
-    },
-    {
-      "name": "push-gateway-openshift-saas-deploy-task-status-metric",
-      "type": "onePerNamespace",
-      "path": "push-gateway-task-status-metric.task.yaml.j2",
-      "variables": "{\"ubi8_ubi_minimal_image_tag\":\"latest\"}"
-    }
-  ],
-  "pipelineTemplates": {
-    "openshiftSaasDeploy": {
-      "name": "openshift-saas-deploy",
-      "type": "onePerSaasFile",
-      "path": "openshift-saas-deploy.pipeline.yaml.j2",
-      "variables": null
     }
   },
   "deployResources": {

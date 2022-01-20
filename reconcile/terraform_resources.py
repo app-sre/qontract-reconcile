@@ -52,6 +52,13 @@ provider
   overrides
   sqs_identifier
   s3_events
+  event_notifications {
+    destination_type
+    destination
+    event_type
+    filter_prefix
+    filter_suffix
+  }
   bucket_policy
   output_resource_name
   storage_class
@@ -230,16 +237,18 @@ provider
   targets {
     name
     default
-    weights {
-      read
-      write
-    }
     ips
     openshift_service
   }
-  paths {
-    read
-    write
+  rules {
+    condition {
+      path
+      methods
+    }
+    action {
+      target
+      weight
+    }
   }
   output_resource_name
   annotations

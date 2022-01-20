@@ -432,7 +432,7 @@ def openshift_delete(dry_run, oc_map, query, resource_type, enable_deletion):
 
 def run(dry_run, enable_deletion=False):
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(integration=QONTRACT_INTEGRATION,
                   accounts=accounts,
                   settings=settings)

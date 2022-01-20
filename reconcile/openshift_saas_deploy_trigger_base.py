@@ -132,7 +132,7 @@ def setup(thread_pool_size,
 
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     gl = GitLabApi(instance, settings=settings)
     jenkins_map = jenkins_base.get_jenkins_map()
     pipelines_providers = queries.get_pipelines_providers()
@@ -274,8 +274,13 @@ def _trigger_tekton(spec,
     env_name = spec['env_name']
     pipelines_provider = spec['pipelines_provider']
 
-    pipeline_template_name = pipelines_provider[
+    pipeline_template_name = pipelines_provider['defaults'][
         'pipelineTemplates']['openshiftSaasDeploy']['name']
+
+    if pipelines_provider['pipelineTemplates']:
+        pipeline_template_name = pipelines_provider[
+            'pipelineTemplates']['openshiftSaasDeploy']['name']
+
     tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
         pipeline_template_name, saas_file_name)
 

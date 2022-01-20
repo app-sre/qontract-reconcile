@@ -1,3 +1,4 @@
+import os
 import logging
 import itertools
 
@@ -243,7 +244,18 @@ def get_github_orgs():
 
 AWS_ACCOUNTS_QUERY = """
 {
-  accounts: awsaccounts_v1 {
+  accounts: awsaccounts_v1
+  {% if search %}
+  (
+    {% if name %}
+    name: "{{ name }}"
+    {% endif %}
+    {% if uid %}
+    uid: "{{ uid }}"
+    {% endif %}
+  )
+  {% endif %}
+  {
     path
     name
     uid
@@ -291,13 +303,29 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
-def get_aws_accounts(reset_passwords=False):
+def get_aws_accounts(reset_passwords=False, name=None, uid=None):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
+    search = name or uid
     query = Template(AWS_ACCOUNTS_QUERY).render(
         reset_passwords=reset_passwords,
+        search=search,
+        name=name,
+        uid=uid,
     )
     return gqlapi.query(query)['accounts']
+
+
+def get_state_aws_accounts(reset_passwords=False):
+    """ Returns AWS accounts to use for state management """
+    name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+    return get_aws_accounts(reset_passwords=reset_passwords, name=name)
+
+
+def get_queue_aws_accounts():
+    """ Returns AWS accounts to use for queue management """
+    uid = os.environ['gitlab_pr_submitter_queue_url'].split('/')[3]
+    return get_aws_accounts(uid=uid)
 
 
 CLUSTERS_QUERY = """
@@ -400,6 +428,7 @@ CLUSTERS_QUERY = """
       route_selectors
     }
     network {
+      type
       vpc
       service
       pod
@@ -1496,6 +1525,13 @@ SAAS_FILES_QUERY_V2 = """
             }
           }
         }
+        defaults {
+          pipelineTemplates {
+            openshiftSaasDeploy {
+              name
+            }
+          }
+        }
         pipelineTemplates {
           openshiftSaasDeploy {
             name
@@ -1736,11 +1772,39 @@ PIPELINES_PROVIDERS_QUERY = """
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
-    retention {
-      days
-      minimum
-    }
     ...on PipelinesProviderTekton_v1 {
+      defaults {
+        retention {
+          days
+          minimum
+        }
+        taskTemplates {
+          ...on PipelinesProviderTektonObjectTemplate_v1 {
+            name
+            type
+            path
+            variables
+          }
+        }
+        pipelineTemplates {
+          openshiftSaasDeploy {
+            name
+            type
+            path
+            variables
+          }
+        }
+        deployResources {
+          requests {
+            cpu
+            memory
+          }
+          limits {
+            cpu
+            memory
+          }
+        }
+      }
       namespace {
         name
         cluster {
@@ -1770,6 +1834,10 @@ PIPELINES_PROVIDERS_QUERY = """
             integrations
           }
         }
+      }
+      retention {
+        days
+        minimum
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {
@@ -1806,7 +1874,16 @@ PIPELINES_PROVIDERS_QUERY = """
 def get_pipelines_providers():
     """ Returns PipelinesProvider resources defined in app-interface."""
     gqlapi = gql.get_api()
-    return gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+    pipelines_providers = \
+        gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
+
+    for pp in pipelines_providers:
+        defaults = pp.pop('defaults')
+        for k, v in defaults.items():
+            if k not in pp or not pp[k]:
+                pp[k] = v
+
+    return pipelines_providers
 
 
 JIRA_BOARDS_QUERY = """

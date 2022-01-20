@@ -154,7 +154,7 @@ class GitLabApi:
 
     def get_app_sre_group_users(self):
         app_sre_group = self.gl.groups.get('app-sre')
-        return list(app_sre_group.members.list())
+        return list(app_sre_group.members.list(all=True))
 
     def check_group_exists(self, group_name):
         groups = self.gl.groups.list()
@@ -356,6 +356,12 @@ class GitLabApi:
             page += 1
 
         return all_items
+
+    def create_label(self, label_text: str, label_color: str) -> None:
+        self.project.labels.create({
+            'name': label_text,
+            'color': label_color
+        })
 
     def add_label(self, item, item_type, label):
         note_body = (

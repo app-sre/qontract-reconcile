@@ -82,7 +82,8 @@ from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_config
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
-from reconcile.exceptions import FetchResourceError
+from reconcile.utils.exceptions import (FetchResourceError,
+                                        PrintToFileInGitRepositoryError)
 from reconcile.utils.elasticsearch_exceptions \
     import (ElasticSearchResourceNameInvalidError,
             ElasticSearchResourceMissingSubnetIdError,
@@ -96,7 +97,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
-                 'storage_class', 'kms_encryption',
+                 'event_notifications', 'storage_class', 'kms_encryption',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
@@ -106,11 +107,6 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
 class UnknownProviderError(Exception):
     def __init__(self, msg):
         super().__init__("unknown provider error: " + str(msg))
-
-
-class PrintToFileInGitRepositoryError(Exception):
-    def __init__(self, msg):
-        super().__init__("can not print to a git repository: " + str(msg))
 
 
 def safe_resource_id(s):
@@ -266,7 +262,7 @@ class TerrascriptClient:
         return (account_name, secret)
 
     def _get_partition(self, account):
-        return self.partitions[account]
+        return self.partitions.get(account) or 'aws'
 
     @staticmethod
     def get_tf_iam_group(group_name):
@@ -1553,6 +1549,74 @@ class TerrascriptClient:
 
             notification_tf_resource = aws_s3_bucket_notification(
                 sqs_identifier, **notification_values)
+            tf_resources.append(notification_tf_resource)
+
+        event_notifications = common_values.get('event_notifications')
+        sns_notifications = []
+        sqs_notifications = []
+
+        if event_notifications:
+            for event_notification in event_notifications:
+                destination_type = event_notification['destination_type']
+                destination_identifier = event_notification['destination']
+                event_type = event_notification['event_type']
+
+                if destination_type == 'sns':
+                    notification_type = 'topic'
+                    resource_arn_data = 'data.aws_sns_topic'
+                elif destination_type == 'sqs':
+                    notification_type = 'queue'
+                    resource_arn_data = 'data.aws_sqs_queue'
+
+                if destination_identifier.startswith('arn:'):
+                    resource_name = destination_identifier.split(':')[-1]
+                    resource_arn = destination_identifier
+                else:
+                    resource_name = destination_identifier
+                    resource_values = {
+                        'name': resource_name
+                    }
+                    resource_provider = values.get('provider')
+                    if resource_provider:
+                        resource_values['provider'] = resource_provider
+                    if destination_type == 'sns':
+                        resource_data = data.aws_sns_topic(resource_name,
+                                                           **resource_values)
+                    elif destination_type == 'sqs':
+                        resource_data = data.aws_sqs_queue(resource_name,
+                                                           **resource_values)
+                    tf_resources.append(resource_data)
+                    resource_arn = '${'+resource_arn_data+'.' \
+                        + destination_identifier + '.arn}'
+
+                notification_config = {
+                    'id': resource_name,
+                    notification_type+'_arn': resource_arn,
+                    'events': event_type
+                }
+
+                filter_prefix = event_notification.get('filter_prefix', None)
+                if filter_prefix is not None:
+                    notification_config['filter_prefix'] = filter_prefix
+                filter_suffix = event_notification.get('filter_suffix', None)
+                if filter_suffix is not None:
+                    notification_config['filter_suffix'] = filter_suffix
+
+                if destination_type == 'sns':
+                    sns_notifications.append(notification_config)
+                elif destination_type == 'sqs':
+                    sqs_notifications.append(notification_config)
+
+            notifications = {
+                'bucket': '${' + bucket_tf_resource.id + '}'
+            }
+            if sns_notifications:
+                notifications['topic'] = sns_notifications
+            if sqs_notifications:
+                notifications['queue'] = sqs_notifications
+
+            notification_tf_resource = aws_s3_bucket_notification(
+                    identifier+'-event-notifications', **notifications)
             tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get('bucket_policy')
@@ -3527,8 +3591,7 @@ class TerrascriptClient:
         tf_resources.append(lb_tf_resource)
 
         default_target = None
-        read_weighted_target_groups = []
-        write_weighted_target_groups = []
+        valid_targets = {}
         for t in resource['targets']:
             target_name = t['name']
             t_openshift_service = t.get('openshift_service')
@@ -3582,25 +3645,12 @@ class TerrascriptClient:
             lbt_identifier = f'{identifier}-{target_name}'
             lbt_tf_resource = aws_lb_target_group(lbt_identifier, **values)
             tf_resources.append(lbt_tf_resource)
+            valid_targets[target_name] = lbt_tf_resource
 
             if t['default']:
                 if default_target:
                     raise KeyError('expected only a single default target')
                 default_target = lbt_tf_resource
-
-            # initiate weighted target groups to use for listener rule
-            # read
-            read_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['read'],
-            }
-            read_weighted_target_groups.append(read_weighted_item)
-            # write
-            write_weighted_item = {
-                'arn': f'${{{lbt_tf_resource.arn}}}',
-                'weight': t['weights']['write'],
-            }
-            write_weighted_target_groups.append(write_weighted_item)
 
             for ip in target_ips:
                 # https://www.terraform.io/docs/providers/aws/r/
@@ -3609,7 +3659,7 @@ class TerrascriptClient:
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
-                    'depends_on': self.get_dependencies([lbt_tf_resource]),
+                    'depends_on': self.get_dependencies([lbt_tf_resource])
                 }
                 if not ip_address(ip) in ip_network(vpc_cidr_block):
                     values['availability_zone'] = 'all'
@@ -3660,64 +3710,62 @@ class TerrascriptClient:
         tf_resources.append(forward_lbl_tf_resource)
 
         # https://www.terraform.io/docs/providers/aws/r/lb_listener_rule.html
-        # read
-        read_weights = [t['weight'] for t in read_weighted_target_groups]
-        if sum(read_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': read_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
+        for rule_num, rule in enumerate(resource['rules']):
+            condition = rule['condition']
+            action = rule['action']
+            config_methods = condition.get('methods', None)
+
+            values = {
+                'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
+                'priority': rule_num + 1,
+                'action': {
+                    'type': 'forward',
+                    'forward': {
+                        'target_group': [],
+                        'stickiness': {
+                            'enabled': False,
+                            'duration': 1,
+                        }
                     },
                 },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['GET', 'HEAD']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        read_paths = resource.get('paths', {}).get('read')
-        if read_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': read_paths}})
-        lblr_read_identifier = f'{identifier}-read'
-        lblr_read_tf_resource = \
-            aws_lb_listener_rule(lblr_read_identifier, **values)
-        tf_resources.append(lblr_read_tf_resource)
-        # write
-        write_weights = [t['weight'] for t in write_weighted_target_groups]
-        if sum(write_weights) != 100:
-            raise ValueError('sum of weights of targets should be 100')
-        values = {
-            'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
-            'action': {
-                'type': 'forward',
-                'forward': {
-                    'target_group': write_weighted_target_groups,
-                    'stickiness': {
-                        'enabled': False,
-                        'duration': 1,  # required
-                    },
-                },
-            },
-            'condition': [{
-                'http_request_method': {'values': ['POST', 'PUT', 'DELETE']},
-            }],
-            'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
-        }
-        write_paths = resource.get('paths', {}).get('write')
-        if write_paths:
-            values['condition'].append(
-                {'path_pattern': {'values': write_paths}})
-        lblr_write_identifier = f'{identifier}-write'
-        lblr_write_tf_resource = \
-            aws_lb_listener_rule(lblr_write_identifier, **values)
-        tf_resources.append(lblr_write_tf_resource)
+                'condition': [
+                    {'path_pattern': {'values': [condition['path']]}}
+                ],
+                'depends_on': self.get_dependencies([forward_lbl_tf_resource]),
+            }
+
+            if config_methods:
+                values['condition'].append(
+                    {'http_request_method': {'values': config_methods}}
+                )
+
+            weight_sum = 0
+            for a in action:
+                target_name = a['target']
+                if target_name not in valid_targets:
+                    raise KeyError(
+                        f'{target_name} not a valid target name'
+                    )
+
+                target_resource = valid_targets[target_name]
+
+                values['action']['forward']['target_group'].append({
+                    'arn': f'${{{target_resource.arn}}}',
+                    'weight': a['weight']
+                })
+                weight_sum += a['weight']
+
+            if weight_sum != 100:
+                raise ValueError(
+                    'sum of weights for a rule should be 100'
+                    f' given: {weight_sum}'
+                )
+
+            lblr_identifier = f'{identifier}-rule-{rule_num+1:02d}'
+            lblr_tf_resource = \
+                aws_lb_listener_rule(lblr_identifier, **values)
+
+            tf_resources.append(lblr_tf_resource)
 
         # outputs
         # dns name
