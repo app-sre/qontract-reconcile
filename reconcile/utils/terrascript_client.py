@@ -262,7 +262,7 @@ class TerrascriptClient:
         return (account_name, secret)
 
     def _get_partition(self, account):
-        return self.partitions[account]
+        return self.partitions.get(account) or 'aws'
 
     @staticmethod
     def get_tf_iam_group(group_name):
