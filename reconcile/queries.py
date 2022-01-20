@@ -2511,3 +2511,50 @@ STATUS_PAGE_QUERY = """
 def get_status_pages():
     gqlapi = gql.get_api()
     return gqlapi.query(STATUS_PAGE_QUERY)['status_pages']
+
+
+CLOSED_BOX_MONITORING_PROBES_QUERY = """
+{
+  apps: apps_v1 {
+    endPoints {
+      name
+      description
+      url
+      monitoring {
+        provider {
+          name
+          description
+          provider
+          metricLabels
+          timeout
+          checkInterval
+          ... on EndpointMonitoringProviderBlackboxExporter_v1 {
+            blackboxExporter {
+              module
+              namespace {
+                name
+                cluster {
+                  name
+                  serverUrl
+                  automationToken {
+                    path
+                    field
+                    version
+                  }
+                  internal
+                }
+              }
+              exporterUrl
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_service_monitoring_endpoints():
+    gqlapi = gql.get_api()
+    return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)['apps']

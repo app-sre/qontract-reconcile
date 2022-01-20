@@ -1,0 +1,87 @@
+appInterface:
+  apps:
+  - endPoints:
+    - name: test_1
+      description: test_1
+      url: https://test1.url
+      monitoring:
+      - provider:
+          name: blackbox-exporter-http-2xx
+          description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
+          provider: blackbox-exporter
+          metricLabels: "{\"environment\":\"staging\"}"
+          timeout: 25s
+          checkInterval: 10s
+          blackboxExporter:
+            module: http_2xx
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+            exporterUrl: http://exporterhost:9115/probe
+      - provider:
+          name: blackbox-exporter-http-3xx
+          description: Checks a URL for HTTP 3xx status codes via blackbox-exporter
+          provider: blackbox-exporter
+          metricLabels: "{\"environment\":\"staging\"}"
+          timeout: 25s
+          checkInterval: 10s
+          blackboxExporter:
+            module: http_3xx
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+            exporterUrl: http://exporterhost:9115/probe
+    - name: test_2
+      description: test_2
+      url: https://test2.url
+      monitoring:
+      - provider:
+          name: blackbox-exporter-http-2xx
+          description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
+          provider: blackbox-exporter
+          metricLabels: "{\"environment\":\"staging\"}"
+          timeout: 25s
+          checkInterval: 10s
+          blackboxExporter:
+            module: http_2xx
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+            exporterUrl: http://exporterhost:9115/probe
+      - provider:
+          name: blackbox-exporter-http-3xx
+          description: Checks a URL for HTTP 3xx status codes via blackbox-exporter
+          provider: blackbox-exporter
+          metricLabels: "{\"environment\":\"staging\"}"
+          timeout: 25s
+          checkInterval: 10s
+          blackboxExporter:
+            module: http_3xx
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+            exporterUrl: http://exporterhost:9115/probe

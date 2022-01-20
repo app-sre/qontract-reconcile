@@ -361,6 +361,14 @@ integrations:
       memory: 200Mi
       cpu: 200m
   state: true
+- name: blackbox-exporter-endpoint-monitoring
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
 cronjobs:
 - name: jenkins-job-builds-cleaner
   concurrencyPolicy: "Forbid"
