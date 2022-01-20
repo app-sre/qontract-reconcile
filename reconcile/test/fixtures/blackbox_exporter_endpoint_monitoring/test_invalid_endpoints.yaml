@@ -14,7 +14,7 @@ appInterface:
       description: test
       url: https://httpstat.us/200
       monitoring:
-        provider:
+      - provider:
           name: blackbox-exporter-http-2xx
           description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
           provider: another-provider

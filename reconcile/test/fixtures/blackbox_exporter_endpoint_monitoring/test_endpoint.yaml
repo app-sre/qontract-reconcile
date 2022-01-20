@@ -5,11 +5,11 @@ appInterface:
       description: test
       url: https://httpstat.us/200
       monitoring:
-        provider:
+      - provider:
           name: blackbox-exporter-http-2xx
           description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
           provider: blackbox-exporter
-          timeout: null,
+          timeout: null
           checkInterval: null
           blackboxExporter:
             module: http_2xx
@@ -23,3 +23,5 @@ appInterface:
                   path: app-sre/creds/kube-configs/app-sre-stage-01
                   field: token
             exporterUrl: http://exporterhost:9115/probe
+      - provider:
+          provider: other

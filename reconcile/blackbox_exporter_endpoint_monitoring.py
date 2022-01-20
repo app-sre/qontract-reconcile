@@ -58,7 +58,7 @@ class Endpoint:
 
         provider: EndpointMonitoringProvider
 
-    monitoring: Monitoring
+    monitoring: list[Monitoring]
 
 
 def parse_prober_url(url: str) -> dict[str, str]:
@@ -130,11 +130,14 @@ def get_endpoints() -> dict[EndpointMonitoringProvider, list[Endpoint]]:
         for ep_data in app.get("endPoints") or []:
             monitoring = ep_data.get("monitoring")
             if monitoring:
-                if monitoring["provider"]["provider"] == "blackbox-exporter":
-                    ep = Endpoint(**ep_data)
-                    endpoints.setdefault(ep.monitoring.provider, [])
-                    endpoints[ep.monitoring.provider].append(ep)
-
+                ep_data["monitoring"] = [
+                    m for m in monitoring
+                    if m["provider"]["provider"] == "blackbox-exporter"
+                ]
+                ep = Endpoint(**ep_data)
+                for mon in ep.monitoring:
+                    endpoints.setdefault(mon.provider, [])
+                    endpoints[mon.provider].append(ep)
     return endpoints
 
 

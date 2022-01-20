@@ -30,9 +30,9 @@ def test_endpoint_loading(mocker):
     assert len(endpoints) == 1
 
     provider = list(endpoints.keys())[0]
+    assert provider.provider == "blackbox-exporter"
     ep = endpoints.get(provider)[0]
-
-    assert ep.monitoring.provider.provider == "blackbox-exporter"
+    assert len(ep.monitoring) == 1
 
 
 def test_parse_prober_url():
@@ -103,3 +103,16 @@ def test_filling_desired_state(mocker):
         name="blackbox-exporter-http-2xx",
         value=ANY
     )
+
+
+def test_loading_multiple_providers_per_endpoint(mocker):
+    ep_query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
+    ep_query.return_value = \
+        get_endpoint_fixtures("test_multiple_providers_per_endpoint.yaml")
+    endpoints = get_endpoints()
+
+    assert len(endpoints) == 2
+
+    for provider, eps in endpoints.items():
+        assert provider.provider == "blackbox-exporter"
+        assert len(eps) == 2
