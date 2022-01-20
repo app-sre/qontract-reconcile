@@ -1742,7 +1742,7 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__db_endpoint'
         # https://docs.aws.amazon.com/AmazonElastiCache/
         # latest/red-ug/Endpoints.html
-        if values.get('cluster_mode'):
+        if values.get('cluster_enabled') is True:
             output_value = \
                 '${' + tf_resource.configuration_endpoint_address + '}'
         else:
