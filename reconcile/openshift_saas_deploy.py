@@ -14,6 +14,8 @@ from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.openshift_resource import ResourceInventory
+from reconcile.openshift_tekton_resources import \
+    build_one_per_saas_file_tkn_object_name
 
 
 QONTRACT_INTEGRATION = 'openshift-saas-deploy'
@@ -21,13 +23,25 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def compose_console_url(saas_file, saas_file_name, env_name):
-    pp_ns = saas_file['pipelinesProvider']['namespace']
+    pp = saas_file['pipelinesProvider']
+    pp_ns = pp['namespace']
     pp_ns_name = pp_ns['name']
     pp_cluster = pp_ns['cluster']
     pp_cluster_console_url = pp_cluster['consoleUrl']
+
+    pipeline_template_name = pp['defaults']['pipelineTemplates'][
+        'openshiftSaasDeploy']['name']
+
+    if pp['pipelineTemplates']:
+        pipeline_template_name = pp['pipelineTemplates'][
+            'openshiftSaasDeploy']['name']
+
+    pipeline_name = build_one_per_saas_file_tkn_object_name(
+        pipeline_template_name, saas_file_name)
+
     return f"{pp_cluster_console_url}/k8s/ns/{pp_ns_name}/" +\
         "tekton.dev~v1beta1~Pipeline/" + \
-        f"openshift-saas-deploy/Runs?name={saas_file_name}-{env_name}"
+        f"{pipeline_name}/Runs?name={saas_file_name}-{env_name}"
 
 
 def slack_notify(saas_file_name, env_name, slack, ri, console_url,
