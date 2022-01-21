@@ -554,6 +554,15 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
+- name: blackbox-exporter-endpoint-monitoring
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --external --no-use-jump-host
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:

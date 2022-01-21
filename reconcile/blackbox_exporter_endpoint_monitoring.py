@@ -157,7 +157,8 @@ def fill_desired_state(provider: EndpointMonitoringProvider,
 
 
 @defer
-def run(dry_run: bool, thread_pool_size: int, defer=None) -> None:
+def run(dry_run: bool, thread_pool_size: int, internal: bool,
+        use_jump_host: bool, defer=None) -> None:
     # prepare
     desired_endpoints = get_endpoints()
     namespaces = {
@@ -166,19 +167,24 @@ def run(dry_run: bool, thread_pool_size: int, defer=None) -> None:
         for p in desired_endpoints
         if p.blackboxExporter
     }
-    ri, oc_map = ob.fetch_current_state(
-        namespaces.values(),
-        thread_pool_size=thread_pool_size,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        override_managed_types=["Probe"]
-    )
-    defer(oc_map.cleanup)
 
-    # reconcile
-    for provider, endpoints in desired_endpoints.items():
-        fill_desired_state(provider, endpoints, ri)
-    ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    if namespaces:
+        ri, oc_map = ob.fetch_current_state(
+            namespaces.values(),
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            override_managed_types=["Probe"]
+        )
+        defer(oc_map.cleanup)
 
-    if ri.has_error_registered():
-        sys.exit(1)
+        # reconcile
+        for provider, endpoints in desired_endpoints.items():
+            fill_desired_state(provider, endpoints, ri)
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
+                        recycle_pods=False)
+
+        if ri.has_error_registered():
+            sys.exit(1)
