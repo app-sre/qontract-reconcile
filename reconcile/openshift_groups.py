@@ -116,14 +116,15 @@ def fetch_desired_state(oc_map):
     for r in roles:
         if not openshift_rolebindings \
                 .has_valid_expiration_date(r['expirationDate']):
-            raise ValueError(
+            logging.warning(
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
-                f'currently set as {r["expirationDate"]}')
+                f'currently set as {r["expirationDate"]}'
+            )
         if not openshift_rolebindings.role_still_valid(r):
-            raise ValueError(
+            logging.warning(
                 f'The maximum expiration date of {r["name"]} '
-                f'shall not exceed {openshift_rolebindings.EXPIRATION_MAX} \
-                    days from today')
+                f'must not exceed '
+                f'{openshift_rolebindings.EXPIRATION_MAX} days from today')
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
                 continue

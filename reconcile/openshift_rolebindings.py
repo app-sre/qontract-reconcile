@@ -1,5 +1,6 @@
 import sys
 import datetime
+import logging
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob
@@ -93,14 +94,15 @@ def fetch_desired_state(ri, oc_map):
     users_desired_state = []
     for role in roles:
         if not has_valid_expiration_date(role['expirationDate']):
-            raise ValueError(
+            logging.warning(
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
-                f'currently set as {role["expirationDate"]}')
+                f'currently set as {role["expirationDate"]}'
+            )
         if not role_still_valid(role['expirationDate']):
-            raise ValueError(
+            logging.warning(
                 f'The maximum expiration date of {role["name"]} '
-                f'shall not exceed {EXPIRATION_MAX} \
-                    days from today')
+                f'must not exceed {EXPIRATION_MAX} days from today'
+            )
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
@@ -198,29 +200,27 @@ def run(dry_run, thread_pool_size=10, internal=None,
         sys.exit(1)
 
 
-def has_valid_expiration_date(role):
+def has_valid_expiration_date(role: str) -> bool:
     date_bool = True
-    try:
-        role.get('expirationDate')
-    except AttributeError:
+    if role is None:
         return date_bool
-    date_format = "%Y-%m-%d"
-    exp_date_role = role['expirationDate']
-    try:
-        date_bool = \
-            bool(datetime.datetime.strptime(exp_date_role, date_format))
-    except ValueError:
-        date_bool = False
-    return date_bool
+    else:
+        date_format = "%Y-%m-%d"
+        try:
+            date_bool = \
+                bool(datetime.datetime.strptime(role, date_format))
+        except ValueError:
+            date_bool = False
+        return date_bool
 
 
-def role_still_valid(role):
-    try:
-        role.get('expirationDate')
-    except AttributeError:
+def role_still_valid(role: str) -> bool:
+    if role is None:
         return True
-    exp_date = datetime.datetime \
-        .strptime(role['expirationDate'], '%Y-%m-%d').date()
-    if (exp_date - datetime.datetime.utcnow().date()).days <= EXPIRATION_MAX:
-        return True
-    return False
+    else:
+        exp_date = datetime.datetime \
+            .strptime(role, '%Y-%m-%d').date()
+        if (exp_date - datetime.datetime.utcnow().date()) \
+                .days >= -EXPIRATION_MAX:
+            return True
+        return False
