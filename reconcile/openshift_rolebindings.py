@@ -94,7 +94,7 @@ def fetch_desired_state(ri, oc_map):
     users_desired_state = []
     for role in roles:
         if not has_valid_expiration_date(role['expirationDate']):
-            logging.warning(
+            raise ValueError(
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
                 f'currently set as {role["expirationDate"]}'
             )
@@ -103,6 +103,7 @@ def fetch_desired_state(ri, oc_map):
                 f'The maximum expiration date of {role["name"]} '
                 f'must not exceed {EXPIRATION_MAX} days from today'
             )
+            continue
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
