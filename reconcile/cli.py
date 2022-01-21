@@ -1476,6 +1476,7 @@ def status_page_components(ctx):
 @internal()
 @use_jump_host()
 @click.pass_context
-def blackbox_exporter_endpoint_monitoring(ctx, thread_pool_size, internal, use_jump_host):
+def blackbox_exporter_endpoint_monitoring(ctx, thread_pool_size,
+                                          internal, use_jump_host):
     run_integration(reconcile.blackbox_exporter_endpoint_monitoring,
                     ctx.obj, thread_pool_size, internal, use_jump_host)

@@ -183,7 +183,8 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
         # reconcile
         for provider, endpoints in desired_endpoints.items():
             fill_desired_state(provider, endpoints, ri)
-        ob.realize_data(dry_run, oc_map, ri, thread_pool_size, recycle_pods=False)
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
+                        recycle_pods=False)
 
         if ri.has_error_registered():
             sys.exit(1)
