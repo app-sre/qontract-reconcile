@@ -3,7 +3,7 @@ import logging
 from reconcile.utils import gql
 from reconcile import queries
 
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import STATUS_DELETING, STATUS_FAILED, OCMMap
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 
 QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
@@ -29,9 +29,9 @@ def fetch_current_state():
                 'user_arn': user_arn,
                 'access_level': access_level
             }
-            if state == 'failed':
+            if state == STATUS_FAILED:
                 current_failed.append(item)
-            elif state == 'deleting':
+            elif state == STATUS_DELETING:
                 current_deleting.append(item)
             else:
                 current_state.append(item)
