@@ -3,7 +3,7 @@ import logging
 from reconcile.utils import gql
 from reconcile import queries
 
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import STATUS_DELETING, STATUS_FAILED, OCMMap
 from reconcile.terraform_resources import TF_NAMESPACES_QUERY
 
 QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
@@ -12,6 +12,7 @@ QONTRACT_INTEGRATION = 'ocm-aws-infrastructure-access'
 def fetch_current_state():
     current_state = []
     current_failed = []
+    current_deleting = []
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('ocm') is not None]
@@ -28,12 +29,14 @@ def fetch_current_state():
                 'user_arn': user_arn,
                 'access_level': access_level
             }
-            if state == 'failed':
+            if state == STATUS_FAILED:
                 current_failed.append(item)
+            elif state == STATUS_DELETING:
+                current_deleting.append(item)
             else:
                 current_state.append(item)
 
-    return ocm_map, current_state, current_failed
+    return ocm_map, current_state, current_failed, current_deleting
 
 
 def fetch_desired_state():
@@ -107,7 +110,8 @@ def fetch_desired_state():
     return desired_state
 
 
-def act(dry_run, ocm_map, current_state, current_failed, desired_state):
+def act(dry_run, ocm_map, current_state, current_failed, desired_state,
+        current_deleting):
     to_delete = [c for c in current_state if c not in desired_state]
     to_delete = to_delete + current_failed
     for item in to_delete:
@@ -120,7 +124,8 @@ def act(dry_run, ocm_map, current_state, current_failed, desired_state):
             ocm = ocm_map.get(cluster)
             ocm.del_user_from_aws_infrastructure_access_role_grants(
                 cluster, user_arn, access_level)
-    to_add = [d for d in desired_state if d not in current_state]
+    to_add = [d for d in desired_state if d
+              not in current_state + current_deleting]
     for item in to_add:
         cluster = item['cluster']
         user_arn = item['user_arn']
@@ -134,6 +139,8 @@ def act(dry_run, ocm_map, current_state, current_failed, desired_state):
 
 
 def run(dry_run):
-    ocm_map, current_state, current_failed = fetch_current_state()
+    ocm_map, current_state, current_failed, current_deleting = \
+        fetch_current_state()
     desired_state = fetch_desired_state()
-    act(dry_run, ocm_map, current_state, current_failed, desired_state)
+    act(dry_run, ocm_map, current_state, current_failed, desired_state,
+        current_deleting)

@@ -10,6 +10,7 @@ from reconcile.utils.secret_reader import SecretReader
 
 STATUS_READY = 'ready'
 STATUS_FAILED = 'failed'
+STATUS_DELETING = 'deleting'
 
 AMS_API_BASE = '/api/accounts_mgmt'
 CS_API_BASE = '/api/clusters_mgmt'
