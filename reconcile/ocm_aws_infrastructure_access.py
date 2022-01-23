@@ -139,7 +139,8 @@ def act(dry_run, ocm_map, current_state, current_failed, desired_state,
 
 
 def run(dry_run):
-    ocm_map, current_state, current_failed, current_deleting = fetch_current_state()
+    ocm_map, current_state, current_failed, current_deleting = \
+        fetch_current_state()
     desired_state = fetch_desired_state()
     act(dry_run, ocm_map, current_state, current_failed, desired_state,
         current_deleting)
