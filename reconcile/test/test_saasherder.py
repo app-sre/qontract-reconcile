@@ -81,6 +81,7 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
                 [
                     {
                         'name': 'rt',
+                        'url': 'url',
                         'targets':
                         [
                             {
@@ -364,7 +365,9 @@ class TestCollectRepoUrls(TestCase):
                 'managedResourceTypes': [],
                 'resourceTemplates': [
                     {
-                        'url': repo_url
+                        'name': 'name',
+                        'url': repo_url,
+                        'targets': []
                     }
                 ]
             }
