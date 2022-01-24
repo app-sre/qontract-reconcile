@@ -17,7 +17,6 @@ def test_cluster(cluster, oc_map, pattern):
         logging.log(level=oc.log_level, msg=oc.message)
         return None
     logging.info("[{}] validating default NetworkPolicies".format(cluster))
-
     projects = [p['metadata']['name']
                 for p in oc.get_all('Project')['items']
                 if p['status']['phase'] != 'Terminating' and
