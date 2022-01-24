@@ -11,7 +11,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-EXPIRATION_MAX = 90
+EXPIRATION_MAX = 5
 
 ROLES_QUERY = """
 {
@@ -101,7 +101,8 @@ def fetch_desired_state(ri, oc_map):
         if not role_still_valid(role['expirationDate']):
             logging.warning(
                 f'The maximum expiration date of {role["name"]} '
-                f'must not exceed {EXPIRATION_MAX} days from today'
+                f'was either over {EXPIRATION_MAX} days ago or over '
+                f'{EXPIRATION_MAX} days old from now'
             )
             continue
         permissions = [{'cluster': a['namespace']['cluster']['name'],
@@ -221,7 +222,7 @@ def role_still_valid(role: str) -> bool:
     else:
         exp_date = datetime.datetime \
             .strptime(role, '%Y-%m-%d').date()
-        if (exp_date - datetime.datetime.utcnow().date()) \
-                .days >= -EXPIRATION_MAX:
+        if -EXPIRATION_MAX <= (exp_date - datetime.datetime.utcnow().date()) \
+                .days <= EXPIRATION_MAX:
             return True
         return False

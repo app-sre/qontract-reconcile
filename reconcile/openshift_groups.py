@@ -123,8 +123,9 @@ def fetch_desired_state(oc_map):
         if not openshift_rolebindings.role_still_valid(r):
             logging.warning(
                 f'The maximum expiration date of {r["name"]} '
-                f'must not exceed '
-                f'{openshift_rolebindings.EXPIRATION_MAX} days from today')
+                f'was either over {openshift_rolebindings.EXPIRATION_MAX} days ago or over '
+                f'{openshift_rolebindings.EXPIRATION_MAX} days old from now'
+            )
             continue
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
