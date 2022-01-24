@@ -23,6 +23,7 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
                 [
                     {
                         'name': 'rt',
+                        'url': 'url',
                         'targets':
                         [
                             {
@@ -80,6 +81,7 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
                 [
                     {
                         'name': 'rt',
+                        'url': 'url',
                         'targets':
                         [
                             {
@@ -351,6 +353,35 @@ class TestPopulateDesiredState(TestCase):
                 cnt += 1
 
         self.assertEqual(5, cnt, "expected 5 resources, found less")
+
+
+class TestCollectRepoUrls(TestCase):
+    def test_collect_repo_urls(self):
+        repo_url = 'git-repo'
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [
+                    {
+                        'name': 'name',
+                        'url': repo_url,
+                        'targets': []
+                    }
+                ]
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        self.assertEqual({repo_url}, saasherder.repo_urls)
 
 
 class TestGetSaasFileAttribute(TestCase):

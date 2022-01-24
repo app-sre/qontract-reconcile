@@ -66,6 +66,7 @@ class SaasHerder():
         self.settings = settings
         self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
+        self.repo_urls = self._collect_repo_urls()
         self.jenkins_map = jenkins_map
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -246,6 +247,14 @@ class SaasHerder():
                     namespace['managedResourceTypes'] = managed_resource_types
                     namespaces.append(namespace)
         return namespaces
+
+    def _collect_repo_urls(self):
+        repo_urls = set()
+        for saas_file in self.saas_files:
+            resource_templates = saas_file['resourceTemplates']
+            for rt in resource_templates:
+                repo_urls.add(rt['url'])
+        return repo_urls
 
     def _initiate_state(self, accounts):
         self.state = State(
