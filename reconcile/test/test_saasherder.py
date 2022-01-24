@@ -23,6 +23,7 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
                 [
                     {
                         'name': 'rt',
+                        'url': 'url',
                         'targets':
                         [
                             {
