@@ -353,6 +353,33 @@ class TestPopulateDesiredState(TestCase):
         self.assertEqual(5, cnt, "expected 5 resources, found less")
 
 
+class TestCollectRepoUrls(TestCase):
+    def test_collect_repo_urls(self):
+        repo_url = 'git-repo'
+        saas_files = [
+            {
+                'path': 'path1',
+                'name': 'name1',
+                'managedResourceTypes': [],
+                'resourceTemplates': [
+                    {
+                        'url': repo_url
+                    }
+                ]
+            }
+        ]
+
+        saasherder = SaasHerder(
+            saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={}
+        )
+        self.assertEqual({repo_url}, saasherder.repo_urls)
+
+
 class TestGetSaasFileAttribute(TestCase):
     def test_attribute_none(self):
         saas_files = [
