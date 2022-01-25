@@ -1,5 +1,9 @@
+from datetime import date, timedelta
+from typing import Dict, List
+
 import pytest
 
+from reconcile import openshift_rolebindings
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ConstructResourceError)
@@ -11,6 +15,9 @@ fxt = Fixtures('openshift_resource')
 
 TEST_INT = 'test_openshift_resources'
 TEST_INT_VER = make_semver(1, 9, 2)
+
+apply = Fixtures('openshift_resource') \
+    .get_anymarkup('expiration_date_check.yml')
 
 
 class TestOpenshiftResource:
@@ -132,3 +139,55 @@ class TestOpenshiftResource:
         }
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
         assert not openshift_resource.has_owner_reference()
+
+    @staticmethod
+    def test_check_temp_role_after_expiration_date():
+        expiration_date = date.today() + \
+                timedelta(days=1)
+        resource = mock_openshift_role_bindings(expiration_date)
+        for r in resource:
+            assert openshift_rolebindings \
+                .role_still_valid(r['expirationDate'])
+
+    @staticmethod
+    def test_check_temp_role_before_expiration_date():
+        expiration_date = date.today() - \
+                timedelta(days=1)
+        resource = mock_openshift_role_bindings(expiration_date)
+        for r in resource:
+            assert not openshift_rolebindings \
+                .role_still_valid(r['expirationDate'])
+
+    @staticmethod
+    def test_check_temp_role_no_expiration_date():
+        resource = mock_openshift_role_bindings_no_expiration_date()
+        for r in resource:
+            assert openshift_rolebindings \
+                .has_valid_expiration_date(r['expirationDate'])
+
+    @staticmethod
+    def test_has_correct_date_format():
+        expiration_date = date.today()
+        resource = mock_openshift_role_bindings(expiration_date)
+        for r in resource:
+            assert openshift_rolebindings \
+                .has_valid_expiration_date(r['expirationDate'])
+
+    @staticmethod
+    def test_has_incorrect_date_format():
+        expiration_date = 'invalid-date-format'
+        resource = mock_openshift_role_bindings(expiration_date)
+        for r in resource:
+            assert not openshift_rolebindings \
+                .has_valid_expiration_date(r['expirationDate'])
+
+
+def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:
+    openshift_rolebindings_roles = apply['gql_response']
+    openshift_rolebindings_roles[0]['expirationDate'] = str(expirationDate)
+    return openshift_rolebindings_roles
+
+
+def mock_openshift_role_bindings_no_expiration_date() -> List[Dict]:
+    openshift_rolebindings_roles = apply['gql_response']
+    return openshift_rolebindings_roles
