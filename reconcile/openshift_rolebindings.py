@@ -101,7 +101,7 @@ def fetch_desired_state(ri, oc_map):
         if not role_still_valid(role['expirationDate']):
             logging.warning(
                 f'The maximum expiration date of {role["name"]} '
-                f'has passed today '
+                f'has passed '
             )
             continue
         permissions = [{'cluster': a['namespace']['cluster']['name'],
