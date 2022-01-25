@@ -36,7 +36,7 @@ def init(gitlab_project_id=None, sqs_or_gitlab=None):
                          settings=settings, saas_files=saas_files)
 
     elif client_type == 'sqs':
-        accounts = queries.get_aws_accounts()
+        accounts = queries.get_queue_aws_accounts()
         settings = queries.get_app_interface_settings()
 
         return SQSGateway(accounts, settings=settings)

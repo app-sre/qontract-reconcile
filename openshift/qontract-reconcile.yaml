@@ -21899,6 +21899,15 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -21937,6 +21946,15 @@ objects:
 
             <match integration>
               @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[ocm-groups] %s\`\`\`"
+              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -22471,6 +22489,15 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -22509,6 +22536,15 @@ objects:
 
             <match integration>
               @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[ocm-github-idp] %s\`\`\`"
+              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -25329,6 +25365,183 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-blackbox-exporter-endpoint-monitoring
+    name: qontract-reconcile-blackbox-exporter-endpoint-monitoring
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-blackbox-exporter-endpoint-monitoring
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-blackbox-exporter-endpoint-monitoring
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name blackbox-exporter-endpoint-monitoring
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "1"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: blackbox-exporter-endpoint-monitoring
+          - name: INTEGRATION_EXTRA_ARGS
+            value: "--external --no-use-jump-host"
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: UNLEASH_API_URL
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: API_URL
+          - name: UNLEASH_CLIENT_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: unleash
+                key: CLIENT_ACCESS_TOKEN
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${BLACKBOX_EXPORTER_ENDPOINT_MONITORING_CPU_LIMIT}
+              memory: ${BLACKBOX_EXPORTER_ENDPOINT_MONITORING_MEMORY_LIMIT}
+            requests:
+              cpu: ${BLACKBOX_EXPORTER_ENDPOINT_MONITORING_CPU_REQUEST}
+              memory: ${BLACKBOX_EXPORTER_ENDPOINT_MONITORING_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
 - apiVersion: batch/v1beta1
   kind: CronJob
   metadata:
@@ -25994,6 +26207,14 @@ parameters:
   value: 200m
 - name: GABI_AUTHORIZED_USERS_MEMORY_REQUEST
   value: 600Mi
+- name: BLACKBOX_EXPORTER_ENDPOINT_MONITORING_CPU_LIMIT
+  value: 200m
+- name: BLACKBOX_EXPORTER_ENDPOINT_MONITORING_MEMORY_LIMIT
+  value: 200Mi
+- name: BLACKBOX_EXPORTER_ENDPOINT_MONITORING_CPU_REQUEST
+  value: 100m
+- name: BLACKBOX_EXPORTER_ENDPOINT_MONITORING_MEMORY_REQUEST
+  value: 100Mi
 - name: AWS_ECR_IMAGE_PULL_SECRETS_CPU_LIMIT
   value: 300m
 - name: AWS_ECR_IMAGE_PULL_SECRETS_MEMORY_LIMIT

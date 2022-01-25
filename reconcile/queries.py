@@ -1,3 +1,4 @@
+import os
 import logging
 import itertools
 
@@ -243,7 +244,18 @@ def get_github_orgs():
 
 AWS_ACCOUNTS_QUERY = """
 {
-  accounts: awsaccounts_v1 {
+  accounts: awsaccounts_v1
+  {% if search %}
+  (
+    {% if name %}
+    name: "{{ name }}"
+    {% endif %}
+    {% if uid %}
+    uid: "{{ uid }}"
+    {% endif %}
+  )
+  {% endif %}
+  {
     path
     name
     uid
@@ -291,13 +303,29 @@ AWS_ACCOUNTS_QUERY = """
 """
 
 
-def get_aws_accounts(reset_passwords=False):
+def get_aws_accounts(reset_passwords=False, name=None, uid=None):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
+    search = name or uid
     query = Template(AWS_ACCOUNTS_QUERY).render(
         reset_passwords=reset_passwords,
+        search=search,
+        name=name,
+        uid=uid,
     )
     return gqlapi.query(query)['accounts']
+
+
+def get_state_aws_accounts(reset_passwords=False):
+    """ Returns AWS accounts to use for state management """
+    name = os.environ['APP_INTERFACE_STATE_BUCKET_ACCOUNT']
+    return get_aws_accounts(reset_passwords=reset_passwords, name=name)
+
+
+def get_queue_aws_accounts():
+    """ Returns AWS accounts to use for queue management """
+    uid = os.environ['gitlab_pr_submitter_queue_url'].split('/')[3]
+    return get_aws_accounts(uid=uid)
 
 
 CLUSTERS_QUERY = """
@@ -400,6 +428,7 @@ CLUSTERS_QUERY = """
       route_selectors
     }
     network {
+      type
       vpc
       service
       pod
@@ -1849,9 +1878,7 @@ def get_pipelines_providers():
         gqlapi.query(PIPELINES_PROVIDERS_QUERY)['pipelines_providers']
 
     for pp in pipelines_providers:
-        # TODO: In the near future 'defaults' will be mandatory. In the
-        # meantime, let's make sure we always get a dictionary
-        defaults = pp.pop('defaults') or {}
+        defaults = pp.pop('defaults')
         for k, v in defaults.items():
             if k not in pp or not pp[k]:
                 pp[k] = v
@@ -2484,3 +2511,50 @@ STATUS_PAGE_QUERY = """
 def get_status_pages():
     gqlapi = gql.get_api()
     return gqlapi.query(STATUS_PAGE_QUERY)['status_pages']
+
+
+CLOSED_BOX_MONITORING_PROBES_QUERY = """
+{
+  apps: apps_v1 {
+    endPoints {
+      name
+      description
+      url
+      monitoring {
+        provider {
+          name
+          description
+          provider
+          metricLabels
+          timeout
+          checkInterval
+          ... on EndpointMonitoringProviderBlackboxExporter_v1 {
+            blackboxExporter {
+              module
+              namespace {
+                name
+                cluster {
+                  name
+                  serverUrl
+                  automationToken {
+                    path
+                    field
+                    version
+                  }
+                  internal
+                }
+              }
+              exporterUrl
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_service_monitoring_endpoints():
+    gqlapi = gql.get_api()
+    return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)['apps']

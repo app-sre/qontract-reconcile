@@ -1,0 +1,27 @@
+appInterface:
+  apps:
+  - endPoints:
+    - name: test
+      description: test
+      url: https://httpstat.us/200
+      monitoring:
+      - provider:
+          name: blackbox-exporter-http-2xx
+          description: Checks a URL for HTTP 2xx status codes via blackbox-exporter
+          provider: blackbox-exporter
+          timeout: null
+          checkInterval: null
+          blackboxExporter:
+            module: http_2xx
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+            exporterUrl: http://exporterhost:9115/probe
+      - provider:
+          provider: other

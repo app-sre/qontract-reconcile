@@ -108,6 +108,7 @@ import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
 import reconcile.gabi_authorized_users
 import reconcile.status_page_components
+import reconcile.blackbox_exporter_endpoint_monitoring
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1468,3 +1469,14 @@ def dyn_traffic_director(ctx, enable_deletion):
 @click.pass_context
 def status_page_components(ctx):
     run_integration(reconcile.status_page_components, ctx.obj)
+
+
+@integration.command()
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def blackbox_exporter_endpoint_monitoring(ctx, thread_pool_size,
+                                          internal, use_jump_host):
+    run_integration(reconcile.blackbox_exporter_endpoint_monitoring,
+                    ctx.obj, thread_pool_size, internal, use_jump_host)

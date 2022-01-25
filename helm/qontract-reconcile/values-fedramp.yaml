@@ -13,38 +13,53 @@ integrations:
 - name: openshift-namespaces
   resources:
     requests:
-      memory: 400Mi
+      # Known peaks are at 800Mi
+      memory: 800Mi
       cpu: 400m
     limits:
-      memory: 500Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 500m
   disableUnleash: true
 - name: openshift-network-policies
   resources:
     requests:
-      memory: 300Mi
+      # Known peaks are at 800Mi
+      memory: 800Mi
       cpu: 100m
     limits:
-      memory: 400Mi
+      # Limits 30% above requests
+      memory: 1040Mi
       cpu: 200m
   disableUnleash: true
 - name: openshift-resources
   resources:
     requests:
-      memory: 400Mi
-      cpu: 400m
+      memory: 1600Mi
+      cpu: 900m
     limits:
-      memory: 500Mi
-      cpu: 500m
+      memory: 3600Mi
+      cpu: 1200m
+  disableUnleash: true
+- name: openshift-routes
+  resources:
+    requests:
+      # Known peaks are at 770Mi
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      # Limits 30% above requests
+      memory: 1040Mi
+      cpu: 300m
   disableUnleash: true
 - name: openshift-vault-secrets
   resources:
     requests:
-      memory: 400Mi
-      cpu: 400m
+      memory: 600Mi
+      cpu: 900m
     limits:
-      memory: 500Mi
-      cpu: 500m
+      memory: 800Mi
+      cpu: 1200m
   disableUnleash: true
 - name: terraform-aws-route53
   resources:
@@ -68,9 +83,30 @@ integrations:
 - name: terraform-tgw-attachments
   resources:
     requests:
-      memory: 1500Mi
+      memory: 2300Mi
       cpu: 400m
     limits:
-      memory: 2000Mi
+      memory: 3000Mi
       cpu: 600m
+  disableUnleash: true
+- name: jenkins-job-builder
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  state: true
+  cache: true
+  disableUnleash: true
+- name: jenkins-webhooks
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  cache: true
   disableUnleash: true

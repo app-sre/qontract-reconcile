@@ -58,7 +58,7 @@ setup(
         "croniter>=1.0.15,<1.1.0",
         "dyn~=1.8.1",
         "transity-statuspageio>=0.0.3,<0.1",
-        "pydantic>=1.8.2,<1.9.0",
+        "pydantic~=1.9.0",
     ],
 
     test_suite="tests",

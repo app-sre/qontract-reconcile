@@ -375,6 +375,8 @@ integrations:
     limits:
       memory: 200Mi
       cpu: 200m
+  logs:
+    slack: true
 - name: ocm-clusters
   resources:
     requests:
@@ -408,6 +410,8 @@ integrations:
       memory: 200Mi
       cpu: 200m
   extraArgs: --vault-input-path app-sre/integrations-input
+  logs:
+    slack: true
 - name: ocm-machine-pools
   resources:
     requests:
@@ -550,6 +554,15 @@ integrations:
   extraArgs: --external --no-use-jump-host
   logs:
     slack: true
+- name: blackbox-exporter-endpoint-monitoring
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 200Mi
+      cpu: 200m
+  extraArgs: --external --no-use-jump-host
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:

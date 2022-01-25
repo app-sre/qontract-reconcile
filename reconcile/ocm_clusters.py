@@ -87,6 +87,10 @@ def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     error = False
     clusters_updates = {}
     for cluster_name, desired_spec in desired_state.items():
+        # Set the default network type
+        if not desired_spec['network'].get('type'):
+            desired_spec['network']['type'] = 'OpenShiftSDN'
+
         current_spec = current_state.get(cluster_name)
         if current_spec:
             clusters_updates[cluster_name] = {'spec': {}, 'root': {}}

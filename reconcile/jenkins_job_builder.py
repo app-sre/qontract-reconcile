@@ -183,7 +183,7 @@ def validate_repos_and_admins(jjb, additional_repo_urls):
     app_int_repos = queries.get_repos()
     missing_repos = [r for r in jjb_repos if r not in app_int_repos]
     for r in missing_repos:
-        logging.error('repo is missing from codeComponents: {}'.format(r))
+        logging.error(f'repo is missing from codeComponents: {r}')
     jjb_admins = jjb.get_admins()
     app_int_users = queries.get_users()
     app_int_bots = queries.get_bots()
@@ -214,7 +214,7 @@ def run(dry_run, io_dir='throughput/', print_only=False,
             jjb.generate(io_dir, 'printout')
         sys.exit(0)
 
-    accounts = queries.get_aws_accounts()
+    accounts = queries.get_state_aws_accounts()
     state = State(
         integration=QONTRACT_INTEGRATION,
         accounts=accounts,
