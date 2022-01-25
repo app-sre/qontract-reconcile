@@ -9,7 +9,7 @@ import tempfile
 
 from threading import Lock
 
-from typing import Dict, List, Iterable, Optional
+from typing import Any, Dict, List, Iterable, MutableMapping, Optional
 from ipaddress import ip_network, ip_address
 
 import anymarkup
@@ -3299,6 +3299,12 @@ class TerrascriptClient:
         if self._multiregion_account_(account):
             es_values['provider'] = 'aws.' + region
 
+        advanced_security_options = values.get('advanced_security_options', {})
+        if advanced_security_options:
+            es_values['advanced_security_options'] = \
+                self._build_es_advanced_security_options(
+                    advanced_security_options)
+
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
 
@@ -3333,6 +3339,26 @@ class TerrascriptClient:
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
+
+    def _build_es_advanced_security_options(
+            self, advanced_security_options: MutableMapping[str, Any]) \
+            -> MutableMapping[str, Any]:
+        master_user_options = advanced_security_options.pop(
+            'master_user_options', {})
+
+        if master_user_options:
+            master_user_secret = master_user_options['master_user_secret']
+            secret_data = self.secret_reader.read_all(master_user_secret)
+
+            required_keys = {'master_user_name', 'master_user_password'}
+            if secret_data.keys() != required_keys:
+                raise KeyError(
+                    f"vault secret '{master_user_secret['path']}' must "
+                    f"exactly contain these keys: {', '.join(required_keys)}")
+
+            advanced_security_options['master_user_options'] = secret_data
+
+        return advanced_security_options
 
     def populate_tf_resource_acm(self, resource, namespace_info):
         account, identifier, common_values, \
