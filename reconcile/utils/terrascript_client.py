@@ -47,7 +47,9 @@ from terrascript.resource import (
     aws_security_group,
     aws_security_group_rule,
     aws_route,
-    aws_cloudwatch_log_group, aws_kms_key,
+    aws_cloudwatch_log_group,
+    aws_cloudwatch_log_resource_policy,
+    aws_kms_key,
     aws_kms_alias,
     aws_elasticsearch_domain,
     aws_iam_service_linked_role,
@@ -3113,7 +3115,7 @@ class TerrascriptClient:
     def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
-          'aws_service_name': "es.amazonaws.com"
+            'aws_service_name': 'es.amazonaws.com',
         }
         return aws_iam_service_linked_role('elasticsearch', **service_role)
 
@@ -3152,6 +3154,84 @@ class TerrascriptClient:
         es_values["elasticsearch_version"] = \
             values.get('elasticsearch_version')
 
+        publishing_options = []
+        # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
+        # TODO: restrict resource arn.
+        # NOTE: CloudWatch Logs supports 10 resource policies per Region.
+        # If you plan to enable logs for several OpenSearch Service domains,
+        # you should create and reuse a broader policy that includes multiple
+        # log groups to avoid reaching this limit.
+        log_groups_policy = {
+            'Version': '2012-10-17',
+            'Statement': [
+            {
+                'Effect': 'Allow',
+                'Principal': {
+                    'Service': 'es.amazonaws.com',
+                },
+                'Action': [
+                    'logs:PutLogEvents',
+                    'logs:CreateLogStream',
+                ],
+                'Resource': '*',
+            }
+            ]
+        }
+        log_groups_policy_values = {
+            'policy_name': 'es-log-publishing-permissions',
+            'policy_document': json.dumps(log_groups_policy, sort_keys=True),
+        }
+        resource_policy = aws_cloudwatch_log_resource_policy(
+            'es_log_publishing_resource_policy',
+            **log_groups_policy_values,
+        )
+        tf_resources.append(resource_policy)
+
+        for log_type in resource.get('publish_log_types'):
+            log_type_identifier = f'{identifier}_{log_type.lower()}'
+            log_group_values = {
+                'name': log_type_identifier,
+                'tags': {},
+                'retention_in_days': 90,
+            }
+            region = values.get('region') or \
+                self.default_regions.get(account)
+            if self._multiregion_account_(account):
+                log_group_values['provider'] = f'aws.{region}'
+            log_group_tf_resource = \
+                aws_cloudwatch_log_group(log_type_identifier,
+                                         **log_group_values)
+            tf_resources.append(log_group_tf_resource)
+            arn = f'${{aws_cloudwatch_log_group.{log_type_identifier}.arn}}'
+
+            # add arn to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_arn'
+            )
+            output_value = arn
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+
+            # add name to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_name'
+            )
+            output_value = log_type_identifier
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+
+            if log_type == 'AUDIT_LOGS':
+                # Audit logs require special attention - manual step for now
+                # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/audit-logs.html
+                continue
+            publishing_options.append(
+                {
+                    'log_type': log_type,
+                    'cloudwatch_log_group_arn': arn,
+                }
+            )
+
+        es_values['log_publishing_options'] = publishing_options
         ebs_options = values.get('ebs_options', {})
 
         es_values["ebs_options"] = {
@@ -3255,10 +3335,11 @@ class TerrascriptClient:
 
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
-
-        es_values['depends_on'] = self.get_dependencies(
-            [svc_role_tf_resource])
         tf_resources.append(svc_role_tf_resource)
+        es_values['depends_on'] = self.get_dependencies([
+            svc_role_tf_resource,
+            resource_policy,
+        ])
 
         access_policies = {
             "Version": "2012-10-17",
@@ -3491,7 +3572,7 @@ class TerrascriptClient:
                 cluster['name'],
                 account['uid'],
                 account['terraformUsername'],
-            )
+        )
         account['assume_region'] = cluster['spec']['region']
         service_name = \
             f"{namespace_info['name']}/{openshift_service}"
@@ -3972,7 +4053,7 @@ class TerrascriptClient:
             "key": k,
             "value": v,
             "propagate_at_launch": True
-            } for k, v in tags.items()]
+        } for k, v in tags.items()]
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 
