@@ -29,8 +29,6 @@ DNS_NAMES_URL = \
 
 IGNORABLE_DATA_FIELDS = ['service-ca.crt']
 
-EXPIRATION_MAX = 90
-
 
 class OpenshiftResource:
     def __init__(self, body, integration, integration_version,

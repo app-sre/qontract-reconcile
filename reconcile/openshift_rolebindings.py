@@ -11,8 +11,6 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
 from reconcile.utils.defer import defer
 from reconcile.utils.sharding import is_in_shard
 
-# EXPIRATION_MAX = 90
-
 ROLES_QUERY = """
 {
   roles: roles_v1 {
