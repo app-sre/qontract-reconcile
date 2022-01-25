@@ -120,7 +120,7 @@ def fetch_desired_state(oc_map):
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
                 f'currently set as {r["expirationDate"]}'
             )
-        if not openshift_rolebindings.role_still_valid(r):
+        if not openshift_rolebindings.role_still_valid(r['expirationDate']):
             logging.warning(
                 f'The maximum expiration date of {r["name"]} '
                 f'has passed today '
