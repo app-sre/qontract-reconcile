@@ -1705,10 +1705,19 @@ class TerrascriptClient:
             values['provider'] = provider
 
         parameter_group = values.get('parameter_group')
+        # Assume that cluster enabled is false if parameter group unset
+        pg_cluster_enabled = False
+
         if parameter_group:
             pg_values = self.get_values(parameter_group)
             pg_identifier = pg_values['name']
             pg_values['parameter'] = pg_values.pop('parameters')
+
+            for param in pg_values['parameter']:
+                if param['name'] == 'cluster-enabled' \
+                        and param['value'] == 'yes':
+                    pg_cluster_enabled = True
+
             if self._multiregion_account_(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
@@ -1742,7 +1751,7 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__db_endpoint'
         # https://docs.aws.amazon.com/AmazonElastiCache/
         # latest/red-ug/Endpoints.html
-        if values.get('cluster_mode'):
+        if pg_cluster_enabled:
             output_value = \
                 '${' + tf_resource.configuration_endpoint_address + '}'
         else:
