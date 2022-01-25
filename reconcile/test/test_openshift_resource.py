@@ -142,20 +142,20 @@ class TestOpenshiftResource:
 
     @staticmethod
     def test_check_temp_role_after_expiration_date():
-        expiration_date = date.today() - \
-                timedelta(days=(openshift_rolebindings.EXPIRATION_MAX+1))
+        expiration_date = date.today() + \
+                timedelta(days=1)
         resource = mock_openshift_role_bindings(expiration_date)
         for r in resource:
-            assert not openshift_rolebindings \
+            assert openshift_rolebindings \
                 .role_still_valid(r['expirationDate'])
 
     @staticmethod
     def test_check_temp_role_before_expiration_date():
-        expiration_date = date.today() + \
-                timedelta(days=(openshift_rolebindings.EXPIRATION_MAX-1))
+        expiration_date = date.today() - \
+                timedelta(days=1)
         resource = mock_openshift_role_bindings(expiration_date)
         for r in resource:
-            assert openshift_rolebindings \
+            assert not openshift_rolebindings \
                 .role_still_valid(r['expirationDate'])
 
     @staticmethod
@@ -166,16 +166,8 @@ class TestOpenshiftResource:
                 .has_valid_expiration_date(r['expirationDate'])
 
     @staticmethod
-    def test_has_no_date_format():
-        resource = mock_openshift_role_bindings_no_expiration_date()
-        for r in resource:
-            assert openshift_rolebindings \
-                .role_still_valid(r['expirationDate'])
-
-    @staticmethod
     def test_has_correct_date_format():
-        expiration_date = date.today() + \
-                timedelta(days=(openshift_rolebindings.EXPIRATION_MAX-1))
+        expiration_date = date.today()
         resource = mock_openshift_role_bindings(expiration_date)
         for r in resource:
             assert openshift_rolebindings \

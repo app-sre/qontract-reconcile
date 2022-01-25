@@ -123,8 +123,7 @@ def fetch_desired_state(oc_map):
         if not openshift_rolebindings.role_still_valid(r):
             logging.warning(
                 f'The maximum expiration date of {r["name"]} '
-                f'was either over {openshift_rolebindings.EXPIRATION_MAX} days ago or over '
-                f'{openshift_rolebindings.EXPIRATION_MAX} days old from now'
+                f'has passed today '
             )
             continue
         for a in r['access'] or []:
