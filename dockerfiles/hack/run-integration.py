@@ -50,13 +50,20 @@ if LOG_FILE is not None:
 logging.basicConfig(level=logging.INFO,
                     handlers=HANDLERS)
 
+def _parse_dry_run_flag(dry_run: str) -> Optional[str]:
+    dry_run_options = ['--dry-run', '--no-dry-run']
+    if dry_run is not None and dry_run not in dry_run_options:
+        logging.error('Invalid DRY_RUN option given: "%s". Only the following options are allowed: %s', dry_run, dry_run_options)
+        sys.exit(1)
+    if dry_run in ['--dry-run', '--no-dry-run']:
+        return dry_run
 
 def build_entry_point_args(command: click.Command, config: str,
                            dry_run: Optional[str], integration_name: str,
                            extra_args: Optional[str]) -> list[str]:
     args = ['--config', config]
-    if dry_run is not None:
-        args.append(dry_run)
+    if dry_run_flag := _parse_dry_run_flag(dry_run):
+        args.append(dry_run_flag)
 
     # if the integration_name is a known sub command, we add it right before the extra_args
     if integration_name and isinstance(command, click.MultiCommand) and \
