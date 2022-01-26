@@ -1,12 +1,15 @@
-from jira import JIRA
+from jira import JIRA, Issue
 
 from reconcile.utils.secret_reader import SecretReader
 
+from typing import Iterable, Mapping, Optional
+
 
 class JiraClient:
-    """Wrapper around Jira client"""
+    """Wrapper around Jira client."""
 
-    def __init__(self, jira_board, settings=None):
+    def __init__(self, jira_board: Mapping[str, str],
+                 settings: Optional[Mapping] = None):
         self.secret_reader = SecretReader(settings=settings)
         self.project = jira_board['name']
         jira_server = jira_board['server']
@@ -15,7 +18,7 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         self.jira = JIRA(self.server, token_auth=token_auth)
 
-    def get_issues(self, fields=None):
+    def get_issues(self, fields: Optional[Mapping] = None):
         block_size = 100
         block_num = 0
         all_issues = []
@@ -33,3 +36,14 @@ class JiraClient:
             block_num += 1
 
         return all_issues
+
+    def create_issue(self, summary: str, body: str,
+                     labels: Optional[Iterable[str]] = None) -> Issue:
+        """Create an issue in our project with the given labels."""
+        return self.jira.create_issue(
+            project=self.project,
+            summary=summary,
+            description=body,
+            labels=labels,
+            issuetype={'name': 'Task'}
+        )
