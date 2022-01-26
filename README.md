@@ -123,7 +123,7 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 
 ## Installation
 
-This project targets Python version 3.6.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
+This project targets Python version 3.9.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) to manage Python versions on your computer.
 
 Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
 
@@ -208,7 +208,33 @@ tox -e type
 tox -e type -- reconcile/utils/slack_api.py
 ```
 
+## Run reconcile loop for an integration locally in a container
 
+ This is currently only tested with the docker container engine.
+
+### Prepare config.toml
+
+Make sure the file  [`./config.dev.toml`](https://vault.devshift.net/ui/vault/secrets/app-sre/show/creds/app-interface-dev-config-toml) exists and contains your current configuration.
+Your `config.dev.toml` should point to the following qontract-server address:
+
+```
+[graphql]
+server = "http://host.docker.internal:4000/graphql"
+```
+
+### Run qontract-server
+
+Start the [qontract-server](https://github.com/app-sre/qontract-server) in a different window, e.g., via:
+
+```
+qontract-server$ make dev
+```
+
+### Trigger integration
+
+```
+make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run INTEGRATION_EXTRA_ARGS=--light SLEEP_DURATION_SECS=100
+```
 
 ## Release
 

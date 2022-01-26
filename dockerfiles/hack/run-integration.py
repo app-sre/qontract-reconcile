@@ -55,7 +55,7 @@ def build_entry_point_args(command: click.Command, config: str,
                            dry_run: Optional[str], integration_name: str,
                            extra_args: Optional[str]) -> list[str]:
     args = ['--config', config]
-    if dry_run is not None:
+    if dry_run in ['--dry-run', '--no-dry-run']:
         args.append(dry_run)
 
     # if the integration_name is a known sub command, we add it right before the extra_args

@@ -1,4 +1,4 @@
-.PHONY: build push rc build-test test-app test-container-image test clean
+.PHONY: help build push rc build-test test-app test-container-image test clean
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 IMAGE_TEST := reconcile-test
@@ -13,6 +13,10 @@ else
 endif
 
 CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
+
+help: ## Prints help for targets with comments
+	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
 build:
 	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
@@ -34,12 +38,10 @@ generate:
 build-test:
 	@$(CONTAINER_ENGINE) build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
-test-app: build-test
-#	Target to test app with tox on docker
+test-app: build-test ## Target to test app with tox on docker
 	@$(CONTAINER_ENGINE) run --rm $(IMAGE_TEST)
 
-test-container-image: build
-#	Target to test the final image
+test-container-image: build ## Target to test the final image
 	@$(CONTAINER_ENGINE) run --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v $(CURDIR):/work \
@@ -48,6 +50,17 @@ test-container-image: build
 		-i $(IMAGE_NAME):$(IMAGE_TAG)
 
 test: test-app test-container-image
+
+dev-reconcile-loop: build ## Trigger the reconcile loop inside a container for an integration
+	@$(CONTAINER_ENGINE) run --rm \
+		--add-host=host.docker.internal:host-gateway \
+		-v $(CURDIR):/work \
+		-e INTEGRATION_NAME=$(INTEGRATION_NAME) \
+		-e INTEGRATION_EXTRA_ARGS=$(INTEGRATION_EXTRA_ARGS) \
+		-e SLEEP_DURATION_SECS=$(SLEEP_DURATION_SECS) \
+		-e DRY_RUN=$(DRY_RUN) \
+		-e CONFIG=/work/config.dev.toml \
+		$(IMAGE_NAME):$(IMAGE_TAG)
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
