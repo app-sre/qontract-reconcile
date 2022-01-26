@@ -1,6 +1,7 @@
 import os
 import logging
 import itertools
+import shlex
 
 from textwrap import indent
 
@@ -2568,3 +2569,39 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
 def get_service_monitoring_endpoints():
     gqlapi = gql.get_api()
     return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)['apps']
+
+
+APP_METADATA = """
+{
+  apps: apps_v1 (path: "APATH") {
+    labels
+    name
+    description
+    sopsUrl
+    grafanaUrl
+    architectureDocument
+    serviceOwners {
+      name
+      email
+    }
+    escalationPolicy {
+      description
+      channels {
+        jiraBoard {
+          name
+        }
+        slackUserGroup {
+          name
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_app_metadata(app_path: str) -> dict:
+    "Fetch the metadata for the path stored in app_path"
+    app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
+    gqlapi = gql.get_api()
+    return gqlapi.query(app_query)
