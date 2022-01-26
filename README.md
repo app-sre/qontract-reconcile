@@ -214,7 +214,7 @@ tox -e type -- reconcile/utils/slack_api.py
 
 ### Prepare config.toml
 
-Make sure the file  [`./config.dev.toml`](https://vault.devshift.net/ui/vault/secrets/app-sre/show/creds/app-interface-dev-config-toml) exists and contains your current configuration.
+Make sure the file `./config.dev.toml` exists and contains your current configuration.
 Your `config.dev.toml` should point to the following qontract-server address:
 
 ```
