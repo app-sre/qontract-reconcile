@@ -1093,7 +1093,6 @@ def query(output, query):
 @click.argument('query')
 def promquery(cluster, query):
     """Run a PromQL query"""
-
     config_data = config.get_config()
     auth = {
         'path': config_data['promql-auth']['secret_path'],
@@ -1110,3 +1109,35 @@ def promquery(cluster, query):
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))
+
+
+@root.command()
+@click.option('--app-path',
+              help="Path in app-interface of the app.yml being reviewed")
+@click.option('--parent-ticket',
+              help="JIRA ticket to link all found issues to",
+              default=None)
+@click.option('--jiraboard',
+              help="JIRA board where to send any new tickets. If not "
+              "provided, the folder found in the application's escalation "
+              "policy will be used.",
+              default=None)
+@click.argument('create-parent-ticket',
+                help="Whether to create a parent ticket if none was provided",
+                default=False)
+def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard):
+    """Check an app path for checkpoint-related metadata."""
+    data = queries.get_app_metadata(app_path)
+    app = data['apps'][0]
+    if not jiraboard:
+        jiraboard= app['escalationPolicy']['channels']['jiraBoard']
+    if not jiraboard:
+        raise ValueError(f"No escalation policy for {app_path}!!")
+
+    MANDATORY_FIELDS = ('sopsUrl', 'grafanaUrl',
+                        'architectureDocument', 'serviceOwners')
+    for f in MANDATORY_FIELDS:
+        if not app[f]:
+            raise ValueError(f"Missing {f}")
+
+    print("All fields satisfactory")
