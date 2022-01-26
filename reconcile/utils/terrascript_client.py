@@ -2980,7 +2980,7 @@ class TerrascriptClient:
 
     def add_resource(self, account, tf_resource):
         if account not in self.locks:
-            logging.warning(
+            logging.debug(
                 'integration {} is disabled for account {}. '
                 'can not add resource'.format(self.integration, account))
             return
