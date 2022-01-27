@@ -54,11 +54,12 @@ logging.basicConfig(level=logging.INFO,
 def _parse_dry_run_flag(dry_run: str) -> Optional[str]:
     dry_run_options = ['--dry-run', '--no-dry-run']
     if dry_run is not None and dry_run not in dry_run_options:
-        logging.error(
+        msg = (
           f'Invalid DRY_RUN option given: "{dry_run}".'
           f'Only the following options are allowed: {dry_run_options}'
         )
-        sys.exit(1)
+        logging.error(msg)
+        raise ValueError(msg)
     return dry_run if dry_run else None
 
 
