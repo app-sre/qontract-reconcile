@@ -50,13 +50,17 @@ if LOG_FILE is not None:
 logging.basicConfig(level=logging.INFO,
                     handlers=HANDLERS)
 
+
 def _parse_dry_run_flag(dry_run: str) -> Optional[str]:
     dry_run_options = ['--dry-run', '--no-dry-run']
     if dry_run is not None and dry_run not in dry_run_options:
-        logging.error('Invalid DRY_RUN option given: "%s". Only the following options are allowed: %s', dry_run, dry_run_options)
+        logging.error(
+          f'Invalid DRY_RUN option given: "{dry_run}".'
+          f'Only the following options are allowed: {dry_run_options}'
+        )
         sys.exit(1)
-    if dry_run in ['--dry-run', '--no-dry-run']:
-        return dry_run
+    return dry_run if dry_run else None
+
 
 def build_entry_point_args(command: click.Command, config: str,
                            dry_run: Optional[str], integration_name: str,
@@ -65,9 +69,10 @@ def build_entry_point_args(command: click.Command, config: str,
     if dry_run_flag := _parse_dry_run_flag(dry_run):
         args.append(dry_run_flag)
 
-    # if the integration_name is a known sub command, we add it right before the extra_args
+    # if the integration_name is a known sub command,
+    # we add it right before the extra_args
     if integration_name and isinstance(command, click.MultiCommand) and \
-            command.get_command(None, integration_name): # type: ignore
+            command.get_command(None, integration_name):  # type: ignore
         args.append(integration_name)
 
     if extra_args is not None:
@@ -84,7 +89,8 @@ def build_entry_point_func(command_name: str) -> click.Command:
         ep.name: ep
         for ep in metadata.entry_points()["console_scripts"]
     }
-    entry_point: Optional[metadata.EntryPoint] = console_script_entry_points.get(command_name, None)
+    entry_point: Optional[metadata.EntryPoint] = \
+        console_script_entry_points.get(command_name, None)
     if entry_point:
         return entry_point.load()
     else:
@@ -121,20 +127,23 @@ def main():
       amount of seconds to sleep before another integration run is started
 
     Based on those variables, the following command will be executed
-      $COMMAND --config $CONFIG $DRY_RUN $INTEGRATION_NAME $INTEGRATION_EXTRA_ARGS
+      $COMMAND --config $CONFIG $DRY_RUN $INTEGRATION_NAME \
+        $INTEGRATION_EXTRA_ARGS
     """
 
     start_http_server(9090)
 
     command = build_entry_point_func(COMMAND_NAME)
     while True:
-        args = build_entry_point_args(command, CONFIG, DRY_RUN, INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS)
+        args = build_entry_point_args(command, CONFIG, DRY_RUN,
+                                      INTEGRATION_NAME, INTEGRATION_EXTRA_ARGS)
         sleep = SLEEP_DURATION_SECS
         start_time = time.monotonic()
         # Running the integration via Click, so we don't have to replicate
         # the CLI logic here
         try:
-            with command.make_context(info_name=COMMAND_NAME, args=args) as ctx:
+            with command.make_context(info_name=COMMAND_NAME, args=args) \
+              as ctx:
                 ctx.ensure_object(dict)
                 ctx.obj['extra_labels'] = extra_labels
                 command.invoke(ctx)
