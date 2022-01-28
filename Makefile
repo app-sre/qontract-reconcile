@@ -1,5 +1,7 @@
 .PHONY: help build push rc build-test test-app test-container-image test clean
 
+SHELL := /bin/bash
+
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 IMAGE_TEST := reconcile-test
 
