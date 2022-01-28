@@ -680,6 +680,7 @@ class TestConfigHashPromotionsValidation(TestCase):
         result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
+
 class TestConfigHashTrigger(TestCase):
     """ TestCase to test Openshift SAAS deploy configs trigger. SaasHerder is
     initialized WITHOUT ResourceInventory population. Like is done in the
@@ -750,7 +751,7 @@ class TestConfigHashTrigger(TestCase):
 
         desired_tc = list(configs.values())[1]
         desired_promo_data = desired_tc["promotion"]["promotion_data"]
-        desired_promo_data[0]["data"][TARGET_CONFIG_HASH] = "Changed"
+        desired_promo_data[0]["data"][0][TARGET_CONFIG_HASH] = "Changed"
 
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
