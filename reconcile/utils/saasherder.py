@@ -1269,7 +1269,7 @@ class SaasHerder():
             f"{namespace_name}/{env_name}"
         self.state.add(key, value=target_config, force=True)
 
-    def validate_promotions(self, all_saas_files):
+    def validate_promotions(self):
         """
         If there were promotion sections in the participating saas files
         validate that the conditions are met. """
@@ -1292,48 +1292,56 @@ class SaasHerder():
                         )
                         return False
 
-                    parent_config_hash = stateobj.get(TARGET_CONFIG_HASH)
-                    promoter_saas_name = stateobj.get("saas_file")
+                    state_config_hash = stateobj.get(TARGET_CONFIG_HASH)
+                    promotion_data = item.get('promotion_data', None)
 
-                    if not parent_config_hash or not promoter_saas_name:
-                        logging.info("Promotion without parent saas config")
+                    # This code supports current saas deployments that does
+                    # not have promotion_data yet
+                    if not state_config_hash or \
+                       not promotion_data:
+                        logging.info(
+                            "Promotion data is missing; rely on the success "
+                            "state only"
+                        )
                         return True
 
-                    # Get the saas object from graphql
-                    for saas in all_saas_files:
-                        if saas['name'] == promoter_saas_name:
-                            promoter_saas_obj = saas
-                    # Get the target configurations in the promoter saas
-                    promoter_tcs = \
-                        self.get_saas_targets_config(promoter_saas_obj)
+                    # Validate the promotion_data section.
+                    # By now, just validate parent_saas_config hash
+                    # promotion_data type.
+                    parent_saas_config = None
+                    for pd in promotion_data:
+                        pd_channel = pd.get("channel")
+                        if pd_channel == channel:
+                            channel_data = pd.get("data")
+                            for data in channel_data:
+                                t = data.get("type")
+                                if t == "parent_saas_config":
+                                    parent_saas_config = data
 
-                    # Get the promoter tc filtering by channel
-                    # Channel is unique
-                    for tc in promoter_tcs.values():
-                        promotion = tc.get('promotion')
-                        if not promotion:
-                            continue
-                        publish = promotion.get('publish')
-                        if not publish:
-                            continue
-                        for promoter_channel in publish:
-                            if promoter_channel == channel:
-                                promotion_config = tc
-                                break
+                    # This section might not exist due to manual changes
+                    # on promoted changes that need to be applied.
+                    # Promotion shall continue if this data is missing.
+                    # The parent at the same ref succeed though.
+                    if not parent_saas_config:
+                        logging.info(
+                            "Parent Saas config missing on target "
+                            "rely on the success state only"
+                        )
+                        return True
 
-                    # Get the tc config hash
-                    # Promotion dict is modified in _process_template method
-                    # remove
-                    tc_hash = \
-                        SaasHerder.get_target_config_hash(promotion_config)
+                    # Validate that the state config_hash set by the parent
+                    # is the same existent in the promotion_data on the same
+                    # ref.
+                    promotion_target_config_hash = \
+                        parent_saas_config.get(TARGET_CONFIG_HASH)
 
-                    # Compare the config hash with the published one
-                    # This ensures the parent job has succed with the current
-                    # configuration
-                    if tc_hash != parent_config_hash:
+                    if promotion_target_config_hash == state_config_hash:
+                        return True
+                    else:
                         logging.error(
-                            "Promotion state object was generated with an old"
-                            "configuration of the parent job"
+                            "Parent saas target has run with a newer "
+                            "configuration and the same commit (ref). "
+                            "Check if other MR exists for this target"
                         )
                         return False
         return True
