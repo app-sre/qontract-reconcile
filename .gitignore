@@ -12,3 +12,5 @@ coverage.xml
 dist
 venv
 throughput
+config.dev.toml
+dev/conf

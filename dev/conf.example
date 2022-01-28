@@ -1,8 +1,12 @@
-export APP_INTERFACE_PATH=$(pwd)/../../app-sre/app-interface
+export APP_INTERFACE_PATH=$(pwd)/../app-interface
 export QONTRACT_SCHEMAS_PATH=$(pwd)/../qontract-schemas
 export QONTRACT_SERVER_PATH=$(pwd)/../qontract-server
 
 export INTEGRATION_NAME=terraform-resources
 export INTEGRATION_EXTRA_ARGS=--light
 export DRY_RUN=--dry-run
-export SLEEP_DURATION_SECS=600
+export SLEEP_DURATION_SECS=10
+
+## Define your remote DEBUGGER
+# Valid options are: ['none', 'debugpy']
+export DEBUGGER=none

@@ -2,15 +2,17 @@
 version: "3.9"
 services:
   qontract-reconcile:
-    container_name: qontract-reconcile
+    stdin_open: true
+    tty: true
     build: 
       context: .
-      dockerfile: ./dockerfiles/Dockerfile
+      dockerfile: ./dockerfiles/Dockerfile.dev
     environment:
       - INTEGRATION_NAME=${INTEGRATION_NAME}
       - INTEGRATION_EXTRA_ARGS=${INTEGRATION_EXTRA_ARGS}
       - DRY_RUN=${DRY_RUN}
       - SLEEP_DURATION_SECS=${SLEEP_DURATION_SECS}
+      - DEBUGGER=${DEBUGGER}
       - CONFIG=/work/config.dev.toml
     volumes:
       - .:/work
@@ -18,9 +20,10 @@ services:
       - qontract-server
       - vault
     ports:
+      - 9090:9090  # Metrics Exporter
       - 5678:5678  # Debugger Port
+  
   qontract-server:
-    container_name: qontract-server
     build:
       context: ${QONTRACT_SERVER_PATH}
     volumes:
@@ -30,6 +33,7 @@ services:
       - DATAFILES_FILE=/bundle/bundle.json
     ports:
       - 4000:4000
+
   vault:
     container_name: vault
     image: "vault:1.5.4"
