@@ -6,6 +6,12 @@ IMAGE_TEST := reconcile-test
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 
+DOCKER_EXEC_VAULT := docker exec vault /bin/sh -c
+DEV_CONF := . ./dev/conf &&
+APP_INTERFACE_PATH ?= $(shell pwd)/../../app-sre/app-interface
+QONTRACT_SCHEMAS_PATH ?= $(shell pwd)/../qontract-schemas
+QONTRACT_SERVER_PATH ?= $(shell pwd)/../qontract-server
+
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
 else
@@ -61,6 +67,29 @@ dev-reconcile-loop: build ## Trigger the reconcile loop inside a container for a
 		-e DRY_RUN=$(DRY_RUN) \
 		-e CONFIG=/work/config.dev.toml \
 		$(IMAGE_NAME):$(IMAGE_TAG)
+
+dev-clean:
+	$(DEV_CONF) docker-compose down
+
+dev-bootstrap-vault:
+	$(DEV_CONF) docker-compose up -d vault
+	sleep 1
+	@$(DOCKER_EXEC_VAULT) "vault secrets disable secret"
+	@$(DOCKER_EXEC_VAULT) "vault secrets enable -version=1 -path=app-sre kv"
+	@$(DOCKER_EXEC_VAULT) "vault auth enable approle"
+# We need a dedicated policy because: hvac.exceptions.InvalidRequest: auth methods cannot create root tokens
+	docker cp ./dev/local-vault-dev-policy.hcl vault:.
+	@$(DOCKER_EXEC_VAULT) "vault policy write dev-policy local-vault-dev-policy.hcl"
+	@$(DOCKER_EXEC_VAULT) "vault write auth/approle/role/dev-role role_id=dev-role bind_secret_id=false secret_id_bound_cidrs='0.0.0.0/0' token_policies=dev-policy"
+
+dev-bootstrap-qontract-server:
+	$(DEV_CONF) $(MAKE) -C $(QONTRACT_SERVER_PATH) bundle
+	$(DEV_CONF) docker-compose up -d qontract-server
+
+dev-bootstrap-stack: dev-clean dev-bootstrap-vault dev-bootstrap-qontract-server
+
+dev-run-integration:
+	$(DEV_CONf) docker-compose up qontract-reconcile
 
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
