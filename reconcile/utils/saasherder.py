@@ -1295,7 +1295,7 @@ class SaasHerder():
                     state_config_hash = stateobj.get(TARGET_CONFIG_HASH)
                     promotion_data = item.get('promotion_data', None)
 
-                    # This code supports current saas deployments that does
+                    # This code supports current saas targets that does
                     # not have promotion_data yet
                     if not state_config_hash or \
                        not promotion_data:
@@ -1306,8 +1306,8 @@ class SaasHerder():
                         return True
 
                     # Validate the promotion_data section.
-                    # By now, just validate parent_saas_config hash
-                    # promotion_data type.
+                    # Just validate parent_saas_config hash
+                    # promotion_data type by now.
                     parent_saas_config = None
                     for pd in promotion_data:
                         pd_channel = pd.get("channel")
@@ -1318,10 +1318,10 @@ class SaasHerder():
                                 if t == "parent_saas_config":
                                     parent_saas_config = data
 
-                    # This section might not exist due to manual changes
-                    # on promoted changes that need to be applied.
+                    # This section might not exist due to a manual MR.
                     # Promotion shall continue if this data is missing.
-                    # The parent at the same ref succeed though.
+                    # The parent at the same ref has succeed if this code
+                    # is reached though.
                     if not parent_saas_config:
                         logging.info(
                             "Parent Saas config missing on target "
@@ -1330,8 +1330,7 @@ class SaasHerder():
                         return True
 
                     # Validate that the state config_hash set by the parent
-                    # is the same existent in the promotion_data on the same
-                    # ref.
+                    # matches with the hash set in promotion_data
                     promotion_target_config_hash = \
                         parent_saas_config.get(TARGET_CONFIG_HASH)
 
