@@ -317,6 +317,9 @@ TF_NAMESPACES_QUERY = """
         region
       }
       internal
+      disable {
+        integrations
+      }
     }
   }
 }
