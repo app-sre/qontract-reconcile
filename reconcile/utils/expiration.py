@@ -25,3 +25,18 @@ def role_still_valid(role: str) -> bool:
         if current_date < exp_date:
             return True
         return False
+
+
+def filter(roles, key='expirationDate'):
+    filtered = []
+    for r in roles:
+        expiration_date = r[key]
+        if not has_valid_expiration_date(expiration_date):
+            raise ValueError(
+                f'{key} field is not formatted as YYYY-MM-DD, '
+                f'currently set as {expiration_date}'
+            )
+        if role_still_valid(expiration_date):
+            filtered.append(r)
+
+    return filtered

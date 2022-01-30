@@ -110,21 +110,10 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
 
 def fetch_desired_state(oc_map):
     gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     desired_state = []
 
     for r in roles:
-        if not expiration.has_valid_expiration_date(r['expirationDate']):
-            raise ValueError(
-                f'expirationDate field is not formatted as YYYY-MM-DD, '
-                f'currently set as {r["expirationDate"]}'
-            )
-        if not expiration.role_still_valid(r['expirationDate']):
-            logging.warning(
-                f'The maximum expiration date of {r["name"]} '
-                f'has passed '
-            )
-            continue
         for a in r['access'] or []:
             if None in [a['cluster'], a['group']]:
                 continue

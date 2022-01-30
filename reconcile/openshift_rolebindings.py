@@ -88,20 +88,9 @@ def construct_sa_oc_resource(role, namespace, sa_name):
 
 def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     users_desired_state = []
     for role in roles:
-        if not expiration.has_valid_expiration_date(role['expirationDate']):
-            raise ValueError(
-                f'expirationDate field is not formatted as YYYY-MM-DD, '
-                f'currently set as {role["expirationDate"]}'
-            )
-        if not expiration.role_still_valid(role['expirationDate']):
-            logging.warning(
-                f'The maximum expiration date of {role["name"]} '
-                f'has passed '
-            )
-            continue
         permissions = [{'cluster': a['namespace']['cluster']['name'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
