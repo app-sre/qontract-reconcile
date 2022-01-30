@@ -45,10 +45,10 @@ integrations:
 - name: github-owners
   resources:
     requests:
-      memory: 50Mi
+      memory: 100Mi
       cpu: 100m
     limits:
-      memory: 80Mi
+      memory: 160Mi
       cpu: 200m
   logs:
     slack: true
@@ -285,10 +285,10 @@ integrations:
 - name: openshift-vault-secrets
   resources:
     requests:
-      memory: 600Mi
+      memory: 800Mi
       cpu: 900m
     limits:
-      memory: 800Mi
+      memory: 1000Mi
       cpu: 1200m
   extraArgs: --external --no-use-jump-host
   shards: 20
@@ -317,10 +317,10 @@ integrations:
 - name: terraform-resources-wrapper
   resources:
     requests:
-      memory: 500Mi
+      memory: 1500Mi
       cpu: 200m
     limits:
-      memory: 700Mi
+      memory: 2000Mi
       cpu: 400m
   extraArgs: --external --no-use-jump-host --vault-output-path app-sre/integrations-output
   logs:
