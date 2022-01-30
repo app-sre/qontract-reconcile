@@ -1,10 +1,10 @@
 import sys
-import datetime
 import logging
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob
 
+from reconcile.utils import expiration
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
@@ -91,12 +91,12 @@ def fetch_desired_state(ri, oc_map):
     roles = gqlapi.query(ROLES_QUERY)['roles']
     users_desired_state = []
     for role in roles:
-        if not has_valid_expiration_date(role['expirationDate']):
+        if not expiration.has_valid_expiration_date(role['expirationDate']):
             raise ValueError(
                 f'expirationDate field is not formatted as YYYY-MM-DD, '
                 f'currently set as {role["expirationDate"]}'
             )
-        if not role_still_valid(role['expirationDate']):
+        if not expiration.role_still_valid(role['expirationDate']):
             logging.warning(
                 f'The maximum expiration date of {role["name"]} '
                 f'has passed '
@@ -197,29 +197,3 @@ def run(dry_run, thread_pool_size=10, internal=None,
 
     if ri.has_error_registered():
         sys.exit(1)
-
-
-def has_valid_expiration_date(role: str) -> bool:
-    date_bool = True
-    if role is None:
-        return date_bool
-    else:
-        date_format = "%Y-%m-%d"
-        try:
-            date_bool = \
-                bool(datetime.datetime.strptime(role, date_format))
-        except ValueError:
-            date_bool = False
-        return date_bool
-
-
-def role_still_valid(role: str) -> bool:
-    if role is None:
-        return True
-    else:
-        exp_date = datetime.datetime \
-            .strptime(role, '%Y-%m-%d').date()
-        current_date = datetime.datetime.utcnow().date()
-        if current_date < exp_date:
-            return True
-        return False
