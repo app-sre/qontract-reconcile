@@ -281,10 +281,10 @@ integrations:
   sleepDurationSecs: 600
   resources:
     requests:
-      memory: 100Mi
+      memory: 300Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 600Mi
       cpu: 200m
   extraArgs: --wait-for-pipeline
 - name: jenkins-job-builder
