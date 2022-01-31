@@ -1,5 +1,6 @@
 import sys
 
+from reconcile.utils import expiration
 from reconcile.utils import gql
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile import queries
@@ -33,6 +34,7 @@ TF_QUERY = """
         uid
       }
     }
+    expirationDate
   }
 }
 """
@@ -46,7 +48,7 @@ def setup(print_to_file, thread_pool_size):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
-    roles = gqlapi.query(TF_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(TF_QUERY)['roles'])
     tf_roles = [r for r in roles
                 if r['aws_groups'] is not None
                 or r['user_policies'] is not None]
