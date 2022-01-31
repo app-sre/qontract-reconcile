@@ -1,3 +1,4 @@
+from ast import List
 import datetime
 
 
@@ -27,7 +28,7 @@ def role_still_valid(role: str) -> bool:
         return False
 
 
-def filter(roles, key='expirationDate'):
+def filter(roles: List[dict], key: str = 'expirationDate') -> List[dict]:
     filtered = []
     for r in roles:
         expiration_date = r[key]
