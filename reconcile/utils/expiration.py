@@ -29,6 +29,7 @@ def role_still_valid(role: str) -> bool:
 
 
 def filter(roles: List[dict], key: str = 'expirationDate') -> List[dict]:
+    """ Filters roles and returns the ones which are not yet expired. """
     filtered = []
     for r in roles:
         expiration_date = r[key]
