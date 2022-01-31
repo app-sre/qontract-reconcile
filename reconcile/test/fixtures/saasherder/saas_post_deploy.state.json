@@ -18,11 +18,11 @@
     "promotion_data": [
         {
             "channel": "test-saas-deployments-deploy",
-            "data": {
+            "data": [{
                 "type": "parent_saas_config",
                 "parent_saas": "test-saas-deployments-deploy",
                 "target_config_hash": "ed2af38cf21f268c"
-            }
+            }]
         }
     ]
   },
