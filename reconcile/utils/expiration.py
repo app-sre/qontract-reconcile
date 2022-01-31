@@ -1,7 +1,5 @@
 import datetime
 
-from typing import List
-
 
 def has_valid_expiration_date(role: str) -> bool:
     date_bool = True
@@ -29,7 +27,7 @@ def role_still_valid(role: str) -> bool:
         return False
 
 
-def filter(roles: List[dict], key: str = 'expirationDate') -> List[dict]:
+def filter(roles: list[dict], key: str = 'expirationDate') -> list[dict]:
     """ Filters roles and returns the ones which are not yet expired. """
     filtered = []
     for r in roles:
