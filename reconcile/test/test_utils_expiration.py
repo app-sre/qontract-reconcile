@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import date, timedelta
 from typing import Dict, List
 
@@ -10,7 +12,7 @@ apply = Fixtures('expiration') \
     .get_anymarkup('expiration_date_check.yml')
 
 
-class TestOpenshiftResource:
+class TestRoleExpiration:
     @staticmethod
     def test_check_temp_role_after_expiration_date():
         expiration_date = date.today() + \
@@ -62,3 +64,39 @@ def mock_openshift_role_bindings(expirationDate: str) -> List[Dict]:
 def mock_openshift_role_bindings_no_expiration_date() -> List[Dict]:
     openshift_rolebindings_roles = apply['gql_response']
     return openshift_rolebindings_roles
+
+
+class TestRoleExpirationFilter:
+    @staticmethod
+    def test_valid_roles():
+        roles = [
+            {
+                'expirationDate': '2500-01-01'
+            },
+            {
+                'expirationDate': '1990-01-01'
+            }
+        ]
+        filtered = expiration.filter(roles)
+        assert len(filtered) == 1
+        assert filtered[0]['expirationDate'] == '2500-01-01'
+
+    @staticmethod
+    def test_no_roles():
+        roles = [
+            {
+                'expirationDate': '1990-01-01'
+            }
+        ]
+        filtered = expiration.filter(roles)
+        assert len(filtered) == 0
+
+    @staticmethod
+    def test_invalid_format():
+        roles = [
+            {
+                'expirationDate': '25000101'
+            }
+        ]
+        with pytest.raises(ValueError):
+            expiration.filter(roles)
