@@ -1,5 +1,4 @@
 import sys
-import logging
 from reconcile.utils import gql
 from reconcile import queries
 import reconcile.openshift_base as ob

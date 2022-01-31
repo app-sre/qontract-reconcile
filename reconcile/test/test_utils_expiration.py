@@ -2,7 +2,6 @@ from datetime import date, timedelta
 from typing import Dict, List
 
 from reconcile.utils import expiration
-from reconcile.utils.semver_helper import make_semver
 
 
 from .fixtures import Fixtures
