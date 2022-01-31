@@ -1,5 +1,6 @@
-from ast import List
 import datetime
+
+from typing import List
 
 
 def has_valid_expiration_date(role: str) -> bool:
