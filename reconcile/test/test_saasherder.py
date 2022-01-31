@@ -622,30 +622,25 @@ class TestConfigHashPromotionsValidation(TestCase):
         self.assertIsNotNone(promotion[TARGET_CONFIG_HASH])
 
     def test_promotion_state_config_hash_match_validates(self):
-        """ A promotion is valid if the pusblisher state got from the state
-            is equal to the one set in the subscriber target promotion data.
-            This is the happy path, publisher job state target config hash is
-            the same set in the subscriber job
+        """ A promotion is valid if the parent target config_hash set in
+            the state is equal to the one set in the subscriber target
+            promotion data. This is the happy path.
         """
-        configs = \
-            self.saasherder.get_saas_targets_config(self.saas_file)
-
-        tcs = list(configs.values())
-        publisher_config_hash = tcs[0]['promotion'][TARGET_CONFIG_HASH]
-
         publisher_state = {
             "success": True,
             "saas_file": self.saas_file["name"],
-            TARGET_CONFIG_HASH: publisher_config_hash
+            TARGET_CONFIG_HASH: "ed2af38cf21f268c"
         }
         self.state_mock.get.return_value = publisher_state
-        result = self.saasherder.validate_promotions(self.all_saas_files)
+        result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
     def test_promotion_state_config_hash_not_match_no_validates(self):
         """ Promotion is not valid if the parent target config hash set in
-        promotion data is not the same set in the publisher job state. This
-        could happen if a new publisher job has before the subscriber job
+        the state does not match with the one set in the subsriber target
+        promotion_data. This could happen if the parent target has run again
+        with the same ref before before the subscriber target promotion MR is
+        merged.
         """
         publisher_state = {
             "success": True,
@@ -653,18 +648,36 @@ class TestConfigHashPromotionsValidation(TestCase):
             TARGET_CONFIG_HASH: "will_not_match"
         }
         self.state_mock.get.return_value = publisher_state
-        result = self.saasherder.validate_promotions(self.all_saas_files)
+        result = self.saasherder.validate_promotions()
         self.assertFalse(result)
 
     def test_promotion_without_state_config_hash_validates(self):
         """ Existent states won't have promotion data. If there is an ongoing
             promotion, this ensures it will happen.
         """
-        promotion_result = {
+        publisher_state = {
             "success": True,
         }
-        self.state_mock.get.return_value = promotion_result
-        result = self.saasherder.validate_promotions(self.all_saas_files)
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
+        self.assertTrue(result)
+
+    def test_promotion_without_promotion_data_validates(self):
+        """ A manual promotion might be required, subsribed targets without
+            promotion_data should validate if the parent target job has succed
+            with the same ref.
+        """
+        publisher_state = {
+            "success": True,
+            "saas_file": self.saas_file["name"],
+            TARGET_CONFIG_HASH: "whatever"
+        }
+
+        # Remove promotion_data on the promoted target
+        self.saasherder.promotions[1]["promotion_data"] = None
+
+        self.state_mock.get.return_value = publisher_state
+        result = self.saasherder.validate_promotions()
         self.assertTrue(result)
 
 
@@ -738,7 +751,7 @@ class TestConfigHashTrigger(TestCase):
 
         desired_tc = list(configs.values())[1]
         desired_promo_data = desired_tc["promotion"]["promotion_data"]
-        desired_promo_data[0]["data"][TARGET_CONFIG_HASH] = "Changed"
+        desired_promo_data[0]["data"][0][TARGET_CONFIG_HASH] = "Changed"
 
         job_specs = \
             self.saasherder.get_configs_diff_saas_file(self.saas_file)
