@@ -63,12 +63,11 @@ dev-reconcile-loop: build ## Trigger the reconcile loop inside a container for a
 		$(IMAGE_NAME):$(IMAGE_TAG)
 
 clean:
-	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
+	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
-dev-venv: ## Create a local venv for your IDE and remote debugging
-	rm -rf venv
+dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	python3.9 -m venv venv
 	. ./venv/bin/activate && pip install --upgrade pip
 	. ./venv/bin/activate && pip install -e .
