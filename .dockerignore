@@ -9,3 +9,4 @@ throughput
 
 **/__pycache__
 **/*.pyc
+.container_tmp

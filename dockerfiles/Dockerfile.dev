@@ -14,6 +14,8 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 FROM quay.io/app-sre/qontract-reconcile-base:0.7.1
 
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
 # Cache mount. We don't need te wheel files in the final image.
 # This COPY will create a layer with all the wheel files to install the app.
 # This layer is not needed in the final image, so we can leverage a cache mount
@@ -25,10 +27,8 @@ COPY --from=build-image /work/ /tmp/work/
 COPY . /work
 WORKDIR /work
 
-RUN microdnf upgrade -y && \
-    python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
-    python3 -m pip install -e .
+RUN python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile
+RUN python3 -m pip install -e .
 
 VOLUME ["/work"]
 CMD [ "/work/dev/run.sh" ]

@@ -1,16 +1,10 @@
 .PHONY: help build push rc build-test test-app test-container-image test clean
 
-SHELL := /bin/bash
-
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 IMAGE_TEST := reconcile-test
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
-
-DOCKER_EXEC_VAULT := docker exec vault /bin/sh -c
-DEV_CONF := . ./dev/conf &&
-DEV_CONF_EXISTS := test -s dev/conf || { echo "file dev/conf does not exist! Exiting..."; exit 1; }
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -57,14 +51,21 @@ test-container-image: build ## Target to test the final image
 
 test: test-app test-container-image
 
+dev-reconcile-loop: build ## Trigger the reconcile loop inside a container for an integration
+	@$(CONTAINER_ENGINE) run --rm \
+		--add-host=host.docker.internal:host-gateway \
+		-v $(CURDIR):/work \
+		-e INTEGRATION_NAME=$(INTEGRATION_NAME) \
+		-e INTEGRATION_EXTRA_ARGS=$(INTEGRATION_EXTRA_ARGS) \
+		-e SLEEP_DURATION_SECS=$(SLEEP_DURATION_SECS) \
+		-e DRY_RUN=$(DRY_RUN) \
+		-e CONFIG=/work/config.dev.toml \
+		$(IMAGE_NAME):$(IMAGE_TAG)
+
 clean:
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
-
-dev-clean:
-	@$(DEV_CONF_EXISTS)
-	$(DEV_CONF) docker-compose down
 
 dev-venv: ## Create a local venv for your IDE and remote debugging
 	rm -rf venv
@@ -73,27 +74,3 @@ dev-venv: ## Create a local venv for your IDE and remote debugging
 	. ./venv/bin/activate && pip install -e .
 	. ./venv/bin/activate && pip install -r requirements-debugger.txt
 	. ./venv/bin/activate && pip install -r requirements-test.txt
-
-dev-bootstrap-vault: ## Bootstrap a fully configured vault container which is reachable via http://localhost:8200. Root access token: 'root'
-	@$(DEV_CONF_EXISTS)
-	$(DEV_CONF) docker-compose up -d vault
-# Give the vault API some time to boot
-	sleep 1
-	@$(DOCKER_EXEC_VAULT) "vault secrets disable secret"
-	@$(DOCKER_EXEC_VAULT) "vault secrets enable -version=1 -path=app-sre kv"
-	@$(DOCKER_EXEC_VAULT) "vault auth enable approle"
-# We need a dedicated policy because: hvac.exceptions.InvalidRequest: auth methods cannot create root tokens
-	docker cp ./dev/local-vault-dev-policy.hcl vault:.
-	@$(DOCKER_EXEC_VAULT) "vault policy write dev-policy local-vault-dev-policy.hcl"
-	@$(DOCKER_EXEC_VAULT) "vault write auth/approle/role/dev-role role_id=dev-role bind_secret_id=false secret_id_bound_cidrs='0.0.0.0/0' token_policies=dev-policy"
-
-dev-bootstrap-qontract-server: ## Bundle all data and start qontract-server. Schema and data paths are taken from dev/conf.
-	@$(DEV_CONF_EXISTS)
-	$(DEV_CONF) $(MAKE) -C $(QONTRACT_SERVER_PATH) bundle
-	$(DEV_CONF) docker-compose up -d qontract-server
-
-dev-run-integration: ## Run your integration as configured in dev/conf
-	@$(DEV_CONF_EXISTS)
-	$(DEV_CONF) docker-compose up qontract-reconcile
-
-dev-bootstrap-stack: dev-clean dev-bootstrap-vault dev-bootstrap-qontract-server ## Convenience target to bootstrap all dependencies. Does not start qontract-reconcile.
