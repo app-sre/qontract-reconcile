@@ -46,18 +46,18 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `kafka-clusters`: Manages Kafka clusters via OCM.
 - `ldap-users`: Removes users which are not found in LDAP search.
 - `openshift-clusterrolebindings`: Configures ClusterRolebindings in OpenShift clusters.
-- `openshift-groups`: [Manages OpenShift Groups.](/docs/integreations/openshift_groups.md)
+- `openshift-groups`: [Manages OpenShift Groups.](/docs/integrations/openshift_groups.md)
 - `openshift-limitranges`: Manages OpenShift LimitRange objects.
 - `openshift-resourcequotas`: Manages OpenShift ResourceQuota objects.
 - `openshift-namespaces`: Manages OpenShift Namespaces.
-- `openshift-network-policies`: [Manages OpenShift NetworkPolicies.](/docs/integreations/openshift_network_policies.md)
+- `openshift-network-policies`: [Manages OpenShift NetworkPolicies.](/docs/integrations/openshift_network_policies.md)
 - `openshift-resources`: Manages OpenShift Resources.
 - `openshift-rolebindings`: Configures Rolebindings in OpenShift clusters.
-- `openshift-routes`: [Manages OpenShift Routes.](/docs/integreations/openshift_routes.md)
+- `openshift-routes`: [Manages OpenShift Routes.](/docs/integrations/openshift_routes.md)
 - `openshift-saas-deploy`: Manage OpenShift resources defined in Saas files (SaasHerder).
 - `openshift-saas-deploy-trigger-moving-commits`: Trigger jobs in Jenkins when a commit changed for a ref.
 - `openshift-saas-deploy-trigger-configs`: Trigger jobs in Jenkins when configuration changed.
-- `openshift-serviceaccount-tokens`: [Use OpenShift ServiceAccount tokens across namespaces/clusters.](/docs/integreations/openshift_serviceaccount_tokens.md)
+- `openshift-serviceaccount-tokens`: [Use OpenShift ServiceAccount tokens across namespaces/clusters.](/docs/integrations/openshift_serviceaccount_tokens.md)
 - `openshift-users`: Deletion of users from OpenShift clusters.
 - `openshift-vault-secrets`: [Manages OpenShift Secrets from Vault.](/docs/integrations/openshift_vault_secrets.md)
 - `openshift-upgrade-watcher`: Watches for OpenShift upgrades and sends notifications.
@@ -74,7 +74,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 - `terraform-resources`: Manage AWS Resources using Terraform.
 - `terraform-users`: Manage AWS users using Terraform.
 - `terraform-vpc-peerings`: Manage VPC peerings between OSDv4 clusters and AWS accounts.
-- `ocm-groups`: [Manage membership in OpenShift groups using OpenShift Cluster Manager.](/docs/integreations/openshift_groups.md)
+- `ocm-groups`: [Manage membership in OpenShift groups using OpenShift Cluster Manager.](/docs/integrations/openshift_groups.md)
 - `ocm-clusters`: Manages clusters via OCM.
 - `ocm-aws-infrastructure-access`: Grants AWS infrastructure access to members in AWS groups via OCM.
 - `ocm-github-idp`: Manage GitHub Identity Providers in OCM.
