@@ -6,7 +6,7 @@ from reconcile.utils.slack_api import SlackApi, SlackApiConfig
 
 
 def slackapi_from_queries(integration_name: str,
-                          init_usergroups: bool = False) -> SlackApi:
+                          init_usergroups: bool = True) -> SlackApi:
     app_interface_settings = queries.get_app_interface_settings()
     slack_workspace = {'workspace': queries.get_slack_workspace()}
     return slackapi_from_dict(slack_workspace, app_interface_settings,
@@ -15,7 +15,7 @@ def slackapi_from_queries(integration_name: str,
 
 def slackapi_from_dict(slack_workspace: Mapping[str, Any],
                        app_interface_settings: Mapping[str, Any],
-                       integration_name: str, init_usergroups: bool = False,
+                       integration_name: str, init_usergroups: bool = True,
                        channel: Optional[str] = None) -> SlackApi:
     if 'workspace' not in slack_workspace:
         raise ValueError(

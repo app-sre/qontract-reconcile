@@ -63,7 +63,8 @@ def init_slack(jira_board):
 
     return slackapi_from_dict(slack_info, settings,
                               QONTRACT_INTEGRATION,
-                              channel=slack_info.get('channel'))
+                              channel=slack_info.get('channel'),
+                              init_usergroups=False)
 
 
 def act(dry_run, jira_board, diffs):

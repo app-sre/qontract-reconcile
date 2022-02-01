@@ -76,7 +76,8 @@ def init_slack_map(unleash_instance) -> Dict[str, SlackApi]:
     for slack_info in slack_notifications:
         channel = slack_info['channel']
         slack_map[channel] = slackapi_from_dict(slack_info, settings,
-                                                QONTRACT_INTEGRATION)
+                                                QONTRACT_INTEGRATION,
+                                                init_usergroups=False)
 
     return slack_map
 
