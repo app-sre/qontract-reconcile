@@ -2,6 +2,7 @@ import logging
 import sys
 
 from reconcile.utils import gql
+from reconcile.utils import expiration
 
 from reconcile.utils.aggregated_list import (AggregatedList,
                                              AggregatedDiffRunner,
@@ -34,6 +35,7 @@ QUAY_ORG_QUERY = """
         team
       }
     }
+    expirationDate
   }
 }
 """
@@ -86,7 +88,7 @@ def fetch_current_state(quay_api_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    result = gqlapi.query(QUAY_ORG_QUERY)
+    result = expiration.filter(gqlapi.query(QUAY_ORG_QUERY))
 
     state = AggregatedList()
 
