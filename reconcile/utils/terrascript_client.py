@@ -4036,7 +4036,14 @@ class TerrascriptClient:
                 },
                 {
                     "Effect": "Allow",
-                    "Action": ["route53:ListHostedZones"],
+                    "Action": [
+                        "route53:List*"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": ["tag:GetResources"],
                     "Resource": "*"
                 }
             ]
