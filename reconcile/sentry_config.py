@@ -456,8 +456,8 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
     # Query for users that should be in sentry
     team_members = {}
     sentryUrl = sentry_instance['consoleUrl']
-    result = expiration.filter(gqlapi.query(SENTRY_USERS_QUERY))
-    for role in result['roles']:
+    roles = expiration.filter(gqlapi.query(SENTRY_USERS_QUERY)['roles'])
+    for role in roles:
         if role['sentry_teams'] is None:
             continue
 

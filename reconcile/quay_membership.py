@@ -88,11 +88,11 @@ def fetch_current_state(quay_api_store):
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    result = expiration.filter(gqlapi.query(QUAY_ORG_QUERY))
+    roles = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)['roles'])
 
     state = AggregatedList()
 
-    for role in result['roles']:
+    for role in roles:
         permissions = [
             process_permission(p)
             for p in role['permissions']
