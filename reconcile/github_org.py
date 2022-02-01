@@ -7,6 +7,7 @@ from github.GithubObject import NotSet  # type: ignore
 from sretoolbox.utils import retry
 
 from reconcile.utils import gql
+from reconcile.utils import expiration
 from reconcile.utils.secret_reader import SecretReader
 from reconcile import openshift_users
 from reconcile import queries
@@ -53,6 +54,7 @@ ROLES_QUERY = """
         team
       }
     }
+    expirationDate
   }
 }
 """
@@ -165,7 +167,7 @@ def fetch_desired_state(infer_clusters=True):
     gqlapi = gql.get_api()
     state = AggregatedList()
 
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     for role in roles:
         permissions = list(filter(
             lambda p: p.get('service') in ['github-org', 'github-org-team'],
