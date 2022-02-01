@@ -5,6 +5,7 @@ gql_response:
     - quay_username: user2
     bots: []
     name: role1
+    expirationDate: null
     permissions:
     - service: quay-membership
       quayOrg:

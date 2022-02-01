@@ -4,6 +4,7 @@ gql_response:
     - github_username: user1
     bots: []
     name: role1
+    expirationDate: null
     permissions:
     - org: org_a
       service: github-org
