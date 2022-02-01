@@ -1,6 +1,7 @@
 import logging
 
 from reconcile.utils import gql
+from reconcile.utils import expiration
 from reconcile import queries
 
 from reconcile.utils.jenkins_api import JenkinsApi
@@ -45,6 +46,7 @@ ROLES_QUERY = """
         }
       }
     }
+    expirationDate
   }
 }
 """
@@ -95,7 +97,7 @@ def get_current_state(jenkins_map):
 
 def get_desired_state():
     gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
 
     desired_state = []
     for r in roles:
