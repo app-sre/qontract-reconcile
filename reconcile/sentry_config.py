@@ -6,6 +6,7 @@ from github.GithubException import UnknownObjectException
 
 from reconcile import queries
 from reconcile.utils import gql
+from reconcile.utils import expiration
 
 from reconcile.github_users import init_github
 from reconcile.utils.secret_reader import SecretReader
@@ -67,6 +68,7 @@ SENTRY_USERS_QUERY = """
       }
       role
     }
+    expirationDate
   }
 }
 """
@@ -454,7 +456,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
     # Query for users that should be in sentry
     team_members = {}
     sentryUrl = sentry_instance['consoleUrl']
-    result = gqlapi.query(SENTRY_USERS_QUERY)
+    result = expiration.filter(gqlapi.query(SENTRY_USERS_QUERY))
     for role in result['roles']:
         if role['sentry_teams'] is None:
             continue
