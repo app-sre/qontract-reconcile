@@ -4013,7 +4013,12 @@ class TerrascriptClient:
             "Statement": [
                 {
                     "Effect": "Allow",
-                    "Action": ["route53:*"],
+                    "Action": [
+                        "route53:Change*",
+                        "route53:Create*",
+                        "route53:Get*",
+                        "route53:List*",
+                    ],
                     "Resource":
                         "arn:aws:route53:::hostedzone/" +
                         f"${{{zone_tf_resource.zone_id}}}"
