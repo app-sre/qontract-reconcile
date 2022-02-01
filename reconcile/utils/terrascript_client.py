@@ -419,7 +419,7 @@ class TerrascriptClient:
                 account_uid = user_policy['account']['uid']
                 for user in users:
                     # replace known keys with values
-                    user_name = user['org_username']
+                    user_name = self._get_aws_username(user)
                     policy = user_policy['policy']
                     policy = policy.replace('${aws:username}', user_name)
                     policy = \
