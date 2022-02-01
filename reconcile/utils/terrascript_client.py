@@ -4008,7 +4008,6 @@ class TerrascriptClient:
         output_value = f'${{{zone_tf_resource.name_servers}}}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        # TODO: find the proper permissions
         policy = {
             "Version": "2012-10-17",
             "Statement": [
