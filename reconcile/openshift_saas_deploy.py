@@ -142,7 +142,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
 
     # validate that this deployment is valid
     # based on promotion information in targets
-    if not saasherder.validate_promotions(all_saas_files):
+    if not saasherder.validate_promotions():
         logging.error('invalid promotions')
         ri.register_error()
         sys.exit(ExitCodes.ERROR)

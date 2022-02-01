@@ -165,10 +165,10 @@ integrations:
 - name: openshift-saas-deploy-trigger-configs
   resources:
     requests:
-      memory: 800Mi
+      memory: 1000Mi
       cpu: 400m
     limits:
-      memory: 1000Mi
+      memory: 1200Mi
       cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
@@ -220,10 +220,10 @@ integrations:
   # resources are tentative for the moment
   resources:
     requests:
-      memory: 800Mi
+      memory: 1500Mi
       cpu: 400m
     limits:
-      memory: 1000Mi
+      memory: 1500Mi
       cpu: 600m
   extraArgs: --no-use-jump-host
   logs:
@@ -281,10 +281,10 @@ integrations:
   sleepDurationSecs: 600
   resources:
     requests:
-      memory: 100Mi
+      memory: 300Mi
       cpu: 100m
     limits:
-      memory: 200Mi
+      memory: 600Mi
       cpu: 200m
   extraArgs: --wait-for-pipeline
 - name: jenkins-job-builder
