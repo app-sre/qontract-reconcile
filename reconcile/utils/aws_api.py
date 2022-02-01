@@ -978,6 +978,9 @@ class AWSApi:
                     attachment_parties = \
                         [a['RequesterTgwInfo'], a['AccepterTgwInfo']]
                     for party in attachment_parties:
+                        if party['OwnerId'] != account['uid']:
+                            # TGW attachment to another account, skipping
+                            continue
                         party_tgw_id = party['TransitGatewayId']
                         party_region = party['Region']
                         party_ec2 = self._account_ec2_client(account['name'],
