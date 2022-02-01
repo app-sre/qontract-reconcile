@@ -1878,6 +1878,709 @@ objects:
           emptyDir: {}
         - name: fluentd-config
           emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    name: qontract-reconcile-openshift-saas-deploy-trigger-configs-0
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-saas-deploy-trigger-configs
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "3"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-saas-deploy-trigger-configs
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT}
+            requests:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    name: qontract-reconcile-openshift-saas-deploy-trigger-configs-1
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-saas-deploy-trigger-configs
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "3"
+          - name: SHARD_ID
+            value: "1"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-saas-deploy-trigger-configs
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT}
+            requests:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    name: qontract-reconcile-openshift-saas-deploy-trigger-configs-2
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-saas-deploy-trigger-configs
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "3"
+          - name: SHARD_ID
+            value: "2"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-saas-deploy-trigger-configs
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: APP_INTERFACE_STATE_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: app-interface
+                key: aws.s3.bucket
+          - name: APP_INTERFACE_STATE_BUCKET_ACCOUNT
+            value: "${APP_INTERFACE_STATE_BUCKET_ACCOUNT}"
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT}
+            requests:
+              cpu: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST}
+              memory: ${OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      app: qontract-reconcile-openshift-tekton-resources
+    name: qontract-reconcile-openshift-tekton-resources
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: qontract-reconcile-openshift-tekton-resources
+    template:
+      metadata:
+        labels:
+          app: qontract-reconcile-openshift-tekton-resources
+          component: qontract-reconcile
+      spec:
+        serviceAccountName: qontract-reconcile
+        initContainers:
+        - name: internal-certificates
+          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
+          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            cp -r /etc/pki/. /tmp/etc-pki/
+          volumeMounts:
+          - name: internal-certificates
+            mountPath: /tmp/etc-pki/
+        - name: config
+          image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
+          imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
+          resources:
+            requests:
+              memory: 10Mi
+              cpu: 15m
+            limits:
+              memory: 20Mi
+              cpu: 25m
+          env:
+          - name: LOG_GROUP_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: log_group_name
+          command: ["/bin/sh", "-c"]
+          args:
+          - |
+            # generate fluent.conf
+            cat > /fluentd/etc/fluent.conf <<EOF
+            <source>
+              @type tail
+              path /fluentd/log/integration.log
+              pos_file /fluentd/log/integration.log.pos
+              tag integration
+              <parse>
+                @type none
+              </parse>
+            </source>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /using gql endpoint/
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
+                pattern /Certificate did not match expected hostname/
+              </exclude>
+            </filter>
+
+            <match integration>
+              @type copy
+              <store>
+                @type cloudwatch_logs
+                log_group_name ${LOG_GROUP_NAME}
+                log_stream_name openshift-tekton-resources
+                auto_create_stream true
+              </store>
+            </match>
+            EOF
+          volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        containers:
+        - name: int
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - name: http
+              containerPort: 9090
+          env:
+          - name: SHARDS
+            value: "1"
+          - name: SHARD_ID
+            value: "0"
+          - name: DRY_RUN
+            value: ${DRY_RUN}
+          - name: INTEGRATION_NAME
+            value: openshift-tekton-resources
+          - name: INTEGRATION_EXTRA_ARGS
+            value: ""
+          - name: SLEEP_DURATION_SECS
+            value: ${SLEEP_DURATION_SECS}
+          - name: GITHUB_API
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: GITHUB_API
+          - name: SENTRY_DSN
+            valueFrom:
+              configMapKeyRef:
+                name: app-interface
+                key: SENTRY_DSN
+          - name: LOG_FILE
+            value: "${LOG_FILE}"
+          - name: SLOW_OC_RECONCILE_THRESHOLD
+            value: "${SLOW_OC_RECONCILE_THRESHOLD}"
+          - name: LOG_SLOW_OC_RECONCILE
+            value: "${LOG_SLOW_OC_RECONCILE}"
+          - name: USE_NATIVE_CLIENT
+            value: "${USE_NATIVE_CLIENT}"
+          resources:
+            limits:
+              cpu: ${OPENSHIFT_TEKTON_RESOURCES_CPU_LIMIT}
+              memory: ${OPENSHIFT_TEKTON_RESOURCES_MEMORY_LIMIT}
+            requests:
+              cpu: ${OPENSHIFT_TEKTON_RESOURCES_CPU_REQUEST}
+              memory: ${OPENSHIFT_TEKTON_RESOURCES_MEMORY_REQUEST}
+          volumeMounts:
+          - name: qontract-reconcile-toml
+            mountPath: /config
+          - name: internal-certificates
+            mountPath: /etc/pki/
+          - name: logs
+            mountPath: /fluentd/log/
+        - name: fluentd
+          image: ${FLUENTD_IMAGE}:${FLUENTD_IMAGE_TAG}
+          imagePullPolicy: ${FLUENTD_IMAGE_PULL_POLICY}
+          env:
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_region
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_access_key_id
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${CLOUDWATCH_SECRET}
+                key: aws_secret_access_key
+          resources:
+            requests:
+              memory: 30Mi
+              cpu: 15m
+            limits:
+              memory: 120Mi
+              cpu: 25m
+          volumeMounts:
+          - name: logs
+            mountPath: /fluentd/log/
+          - name: fluentd-config
+            mountPath: /fluentd/etc/
+        volumes:
+        - name: qontract-reconcile-toml
+          secret:
+            secretName: qontract-reconcile-toml
+        - name: logs
+          emptyDir: {}
+        - name: fluentd-config
+          emptyDir: {}
+        - name: internal-certificates
+          emptyDir: {}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -2035,3 +2738,19 @@ parameters:
   value: 100m
 - name: JENKINS_WEBHOOKS_MEMORY_REQUEST
   value: 100Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_LIMIT
+  value: 600m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_LIMIT
+  value: 1200Mi
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_SAAS_DEPLOY_TRIGGER_CONFIGS_MEMORY_REQUEST
+  value: 1000Mi
+- name: OPENSHIFT_TEKTON_RESOURCES_CPU_LIMIT
+  value: 600m
+- name: OPENSHIFT_TEKTON_RESOURCES_MEMORY_LIMIT
+  value: 1500Mi
+- name: OPENSHIFT_TEKTON_RESOURCES_CPU_REQUEST
+  value: 400m
+- name: OPENSHIFT_TEKTON_RESOURCES_MEMORY_REQUEST
+  value: 1500Mi

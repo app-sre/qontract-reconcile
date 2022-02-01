@@ -110,3 +110,25 @@ integrations:
       cpu: 200m
   cache: true
   disableUnleash: true
+- name: openshift-saas-deploy-trigger-configs
+  resources:
+    requests:
+      memory: 1000Mi
+      cpu: 400m
+    limits:
+      memory: 1200Mi
+      cpu: 600m
+  state: true
+  shards: 3
+  trigger: true
+  disableUnleash: true
+- name: openshift-tekton-resources
+  resources:
+    requests:
+      memory: 1500Mi
+      cpu: 400m
+    limits:
+      memory: 1500Mi
+      cpu: 600m
+  internalCertificates: true
+  disableUnleash: true
