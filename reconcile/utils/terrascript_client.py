@@ -3344,6 +3344,13 @@ class TerrascriptClient:
             es_values["vpc_options"]['security_group_ids'] = security_group_ids
 
         advanced_options = values.get('advanced_options', None)
+        if advanced_options and \
+           not advanced_options.get('override_main_response_version', None):
+            '''
+            By default terraform expects this to be False. If not set (null),
+            then this results in an 'Update' request on each plan/apply.
+            '''
+            advanced_options['override_main_response_version'] = False
         if advanced_options is not None:
             es_values["advanced_options"] = advanced_options
 
