@@ -3134,6 +3134,7 @@ class TerrascriptClient:
         self, identifier, account,
         resource, values, output_prefix
     ):
+        ES_LOG_GROUP_RETENTION_DAYS = 180
         tf_resources = []
         publishing_options = []
         # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
@@ -3175,7 +3176,7 @@ class TerrascriptClient:
             log_group_values = {
                 'name': log_type_identifier,
                 'tags': {},
-                'retention_in_days': 90,
+                'retention_in_days': ES_LOG_GROUP_RETENTION_DAYS,
             }
             region = values.get('region') or \
                 self.default_regions.get(account)
