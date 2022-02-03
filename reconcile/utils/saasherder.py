@@ -1073,28 +1073,30 @@ class SaasHerder():
                     continue
 
                 state_build_result_number = state_build_result['number']
-                for build_result in job_history:
-                    # this is the most important condition
-                    # if there is a successful newer build -
-                    # trigger the deployment ONCE.
-                    if build_result['number'] > state_build_result_number \
-                            and build_result['result'] == 'SUCCESS':
-                        # we finally found something we want to trigger on!
-                        job_spec = {
-                            'saas_file_name': saas_file_name,
-                            'env_name': env_name,
-                            'timeout': timeout,
-                            'pipelines_provider': pipelines_provider,
-                            'rt_name': rt_name,
-                            'cluster_name': cluster_name,
-                            'namespace_name': namespace_name,
-                            'instance_name': instance_name,
-                            'job_name': job_name,
-                            'last_build_result': last_build_result,
-                        }
-                        trigger_specs.append(job_spec)
-                        # only trigger once, even if multiple builds happened
-                        break
+                last_build_result_number = last_build_result['number']
+                # this is the most important condition
+                # if there is a successful newer build -
+                # trigger the deployment.
+                # we only check the last build result. even
+                # if there are newer ones, but the last one
+                # is not successful, triggering the deployment
+                # will end up in a failure.
+                if last_build_result_number > state_build_result_number \
+                        and last_build_result['result'] == 'SUCCESS':
+                    # we finally found something we want to trigger on!
+                    job_spec = {
+                        'saas_file_name': saas_file_name,
+                        'env_name': env_name,
+                        'timeout': timeout,
+                        'pipelines_provider': pipelines_provider,
+                        'rt_name': rt_name,
+                        'cluster_name': cluster_name,
+                        'namespace_name': namespace_name,
+                        'instance_name': instance_name,
+                        'job_name': job_name,
+                        'last_build_result': last_build_result,
+                    }
+                    trigger_specs.append(job_spec)
 
         return trigger_specs
 
