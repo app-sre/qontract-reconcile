@@ -55,6 +55,7 @@ class SaasHerder():
                  accounts=None,
                  validate=False):
         self.saas_files = saas_files
+        self.repo_urls = self._collect_repo_urls()
         if validate:
             self._validate_saas_files()
             if not self.valid:
@@ -66,7 +67,6 @@ class SaasHerder():
         self.settings = settings
         self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
-        self.repo_urls = self._collect_repo_urls()
         self.jenkins_map = jenkins_map
         # each namespace is in fact a target,
         # so we can use it to calculate.
