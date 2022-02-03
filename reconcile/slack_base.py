@@ -30,6 +30,9 @@ def init_slack(slack_info, integration, init_usergroups=True):
         slack_api_kwargs['api_config'] = \
             SlackApiConfig.from_dict(client_config)
 
+    if channel:
+        slack_api_kwargs['init_join_channel'] = True
+
     slack = SlackApi(workspace_name, token, **slack_api_kwargs)
 
     return slack

@@ -1,10 +1,11 @@
 import json
 from collections import namedtuple
-from unittest.mock import call, patch
+from unittest.mock import call, patch, MagicMock
 
 import httpretty
 import pytest
 from slack_sdk.errors import SlackApiError
+from slack_sdk.web import SlackResponse
 
 import reconcile
 from reconcile.utils.slack_api import SlackApi, MAX_RETRIES, \
@@ -165,6 +166,35 @@ def test_chat_post_message_missing_channel(slack_api):
     slack_api.client.channel = None
     with pytest.raises(ValueError):
         slack_api.client.chat_post_message('test')
+
+
+def test_join_channel_missing_channel(slack_api):
+    """Raises an exception when the channel is not set."""
+    slack_api.client.channel = None
+    with pytest.raises(ValueError):
+        slack_api.client.join_channel()
+
+
+@pytest.mark.parametrize("joined", [True, False])
+def test_join_channel_already_joined(slack_api, mocker, joined):
+    mocker.patch('reconcile.utils.slack_api.SlackApi.get_channels_by_names',
+                 return_value={'123': 'test', '456': 'foo'})
+    slack_api.client.channel = 'test'
+    slack_response = MagicMock(SlackResponse)
+    slack_response.data = {'channel': {'is_member': joined}}
+    slack_api.mock_slack_client.return_value.conversations_info. \
+        return_value = slack_response
+    slack_api.mock_slack_client.return_value.conversations_join. \
+        return_value = None
+    slack_api.client.join_channel()
+    slack_api.mock_slack_client.return_value.conversations_info. \
+        assert_called_once_with(channel='123')
+    if joined:
+        slack_api.mock_slack_client.return_value.conversations_join. \
+            assert_not_called()
+    else:
+        slack_api.mock_slack_client.return_value.conversations_join. \
+            assert_called_once_with(channel='123')
 
 
 def test_update_usergroup_users(slack_api):
