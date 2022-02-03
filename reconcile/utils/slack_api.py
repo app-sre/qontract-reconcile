@@ -150,8 +150,11 @@ class SlackApi:
         if init_usergroups:
             self._initiate_usergroups()
 
+        """
+        Ratelimiting issue, needs further investigation
         if init_join_channel and self.channel:
             self.join_channel()
+        """
 
     def _configure_client_retry(self) -> None:
         """
