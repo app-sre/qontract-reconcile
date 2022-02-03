@@ -8,6 +8,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.defer import defer
+from reconcile.utils import expiration
 
 
 ROLES_QUERY = """
@@ -27,6 +28,7 @@ ROLES_QUERY = """
       }
       clusterRole
     }
+    expirationDate
   }
 }
 """
@@ -86,7 +88,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
 
 def fetch_desired_state(ri, oc_map):
     gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     users_desired_state = []
     # set namespace to something indicative
     namepsace = 'cluster'

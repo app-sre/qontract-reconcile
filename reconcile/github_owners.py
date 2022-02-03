@@ -5,6 +5,7 @@ from github import Github
 from sretoolbox.utils import retry
 
 from reconcile.utils import gql
+from reconcile.utils import expiration
 
 from reconcile.github_org import get_config
 from reconcile.utils.raw_github_api import RawGithubApi
@@ -31,6 +32,7 @@ ROLES_QUERY = """
         role
       }
     }
+    expirationDate
   }
 }
 """
@@ -41,7 +43,7 @@ QONTRACT_INTEGRATION = 'github-owners'
 def fetch_desired_state():
     desired_state = {}
     gqlapi = gql.get_api()
-    roles = gqlapi.query(ROLES_QUERY)['roles']
+    roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     for role in roles:
         permissions = [p for p in role['permissions']
                        if p.get('service')
