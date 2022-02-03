@@ -3202,11 +3202,6 @@ class TerrascriptClient:
             )
             output_value = log_type_identifier
             tf_resources.append(Output(output_name_0_13, value=output_value))
-
-            if log_type == 'AUDIT_LOGS':
-                # Audit logs require special attention - manual step for now
-                # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/audit-logs.html
-                continue
             publishing_options.append(
                 {
                     'log_type': log_type,
