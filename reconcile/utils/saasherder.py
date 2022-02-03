@@ -739,7 +739,7 @@ class SaasHerder():
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
 
-        # Instance exists in v1 saas files only.
+        # Instance exists in this level in v1 saas files only.
         instance = saas_file.get('instance')
         instance_name = instance['name'] if instance else None
 
@@ -778,6 +778,19 @@ class SaasHerder():
                 )
                 digest = SaasHerder.get_target_config_hash(target_configs[key])
 
+                upstream = target.get('upstream')
+                if upstream and not instance:
+                    # in case upstream is defined and instance is
+                    # not defined at the saas file level,
+                    # this is a saas file v2.
+                    # the upstream section looks like this:
+                    # upstream:
+                    #   instance:
+                    #     $ref: /path/to/instance.yml
+                    #   name: job-name
+                    instance_name = upstream['instance']['name']
+                    upstream = upstream['name']
+
                 process_template_options = {
                     'saas_file_name': saas_file_name,
                     'resource_template_name': rt_name,
@@ -805,7 +818,7 @@ class SaasHerder():
                     'process_template_options': process_template_options,
                     'check_images_options_base': check_images_options_base,
                     'instance_name': instance_name,
-                    'upstream': target.get('upstream'),
+                    'upstream': upstream,
                     'delete': target.get('delete'),
                     'privileged': saas_file.get('clusterAdmin', False) is True
                 }
