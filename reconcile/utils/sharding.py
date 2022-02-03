@@ -13,8 +13,9 @@ def is_in_shard(value):
     if SHARDS == 1:
         return True
 
-    value_md5 = hashlib.md5(value.encode())
-    value_hex = value_md5.hexdigest()
+    h = hashlib.new('md5', usedforsecurity=False)
+    h.update(value.encode())
+    value_hex = h.hexdigest()
     value_int = int(value_hex, base=16)
 
     in_shard = value_int % SHARDS == SHARD_ID
