@@ -202,6 +202,7 @@ class TestCheckSaasFileUpstreamNotUsedWithCommitSha(TestCase):
         self.assertTrue(saasherder.valid)
 
     def test_check_saas_file_upstream_used_with_commit_sha(self):
+        commit_sha = '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30'
         saas_files = [
             {
                 'path': 'path1',
@@ -244,7 +245,7 @@ class TestCheckSaasFileUpstreamNotUsedWithCommitSha(TestCase):
                                         'name': 'cluster'
                                     }
                                 },
-                                'ref': '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30',
+                                'ref': commit_sha,
                                 'upstream': {
                                     'instance': {
                                         'name': 'ci'
