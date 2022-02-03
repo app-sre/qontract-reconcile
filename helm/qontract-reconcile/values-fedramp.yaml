@@ -110,25 +110,13 @@ integrations:
       cpu: 200m
   cache: true
   disableUnleash: true
-- name: openshift-saas-deploy-trigger-configs
+- name: terraform-users
   resources:
     requests:
-      memory: 1000Mi
-      cpu: 400m
+      memory: 2400Mi
+      cpu: 200m
     limits:
-      memory: 1200Mi
-      cpu: 600m
-  state: true
-  shards: 3
-  trigger: true
-  disableUnleash: true
-- name: openshift-tekton-resources
-  resources:
-    requests:
-      memory: 1500Mi
+      memory: 3000Mi
       cpu: 400m
-    limits:
-      memory: 1500Mi
-      cpu: 600m
-  internalCertificates: true
+  extraArgs: --io-dir /tmp/throughput/
   disableUnleash: true
