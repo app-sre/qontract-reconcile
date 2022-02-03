@@ -235,9 +235,9 @@ class SaasHerder():
 
     def _validate_upstream_not_used_with_commit_sha(
             self,
-            saas_file_name,
-            resource_template_name,
-            target
+            saas_file_name: str,
+            resource_template_name: str,
+            target: dict,
     ):
         upstream = target.get('upstream')
         if upstream:
