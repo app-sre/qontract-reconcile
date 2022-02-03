@@ -1081,7 +1081,12 @@ class SaasHerder():
                 # if there are newer ones, but the last one
                 # is not successful, triggering the deployment
                 # will end up in a failure.
-                if last_build_result_number > state_build_result_number \
+                # in case job history was cleared and a new build
+                # was successful, the number is likely lower from
+                # what is stored in the state.
+                # the only case we want to do nothing is if the last
+                # build result matches what is stored in the state.
+                if last_build_result_number != state_build_result_number \
                         and last_build_result['result'] == 'SUCCESS':
                     # we finally found something we want to trigger on!
                     job_spec = {
