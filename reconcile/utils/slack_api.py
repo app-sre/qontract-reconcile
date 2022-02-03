@@ -114,6 +114,7 @@ class SlackApi:
                  api_config: Optional[SlackApiConfig] = None,
                  settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
+                 init_join_channel: Optional[bool] = False,
                  channel: Optional[str] = None,
                  **chat_kwargs) -> None:
         """
@@ -148,6 +149,9 @@ class SlackApi:
 
         if init_usergroups:
             self._initiate_usergroups()
+
+        if init_join_channel and self.channel:
+            self.join_channel()
 
     def _configure_client_retry(self) -> None:
         """
@@ -190,6 +194,25 @@ class SlackApi:
         channels = self.get_channels_by_ids(channel_ids)
 
         return users, channels, description
+
+    def join_channel(self):
+        """
+        Join a given channel if not already a member, will join self.channel
+
+        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
+        Slack API
+        :raises ValueError: if self.channel is not set
+        """
+        if not self.channel:
+            raise ValueError('Slack channel name must be provided when '
+                             'joining a channel.')
+
+        channels_found = self.get_channels_by_names(self.channel)
+        [channel_id] = [k for k in channels_found if
+                        channels_found[k] == self.channel]
+        info = self._sc.conversations_info(channel=channel_id)
+        if not info.data['channel']['is_member']:
+            self._sc.conversations_join(channel=channel_id)
 
     def get_usergroup_id(self, handle):
         usergroup = self.get_usergroup(handle)
