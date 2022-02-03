@@ -4,6 +4,7 @@ import logging
 import os
 import itertools
 import hashlib
+import re
 from collections import ChainMap
 
 from contextlib import suppress
@@ -131,6 +132,12 @@ class SaasHerder():
                         saas_file_name,
                         environment_name
                     )
+                    # validate upstream not used with commit sha
+                    self._validate_upstream_not_used_with_commit_sha(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
+                    )
                     # promotion publish channels
                     promotion = target.get('promotion')
                     if promotion:
@@ -225,6 +232,22 @@ class SaasHerder():
             self.valid = False
         else:
             self.tkn_unique_pipelineruns[tkn_name] = tkn_long_name
+
+    def _validate_upstream_not_used_with_commit_sha(
+            self,
+            saas_file_name,
+            resource_template_name,
+            target
+    ):
+        upstream = target.get('upstream')
+        if upstream:
+            pattern = r'^[0-9a-f]{40}$'
+            ref = target['ref']
+            if re.search(pattern, ref):
+                logging.error(
+                    f'[{saas_file_name}/{resource_template_name}] '
+                    f'upstream used with commit sha: {ref}')
+                self.valid = False
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
