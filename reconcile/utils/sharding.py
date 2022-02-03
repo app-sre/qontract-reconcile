@@ -24,7 +24,7 @@ def is_in_shard(value):
         LOG.debug('IN_SHARD TRUE: %s', value)
     else:
         LOG.debug('IN_SHARD FALSE: %s', value)
-    
+
     return in_shard
 
 
