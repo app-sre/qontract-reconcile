@@ -3130,18 +3130,30 @@ class TerrascriptClient:
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
 
-    def _get_tf_resource_elasticsearch_log_groups(
-        self, identifier, account,
-        resource, values, output_prefix
-    ):
-        ES_LOG_GROUP_RETENTION_DAYS = 180
-        tf_resources = []
-        publishing_options = []
-        # https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
-        # NOTE: CloudWatch Logs supports 10 resource policies per Region.
-        # If you plan to enable logs for several OpenSearch Service domains,
-        # you should create and reuse a broader policy that includes multiple
-        # log groups to avoid reaching this limit.
+    def _get_tf_resource_elasticsearch_resource_policy(self):
+        '''
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
+        NOTE: CloudWatch Logs supports 10 resource policies per Region.
+        If you plan to enable logs for several OpenSearch Service domains,
+        you should create and reuse a broader policy that includes multiple
+        log groups to avoid reaching this limit.
+        I.e., ideally we aggregate ALL log group identifiers for that
+        region first.
+        '''
+        log_group_identifiers = []
+        for resources in self.account_resources.values():
+            for i in resources:
+                res = i.get('resource')
+                ns = i.get('namespace_info')
+                if not ns.get('managedTerraformResources'):
+                    continue
+                if res.get('provider') != 'elasticsearch':
+                    continue
+                for log_type in res.get('publish_log_types', []):
+                    log_group_identifiers.append(
+                        f'{res["identifier"]}_{log_type.lower()}'
+                    )
+
         log_groups_policy = {
             'Version': '2012-10-17',
             'Statement': [{
@@ -3153,12 +3165,10 @@ class TerrascriptClient:
                     'logs:PutLogEvents',
                     'logs:CreateLogStream',
                 ],
-                # Resource arn is very open, because we only know the arn
-                # after the elasticsearch domain was created. However, the
-                # elasticsearch domain needs this policy to be created in
-                # order to hookup with the log groups -> else creation fails.
-                # Classic chicken-egg problem.
-                'Resource': '*',
+                'Resource': [
+                    f'arn:aws:logs:::log-group:{lg_identifier}:*'
+                    for lg_identifier in log_group_identifiers
+                ],
             }]
         }
         log_groups_policy_values = {
@@ -3169,7 +3179,15 @@ class TerrascriptClient:
             'es_log_publishing_resource_policy',
             **log_groups_policy_values,
         )
-        tf_resources.append(resource_policy)
+        return resource_policy
+
+    def _get_tf_resource_elasticsearch_log_groups(
+        self, identifier, account,
+        resource, values, output_prefix
+    ):
+        ES_LOG_GROUP_RETENTION_DAYS = 180
+        tf_resources = []
+        publishing_options = []
 
         for log_type in resource.get('publish_log_types'):
             log_type_identifier = f'{identifier}_{log_type.lower()}'
@@ -3209,7 +3227,8 @@ class TerrascriptClient:
                     'cloudwatch_log_group_arn': arn,
                 }
             )
-        return tf_resources, publishing_options, resource_policy
+
+        return tf_resources, publishing_options
 
     def populate_tf_resource_elasticsearch(self, resource, namespace_info):
 
@@ -3235,7 +3254,7 @@ class TerrascriptClient:
         es_values["elasticsearch_version"] = \
             values.get('elasticsearch_version')
 
-        log_group_resources, publishing_options, resource_policy = \
+        log_group_resources, publishing_options = \
             self._get_tf_resource_elasticsearch_log_groups(
                 identifier=identifier,
                 account=account,
@@ -3244,6 +3263,9 @@ class TerrascriptClient:
                 output_prefix=output_prefix
             )
         tf_resources += log_group_resources
+
+        resource_policy = self._get_tf_resource_elasticsearch_resource_policy()
+        tf_resources.append(resource_policy)
 
         es_values['log_publishing_options'] = publishing_options
         ebs_options = values.get('ebs_options', {})
