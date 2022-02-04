@@ -152,3 +152,4 @@ integrations:
       memory: 600Mi
       cpu: 200m
   extraArgs: --wait-for-pipeline
+  disableUnleash: true

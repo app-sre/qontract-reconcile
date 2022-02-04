@@ -2858,16 +2858,6 @@ objects:
                 key: SENTRY_DSN
           - name: LOG_FILE
             value: "${LOG_FILE}"
-          - name: UNLEASH_API_URL
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: API_URL
-          - name: UNLEASH_CLIENT_ACCESS_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: unleash
-                key: CLIENT_ACCESS_TOKEN
           - name: SLOW_OC_RECONCILE_THRESHOLD
             value: "${SLOW_OC_RECONCILE_THRESHOLD}"
           - name: LOG_SLOW_OC_RECONCILE
