@@ -1122,15 +1122,15 @@ def promquery(cluster, query):
               "provided, the folder found in the application's escalation "
               "policy will be used.",
               default=None)
-@click.argument('create-parent-ticket',
-                help="Whether to create a parent ticket if none was provided",
-                default=False)
-def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard):
+@click.option('--create-parent-ticket/--no-create-parent-ticket',
+              help="Whether to create a parent ticket if none was provided",
+              default=False)
+def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard, create_parent):
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
     app = data['apps'][0]
     if not jiraboard:
-        jiraboard= app['escalationPolicy']['channels']['jiraBoard']
+        jiraboard = app['escalationPolicy']['channels']['jiraBoard']
     if not jiraboard:
         raise ValueError(f"No escalation policy for {app_path}!!")
 
