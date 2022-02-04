@@ -4,21 +4,19 @@ The checks are defined in
 https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre_checkpoints.md
 
 """
+import logging
+import re
 from functools import partial
 from http import HTTPStatus
-import logging
-from typing import Iterable, Mapping, Any
-import re
+from pathlib import Path
+from typing import Any, Iterable, Mapping, Union
 
 import requests
-
 from jinja2 import Template
-
-from reconcile.utils.jira_client import JiraClient
-from reconcile.utils.constants import PROJ_ROOT
-
 from jira import Issue
-from pathlib import Path
+
+from reconcile.utils.constants import PROJ_ROOT
+from reconcile.utils.jira_client import JiraClient
 
 
 DEFAULT_CHECKPOINT_LABELS = ('sre-checkpoint',)
