@@ -2589,6 +2589,13 @@ APP_METADATA = """
       channels {
         jiraBoard {
           name
+          server {
+            serverUrl
+            token {
+              path
+              field
+            }
+          }
         }
         slackUserGroup {
           name

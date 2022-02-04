@@ -83,3 +83,11 @@ def test_render_template():
     assert 'apath' in txt
     assert 'afield' in txt
     assert 'avalue' in txt
+
+
+@pytest.fixture
+def applications():
+    return [
+        {'name': 'app_name',
+         'path': '/path/to/app',
+         'board':

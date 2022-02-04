@@ -21,7 +21,7 @@ from jira import Issue
 from pathlib import Path
 
 
-DEFAULT_CHECKPOINT_LABELS = ('sre-checkpoint')
+DEFAULT_CHECKPOINT_LABELS = ('sre-checkpoint',)
 
 # We reject the full RFC 5322 standard since many clients will choke
 # with some carefully crafted valid addresses. We might
@@ -42,7 +42,10 @@ def url_makes_sense(url: str) -> bool:
     The URL is non-sensical if the server is crashing, the document
     doesn't exist or the specified URL can't be even probed with GET.
     """
-    rs = requests.get(url)
+    # TODO: we really should verify SSL certificates here. We
+    # shouldn't let important service information in shady self-signed
+    # servers
+    rs = requests.get(url, verify=False)
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
     # broken resource
@@ -67,7 +70,7 @@ VALIDATORS = {
 
 def render_template(template: Path, name: str, path: str,
                     field: str, value: str) -> str:
-    """Do stuff."""
+    """Render the template with all its fields."""
     with open(template) as f:
         t = Template(f.read(),
                      keep_trailing_newline=True,
@@ -96,25 +99,26 @@ def file_ticket(jira: JiraClient, field: str, app_name: str,
             field,
             bad_value),
         labels=labels,
-        links=(parent)
+        links=(parent,)
     )
     return i
 
 
-def report_invalid_metadata(app: Mapping[str, Any],
-                            board: Mapping[str, str],
+def report_invalid_metadata(app: Mapping[str, Any], path: str,
+                            board: Mapping[str, Union[str, Mapping]],
                             settings: Mapping[str, Any], parent: str) -> None:
     """Cut tickets for any missing/invalid field in the app."""
     jira = JiraClient(board, settings)
     do_cut = partial(file_ticket, jira=jira, app_name=app['name'],
                      labels=DEFAULT_CHECKPOINT_LABELS, parent=parent,
-                     app_path=app['path'])
+                     app_path=path)
     for field, validator in VALIDATORS.items():
         try:
             value = app[field]
             if not validator(value):  # type: ignore
                 i = do_cut(field=field, bad_value=str(value))
-                logging.info(f"Opened task {i.key} for field {field}")
+                logging.info(f"Opened task {i.key} for field {field} "
+                             f"on {app['name']}")
         except Exception:
             i = do_cut(field=field, bad_value=str(value))
             logging.exception(f"Problems with {field} for {app['name']} - "
