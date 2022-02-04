@@ -4,9 +4,10 @@ The checks are defined in
 https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre_checkpoints.md
 
 """
+from functools import partial
 from http import HTTPStatus
 import logging
-from typing import Iterable, Mapping, Optional
+from typing import Iterable, Mapping, Any
 import re
 
 import requests
@@ -17,6 +18,7 @@ from reconcile.utils.jira_client import JiraClient
 from reconcile.utils.constants import PROJ_ROOT
 
 from jira import Issue
+from pathlib import Path
 
 
 DEFAULT_CHECKPOINT_LABELS = ('sre-checkpoint')
@@ -63,7 +65,7 @@ VALIDATORS = {
 }
 
 
-def render_template(template: str, name: str, path: str,
+def render_template(template: Path, name: str, path: str,
                     field: str, value: str) -> str:
     """Do stuff."""
     with open(template) as f:
@@ -77,8 +79,8 @@ def render_template(template: str, name: str, path: str,
 
 
 def file_ticket(jira: JiraClient, field: str, app_name: str,
-                labels: Iterable[str], parent: str,
-                bad_value: Optional[str]) -> Issue:
+                app_path: str, labels: Iterable[str], parent: str,
+                bad_value: str) -> Issue:
     """Return a ticket."""
     if bad_value:
         summary = f"Incorrect metadata {field} for {app_name}"
@@ -87,25 +89,33 @@ def file_ticket(jira: JiraClient, field: str, app_name: str,
 
     i = jira.create_issue(
         summary,
-        render_template(MISSING_DATA_TEMPLATE, app_name, field),
+        render_template(
+            MISSING_DATA_TEMPLATE,
+            app_name,
+            app_path,
+            field,
+            bad_value),
         labels=labels,
         links=(parent)
     )
     return i
 
 
-def report_invalid_metadata(app: Mapping[str, Mapping],
+def report_invalid_metadata(app: Mapping[str, Any],
                             board: Mapping[str, str],
-                            settings: Mapping) -> None:
+                            settings: Mapping[str, Any], parent: str) -> None:
     """Cut tickets for any missing/invalid field in the app."""
     jira = JiraClient(board, settings)
-    for f, v in VALIDATORS.items():
+    do_cut = partial(file_ticket, jira=jira, app_name=app['name'],
+                     labels=DEFAULT_CHECKPOINT_LABELS, parent=parent,
+                     app_path=app['path'])
+    for field, validator in VALIDATORS.items():
         try:
-            if not v(app[f]):
-                i = file_ticket(
-                    jira, f, app['name'], DEFAULT_CHECKPOINT_LABELS)
-                logging.info(f"Opened task {i.key} for field {f}")
+            value = app[field]
+            if not validator(value):  # type: ignore
+                i = do_cut(field=field, bad_value=str(value))
+                logging.info(f"Opened task {i.key} for field {field}")
         except Exception:
-            file_ticket(jira, f, app['name'], DEFAULT_CHECKPOINT_LABELS)
-            logging.exception(f"Problems with {f} for {app['name']} - "
+            i = do_cut(field=field, bad_value=str(value))
+            logging.exception(f"Problems with {field} for {app['name']} - "
                               f"opened task {i.key}")
