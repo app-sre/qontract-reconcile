@@ -38,12 +38,20 @@ class JiraClient:
         return all_issues
 
     def create_issue(self, summary: str, body: str,
-                     labels: Optional[Iterable[str]] = None) -> Issue:
+                     labels: Optional[Iterable[str]] = None,
+                     links: Optional[Iterable[str]] = None) -> Issue:
         """Create an issue in our project with the given labels."""
-        return self.jira.create_issue(
+        issue = self.jira.create_issue(
             project=self.project,
             summary=summary,
             description=body,
             labels=labels,
-            issuetype={'name': 'Task'}
+            issuetype={'name': 'Task'},
         )
+        for ln in links:
+            self.jira.create_issue_link(
+                type="is caused by",
+                inwardIssue=issue.key,
+                outwardIssue=ln
+            )
+        return issue
