@@ -1,14 +1,12 @@
 from datetime import datetime
-from pathlib import Path
 
 from jinja2 import Template
 from ruamel.yaml.scalarstring import PreservedScalarString as pss
 
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.constants import PROJ_ROOT
 
-
-PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()
 EMAIL_TEMPLATE = PROJ_ROOT / 'templates' / 'email.yml.j2'
 
 
