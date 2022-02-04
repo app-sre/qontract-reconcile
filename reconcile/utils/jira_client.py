@@ -2,13 +2,13 @@ from jira import JIRA, Issue
 
 from reconcile.utils.secret_reader import SecretReader
 
-from typing import Iterable, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 
 class JiraClient:
     """Wrapper around Jira client."""
 
-    def __init__(self, jira_board: Mapping[str, str],
+    def __init__(self, jira_board: Mapping[str, Any],
                  settings: Optional[Mapping] = None):
         self.secret_reader = SecretReader(settings=settings)
         self.project = jira_board['name']
@@ -18,10 +18,11 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         self.jira = JIRA(self.server, token_auth=token_auth)
 
-    def get_issues(self, fields: Optional[Mapping] = None):
+    def get_issues(self, fields: Optional[Mapping] = None) -> list:
         block_size = 100
         block_num = 0
-        all_issues = []
+
+        all_issues = []  # type: ignore
         jql = 'project={}'.format(self.project)
         kwargs = {}
         if fields:
@@ -29,7 +30,7 @@ class JiraClient:
         while True:
             index = block_num * block_size
             issues = self.jira.search_issues(jql, index, block_size,
-                                             **kwargs)
+                                             **kwargs)  # type: ignore
             all_issues.extend(issues)
             if len(issues) < block_size:
                 break
@@ -39,7 +40,7 @@ class JiraClient:
 
     def create_issue(self, summary: str, body: str,
                      labels: Optional[Iterable[str]] = None,
-                     links: Optional[Iterable[str]] = None) -> Issue:
+                     links: Iterable[str] = ()) -> Issue:
         """Create an issue in our project with the given labels."""
         issue = self.jira.create_issue(
             project=self.project,
