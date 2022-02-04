@@ -142,3 +142,13 @@ integrations:
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   disableUnleash: true
+- name: gitlab-housekeeping
+  sleepDurationSecs: 600
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 600Mi
+      cpu: 200m
+  extraArgs: --wait-for-pipeline
