@@ -26,7 +26,8 @@ DEFAULT_CHECKPOINT_LABELS = ('sre-checkpoint')
 EMAIL_ADDRESS_REGEXP = re.compile(r'^\w+[-\w\.]*@(?:\w[-\w]*\w\.)+\w+')
 MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
-MISSING_DATA_TEMPLATE = PROJ_ROOT / 'templates' / 'jira-checkpoint-missinginfo.j2'
+MISSING_DATA_TEMPLATE = PROJ_ROOT / 'templates' / \
+    'jira-checkpoint-missinginfo.j2'
 
 
 def url_makes_sense(url: str) -> bool:
@@ -62,7 +63,8 @@ VALIDATORS = {
 }
 
 
-def render_template(template: str, name: str, path: str, field: str, value: str) -> str:
+def render_template(template: str, name: str, path: str,
+                    field: str, value: str) -> str:
     """Do stuff."""
     with open(template) as f:
         t = Template(f.read(),
