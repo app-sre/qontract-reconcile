@@ -30,6 +30,7 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.cli import config_file
+from reconcile.checkpoint import report_invalid_metadata
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 
@@ -1122,22 +1123,27 @@ def promquery(cluster, query):
               "provided, the folder found in the application's escalation "
               "policy will be used.",
               default=None)
+@click.option('--jiraurl',
+              help="URL to the JIRA server",
+              default=None)
 @click.option('--create-parent-ticket/--no-create-parent-ticket',
               help="Whether to create a parent ticket if none was provided",
               default=False)
-def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard, create_parent):
+def sre_checkpoint_metadata(app_path, parent_ticket,
+                            jiraboard, jiraurl, create_parent_ticket):
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
+    settings = queries.get_app_interface_settings()
     app = data['apps'][0]
-    if not jiraboard:
-        jiraboard = app['escalationPolicy']['channels']['jiraBoard']
-    if not jiraboard:
+
+    board_info = app['escalationPolicy']['channels']['jiraBoard']
+    if not board_info:
         raise ValueError(f"No escalation policy for {app_path}!!")
+    board_info = board_info[0]
+    # Overrides for easier testing
+    if jiraboard:
+        board_info['name'] = jiraboard
+    if jiraurl:
+        board_info['server']['serverUrl'] = jiraurl
 
-    MANDATORY_FIELDS = ('sopsUrl', 'grafanaUrl',
-                        'architectureDocument', 'serviceOwners')
-    for f in MANDATORY_FIELDS:
-        if not app[f]:
-            raise ValueError(f"Missing {f}")
-
-    print("All fields satisfactory")
+    report_invalid_metadata(app, app_path, board_info, settings, parent_ticket)
