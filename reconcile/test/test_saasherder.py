@@ -202,68 +202,10 @@ class TestSaasFileValid(TestCase):
         self.assertTrue(saasherder.valid)
 
     def test_check_saas_file_upstream_used_with_commit_sha(self):
-        commit_sha = '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30'
-        saas_files = [
-            {
-                'path': 'path1',
-                'name':
-                'long-name-which-is-too-long-to-produce-unique-combo',
-                'managedResourceTypes': [],
-                'resourceTemplates':
-                [
-                    {
-                        'name': 'rt',
-                        'url': 'url',
-                        'targets':
-                        [
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env1'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'ref': 'main',
-                                'upstream': {
-                                    'instance': {
-                                        'name': 'ci'
-                                    },
-                                    'name': 'job'
-                                },
-                                'parameters': {}
-                            },
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env2'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'ref': commit_sha,
-                                'upstream': {
-                                    'instance': {
-                                        'name': 'ci'
-                                    },
-                                    'name': 'job'
-                                },
-                                'parameters': {}
-                            }
-                        ]
-                    }
-                ],
-                'roles': [
-                    {'users': [{'org_username': 'myname'}]}
-                ]
-            }
-        ]
+        self.saas_files[0]['resourceTemplates'][0]['targets'][0]['ref'] = \
+            '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30'
         saasherder = SaasHerder(
-            saas_files,
+            self.saas_files,
             thread_pool_size=1,
             gitlab=None,
             integration='',
