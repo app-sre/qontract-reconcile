@@ -52,7 +52,7 @@ setup(
         "dnspython~=2.1",
         "requests==2.22.0",
         "kubernetes~=12.0",
-        "openshift>=0.11.2",
+        "openshift>=0.11.2,<0.13.0",
         "websocket-client<0.55.0,>=0.35",
         "sshtunnel>=0.4.0",
         "croniter>=1.0.15,<1.1.0",
