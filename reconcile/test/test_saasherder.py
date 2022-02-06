@@ -12,7 +12,7 @@ from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 from .fixtures import Fixtures
 
 
-class TestCheckSaasFileEnvComboUnique(TestCase):
+class TestSaasFileValid(TestCase):
     def test_check_saas_file_env_combo_unique(self):
         saas_files = [
             {
@@ -128,8 +128,6 @@ class TestCheckSaasFileEnvComboUnique(TestCase):
 
         self.assertFalse(saasherder.valid)
 
-
-class TestCheckSaasFileUpstreamNotUsedWithCommitSha(TestCase):
     def test_check_saas_file_upstream_not_used_with_commit_sha(self):
         saas_files = [
             {
