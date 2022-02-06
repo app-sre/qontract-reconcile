@@ -9,6 +9,8 @@ integrations:
       memory: 1040Mi
       cpu: 500m
   state: true
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-namespaces
   resources:
@@ -20,6 +22,8 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 500m
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-network-policies
   resources:
@@ -31,6 +35,8 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 200m
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-resources
   resources:
@@ -40,6 +46,8 @@ integrations:
     limits:
       memory: 3600Mi
       cpu: 1200m
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-routes
   resources:
@@ -51,6 +59,8 @@ integrations:
       # Limits 30% above requests
       memory: 1040Mi
       cpu: 300m
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-vault-secrets
   resources:
@@ -60,6 +70,8 @@ integrations:
     limits:
       memory: 800Mi
       cpu: 1200m
+  logs:
+    slack: true
   disableUnleash: true
 - name: terraform-aws-route53
   resources:
@@ -69,6 +81,8 @@ integrations:
     limits:
       memory: 1000Mi
       cpu: 500m
+  logs:
+    slack: true
   disableUnleash: true
 - name: terraform-resources
   resources:
@@ -78,6 +92,8 @@ integrations:
     limits:
       memory: 700Mi
       cpu: 400m
+  logs:
+    slack: true
   disableUnleash: true
   extraArgs: --vault-output-path osd-fedramp/integrations-output
 - name: terraform-tgw-attachments
@@ -88,6 +104,8 @@ integrations:
     limits:
       memory: 3000Mi
       cpu: 600m
+  logs:
+    slack: true
   disableUnleash: true
 - name: jenkins-job-builder
   resources:
@@ -109,6 +127,8 @@ integrations:
       memory: 200Mi
       cpu: 200m
   cache: true
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-saas-deploy-trigger-configs
   resources:
@@ -121,6 +141,8 @@ integrations:
   state: true
   shards: 3
   trigger: true
+  logs:
+    slack: true
   disableUnleash: true
 - name: openshift-tekton-resources
   resources:
@@ -131,6 +153,8 @@ integrations:
       memory: 1500Mi
       cpu: 600m
   internalCertificates: true
+  logs:
+    slack: true
   disableUnleash: true
 - name: terraform-users
   resources:
@@ -141,6 +165,8 @@ integrations:
       memory: 3000Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
+  logs:
+    slack: true
   disableUnleash: true
 - name: gitlab-housekeeping
   sleepDurationSecs: 600
@@ -152,4 +178,6 @@ integrations:
       memory: 600Mi
       cpu: 200m
   extraArgs: --wait-for-pipeline
+  logs:
+    slack: true
   disableUnleash: true
