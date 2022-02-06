@@ -13,6 +13,66 @@ from .fixtures import Fixtures
 
 
 class TestSaasFileValid(TestCase):
+    def setUp(self):
+        self.saas_files = [
+            {
+                'path': 'path1',
+                'name': 'a1',
+                'managedResourceTypes': [],
+                'resourceTemplates':
+                [
+                    {
+                        'name': 'rt',
+                        'url': 'url',
+                        'targets':
+                        [
+                            {
+                                'namespace': {
+                                    'name': 'ns',
+                                    'environment': {
+                                        'name': 'env1'
+                                    },
+                                    'cluster': {
+                                        'name': 'cluster'
+                                    }
+                                },
+                                'ref': 'main',
+                                'upstream': {
+                                    'instance': {
+                                        'name': 'ci'
+                                    },
+                                    'name': 'job'
+                                },
+                                'parameters': {}
+                            },
+                            {
+                                'namespace': {
+                                    'name': 'ns',
+                                    'environment': {
+                                        'name': 'env2'
+                                    },
+                                    'cluster': {
+                                        'name': 'cluster'
+                                    }
+                                },
+                                'ref': 'master',
+                                'upstream': {
+                                    'instance': {
+                                        'name': 'ci'
+                                    },
+                                    'name': 'job'
+                                },
+                                'parameters': {}
+                            }
+                        ]
+                    }
+                ],
+                'roles': [
+                    {'users': [{'org_username': 'myname'}]}
+                ]
+            }
+        ]
+
     def test_check_saas_file_env_combo_unique(self):
         saas_files = [
             {
