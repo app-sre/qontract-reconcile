@@ -76,7 +76,7 @@ class SentryClient:
 
     def get_project(self, slug):
         response = self._do_sentry_api_call("get", "projects",
-                                             [self.ORGANIZATION, slug])
+                                            [self.ORGANIZATION, slug])
         return response
 
     def create_project(self, team_slug, name, slug=None):
@@ -84,18 +84,18 @@ class SentryClient:
         if slug is not None:
             params["slug"] = slug
         response = self._do_sentry_api_call("post", "teams",
-                                             [self.ORGANIZATION, team_slug,
-                                              "projects"], payload=params)
+                                            [self.ORGANIZATION, team_slug,
+                                             "projects"], payload=params)
         return response
 
     def delete_project(self, slug):
         response = self._do_sentry_api_call("delete", "projects",
-                                             [self.ORGANIZATION, slug])
+                                            [self.ORGANIZATION, slug])
         return response
 
     def get_project_key(self, slug):
         response = self._do_sentry_api_call("get", "projects",
-                                             [self.ORGANIZATION, slug, "keys"])
+                                            [self.ORGANIZATION, slug, "keys"])
         keys = {"dsn": response[0]["dsn"]["public"],
                 "deprecated": response[0]["dsn"]["secret"]}
         return keys
@@ -114,8 +114,8 @@ class SentryClient:
                 params[k] = options[v]
 
         response = self._do_sentry_api_call("put", "projects",
-                                             [self.ORGANIZATION, slug],
-                                             payload=params)
+                                            [self.ORGANIZATION, slug],
+                                            payload=params)
         return response
 
     @staticmethod
@@ -155,19 +155,19 @@ class SentryClient:
 
     def get_project_alert_rules(self, slug):
         response = self._do_sentry_api_call("get", "projects",
-                                             [self.ORGANIZATION, slug,
-                                              "rules"])
+                                            [self.ORGANIZATION, slug,
+                                             "rules"])
         return response
 
     def delete_project_alert_rule(self, slug, rule):
         response = self._do_sentry_api_call("delete", "projects",
-                                             [self.ORGANIZATION, slug, "rules",
-                                              rule['id']])
+                                            [self.ORGANIZATION, slug, "rules",
+                                             rule['id']])
         return response
 
     def get_project_owners(self, slug):
         teams = self._do_sentry_api_call("get", "projects",
-                                          [self.ORGANIZATION, slug, "teams"])
+                                         [self.ORGANIZATION, slug, "teams"])
         return teams
 
     def add_project_owner(self, project_slug, team_slug):
@@ -187,45 +187,45 @@ class SentryClient:
         }
 
         response = self._do_sentry_api_call(method, "projects",
-                                             [self.ORGANIZATION, pslug,
-                                              "teams", tslug], payload=params)
+                                            [self.ORGANIZATION, pslug,
+                                             "teams", tslug], payload=params)
         return response
 
     # Team functions
     def get_teams(self):
         response = self._do_sentry_api_call("get", "organizations",
-                                             [self.ORGANIZATION, "teams"])
+                                            [self.ORGANIZATION, "teams"])
         return response
 
     def get_team_members(self, team_slug):
         response = self._do_sentry_api_call("get", "teams",
-                                             [self.ORGANIZATION, team_slug,
-                                              "members"])
+                                            [self.ORGANIZATION, team_slug,
+                                             "members"])
         return response
 
     def create_team(self, slug):
         params = {"slug": slug}
         response = self._do_sentry_api_call("post", "organizations",
-                                             [self.ORGANIZATION, "teams"],
-                                             payload=params)
+                                            [self.ORGANIZATION, "teams"],
+                                            payload=params)
         return response
 
     def delete_team(self, slug):
         response = self._do_sentry_api_call("delete", "teams",
-                                             [self.ORGANIZATION, slug])
+                                            [self.ORGANIZATION, slug])
         return response
 
     def get_team_projects(self, slug):
         response = self._do_sentry_api_call("get", "teams",
-                                             [self.ORGANIZATION, slug,
-                                              "projects"])
+                                            [self.ORGANIZATION, slug,
+                                             "projects"])
         return response
 
     # User/Member functions
     @functools.lru_cache()
     def get_users(self):
         response = self._do_sentry_api_call("get", "organizations",
-                                             [self.ORGANIZATION, "members"])
+                                            [self.ORGANIZATION, "members"])
         return response
 
     def get_user(self, email):
@@ -238,8 +238,8 @@ class SentryClient:
         response = []
         for user in user_list:
             resp = self._do_sentry_api_call("get", "organizations",
-                                             [self.ORGANIZATION, "members",
-                                                 user["id"]])
+                                            [self.ORGANIZATION, "members",
+                                                user["id"]])
             if resp is not None:
                 response.append(resp)
         return response
@@ -247,8 +247,8 @@ class SentryClient:
     def create_user(self, email, role, teams=[]):
         params = {"email": email, "role": role, "teams": teams}
         response = self._do_sentry_api_call("post", "organizations",
-                                             [self.ORGANIZATION, "members"],
-                                             payload=params)
+                                            [self.ORGANIZATION, "members"],
+                                            payload=params)
         return response
 
     def delete_user(self, email):
@@ -256,16 +256,16 @@ class SentryClient:
         resp = []
         for user in user_list:
             response = self._do_sentry_api_call("delete", "organizations",
-                                                 [self.ORGANIZATION, "members",
-                                                  user["id"]])
+                                                [self.ORGANIZATION, "members",
+                                                 user["id"]])
             if response is not None and len(response) > 0:
                 resp.append(response)
         return resp
 
     def delete_user_by_id(self, id):
         response = self._do_sentry_api_call("delete", "organizations",
-                                             [self.ORGANIZATION, "members",
-                                              id])
+                                            [self.ORGANIZATION, "members",
+                                             id])
         return response
 
     def set_user_teams(self, email, teams):
@@ -277,8 +277,8 @@ class SentryClient:
         user = user_list[0]
         params = {"teams": teams}
         response = self._do_sentry_api_call("put", "organizations",
-                                             [self.ORGANIZATION, "members",
-                                              user["id"]], payload=params)
+                                            [self.ORGANIZATION, "members",
+                                             user["id"]], payload=params)
         return response
 
     def remove_user_from_teams(self, email, teams):
@@ -294,8 +294,8 @@ class SentryClient:
                 user_teams.remove(t)
         params = {"teams": user_teams}
         response = self._do_sentry_api_call("put", "organizations",
-                                             [self.ORGANIZATION, "members",
-                                              user["id"]], payload=params)
+                                            [self.ORGANIZATION, "members",
+                                             user["id"]], payload=params)
         return response
 
     def change_user_role(self, email, role):
@@ -307,6 +307,6 @@ class SentryClient:
         user = user_list[0]
         params = {"role": role}
         response = self._do_sentry_api_call("put", "organizations",
-                                             [self.ORGANIZATION, "members",
-                                              user["id"]], payload=params)
+                                            [self.ORGANIZATION, "members",
+                                             user["id"]], payload=params)
         return response
