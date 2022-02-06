@@ -152,7 +152,6 @@ integrations:
     limits:
       memory: 1500Mi
       cpu: 600m
-  internalCertificates: true
   logs:
     slack: true
   disableUnleash: true

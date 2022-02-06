@@ -2653,16 +2653,6 @@ objects:
       spec:
         serviceAccountName: qontract-reconcile
         initContainers:
-        - name: internal-certificates
-          image: ${INTERNAL_CERTIFICATES_IMAGE}:${INTERNAL_CERTIFICATES_IMAGE_TAG}
-          imagePullPolicy: ${INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY}
-          command: ["/bin/sh", "-c"]
-          args:
-          - |
-            cp -r /etc/pki/. /tmp/etc-pki/
-          volumeMounts:
-          - name: internal-certificates
-            mountPath: /tmp/etc-pki/
         - name: config
           image: ${BUSYBOX_IMAGE}:${BUSYBOX_IMAGE_TAG}
           imagePullPolicy: ${BUSYBOX_IMAGE_PULL_POLICY}
@@ -2788,8 +2778,6 @@ objects:
           volumeMounts:
           - name: qontract-reconcile-toml
             mountPath: /config
-          - name: internal-certificates
-            mountPath: /etc/pki/
           - name: logs
             mountPath: /fluentd/log/
         - name: fluentd
@@ -2830,8 +2818,6 @@ objects:
         - name: logs
           emptyDir: {}
         - name: fluentd-config
-          emptyDir: {}
-        - name: internal-certificates
           emptyDir: {}
 - apiVersion: apps/v1
   kind: Deployment
