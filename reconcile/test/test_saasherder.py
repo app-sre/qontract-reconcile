@@ -74,52 +74,8 @@ class TestSaasFileValid(TestCase):
         ]
 
     def test_check_saas_file_env_combo_unique(self):
-        saas_files = [
-            {
-                'path': 'path1',
-                'name': 'a1',
-                'managedResourceTypes': [],
-                'resourceTemplates':
-                [
-                    {
-                        'name': 'rt',
-                        'url': 'url',
-                        'targets':
-                        [
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env1'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'parameters': {}
-                            },
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env2'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'parameters': {}
-                            }
-                        ]
-                    }
-                ],
-                'roles': [
-                    {'users': [{'org_username': 'myname'}]}
-                ]
-            }
-        ]
         saasherder = SaasHerder(
-            saas_files,
+            self.saas_files,
             thread_pool_size=1,
             gitlab=None,
             integration='',
