@@ -4,6 +4,7 @@ import logging
 import os
 import itertools
 import hashlib
+import re
 from collections import ChainMap
 
 from contextlib import suppress
@@ -55,6 +56,7 @@ class SaasHerder():
                  accounts=None,
                  validate=False):
         self.saas_files = saas_files
+        self.repo_urls = self._collect_repo_urls()
         if validate:
             self._validate_saas_files()
             if not self.valid:
@@ -66,7 +68,6 @@ class SaasHerder():
         self.settings = settings
         self.secret_reader = SecretReader(settings=settings)
         self.namespaces = self._collect_namespaces()
-        self.repo_urls = self._collect_repo_urls()
         self.jenkins_map = jenkins_map
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -130,6 +131,12 @@ class SaasHerder():
                     self._check_saas_file_env_combo_unique(
                         saas_file_name,
                         environment_name
+                    )
+                    # validate upstream not used with commit sha
+                    self._validate_upstream_not_used_with_commit_sha(
+                        saas_file_name,
+                        resource_template_name,
+                        target,
                     )
                     # promotion publish channels
                     promotion = target.get('promotion')
@@ -225,6 +232,22 @@ class SaasHerder():
             self.valid = False
         else:
             self.tkn_unique_pipelineruns[tkn_name] = tkn_long_name
+
+    def _validate_upstream_not_used_with_commit_sha(
+            self,
+            saas_file_name: str,
+            resource_template_name: str,
+            target: dict,
+    ):
+        upstream = target.get('upstream')
+        if upstream:
+            pattern = r'^[0-9a-f]{40}$'
+            ref = target['ref']
+            if re.search(pattern, ref):
+                logging.error(
+                    f'[{saas_file_name}/{resource_template_name}] '
+                    f'upstream used with commit sha: {ref}')
+                self.valid = False
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
