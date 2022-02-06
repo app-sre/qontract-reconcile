@@ -189,66 +189,8 @@ class TestSaasFileValid(TestCase):
         self.assertFalse(saasherder.valid)
 
     def test_check_saas_file_upstream_not_used_with_commit_sha(self):
-        saas_files = [
-            {
-                'path': 'path1',
-                'name': 'a1',
-                'managedResourceTypes': [],
-                'resourceTemplates':
-                [
-                    {
-                        'name': 'rt',
-                        'url': 'url',
-                        'targets':
-                        [
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env1'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'ref': 'main',
-                                'upstream': {
-                                    'instance': {
-                                        'name': 'ci'
-                                    },
-                                    'name': 'job'
-                                },
-                                'parameters': {}
-                            },
-                            {
-                                'namespace': {
-                                    'name': 'ns',
-                                    'environment': {
-                                        'name': 'env2'
-                                    },
-                                    'cluster': {
-                                        'name': 'cluster'
-                                    }
-                                },
-                                'ref': 'master',
-                                'upstream': {
-                                    'instance': {
-                                        'name': 'ci'
-                                    },
-                                    'name': 'job'
-                                },
-                                'parameters': {}
-                            }
-                        ]
-                    }
-                ],
-                'roles': [
-                    {'users': [{'org_username': 'myname'}]}
-                ]
-            }
-        ]
         saasherder = SaasHerder(
-            saas_files,
+            self.saas_files,
             thread_pool_size=1,
             gitlab=None,
             integration='',
