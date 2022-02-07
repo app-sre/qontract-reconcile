@@ -611,7 +611,7 @@ class TerrascriptClient:
                 }
             }
             if connection_provider in ['account-vpc', 'account-vpc-mesh']:
-                if self._multiregion_account_(acc_account_name):
+                if self._multiregion_account(acc_account_name):
                     values['provider'] = 'aws.' + accepter['region']
             else:
                 values['provider'] = 'aws.' + acc_alias
@@ -632,7 +632,7 @@ class TerrascriptClient:
                     }
                     if connection_provider in \
                             ['account-vpc', 'account-vpc-mesh']:
-                        if self._multiregion_account_(acc_account_name):
+                        if self._multiregion_account(acc_account_name):
                             values['provider'] = 'aws.' + accepter['region']
                     else:
                         values['provider'] = 'aws.' + acc_alias
@@ -670,7 +670,7 @@ class TerrascriptClient:
                 'allow_external_principals': True,
                 'tags': tags
             }
-            if self._multiregion_account_(req_account_name):
+            if self._multiregion_account(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
             tf_resource_share = \
                 aws_ram_resource_share(connection_name, **values)
@@ -681,7 +681,7 @@ class TerrascriptClient:
                 'principal': acc_uid,
                 'resource_share_arn': '${' + tf_resource_share.arn + '}'
             }
-            if self._multiregion_account_(req_account_name):
+            if self._multiregion_account(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
             tf_resource_association = \
                 aws_ram_principal_association(connection_name, **values)
@@ -710,7 +710,7 @@ class TerrascriptClient:
                 'resource_arn': requester['tgw_arn'],
                 'resource_share_arn': '${' + tf_resource_share.arn + '}'
             }
-            if self._multiregion_account_(req_account_name):
+            if self._multiregion_account(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
             tf_resource_association = \
                 aws_ram_resource_association(identifier, **values)
@@ -742,7 +742,7 @@ class TerrascriptClient:
                     '${' + tf_resource_attachment.id + '}',
                 'tags': tags
             }
-            if self._multiregion_account_(req_account_name):
+            if self._multiregion_account(req_account_name):
                 values['provider'] = 'aws.' + requester['region']
             tf_resource_attachment_accepter = \
                 aws_ec2_transit_gateway_vpc_attachment_accepter(
@@ -784,7 +784,7 @@ class TerrascriptClient:
                         'transit_gateway_route_table_id':
                             route['tgw_route_table_id'],
                     }
-                    if self._multiregion_account_(req_account_name):
+                    if self._multiregion_account(req_account_name):
                         values['provider'] = 'aws.' + route_region
                     route_identifier = f"{identifier}-{route['tgw_id']}"
                     tf_resource = aws_ec2_transit_gateway_route(
@@ -811,7 +811,7 @@ class TerrascriptClient:
                         'cidr_blocks': [rule['cidr_block']],
                         'security_group_id': rule['security_group_id']
                     }
-                    if self._multiregion_account_(req_account_name):
+                    if self._multiregion_account(req_account_name):
                         values['provider'] = 'aws.' + rule_region
                     rule_identifier = f"{identifier}-{rule['vpc_id']}"
                     tf_resource = aws_security_group_rule(
@@ -936,10 +936,10 @@ class TerrascriptClient:
         else:
             az = values.get('availability_zone', None)
         provider = ''
-        if az is not None and self._multiregion_account_(account):
+        if az is not None and self._multiregion_account(account):
             # To get the provider we should use, we get the region
             # and use that as an alias in the provider definition
-            provider = 'aws.' + self._region_from_availability_zone_(az)
+            provider = 'aws.' + self._region_from_availability_zone(az)
             values['provider'] = provider
 
         # 'deps' should contain a list of terraform resource names
@@ -958,7 +958,7 @@ class TerrascriptClient:
             pg_identifier = pg_values.pop('identifier', None) or pg_name
             pg_values['name'] = pg_name
             pg_values['parameter'] = pg_values.pop('parameters')
-            if self._multiregion_account_(account) and len(provider) > 0:
+            if self._multiregion_account(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
                 aws_db_parameter_group(pg_identifier, **pg_values)
@@ -1024,7 +1024,7 @@ class TerrascriptClient:
                 f'${{{role_tf_resource.arn}}}'
 
         reset_password_current_value = values.pop('reset_password', None)
-        if self._db_needs_auth_(values):
+        if self._db_needs_auth(values):
             reset_password = self._should_reset_password(
                 reset_password_current_value,
                 existing_secrets,
@@ -1053,7 +1053,7 @@ class TerrascriptClient:
             output_value = self.secret_reader.read(ca_cert)
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        region = self._region_from_availability_zone_(
+        region = self._region_from_availability_zone(
             az) or self.default_regions.get(account)
         replica_source = values.pop('replica_source', None)
         if replica_source:
@@ -1061,14 +1061,14 @@ class TerrascriptClient:
                 raise ValueError(
                     "only one of replicate_source_db or replica_source " +
                     "can be defined")
-            source_info = self._find_resource_(account, replica_source, 'rds')
+            source_info = self._find_resource(account, replica_source, 'rds')
             if source_info:
                 values['backup_retention_period'] = 0
                 deps.append("aws_db_instance." +
                             source_info['resource']['identifier'])
                 replica_az = source_info.get('availability_zone', None)
                 if replica_az and len(replica_az) > 1:
-                    replica_region = self._region_from_availability_zone_(
+                    replica_region = self._region_from_availability_zone(
                         replica_az)
                 else:
                     replica_region = self.default_regions.get(account)
@@ -1147,7 +1147,7 @@ class TerrascriptClient:
             if kms_key_id.startswith("arn:"):
                 values['kms_key_id'] = kms_key_id
             else:
-                kms_key = self._find_resource_(account, kms_key_id, 'kms')
+                kms_key = self._find_resource(account, kms_key_id, 'kms')
                 if kms_key:
                     kms_res = "aws_kms_key." + \
                         kms_key['resource']['identifier']
@@ -1183,7 +1183,7 @@ class TerrascriptClient:
         output_value = output_resource_db_name or values.get('name', '')
         tf_resources.append(Output(output_name_0_13, value=output_value))
         # only set db user/password if not a replica or creation from snapshot
-        if self._db_needs_auth_(values):
+        if self._db_needs_auth(values):
             # db.user
             output_name_0_13 = output_prefix + '__db_user'
             output_value = values['username']
@@ -1226,7 +1226,7 @@ class TerrascriptClient:
                 return True
         return False
 
-    def _multiregion_account_(self, name):
+    def _multiregion_account(self, name):
         if name not in self.configs:
             return False
 
@@ -1235,11 +1235,11 @@ class TerrascriptClient:
 
         return False
 
-    def _find_resource_(self,
-                        account: str,
-                        source: str,
-                        provider: str
-                        ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
+    def _find_resource(self,
+                       account: str,
+                       source: str,
+                       provider: str
+                       ) -> Optional[Dict[str, Dict[str, Optional[str]]]]:
         if account not in self.account_resources:
             return None
 
@@ -1250,7 +1250,7 @@ class TerrascriptClient:
         return None
 
     @staticmethod
-    def _region_from_availability_zone_(az):
+    def _region_from_availability_zone(az):
         # Find the region by removing the last character from the
         # availability zone. Availability zone is defined like
         # us-east-1a, us-east-1b, etc.  If there is no availability
@@ -1260,7 +1260,7 @@ class TerrascriptClient:
         return None
 
     @staticmethod
-    def _db_needs_auth_(config):
+    def _db_needs_auth(config):
         if 'replicate_source_db' not in config and \
            config.get('replica_source', None) is None:
             return True
@@ -1504,7 +1504,7 @@ class TerrascriptClient:
             values['depends_on'] = self.get_dependencies(deps)
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
         bucket_tf_resource = aws_s3_bucket(identifier, **values)
         tf_resources.append(bucket_tf_resource)
@@ -1700,7 +1700,7 @@ class TerrascriptClient:
 
         region = values.pop('region', self.default_regions.get(account))
         provider = ''
-        if region is not None and self._multiregion_account_(account):
+        if region is not None and self._multiregion_account(account):
             provider = 'aws.' + region
             values['provider'] = provider
 
@@ -1718,7 +1718,7 @@ class TerrascriptClient:
                         and param['value'] == 'yes':
                     pg_cluster_enabled = True
 
-            if self._multiregion_account_(account) and len(provider) > 0:
+            if self._multiregion_account(account) and len(provider) > 0:
                 pg_values['provider'] = provider
             pg_tf_resource = \
                 aws_elasticache_parameter_group(pg_identifier, **pg_values)
@@ -1939,7 +1939,7 @@ class TerrascriptClient:
                 values = {}
                 queue_name = queue
                 values['tags'] = common_values['tags']
-                if self._multiregion_account_(account):
+                if self._multiregion_account(account):
                     values['provider'] = 'aws.' + region
                 values.update(defaults)
                 fifo_queue = values.get('fifo_queue', False)
@@ -1971,7 +1971,7 @@ class TerrascriptClient:
                     if kms_master_key_id.startswith("arn:"):
                         values['kms_master_key_id'] = kms_master_key_id
                     else:
-                        kms_key = self._find_resource_(
+                        kms_key = self._find_resource(
                             account, kms_master_key_id, 'kms')
                         if kms_key:
                             kms_res = "aws_kms_key." + \
@@ -2094,7 +2094,7 @@ class TerrascriptClient:
                 values['tags'] = common_values['tags']
                 values.update(defaults)
                 values['attribute'] = attributes
-                if self._multiregion_account_(account):
+                if self._multiregion_account(account):
                     values['provider'] = 'aws.' + region
                 table_tf_resource = aws_dynamodb_table(table, **values)
                 tf_resources.append(table_tf_resource)
@@ -2166,7 +2166,7 @@ class TerrascriptClient:
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
         ecr_tf_resource = aws_ecr_repository(identifier, **values)
         public = common_values.get('public')
@@ -2294,7 +2294,7 @@ class TerrascriptClient:
         values['depends_on'] = self.get_dependencies([bucket_tf_resource])
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
         bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
         tf_resources.append(bucket_policy_tf_resource)
@@ -2360,7 +2360,7 @@ class TerrascriptClient:
         region = common_values.get('region') or \
             self.default_regions.get(account)
         provider = ''
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             provider = 'aws.' + region
         tf_resources = []
         sqs_identifier = f'{identifier}-sqs'
@@ -2584,7 +2584,7 @@ class TerrascriptClient:
         region = common_values.get('region') or \
             self.default_regions.get(account)
         provider = ''
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             provider = 'aws.' + region
             values['provider'] = provider
         log_group_tf_resource = aws_cloudwatch_log_group(identifier, **values)
@@ -2816,7 +2816,7 @@ class TerrascriptClient:
                 values[key] = values[key].upper()
         region = values.pop(
             'region', None) or self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
 
         tf_resource = aws_kms_key(identifier, **values)
@@ -2831,7 +2831,7 @@ class TerrascriptClient:
         alias_values['name'] = "alias/" + identifier
         alias_values['target_key_id'] = "${aws_kms_key." + identifier + \
                                         ".key_id}"
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             alias_values['provider'] = 'aws.' + region
         tf_resource = aws_kms_alias(identifier, **alias_values)
         tf_resources.append(tf_resource)
@@ -2854,7 +2854,7 @@ class TerrascriptClient:
         # get region and set provider if required
         region = values.pop('region', None) or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
 
         # kinesis stream
@@ -3305,7 +3305,7 @@ class TerrascriptClient:
 
         region = values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             es_values['provider'] = 'aws.' + region
 
         advanced_security_options = values.get('advanced_security_options', {})
@@ -3413,7 +3413,7 @@ class TerrascriptClient:
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
 
         acm_tf_resource = aws_acm_certificate(identifier, **values)
@@ -3830,7 +3830,7 @@ class TerrascriptClient:
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             values['provider'] = 'aws.' + region
 
         aws_secret_resource = aws_secretsmanager_secret(identifier, **values)
@@ -3844,7 +3844,7 @@ class TerrascriptClient:
             "secret_string": json.dumps(secret_data, sort_keys=True)
         }
 
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             version_values['provider'] = 'aws.' + region
 
         aws_version_resource = \
@@ -3898,7 +3898,7 @@ class TerrascriptClient:
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
-        if self._multiregion_account_(account):
+        if self._multiregion_account(account):
             template_values['provider'] = 'aws.' + region
 
         role_name = common_values.get('iam_role_name')
@@ -3907,7 +3907,7 @@ class TerrascriptClient:
                 "name": identifier,
                 "role": role_name
             }
-            if self._multiregion_account_(account):
+            if self._multiregion_account(account):
                 profile_value['provider'] = 'aws.' + region
             profile_resource = \
                 aws_iam_instance_profile(identifier, **profile_value)
