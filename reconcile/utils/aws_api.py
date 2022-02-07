@@ -24,9 +24,11 @@ if TYPE_CHECKING:
         TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
     )
     from mypy_boto3_iam import IAMClient
+    from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
-        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = object
+        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
+        AccessKeyMetadataTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -621,7 +623,7 @@ class AWSApi:
 
     @staticmethod
     def _get_user_key_list(iam: IAMClient, user: str
-    ) -> list[dict]:
+    ) -> List[AccessKeyMetadataTypeDef]:
         try:
             return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         except iam.exceptions.NoSuchEntityException:
