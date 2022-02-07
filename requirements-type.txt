@@ -9,4 +9,4 @@ types-PyYAML
 types-requests
 types-tabulate
 types-toml
-boto3-stubs[ec2,s3,rds]
+boto3-stubs[ec2,s3,rds,iam]

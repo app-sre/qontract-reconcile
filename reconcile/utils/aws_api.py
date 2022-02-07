@@ -6,7 +6,7 @@ import time
 
 from datetime import datetime
 from threading import Lock
-from typing import TYPE_CHECKING
+from typing import Literal, Union, TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
@@ -23,9 +23,12 @@ if TYPE_CHECKING:
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
     )
+    from mypy_boto3_iam import IAMClient
+    from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
-        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = object
+        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
+        AccessKeyMetadataTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -37,6 +40,7 @@ class MissingARNError(Exception):
 
 
 Account = Dict[str, Any]
+KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
 
 class AWSApi:
@@ -619,13 +623,27 @@ class AWSApi:
             iam.delete_virtual_mfa_device(SerialNumber=serial_number)
 
     @staticmethod
-    def get_user_keys(iam, user):
-        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+    def _get_user_key_list(iam: IAMClient,
+                           user: str
+                           ) -> List[AccessKeyMetadataTypeDef]:
+        try:
+            return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+        except iam.exceptions.NoSuchEntityException:
+            return []
+
+    def get_user_keys(self,
+                      iam: IAMClient,
+                      user: str
+                      ) -> list[str]:
+        key_list = self._get_user_key_list(iam, user)
         return [uk['AccessKeyId'] for uk in key_list]
 
-    @staticmethod
-    def get_user_key_status(iam, user, key):
-        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+    def get_user_key_status(self,
+                            iam: IAMClient,
+                            user: str,
+                            key: str
+                            ) -> KeyStatus:
+        key_list = self._get_user_key_list(iam, user)
         return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
     def get_support_cases(self):
