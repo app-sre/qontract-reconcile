@@ -1,5 +1,6 @@
 import json
 from collections import namedtuple
+from typing import Union, Dict
 from unittest.mock import call, patch, MagicMock
 
 import httpretty
@@ -62,6 +63,12 @@ def test_slack_api_config_from_dict():
 
     assert slack_api_config.max_retries == 1
     assert slack_api_config.timeout == 5
+
+
+def new_slack_response(data: Dict[str, Union[bool, str]]):
+    return SlackResponse(client='', http_verb='', api_url='',
+                         req_args={}, data=data, headers={},
+                         status_code=0)
 
 
 def test_instantiate_slack_api_with_config(mocker):
@@ -166,6 +173,40 @@ def test_chat_post_message_missing_channel(slack_api):
     slack_api.client.channel = None
     with pytest.raises(ValueError):
         slack_api.client.chat_post_message('test')
+
+
+def test_chat_post_message_channel_not_found(mocker, slack_api):
+    slack_api.client.channel = 'test'
+    mock_join = mocker.patch('reconcile.utils.slack_api.SlackApi.join_channel',
+                             autospec=True)
+    nf_resp = new_slack_response({'ok': False, 'error': 'not_in_channel'})
+    slack_api.mock_slack_client.return_value.chat_postMessage.side_effect = \
+        [SlackApiError('error', nf_resp), None]
+    slack_api.client.chat_post_message('foo')
+    assert slack_api.mock_slack_client.return_value.chat_postMessage. \
+           call_count == 2
+    mock_join.assert_called_once()
+
+
+def test_chat_post_message_ok(slack_api):
+    slack_api.client.channel = 'test'
+    ok_resp = new_slack_response({'ok': True})
+    slack_api.mock_slack_client.return_value.chat_postMessage.side_effect = \
+        ok_resp
+    slack_api.client.chat_post_message('foo')
+    slack_api.mock_slack_client.return_value.chat_postMessage. \
+        assert_called_once()
+
+
+def test_chat_post_message_raises_other(mocker, slack_api):
+    slack_api.client.channel = 'test'
+    err_resp = new_slack_response({'ok': False, 'error': 'no_text'})
+    slack_api.mock_slack_client.return_value.chat_postMessage.side_effect = \
+        SlackApiError('error', err_resp)
+    with pytest.raises(SlackApiError):
+        slack_api.client.chat_post_message('foo')
+    slack_api.mock_slack_client.return_value.chat_postMessage. \
+        assert_called_once()
 
 
 def test_join_channel_missing_channel(slack_api):
