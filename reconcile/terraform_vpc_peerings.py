@@ -116,7 +116,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
             )
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
-                f'[{cluster_name} could not find VPC ID for cluster'
+                f'[{cluster_name}] could not find VPC ID for cluster'
             )
 
         requester = {
@@ -351,7 +351,7 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
 
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
-                f'[{cluster} could not find VPC ID for cluster'
+                f'[{cluster}] could not find VPC ID for cluster'
             )
         requester['vpc_id'] = requester_vpc_id
         requester['route_table_ids'] = requester_route_table_ids
