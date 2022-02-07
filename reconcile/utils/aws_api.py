@@ -40,6 +40,7 @@ class MissingARNError(Exception):
 
 
 Account = Dict[str, Any]
+KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
 
 class AWSApi:
@@ -622,20 +623,26 @@ class AWSApi:
             iam.delete_virtual_mfa_device(SerialNumber=serial_number)
 
     @staticmethod
-    def _get_user_key_list(iam: IAMClient, user: str
-    ) -> List[AccessKeyMetadataTypeDef]:
+    def _get_user_key_list(iam: IAMClient,
+                           user: str
+                           ) -> List[AccessKeyMetadataTypeDef]:
         try:
             return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         except iam.exceptions.NoSuchEntityException:
             return []
 
-    def get_user_keys(self, iam: IAMClient, user: str
-    ) -> list[str]:
+    def get_user_keys(self,
+                      iam: IAMClient,
+                      user: str
+                      ) -> list[str]:
         key_list = self._get_user_key_list(iam, user)
         return [uk['AccessKeyId'] for uk in key_list]
 
-    def get_user_key_status(self, iam: IAMClient, user: str, key: str
-    ) -> Union[Literal['Active'], Literal['Inactive']]:
+    def get_user_key_status(self,
+                            iam: IAMClient,
+                            user: str,
+                            key: str
+                            ) -> KeyStatus:
         key_list = self._get_user_key_list(iam, user)
         return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
