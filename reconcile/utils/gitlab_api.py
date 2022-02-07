@@ -245,12 +245,7 @@ class GitLabApi:
             return gitlab.GUEST_ACCESS
 
     def get_group_id_and_projects(self, group_name):
-        groups = self.gl.groups.list()
-        group = [g for g in groups if g.path == group_name]
-        if not group:
-            logging.error(group_name + " group not found")
-            return None, []
-        [group] = group
+        group = self.gl.groups.get(group_name)
         return group.id, [p.name for p in self.get_items(group.projects.list)]
 
     def create_project(self, group_id, project):
