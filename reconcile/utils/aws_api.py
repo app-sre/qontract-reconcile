@@ -624,7 +624,7 @@ class AWSApi:
     ) -> list[dict]:
         try:
             return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
-        except botocore.errorfactory.NoSuchEntityException:
+        except iam.exceptions.NoSuchEntityException:
             return []
 
     def get_user_keys(self, iam: IAMClient, user: str
