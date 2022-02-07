@@ -6,7 +6,7 @@ import time
 
 from datetime import datetime
 from threading import Lock
-from typing import TYPE_CHECKING
+from typing import Literal, Union, TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
@@ -635,7 +635,7 @@ class AWSApi:
         return [uk['AccessKeyId'] for uk in key_list]
 
     def get_user_key_status(self, iam: IAMClient, user: str, key: str
-    ) -> list[str]:
+    ) -> Union[Literal['Active'], Literal['Inactive']]:
         key_list = self._get_user_key_list(iam, user)
         return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
