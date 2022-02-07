@@ -3204,7 +3204,7 @@ class TerrascriptClient:
             }
             region = values.get('region') or \
                 self.default_regions.get(account)
-            if self._multiregion_account_(account):
+            if self._multiregion_account(account):
                 log_group_values['provider'] = f'aws.{region}'
             log_group_tf_resource = \
                 aws_cloudwatch_log_group(log_type_identifier,
