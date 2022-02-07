@@ -43,7 +43,7 @@ def url_makes_sense(url: str) -> bool:
     # TODO: we really should verify SSL certificates here. We
     # shouldn't let important service information in shady self-signed
     # servers
-    rs = requests.get(url, verify=False)
+    rs = requests.get(url)
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
     # broken resource
