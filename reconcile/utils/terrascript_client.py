@@ -3150,9 +3150,14 @@ class TerrascriptClient:
                 if res.get('provider') != 'elasticsearch':
                     continue
                 for log_type in res.get('publish_log_types', []):
-                    log_group_identifiers.append(
-                        f'{res["identifier"]}_{log_type.lower()}'
+                    region = ns.get('cluster').get('spec').get('region')
+                    account_id = self.accounts[res['account']]['uid']
+                    lg_identifier = (
+                        'OpenSearchService__'
+                        f'{res["identifier"]}__{log_type.lower()}'
                     )
+                    tup = (region, account_id, lg_identifier)
+                    log_group_identifiers.append(tup)
 
         log_groups_policy = {
             'Version': '2012-10-17',
@@ -3166,8 +3171,8 @@ class TerrascriptClient:
                     'logs:CreateLogStream',
                 ],
                 'Resource': [
-                    f'arn:aws:logs:::log-group:{lg_identifier}:*'
-                    for lg_identifier in log_group_identifiers
+                    f'arn:aws:logs:{tup[0]}:{tup[1]}:log-group:{tup[2]}:*'
+                    for tup in log_group_identifiers
                 ],
             }]
         }
@@ -3190,7 +3195,8 @@ class TerrascriptClient:
         publishing_options = []
 
         for log_type in resource.get('publish_log_types'):
-            log_type_identifier = f'{identifier}_{log_type.lower()}'
+            log_type_identifier = \
+                f'OpenSearchService__{identifier}__{log_type.lower()}'
             log_group_values = {
                 'name': log_type_identifier,
                 'tags': {},
