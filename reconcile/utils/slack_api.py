@@ -114,7 +114,6 @@ class SlackApi:
                  api_config: Optional[SlackApiConfig] = None,
                  settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
-                 init_join_channel: Optional[bool] = False,
                  channel: Optional[str] = None,
                  **chat_kwargs) -> None:
         """
@@ -150,12 +149,6 @@ class SlackApi:
         if init_usergroups:
             self._initiate_usergroups()
 
-        """
-        Ratelimiting issue, needs further investigation
-        if init_join_channel and self.channel:
-            self.join_channel()
-        """
-
     def _configure_client_retry(self) -> None:
         """
         Add retry handlers in addition to the defaults provided by the Slack
@@ -171,20 +164,30 @@ class SlackApi:
 
     def chat_post_message(self, text: str) -> None:
         """
-        Sends a message to a channel.
+        Try to send a chat message into a channel. If the bot is not in the
+        channel it will join the channel and send the message again.
 
         :param text: message to send to channel
         :raises ValueError: when Slack channel wasn't provided
         :raises slack_sdk.errors.SlackApiError: if unsuccessful response
-        from Slack API
+        from Slack API, except for not_in_channel
         """
-
         if not self.channel:
             raise ValueError('Slack channel name must be provided when '
                              'posting messages.')
 
-        self._sc.chat_postMessage(channel=self.channel, text=text,
-                                  **self.chat_kwargs)
+        def do_send(c: str, t: str):
+            self._sc.chat_postMessage(channel=c, text=t,
+                                      **self.chat_kwargs)
+
+        try:
+            do_send(self.channel, text)
+        except SlackApiError as e:
+            if e.response['error'] == "not_in_channel":
+                self.join_channel()
+                do_send(self.channel, text)
+            else:
+                raise e
 
     def describe_usergroup(self, handle):
         usergroup = self.get_usergroup(handle)
