@@ -43,10 +43,6 @@ class GitlabForkCompliance:
                                 settings=self.settings)
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
-        self.src = GitLabApi(self.instance,
-                             project_id=self.mr.source_project_id,
-                             settings=self.settings)
-
     def run(self):
         self.exit_code |= self.check_branch()
         self.exit_code |= self.check_bot_access()
@@ -87,6 +83,9 @@ class GitlabForkCompliance:
     def check_bot_access(self):
         # The bot needs access to the fork project
         try:
+            self.src = GitLabApi(self.instance,
+                                 project_id=self.mr.source_project_id,
+                                 settings=self.settings)
             project_bot = self.src.project.members.get(self.gl_cli.user.id)
         except GitlabGetError:
             self.handle_error('access denied for user {bot}', MSG_ACCESS)
