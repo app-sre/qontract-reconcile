@@ -619,13 +619,18 @@ class AWSApi:
             iam.delete_virtual_mfa_device(SerialNumber=serial_number)
 
     @staticmethod
-    def get_user_keys(iam, user):
-        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+    def _get_user_key_list(iam, user):
+        try:
+            return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+        except botocore.errorfactory.NoSuchEntityException:
+            return []
+
+    def get_user_keys(self, iam, user):
+        key_list = self._get_user_key_list(iam, user)
         return [uk['AccessKeyId'] for uk in key_list]
 
-    @staticmethod
-    def get_user_key_status(iam, user, key):
-        key_list = iam.list_access_keys(UserName=user)['AccessKeyMetadata']
+    def get_user_key_status(self, iam, user, key):
+        key_list = self._get_user_key_list(iam, user)
         return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
     def get_support_cases(self):
