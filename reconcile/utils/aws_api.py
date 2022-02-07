@@ -23,9 +23,10 @@ if TYPE_CHECKING:
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
     )
+    from mypy_boto3_iam import IAMClient
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
-        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = object
+        TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -619,17 +620,20 @@ class AWSApi:
             iam.delete_virtual_mfa_device(SerialNumber=serial_number)
 
     @staticmethod
-    def _get_user_key_list(iam, user):
+    def _get_user_key_list(iam: IAMClient, user: str
+    ) -> list[dict]:
         try:
             return iam.list_access_keys(UserName=user)['AccessKeyMetadata']
         except botocore.errorfactory.NoSuchEntityException:
             return []
 
-    def get_user_keys(self, iam, user):
+    def get_user_keys(self, iam: IAMClient, user: str
+    ) -> list[str]:
         key_list = self._get_user_key_list(iam, user)
         return [uk['AccessKeyId'] for uk in key_list]
 
-    def get_user_key_status(self, iam, user, key):
+    def get_user_key_status(self, iam: IAMClient, user: str, key: str
+    ) -> list[str]:
         key_list = self._get_user_key_list(iam, user)
         return [k['Status'] for k in key_list if k['AccessKeyId'] == key][0]
 
