@@ -179,7 +179,7 @@ def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
     desired_state = []
     error = False
     if not ocm_map:
-        logging.warning('cluster-vpc is not yet supported without OCM')
+        logging.debug('cluster-vpc is not yet supported without OCM')
         return desired_state, error
 
     for cluster_info in clusters:
@@ -279,7 +279,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     desired_state = []
     error = False
     if not ocm_map:
-        logging.warning('account-vpc-mesh is not yet supported without OCM')
+        logging.debug('account-vpc-mesh is not yet supported without OCM')
         return desired_state, error
 
     for cluster_info in clusters:
