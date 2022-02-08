@@ -330,13 +330,18 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: Optional[OCM],
         # there is no OCM at all.
         if provided_assume_role:
             account['assume_role'] = provided_assume_role
-        else:
+        elif ocm is not None:
             account['assume_role'] = \
                 ocm.get_aws_infrastructure_access_terraform_assume_role(
                 cluster,
                 peer_vpc['account']['uid'],
                 peer_vpc['account']['terraformUsername']
             )
+        else:
+            raise KeyError(
+                f'[{cluster}] peering connection '
+                f'{connection_name} must either specify assumeRole '
+                'or ocm should be defined to obtain role to assume')
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
         requester_vpc_id, requester_route_table_ids, _ = \
