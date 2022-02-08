@@ -107,6 +107,17 @@ integrations:
   logs:
     slack: true
   disableUnleash: true
+- name: terraform-vpc-peerings
+  resources:
+    requests:
+      memory: 2600Mi
+      cpu: 500m
+    limits:
+      memory: 3200Mi
+      cpu: 1400m
+  logs:
+    slack: true
+  disableUnleash: true
 - name: jenkins-job-builder
   resources:
     requests:

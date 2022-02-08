@@ -41,9 +41,7 @@ class TestAWSAccountFromInfrastructureAccess(testslide.TestCase):
                 }
             ]
         }
-        self.ocm_map = {
-            'cluster': MockOCM()
-        }
+        self.ocm = MockOCM()
 
     def test_aws_account_from_infrastructure_access(self):
         expected_result = {
@@ -56,12 +54,12 @@ class TestAWSAccountFromInfrastructureAccess(testslide.TestCase):
             'assume_cidr': 'vpc'
         }
         account = integ.aws_account_from_infrastructure_access(
-            self.cluster, 'read-only', self.ocm_map)
+            self.cluster, 'read-only', self.ocm)
         self.assertEqual(account, expected_result)
 
     def test_aws_account_from_infrastructure_access_none(self):
         account = integ.aws_account_from_infrastructure_access(
-            self.cluster, 'not-read-only', self.ocm_map)
+            self.cluster, 'not-read-only', self.ocm)
         self.assertIsNone(account)
 
 
@@ -91,7 +89,7 @@ class TestRun(testslide.TestCase):
         }])
         self.clusters = self.mock_callable(
             queries, 'get_clusters').to_return_value([
-                {"name": "aname", "peering": {"apeering"}}
+                {"name": "aname", "ocm": "aocm", "peering": {"apeering"}}
             ]).and_assert_called_once()
         self.settings = self.mock_callable(
             queries, 'get_app_interface_settings').to_return_value(

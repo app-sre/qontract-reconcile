@@ -1,6 +1,7 @@
 import logging
 import sys
 import json
+from typing import Optional
 
 from reconcile import queries
 from reconcile.utils import aws_api
@@ -40,12 +41,11 @@ def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
 
 
 def aws_account_from_infrastructure_access(cluster, access_level: str,
-                                           ocm_map: OCMMap):
+                                           ocm: OCM):
     """
     Generate an AWS account object from a cluster's awsInfrastructureAccess
     groups and access levels
     """
-    ocm = ocm_map.get(cluster['name'])
     account = None
     for awsAccess in cluster['awsInfrastructureAccess']:
         if awsAccess.get('accessLevel', "") == access_level:
@@ -68,7 +68,7 @@ def aws_account_from_infrastructure_access(cluster, access_level: str,
     return account
 
 
-def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
+def build_desired_state_single_cluster(cluster_info, ocm: OCM,
                                        awsapi: AWSApi):
     cluster_name = cluster_info['name']
 
@@ -77,7 +77,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
     # requester cluster and use that as the account for the requester
     req_aws = aws_account_from_infrastructure_access(cluster_info,
                                                      'network-mgmt',
-                                                     ocm_map)
+                                                     ocm)
     if not req_aws:
         raise BadTerraformPeeringState(
             "could not find an AWS account with the "
@@ -116,7 +116,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
             )
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
-                f'[{cluster_name} could not find VPC ID for cluster'
+                f'[{cluster_name}] could not find VPC ID for cluster'
             )
 
         requester = {
@@ -132,7 +132,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
         # accepter
         acc_aws = aws_account_from_infrastructure_access(peer_cluster,
                                                          'network-mgmt',
-                                                         ocm_map)
+                                                         ocm)
         if not acc_aws:
             raise BadTerraformPeeringState(
                 "could not find an AWS account with the "
@@ -181,13 +181,15 @@ def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
 
     for cluster_info in clusters:
         try:
+            cluster = cluster_info['name']
+            ocm = ocm_map.get(cluster)
             items = build_desired_state_single_cluster(
-                cluster_info, ocm_map, awsapi
+                cluster_info, ocm, awsapi
             )
             desired_state.extend(items)
         except (KeyError, BadTerraformPeeringState, aws_api.MissingARNError):
             logging.exception(
-                f"Failed to get desired state for {cluster_info['name']}"
+                f"Failed to get desired state for {cluster}"
             )
             error = True
 
@@ -293,7 +295,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     return desired_state, error
 
 
-def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
+def build_desired_state_vpc_single_cluster(cluster_info, ocm: Optional[OCM],
                                            awsapi: AWSApi):
     desired_state = []
 
@@ -322,12 +324,24 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
         account = peer_vpc['account']
         # assume_role is the role to assume to provision the peering
         # connection request, through the accepter AWS account.
-        account['assume_role'] = \
-            ocm.get_aws_infrastructure_access_terraform_assume_role(
-            cluster,
-            peer_vpc['account']['uid'],
-            peer_vpc['account']['terraformUsername']
-        )
+        provided_assume_role = peer_connection.get('assumeRole')
+        # if an assume_role is provided, it means we don't need
+        # to get the information from OCM. it likely means that
+        # there is no OCM at all.
+        if provided_assume_role:
+            account['assume_role'] = provided_assume_role
+        elif ocm is not None:
+            account['assume_role'] = \
+                ocm.get_aws_infrastructure_access_terraform_assume_role(
+                cluster,
+                peer_vpc['account']['uid'],
+                peer_vpc['account']['terraformUsername']
+            )
+        else:
+            raise KeyError(
+                f'[{cluster}] peering connection '
+                f'{connection_name} must either specify assumeRole '
+                'or ocm should be defined to obtain role to assume')
         account['assume_region'] = requester['region']
         account['assume_cidr'] = requester['cidr_block']
         requester_vpc_id, requester_route_table_ids, _ = \
@@ -338,7 +352,7 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
 
         if requester_vpc_id is None:
             raise BadTerraformPeeringState(
-                f'[{cluster} could not find VPC ID for cluster'
+                f'[{cluster}] could not find VPC ID for cluster'
             )
         requester['vpc_id'] = requester_vpc_id
         requester['route_table_ids'] = requester_route_table_ids
@@ -355,7 +369,8 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
     return desired_state
 
 
-def build_desired_state_vpc(clusters, ocm_map: OCMMap, awsapi: AWSApi):
+def build_desired_state_vpc(clusters, ocm_map: Optional[OCMMap],
+                            awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
     """
@@ -365,7 +380,7 @@ def build_desired_state_vpc(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     for cluster_info in clusters:
         try:
             cluster = cluster_info['name']
-            ocm = ocm_map.get(cluster)
+            ocm = None if ocm_map is None else ocm_map.get(cluster)
             items = build_desired_state_vpc_single_cluster(
                 cluster_info, ocm, awsapi
             )
@@ -383,32 +398,45 @@ def run(dry_run, print_to_file=None,
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters()
                 if c.get('peering') is not None]
-    ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                         settings=settings)
+    with_ocm = any(c.get('ocm') for c in clusters)
+    if with_ocm:
+        ocm_map = ocm.OCMMap(clusters=clusters,
+                             integration=QONTRACT_INTEGRATION,
+                             settings=settings)
+    else:
+        # this is a case for an OCP cluster which is not provisioned
+        # through OCM. it is expected that an 'assume_role' is provided
+        # on the vpc peering defition in the cluster file.
+        ocm_map = None
 
     accounts = queries.get_aws_accounts()
     awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
 
+    desired_state = []
     errors = []
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state_vpc, err = \
         build_desired_state_vpc(clusters, ocm_map, awsapi)
+    desired_state.extend(desired_state_vpc)
     errors.append(err)
 
     # Fetch desired state for cluster-to-account (vpc mesh) VPCs
-    desired_state_vpc_mesh, err = \
-        build_desired_state_vpc_mesh(clusters, ocm_map, awsapi)
-    errors.append(err)
+    if ocm_map is not None:
+        desired_state_vpc_mesh, err = \
+            build_desired_state_vpc_mesh(clusters, ocm_map, awsapi)
+        desired_state.extend(desired_state_vpc_mesh)
+        errors.append(err)
+    else:
+        logging.debug('account-vpc-mesh is not yet supported without OCM')
 
     # Fetch desired state for cluster-to-cluster VPCs
-    desired_state_cluster, err = \
-        build_desired_state_all_clusters(clusters, ocm_map, awsapi)
-    errors.append(err)
-
-    desired_state = \
-        desired_state_vpc + \
-        desired_state_vpc_mesh + \
-        desired_state_cluster
+    if ocm_map is not None:
+        desired_state_cluster, err = \
+            build_desired_state_all_clusters(clusters, ocm_map, awsapi)
+        desired_state.extend(desired_state_cluster)
+        errors.append(err)
+    else:
+        logging.debug('cluster-vpc is not yet supported without OCM')
 
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]
