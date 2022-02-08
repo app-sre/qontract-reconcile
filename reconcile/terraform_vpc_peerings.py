@@ -196,7 +196,8 @@ def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
     return desired_state, error
 
 
-def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm: OCM, awsapi: AWSApi):
+def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm: OCM,
+                                                awsapi: AWSApi):
     desired_state = []
 
     cluster = cluster_info['name']
@@ -270,8 +271,7 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm: OCM, awsapi: 
     return desired_state
 
 
-def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap,
-                                 awsapi: AWSApi):
+def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
     """
