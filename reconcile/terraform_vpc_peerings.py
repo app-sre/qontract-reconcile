@@ -1,6 +1,7 @@
 import logging
 import sys
 import json
+from typing import Union
 
 from reconcile import queries
 from reconcile.utils import aws_api
@@ -171,7 +172,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
     return peerings
 
 
-def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
+def build_desired_state_all_clusters(clusters, ocm_map: Union[OCMMap, dict],
                                      awsapi: AWSApi):
     """
     Fetch state for VPC peerings between two OCM clusters
@@ -272,7 +273,8 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm: OCM,
     return desired_state
 
 
-def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
+def build_desired_state_vpc_mesh(clusters, ocm_map: Union[OCMMap, dict],
+                                 awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
     """
@@ -368,7 +370,8 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
     return desired_state
 
 
-def build_desired_state_vpc(clusters, ocm_map: OCMMap, awsapi: AWSApi):
+def build_desired_state_vpc(clusters, ocm_map: Union[OCMMap, dict],
+                            awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
     """
