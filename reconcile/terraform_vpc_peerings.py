@@ -176,7 +176,7 @@ def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
     """
     Fetch state for VPC peerings between two OCM clusters
     """
-    desired_state = []
+    desired_state: list[dict] = []
     error = False
     if not ocm_map:
         logging.debug('cluster-vpc is not yet supported without OCM')
@@ -276,7 +276,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap, awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
     """
-    desired_state = []
+    desired_state: list[dict] = []
     error = False
     if not ocm_map:
         logging.debug('account-vpc-mesh is not yet supported without OCM')
