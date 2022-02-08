@@ -41,12 +41,11 @@ def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
 
 
 def aws_account_from_infrastructure_access(cluster, access_level: str,
-                                           ocm_map: OCMMap):
+                                           ocm: OCM):
     """
     Generate an AWS account object from a cluster's awsInfrastructureAccess
     groups and access levels
     """
-    ocm = ocm_map.get(cluster['name'])
     account = None
     for awsAccess in cluster['awsInfrastructureAccess']:
         if awsAccess.get('accessLevel', "") == access_level:
@@ -69,7 +68,7 @@ def aws_account_from_infrastructure_access(cluster, access_level: str,
     return account
 
 
-def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
+def build_desired_state_single_cluster(cluster_info, ocm: OCM,
                                        awsapi: AWSApi):
     cluster_name = cluster_info['name']
 
@@ -78,7 +77,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
     # requester cluster and use that as the account for the requester
     req_aws = aws_account_from_infrastructure_access(cluster_info,
                                                      'network-mgmt',
-                                                     ocm_map)
+                                                     ocm)
     if not req_aws:
         raise BadTerraformPeeringState(
             "could not find an AWS account with the "
@@ -133,7 +132,7 @@ def build_desired_state_single_cluster(cluster_info, ocm_map: OCMMap,
         # accepter
         acc_aws = aws_account_from_infrastructure_access(peer_cluster,
                                                          'network-mgmt',
-                                                         ocm_map)
+                                                         ocm)
         if not acc_aws:
             raise BadTerraformPeeringState(
                 "could not find an AWS account with the "
@@ -185,13 +184,15 @@ def build_desired_state_all_clusters(clusters, ocm_map: Union[OCMMap, dict],
 
     for cluster_info in clusters:
         try:
+            cluster = cluster_info['name']
+            ocm = ocm_map.get(cluster)
             items = build_desired_state_single_cluster(
-                cluster_info, ocm_map, awsapi
+                cluster_info, ocm, awsapi
             )
             desired_state.extend(items)
         except (KeyError, BadTerraformPeeringState, aws_api.MissingARNError):
             logging.exception(
-                f"Failed to get desired state for {cluster_info['name']}"
+                f"Failed to get desired state for {cluster}"
             )
             error = True
 
