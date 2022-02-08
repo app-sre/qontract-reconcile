@@ -3139,8 +3139,8 @@ class TerrascriptClient:
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
 
-    def _elasticsearch_log_group_identifier(
-        self,
+    @staticmethod
+    def elasticsearch_log_group_identifier(
         domain_identifier: str,
         log_type: ElasticSearchLogGroupType
     ) -> str:
@@ -3168,10 +3168,11 @@ class TerrascriptClient:
                     region = ns.get('cluster').get('spec').get('region')
                     account = res['account']
                     account_id = self.accounts[account]['uid']
-                    lg_identifier = self._elasticsearch_log_group_identifier(
-                        domain_identifier=res['identifier'],
-                        log_type=ElasticSearchLogGroupType(log_type),
-                    )
+                    lg_identifier = \
+                        TerrascriptClient.elasticsearch_log_group_identifier(
+                            domain_identifier=res['identifier'],
+                            log_type=ElasticSearchLogGroupType(log_type),
+                        )
                     tup = (account, region, account_id, lg_identifier)
                     log_group_identifiers.append(tup)
         return log_group_identifiers
@@ -3234,7 +3235,7 @@ class TerrascriptClient:
             log_types = []
         for log_type in log_types:
             log_type_identifier = \
-                self._elasticsearch_log_group_identifier(
+                TerrascriptClient.elasticsearch_log_group_identifier(
                     domain_identifier=identifier,
                     log_type=ElasticSearchLogGroupType(log_type),
                 )
