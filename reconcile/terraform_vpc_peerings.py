@@ -398,7 +398,8 @@ def run(dry_run, print_to_file=None,
                 if c.get('peering') is not None]
     with_ocm = any(c.get('ocm') for c in clusters)
     if with_ocm:
-        ocm_map = ocm.OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
+        ocm_map = ocm.OCMMap(clusters=clusters,
+                             integration=QONTRACT_INTEGRATION,
                              settings=settings)
     else:
         # this is a case for an OCP cluster which is not provisioned
