@@ -1,4 +1,5 @@
 import base64
+import enum
 import json
 import logging
 import os
@@ -9,7 +10,9 @@ import tempfile
 
 from threading import Lock
 
-from typing import Any, Dict, List, Iterable, MutableMapping, Optional
+from typing import (
+    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional, Tuple
+)
 from ipaddress import ip_network, ip_address
 
 import anymarkup
@@ -133,6 +136,12 @@ class time(Provider):
 # https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
     pass
+
+
+class ElasticSearchLogGroupType(enum.Enum):
+    INDEX_SLOW_LOGS = 'INDEX_SLOW_LOGS'
+    SEARCH_SLOW_LOGS = 'SEARCH_SLOW_LOGS'
+    ES_APPLICATION_LOGS = 'ES_APPLICATION_LOGS'
 
 
 class TerrascriptClient:
@@ -3130,16 +3139,17 @@ class TerrascriptClient:
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
 
-    def _get_tf_resource_elasticsearch_resource_policy(self):
-        '''
-        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
-        NOTE: CloudWatch Logs supports 10 resource policies per Region.
-        If you plan to enable logs for several OpenSearch Service domains,
-        you should create and reuse a broader policy that includes multiple
-        log groups to avoid reaching this limit.
-        I.e., ideally we aggregate ALL log group identifiers for that
-        region first.
-        '''
+    def _elasticsearch_log_group_identifier(
+        self,
+        domain_identifier: str,
+        log_type: ElasticSearchLogGroupType
+    ) -> str:
+        log_type_name = log_type.value.lower()
+        return f'OpenSearchService__{domain_identifier}__{log_type_name}'
+
+    def _elasticsearch_aggregate_log_groups_per_account(
+        self
+    ) -> Iterable[Tuple[str, str, str, str]]:
         log_group_identifiers = []
         for resources in self.account_resources.values():
             for i in resources:
@@ -3149,15 +3159,37 @@ class TerrascriptClient:
                     continue
                 if res.get('provider') != 'elasticsearch':
                     continue
-                for log_type in res.get('publish_log_types', []):
+                # res.get('', []) won't work, as publish_log_types is
+                # explicitly set to None if not set
+                log_types = res['publish_log_types']
+                if not log_types:
+                    log_types = []
+                for log_type in log_types:
                     region = ns.get('cluster').get('spec').get('region')
-                    account_id = self.accounts[res['account']]['uid']
-                    lg_identifier = (
-                        'OpenSearchService__'
-                        f'{res["identifier"]}__{log_type.lower()}'
+                    account = res['account']
+                    account_id = self.accounts[account]['uid']
+                    lg_identifier = self._elasticsearch_log_group_identifier(
+                        domain_identifier=res['identifier'],
+                        log_type=ElasticSearchLogGroupType(log_type),
                     )
-                    tup = (region, account_id, lg_identifier)
+                    tup = (account, region, account_id, lg_identifier)
                     log_group_identifiers.append(tup)
+        return log_group_identifiers
+
+    def _get_tf_resource_elasticsearch_resource_policy(
+        self, account: str
+    ) -> aws_cloudwatch_log_resource_policy:
+        '''
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
+        CloudWatch Logs supports 10 resource policies per Region.
+        If you plan to enable logs for several OpenSearch Service domains,
+        you should create and reuse a broader policy that includes multiple
+        log groups to avoid reaching this limit.
+        I.e., ideally we aggregate ALL log group identifiers for each
+        account first.
+        '''
+        log_group_identifiers = \
+            self._elasticsearch_aggregate_log_groups_per_account()
 
         log_groups_policy = {
             'Version': '2012-10-17',
@@ -3171,8 +3203,8 @@ class TerrascriptClient:
                     'logs:CreateLogStream',
                 ],
                 'Resource': [
-                    f'arn:aws:logs:{tup[0]}:{tup[1]}:log-group:{tup[2]}:*'
-                    for tup in log_group_identifiers
+                    f'arn:aws:logs:{tup[1]}:{tup[2]}:log-group:{tup[3]}:*'
+                    for tup in log_group_identifiers if tup[0] == account
                 ],
             }]
         }
@@ -3187,16 +3219,25 @@ class TerrascriptClient:
         return resource_policy
 
     def _get_tf_resource_elasticsearch_log_groups(
-        self, identifier, account,
-        resource, values, output_prefix
-    ):
+        self, identifier: str, account: str,
+        resource: Mapping[str, Any], values: Mapping[str, Any],
+        output_prefix: str
+    ) -> Tuple[Iterable[Mapping[str, Any]], Iterable[Mapping[str, str]]]:
         ES_LOG_GROUP_RETENTION_DAYS = 180
         tf_resources = []
         publishing_options = []
 
-        for log_type in resource.get('publish_log_types'):
+        # res.get('', []) won't work, as publish_log_types is
+        # explicitly set to None if not set
+        log_types = resource['publish_log_types']
+        if not log_types:
+            log_types = []
+        for log_type in log_types:
             log_type_identifier = \
-                f'OpenSearchService__{identifier}__{log_type.lower()}'
+                self._elasticsearch_log_group_identifier(
+                    domain_identifier=identifier,
+                    log_type=ElasticSearchLogGroupType(log_type),
+                )
             log_group_values = {
                 'name': log_type_identifier,
                 'tags': {},
@@ -3270,7 +3311,9 @@ class TerrascriptClient:
             )
         tf_resources += log_group_resources
 
-        resource_policy = self._get_tf_resource_elasticsearch_resource_policy()
+        resource_policy = self._get_tf_resource_elasticsearch_resource_policy(
+            account=account,
+        )
         tf_resources.append(resource_policy)
 
         es_values['log_publishing_options'] = publishing_options
