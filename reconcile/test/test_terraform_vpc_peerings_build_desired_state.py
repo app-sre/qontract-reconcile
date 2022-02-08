@@ -233,7 +233,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
             self.peer_cluster, 'network-mgmt', self.ocm
         ).to_return_value(self.aws_account).and_assert_called_once()
         self.find_matching_peering.for_call(
-            self.cluster, self.cluster['peering']['connections'][0],
+            self.cluster,
             self.peer_cluster,
             'cluster-vpc-accepter'
         ).to_return_value(self.peer).and_assert_called_once()
@@ -301,7 +301,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
         self.cluster['peering']['connections'] = []
         self.mock_callable(
             sut, 'aws_account_from_infrastructure_access'
-        ).to_return_value(self.aws_account).and_assert_called_once()
+        ).to_return_value(self.aws_account).and_assert_not_called()
         rs = sut.build_desired_state_single_cluster(
             self.cluster, self.ocm, self.awsapi
         )
@@ -347,9 +347,7 @@ class TestBuildDesiredStateSingleCluster(testslide.TestCase):
         self.find_matching_peering.to_return_value(self.peer)
         self.mock_callable(
             self.awsapi, 'get_cluster_vpc_details'
-        ).to_return_value(
-            ('vpcid', ['route_table_id'], {})
-        ).and_assert_called_once()
+        ).and_assert_not_called()
 
         with self.assertRaises(sut.BadTerraformPeeringState):
             sut.build_desired_state_single_cluster(

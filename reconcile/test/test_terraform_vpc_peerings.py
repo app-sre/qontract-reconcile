@@ -1,7 +1,10 @@
 import sys
+from typing import Any, Optional
 import testslide
+import pytest
 
 import reconcile.terraform_vpc_peerings as integ
+from reconcile.terraform_vpc_peerings import BadTerraformPeeringState
 from reconcile.utils import aws_api
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_client as terrascript
@@ -10,57 +13,281 @@ from reconcile.utils import ocm
 
 
 class MockOCM:
-    @staticmethod
-    def get_aws_infrastructure_access_terraform_assume_role(cluster,
+
+    def __init__(self) -> None:
+        self.assumes: dict[str, str] = {}
+
+    def register(self, cluster: str, tf_account_id: str, tf_user: str,
+                 assume_role: str) -> 'MockOCM':
+        self.assumes[f"{cluster}/{tf_account_id}/{tf_user}"] = assume_role
+        return self
+
+    def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
                                                             tf_account_id,
                                                             tf_user):
-        return f"{cluster}/{tf_account_id}/{tf_user}"
+        return self.assumes.get(f"{cluster}/{tf_account_id}/{tf_user}")
 
 
-class TestAWSAccountFromInfrastructureAccess(testslide.TestCase):
-    def setUp(self):
-        self.cluster = {
-            'name': 'cluster',
-            'spec': {
-                'region': 'region'
-            },
-            'network': {
-                'vpc': 'vpc'
-            },
-            'awsInfrastructureAccess': [
-                {
-                    'awsGroup': {
-                        'account': {
-                            'name': 'account',
-                            'uid': 'uid',
-                            'terraformUsername': 'terraform',
-                            'automationToken': 'token'
-                        }
+def build_cluster(name: str, vpc: Optional[str] = None,
+                  read_only_accounts: Optional[list[str]] = None,
+                  network_mgmt_accounts: Optional[list[str]] = None,
+                  peering_connections: Optional[list[dict[str, Any]]] = None):
+    if not vpc:
+        vpc = name
+    cluster = {
+        "name": name,
+        "spec": {
+            "region": "region"
+        },
+        "network": {
+            "vpc": vpc
+        },
+        "peering": {
+            "connections": peering_connections or []
+        },
+        "awsInfrastructureManagementAccounts": None
+    }
+
+    if read_only_accounts or network_mgmt_accounts:
+        cluster["awsInfrastructureManagementAccounts"] = []
+        if read_only_accounts:
+            for idx, acc in enumerate(read_only_accounts):
+                cluster["awsInfrastructureManagementAccounts"].append({  # type: ignore # noqa: E501
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {}
                     },
-                    'accessLevel': 'read-only'
-                }
-            ]
-        }
-        self.ocm = MockOCM()
+                    "accessLevel": "read-only",
+                    "default": None
+                })
+        if network_mgmt_accounts:
+            for idx, acc in enumerate(network_mgmt_accounts):
+                cluster["awsInfrastructureManagementAccounts"].append({  # type: ignore # noqa: E501
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {}
+                    },
+                    "accessLevel": "network-mgmt",
+                    "default": True if idx == 0 else None
+                })
+    return cluster
 
-    def test_aws_account_from_infrastructure_access(self):
-        expected_result = {
-            'name': 'account',
-            'uid': 'uid',
-            'terraformUsername': 'terraform',
-            'automationToken': 'token',
-            'assume_role': 'cluster/uid/terraform',
-            'assume_region': 'region',
-            'assume_cidr': 'vpc'
-        }
-        account = integ.aws_account_from_infrastructure_access(
-            self.cluster, 'read-only', self.ocm)
-        self.assertEqual(account, expected_result)
 
-    def test_aws_account_from_infrastructure_access_none(self):
-        account = integ.aws_account_from_infrastructure_access(
-            self.cluster, 'not-read-only', self.ocm)
-        self.assertIsNone(account)
+def build_requester_connection(name: str, manage_routes: bool = True):
+    return {
+        "name": name,
+        "provider": "cluster-vpc-requester",
+        "manageRoutes": manage_routes,
+    }
+
+
+def build_accepter_connection(name: str, cluster: str,
+                              aws_infra_acc: Optional[str] = None,
+                              manage_routes: bool = True):
+    connection = {
+        "name": name,
+        "provider": "cluster-vpc-accepter",
+        "manageRoutes": manage_routes,
+        "cluster": {
+            "name": cluster
+        },
+        "awsInfrastructureManagementAccount": None
+    }
+    if aws_infra_acc:
+        connection["awsInfrastructureManagementAccount"] = {
+            "name": aws_infra_acc,
+            "uid": aws_infra_acc,
+            "terraformUsername": "terraform",
+            "automationToken": {}
+        }
+    return connection
+
+
+def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite():
+    """
+    makes sure the peer connection account overwrite on the accepter is used
+    when available. in this test, the overwrite is also allowed
+    """
+    requester_cluster = build_cluster(name="r_c")
+    accepter_cluster = build_cluster(
+        name="a_c",
+        network_mgmt_accounts=["acc", "acc_overwrite"])
+    accepter_connection = build_accepter_connection(
+        name="a_c", cluster="a_c",
+        aws_infra_acc="acc_overwrite"
+    )
+
+    ocm = MockOCM().register(
+        "r_c", "acc_overwrite", "terraform", "arn:r_acc_overwrite"
+    ).register(
+        "r_c", "acc", "terraform", "arn:r_acc"
+    ).register(
+        "a_c", "acc_overwrite", "terraform", "arn:a_acc_overwrite"
+    ).register(
+        "a_c", "acc", "terraform", "arn:a_acc"
+    )
+    req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
+        requester_cluster,
+        accepter_connection,
+        accepter_cluster,
+        ocm
+    )
+
+    expected_req_aws = {
+        'name': 'acc_overwrite',
+        'uid': 'acc_overwrite',
+        'terraformUsername': 'terraform',
+        'automationToken': {},
+        'assume_role': 'arn:r_acc_overwrite',
+        'assume_region': 'region',
+        'assume_cidr': 'r_c'
+    }
+    assert req_aws == expected_req_aws
+
+    expected_acc_aws = {
+        'name': 'acc_overwrite',
+        'uid': 'acc_overwrite',
+        'terraformUsername': 'terraform',
+        'automationToken': {},
+        'assume_role': 'arn:a_acc_overwrite',
+        'assume_region': 'region',
+        'assume_cidr': 'a_c'
+    }
+    assert acc_aws == expected_acc_aws
+
+
+def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite_fail():
+    """
+    try overwrite the account to be used on the accepter connection with an
+    account not listed on the accepter cluster
+    """
+    requester_cluster = build_cluster(name="r_c")
+    accepter_cluster = build_cluster(
+        name="a_c",
+        network_mgmt_accounts=["acc"])
+    accepter_connection = build_accepter_connection(
+        name="a_c", cluster="a_c",
+        aws_infra_acc="acc_overwrite"
+    )
+
+    ocm = MockOCM().register(
+        "r_c", "acc", "terraform", "arn:r_acc"
+    ).register(
+        "a_c", "acc", "terraform", "arn:a_acc"
+    )
+    with pytest.raises(BadTerraformPeeringState) as ex:
+        integ.aws_assume_roles_for_cluster_vpc_peering(
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm
+        )
+    assert str(ex.value).startswith("[account_not_allowed]")
+
+
+def test_c2c_vpc_peering_assume_role_accepter_cluster_account():
+    """
+    makes sure the clusters default infra account is used when no peer
+    connection overwrite exists
+    """
+    requester_cluster = build_cluster(name="r_c")
+    accepter_cluster = build_cluster(
+        name="a_c",
+        network_mgmt_accounts=["default_acc", "other_acc"]
+    )
+    accepter_connection = build_accepter_connection(
+        name="a_c", cluster="a_c"
+    )
+
+    ocm = MockOCM().register(
+        "r_c", "default_acc", "terraform", "arn:r_default_acc"
+    ).register(
+        "r_c", "other_acc", "terraform", "arn:r_other_acc"
+    ).register(
+        "a_c", "default_acc", "terraform", "arn:a_default_acc"
+    ).register(
+        "a_c", "other_acc", "terraform", "arn:a_other_acc"
+    )
+    req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
+        requester_cluster,
+        accepter_connection,
+        accepter_cluster,
+        ocm
+    )
+
+    expected_req_aws = {
+        'name': 'default_acc',
+        'uid': 'default_acc',
+        'terraformUsername': 'terraform',
+        'automationToken': {},
+        'assume_role': 'arn:r_default_acc',
+        'assume_region': 'region',
+        'assume_cidr': 'r_c'
+    }
+    assert req_aws == expected_req_aws
+
+    expected_acc_aws = {
+        'name': 'default_acc',
+        'uid': 'default_acc',
+        'terraformUsername': 'terraform',
+        'automationToken': {},
+        'assume_role': 'arn:a_default_acc',
+        'assume_region': 'region',
+        'assume_cidr': 'a_c'
+    }
+    assert acc_aws == expected_acc_aws
+
+
+def test_c2c_vpc_peering_missing_ocm_assume_role():
+    """
+    makes sure the clusters infra account is used when no peer connection
+    overwrite exists
+    """
+    requester_cluster = build_cluster(name="r_c")
+    accepter_cluster = build_cluster(
+        name="a_c",
+        network_mgmt_accounts=["acc"]
+    )
+    accepter_connection = build_accepter_connection(
+        name="a_c", cluster="a_c"
+    )
+
+    ocm = MockOCM()
+
+    with pytest.raises(BadTerraformPeeringState) as ex:
+        integ.aws_assume_roles_for_cluster_vpc_peering(
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm
+        )
+    assert str(ex.value).startswith("[assume_role_not_found]")
+
+
+def test_c2c_vpc_peering_missing_account():
+    """
+    test the fallback logic, looking for network-mgmt groups accounts
+    """
+    requester_cluster = build_cluster(name="r_c")
+    accepter_cluster = build_cluster(name="a_c")
+    accepter_connection = build_accepter_connection(
+        name="a_c", cluster="a_c"
+    )
+
+    ocm = MockOCM()
+
+    with pytest.raises(BadTerraformPeeringState) as ex:
+        integ.aws_assume_roles_for_cluster_vpc_peering(
+            requester_cluster,
+            accepter_connection,
+            accepter_cluster,
+            ocm
+        )
+    assert str(ex.value).startswith("[no_account_available]")
 
 
 class TestRun(testslide.TestCase):
