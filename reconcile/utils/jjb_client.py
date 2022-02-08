@@ -6,9 +6,11 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as et
 import json
+import re
 
 from os import path
 from contextlib import contextmanager
+from subprocess import PIPE, STDOUT, CalledProcessError
 
 import filecmp
 import yaml
@@ -232,7 +234,17 @@ class JJB:
             delete_method = self.instances[name]['delete_method']
             if delete_method != 'manual':
                 cmd.append('--delete-old')
-            subprocess.call(cmd)
+            try:
+                result = subprocess.run(cmd,
+                                        check=True,
+                                        stdout=PIPE,
+                                        stderr=STDOUT)
+                out_str = result.output.decode("utf-8")
+                if re.search("updated: [1-9]", out_str):
+                    logging.info(out_str)
+            except CalledProcessError as ex:
+                msg = ex.output.decode("utf-8")
+                logging.error(msg)
 
     @staticmethod
     def get_jjb(args):
