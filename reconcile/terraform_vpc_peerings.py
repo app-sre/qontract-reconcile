@@ -1,7 +1,7 @@
 import logging
 import sys
 import json
-from typing import Union
+from typing import Optional
 
 from reconcile import queries
 from reconcile.utils import aws_api
@@ -171,16 +171,13 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
     return peerings
 
 
-def build_desired_state_all_clusters(clusters, ocm_map: Union[OCMMap, dict],
+def build_desired_state_all_clusters(clusters, ocm_map: OCMMap,
                                      awsapi: AWSApi):
     """
     Fetch state for VPC peerings between two OCM clusters
     """
-    desired_state: list[dict] = []
+    desired_state = []
     error = False
-    if not ocm_map:
-        logging.debug('cluster-vpc is not yet supported without OCM')
-        return desired_state, error
 
     for cluster_info in clusters:
         try:
@@ -274,16 +271,13 @@ def build_desired_state_vpc_mesh_single_cluster(cluster_info, ocm: OCM,
     return desired_state
 
 
-def build_desired_state_vpc_mesh(clusters, ocm_map: Union[OCMMap, dict],
+def build_desired_state_vpc_mesh(clusters, ocm_map: OCMMap,
                                  awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and all VPCs in an account
     """
-    desired_state: list[dict] = []
+    desired_state = []
     error = False
-    if not ocm_map:
-        logging.debug('account-vpc-mesh is not yet supported without OCM')
-        return desired_state, error
 
     for cluster_info in clusters:
         try:
@@ -302,7 +296,7 @@ def build_desired_state_vpc_mesh(clusters, ocm_map: Union[OCMMap, dict],
     return desired_state, error
 
 
-def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
+def build_desired_state_vpc_single_cluster(cluster_info, ocm: Optional[OCM],
                                            awsapi: AWSApi):
     desired_state = []
 
@@ -371,7 +365,7 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: OCM,
     return desired_state
 
 
-def build_desired_state_vpc(clusters, ocm_map: Union[OCMMap, dict],
+def build_desired_state_vpc(clusters, ocm_map: Optional[OCMMap],
                             awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
@@ -382,7 +376,7 @@ def build_desired_state_vpc(clusters, ocm_map: Union[OCMMap, dict],
     for cluster_info in clusters:
         try:
             cluster = cluster_info['name']
-            ocm = ocm_map.get(cluster)
+            ocm = None if ocm_map is None else ocm_map.get(cluster)
             items = build_desired_state_vpc_single_cluster(
                 cluster_info, ocm, awsapi
             )
@@ -409,31 +403,36 @@ def run(dry_run, print_to_file=None,
         # this is a case for an OCP cluster which is not provisioned
         # through OCM. it is expected that an 'assume_role' is provided
         # on the vpc peering defition in the cluster file.
-        ocm_map = {}
+        ocm_map = None
 
     accounts = queries.get_aws_accounts()
     awsapi = aws_api.AWSApi(1, accounts, settings=settings, init_users=False)
 
+    desired_state = []
     errors = []
     # Fetch desired state for cluster-to-vpc(account) VPCs
     desired_state_vpc, err = \
         build_desired_state_vpc(clusters, ocm_map, awsapi)
+    desired_state.extend(desired_state_vpc)
     errors.append(err)
 
     # Fetch desired state for cluster-to-account (vpc mesh) VPCs
-    desired_state_vpc_mesh, err = \
-        build_desired_state_vpc_mesh(clusters, ocm_map, awsapi)
-    errors.append(err)
+    if ocm_map is not None:
+        desired_state_vpc_mesh, err = \
+            build_desired_state_vpc_mesh(clusters, ocm_map, awsapi)
+        desired_state.extend(desired_state_vpc_mesh)
+        errors.append(err)
+    else:
+        logging.debug('account-vpc-mesh is not yet supported without OCM')
 
     # Fetch desired state for cluster-to-cluster VPCs
-    desired_state_cluster, err = \
-        build_desired_state_all_clusters(clusters, ocm_map, awsapi)
-    errors.append(err)
-
-    desired_state = \
-        desired_state_vpc + \
-        desired_state_vpc_mesh + \
-        desired_state_cluster
+    if ocm_map is not None:
+        desired_state_cluster, err = \
+            build_desired_state_all_clusters(clusters, ocm_map, awsapi)
+        desired_state.extend(desired_state_cluster)
+        errors.append(err)
+    else:
+        logging.debug('cluster-vpc is not yet supported without OCM')
 
     # check there are no repeated vpc connection names
     connection_names = [c['connection_name'] for c in desired_state]
