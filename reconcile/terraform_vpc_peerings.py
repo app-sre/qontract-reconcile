@@ -369,7 +369,8 @@ def build_desired_state_vpc_single_cluster(cluster_info, ocm: Optional[OCM],
     return desired_state
 
 
-def build_desired_state_vpc(clusters, ocm_map: Optional[OCMMap], awsapi: AWSApi):
+def build_desired_state_vpc(clusters, ocm_map: Optional[OCMMap],
+                            awsapi: AWSApi):
     """
     Fetch state for VPC peerings between a cluster and a VPC (account)
     """
