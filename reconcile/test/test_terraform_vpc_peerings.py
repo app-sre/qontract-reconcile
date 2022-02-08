@@ -89,7 +89,7 @@ class TestRun(testslide.TestCase):
         }])
         self.clusters = self.mock_callable(
             queries, 'get_clusters').to_return_value([
-                {"name": "aname", "peering": {"apeering"}}
+                {"name": "aname", "ocm": "aocm", "peering": {"apeering"}}
             ]).and_assert_called_once()
         self.settings = self.mock_callable(
             queries, 'get_app_interface_settings').to_return_value(
