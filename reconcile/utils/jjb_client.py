@@ -239,11 +239,11 @@ class JJB:
                                         check=True,
                                         stdout=PIPE,
                                         stderr=STDOUT)
-                out_str = result.output.decode("utf-8")
+                out_str = result.stdout.decode("utf-8")
                 if re.search("updated: [1-9]", out_str):
                     logging.info(out_str)
             except CalledProcessError as ex:
-                msg = ex.output.decode("utf-8")
+                msg = ex.stdout.decode("utf-8")
                 logging.error(msg)
 
     @staticmethod

@@ -57,5 +57,6 @@ disable = attribute-defined-outside-init,
           consider-using-f-string,
           # This one matters - Python scoping messes up with our
           # global and multi-threading locks          
-          global-variable-not-assigned
-
+          global-variable-not-assigned,
+          # This one is inconsistent between isort and pylint
+          wrong-import-order
