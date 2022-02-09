@@ -3156,7 +3156,7 @@ class TerrascriptClient:
         log_type_name = log_type.value.lower()
         return f'OpenSearchService__{domain_identifier}__{log_type_name}'
 
-    def _elasticsearch_aggregate_log_groups_per_account(
+    def _elasticsearch_get_all_log_group_infos(
         self
     ) -> list[ElasticSearchLogGroupInfo]:
         log_group_infos = []
@@ -3164,8 +3164,6 @@ class TerrascriptClient:
             for i in resources:
                 res = i['resource']
                 ns = i['namespace_info']
-                if not ns.get('managedTerraformResources'):
-                    continue
                 if res.get('provider') != 'elasticsearch':
                     continue
                 # res.get('', []) won't work, as publish_log_types is
@@ -3205,7 +3203,7 @@ class TerrascriptClient:
         account first.
         '''
         log_group_infos = \
-            self._elasticsearch_aggregate_log_groups_per_account()
+            self._elasticsearch_get_all_log_group_infos()
 
         log_groups_policy = {
             'Version': '2012-10-17',
