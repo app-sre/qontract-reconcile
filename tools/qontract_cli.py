@@ -857,10 +857,12 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
+    settings = queries.get_app_interface_settings()
     slack = init_slack_workspace('qontract-cli')
     ugid = slack.get_usergroup_id(usergroup)
     if username:
-        users = [slack.get_user_id_by_name(username)]
+        mail_address = settings['smtp']['mailAddress']
+        users = [slack.get_user_id_by_name(username, mail_address)]
     else:
         users = [slack.get_random_deleted_user()]
     slack.update_usergroup_users(ugid, users)
