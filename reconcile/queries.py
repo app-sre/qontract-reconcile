@@ -18,7 +18,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
     saasDeployJobTemplate
     hashLength
     smtp {
-      mailAdress
+      mailAddress
       credentials {
         path
         field
