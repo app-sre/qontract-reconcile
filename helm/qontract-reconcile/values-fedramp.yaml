@@ -174,7 +174,7 @@ integrations:
     limits:
       memory: 3000Mi
       cpu: 400m
-  extraArgs: --io-dir /tmp/throughput/
+  extraArgs: --io-dir /tmp/throughput/ --no-send-mails
   logs:
     slack: true
   disableUnleash: true

@@ -3117,7 +3117,7 @@ objects:
           - name: INTEGRATION_NAME
             value: terraform-users
           - name: INTEGRATION_EXTRA_ARGS
-            value: "--io-dir /tmp/throughput/"
+            value: "--io-dir /tmp/throughput/ --no-send-mails"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
