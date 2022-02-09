@@ -231,5 +231,4 @@ def run(dry_run, io_dir='throughput/', print_only=False,
         jjb.update()
         configs = jjb.get_configs()
         for name, desired_config in configs.items():
-            print(name)
             state.add(name, value=desired_config, force=True)
