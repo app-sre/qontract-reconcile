@@ -73,16 +73,15 @@ def aws_assume_roles_for_cluster_vpc_peering(
                     Tuple[dict[str, Any], dict[str, Any]]:
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
-
     allowed_accounts = {
         a["account"]["name"]
-        for a in accepter_cluster.get("awsInfrastructureManagementAccounts")
+        for a in accepter_cluster["awsInfrastructureManagementAccounts"]
         or [] if a["accessLevel"] == "network-mgmt"
     }
 
     # check if a dedicated infra accounts have been declared on the
     # accepters peering connection
-    account = accepter_connection.get("awsInfrastructureManagementAccount")
+    account = accepter_connection["awsInfrastructureManagementAccount"]
     if account and account["name"] not in allowed_accounts:
         raise BadTerraformPeeringState(
             "[account_not_allowed] "
@@ -95,11 +94,11 @@ def aws_assume_roles_for_cluster_vpc_peering(
         # look for a network-mgmt account marked as default on the accepters
         # clusters awsInfrastructureManagementAccounts
         cluster_infra_accounts = \
-            accepter_cluster.get("awsInfrastructureManagementAccounts")
+            accepter_cluster["awsInfrastructureManagementAccounts"]
         for infra_account_def in cluster_infra_accounts or []:
             if infra_account_def["accessLevel"] == "network-mgmt" and \
                     infra_account_def.get("default") is True:
-                account = infra_account_def.get("account")
+                account = infra_account_def["account"]
                 break
 
     if not account:
