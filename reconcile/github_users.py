@@ -10,7 +10,7 @@ from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile import mr_client_gateway
-from reconcile.github_org import get_config
+from reconcile.github_org import get_default_config
 from reconcile.ldap_users import init_users as init_users_and_paths
 from reconcile.utils.mr import CreateDeleteUser
 from reconcile.utils.smtp_client import SmtpClient
@@ -22,9 +22,7 @@ QONTRACT_INTEGRATION = 'github-users'
 
 
 def init_github():
-    config = get_config()
-    github_config = config['github']
-    token = github_config['app-sre']['token']
+    token = get_default_config()['token']
     return Github(token, base_url=GH_BASE_URL)
 
 
