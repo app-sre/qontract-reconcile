@@ -8,7 +8,6 @@ from slack_sdk.http_retry import RateLimitErrorRetryHandler, RetryHandler, \
     RetryState, HttpRequest, HttpResponse
 
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.config import get_config
 
 MAX_RETRIES = 5
 TIMEOUT = 30
@@ -289,7 +288,7 @@ class SlackApi:
                       'empty usergroup will not work')
         return ''
 
-    def get_user_id_by_name(self, user_name: str) -> str:
+    def get_user_id_by_name(self, user_name: str, mail_address: str) -> str:
         """
         Get user id from their username.
 
@@ -299,9 +298,6 @@ class SlackApi:
         Slack API
         :raises UserNotFoundException: if the Slack user is not found
         """
-        config = get_config()
-        mail_address = config['smtp']['mail_address']
-
         try:
             result = self._sc.users_lookupByEmail(
                 email=f"{user_name}@{mail_address}"
