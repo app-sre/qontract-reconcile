@@ -223,7 +223,7 @@ class JJB:
         else:
             return file_name.replace('current', 'desired')
 
-    def update(self):
+    def update(self) -> None:
         for name, wd in self.working_dirs.items():
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
@@ -243,10 +243,7 @@ class JJB:
                 if re.search("updated: [1-9]", result.stdout):
                     logging.info(result.stdout)
             except CalledProcessError as ex:
-                logging.exception(ex.stdout)
-                raise
-            except Exception as e:
-                logging.exception(e)
+                logging.error(ex.stdout)
                 raise
 
     @staticmethod
