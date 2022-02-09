@@ -259,7 +259,7 @@ def build_one_per_saas_file_pipeline(pipeline_template_config: dict[str, str],
         pipeline_template_config['name'], saas_file['name'])
 
     for section in ['tasks', 'finally']:
-        for task in pipeline['spec'][section]:
+        for task in pipeline['spec'].get(section, []):
             if task['name'] not in task_templates_types:
                 raise OpenshiftTektonResourcesBadConfigError(
                     f"Unknown task {task['name']} in pipeline template "
