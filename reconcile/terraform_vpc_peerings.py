@@ -161,8 +161,9 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
                                           'cluster-vpc-accepter')
         if not peer_info:
             raise BadTerraformPeeringState(
-                "could not find a matching peering connection for "
-                f"cluster {cluster_name}, connection {peer_connection_name}"
+                "[no_matching_peering] could not find a matching peering "
+                f"connection for cluster {cluster_name}, connection "
+                f"{peer_connection_name}"
             )
 
         accepter_manage_routes = peer_info.get('manageRoutes')

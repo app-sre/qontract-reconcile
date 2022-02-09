@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 import testslide
 import pytest
 
@@ -18,7 +18,11 @@ class MockOCM:
         self.assumes: dict[str, str] = {}
 
     def register(self, cluster: str, tf_account_id: str, tf_user: str,
-                 assume_role: str) -> 'MockOCM':
+                 assume_role: Optional[str]) -> 'MockOCM':
+        if not assume_role:
+            assume_role = f"arn::::{cluster}"
+        if not assume_role.startswith("arn:"):
+            assume_role = f"arn::::{assume_role}"
         self.assumes[f"{cluster}/{tf_account_id}/{tf_user}"] = assume_role
         return self
 
@@ -26,6 +30,28 @@ class MockOCM:
                                                             tf_account_id,
                                                             tf_user):
         return self.assumes.get(f"{cluster}/{tf_account_id}/{tf_user}")
+
+
+class MockAWSAPI:
+
+    def __init__(self) -> None:
+        self.vpc_details: dict[str, Tuple[str, list[str]]] = {}
+
+    def register(self, vpc: str,
+                 vpc_id: str, route_tables: list[str]) -> 'MockAWSAPI':
+        self.vpc_details[vpc] = (vpc_id, route_tables)
+        return self
+
+    def get_cluster_vpc_details(self, account: dict[str, Any],
+                                route_tables=False) -> Tuple:
+        if account["assume_cidr"] in self.vpc_details:
+            vpc_id, rt = self.vpc_details[account["assume_cidr"]]
+            if not route_tables:
+                return vpc_id, None, None
+            else:
+                return vpc_id, rt, None
+        else:
+            return None, None, None
 
 
 def build_cluster(name: str, vpc: Optional[str] = None,
@@ -77,11 +103,13 @@ def build_cluster(name: str, vpc: Optional[str] = None,
     return cluster
 
 
-def build_requester_connection(name: str, manage_routes: bool = True):
+def build_requester_connection(name: str, peer_cluster: dict[str, Any],
+                               manage_routes: bool = True):
     return {
         "name": name,
         "provider": "cluster-vpc-requester",
         "manageRoutes": manage_routes,
+        "cluster": peer_cluster
     }
 
 
