@@ -74,11 +74,11 @@ def aws_assume_roles_for_cluster_vpc_peering(
     # check if dedicated infra accounts have been declared on the
     # accepters peering connection or on the accepters cluster
 
-    allowed_accounts = [
+    allowed_accounts = {
         a["account"]["name"]
         for a in accepter_cluster.get("awsInfrastructureManagementAccounts")
-        or [] if a.get("accessLevel") == "network-mgmt"
-    ]
+        or [] if a["accessLevel"] == "network-mgmt"
+    }
 
     # check if a dedicated infra accounts have been declared on the
     # accepters peering connection
@@ -97,7 +97,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
         cluster_infra_accounts = \
             accepter_cluster.get("awsInfrastructureManagementAccounts")
         for infra_account_def in cluster_infra_accounts or []:
-            if infra_account_def.get("accessLevel") == "network-mgmt" and \
+            if infra_account_def["accessLevel"] == "network-mgmt" and \
                     infra_account_def.get("default") is True:
                 account = infra_account_def.get("account")
                 break
@@ -119,8 +119,8 @@ def aws_assume_roles_for_cluster_vpc_peering(
     if req_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
-            f"for cluster {requester_cluster['name']} "
-            f"in account {account['name']}"
+            f"on cluster-vpc-requester for account {account['name']} and "
+            f"cluster {requester_cluster['name']} "
         )
     acc_aws = _build_infrastructure_assume_role(
         account,
@@ -130,8 +130,8 @@ def aws_assume_roles_for_cluster_vpc_peering(
     if acc_aws is None:
         raise BadTerraformPeeringState(
             f"[assume_role_not_found] unable to find assume role "
-            f"for cluster {accepter_cluster['name']} "
-            f"in account {account['name']}"
+            f"on cluster-vpc-accepter for account {account['name']} and "
+            f"cluster {accepter_cluster['name']} "
         )
 
     return req_aws, acc_aws
