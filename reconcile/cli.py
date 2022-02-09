@@ -1209,11 +1209,10 @@ def github_repo_invites(ctx):
 
 @integration.command()
 @click.argument('instance-name')
-@click.argument('bot-token-org-name')
 @click.pass_context
-def github_repo_permissions_validator(ctx, instance_name, bot_token_org_name):
+def github_repo_permissions_validator(ctx, instance_name):
     run_integration(reconcile.github_repo_permissions_validator,
-                    ctx.obj, instance_name, bot_token_org_name)
+                    ctx.obj, instance_name)
 
 
 @integration.command()
