@@ -17,7 +17,7 @@ from sretoolbox.container import Image
 from sretoolbox.utils import retry
 from sretoolbox.utils import threaded
 
-from reconcile.github_org import get_config
+from reconcile.github_org import get_default_config
 from reconcile.utils.mr.auto_promoter import AutoPromoter
 from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
@@ -689,10 +689,7 @@ class SaasHerder():
         if auth_code:
             token = self.secret_reader.read(auth_code)
         else:
-            # use the app-sre token by default
-            default_org_name = 'app-sre'
-            config = get_config(desired_org_name=default_org_name)
-            token = config['github'][default_org_name]['token']
+            token = get_default_config()['token']
 
         base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
         # This is a threaded world. Let's define a big

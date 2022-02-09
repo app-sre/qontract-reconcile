@@ -79,7 +79,7 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
-from reconcile.github_org import get_config
+from reconcile.github_org import get_default_config
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (FetchResourceError,
@@ -211,8 +211,7 @@ class TerrascriptClient:
             with self.logtoes_zip_lock:
                 # this may have already happened, so we check again
                 if not self.logtoes_zip:
-                    github_config = get_config()['github']
-                    self.token = github_config['app-sre']['token']
+                    self.token = get_default_config()['token']
                     self.logtoes_zip = \
                         self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:

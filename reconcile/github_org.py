@@ -29,6 +29,7 @@ ORGS_QUERY = """
       version
       format
     }
+    default
     managedTeams
   }
 }
@@ -83,7 +84,7 @@ CLUSTERS_QUERY = """
 QONTRACT_INTEGRATION = 'github'
 
 
-def get_config(desired_org_name=None):
+def get_config(default=False):
     gqlapi = gql.get_api()
     orgs = gqlapi.query(ORGS_QUERY)['orgs']
     settings = queries.get_app_interface_settings()
@@ -91,13 +92,22 @@ def get_config(desired_org_name=None):
     config = {'github': {}}
     for org in orgs:
         org_name = org['name']
-        if desired_org_name and org_name != desired_org_name:
+        is_default_org = org.get('default')
+        if default and not is_default_org:
             continue
         token = secret_reader.read(org['token'])
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
 
+    if default and not config['github']:
+        raise KeyError('default github org config not found')
+
     return config
+
+
+def get_default_config():
+    github_config = get_config(default=True)
+    return list(github_config['github'].values())[0]
 
 
 @retry()
