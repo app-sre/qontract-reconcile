@@ -90,11 +90,15 @@ def get_config(default=False):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     config = {'github': {}}
+    default_found = False
     for org in orgs:
         org_name = org['name']
         is_default_org = org.get('default')
         if default and not is_default_org:
             continue
+        if default_found:
+            raise KeyError('multiple default github org configs found')
+        default_found = True
         token = secret_reader.read(org['token'])
         org_config = {'token': token, 'managed_teams': org['managedTeams']}
         config['github'][org_name] = org_config
