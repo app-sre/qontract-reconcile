@@ -1,4 +1,5 @@
 import base64
+from dataclasses import dataclass
 import enum
 import json
 import logging
@@ -11,7 +12,7 @@ import tempfile
 from threading import Lock
 
 from typing import (
-    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional, Tuple
+    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional
 )
 from ipaddress import ip_network, ip_address
 
@@ -142,6 +143,14 @@ class ElasticSearchLogGroupType(enum.Enum):
     INDEX_SLOW_LOGS = 'INDEX_SLOW_LOGS'
     SEARCH_SLOW_LOGS = 'SEARCH_SLOW_LOGS'
     ES_APPLICATION_LOGS = 'ES_APPLICATION_LOGS'
+
+
+@dataclass
+class ElasticSearchLogGroupInfo:
+    account: str
+    account_id: str
+    region: str
+    log_group_identifier: str
 
 
 class TerrascriptClient:
@@ -3149,12 +3158,12 @@ class TerrascriptClient:
 
     def _elasticsearch_aggregate_log_groups_per_account(
         self
-    ) -> Iterable[Tuple[str, str, str, str]]:
-        log_group_identifiers = []
+    ) -> list[ElasticSearchLogGroupInfo]:
+        log_group_infos = []
         for resources in self.account_resources.values():
             for i in resources:
-                res = i.get('resource')
-                ns = i.get('namespace_info')
+                res = i['resource']
+                ns = i['namespace_info']
                 if not ns.get('managedTerraformResources'):
                     continue
                 if res.get('provider') != 'elasticsearch':
@@ -3165,7 +3174,7 @@ class TerrascriptClient:
                 if not log_types:
                     log_types = []
                 for log_type in log_types:
-                    region = ns.get('cluster').get('spec').get('region')
+                    region = ns['cluster']['spec']['region']
                     account = res['account']
                     account_id = self.accounts[account]['uid']
                     lg_identifier = \
@@ -3173,9 +3182,15 @@ class TerrascriptClient:
                             domain_identifier=res['identifier'],
                             log_type=ElasticSearchLogGroupType(log_type),
                         )
-                    tup = (account, region, account_id, lg_identifier)
-                    log_group_identifiers.append(tup)
-        return log_group_identifiers
+                    log_group_infos.append(
+                        ElasticSearchLogGroupInfo(
+                            account=account,
+                            account_id=account_id,
+                            region=region,
+                            log_group_identifier=lg_identifier,
+                        )
+                    )
+        return log_group_infos
 
     def _get_tf_resource_elasticsearch_resource_policy(
         self, account: str
@@ -3189,7 +3204,7 @@ class TerrascriptClient:
         I.e., ideally we aggregate ALL log group identifiers for each
         account first.
         '''
-        log_group_identifiers = \
+        log_group_infos = \
             self._elasticsearch_aggregate_log_groups_per_account()
 
         log_groups_policy = {
@@ -3204,8 +3219,11 @@ class TerrascriptClient:
                     'logs:CreateLogStream',
                 ],
                 'Resource': [
-                    f'arn:aws:logs:{tup[1]}:{tup[2]}:log-group:{tup[3]}:*'
-                    for tup in log_group_identifiers if tup[0] == account
+                    (
+                        f'arn:aws:logs:{info.region}:{info.account_id}'
+                        f':log-group:{info.log_group_identifier}:*'
+                    )
+                    for info in log_group_infos if info.account == account
                 ],
             }]
         }
@@ -3223,7 +3241,7 @@ class TerrascriptClient:
         self, identifier: str, account: str,
         resource: Mapping[str, Any], values: Mapping[str, Any],
         output_prefix: str
-    ) -> Tuple[Iterable[Mapping[str, Any]], Iterable[Mapping[str, str]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
         ES_LOG_GROUP_RETENTION_DAYS = 180
         tf_resources = []
         publishing_options = []
