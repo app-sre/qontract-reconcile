@@ -17,6 +17,15 @@ APP_INTERFACE_SETTINGS_QUERY = """
     mergeRequestGateway
     saasDeployJobTemplate
     hashLength
+    smtp {
+      mailAdress
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
     dependencies {
       type
       services {
