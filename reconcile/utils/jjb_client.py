@@ -238,13 +238,16 @@ class JJB:
                 result = subprocess.run(cmd,
                                         check=True,
                                         stdout=PIPE,
-                                        stderr=STDOUT)
-                out_str = result.stdout.decode("utf-8")
-                if re.search("updated: [1-9]", out_str):
-                    logging.info(out_str)
+                                        stderr=STDOUT,
+                                        encoding="utf-8")
+                if re.search("updated: [1-9]", result.stdout):
+                    logging.info(result.stdout)
             except CalledProcessError as ex:
-                msg = ex.stdout.decode("utf-8")
-                logging.error(msg)
+                logging.exception(ex.stdout)
+                raise
+            except Exception as e:
+                logging.exception(e)
+                raise
 
     @staticmethod
     def get_jjb(args):
