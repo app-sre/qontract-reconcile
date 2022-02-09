@@ -61,7 +61,7 @@ def valid_owners(owners: Iterable[Mapping[str, str]]) -> bool:
 VALIDATORS = {
     'sopsUrl': url_makes_sense,
     'architectureDocument': url_makes_sense,
-    'grafanaUrl': url_makes_sense,
+    'grafanaUrls': lambda x: all(url_makes_sense(y['url']) for y in x),
     'serviceOwners': valid_owners,
 }
 

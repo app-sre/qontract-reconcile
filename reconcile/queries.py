@@ -1943,11 +1943,34 @@ JIRA_BOARDS_QUERY = """
 }
 """
 
-
 def get_jira_boards():
     """ Returns Jira boards resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
+
+
+JIRA_BOARDS_QUICK_QUERY = """
+{
+  jira_boards: jira_boards_v1 (path: "APATH") {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        path
+        field
+        version
+        format
+      }
+    }
+  }
+}
+"""
+
+def get_simple_jira_boards(app_path: str):
+    gqlapi = gql.get_api()
+    query = JIRA_BOARDS_QUICK_QUERY.replace("APATH", shlex.quote(app_path))
+    return gqlapi.query(query)['jira_boards']
 
 
 UNLEASH_INSTANCES_QUERY = """
@@ -2578,7 +2601,9 @@ APP_METADATA = """
     name
     description
     sopsUrl
-    grafanaUrl
+    grafanaUrls {
+      url
+    }
     architectureDocument
     serviceOwners {
       name
@@ -2611,4 +2636,4 @@ def get_app_metadata(app_path: str) -> dict:
     "Fetch the metadata for the path stored in app_path"
     app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
     gqlapi = gql.get_api()
-    return gqlapi.query(app_query)
+    return gqlapi.query(app_query)['apps']

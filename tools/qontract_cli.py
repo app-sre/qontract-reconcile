@@ -1123,27 +1123,26 @@ def promquery(cluster, query):
               "provided, the folder found in the application's escalation "
               "policy will be used.",
               default=None)
-@click.option('--jiraurl',
-              help="URL to the JIRA server",
+@click.option('--jiradef',
+              help="Path to the definition of the JIRA server in app-interface",
               default=None)
 @click.option('--create-parent-ticket/--no-create-parent-ticket',
               help="Whether to create a parent ticket if none was provided",
               default=False)
 def sre_checkpoint_metadata(app_path, parent_ticket,
-                            jiraboard, jiraurl, create_parent_ticket):
+                            jiraboard, jiradef, create_parent_ticket):
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
     settings = queries.get_app_interface_settings()
-    app = data['apps'][0]
+    app = data[0]
 
-    board_info = app['escalationPolicy']['channels']['jiraBoard']
-    if not board_info:
-        raise ValueError(f"No escalation policy for {app_path}!!")
+    if jiradef:
+        assert jiraboard
+        board_info = queries.get_simple_jira_boards(jiradef)
+    else:
+        board_info = app['escalationPolicy']['channels']['jiraBoard']
     board_info = board_info[0]
     # Overrides for easier testing
     if jiraboard:
         board_info['name'] = jiraboard
-    if jiraurl:
-        board_info['server']['serverUrl'] = jiraurl
-
     report_invalid_metadata(app, app_path, board_info, settings, parent_ticket)
