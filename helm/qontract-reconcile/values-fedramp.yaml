@@ -87,10 +87,10 @@ integrations:
 - name: terraform-resources
   resources:
     requests:
-      memory: 500Mi
+      memory: 1500Mi
       cpu: 200m
     limits:
-      memory: 700Mi
+      memory: 2000Mi
       cpu: 400m
   logs:
     slack: true
