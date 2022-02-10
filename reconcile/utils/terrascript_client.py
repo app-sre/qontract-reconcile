@@ -3168,9 +3168,7 @@ class TerrascriptClient:
                     continue
                 # res.get('', []) won't work, as publish_log_types is
                 # explicitly set to None if not set
-                log_types = res['publish_log_types']
-                if not log_types:
-                    log_types = []
+                log_types = res['publish_log_types'] or []
                 for log_type in log_types:
                     region = ns['cluster']['spec']['region']
                     account = res['account']
@@ -3240,15 +3238,13 @@ class TerrascriptClient:
         resource: Mapping[str, Any], values: Mapping[str, Any],
         output_prefix: str
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
-        ES_LOG_GROUP_RETENTION_DAYS = 180
+        ES_LOG_GROUP_RETENTION_DAYS = 90
         tf_resources = []
         publishing_options = []
 
         # res.get('', []) won't work, as publish_log_types is
         # explicitly set to None if not set
-        log_types = resource['publish_log_types']
-        if not log_types:
-            log_types = []
+        log_types = resource['publish_log_types'] or []
         for log_type in log_types:
             log_type_identifier = \
                 TerrascriptClient.elasticsearch_log_group_identifier(
@@ -3268,7 +3264,7 @@ class TerrascriptClient:
                 aws_cloudwatch_log_group(log_type_identifier,
                                          **log_group_values)
             tf_resources.append(log_group_tf_resource)
-            arn = f'${{aws_cloudwatch_log_group.{log_type_identifier}.arn}}'
+            arn = f'${{{log_group_tf_resource.arn}}}'
 
             # add arn to output
             output_name_0_13 = (
@@ -3432,13 +3428,6 @@ class TerrascriptClient:
             es_values["vpc_options"]['security_group_ids'] = security_group_ids
 
         advanced_options = values.get('advanced_options', None)
-        if advanced_options and \
-           not advanced_options.get('override_main_response_version', None):
-            '''
-            By default terraform expects this to be False. If not set (null),
-            then this results in an 'Update' request on each plan/apply.
-            '''
-            advanced_options['override_main_response_version'] = False
         if advanced_options is not None:
             es_values["advanced_options"] = advanced_options
 
