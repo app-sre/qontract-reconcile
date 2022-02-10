@@ -3188,7 +3188,7 @@ class TerrascriptClient:
                     )
         return log_group_infos
 
-    def _get_tf_resource_elasticsearch_resource_policy(
+    def _get_elasticsearch_account_wide_resource_policy(
         self, account: str
     ) -> aws_cloudwatch_log_resource_policy:
         '''
@@ -3324,7 +3324,7 @@ class TerrascriptClient:
             )
         tf_resources += log_group_resources
 
-        resource_policy = self._get_tf_resource_elasticsearch_resource_policy(
+        resource_policy = self._get_elasticsearch_account_wide_resource_policy(
             account=account,
         )
         tf_resources.append(resource_policy)
