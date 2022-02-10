@@ -11,7 +11,8 @@ def accounts():
             'name': 'some-account',
             'automationToken': {
                 'path': 'path',
-            }
+            },
+            'resourcesDefaultRegion': 'region'
         }
     ]
 
