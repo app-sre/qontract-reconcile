@@ -31,6 +31,20 @@ class MockOCM:
                                                             tf_user):
         return self.assumes.get(f"{cluster}/{tf_account_id}/{tf_user}")
 
+    def auto_speced_mock(self, mocker) -> ocm.OCM:
+        ocm_mock = mocker.patch(
+            "reconcile.utils.ocm.OCM",
+            autospec=True
+        ).return_value
+        ocm_mock.get_aws_infrastructure_access_terraform_assume_role \
+            .mock_add_spec(
+                ocm.OCM.get_aws_infrastructure_access_terraform_assume_role
+            )
+        ocm_mock.get_aws_infrastructure_access_terraform_assume_role \
+            .side_effect = \
+            self.get_aws_infrastructure_access_terraform_assume_role
+        return ocm_mock
+
 
 class MockAWSAPI:
 
@@ -43,7 +57,7 @@ class MockAWSAPI:
         return self
 
     def get_cluster_vpc_details(self, account: dict[str, Any],
-                                route_tables=False) -> Tuple:
+                                route_tables=False, subnets=False) -> Tuple:
         if account["assume_cidr"] in self.vpc_details:
             vpc_id, rt = self.vpc_details[account["assume_cidr"]]
             if not route_tables:
@@ -52,6 +66,16 @@ class MockAWSAPI:
                 return vpc_id, rt, None
         else:
             return None, None, None
+
+    def auto_speced_mock(self, mocker) -> aws_api.AWSApi:
+        aws_api_mock = mocker.patch(
+            "reconcile.utils.aws_api.AWSApi", autospec=True).return_value
+        aws_api_mock.get_cluster_vpc_details.mock_add_spec(
+            aws_api.AWSApi.get_cluster_vpc_details
+        )
+        aws_api_mock.get_cluster_vpc_details.side_effect = \
+            self.get_cluster_vpc_details
+        return aws_api_mock
 
 
 def build_cluster(name: str, vpc: Optional[str] = None,
@@ -135,7 +159,7 @@ def build_accepter_connection(name: str, cluster: str,
     return connection
 
 
-def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite():
+def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite(mocker):
     """
     makes sure the peer connection account overwrite on the accepter is used
     when available. in this test, the overwrite is also allowed
@@ -157,7 +181,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite():
         "a_c", "acc_overwrite", "terraform", "arn:a_acc_overwrite"
     ).register(
         "a_c", "acc", "terraform", "arn:a_acc"
-    )
+    ).auto_speced_mock(mocker)
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_cluster,
         accepter_connection,
@@ -188,7 +212,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite():
     assert acc_aws == expected_acc_aws
 
 
-def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite_fail():
+def test_c2c_vpc_peering_assume_role_acc_overwrite_fail(mocker):
     """
     try overwrite the account to be used on the accepter connection with an
     account not listed on the accepter cluster
@@ -206,7 +230,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite_fail():
         "r_c", "acc", "terraform", "arn:r_acc"
     ).register(
         "a_c", "acc", "terraform", "arn:a_acc"
-    )
+    ).auto_speced_mock(mocker)
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_cluster,
@@ -217,7 +241,7 @@ def test_c2c_vpc_peering_assume_role_accepter_connection_acc_overwrite_fail():
     assert str(ex.value).startswith("[account_not_allowed]")
 
 
-def test_c2c_vpc_peering_assume_role_accepter_cluster_account():
+def test_c2c_vpc_peering_assume_role_accepter_cluster_account(mocker):
     """
     makes sure the clusters default infra account is used when no peer
     connection overwrite exists
@@ -239,7 +263,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account():
         "a_c", "default_acc", "terraform", "arn:a_default_acc"
     ).register(
         "a_c", "other_acc", "terraform", "arn:a_other_acc"
-    )
+    ).auto_speced_mock(mocker)
     req_aws, acc_aws = integ.aws_assume_roles_for_cluster_vpc_peering(
         requester_cluster,
         accepter_connection,
@@ -270,7 +294,7 @@ def test_c2c_vpc_peering_assume_role_accepter_cluster_account():
     assert acc_aws == expected_acc_aws
 
 
-def test_c2c_vpc_peering_missing_ocm_assume_role():
+def test_c2c_vpc_peering_missing_ocm_assume_role(mocker):
     """
     makes sure the clusters infra account is used when no peer connection
     overwrite exists
@@ -284,7 +308,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role():
         name="a_c", cluster="a_c"
     )
 
-    ocm = MockOCM()
+    ocm = MockOCM().auto_speced_mock(mocker)
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
@@ -296,7 +320,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role():
     assert str(ex.value).startswith("[assume_role_not_found]")
 
 
-def test_c2c_vpc_peering_missing_account():
+def test_c2c_vpc_peering_missing_account(mocker):
     """
     test the fallback logic, looking for network-mgmt groups accounts
     """
@@ -306,7 +330,7 @@ def test_c2c_vpc_peering_missing_account():
         name="a_c", cluster="a_c"
     )
 
-    ocm = MockOCM()
+    ocm = MockOCM().auto_speced_mock(mocker)
 
     with pytest.raises(BadTerraformPeeringState) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
