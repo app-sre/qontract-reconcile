@@ -114,6 +114,8 @@ class AWSApi:
         account_name = account['name']
         automation_token = account['automationToken']
         secret = self.secret_reader.read_all(automation_token)
+        # Override the terraform state bucket region
+        secret['region'] = account['resourcesDefaultRegion']
         return (account_name, secret)
 
     def init_users(self):
