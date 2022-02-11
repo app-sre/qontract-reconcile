@@ -2992,13 +2992,18 @@ class TerrascriptClient:
             working_dirs = {}
         else:
             working_dirs = existing_dirs
+
+        if print_to_file and is_file_in_git_repo(print_to_file):
+            raise PrintToFileInGitRepositoryError(print_to_file)
+        if os.path.isfile(print_to_file):
+            os.remove(print_to_file)
+
         for name, ts in self.tss.items():
             if print_to_file:
-                if is_file_in_git_repo(print_to_file):
-                    raise PrintToFileInGitRepositoryError(print_to_file)
-                with open(print_to_file, 'w') as f:
+                with open(print_to_file, 'a') as f:
                     f.write('##### {} #####\n'.format(name))
                     f.write(str(ts))
+                    f.write("\n")
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
