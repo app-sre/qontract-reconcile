@@ -398,7 +398,7 @@ def clusters_egress_ips(ctx):
         account = tfvpc.aws_account_from_infrastructure_access(
             cluster,
             'network-mgmt',
-            ocm_map
+            ocm_map.get(cluster_name)
         )
         aws_api = AWSApi(1, [account], settings=settings)
         egress_ips = \
