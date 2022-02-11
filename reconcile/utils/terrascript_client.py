@@ -2993,10 +2993,11 @@ class TerrascriptClient:
         else:
             working_dirs = existing_dirs
 
-        if print_to_file and is_file_in_git_repo(print_to_file):
-            raise PrintToFileInGitRepositoryError(print_to_file)
-        if os.path.isfile(print_to_file):
-            os.remove(print_to_file)
+        if print_to_file:
+            if is_file_in_git_repo(print_to_file):
+                raise PrintToFileInGitRepositoryError(print_to_file)
+            if os.path.isfile(print_to_file):
+                os.remove(print_to_file)
 
         for name, ts in self.tss.items():
             if print_to_file:
