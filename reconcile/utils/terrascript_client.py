@@ -3004,7 +3004,7 @@ class TerrascriptClient:
                 with open(print_to_file, 'a') as f:
                     f.write('##### {} #####\n'.format(name))
                     f.write(str(ts))
-                    f.write("\n")
+                    f.write('\n')
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
