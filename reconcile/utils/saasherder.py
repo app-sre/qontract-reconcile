@@ -103,8 +103,11 @@ class SaasHerder():
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
-        saas_file_promotion_publish_channels = []
         self.tkn_unique_pipelineruns = {}
+
+        publications_by_channel = {}
+        subscriptions_by_channel = {}
+
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -121,6 +124,7 @@ class SaasHerder():
 
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
+                resource_template_url = resource_template['url']
                 for target in resource_template['targets']:
                     target_namespace = target['namespace']
                     namespace_name = target_namespace['name']
@@ -141,10 +145,29 @@ class SaasHerder():
                     # promotion publish channels
                     promotion = target.get('promotion')
                     if promotion:
+                        rt_ref = (saas_file_path,
+                                  resource_template_name,
+                                  resource_template_url)
+
                         publish = promotion.get('publish')
                         if publish:
-                            saas_file_promotion_publish_channels.extend(
-                                publish)
+                            for channel in publish:
+                                if channel in publications_by_channel:
+                                    self.valid = False
+                                    logging.error(
+                                        "saas file promotion publish channel"
+                                        "is not unique: {}"
+                                        .format(channel)
+                                    )
+                                    continue
+                                publications_by_channel[channel] = rt_ref
+
+                        subscribe = promotion.get('subscribe')
+                        if subscribe:
+                            for channel in subscribe:
+                                subscriptions_by_channel.setdefault(channel, [])
+                                subscriptions_by_channel[channel].append(rt_ref)
+
                     # validate target parameters
                     target_parameters = target['parameters']
                     if not target_parameters:
@@ -206,14 +229,26 @@ class SaasHerder():
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
-        # promotion publish channel duplicates
-        duplicates = [p for p in saas_file_promotion_publish_channels
-                      if saas_file_promotion_publish_channels.count(p) > 1]
-        if duplicates:
-            self.valid = False
-            msg = 'saas file promotion publish channel is not unique: {}'
-            for duplicate in duplicates:
-                logging.error(msg.format(duplicate))
+        # Promotions have the same source repository
+        for sub_channel, sub_targets in subscriptions_by_channel.items():
+            (pub_saas, pub_rt_name, pub_rt_url) = \
+                publications_by_channel.get(sub_channel)
+
+            for (sub_saas, sub_rt_name, sub_rt_url) in sub_targets:
+                if sub_rt_url != pub_rt_url:
+                    self.valid = False
+                    logging.error(
+                        "Subscriber and Publisher targets have diferent "
+                        "source repositories\n"
+                        "publisher_saas: {}\n"
+                        "publisher_rt: {}\n"
+                        "publisher_repo: {}\n"
+                        "subscriber_saas: {}\n"
+                        "subscriber_rt: {}\n"
+                        "subscriber_repo: {}\n"
+                        .format(pub_saas, pub_rt_name, pub_rt_url,
+                                sub_saas, sub_rt_name, sub_rt_url)
+                    )
 
     def _check_saas_file_env_combo_unique(self, saas_file_name, env_name):
         # max tekton pipelinerun name length can be 63.

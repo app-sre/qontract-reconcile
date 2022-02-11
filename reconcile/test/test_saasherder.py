@@ -129,6 +129,59 @@ class TestSaasFileValid(TestCase):
 
         self.assertFalse(saasherder.valid)
 
+    def test_check_saas_file_promotion_same_source(self):
+        rts = [
+            {
+                'name': 'rt_publisher',
+                'url': 'repo_publisher',
+                'targets': [
+                    {
+                        'namespace': {
+                            'name': 'ns',
+                            'environment': {'name': 'env1'},
+                            'cluster': {'name': 'cluster'}
+                        },
+                        "parameters": {},
+                        'ref': '0000000000000',
+                        'promotion': {
+                            'publish': ['channel-1'],
+                        }
+                    }
+                ]
+            },
+            {
+                'name': 'rt_subscriber',
+                'url': 'this-repo-will-not-match-the-publisher',
+                'targets': [
+                    {
+                        'namespace': {
+                            'name': 'ns2',
+                            'environment': {'name': 'env1'},
+                            'cluster': {'name': 'cluster'}
+                        },
+                        "parameters": {},
+                        'ref': '0000000000000',
+                        'promotion': {
+                            'auto': 'true',
+                            'subscribe': ['channel-1'],
+                        }
+                    }
+                ]
+            }
+        ]
+        self.saas_files[0]['resourceTemplates'] = rts
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+        self.assertFalse(saasherder.valid)
+
+
 
 class TestGetMovingCommitsDiffSaasFile(TestCase):
     def setUp(self):
