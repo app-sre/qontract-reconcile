@@ -3002,7 +3002,7 @@ class TerrascriptClient:
         for name, ts in self.tss.items():
             if print_to_file:
                 with open(print_to_file, 'a') as f:
-                    f.write('##### {} #####\n'.format(name))
+                    f.write(f'##### {name} #####\n')
                     f.write(str(ts))
                     f.write('\n')
             if existing_dirs is None:
