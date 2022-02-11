@@ -231,24 +231,36 @@ class SaasHerder():
 
         # Promotions have the same source repository
         for sub_channel, sub_targets in subscriptions_by_channel.items():
-            (pub_saas, pub_rt_name, pub_rt_url) = \
-                publications_by_channel.get(sub_channel)
+            pub_channel_ref = publications_by_channel.get(sub_channel)
+            if not pub_channel_ref:
+                self.valid = False
+            else:
+                (pub_saas, pub_rt_name, pub_rt_url) = pub_channel_ref
 
             for (sub_saas, sub_rt_name, sub_rt_url) in sub_targets:
-                if sub_rt_url != pub_rt_url:
-                    self.valid = False
+                if not pub_channel_ref:
                     logging.error(
-                        "Subscriber and Publisher targets have diferent "
-                        "source repositories\n"
-                        "publisher_saas: {}\n"
-                        "publisher_rt: {}\n"
-                        "publisher_repo: {}\n"
+                        "Channel is not published by any target\n"
                         "subscriber_saas: {}\n"
                         "subscriber_rt: {}\n"
-                        "subscriber_repo: {}\n"
-                        .format(pub_saas, pub_rt_name, pub_rt_url,
-                                sub_saas, sub_rt_name, sub_rt_url)
+                        "channel: {}"
+                        .format(sub_saas, sub_rt_name, sub_channel)
                     )
+                else:
+                    if sub_rt_url != pub_rt_url:
+                        self.valid = False
+                        logging.error(
+                            "Subscriber and Publisher targets have diferent "
+                            "source repositories\n"
+                            "publisher_saas: {}\n"
+                            "publisher_rt: {}\n"
+                            "publisher_repo: {}\n"
+                            "subscriber_saas: {}\n"
+                            "subscriber_rt: {}\n"
+                            "subscriber_repo: {}\n"
+                            .format(pub_saas, pub_rt_name, pub_rt_url,
+                                    sub_saas, sub_rt_name, sub_rt_url)
+                        )
 
     def _check_saas_file_env_combo_unique(self, saas_file_name, env_name):
         # max tekton pipelinerun name length can be 63.
