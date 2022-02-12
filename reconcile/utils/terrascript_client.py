@@ -80,7 +80,6 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
-from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (FetchResourceError,
                                         PrintToFileInGitRepositoryError)
@@ -136,10 +135,9 @@ class time_sleep(Resource):
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, oc_map=None, settings=None):
+                 thread_pool_size, accounts, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
-        self.oc_map = oc_map
         self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
@@ -1033,14 +1031,8 @@ class TerrascriptClient:
             if reset_password:
                 password = self.generate_random_password()
             else:
-                try:
-                    existing_secret = existing_secrets[account][output_prefix]
-                    password = \
-                        existing_secret['db.password']
-                except KeyError:
-                    password = \
-                        self.determine_db_password(namespace_info,
-                                                   output_resource_name)
+                existing_secret = existing_secrets[account][output_prefix]
+                password = existing_secret['db.password']
         else:
             password = ""
         values['password'] = password
@@ -1272,44 +1264,6 @@ class TerrascriptClient:
         and contain only alphanumeric characters. """
         pattern = r'^[a-zA-Z][a-zA-Z0-9_]+$'
         return re.search(pattern, name) and len(name) < 64
-
-    def determine_db_password(self, namespace_info, output_resource_name,
-                              secret_key='db.password'):
-        existing_oc_resource = \
-            self.fetch_existing_oc_resource(namespace_info,
-                                            output_resource_name)
-        if existing_oc_resource is not None:
-            enc_password = existing_oc_resource['data'].get(secret_key)
-            if enc_password:
-                return base64.b64decode(enc_password).decode('utf-8')
-        return self.generate_random_password()
-
-        # TODO: except KeyError?
-        # a KeyError will indicate that this secret
-        # exists, but the db.password field is missing.
-        # this could indicate that a secret with this
-        # this name is 'taken', or that the secret
-        # was updated manually. at this point, it may
-        # be better to let the exception stop the process.
-        # for now, we assume a happy path, where there is
-        # no competition over secret names, but we should
-        # circle back here at a later point.
-
-    def fetch_existing_oc_resource(self, namespace_info, resource_name):
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
-        try:
-            if not self.oc_map:
-                return None
-            oc = self.oc_map.get(cluster)
-            if not oc:
-                logging.log(level=oc.log_level, msg=oc.message)
-                return None
-            return oc.get(namespace, 'Secret', resource_name)
-        except StatusCodeError as e:
-            if str(e).startswith('Error from server (NotFound):'):
-                msg = 'Secret {} does not exist.'.format(resource_name)
-                logging.debug(msg)
-        return None
 
     @staticmethod
     def generate_random_password(string_length=20):
@@ -1726,14 +1680,7 @@ class TerrascriptClient:
             values['parameter_group_name'] = pg_identifier
             values.pop('parameter_group', None)
 
-        try:
-            auth_token = \
-                existing_secrets[account][output_prefix]['db.auth_token']
-        except KeyError:
-            auth_token = \
-                self.determine_db_password(namespace_info,
-                                           output_resource_name,
-                                           secret_key='db.auth_token')
+        auth_token = existing_secrets[account][output_prefix]['db.auth_token']
 
         if values.get('transit_encryption_enabled', False):
             values['auth_token'] = auth_token
