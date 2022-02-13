@@ -45,7 +45,7 @@ setup(
         "UnleashClient>=3.4.2,<3.5.0",
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
-        "jenkins-job-builder==2.10.1",
+        "jenkins-job-builder~=3.12.0",
         "tzlocal==2.1",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
