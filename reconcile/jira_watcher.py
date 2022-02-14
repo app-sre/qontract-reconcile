@@ -30,7 +30,7 @@ def format_message(server, key, data, event,
         ': {} -> {}'.format(previous_state['status'],
                             current_state['status']) \
         if previous_state and current_state else ''
-    url = '{}/browse/{}'.format(server, key) if event != 'deleted' else key
+    url = '{}/browse/{}'.format(server, key)
     return '{} ({}) {}{}'.format(url, summary, event, info)
 
 
