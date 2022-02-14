@@ -1031,8 +1031,11 @@ class TerrascriptClient:
             if reset_password:
                 password = self.generate_random_password()
             else:
-                existing_secret = existing_secrets[account][output_prefix]
-                password = existing_secret['db.password']
+                try:
+                    existing_secret = existing_secrets[account][output_prefix]
+                    password = existing_secret['db.password']
+                except KeyError:
+                    password = self.generate_random_password()
         else:
             password = ""
         values['password'] = password
@@ -1680,7 +1683,11 @@ class TerrascriptClient:
             values['parameter_group_name'] = pg_identifier
             values.pop('parameter_group', None)
 
-        auth_token = existing_secrets[account][output_prefix]['db.auth_token']
+        try:
+            auth_token = \
+                existing_secrets[account][output_prefix]['db.auth_token']
+        except KeyError:
+            auth_token = self.generate_random_password()
 
         if values.get('transit_encryption_enabled', False):
             values['auth_token'] = auth_token
