@@ -105,8 +105,8 @@ class SaasHerder():
         saas_file_name_path_map = {}
         self.tkn_unique_pipelineruns = {}
 
-        publications_by_channel = {}
-        subscriptions_by_channel = {}
+        publications = {}
+        subscriptions = {}
 
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
@@ -152,7 +152,7 @@ class SaasHerder():
                         publish = promotion.get('publish')
                         if publish:
                             for channel in publish:
-                                if channel in publications_by_channel:
+                                if channel in publications:
                                     self.valid = False
                                     logging.error(
                                         "saas file promotion publish channel"
@@ -160,13 +160,13 @@ class SaasHerder():
                                         .format(channel)
                                     )
                                     continue
-                                publications_by_channel[channel] = rt_ref
+                                publications[channel] = rt_ref
 
                         subscribe = promotion.get('subscribe')
                         if subscribe:
                             for channel in subscribe:
-                                subscriptions_by_channel.setdefault(channel, [])
-                                subscriptions_by_channel[channel].append(rt_ref)
+                                subscriptions.setdefault(channel, [])
+                                subscriptions[channel].append(rt_ref)
 
                     # validate target parameters
                     target_parameters = target['parameters']
@@ -230,8 +230,8 @@ class SaasHerder():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
         # Promotions have the same source repository
-        for sub_channel, sub_targets in subscriptions_by_channel.items():
-            pub_channel_ref = publications_by_channel.get(sub_channel)
+        for sub_channel, sub_targets in subscriptions.items():
+            pub_channel_ref = publications.get(sub_channel)
             if not pub_channel_ref:
                 self.valid = False
             else:

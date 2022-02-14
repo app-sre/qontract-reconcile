@@ -182,7 +182,6 @@ class TestSaasFileValid(TestCase):
         self.assertFalse(saasherder.valid)
 
 
-
 class TestGetMovingCommitsDiffSaasFile(TestCase):
     def setUp(self):
         self.saas_files = [
