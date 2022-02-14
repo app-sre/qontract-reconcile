@@ -175,8 +175,12 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     success = not ri.has_error_registered()
     # only publish promotions for deployment jobs (a single saas file)
     if notify:
+        # Auto-promote next stages onlye if there are changes in the
+        # current stage. This prevents promotions made on job re-runs
+        auto_promote = len(actions) > 0
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-        saasherder.publish_promotions(success, all_saas_files, mr_cli)
+        saasherder.publish_promotions(success, all_saas_files,
+                                      mr_cli, auto_promote)
 
     if not success:
         sys.exit(ExitCodes.ERROR)
