@@ -3548,6 +3548,14 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        default_region = self.default_regions.get(account)
+        cluster_region = namespace_info['cluster']['spec']['region']
+
+        if self._multiregion_account(account):
+            provider = 'aws.' + cluster_region
+        else:
+            provider = 'aws.' + default_region
+
         vpc = resource['vpc']
         vpc_id = vpc['vpc_id']
         vpc_cidr_block = vpc['cidr_block']
@@ -3563,6 +3571,7 @@ class TerrascriptClient:
             'self': None,
         }
         values = {
+            'provider': provider,
             'vpc_id': vpc_id,
             'tags': common_values['tags'],
 
@@ -3613,6 +3622,7 @@ class TerrascriptClient:
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
         values = {
+            'provider': provider,
             'name': identifier,
             'internal': False,
             'ip_address_type': 'dualstack',
@@ -3666,6 +3676,7 @@ class TerrascriptClient:
             # https://www.terraform.io/docs/providers/aws/r/
             # lb_target_group.html
             values = {
+                'provider': provider,
                 'name': f'{target_name}-${{{lbt_random_id.hex}}}',
                 'port': 443,
                 'protocol': 'HTTPS',
@@ -3696,6 +3707,7 @@ class TerrascriptClient:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # lb_target_group_attachment.html
                 values = {
+                    'provider': provider,
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
@@ -3712,6 +3724,7 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
         # redirect
         values = {
+            'provider': provider,
             'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
             'port': 80,
             'protocol': 'HTTP',
@@ -3733,6 +3746,7 @@ class TerrascriptClient:
         if not default_target:
             raise KeyError('expected a single default target')
         values = {
+            'provider': provider,
             'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
             'port': 443,
             'protocol': 'HTTPS',
@@ -3756,6 +3770,7 @@ class TerrascriptClient:
             config_methods = condition.get('methods', None)
 
             values = {
+                'provider': provider,
                 'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
                 'priority': rule_num + 1,
                 'action': {
