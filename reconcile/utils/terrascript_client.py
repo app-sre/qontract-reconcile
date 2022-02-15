@@ -1357,7 +1357,7 @@ class TerrascriptClient:
             rc_configs = []
             for config in replication_configs:
                 rc_values = {}
-                replication_bucket_identifier = config['destination_bucket_identifier']
+                dest_bucket_id = config['destination_bucket_identifier']
 
                 # iam roles
                 # Terraform resource reference:
@@ -1399,7 +1399,7 @@ class TerrascriptClient:
                             "Effect": "Allow",
                             "Resource": [
                                 "${aws_s3_bucket." + identifier + ".arn}",
-                                "${aws_s3_bucket." + replication_bucket_identifier + ".arn}"
+                                "${aws_s3_bucket." + dest_bucket_id + ".arn}"
                             ]
                         },
                         {
