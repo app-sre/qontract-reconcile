@@ -277,6 +277,9 @@ provider
     content
   }
   variables
+  image {
+    id
+  }
   output_resource_name
   annotations
 }
