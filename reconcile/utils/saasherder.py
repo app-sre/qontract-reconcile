@@ -1455,6 +1455,12 @@ class SaasHerder():
                 all_saas_files, auto_only=True)
         trigger_promotion = False
 
+        if self.promotions and not auto_promote:
+            logging.info(
+                "Auto-promotions to next stages are disabled. This could"
+                "happen if the current stage does not make any change"
+            )
+
         for item in self.promotions:
             if item is None:
                 continue
