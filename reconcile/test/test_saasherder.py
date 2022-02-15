@@ -141,7 +141,7 @@ class TestSaasFileValid(TestCase):
                             'environment': {'name': 'env1'},
                             'cluster': {'name': 'cluster'}
                         },
-                        "parameters": {},
+                        'parameters': {},
                         'ref': '0000000000000',
                         'promotion': {
                             'publish': ['channel-1'],
@@ -159,7 +159,7 @@ class TestSaasFileValid(TestCase):
                             'environment': {'name': 'env1'},
                             'cluster': {'name': 'cluster'}
                         },
-                        "parameters": {},
+                        'parameters': {},
                         'ref': '0000000000000',
                         'promotion': {
                             'auto': 'true',

@@ -218,7 +218,6 @@ class SaasHerder():
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
-        # Promotions have the same source repository
         self._check_promotions_have_same_source(subscriptions, publications)
 
     def _get_promotion_pubs_and_subs(
