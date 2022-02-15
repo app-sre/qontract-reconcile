@@ -6,6 +6,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
+from typing import Mapping, Any, MutableMapping, Tuple
 
 from contextlib import suppress
 import yaml
@@ -142,32 +143,20 @@ class SaasHerder():
                         resource_template_name,
                         target,
                     )
-                    # promotion publish channels
+
                     promotion = target.get('promotion')
                     if promotion:
                         rt_ref = (saas_file_path,
                                   resource_template_name,
                                   resource_template_url)
 
-                        publish = promotion.get('publish')
-                        if publish:
-                            for channel in publish:
-                                if channel in publications:
-                                    self.valid = False
-                                    logging.error(
-                                        "saas file promotion publish channel"
-                                        "is not unique: {}"
-                                        .format(channel)
-                                    )
-                                    continue
-                                publications[channel] = rt_ref
-
-                        subscribe = promotion.get('subscribe')
-                        if subscribe:
-                            for channel in subscribe:
-                                subscriptions.setdefault(channel, [])
-                                subscriptions[channel].append(rt_ref)
-
+                        # Get publications and subscriptions for the target
+                        self._get_promotion_pubs_and_subs(
+                            rt_ref,
+                            promotion,
+                            publications,
+                            subscriptions
+                        )
                     # validate target parameters
                     target_parameters = target['parameters']
                     if not target_parameters:
@@ -230,6 +219,46 @@ class SaasHerder():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
         # Promotions have the same source repository
+        self._check_promotions_have_same_source(subscriptions, publications)
+
+    def _get_promotion_pubs_and_subs(
+            self,
+            rt_ref: Tuple,
+            promotion: dict[str, Any],
+            publications: MutableMapping[str, Tuple],
+            subscriptions: MutableMapping[str, list[Tuple]]):
+        """
+        Function to gather promotion publish and subcribe configurations
+        It validates a publish channel is unique across all publis targets.
+        """
+        publish = promotion.get('publish')
+        if publish:
+            for channel in publish:
+                if channel in publications:
+                    self.valid = False
+                    logging.error(
+                        "saas file promotion publish channel"
+                        "is not unique: {}"
+                        .format(channel)
+                    )
+                    continue
+                publications[channel] = rt_ref
+
+        subscribe = promotion.get('subscribe')
+        if subscribe:
+            for channel in subscribe:
+                subscriptions.setdefault(channel, [])
+                subscriptions[channel].append(rt_ref)
+
+    def _check_promotions_have_same_source(
+            self,
+            subscriptions: Mapping[str, list[Tuple]],
+            publications: Mapping[str, Tuple]) -> None:
+        """
+        Function to check that a promotion has the same repository
+        in both publisher and subscriber targets.
+        """
+
         for sub_channel, sub_targets in subscriptions.items():
             pub_channel_ref = publications.get(sub_channel)
             if not pub_channel_ref:
