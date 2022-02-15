@@ -230,24 +230,22 @@ class SaasHerder():
         Function to gather promotion publish and subcribe configurations
         It validates a publish channel is unique across all publis targets.
         """
-        publish = promotion.get('publish')
-        if publish:
-            for channel in publish:
-                if channel in publications:
-                    self.valid = False
-                    logging.error(
-                        "saas file promotion publish channel"
-                        "is not unique: {}"
-                        .format(channel)
-                    )
-                    continue
-                publications[channel] = rt_ref
+        publish = promotion.get('publish') or []
+        for channel in publish:
+            if channel in publications:
+                self.valid = False
+                logging.error(
+                    "saas file promotion publish channel"
+                    "is not unique: {}"
+                    .format(channel)
+                )
+                continue
+            publications[channel] = rt_ref
 
-        subscribe = promotion.get('subscribe')
-        if subscribe:
-            for channel in subscribe:
-                subscriptions.setdefault(channel, [])
-                subscriptions[channel].append(rt_ref)
+        subscribe = promotion.get('subscribe') or []
+        for channel in subscribe:
+            subscriptions.setdefault(channel, [])
+            subscriptions[channel].append(rt_ref)
 
     def _check_promotions_have_same_source(
             self,
