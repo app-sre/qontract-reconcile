@@ -101,7 +101,7 @@ def build_cluster(name: str, vpc: Optional[str] = None,
     if read_only_accounts or network_mgmt_accounts:
         cluster["awsInfrastructureManagementAccounts"] = []
         if read_only_accounts:
-            for idx, acc in enumerate(read_only_accounts):
+            for acc in read_only_accounts:
                 cluster["awsInfrastructureManagementAccounts"].append({  # type: ignore # noqa: E501
                     "account": {
                         "name": acc,
