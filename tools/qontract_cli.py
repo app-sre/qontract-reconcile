@@ -1124,7 +1124,7 @@ def promquery(cluster, query):
               "policy will be used.",
               default=None)
 @click.option('--jiradef',
-              help="Path to the definition of the JIRA server in app-interface",
+              help="Path to the JIRA server's definition in app-interface",
               default=None)
 @click.option('--create-parent-ticket/--no-create-parent-ticket',
               help="Whether to create a parent ticket if none was provided",

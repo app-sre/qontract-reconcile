@@ -99,7 +99,11 @@ def app_metadata():
         ),
         # Missing field - should cut a ticket
         (
-            {"name": "appname", "sopsUrl": "https://www.somewhe.re", "grafanaUrls": []},
+            {
+                "name": "appname",
+                "sopsUrl": "https://www.somewhe.re",
+                "grafanaUrls": [],
+            },
             True,
         ),
         # Bad field - should cut a ticket
@@ -130,7 +134,9 @@ def test_report_invalid_metadata(mocker, app_metadata):
 
     for a, needs_ticket in app_metadata:
         filer.reset_mock()
-        sut.report_invalid_metadata(a, "/a/path", "jiraboard", {}, "TICKET-123")
+        sut.report_invalid_metadata(
+            a, "/a/path", "jiraboard", {}, "TICKET-123"
+        )
         if needs_ticket:
             print(a)
             print(filer.call_args_list)

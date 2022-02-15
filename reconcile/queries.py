@@ -1943,8 +1943,9 @@ JIRA_BOARDS_QUERY = """
 }
 """
 
+
 def get_jira_boards():
-    """ Returns Jira boards resources defined in app-interface """
+    """Returns Jira boards resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
 
@@ -1966,6 +1967,7 @@ JIRA_BOARDS_QUICK_QUERY = """
   }
 }
 """
+
 
 def get_simple_jira_boards(app_path: str):
     gqlapi = gql.get_api()
@@ -2633,7 +2635,7 @@ APP_METADATA = """
 
 
 def get_app_metadata(app_path: str) -> dict:
-    "Fetch the metadata for the path stored in app_path"
+    """Fetch the metadata for the path stored in app_path."""
     app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
     gqlapi = gql.get_api()
     return gqlapi.query(app_query)['apps']

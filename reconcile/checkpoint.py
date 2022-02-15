@@ -26,7 +26,9 @@ DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 EMAIL_ADDRESS_REGEXP = re.compile(r"^\w+[-\w\.]*@(?:\w[-\w]*\w\.)+\w+")
 MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
-MISSING_DATA_TEMPLATE = PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
+MISSING_DATA_TEMPLATE = (
+    PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
+)
 
 
 def url_makes_sense(url: str) -> bool:
@@ -74,7 +76,9 @@ def render_template(
     """Render the template with all its fields."""
     with open(template) as f:
         t = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
-        return t.render(app_name=name, app_path=path, field=field, field_value=value)
+        return t.render(
+            app_name=name, app_path=path, field=field, field_value=value
+        )
 
 
 def file_ticket(
@@ -94,7 +98,9 @@ def file_ticket(
 
     i = jira.create_issue(
         summary,
-        render_template(MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value),
+        render_template(
+            MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value
+        ),
         labels=labels,
         links=(parent,),
     )
@@ -124,10 +130,12 @@ def report_invalid_metadata(
             if not validator(value):  # type: ignore
                 i = do_cut(field=field, bad_value=str(value))
                 logging.info(
-                    f"Opened task {i.key} for field {field} " f"on {app['name']}"
+                    f"Opened task {i.key} for field {field} "
+                    f"on {app['name']}"
                 )
         except Exception:
             i = do_cut(field=field, bad_value=str(value))
             logging.exception(
-                f"Problems with {field} for {app['name']} - " f"opened task {i.key}"
+                f"Problems with {field} for {app['name']} - "
+                f"opened task {i.key}"
             )
