@@ -1357,6 +1357,7 @@ class TerrascriptClient:
             rc_configs = []
             for config in replication_configs:
                 rc_values = {}
+                dest_bucket_id = config['destination_bucket_identifier']
 
                 # iam roles
                 # Terraform resource reference:
@@ -1384,6 +1385,7 @@ class TerrascriptClient:
                 # iam policy
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy.html
+
                 rc_values.clear()
                 rc_values['name'] = config['rule_name'] + '_iam_policy'
                 policy = {
@@ -1396,7 +1398,8 @@ class TerrascriptClient:
                             ],
                             "Effect": "Allow",
                             "Resource": [
-                                "${aws_s3_bucket." + identifier + ".arn}"
+                                "${aws_s3_bucket." + identifier + ".arn}",
+                                "${aws_s3_bucket." + dest_bucket_id + ".arn}"
                             ]
                         },
                         {
