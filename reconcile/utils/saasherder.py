@@ -1372,7 +1372,8 @@ class SaasHerder():
                         return False
         return True
 
-    def publish_promotions(self, success, all_saas_files, mr_cli):
+    def publish_promotions(self, success,
+                           all_saas_files, mr_cli, auto_promote=False):
         """
         If there were promotion sections in the participating saas file
         publish the results for future promotion validations. """
@@ -1404,13 +1405,14 @@ class SaasHerder():
                     # collect data to trigger promotion
                     subscribed_saas_file_paths = \
                         subscribe_saas_file_path_map.get(channel)
+
                     if subscribed_saas_file_paths:
                         all_subscribed_saas_file_paths.update(
                             subscribed_saas_file_paths)
 
                 item['saas_file_paths'] = list(all_subscribed_saas_file_paths)
 
-                if all_subscribed_saas_file_paths:
+                if auto_promote and all_subscribed_saas_file_paths:
                     trigger_promotion = True
 
         if success and trigger_promotion:
