@@ -111,8 +111,8 @@ def report_invalid_metadata(app: Mapping[str, Any], path: str,
                      labels=DEFAULT_CHECKPOINT_LABELS, parent=parent,
                      app_path=path)
     for field, validator in VALIDATORS.items():
+        value = app.get(field)
         try:
-            value = app[field]
             if not validator(value):  # type: ignore
                 i = do_cut(field=field, bad_value=str(value))
                 logging.info(f"Opened task {i.key} for field {field} "
