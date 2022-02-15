@@ -223,7 +223,7 @@ class JJB:
         else:
             return file_name.replace('current', 'desired')
 
-    def update(self):
+    def update(self) -> None:
         for name, wd in self.working_dirs.items():
             ini_path = '{}/{}.ini'.format(wd, name)
             config_path = '{}/config.yaml'.format(wd)
@@ -238,13 +238,13 @@ class JJB:
                 result = subprocess.run(cmd,
                                         check=True,
                                         stdout=PIPE,
-                                        stderr=STDOUT)
-                out_str = result.stdout.decode("utf-8")
-                if re.search("updated: [1-9]", out_str):
-                    logging.info(out_str)
+                                        stderr=STDOUT,
+                                        encoding="utf-8")
+                if re.search("updated: [1-9]", result.stdout):
+                    logging.info(result.stdout)
             except CalledProcessError as ex:
-                msg = ex.stdout.decode("utf-8")
-                logging.error(msg)
+                logging.error(ex.stdout)
+                raise
 
     @staticmethod
     def get_jjb(args):
