@@ -22,7 +22,6 @@ def valid_owner():
     return {"name": "A Name", "email": "a.name@redhat.com"}
 
 
-@pytest.fixture
 def invalid_owners():
     """List the ways in which an owner can be invalid."""
     return [
@@ -38,16 +37,16 @@ def test_valid_owner(valid_owner) -> None:
     assert sut.valid_owners([valid_owner])
 
 
-def test_invalid_owners(invalid_owners):
+@pytest.mark.parametrize("invalid_owner", invalid_owners())
+def test_invalid_owners(invalid_owner):
     """Confirm that the invalid owners are flagged."""
-    for o in invalid_owners:
-        assert not sut.valid_owners([o])
+    assert not sut.valid_owners([invalid_owner])
 
 
-def test_invalid_owners_remain_invalid(valid_owner, invalid_owners):
+@pytest.mark.parametrize("invalid_owner", invalid_owners())
+def test_invalid_owners_remain_invalid(valid_owner, invalid_owner):
     """Confirm rejection of invalid owners even mixed with good ones."""
-    for o in invalid_owners:
-        assert not sut.valid_owners([valid_owner, o])
+    assert not sut.valid_owners([valid_owner, invalid_owner])
 
 
 def test_url_makes_sense_ok(mocker):
@@ -80,7 +79,6 @@ def test_render_template():
     assert "avalue" in txt
 
 
-@pytest.fixture
 def app_metadata():
     """List some metadata for some fake apps.
 
@@ -119,11 +117,13 @@ def app_metadata():
     ]
 
 
-def test_report_invalid_metadata(mocker, app_metadata):
+@pytest.mark.parametrize("app,needs_ticket", app_metadata())
+def test_report_invalid_metadata(mocker, app, needs_ticket):
     """Test that valid apps don't get tickets and that invalid apps do."""
     # TODO: I'm pretty sure a fixture can help with this
     jira = mocker.patch.object(sut, "JiraClient", autospec=True)
     filer = mocker.patch.object(sut, "file_ticket", autospec=True)
+
     valid = sut.VALIDATORS
 
     sut.VALIDATORS = {
@@ -132,28 +132,25 @@ def test_report_invalid_metadata(mocker, app_metadata):
         "grafanaUrls": lambda _: True,
     }
 
-    for a, needs_ticket in app_metadata:
-        filer.reset_mock()
-        sut.report_invalid_metadata(
-            a, "/a/path", "jiraboard", {}, "TICKET-123"
+    sut.report_invalid_metadata(app, "/a/path", "jiraboard", {}, "TICKET-123")
+    if needs_ticket:
+        filer.assert_called_once_with(
+            jira=jira.return_value,
+            app_name=app["name"],
+            labels=sut.DEFAULT_CHECKPOINT_LABELS,
+            parent="TICKET-123",
+            field="architectureDocument",
+            bad_value=str(app.get("architectureDocument")),
+            app_path="/a/path",
         )
-        if needs_ticket:
-            filer.assert_called_once_with(
-                jira=jira.return_value,
-                app_name=a["name"],
-                labels=sut.DEFAULT_CHECKPOINT_LABELS,
-                parent="TICKET-123",
-                field="architectureDocument",
-                bad_value=str(a.get("architectureDocument")),
-                app_path="/a/path",
-            )
-        else:
-            filer.assert_not_called()
+    else:
+        filer.assert_not_called()
 
     sut.VALIDATORS = valid
 
 
-def test_report_invalid_metadata_dry_run(mocker, app_metadata):
+@pytest.mark.parametrize("app,needs_ticket", app_metadata())
+def test_report_invalid_metadata_dry_run(mocker, app, needs_ticket):
     """Test the dry-run mode."""
     renderer = mocker.patch.object(sut, "render_template", autospec=True)
     valid = sut.VALIDATORS
@@ -162,13 +159,11 @@ def test_report_invalid_metadata_dry_run(mocker, app_metadata):
         "architectureDocument": bool,
         "grafanaUrls": lambda _: True,
     }
-    for a, needs_ticket in app_metadata:
-        renderer.reset_mock()
-        sut.report_invalid_metadata(
-            a, "/a/path", "jiraboard", {}, "TICKET-123", True
-        )
-        if needs_ticket:
-            renderer.assert_called_once()
-        else:
-            renderer.assert_not_called()
+    sut.report_invalid_metadata(
+        app, "/a/path", "jiraboard", {}, "TICKET-123", True
+    )
+    if needs_ticket:
+        renderer.assert_called_once()
+    else:
+        renderer.assert_not_called()
     sut.VALIDATORS = valid
