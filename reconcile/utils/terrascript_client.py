@@ -1694,7 +1694,7 @@ class TerrascriptClient:
             values['depends_on'] = [
                 f'aws_elasticache_parameter_group.{pg_identifier}',
             ]
-            values['parameter_group_name'] = pg_identifier
+            values['parameter_group_name'] = pg_name
             values.pop('parameter_group', None)
 
         try:
