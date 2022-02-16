@@ -18,7 +18,7 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         self.jira = JIRA(self.server, token_auth=token_auth)
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list:
+    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
