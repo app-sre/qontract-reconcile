@@ -71,13 +71,13 @@ VALIDATORS = {
 
 
 def render_template(
-    template: Path, name: str, path: str, field: str, value: str
+    template: Path, name: str, path: str, field: str, bad_value: str
 ) -> str:
     """Render the template with all its fields."""
     with open(template) as f:
         t = Template(f.read(), keep_trailing_newline=True, trim_blocks=True)
         return t.render(
-            app_name=name, app_path=path, field=field, field_value=value
+            app_name=name, app_path=path, field=field, field_value=bad_value
         )
 
 
@@ -113,29 +113,37 @@ def report_invalid_metadata(
     board: Mapping[str, Union[str, Mapping]],
     settings: Mapping[str, Any],
     parent: str,
+    dry_run: bool = False,
 ) -> None:
     """Cut tickets for any missing/invalid field in the app."""
-    jira = JiraClient(board, settings)
-    do_cut = partial(
-        file_ticket,
-        jira=jira,
-        app_name=app["name"],
-        labels=DEFAULT_CHECKPOINT_LABELS,
-        parent=parent,
-        app_path=path,
-    )
+    if dry_run:
+        do_cut = partial(
+            render_template,
+            template=MISSING_DATA_TEMPLATE,
+            name=app["name"],
+            path=path,
+        )
+    else:
+        jira = JiraClient(board, settings)
+        do_cut = partial(
+            file_ticket,
+            jira=jira,
+            app_name=app["name"],
+            labels=DEFAULT_CHECKPOINT_LABELS,
+            parent=parent,
+            app_path=path,
+        )
+
     for field, validator in VALIDATORS.items():
         value = app.get(field)
         try:
             if not validator(value):  # type: ignore
                 i = do_cut(field=field, bad_value=str(value))
                 logging.info(
-                    f"Opened task {i.key} for field {field} "
-                    f"on {app['name']}"
+                    f"Reporting bad field {field} with value {value}: {i}"
                 )
         except Exception:
             i = do_cut(field=field, bad_value=str(value))
             logging.exception(
-                f"Problems with {field} for {app['name']} - "
-                f"opened task {i.key}"
+                f"Problems with {field} for {app['name']} - reporting {i}"
             )

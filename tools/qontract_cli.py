@@ -1129,8 +1129,11 @@ def promquery(cluster, query):
 @click.option('--create-parent-ticket/--no-create-parent-ticket',
               help="Whether to create a parent ticket if none was provided",
               default=False)
-def sre_checkpoint_metadata(app_path, parent_ticket,
-                            jiraboard, jiradef, create_parent_ticket):
+@click.option('--dry-run/--no-dry-run',
+              help='Do not/do create tickets for failed checks',
+              default=False)
+def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
+                            jiradef, create_parent_ticket, dry_run):
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
     settings = queries.get_app_interface_settings()
@@ -1145,4 +1148,5 @@ def sre_checkpoint_metadata(app_path, parent_ticket,
     # Overrides for easier testing
     if jiraboard:
         board_info['name'] = jiraboard
-    report_invalid_metadata(app, app_path, board_info, settings, parent_ticket)
+    report_invalid_metadata(app, app_path, board_info, settings,
+                            parent_ticket, dry_run)

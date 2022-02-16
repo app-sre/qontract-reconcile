@@ -138,9 +138,6 @@ def test_report_invalid_metadata(mocker, app_metadata):
             a, "/a/path", "jiraboard", {}, "TICKET-123"
         )
         if needs_ticket:
-            print(a)
-            print(filer.call_args_list)
-
             filer.assert_called_once_with(
                 jira=jira.return_value,
                 app_name=a["name"],
@@ -153,4 +150,25 @@ def test_report_invalid_metadata(mocker, app_metadata):
         else:
             filer.assert_not_called()
 
+    sut.VALIDATORS = valid
+
+
+def test_report_invalid_metadata_dry_run(mocker, app_metadata):
+    """Test the dry-run mode."""
+    renderer = mocker.patch.object(sut, "render_template", autospec=True)
+    valid = sut.VALIDATORS
+    sut.VALIDATORS = {
+        "sopsUrl": bool,
+        "architectureDocument": bool,
+        "grafanaUrls": lambda _: True,
+    }
+    for a, needs_ticket in app_metadata:
+        renderer.reset_mock()
+        sut.report_invalid_metadata(
+            a, "/a/path", "jiraboard", {}, "TICKET-123", True
+        )
+        if needs_ticket:
+            renderer.assert_called_once()
+        else:
+            renderer.assert_not_called()
     sut.VALIDATORS = valid
