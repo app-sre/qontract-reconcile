@@ -22,7 +22,7 @@ from reconcile.utils.jira_client import JiraClient
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 
 # We reject the full RFC 5322 standard since many clients will choke
-# with some carefully crafted valid addresses. We might
+# with some carefully crafted valid addresses.
 EMAIL_ADDRESS_REGEXP = re.compile(r"^\w+[-\w\.]*@(?:\w[-\w]*\w\.)+\w+")
 MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
@@ -41,9 +41,6 @@ def url_makes_sense(url: str) -> bool:
     The URL is non-sensical if the server is crashing, the document
     doesn't exist or the specified URL can't be even probed with GET.
     """
-    # TODO: we really should verify SSL certificates here. We
-    # shouldn't let important service information in shady self-signed
-    # servers
     rs = requests.get(url)
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
