@@ -1657,10 +1657,12 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        region = values.pop('region', self.default_regions.get(account))
+        default_region = self.default_regions.get(account)
+        desired_region = values.pop('region', default_region)
+
         provider = ''
-        if region is not None and self._multiregion_account(account):
-            provider = 'aws.' + region
+        if desired_region is not None and self._multiregion_account(account):
+            provider = 'aws.' + desired_region
             values['provider'] = provider
 
         parameter_group = values.get('parameter_group')
@@ -1669,9 +1671,16 @@ class TerrascriptClient:
 
         if parameter_group:
             pg_values = self.get_values(parameter_group)
-            pg_identifier = pg_values['name']
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_name = pg_values['name']
+            pg_identifier = pg_name
 
+            # If the desired region is not the same as the default region
+            # we append the region to the identifier to make it unique
+            # in the terraform config
+            if desired_region is not None and desired_region != default_region:
+                pg_identifier = f"{pg_name}-{desired_region}"
+
+            pg_values['parameter'] = pg_values.pop('parameters')
             for param in pg_values['parameter']:
                 if param['name'] == 'cluster-enabled' \
                         and param['value'] == 'yes':
