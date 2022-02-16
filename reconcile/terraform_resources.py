@@ -277,6 +277,9 @@ provider
     content
   }
   variables
+  image {
+    id
+  }
   output_resource_name
   annotations
 }
@@ -395,7 +398,6 @@ def init_working_dirs(accounts, thread_pool_size,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,
                      accounts,
-                     oc_map,
                      settings=settings)
     working_dirs = ts.dump()
     return ts, working_dirs
@@ -417,7 +419,6 @@ def setup(dry_run, print_to_file, thread_pool_size, internal,
     ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
                                      internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
-                                         oc_map=oc_map,
                                          settings=settings)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,

@@ -80,7 +80,6 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
-from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (FetchResourceError,
                                         PrintToFileInGitRepositoryError)
@@ -101,7 +100,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access', 'cloudinit_configs']
+                 'aws_infrastructure_access', 'cloudinit_configs', 'image']
 
 
 class UnknownProviderError(Exception):
@@ -136,10 +135,9 @@ class time_sleep(Resource):
 
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, oc_map=None, settings=None):
+                 thread_pool_size, accounts, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
-        self.oc_map = oc_map
         self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
@@ -1035,12 +1033,9 @@ class TerrascriptClient:
             else:
                 try:
                     existing_secret = existing_secrets[account][output_prefix]
-                    password = \
-                        existing_secret['db.password']
+                    password = existing_secret['db.password']
                 except KeyError:
-                    password = \
-                        self.determine_db_password(namespace_info,
-                                                   output_resource_name)
+                    password = self.generate_random_password()
         else:
             password = ""
         values['password'] = password
@@ -1273,44 +1268,6 @@ class TerrascriptClient:
         pattern = r'^[a-zA-Z][a-zA-Z0-9_]+$'
         return re.search(pattern, name) and len(name) < 64
 
-    def determine_db_password(self, namespace_info, output_resource_name,
-                              secret_key='db.password'):
-        existing_oc_resource = \
-            self.fetch_existing_oc_resource(namespace_info,
-                                            output_resource_name)
-        if existing_oc_resource is not None:
-            enc_password = existing_oc_resource['data'].get(secret_key)
-            if enc_password:
-                return base64.b64decode(enc_password).decode('utf-8')
-        return self.generate_random_password()
-
-        # TODO: except KeyError?
-        # a KeyError will indicate that this secret
-        # exists, but the db.password field is missing.
-        # this could indicate that a secret with this
-        # this name is 'taken', or that the secret
-        # was updated manually. at this point, it may
-        # be better to let the exception stop the process.
-        # for now, we assume a happy path, where there is
-        # no competition over secret names, but we should
-        # circle back here at a later point.
-
-    def fetch_existing_oc_resource(self, namespace_info, resource_name):
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
-        try:
-            if not self.oc_map:
-                return None
-            oc = self.oc_map.get(cluster)
-            if not oc:
-                logging.log(level=oc.log_level, msg=oc.message)
-                return None
-            return oc.get(namespace, 'Secret', resource_name)
-        except StatusCodeError as e:
-            if str(e).startswith('Error from server (NotFound):'):
-                msg = 'Secret {} does not exist.'.format(resource_name)
-                logging.debug(msg)
-        return None
-
     @staticmethod
     def generate_random_password(string_length=20):
         """Generate a random string of letters and digits """
@@ -1400,6 +1357,7 @@ class TerrascriptClient:
             rc_configs = []
             for config in replication_configs:
                 rc_values = {}
+                dest_bucket_id = config['destination_bucket_identifier']
 
                 # iam roles
                 # Terraform resource reference:
@@ -1427,6 +1385,7 @@ class TerrascriptClient:
                 # iam policy
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy.html
+
                 rc_values.clear()
                 rc_values['name'] = config['rule_name'] + '_iam_policy'
                 policy = {
@@ -1439,7 +1398,8 @@ class TerrascriptClient:
                             ],
                             "Effect": "Allow",
                             "Resource": [
-                                "${aws_s3_bucket." + identifier + ".arn}"
+                                "${aws_s3_bucket." + identifier + ".arn}",
+                                "${aws_s3_bucket." + dest_bucket_id + ".arn}"
                             ]
                         },
                         {
@@ -1730,10 +1690,7 @@ class TerrascriptClient:
             auth_token = \
                 existing_secrets[account][output_prefix]['db.auth_token']
         except KeyError:
-            auth_token = \
-                self.determine_db_password(namespace_info,
-                                           output_resource_name,
-                                           secret_key='db.auth_token')
+            auth_token = self.generate_random_password()
 
         if values.get('transit_encryption_enabled', False):
             values['auth_token'] = auth_token
@@ -3896,7 +3853,6 @@ class TerrascriptClient:
 
         template_values = {
             "name": identifier,
-            "image_id": common_values.get('image_id'),
             "vpc_security_group_ids":
                 common_values.get('vpc_security_group_ids'),
             "update_default_version":
@@ -3912,9 +3868,12 @@ class TerrascriptClient:
                 {
                     "resource_type": "volume",
                     "tags": tags
-                }
-            ]
+                }]
         }
+
+        image = common_values.get('image')
+        image_id = image.get('id')
+        template_values['image_id'] = image_id
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
