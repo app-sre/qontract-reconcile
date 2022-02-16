@@ -1950,6 +1950,8 @@ def get_jira_boards():
     return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
 
 
+# Use APATH as the place holder because Python formatting interferes
+# with graphql use of curly braces
 JIRA_BOARDS_QUICK_QUERY = """
 {
   jira_boards: jira_boards_v1 (path: "APATH") {
@@ -2596,6 +2598,9 @@ def get_service_monitoring_endpoints():
     return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)['apps']
 
 
+# Use APATH as place holder because query strings have a lot of curly
+# braces and it would be confusing to add more to use f-strings or
+# format.
 APP_METADATA = """
 {
   apps: apps_v1 (path: "APATH") {
