@@ -112,7 +112,25 @@ def report_invalid_metadata(
     parent: str,
     dry_run: bool = False,
 ) -> None:
-    """Cut tickets for any missing/invalid field in the app."""
+    """Cut tickets for any missing/invalid field in the app.
+
+    During dry runs it will only log the rendered template.
+
+    :param app: App description, as returned by
+    queries.JIRA_BOARDS_QUICK_QUERY
+
+    :param path: path in app-interface to said app
+
+    :param board: JIRA board description, as per
+    queries.JIRA_BOARDS_QUERY
+
+    :param settings: app-interface settings (necessary to log into the
+    JIRA instance)
+
+    :param parent: parent ticket for this checkpoint
+
+    :param dry_run: whether this is a dry run
+    """
     if dry_run:
         do_cut = partial(
             render_template,  # type: ignore
