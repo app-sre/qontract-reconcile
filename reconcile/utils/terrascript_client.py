@@ -1691,7 +1691,9 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_elasticache_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            values['depends_on'] = self.get_dependencies([pg_tf_resource])
+            values['depends_on'] = [
+                f'aws_elasticache_parameter_group.{pg_identifier}',
+            ]
             values['parameter_group_name'] = pg_identifier
             values.pop('parameter_group', None)
 
