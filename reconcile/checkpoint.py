@@ -118,7 +118,7 @@ def report_invalid_metadata(
     """Cut tickets for any missing/invalid field in the app."""
     if dry_run:
         do_cut = partial(
-            render_template,
+            render_template,  # type: ignore
             template=MISSING_DATA_TEMPLATE,
             name=app["name"],
             path=path,
@@ -126,7 +126,7 @@ def report_invalid_metadata(
     else:
         jira = JiraClient(board, settings)
         do_cut = partial(
-            file_ticket,
+            file_ticket,  # type: ignore
             jira=jira,
             app_name=app["name"],
             labels=DEFAULT_CHECKPOINT_LABELS,
