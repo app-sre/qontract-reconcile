@@ -100,7 +100,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access', 'cloudinit_configs']
+                 'aws_infrastructure_access', 'cloudinit_configs', 'image']
 
 
 class UnknownProviderError(Exception):
@@ -3853,7 +3853,6 @@ class TerrascriptClient:
 
         template_values = {
             "name": identifier,
-            "image_id": common_values.get('image_id'),
             "vpc_security_group_ids":
                 common_values.get('vpc_security_group_ids'),
             "update_default_version":
@@ -3869,9 +3868,12 @@ class TerrascriptClient:
                 {
                     "resource_type": "volume",
                     "tags": tags
-                }
-            ]
+                }]
         }
+
+        image = common_values.get('image')
+        image_id = image.get('id')
+        template_values['image_id'] = image_id
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
