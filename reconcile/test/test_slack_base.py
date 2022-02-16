@@ -81,14 +81,16 @@ def permissions_workspace():
 
 
 @pytest.fixture
-def slack_base(mocker):
-    mock_rs = mocker.patch('reconcile.utils.secret_reader.SecretReader.read',
-                           return_value='secret', autospec=True)
-    mock_iu = mocker.patch(
+def patch_secret_reader(mocker):
+    return mocker.patch('reconcile.utils.secret_reader.SecretReader.read',
+                        return_value='secret', autospec=True)
+
+
+@pytest.fixture
+def patch__initiate_usergroups(mocker):
+    return mocker.patch(
         'reconcile.utils.slack_api.SlackApi._initiate_usergroups',
         autospec=True)
-
-    return mock_rs, mock_iu
 
 
 def test_slack_workspace_raises():
@@ -96,45 +98,47 @@ def test_slack_workspace_raises():
         slackapi_from_slack_workspace({}, {}, 'foo')
 
 
-def test_slack_workspace_ok(slack_base, slack_workspace):
-    mock_rs, mock_iu = slack_base
+def test_slack_workspace_ok(patch_secret_reader, patch__initiate_usergroups,
+                            slack_workspace):
     slack_api = slackapi_from_slack_workspace(slack_workspace, {}, 'dummy')
-    mock_rs.assert_called_once()
-    mock_iu.assert_called_once()
+    patch_secret_reader.assert_called_once()
+    patch__initiate_usergroups.assert_called_once()
     assert slack_api.channel == 'test'
     assert slack_api.chat_kwargs['icon_emoji'] == 'test_emoji'
     assert slack_api.config.get_method_config('users.list') == {'limit': 123}
 
 
-def test_slack_workspace_channel_overwrite(slack_base, slack_workspace):
+def test_slack_workspace_channel_overwrite(patch_secret_reader,
+                                           patch__initiate_usergroups,
+                                           slack_workspace):
     slack_api = slackapi_from_slack_workspace(slack_workspace, {}, 'dummy',
                                               channel='foo')
     assert slack_api.channel == 'foo'
 
 
-def test_unleash_workspace_ok(slack_base, unleash_slack_workspace):
-    mock_rs, mock_iu = slack_base
+def test_unleash_workspace_ok(patch_secret_reader, patch__initiate_usergroups,
+                              unleash_slack_workspace):
     slack_api = slackapi_from_slack_workspace(unleash_slack_workspace, {},
                                               'unleash-watcher')
-    mock_rs.assert_called_once()
-    mock_iu.assert_called_once()
+    patch_secret_reader.assert_called_once()
+    patch__initiate_usergroups.assert_called_once()
     assert slack_api.channel == 'test'
     assert slack_api.chat_kwargs['icon_emoji'] == 'unleash'
     assert slack_api.config.get_method_config('users.list') == {'limit': 123}
 
 
-def test_slack_workspace_no_init(slack_base, slack_workspace):
-    _, mock_iu = slack_base
+def test_slack_workspace_no_init(patch_secret_reader,
+                                 patch__initiate_usergroups, slack_workspace):
     slackapi_from_slack_workspace(slack_workspace, {}, 'dummy',
                                   init_usergroups=False)
-    mock_iu.assert_not_called()
+    patch__initiate_usergroups.assert_not_called()
 
 
-def test_permissions_workspace(slack_base, permissions_workspace):
-    mock_rs, mock_iu = slack_base
+def test_permissions_workspace(patch_secret_reader, patch__initiate_usergroups,
+                               permissions_workspace):
     slack_api = slackapi_from_permissions(permissions_workspace, {})
-    mock_rs.assert_called_once()
-    mock_iu.assert_called_once()
+    patch_secret_reader.assert_called_once()
+    patch__initiate_usergroups.assert_called_once()
 
     assert slack_api.channel is None
     assert slack_api.config.get_method_config('users.list') == {'limit': 123}
