@@ -182,6 +182,7 @@ provider
   defaults
   output_resource_name
   annotations
+  publish_log_types
 }
 ... on NamespaceTerraformResourceACM_v1 {
   account

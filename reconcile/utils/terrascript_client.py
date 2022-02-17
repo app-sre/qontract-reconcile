@@ -1,4 +1,6 @@
 import base64
+from dataclasses import dataclass
+import enum
 import json
 import logging
 import os
@@ -9,7 +11,9 @@ import tempfile
 
 from threading import Lock
 
-from typing import Any, Dict, List, Iterable, MutableMapping, Optional
+from typing import (
+    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional
+)
 from ipaddress import ip_network, ip_address
 
 import anymarkup
@@ -47,7 +51,9 @@ from terrascript.resource import (
     aws_security_group,
     aws_security_group_rule,
     aws_route,
-    aws_cloudwatch_log_group, aws_kms_key,
+    aws_cloudwatch_log_group,
+    aws_cloudwatch_log_resource_policy,
+    aws_kms_key,
     aws_kms_alias,
     aws_elasticsearch_domain,
     aws_iam_service_linked_role,
@@ -131,6 +137,20 @@ class time(Provider):
 # https://github.com/mjuenema/python-terrascript/pull/166
 class time_sleep(Resource):
     pass
+
+
+class ElasticSearchLogGroupType(enum.Enum):
+    INDEX_SLOW_LOGS = 'INDEX_SLOW_LOGS'
+    SEARCH_SLOW_LOGS = 'SEARCH_SLOW_LOGS'
+    ES_APPLICATION_LOGS = 'ES_APPLICATION_LOGS'
+
+
+@dataclass
+class ElasticSearchLogGroupInfo:
+    account: str
+    account_id: str
+    region: str
+    log_group_identifier: str
 
 
 class TerrascriptClient:
@@ -3113,7 +3133,7 @@ class TerrascriptClient:
     def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
-          'aws_service_name': "es.amazonaws.com"
+            'aws_service_name': 'es.amazonaws.com',
         }
         return aws_iam_service_linked_role('elasticsearch', **service_role)
 
@@ -3127,6 +3147,165 @@ class TerrascriptClient:
             return False
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
+
+    @staticmethod
+    def elasticsearch_log_group_identifier(
+        domain_identifier: str,
+        log_type: ElasticSearchLogGroupType
+    ) -> str:
+        log_type_name = log_type.value.lower()
+        return f'OpenSearchService__{domain_identifier}__{log_type_name}'
+
+    def _elasticsearch_get_all_log_group_infos(
+        self
+    ) -> list[ElasticSearchLogGroupInfo]:
+        """
+        Gather all cloud_watch_log_groups for the
+        current account. This is required to set
+        an account-wide resource policy.
+        """
+        log_group_infos = []
+        for resources in self.account_resources.values():
+            for i in resources:
+                res = i['resource']
+                ns = i['namespace_info']
+                if res.get('provider') != 'elasticsearch':
+                    continue
+                # res.get('', []) won't work, as publish_log_types is
+                # explicitly set to None if not set
+                log_types = res['publish_log_types'] or []
+                for log_type in log_types:
+                    region = ns['cluster']['spec']['region']
+                    account = res['account']
+                    account_id = self.accounts[account]['uid']
+                    lg_identifier = \
+                        TerrascriptClient.elasticsearch_log_group_identifier(
+                            domain_identifier=res['identifier'],
+                            log_type=ElasticSearchLogGroupType(log_type),
+                        )
+                    log_group_infos.append(
+                        ElasticSearchLogGroupInfo(
+                            account=account,
+                            account_id=account_id,
+                            region=region,
+                            log_group_identifier=lg_identifier,
+                        )
+                    )
+        return log_group_infos
+
+    def _get_elasticsearch_account_wide_resource_policy(
+        self, account: str
+    ) -> Optional[aws_cloudwatch_log_resource_policy]:
+        """
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
+        CloudWatch Logs supports 10 resource policies per Region.
+        If you plan to enable logs for several OpenSearch Service domains,
+        you should create and reuse a broader policy that includes multiple
+        log groups to avoid reaching this limit.
+        I.e., ideally we aggregate ALL log group identifiers for each
+        account first.
+
+        This function returns None, if no log groups are found for that
+        account.
+        """
+        log_group_infos = \
+            self._elasticsearch_get_all_log_group_infos()
+
+        if not log_group_infos:
+            return None
+
+        log_groups_policy = {
+            'Version': '2012-10-17',
+            'Statement': [{
+                'Effect': 'Allow',
+                'Principal': {
+                    'Service': 'es.amazonaws.com',
+                },
+                'Action': [
+                    'logs:PutLogEvents',
+                    'logs:CreateLogStream',
+                ],
+                'Resource': [
+                    (
+                        f'arn:aws:logs:{info.region}:{info.account_id}'
+                        f':log-group:{info.log_group_identifier}:*'
+                    )
+                    for info in log_group_infos if info.account == account
+                ],
+            }]
+        }
+        log_groups_policy_values = {
+            'policy_name': 'es-log-publishing-permissions',
+            'policy_document': json.dumps(log_groups_policy, sort_keys=True),
+        }
+        resource_policy = aws_cloudwatch_log_resource_policy(
+            'es_log_publishing_resource_policy',
+            **log_groups_policy_values,
+        )
+        return resource_policy
+
+    def _get_tf_resource_elasticsearch_log_groups(
+        self, identifier: str, account: str,
+        resource: Mapping[str, Any], values: Mapping[str, Any],
+        output_prefix: str
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        """
+        Generate cloud_watch_log_group terraform_resources
+        for the given resource. Further, generate
+        publishing_options blocks which will be further used
+        by the consumer.
+        """
+        ES_LOG_GROUP_RETENTION_DAYS = 90
+        tf_resources = []
+        publishing_options = []
+
+        # res.get('', []) won't work, as publish_log_types is
+        # explicitly set to None if not set
+        log_types = resource['publish_log_types'] or []
+        for log_type in log_types:
+            log_type_identifier = \
+                TerrascriptClient.elasticsearch_log_group_identifier(
+                    domain_identifier=identifier,
+                    log_type=ElasticSearchLogGroupType(log_type),
+                )
+            log_group_values = {
+                'name': log_type_identifier,
+                'tags': {},
+                'retention_in_days': ES_LOG_GROUP_RETENTION_DAYS,
+            }
+            region = values.get('region') or \
+                self.default_regions.get(account)
+            if self._multiregion_account(account):
+                log_group_values['provider'] = f'aws.{region}'
+            log_group_tf_resource = \
+                aws_cloudwatch_log_group(log_type_identifier,
+                                         **log_group_values)
+            tf_resources.append(log_group_tf_resource)
+            arn = f'${{{log_group_tf_resource.arn}}}'
+
+            # add arn to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_arn'
+            )
+            output_value = arn
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+
+            # add name to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_name'
+            )
+            output_value = log_type_identifier
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+            publishing_options.append(
+                {
+                    'log_type': log_type,
+                    'cloudwatch_log_group_arn': arn,
+                }
+            )
+
+        return tf_resources, publishing_options
 
     def populate_tf_resource_elasticsearch(self, resource, namespace_info):
 
@@ -3152,6 +3331,23 @@ class TerrascriptClient:
         es_values["elasticsearch_version"] = \
             values.get('elasticsearch_version')
 
+        log_group_resources, publishing_options = \
+            self._get_tf_resource_elasticsearch_log_groups(
+                identifier=identifier,
+                account=account,
+                resource=resource,
+                values=values,
+                output_prefix=output_prefix
+            )
+        tf_resources += log_group_resources
+
+        resource_policy = self._get_elasticsearch_account_wide_resource_policy(
+            account=account,
+        )
+        if resource_policy:
+            tf_resources.append(resource_policy)
+
+        es_values['log_publishing_options'] = publishing_options
         ebs_options = values.get('ebs_options', {})
 
         es_values["ebs_options"] = {
@@ -3255,10 +3451,13 @@ class TerrascriptClient:
 
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
-
-        es_values['depends_on'] = self.get_dependencies(
-            [svc_role_tf_resource])
         tf_resources.append(svc_role_tf_resource)
+        es_deps = [svc_role_tf_resource]
+        if resource_policy:
+            es_deps.append(resource_policy)
+        es_values['depends_on'] = self.get_dependencies(
+            es_deps,
+        )
 
         access_policies = {
             "Version": "2012-10-17",
@@ -3491,7 +3690,7 @@ class TerrascriptClient:
                 cluster['name'],
                 account['uid'],
                 account['terraformUsername'],
-            )
+        )
         account['assume_region'] = cluster['spec']['region']
         service_name = \
             f"{namespace_info['name']}/{openshift_service}"
@@ -3972,7 +4171,7 @@ class TerrascriptClient:
             "key": k,
             "value": v,
             "propagate_at_launch": True
-            } for k, v in tags.items()]
+        } for k, v in tags.items()]
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 
