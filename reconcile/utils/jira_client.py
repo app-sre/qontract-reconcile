@@ -1,8 +1,11 @@
 from jira import JIRA, Issue
+from jira.client import ResultList
 
 from reconcile.utils.secret_reader import SecretReader
 
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional, Union
+
+GottenIssue = Union[list[dict[str, Any]], ResultList[Issue]]
 
 
 class JiraClient:
@@ -18,19 +21,19 @@ class JiraClient:
         token_auth = self.secret_reader.read(token)
         self.jira = JIRA(self.server, token_auth=token_auth)
 
-    def get_issues(self, fields: Optional[Mapping] = None) -> list[Issue]:
+    def get_issues(self, fields: Optional[Mapping] = None) -> GottenIssue:
         block_size = 100
         block_num = 0
 
-        all_issues = []  # type: ignore
+        all_issues: GottenIssue = []
         jql = 'project={}'.format(self.project)
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if fields:
             kwargs['fields'] = ','.join(fields)
         while True:
             index = block_num * block_size
             issues = self.jira.search_issues(jql, index, block_size,
-                                             **kwargs)  # type: ignore
+                                             **kwargs)
             all_issues.extend(issues)
             if len(issues) < block_size:
                 break
