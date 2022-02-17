@@ -3159,6 +3159,11 @@ class TerrascriptClient:
     def _elasticsearch_get_all_log_group_infos(
         self
     ) -> list[ElasticSearchLogGroupInfo]:
+        '''
+        Gather all cloud_watch_log_groups for the
+        current account. This is required to set
+        an account-wide resource policy.
+        '''
         log_group_infos = []
         for resources in self.account_resources.values():
             for i in resources:
@@ -3190,7 +3195,7 @@ class TerrascriptClient:
 
     def _get_elasticsearch_account_wide_resource_policy(
         self, account: str
-    ) -> aws_cloudwatch_log_resource_policy:
+    ) -> Optional[aws_cloudwatch_log_resource_policy]:
         '''
         https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
         CloudWatch Logs supports 10 resource policies per Region.
@@ -3199,9 +3204,15 @@ class TerrascriptClient:
         log groups to avoid reaching this limit.
         I.e., ideally we aggregate ALL log group identifiers for each
         account first.
+
+        This function returns None, if no log groups are found for that
+        account.
         '''
         log_group_infos = \
             self._elasticsearch_get_all_log_group_infos()
+
+        if not log_group_infos:
+            return None
 
         log_groups_policy = {
             'Version': '2012-10-17',
@@ -3238,6 +3249,12 @@ class TerrascriptClient:
         resource: Mapping[str, Any], values: Mapping[str, Any],
         output_prefix: str
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        '''
+        Generate cloud_watch_log_group terraform_resources
+        for the given resource. Further, generate
+        publishing_options blocks which will be further used
+        by the consumer.
+        '''
         ES_LOG_GROUP_RETENTION_DAYS = 90
         tf_resources = []
         publishing_options = []
@@ -3327,7 +3344,8 @@ class TerrascriptClient:
         resource_policy = self._get_elasticsearch_account_wide_resource_policy(
             account=account,
         )
-        tf_resources.append(resource_policy)
+        if resource_policy:
+            tf_resources.append(resource_policy)
 
         es_values['log_publishing_options'] = publishing_options
         ebs_options = values.get('ebs_options', {})
@@ -3434,10 +3452,12 @@ class TerrascriptClient:
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
         tf_resources.append(svc_role_tf_resource)
-        es_values['depends_on'] = self.get_dependencies([
-            svc_role_tf_resource,
-            resource_policy,
-        ])
+        es_deps = [svc_role_tf_resource]
+        if resource_policy:
+            es_deps.append(resource_policy)
+        es_values['depends_on'] = self.get_dependencies(
+            es_deps,
+        )
 
         access_policies = {
             "Version": "2012-10-17",
