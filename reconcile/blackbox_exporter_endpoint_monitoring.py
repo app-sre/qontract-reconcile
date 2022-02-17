@@ -141,6 +141,14 @@ def get_endpoints() -> dict[EndpointMonitoringProvider, list[Endpoint]]:
     return endpoints
 
 
+def get_blackbox_providers() -> list:
+    return [
+        EndpointMonitoringProvider(**p)
+        for p in queries.get_blackbox_exporter_monitoring_provider()
+        if p["provider"] == "blackbox-exporter"
+    ]
+
+
 def fill_desired_state(provider: EndpointMonitoringProvider,
                        endpoints: list[Endpoint],
                        ri: ResourceInventory) -> None:
@@ -159,6 +167,23 @@ def fill_desired_state(provider: EndpointMonitoringProvider,
 @defer
 def run(dry_run: bool, thread_pool_size: int, internal: bool,
         use_jump_host: bool, defer=None) -> None:
+    # verify blackbox-exporter modules
+    settings = queries.get_app_interface_settings()
+    allowed_modules = settings["endpointMonitoringBlackboxExporterModules"]
+    verification_errors = False
+    if allowed_modules:
+        for p in get_blackbox_providers():
+            if p.blackboxExporter.module not in allowed_modules:
+                LOG.error(
+                    f"endpoint monitoring provider {p.name} uses "
+                    f"blackbox-exporter module {p.blackboxExporter.module} "
+                    f"which is not in the allow list {allowed_modules} of "
+                    "app-interface-settings"
+                )
+                verification_errors = True
+    if verification_errors:
+        sys.exit(1)
+
     # prepare
     desired_endpoints = get_endpoints()
     namespaces = {
