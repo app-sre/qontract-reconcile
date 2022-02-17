@@ -3159,11 +3159,11 @@ class TerrascriptClient:
     def _elasticsearch_get_all_log_group_infos(
         self
     ) -> list[ElasticSearchLogGroupInfo]:
-        '''
+        """
         Gather all cloud_watch_log_groups for the
         current account. This is required to set
         an account-wide resource policy.
-        '''
+        """
         log_group_infos = []
         for resources in self.account_resources.values():
             for i in resources:
@@ -3196,7 +3196,7 @@ class TerrascriptClient:
     def _get_elasticsearch_account_wide_resource_policy(
         self, account: str
     ) -> Optional[aws_cloudwatch_log_resource_policy]:
-        '''
+        """
         https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
         CloudWatch Logs supports 10 resource policies per Region.
         If you plan to enable logs for several OpenSearch Service domains,
@@ -3207,7 +3207,7 @@ class TerrascriptClient:
 
         This function returns None, if no log groups are found for that
         account.
-        '''
+        """
         log_group_infos = \
             self._elasticsearch_get_all_log_group_infos()
 
@@ -3249,12 +3249,12 @@ class TerrascriptClient:
         resource: Mapping[str, Any], values: Mapping[str, Any],
         output_prefix: str
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
-        '''
+        """
         Generate cloud_watch_log_group terraform_resources
         for the given resource. Further, generate
         publishing_options blocks which will be further used
         by the consumer.
-        '''
+        """
         ES_LOG_GROUP_RETENTION_DAYS = 90
         tf_resources = []
         publishing_options = []
