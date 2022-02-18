@@ -9,3 +9,4 @@ pytest-mock~=3.6
 responses
 testslide~=2.6
 moto~=2.2
+MarkupSafe==2.0.1
