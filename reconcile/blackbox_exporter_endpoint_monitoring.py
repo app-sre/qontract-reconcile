@@ -141,7 +141,7 @@ def get_endpoints() -> dict[EndpointMonitoringProvider, list[Endpoint]]:
     return endpoints
 
 
-def get_blackbox_providers() -> list:
+def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
     return [
         EndpointMonitoringProvider(**p)
         for p in queries.get_blackbox_exporter_monitoring_provider()
@@ -173,7 +173,8 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
     verification_errors = False
     if allowed_modules:
         for p in get_blackbox_providers():
-            if p.blackboxExporter.module not in allowed_modules:
+            if p.blackboxExporter and \
+                 p.blackboxExporter.module not in allowed_modules:
                 LOG.error(
                     f"endpoint monitoring provider {p.name} uses "
                     f"blackbox-exporter module {p.blackboxExporter.module} "
