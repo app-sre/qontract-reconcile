@@ -52,7 +52,8 @@ def monkey_patch_md5(to_patch):
 
 
 modules_to_patch = [
-    'jenkins_jobs.xml_config'
+    'jenkins_jobs.xml_config',
+    'jenkins_jobs.builder',
 ]
 
 try:
