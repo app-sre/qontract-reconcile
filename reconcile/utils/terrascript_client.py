@@ -444,9 +444,10 @@ class TerrascriptClient:
 
                     # Ref: terraform aws iam_user_policy
                     tf_iam_user = self.get_tf_iam_user(user_name)
+                    identifier = f'{user_name}-{policy_name}'
                     tf_aws_iam_user_policy = aws_iam_user_policy(
-                        user_name + '-' + policy_name,
-                        name=user_name + '-' + policy_name,
+                        identifier,
+                        name=identifier,
                         user=user_name,
                         policy=policy,
                         depends_on=self.get_dependencies([tf_iam_user])
