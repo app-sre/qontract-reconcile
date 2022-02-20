@@ -442,18 +442,27 @@ class TerrascriptClient:
                     policy = \
                         policy.replace('${aws:accountid}', account_uid)
 
-                    # Ref: terraform aws iam_user_policy
+                    # Ref: terraform aws_iam_policy
                     tf_iam_user = self.get_tf_iam_user(user_name)
                     identifier = f'{user_name}-{policy_name}'
-                    tf_aws_iam_user_policy = aws_iam_user_policy(
+                    tf_aws_iam_policy = aws_iam_policy(
                         identifier,
                         name=identifier,
-                        user=user_name,
                         policy=policy,
-                        depends_on=self.get_dependencies([tf_iam_user])
                     )
                     self.add_resource(account_name,
-                                      tf_aws_iam_user_policy)
+                                      tf_aws_iam_policy)
+                    # Ref: terraform aws_iam_user_policy_attachment
+                    tf_iam_user_policy_attachment = \
+                        aws_iam_user_policy_attachment(
+                            identifier,
+                            user=user_name,
+                            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+                            depends_on=self.get_dependencies(
+                                [tf_iam_user, tf_aws_iam_policy])
+                        )
+                    self.add_resource(account_name,
+                                      tf_iam_user_policy_attachment)
 
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
