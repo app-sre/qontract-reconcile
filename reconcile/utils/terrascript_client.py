@@ -359,6 +359,7 @@ class TerrascriptClient:
         return ok
 
     def populate_iam_users(self, roles):
+        error = False
         for role in roles:
             users = role['users']
             if len(users) == 0:
@@ -367,7 +368,6 @@ class TerrascriptClient:
             aws_groups = role['aws_groups'] or []
             user_policies = role['user_policies'] or []
 
-            error = False
             for aws_group in aws_groups:
                 group_name = aws_group['name']
                 account = aws_group['account']
@@ -487,8 +487,8 @@ class TerrascriptClient:
                     self.add_resource(account_name,
                                       tf_iam_user_policy_attachment)
 
-            if error:
-                raise ValueError('error populating iam users')
+        if error:
+            raise ValueError('error populating iam users')
 
 
     def populate_users(self, roles):
