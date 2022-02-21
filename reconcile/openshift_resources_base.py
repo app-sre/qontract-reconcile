@@ -33,6 +33,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
+from reconcile.github_users import init_github
 
 
 """
@@ -208,6 +209,17 @@ def lookup_vault_secret(path, key, version=None, tvars=None):
         raise FetchVaultSecretError(e)
 
 
+def lookup_github_file_content(repo, path, ref, tvars=None):
+    if tvars is not None:
+        repo = process_jinja2_template(repo, vars=tvars)
+        path = process_jinja2_template(path, vars=tvars)
+        ref = process_jinja2_template(ref, vars=tvars)
+
+    gh = init_github()
+    c = gh.get_repo(repo).get_contents(path, ref).decoded_content
+    return repr(c.decode('utf-8'))
+
+
 def process_jinja2_template(body, vars=None, env=None):
     if vars is None:
         vars = {}
@@ -215,6 +227,8 @@ def process_jinja2_template(body, vars=None, env=None):
         env = {}
     vars.update({'vault': lambda p, k, v=None:
                  lookup_vault_secret(p, k, v, vars)})
+    vars.update({'github': lambda u, p, r, v=None:
+                 lookup_github_file_content(u, p, r, vars)})
     try:
         env = jinja2.Environment(
             extensions=[B64EncodeExtension, RaiseErrorExtension],
