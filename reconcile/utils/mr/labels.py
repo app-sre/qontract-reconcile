@@ -1,5 +1,6 @@
 APPROVED = 'bot/approved'
 AUTO_MERGE = 'bot/automerge'
+BLOCKED_BOT_ACCESS = 'blocked/bot-access'
 DO_NOT_MERGE_HOLD = 'do-not-merge/hold'
 HOLD = 'bot/hold'
 LGTM = 'lgtm'
