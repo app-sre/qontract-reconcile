@@ -12,7 +12,6 @@ coverage.xml
 dist
 venv
 throughput
-config.prod.toml
-config.dev.toml
-config.debug.toml
+config.toml
+config.*.toml
 .container_tmp

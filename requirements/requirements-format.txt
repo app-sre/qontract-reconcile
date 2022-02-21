@@ -1,0 +1,1 @@
+black==21.12b0 # Cannot migrate to ~22.1 because of click <8.0 constraint in our setup.py https://github.com/psf/black/issues/2774

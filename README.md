@@ -274,7 +274,7 @@ pip install -e .
 
 # optionally install all test/type dependencies - useful when writing tests,
 # auto-completion in your IDE, etc.
-pip install -r requirements-dev.txt
+pip install -r ./requirements/requirements-dev.txt
 ```
 
 If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
@@ -284,11 +284,13 @@ You may also need need to first [install a rust compiler](https://www.rust-lang.
 
 Please see [setup.py](setup.py).
 
-Also, [requirements-test.txt](requirements-test.txt) exists for unit test 
-and linting dependencies, [requirements-type.txt](requirements-type.txt) 
-for type checking dependencies, and 
-[requirements-dev.txt](requirements-dev.txt) combines the two for 
-installing both in a development environment.
+All requirements files are gathered in [./requirements/](./requirements).
+It consists of:
+
+- [requirements-test.txt](requirements/requirements-test.txt) for unit test and linting dependencies
+- [requirements-type.txt](requirements/requirements-type.txt) for type checking dependencies
+- [requirements-format.txt](requirements/requirements-format.txt) for formatting dependencies
+- [requirements-dev.txt](requirements/requirements-dev.txt) installs all above mentioned dependencies
 
 ### Image build
 
