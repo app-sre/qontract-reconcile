@@ -342,6 +342,20 @@ class TerrascriptClient:
     def _get_aws_username(user):
         return user.get('aws_username') or user['org_username']
 
+    @staticmethod
+    def _validate_mandatory_policies(account, user_policies, role_name):
+        ok = True
+        mandatory_policies = \
+            [p for p in account.get('policies') or [] if p.get('mandatory')]
+        for mp in mandatory_policies:
+            if mp not in user_policies:
+                msg = \
+                    f"[{account['name']}] mandatory policy " + \
+                    f"{mp['name']} not associated to role {role_name}"
+                logging.error(msg)
+                ok = False
+        return ok
+
     def populate_iam_users(self, roles):
         for role in roles:
             users = role['users']
@@ -356,6 +370,11 @@ class TerrascriptClient:
                 account = aws_group['account']
                 account_name = account['name']
                 account_console_url = account['consoleUrl']
+
+                ok = self._validate_mandatory_policies(
+                    account, user_policies, role['name'])
+                if not ok:
+                    raise ValueError('mandatory policies missing')
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
