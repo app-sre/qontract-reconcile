@@ -13,6 +13,7 @@ from reconcile.utils.terraform_client import TerraformClient as Terraform
 
 TF_POLICY = """
 name
+mandatory
 policy
 account {
   name
