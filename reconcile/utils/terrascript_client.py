@@ -418,6 +418,7 @@ class TerrascriptClient:
                             f'{user_name} does not have a public gpg key.'
                         logging.error(msg)
                         error = True
+                        continue
                     try:
                         gpg_key_valid(user_public_gpg_key)
                     except ValueError as e:
