@@ -36,6 +36,9 @@ TF_QUERY = """
         name
         consoleUrl
         uid
+        policies {
+          %s
+        }
       }
     }
     user_policies {
@@ -44,7 +47,7 @@ TF_QUERY = """
     expirationDate
   }
 }
-""" % indent(TF_POLICY, 6*' '))
+""" % (indent(TF_POLICY, 10*' '), indent(TF_POLICY, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_users'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
