@@ -7,7 +7,7 @@ from reconcile import queries
 from reconcile.utils import throughput
 
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.labels import APPROVED
+from reconcile.utils.mr.labels import APPROVED, SAAS_FILE_UPDATE
 
 
 QONTRACT_INTEGRATION = 'saas-file-owners'
@@ -272,7 +272,6 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         write_baseline_to_file(io_dir, baseline)
         return
 
-    saas_label = 'saas-file-update'
     hold_label = 'bot/hold'
     gl = init_gitlab(gitlab_project_id)
     baseline = read_baseline_from_file(io_dir)
@@ -303,11 +302,12 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     print(output)
 
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)
-    if valid_saas_file_changes_only and saas_label not in labels:
-        gl.add_label_to_merge_request(gitlab_merge_request_id, saas_label)
-    if not valid_saas_file_changes_only and saas_label in labels:
+    if valid_saas_file_changes_only and SAAS_FILE_UPDATE not in labels:
+        gl.add_label_to_merge_request(
+            gitlab_merge_request_id, SAAS_FILE_UPDATE)
+    if not valid_saas_file_changes_only and SAAS_FILE_UPDATE in labels:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, saas_label)
+            gitlab_merge_request_id, SAAS_FILE_UPDATE)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(

@@ -10,10 +10,10 @@ from sretoolbox.utils import retry
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.labels import APPROVED, AUTO_MERGE, LGTM
+from reconcile.utils.mr.labels import (
+    APPROVED, AUTO_MERGE, LGTM, SAAS_FILE_UPDATE)
 
 MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
-SAAS_FILE_LABEL = 'saas-file-update'
 REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
                'do-not-merge/hold', 'do-not-merge/pending-review']
@@ -217,7 +217,7 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
             if not good_to_merge:
                 continue
 
-            if SAAS_FILE_LABEL in labels and LGTM in labels:
+            if SAAS_FILE_UPDATE in labels and LGTM in labels:
                 logging.warning(
                     f"[{gl.project.name}/{mr.iid}] 'lgtm' label not " +
                     "suitable for saas file update. removing 'lgtm' label"
