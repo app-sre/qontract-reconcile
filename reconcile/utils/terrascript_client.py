@@ -349,6 +349,8 @@ class TerrascriptClient:
                 continue
 
             aws_groups = role['aws_groups'] or []
+            user_policies = role['user_policies'] or []
+
             for aws_group in aws_groups:
                 group_name = aws_group['name']
                 account_name = aws_group['account']['name']
@@ -429,7 +431,6 @@ class TerrascriptClient:
                     tf_output = Output(output_name_0_13, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-            user_policies = role['user_policies'] or []
             for user_policy in user_policies:
                 policy_name = user_policy['name']
                 account_name = user_policy['account']['name']
