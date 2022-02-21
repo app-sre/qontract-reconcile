@@ -343,9 +343,11 @@ class TerrascriptClient:
         return user.get('aws_username') or user['org_username']
 
     @staticmethod
-    def _validate_mandatory_policies(account: dict,
-                                     user_policies: list[dict],
-                                     role_name: str) -> bool:
+    def _validate_mandatory_policies(
+        account: Mapping[str, Any],
+        user_policies: Iterable[Mapping[str, Any]],
+        role_name: str
+    ) -> bool:
         ok = True
         mandatory_policies = \
             [p for p in account.get('policies') or [] if p.get('mandatory')]
