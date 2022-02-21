@@ -11,12 +11,12 @@ from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.labels import (
-    APPROVED, AUTO_MERGE, HOLD, LGTM, SAAS_FILE_UPDATE)
+    APPROVED, AUTO_MERGE, DO_NOT_MERGE_HOLD, HOLD, LGTM, SAAS_FILE_UPDATE)
 
 MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
 REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', HOLD,
-               'do-not-merge/hold', 'do-not-merge/pending-review']
+               DO_NOT_MERGE_HOLD, 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'

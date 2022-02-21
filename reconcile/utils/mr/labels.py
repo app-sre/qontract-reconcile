@@ -1,6 +1,6 @@
 APPROVED = 'bot/approved'
 AUTO_MERGE = 'bot/automerge'
-DO_NOT_MERGE = 'do-not-merge/hold'
+DO_NOT_MERGE_HOLD = 'do-not-merge/hold'
 HOLD = 'bot/hold'
 LGTM = 'lgtm'
 SAAS_FILE_UPDATE = 'saas-file-update'
