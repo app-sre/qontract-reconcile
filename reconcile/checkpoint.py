@@ -154,7 +154,7 @@ def report_invalid_metadata(
         try:
             if not validator(value):  # type: ignore
                 i = do_cut(field=field, bad_value=str(value))
-                logging.info(
+                logging.error(
                     f"Reporting bad field {field} with value {value}: {i}"
                 )
         except Exception:
