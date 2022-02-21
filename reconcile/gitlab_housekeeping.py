@@ -15,7 +15,7 @@ from reconcile.utils.mr.labels import (
 
 MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
 REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
-HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', HOLD,
+HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', HOLD,
                'do-not-merge/hold', 'do-not-merge/pending-review']
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
