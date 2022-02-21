@@ -24,6 +24,7 @@ account {
 TF_QUERY = """
 {
   roles: roles_v1 {
+    name
     users {
       org_username
       aws_username
