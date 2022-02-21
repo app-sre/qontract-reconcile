@@ -416,7 +416,7 @@ def clusters_egress_ips(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx):
-    accounts, working_dirs = tfu.setup(False, 1)
+    accounts, working_dirs, _ = tfu.setup(False, 1)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
                    tfu.QONTRACT_INTEGRATION_VERSION,
                    tfu.QONTRACT_TF_PREFIX,
