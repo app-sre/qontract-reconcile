@@ -4,8 +4,11 @@ import reconcile.utils.terrascript_client as tsclient
 def test_sanitize_resource_with_dots():
     assert tsclient.safe_resource_id("foo.example.com") == "foo_example_com"
 
+
 def test_sanitize_resource_with_wildcard():
-    assert tsclient.safe_resource_id("*.foo.example.com") == "_star_foo_example_com"
+    assert tsclient.safe_resource_id("*.foo.example.com") == \
+        "_star_foo_example_com"
+
 
 def test_aws_username_org():
     ts = tsclient.TerrascriptClient('', '', 1, [])
@@ -15,6 +18,7 @@ def test_aws_username_org():
     }
     assert ts._get_aws_username(user) == result
 
+
 def test_aws_username_aws():
     ts = tsclient.TerrascriptClient('', '', 1, [])
     result = 'aws'
@@ -23,6 +27,7 @@ def test_aws_username_aws():
         'aws_username': result
     }
     assert ts._get_aws_username(user) == result
+
 
 def test_validate_mandatory_policies():
     mandatory_policy = {
