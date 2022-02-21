@@ -1,5 +1,7 @@
 import sys
 
+from textwrap import indent
+
 from reconcile.utils import expiration
 from reconcile.utils import gql
 from reconcile.utils.smtp_client import SmtpClient
@@ -8,6 +10,15 @@ from reconcile import queries
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
+
+TF_POLICY = """
+name
+policy
+account {
+  name
+  uid
+}
+"""
 
 TF_QUERY = """
 {
@@ -27,17 +38,12 @@ TF_QUERY = """
       }
     }
     user_policies {
-      name
-      policy
-      account {
-        name
-        uid
-      }
+      %s
     }
     expirationDate
   }
 }
-"""
+""" % indent(TF_POLICY, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_users'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
