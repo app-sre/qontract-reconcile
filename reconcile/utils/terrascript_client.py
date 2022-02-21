@@ -487,13 +487,13 @@ class TerrascriptClient:
                     self.add_resource(account_name,
                                       tf_iam_user_policy_attachment)
 
-        if error:
-            raise ValueError('error populating iam users')
+        return error
 
 
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
-        self.populate_iam_users(roles)
+        err = self.populate_iam_users(roles)
+        return err
 
     @staticmethod
     def get_user_id_from_arn(assume_role):
