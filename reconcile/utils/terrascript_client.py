@@ -353,8 +353,9 @@ class TerrascriptClient:
 
             for aws_group in aws_groups:
                 group_name = aws_group['name']
-                account_name = aws_group['account']['name']
-                account_console_url = aws_group['account']['consoleUrl']
+                account = aws_group['account']
+                account_name = account['name']
+                account_console_url = account['consoleUrl']
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
