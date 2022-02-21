@@ -367,6 +367,7 @@ class TerrascriptClient:
             aws_groups = role['aws_groups'] or []
             user_policies = role['user_policies'] or []
 
+            error = False
             for aws_group in aws_groups:
                 group_name = aws_group['name']
                 account = aws_group['account']
@@ -376,7 +377,7 @@ class TerrascriptClient:
                 ok = self._validate_mandatory_policies(
                     account, user_policies, role['name'])
                 if not ok:
-                    raise ValueError('mandatory policies missing')
+                    error = True
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
@@ -414,20 +415,18 @@ class TerrascriptClient:
                     user_public_gpg_key = user['public_gpg_key']
                     if user_public_gpg_key is None:
                         msg = \
-                            'user {} does not have a public gpg key ' \
-                            'and will be created without a password.'.format(
-                                user_name)
-                        logging.warning(msg)
-                        continue
+                            f'{user_name} does not have a public gpg key.'
+                        logging.error(msg)
+                        error = True
                     try:
                         gpg_key_valid(user_public_gpg_key)
                     except ValueError as e:
                         msg = \
-                            'invalid public gpg key for user {}: {}'.format(
-                                user_name, str(e))
+                            f'invalid public gpg key for {user_name}. ' + \
+                            f'details: {str(e)}'
                         logging.error(msg)
                         error = True
-                        return error
+                        continue
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -487,11 +486,13 @@ class TerrascriptClient:
                     self.add_resource(account_name,
                                       tf_iam_user_policy_attachment)
 
+            if error:
+                raise ValueError('error populating iam users')
+
+
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
-        err = self.populate_iam_users(roles)
-        if err:
-            return err
+        self.populate_iam_users(roles)
 
     @staticmethod
     def get_user_id_from_arn(assume_role):

@@ -68,10 +68,7 @@ def setup(print_to_file, thread_pool_size):
                      thread_pool_size,
                      accounts,
                      settings=settings)
-    err = ts.populate_users(tf_roles)
-    if err:
-        return None
-
+    ts.populate_users(tf_roles)
     working_dirs = ts.dump(print_to_file)
 
     return accounts, working_dirs
