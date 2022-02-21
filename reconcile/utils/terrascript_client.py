@@ -491,7 +491,6 @@ class TerrascriptClient:
 
         return error
 
-
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
         err = self.populate_iam_users(roles)
