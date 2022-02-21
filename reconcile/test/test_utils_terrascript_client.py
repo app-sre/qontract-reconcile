@@ -32,3 +32,21 @@ class TestSupportFunctions(TestCase):
             'aws_username': result
         }
         self.assertEqual(ts._get_aws_username(user), result)
+
+    def test_validate_mandatory_policies(self):
+        mandatory_policy = {
+            'name': 'mandatory',
+            'mandatory': True,
+        }
+        not_mandatory_policy = {
+            'name': 'not-mandatory',
+        }
+        account = {
+            'name': 'acc',
+            'policies': [mandatory_policy, not_mandatory_policy]
+        }
+        ts = tsclient.TerrascriptClient('', '', 1, [])
+        self.assertTrue(ts._validate_mandatory_policies(
+            account, [mandatory_policy], 'role'))
+        self.assertFalse(ts._validate_mandatory_policies(
+            account, [not_mandatory_policy], 'role'))
