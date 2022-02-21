@@ -10,9 +10,9 @@ from sretoolbox.utils import retry
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.mr.labels import APPROVED, LGTM
+from reconcile.utils.mr.labels import APPROVED, AUTO_MERGE, LGTM
 
-MERGE_LABELS_PRIORITY = [APPROVED, LGTM, 'bot/automerge']
+MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
 SAAS_FILE_LABEL = 'saas-file-update'
 REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
 HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
