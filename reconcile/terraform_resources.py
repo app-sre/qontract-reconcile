@@ -284,6 +284,13 @@ provider
   output_resource_name
   annotations
 }
+... on NamespaceTerraformResourceRoute53Zone_v1 {
+  account
+  region
+  identifier
+  output_resource_name
+  annotations
+}
 """
 
 

@@ -960,6 +960,8 @@ class TerrascriptClient:
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
         elif provider == 'asg':
             self.populate_tf_resource_asg(resource, namespace_info)
+        elif provider == 'route53-zone':
+            self.populate_tf_resource_route53_zone(resource, namespace_info)
         else:
             raise UnknownProviderError(provider)
 
@@ -1254,8 +1256,7 @@ class TerrascriptClient:
                 tf_resources.append(
                     Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     @staticmethod
     def _should_reset_password(current_value, existing_secrets,
@@ -1696,8 +1697,7 @@ class TerrascriptClient:
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
         return bucket_tf_resource
 
@@ -1791,8 +1791,7 @@ class TerrascriptClient:
             output_value = values['auth_token']
             tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_service_account(self, resource, namespace_info,
                                              ocm_map=None):
@@ -1884,8 +1883,7 @@ class TerrascriptClient:
                     'expected one of ocm_map or assume_role'
                 )
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_role(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
@@ -1932,8 +1930,7 @@ class TerrascriptClient:
         output_value = '${' + role_tf_resource.arn + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_sqs(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
@@ -2084,8 +2081,7 @@ class TerrascriptClient:
                 aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_dynamodb(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
@@ -2168,8 +2164,7 @@ class TerrascriptClient:
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_ecr(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
@@ -2271,8 +2266,7 @@ class TerrascriptClient:
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
         # pylint: disable=unused-variable
@@ -2367,8 +2361,7 @@ class TerrascriptClient:
             '${' + cf_oai_tf_resource.id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_s3_sqs(self, resource, namespace_info):
         # pylint: disable=unused-variable
@@ -2580,8 +2573,7 @@ class TerrascriptClient:
                 region, uid, sqs_identifier)
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_cloudwatch(self, resource, namespace_info):
         account, identifier, common_values, output_prefix, \
@@ -2812,8 +2804,7 @@ class TerrascriptClient:
         tf_resource = aws_iam_user_policy(identifier, **values)
         tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_kms(self, resource, namespace_info):
         account, identifier, values, output_prefix, \
@@ -2859,8 +2850,7 @@ class TerrascriptClient:
         tf_resource = aws_kms_alias(identifier, **alias_values)
         tf_resources.append(tf_resource)
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_kinesis(self, resource, namespace_info):
         account, identifier, values, output_prefix, \
@@ -2929,8 +2919,7 @@ class TerrascriptClient:
             )
         )
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     @staticmethod
     def _get_retention_in_days(values, account, identifier):
@@ -3000,6 +2989,10 @@ class TerrascriptClient:
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         return tf_resources
+
+    def add_resources(self, account, tf_resources):
+        for r in tf_resources:
+            self.add_resource(account, r)
 
     def add_resource(self, account, tf_resource):
         if account not in self.locks:
@@ -3554,8 +3547,7 @@ class TerrascriptClient:
             '.vpc_options.0.vpc_id}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def _build_es_advanced_security_options(
             self, advanced_security_options: MutableMapping[str, Any]) \
@@ -3659,8 +3651,7 @@ class TerrascriptClient:
                 tf_resources.append(
                     Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_s3_cloudfront_public_key(self, resource,
                                                       namespace_info):
@@ -3706,8 +3697,7 @@ class TerrascriptClient:
         output_value = key
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def _get_alb_target_ips_by_openshift_service(self,
                                                  identifier,
@@ -4035,8 +4025,7 @@ class TerrascriptClient:
         output_value = vpc_cidr_block
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_secrets_manager(self, resource, namespace_info):
         account, identifier, common_values, \
@@ -4082,8 +4071,7 @@ class TerrascriptClient:
         output_value = '${' + aws_version_resource.version_id + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_asg(self, resource, namespace_info):
         account, identifier, common_values, \
@@ -4219,5 +4207,73 @@ class TerrascriptClient:
         output_value = image_id
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
-        for tf_resource in tf_resources:
-            self.add_resource(account, tf_resource)
+        self.add_resources(account, tf_resources)
+
+    def populate_tf_resource_route53_zone(self, resource, namespace_info):
+        account, identifier, common_values, output_prefix, \
+            output_resource_name, annotations = \
+            self.init_values(resource, namespace_info)
+        tf_resources = []
+        self.init_common_outputs(tf_resources, namespace_info, output_prefix,
+                                 output_resource_name, annotations)
+
+        # https://www.terraform.io/docs/providers/aws/r/route53_zone.html
+        values = {
+            'name': identifier,
+            'tags': common_values['tags'],
+        }
+        zone_id = safe_resource_id(identifier)
+        zone_tf_resource = aws_route53_zone(zone_id, **values)
+        tf_resources.append(zone_tf_resource)
+
+        # outputs
+        # zone id
+        output_name_0_13 = output_prefix + '__zone_id'
+        output_value = f'${{{zone_tf_resource.zone_id}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        # name servers
+        output_name_0_13 = output_prefix + '__name_servers'
+        output_value = f'${{{zone_tf_resource.name_servers}}}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "route53:Change*",
+                        "route53:Create*",
+                        "route53:Get*",
+                        "route53:List*",
+                    ],
+                    "Resource":
+                        "arn:aws:route53:::hostedzone/" +
+                        f"${{{zone_tf_resource.zone_id}}}"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "route53:List*"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": ["tag:GetResources"],
+                    "Resource": "*"
+                }
+            ]
+        }
+
+        tf_resources.extend(
+            self.get_tf_iam_service_user(
+                zone_tf_resource,
+                identifier,
+                policy,
+                common_values['tags'],
+                output_prefix,
+            )
+        )
+
+        self.add_resources(account, tf_resources)
