@@ -288,6 +288,7 @@ provider
   account
   region
   identifier
+  name
   output_resource_name
   annotations
 }
