@@ -4215,6 +4215,9 @@ class TerrascriptClient:
         output_name_0_13 = output_prefix + '__template_latest_version'
         output_value = '${' + template_resource.latest_version + '}'
         tf_resources.append(Output(output_name_0_13, value=output_value))
+        output_name_0_13 = output_prefix + '__image_id'
+        output_value = image_id
+        tf_resources.append(Output(output_name_0_13, value=output_value))
 
         for tf_resource in tf_resources:
             self.add_resource(account, tf_resource)
