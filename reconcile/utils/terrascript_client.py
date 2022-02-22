@@ -98,7 +98,7 @@ import reconcile.openshift_resources_base as orb
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
 LOGTOES_RELEASE = 'repos/app-sre/logs-to-elasticsearch-lambda/releases/latest'
-VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
+VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'enhanced_monitoring', 'replica_source',
                  'output_resource_db_name', 'reset_password', 'ca_cert',
                  'sqs_identifier', 's3_events', 'bucket_policy',
@@ -4219,7 +4219,7 @@ class TerrascriptClient:
 
         # https://www.terraform.io/docs/providers/aws/r/route53_zone.html
         values = {
-            'name': identifier,
+            'name': common_values['name'],
             'tags': common_values['tags'],
         }
         zone_id = safe_resource_id(identifier)
