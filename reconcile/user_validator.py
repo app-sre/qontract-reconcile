@@ -65,7 +65,10 @@ def validate_users_github(users, thread_pool_size):
         if gb_username != gh_login:
             logging.error(
                 "Github username is case sensitive in OSD. "
-                f"User {org_username} github_username should be: {gh_login}.")
+                f"User {org_username} is expecting to have "
+                f"the github username of {gh_login}, "
+                f"but the username specified in "
+                f"app-interface is {gb_username}")
             ok = False
 
     return ok

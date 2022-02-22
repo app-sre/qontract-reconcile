@@ -477,7 +477,9 @@ def integration(ctx, configfile, dry_run, validate_schemas, dump_schemas_file,
     ctx.obj['dump_schemas_file'] = dump_schemas_file
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage AWS Route53 resources using Terraform."
+)
 @print_to_file
 @threaded()
 @binary(['terraform', 'git'])
@@ -491,19 +493,25 @@ def terraform_aws_route53(ctx, print_to_file, enable_deletion,
                     print_to_file, enable_deletion, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configures the teams and members in a GitHub org."
+)
 @click.pass_context
 def github(ctx):
     run_integration(reconcile.github_org, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configures owners in a GitHub org."
+)
 @click.pass_context
 def github_owners(ctx):
     run_integration(reconcile.github_owners, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Validate compliance of GitHub user profiles."
+)
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
@@ -517,7 +525,10 @@ def github_users(ctx, gitlab_project_id, thread_pool_size,
                     enable_deletion, send_mails)
 
 
-@integration.command()
+@integration.command(
+    short_help="Scan GitHub repositories for leaked keys "
+               "and remove them (only submits PR)."
+)
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
@@ -528,13 +539,17 @@ def github_scanner(ctx, gitlab_project_id, thread_pool_size):
                     gitlab_project_id, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Validates GitHub organization settings."
+)
 @click.pass_context
 def github_validator(ctx):
     run_integration(reconcile.github_validator, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configures ClusterRolebindings in OpenShift clusters."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -548,7 +563,9 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
                     use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configures Rolebindings in OpenShift clusters."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -560,7 +577,9 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
                     thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift Groups."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -572,7 +591,9 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
                     thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Deletion of users from OpenShift clusters."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -584,7 +605,10 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
                     thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Use OpenShift ServiceAccount tokens "
+               "across namespaces/clusters."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -599,19 +623,25 @@ def openshift_serviceaccount_tokens(ctx, thread_pool_size, internal,
                     use_jump_host, vault_output_path)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Jenkins roles association via REST API."
+)
 @click.pass_context
 def jenkins_roles(ctx):
     run_integration(reconcile.jenkins_roles, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Jenkins plugins installation via REST API."
+)
 @click.pass_context
 def jenkins_plugins(ctx):
     run_integration(reconcile.jenkins_plugins, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Jenkins jobs configurations using jenkins-jobs."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @print_only
 @config_name
@@ -625,45 +655,60 @@ def jenkins_job_builder(ctx, io_dir, print_only,
                     print_only, config_name, job_name, instance_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Clean up jenkins job history."
+)
 @click.pass_context
 def jenkins_job_builds_cleaner(ctx):
     run_integration(reconcile.jenkins_job_builds_cleaner, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Delete Jenkins jobs in multiple tenant instances."
+)
 @click.pass_context
 def jenkins_job_cleaner(ctx):
     run_integration(reconcile.jenkins_job_cleaner, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage web hooks to Jenkins jobs."
+)
 @click.pass_context
 def jenkins_webhooks(ctx):
     run_integration(reconcile.jenkins_webhooks, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Remove webhooks to previous Jenkins instances."
+)
 @click.pass_context
 def jenkins_webhooks_cleaner(ctx):
     run_integration(reconcile.jenkins_webhooks_cleaner, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Watch for changes in Jira boards and notify on Slack."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def jira_watcher(ctx):
     run_integration(reconcile.jira_watcher, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Watch for changes in Unleah feature toggles "
+               "and notify on Slack."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def unleash_watcher(ctx):
     run_integration(reconcile.unleash_watcher, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Watches for OpenShift upgrades and sends notifications."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -676,25 +721,34 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
                     thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Slack User Groups (channels and users)."
+)
 @click.pass_context
 def slack_usergroups(ctx):
     run_integration(reconcile.slack_usergroups, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Slack User Groups (channels and users) "
+               "for OpenShift users notifications."
+)
 @click.pass_context
 def slack_cluster_usergroups(ctx):
     run_integration(reconcile.slack_cluster_usergroups, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage integrations on GitLab projects."
+)
 @click.pass_context
 def gitlab_integrations(ctx):
     run_integration(reconcile.gitlab_integrations, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage permissions on GitLab projects."
+)
 @threaded()
 @click.pass_context
 def gitlab_permissions(ctx, thread_pool_size):
@@ -702,7 +756,9 @@ def gitlab_permissions(ctx, thread_pool_size):
                     thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage issues and merge requests on GitLab projects."
+)
 @click.option('--wait-for-pipeline/--no-wait-for-pipeline',
               default=False,
               help='wait for pending/running pipelines before acting.')
@@ -712,7 +768,9 @@ def gitlab_housekeeping(ctx, wait_for_pipeline):
                     wait_for_pipeline)
 
 
-@integration.command()
+@integration.command(
+    short_help="Listen to SQS and creates MRs out of the messages."
+)
 @environ(['gitlab_pr_submitter_queue_url'])
 @click.argument('gitlab-project-id')
 @click.pass_context
@@ -721,7 +779,9 @@ def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
                     gitlab_project_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="Delete orphan AWS resources."
+)
 @throughput
 @threaded()
 @click.pass_context
@@ -730,7 +790,9 @@ def aws_garbage_collector(ctx, thread_pool_size, io_dir):
                     thread_pool_size, io_dir)
 
 
-@integration.command()
+@integration.command(
+    short_help="Delete IAM access keys by access key ID."
+)
 @threaded()
 @account_name
 @click.pass_context
@@ -739,14 +801,18 @@ def aws_iam_keys(ctx, thread_pool_size, account_name):
                     thread_pool_size, account_name=account_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Reset IAM user password by user reference."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def aws_iam_password_reset(ctx):
     run_integration(reconcile.aws_iam_password_reset, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Generate AWS ECR image pull secrets and store them in Vault."
+)
 @vault_output_path
 @click.pass_context
 def aws_ecr_image_pull_secrets(ctx, vault_output_path):
@@ -754,7 +820,10 @@ def aws_ecr_image_pull_secrets(ctx, vault_output_path):
                     vault_output_path)
 
 
-@integration.command()
+@integration.command(
+    short_help="Scan AWS support cases for reports of leaked keys and "
+               "remove them (only submits PR)"
+)
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
@@ -764,7 +833,9 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
                     gitlab_project_id, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift Resources."
+)
 @threaded(default=20)
 @binary(['oc', 'ssh', 'amtool'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -782,7 +853,9 @@ def openshift_resources(ctx, thread_pool_size, internal, use_jump_host,
                     namespace_name=namespace_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage OpenShift resources defined in Saas files."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
@@ -804,7 +877,9 @@ def openshift_saas_deploy(ctx, thread_pool_size, io_dir,
                     saas_file_name, env_name, gitlab_project_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="A wrapper around openshift-saas-deploy."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
@@ -819,13 +894,17 @@ def openshift_saas_deploy_wrapper(ctx, thread_pool_size, io_dir,
                     ctx.obj, thread_pool_size, io_dir, gitlab_project_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="Validates Saas files."
+)
 @click.pass_context
 def saas_file_validator(ctx):
     run_integration(reconcile.saas_file_validator, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Trigger deployments when a commit changed for a ref."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @binary(['oc', 'ssh'])
@@ -840,7 +919,9 @@ def openshift_saas_deploy_trigger_moving_commits(ctx, thread_pool_size,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Trigger deployments when upstream job runs."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @binary(['oc', 'ssh'])
@@ -855,7 +936,9 @@ def openshift_saas_deploy_trigger_upstream_jobs(ctx, thread_pool_size,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Trigger deployments when configuration changes."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @binary(['oc', 'ssh'])
@@ -870,7 +953,9 @@ def openshift_saas_deploy_trigger_configs(ctx, thread_pool_size,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Clean up deployment related resources."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -884,7 +969,9 @@ def openshift_saas_deploy_trigger_cleaner(ctx, thread_pool_size,
         ctx.obj, thread_pool_size, internal, use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages custom resources for Tekton based deployments."
+)
 @threaded()
 @internal()
 @use_jump_host()
@@ -900,7 +987,9 @@ def openshift_tekton_resources(ctx, thread_pool_size,
                     saas_file_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages labels on merge requests "
+               "based on approver schema for saas files.")
 @throughput
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
@@ -915,7 +1004,9 @@ def saas_file_owners(ctx, gitlab_project_id, gitlab_merge_request_id,
                     io_dir, compare)
 
 
-@integration.command()
+@integration.command(
+    short_help="Determines if CI can be skipped."
+)
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.pass_context
@@ -924,7 +1015,10 @@ def gitlab_ci_skipper(ctx, gitlab_project_id, gitlab_merge_request_id):
                     gitlab_project_id, gitlab_merge_request_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="Guesses and adds labels to merge requests "
+               "according to changed paths."
+)
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.pass_context
@@ -933,7 +1027,9 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
                     gitlab_project_id, gitlab_merge_request_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages labels on OpenShift namespaces."
+)
 @threaded()
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @binary(['oc', 'ssh'])
@@ -947,7 +1043,9 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
                     use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift Namespaces."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -960,7 +1058,9 @@ def openshift_namespaces(ctx, thread_pool_size, internal, use_jump_host):
                     use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift NetworkPolicies."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -973,7 +1073,9 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
                     use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift LimitRange objects."
+)
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
@@ -988,7 +1090,9 @@ def openshift_limitranges(ctx, thread_pool_size, internal,
                     use_jump_host, take_over)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift ResourceQuota objects."
+)
 @threaded()
 @take_over()
 @binary(['oc', 'ssh'])
@@ -1003,7 +1107,9 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal,
                     use_jump_host, take_over)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift Secrets from Vault."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1020,7 +1126,9 @@ def openshift_vault_secrets(ctx, thread_pool_size, internal, use_jump_host,
                     namespace_name=namespace_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages OpenShift Routes."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1037,59 +1145,75 @@ def openshift_routes(ctx, thread_pool_size, internal, use_jump_host,
                     namespace_name=namespace_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configures the teams and members in Quay."
+)
 @click.pass_context
 def quay_membership(ctx):
     run_integration(reconcile.quay_membership, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Mirrors external images into Google Container Registry."
+)
 @click.pass_context
 @binary(['skopeo'])
 def gcr_mirror(ctx):
     run_integration(reconcile.gcr_mirror, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Mirrors external images into Quay."
+)
 @click.pass_context
 @binary(['skopeo'])
 def quay_mirror(ctx):
     run_integration(reconcile.quay_mirror, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Mirrors entire Quay orgs."
+)
 @click.pass_context
 @binary(['skopeo'])
 def quay_mirror_org(ctx):
     run_integration(reconcile.quay_mirror_org, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Creates and Manages Quay Repos."
+)
 @click.pass_context
 def quay_repos(ctx):
     run_integration(reconcile.quay_repos, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage permissions for Quay Repositories."
+)
 @click.pass_context
 def quay_permissions(ctx):
     run_integration(reconcile.quay_permissions, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Removes users which are not found in LDAP search."
+)
 @click.argument('gitlab-project-id')
 @click.pass_context
 def ldap_users(ctx, gitlab_project_id):
     run_integration(reconcile.ldap_users, ctx.obj, gitlab_project_id)
 
 
-@integration.command()
+@integration.command(short_help="Validate user files.")
 @click.pass_context
 def user_validator(ctx):
     run_integration(reconcile.user_validator, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage AWS Resources using Terraform."
+)
 @print_to_file
 @throughput
 @vault_output_path
@@ -1119,7 +1243,9 @@ def terraform_resources(ctx, print_to_file, enable_deletion,
                     extra_labels=ctx.obj.get('extra_labels', {}))
 
 
-@integration.command()
+@integration.command(
+    short_help="A wrapper around terraform-resources."
+)
 @print_to_file
 @throughput
 @vault_output_path
@@ -1147,7 +1273,9 @@ def terraform_resources_wrapper(ctx, print_to_file, enable_deletion,
                     extra_labels=ctx.obj.get('extra_labels', {}))
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage AWS users using Terraform."
+)
 @print_to_file
 @throughput
 @threaded(default=20)
@@ -1167,7 +1295,10 @@ def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
                     thread_pool_size, send_mails)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage VPC peerings between OSD clusters "
+               "and AWS accounts or other OSD clusters."
+)
 @print_to_file
 @threaded()
 @binary(['terraform', 'git'])
@@ -1184,7 +1315,9 @@ def terraform_vpc_peerings(ctx, print_to_file, enable_deletion,
                     enable_deletion, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages Transit Gateway attachments."
+)
 @print_to_file
 @threaded()
 @binary(['terraform', 'git'])
@@ -1201,13 +1334,17 @@ def terraform_tgw_attachments(ctx, print_to_file, enable_deletion,
                     enable_deletion, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Accept GitHub repository invitations for known repositories."
+)
 @click.pass_context
 def github_repo_invites(ctx):
     run_integration(reconcile.github_repo_invites, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Validates permissions in github repositories."
+)
 @click.argument('instance-name')
 @click.pass_context
 def github_repo_permissions_validator(ctx, instance_name):
@@ -1215,26 +1352,34 @@ def github_repo_permissions_validator(ctx, instance_name):
                     ctx.obj, instance_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage GitLab group members."
+)
 @click.pass_context
 def gitlab_members(ctx):
     run_integration(reconcile.gitlab_members, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Create GitLab projects."
+)
 @click.pass_context
 def gitlab_projects(ctx):
     run_integration(reconcile.gitlab_projects, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage membership in OpenShift groups via OCM."
+)
 @threaded()
 @click.pass_context
 def ocm_groups(ctx, thread_pool_size):
     run_integration(reconcile.ocm_groups, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages clusters via OCM."
+)
 @environ(['gitlab_pr_submitter_queue_url'])
 @gitlab_project_id
 @threaded()
@@ -1244,7 +1389,9 @@ def ocm_clusters(ctx, gitlab_project_id, thread_pool_size):
                     gitlab_project_id, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage External Configuration labels in OCM."
+)
 @threaded()
 @click.pass_context
 def ocm_external_configuration_labels(ctx, thread_pool_size):
@@ -1252,14 +1399,18 @@ def ocm_external_configuration_labels(ctx, thread_pool_size):
                     thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Machine Pools in OCM."
+)
 @threaded()
 @click.pass_context
 def ocm_machine_pools(ctx, thread_pool_size):
     run_integration(reconcile.ocm_machine_pools, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Upgrade Policy schedules in OCM."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @threaded()
 @click.pass_context
@@ -1268,7 +1419,9 @@ def ocm_upgrade_scheduler(ctx, thread_pool_size):
                     thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages cluster Addons in OCM."
+)
 @threaded()
 @click.pass_context
 def ocm_addons(ctx, thread_pool_size):
@@ -1276,59 +1429,79 @@ def ocm_addons(ctx, thread_pool_size):
                     thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Grants AWS infrastructure access "
+               "to members in AWS groups via OCM."
+)
 @click.pass_context
 def ocm_aws_infrastructure_access(ctx):
     run_integration(reconcile.ocm_aws_infrastructure_access, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage GitHub Identity Providers in OCM."
+)
 @vault_input_path
 @click.pass_context
 def ocm_github_idp(ctx, vault_input_path):
     run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage additional routers in OCM."
+)
 @click.pass_context
 def ocm_additional_routers(ctx):
     run_integration(reconcile.ocm_additional_routers, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Send email notifications to app-interface audience."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def email_sender(ctx):
     run_integration(reconcile.email_sender, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Watch for Sentry access requests and notify on Slack."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def sentry_helper(ctx):
     run_integration(reconcile.sentry_helper, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Send emails to users based on "
+               "requests submitted to app-interface."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @click.pass_context
 def requests_sender(ctx):
     run_integration(reconcile.requests_sender, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Validate dependencies are defined for each service."
+)
 @click.pass_context
 def service_dependencies(ctx):
     run_integration(reconcile.service_dependencies, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Configure and enforce sentry instance configuration."
+)
 @click.pass_context
 def sentry_config(ctx):
     run_integration(reconcile.sentry_config, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Runs SQL Queries against app-interface RDS resources."
+)
 @environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
 @enable_deletion(default=False)
 @click.pass_context
@@ -1336,14 +1509,19 @@ def sql_query(ctx, enable_deletion):
     run_integration(reconcile.sql_query, ctx.obj, enable_deletion)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages labels on gitlab merge requests "
+               "based on OWNERS files schema."
+)
 @threaded()
 @click.pass_context
 def gitlab_owners(ctx, thread_pool_size):
     run_integration(reconcile.gitlab_owners, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Ensures that forks of App Interface are compliant."
+)
 @click.argument('gitlab-project-id')
 @click.argument('gitlab-merge-request-id')
 @click.argument('gitlab-maintainers-group')
@@ -1355,14 +1533,20 @@ def gitlab_fork_compliance(ctx, gitlab_project_id, gitlab_merge_request_id,
                     gitlab_maintainers_group)
 
 
-@integration.command()
+@integration.command(
+    short_help="Collects the ImageManifestVuln CRs from all the clusters "
+               "and posts them to Dashdotdb."
+)
 @threaded(default=2)
 @click.pass_context
 def dashdotdb_cso(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Collects the DeploymentValidations from all the clusters "
+               "and posts them to Dashdotdb."
+)
 @threaded(default=2)
 @click.pass_context
 @cluster_name
@@ -1371,20 +1555,28 @@ def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
                     thread_pool_size, cluster_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Collects the ServiceSloMetrics from all the clusters "
+               "and posts them to Dashdotdb."
+)
 @threaded(default=2)
 @click.pass_context
 def dashdotdb_slo(ctx, thread_pool_size):
     run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Mirrors OCP release images."
+)
 @click.pass_context
 def ocp_release_mirror(ctx):
     run_integration(reconcile.ocp_release_mirror, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Collects OSD mirror information and "
+               "updates app-interface via MR."
+)
 @gitlab_project_id
 @click.pass_context
 def osd_mirrors_data_updater(ctx, gitlab_project_id):
@@ -1392,14 +1584,18 @@ def osd_mirrors_data_updater(ctx, gitlab_project_id):
                     gitlab_project_id)
 
 
-@integration.command()
+@integration.command(
+    short_help="Mirrors external images into AWS ECR."
+)
 @threaded()
 @click.pass_context
 def ecr_mirror(ctx, thread_pool_size):
     run_integration(reconcile.ecr_mirror, ctx.obj, thread_pool_size)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages Kafka clusters via OCM."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1413,14 +1609,18 @@ def kafka_clusters(ctx, thread_pool_size, internal, use_jump_host,
                     internal, use_jump_host, vault_throughput_path)
 
 
-@integration.command()
+@integration.command(
+    short_help="Ensures all integrations are defined in App-Interface."
+)
 @click.pass_context
 def integrations_validator(ctx):
     run_integration(reconcile.integrations_validator, ctx.obj,
                     reconcile.cli.integration.commands.keys())
 
 
-@integration.command()
+@integration.command(
+    short_help="Tests prometheus rules using promtool."
+)
 @threaded()
 @binary(['promtool'])
 @cluster_name
@@ -1430,13 +1630,17 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
                     thread_pool_size, cluster_name)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages SendGrid teammates for a given account."
+)
 @click.pass_context
 def sendgrid_teammates(ctx):
     run_integration(reconcile.sendgrid_teammates, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Maps ClusterDeployment resources to Cluster IDs."
+)
 @vault_output_path
 @click.pass_context
 def cluster_deployment_mapper(ctx, vault_output_path):
@@ -1444,7 +1648,9 @@ def cluster_deployment_mapper(ctx, vault_output_path):
                     vault_output_path)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages user access for GABI instances."
+)
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -1457,20 +1663,26 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
                     use_jump_host)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manage Traffic Director services in Dyn DNS."
+)
 @enable_deletion(default=False)
 @click.pass_context
 def dyn_traffic_director(ctx, enable_deletion):
     run_integration(reconcile.dyn_traffic_director, ctx.obj, enable_deletion)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages components on statuspage.io hosted status pages."
+)
 @click.pass_context
 def status_page_components(ctx):
     run_integration(reconcile.status_page_components, ctx.obj)
 
 
-@integration.command()
+@integration.command(
+    short_help="Manages Prometheus Probe resources."
+)
 @threaded()
 @internal()
 @use_jump_host()

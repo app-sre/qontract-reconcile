@@ -6,6 +6,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
+from typing import Mapping, Any, MutableMapping, Tuple
 
 from contextlib import suppress
 import yaml
@@ -103,8 +104,11 @@ class SaasHerder():
     def _validate_saas_files(self):
         self.valid = True
         saas_file_name_path_map = {}
-        saas_file_promotion_publish_channels = []
         self.tkn_unique_pipelineruns = {}
+
+        publications = {}
+        subscriptions = {}
+
         for saas_file in self.saas_files:
             saas_file_name = saas_file['name']
             saas_file_path = saas_file['path']
@@ -121,6 +125,7 @@ class SaasHerder():
 
             for resource_template in saas_file['resourceTemplates']:
                 resource_template_name = resource_template['name']
+                resource_template_url = resource_template['url']
                 for target in resource_template['targets']:
                     target_namespace = target['namespace']
                     namespace_name = target_namespace['name']
@@ -138,13 +143,20 @@ class SaasHerder():
                         resource_template_name,
                         target,
                     )
-                    # promotion publish channels
+
                     promotion = target.get('promotion')
                     if promotion:
-                        publish = promotion.get('publish')
-                        if publish:
-                            saas_file_promotion_publish_channels.extend(
-                                publish)
+                        rt_ref = (saas_file_path,
+                                  resource_template_name,
+                                  resource_template_url)
+
+                        # Get publications and subscriptions for the target
+                        self._get_promotion_pubs_and_subs(
+                            rt_ref,
+                            promotion,
+                            publications,
+                            subscriptions
+                        )
                     # validate target parameters
                     target_parameters = target['parameters']
                     if not target_parameters:
@@ -206,14 +218,75 @@ class SaasHerder():
             for saas_file_name, saas_file_paths in duplicates.items():
                 logging.error(msg.format(saas_file_name, saas_file_paths))
 
-        # promotion publish channel duplicates
-        duplicates = [p for p in saas_file_promotion_publish_channels
-                      if saas_file_promotion_publish_channels.count(p) > 1]
-        if duplicates:
-            self.valid = False
-            msg = 'saas file promotion publish channel is not unique: {}'
-            for duplicate in duplicates:
-                logging.error(msg.format(duplicate))
+        self._check_promotions_have_same_source(subscriptions, publications)
+
+    def _get_promotion_pubs_and_subs(
+            self,
+            rt_ref: Tuple,
+            promotion: dict[str, Any],
+            publications: MutableMapping[str, Tuple],
+            subscriptions: MutableMapping[str, list[Tuple]]):
+        """
+        Function to gather promotion publish and subcribe configurations
+        It validates a publish channel is unique across all publis targets.
+        """
+        publish = promotion.get('publish') or []
+        for channel in publish:
+            if channel in publications:
+                self.valid = False
+                logging.error(
+                    "saas file promotion publish channel"
+                    "is not unique: {}"
+                    .format(channel)
+                )
+                continue
+            publications[channel] = rt_ref
+
+        subscribe = promotion.get('subscribe') or []
+        for channel in subscribe:
+            subscriptions.setdefault(channel, [])
+            subscriptions[channel].append(rt_ref)
+
+    def _check_promotions_have_same_source(
+            self,
+            subscriptions: Mapping[str, list[Tuple]],
+            publications: Mapping[str, Tuple]) -> None:
+        """
+        Function to check that a promotion has the same repository
+        in both publisher and subscriber targets.
+        """
+
+        for sub_channel, sub_targets in subscriptions.items():
+            pub_channel_ref = publications.get(sub_channel)
+            if not pub_channel_ref:
+                self.valid = False
+            else:
+                (pub_saas, pub_rt_name, pub_rt_url) = pub_channel_ref
+
+            for (sub_saas, sub_rt_name, sub_rt_url) in sub_targets:
+                if not pub_channel_ref:
+                    logging.error(
+                        "Channel is not published by any target\n"
+                        "subscriber_saas: {}\n"
+                        "subscriber_rt: {}\n"
+                        "channel: {}"
+                        .format(sub_saas, sub_rt_name, sub_channel)
+                    )
+                else:
+                    if sub_rt_url != pub_rt_url:
+                        self.valid = False
+                        logging.error(
+                            "Subscriber and Publisher targets have diferent "
+                            "source repositories\n"
+                            "publisher_saas: {}\n"
+                            "publisher_rt: {}\n"
+                            "publisher_repo: {}\n"
+                            "subscriber_saas: {}\n"
+                            "subscriber_rt: {}\n"
+                            "subscriber_repo: {}\n"
+                            .format(pub_saas, pub_rt_name, pub_rt_url,
+                                    sub_saas, sub_rt_name, sub_rt_url)
+                        )
 
     def _check_saas_file_env_combo_unique(self, saas_file_name, env_name):
         # max tekton pipelinerun name length can be 63.
@@ -1372,7 +1445,8 @@ class SaasHerder():
                         return False
         return True
 
-    def publish_promotions(self, success, all_saas_files, mr_cli):
+    def publish_promotions(self, success,
+                           all_saas_files, mr_cli, auto_promote=False):
         """
         If there were promotion sections in the participating saas file
         publish the results for future promotion validations. """
@@ -1380,6 +1454,12 @@ class SaasHerder():
             self._get_subscribe_saas_file_path_map(
                 all_saas_files, auto_only=True)
         trigger_promotion = False
+
+        if self.promotions and not auto_promote:
+            logging.info(
+                "Auto-promotions to next stages are disabled. This could"
+                "happen if the current stage does not make any change"
+            )
 
         for item in self.promotions:
             if item is None:
@@ -1404,13 +1484,14 @@ class SaasHerder():
                     # collect data to trigger promotion
                     subscribed_saas_file_paths = \
                         subscribe_saas_file_path_map.get(channel)
+
                     if subscribed_saas_file_paths:
                         all_subscribed_saas_file_paths.update(
                             subscribed_saas_file_paths)
 
                 item['saas_file_paths'] = list(all_subscribed_saas_file_paths)
 
-                if all_subscribed_saas_file_paths:
+                if auto_promote and all_subscribed_saas_file_paths:
                     trigger_promotion = True
 
         if success and trigger_promotion:
