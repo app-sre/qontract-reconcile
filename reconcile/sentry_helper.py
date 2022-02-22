@@ -3,7 +3,7 @@ import logging
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile import queries
 
-from reconcile.slack_base import init_slack_workspace
+from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils.state import State
 
 QONTRACT_INTEGRATION = 'sentry-helper'
@@ -51,8 +51,8 @@ def run(dry_run):
     )
     user_names = get_sentry_users_from_mails(mails)
     if not dry_run:
-        slack = init_slack_workspace(QONTRACT_INTEGRATION,
-                                     init_usergroups=False)
+        slack = slackapi_from_queries(QONTRACT_INTEGRATION,
+                                      init_usergroups=False)
     for user_name in user_names:
         guesses = guess_user(user_name, users)
         if not guesses:
