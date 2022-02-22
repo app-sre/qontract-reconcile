@@ -30,6 +30,7 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.semver_helper import parse_semver
 from reconcile.cli import config_file
+from reconcile.checkpoint import report_invalid_metadata
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 
@@ -1093,7 +1094,6 @@ def query(output, query):
 @click.argument('query')
 def promquery(cluster, query):
     """Run a PromQL query"""
-
     config_data = config.get_config()
     auth = {
         'path': config_data['promql-auth']['secret_path'],
@@ -1110,3 +1110,43 @@ def promquery(cluster, query):
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))
+
+
+@root.command()
+@click.option('--app-path',
+              help="Path in app-interface of the app.yml being reviewed")
+@click.option('--parent-ticket',
+              help="JIRA ticket to link all found issues to",
+              default=None)
+@click.option('--jiraboard',
+              help="JIRA board where to send any new tickets. If not "
+              "provided, the folder found in the application's escalation "
+              "policy will be used.",
+              default=None)
+@click.option('--jiradef',
+              help="Path to the JIRA server's definition in app-interface",
+              default=None)
+@click.option('--create-parent-ticket/--no-create-parent-ticket',
+              help="Whether to create a parent ticket if none was provided",
+              default=False)
+@click.option('--dry-run/--no-dry-run',
+              help='Do not/do create tickets for failed checks',
+              default=False)
+def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
+                            jiradef, create_parent_ticket, dry_run):
+    """Check an app path for checkpoint-related metadata."""
+    data = queries.get_app_metadata(app_path)
+    settings = queries.get_app_interface_settings()
+    app = data[0]
+
+    if jiradef:
+        assert jiraboard
+        board_info = queries.get_simple_jira_boards(jiradef)
+    else:
+        board_info = app['escalationPolicy']['channels']['jiraBoard']
+    board_info = board_info[0]
+    # Overrides for easier testing
+    if jiraboard:
+        board_info['name'] = jiraboard
+    report_invalid_metadata(app, app_path, board_info, settings,
+                            parent_ticket, dry_run)

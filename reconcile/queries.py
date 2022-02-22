@@ -1,6 +1,7 @@
 import os
 import logging
 import itertools
+import shlex
 
 from textwrap import indent
 
@@ -1970,9 +1971,36 @@ JIRA_BOARDS_QUERY = """
 
 
 def get_jira_boards():
-    """ Returns Jira boards resources defined in app-interface """
+    """Returns Jira boards resources defined in app-interface """
     gqlapi = gql.get_api()
     return gqlapi.query(JIRA_BOARDS_QUERY)['jira_boards']
+
+
+# Use APATH as the place holder because Python formatting interferes
+# with graphql use of curly braces
+JIRA_BOARDS_QUICK_QUERY = """
+{
+  jira_boards: jira_boards_v1 (path: "APATH") {
+    path
+    name
+    server {
+      serverUrl
+      token {
+        path
+        field
+        version
+        format
+      }
+    }
+  }
+}
+"""
+
+
+def get_simple_jira_boards(app_path: str):
+    gqlapi = gql.get_api()
+    query = JIRA_BOARDS_QUICK_QUERY.replace("APATH", shlex.quote(app_path))
+    return gqlapi.query(query)['jira_boards']
 
 
 UNLEASH_INSTANCES_QUERY = """
@@ -2594,3 +2622,51 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
 def get_service_monitoring_endpoints():
     gqlapi = gql.get_api()
     return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)['apps']
+
+
+# Use APATH as place holder because query strings have a lot of curly
+# braces and it would be confusing to add more to use f-strings or
+# format.
+APP_METADATA = """
+{
+  apps: apps_v1 (path: "APATH") {
+    labels
+    name
+    description
+    sopsUrl
+    grafanaUrls {
+      url
+    }
+    architectureDocument
+    serviceOwners {
+      name
+      email
+    }
+    escalationPolicy {
+      description
+      channels {
+        jiraBoard {
+          name
+          server {
+            serverUrl
+            token {
+              path
+              field
+            }
+          }
+        }
+        slackUserGroup {
+          name
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_app_metadata(app_path: str) -> dict:
+    """Fetch the metadata for the path stored in app_path."""
+    app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
+    gqlapi = gql.get_api()
+    return gqlapi.query(app_query)['apps']
