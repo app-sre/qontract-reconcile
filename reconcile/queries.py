@@ -535,6 +535,21 @@ CLUSTERS_QUERY = """
               }
               accessLevel
             }
+            awsInfrastructureManagementAccounts {
+              account {
+                name
+                uid
+                terraformUsername
+                automationToken {
+                  path
+                  field
+                  version
+                  format
+                }
+              }
+              accessLevel
+              default
+            }
             peering {
               connections {
                 name
@@ -544,6 +559,17 @@ CLUSTERS_QUERY = """
                   name
                   cluster {
                     name
+                  }
+                  awsInfrastructureManagementAccount {
+                    name
+                    uid
+                    terraformUsername
+                    automationToken {
+                      path
+                      field
+                      version
+                      format
+                    }
                   }
                 }
               }

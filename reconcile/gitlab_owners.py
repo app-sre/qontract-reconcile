@@ -7,10 +7,10 @@ from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.repo_owners import RepoOwners
+from reconcile.utils.mr.labels import APPROVED
 
 QONTRACT_INTEGRATION = 'gitlab-owners'
 
-APPROVAL_LABEL = 'bot/approved'
 COMMENT_PREFIX = '[OWNERS]'
 
 _LOG = logging.getLogger(__name__)
@@ -180,7 +180,7 @@ class MRApproval:
 
     def has_approval_label(self):
         labels = self.gitlab.get_merge_request_labels(self.mr.iid)
-        return APPROVAL_LABEL in labels
+        return APPROVED in labels
 
     @staticmethod
     def format_report(report):
@@ -326,7 +326,7 @@ def act(repo, dry_run, instance, settings):
                        f'- approving now'])
             if not dry_run:
                 gitlab_cli.add_label_to_merge_request(mr.iid,
-                                                      APPROVAL_LABEL)
+                                                      APPROVED)
             continue
 
         if not dry_run:
@@ -335,7 +335,7 @@ def act(repo, dry_run, instance, settings):
                            f'Merge Request:{mr.iid} '
                            f'- removing approval'])
                 gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                           APPROVAL_LABEL)
+                                                           APPROVED)
 
         if approval_status['report'] is not None:
             _LOG.info([f'Project:{gitlab_cli.project.id} '
@@ -344,7 +344,7 @@ def act(repo, dry_run, instance, settings):
 
             if not dry_run:
                 gitlab_cli.remove_label_from_merge_request(mr.iid,
-                                                           APPROVAL_LABEL)
+                                                           APPROVED)
                 mr.notes.create({'body': approval_status['report']})
             continue
 

@@ -182,6 +182,7 @@ provider
   defaults
   output_resource_name
   annotations
+  publish_log_types
 }
 ... on NamespaceTerraformResourceACM_v1 {
   account
@@ -277,6 +278,17 @@ provider
     content
   }
   variables
+  image {
+    id
+  }
+  output_resource_name
+  annotations
+}
+... on NamespaceTerraformResourceRoute53Zone_v1 {
+  account
+  region
+  identifier
+  name
   output_resource_name
   annotations
 }

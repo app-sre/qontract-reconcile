@@ -6,6 +6,7 @@ from unittest.mock import create_autospec, call, patch
 import pytest
 
 import reconcile.slack_usergroups as integ
+import reconcile.slack_base as slackbase
 from reconcile.slack_usergroups import act
 from reconcile.utils.slack_api import SlackApi
 from reconcile import queries
@@ -89,7 +90,7 @@ class TestSupportFunctions(TestCase):
         result = integ.get_pagerduty_name(user)
         self.assertEqual(result, 'pd')
 
-    @patch.object(integ, 'SlackApi', autospec=True)
+    @patch.object(slackbase, 'SlackApi', autospec=True)
     @patch.object(queries, 'get_app_interface_settings', autospec=True)
     @patch.object(queries, 'get_permissions_for_slack_usergroup',
                   autospec=True)

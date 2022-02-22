@@ -9,7 +9,7 @@ QONTRACT_INTEGRATION = 'aws-iam-password-reset'
 
 
 def run(dry_run):
-    accounts = queries.get_state_aws_accounts(reset_passwords=True)
+    accounts = queries.get_aws_accounts(reset_passwords=True)
     settings = queries.get_app_interface_settings()
     state = State(
         integration=QONTRACT_INTEGRATION,

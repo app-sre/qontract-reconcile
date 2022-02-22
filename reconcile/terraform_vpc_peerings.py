@@ -1,7 +1,7 @@
 import logging
 import sys
 import json
-from typing import Optional
+from typing import Any, Optional, Tuple
 
 from reconcile import queries
 from reconcile.utils import aws_api
@@ -23,7 +23,7 @@ class BadTerraformPeeringState(Exception):
     pass
 
 
-def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
+def find_matching_peering(from_cluster, to_cluster, desired_provider):
     """
     Ensures there is a matching peering with the desired provider type
     going from the destination (to) cluster back to this one (from)
@@ -40,32 +40,100 @@ def find_matching_peering(from_cluster, peering, to_cluster, desired_provider):
     return None
 
 
-def aws_account_from_infrastructure_access(cluster, access_level: str,
-                                           ocm: OCM):
-    """
-    Generate an AWS account object from a cluster's awsInfrastructureAccess
-    groups and access levels
-    """
-    account = None
-    for awsAccess in cluster['awsInfrastructureAccess']:
-        if awsAccess.get('accessLevel', "") == access_level:
-            account = {
-                'name': awsAccess['awsGroup']['account']['name'],
-                'uid': awsAccess['awsGroup']['account']['uid'],
-                'terraformUsername':
-                    awsAccess['awsGroup']['account']['terraformUsername'],
-                'automationToken':
-                    awsAccess['awsGroup']['account']['automationToken'],
-                'assume_role':
-                    ocm.get_aws_infrastructure_access_terraform_assume_role(
-                        cluster['name'],
-                        awsAccess['awsGroup']['account']['uid'],
-                        awsAccess['awsGroup']['account']['terraformUsername'],
-                    ),
-                'assume_region': cluster['spec']['region'],
-                'assume_cidr': cluster['network']['vpc']
-            }
-    return account
+def _build_infrastructure_assume_role(
+                    account: dict[str, Any],
+                    cluster: dict[str, Any],
+                    ocm: OCM) -> Optional[dict[str, Any]]:
+    assume_role = ocm.get_aws_infrastructure_access_terraform_assume_role(
+        cluster['name'],
+        account['uid'],
+        account['terraformUsername'],
+    )
+    if assume_role:
+        return {
+            'name': account['name'],
+            'uid': account['uid'],
+            'terraformUsername':
+                account['terraformUsername'],
+            'automationToken':
+                account['automationToken'],
+            'assume_role': assume_role,
+            'assume_region': cluster['spec']['region'],
+            'assume_cidr': cluster['network']['vpc']
+        }
+    else:
+        return None
+
+
+def aws_assume_roles_for_cluster_vpc_peering(
+                requester_cluster: dict[str, Any],
+                accepter_connection: dict[str, Any],
+                accepter_cluster: dict[str, Any],
+                ocm: OCM) -> \
+                    Tuple[dict[str, Any], dict[str, Any]]:
+    # check if dedicated infra accounts have been declared on the
+    # accepters peering connection or on the accepters cluster
+    allowed_accounts = {
+        a["account"]["name"]
+        for a in accepter_cluster["awsInfrastructureManagementAccounts"]
+        or [] if a["accessLevel"] == "network-mgmt"
+    }
+
+    # check if a dedicated infra accounts have been declared on the
+    # accepters peering connection
+    account = accepter_connection["awsInfrastructureManagementAccount"]
+    if account and account["name"] not in allowed_accounts:
+        raise BadTerraformPeeringState(
+            "[account_not_allowed] "
+            f"account {account['name']} used on the peering accepter of "
+            f"cluster {accepter_cluster['name']} is not listed as a "
+            "network-mgmt in awsInfrastructureManagementAccounts"
+        )
+
+    if not account:
+        # look for a network-mgmt account marked as default on the accepters
+        # clusters awsInfrastructureManagementAccounts
+        cluster_infra_accounts = \
+            accepter_cluster["awsInfrastructureManagementAccounts"]
+        for infra_account_def in cluster_infra_accounts or []:
+            if infra_account_def["accessLevel"] == "network-mgmt" and \
+                    infra_account_def.get("default") is True:
+                account = infra_account_def["account"]
+                break
+
+    if not account:
+        raise BadTerraformPeeringState(
+            f"[no_account_available] unable to find infra account "
+            f"for {accepter_cluster['name']} to manage the VPC peering "
+            f"with {requester_cluster['name']}"
+        )
+
+    # a dedicated infra account was found on the accepter side
+    # let's use it for both legs
+    req_aws = _build_infrastructure_assume_role(
+        account,
+        requester_cluster,
+        ocm
+    )
+    if req_aws is None:
+        raise BadTerraformPeeringState(
+            f"[assume_role_not_found] unable to find assume role "
+            f"on cluster-vpc-requester for account {account['name']} and "
+            f"cluster {requester_cluster['name']} "
+        )
+    acc_aws = _build_infrastructure_assume_role(
+        account,
+        accepter_cluster,
+        ocm
+    )
+    if acc_aws is None:
+        raise BadTerraformPeeringState(
+            f"[assume_role_not_found] unable to find assume role "
+            f"on cluster-vpc-accepter for account {account['name']} and "
+            f"cluster {accepter_cluster['name']} "
+        )
+
+    return req_aws, acc_aws
 
 
 def build_desired_state_single_cluster(cluster_info, ocm: OCM,
@@ -73,16 +141,6 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
     cluster_name = cluster_info['name']
 
     peerings = []
-    # Find an aws account with the "network-mgmt" access level on the
-    # requester cluster and use that as the account for the requester
-    req_aws = aws_account_from_infrastructure_access(cluster_info,
-                                                     'network-mgmt',
-                                                     ocm)
-    if not req_aws:
-        raise BadTerraformPeeringState(
-            "could not find an AWS account with the "
-            f"'network-mgmt' access level on the cluster {cluster_name}"
-        )
 
     peering_info = cluster_info['peering']
     peer_connections = peering_info['connections']
@@ -98,16 +156,23 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
         requester_manage_routes = peer_connection.get('manageRoutes')
         # Ensure we have a matching peering connection
         peer_info = find_matching_peering(cluster_info,
-                                          peer_connection,
                                           peer_cluster,
                                           'cluster-vpc-accepter')
         if not peer_info:
             raise BadTerraformPeeringState(
-                "could not find a matching peering connection for "
-                f"cluster {cluster_name}, connection {peer_connection_name}"
+                "[no_matching_peering] could not find a matching peering "
+                f"connection for cluster {cluster_name}, connection "
+                f"{peer_connection_name}"
             )
 
         accepter_manage_routes = peer_info.get('manageRoutes')
+
+        req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
+            cluster_info,
+            peer_info,
+            peer_cluster,
+            ocm
+        )
 
         requester_vpc_id, requester_route_table_ids, _ = \
             awsapi.get_cluster_vpc_details(
@@ -127,19 +192,6 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
             'account': req_aws
         }
 
-        # Find an aws account with the "network-mgmt" access level on
-        # the peer cluster and use that as the account for the
-        # accepter
-        acc_aws = aws_account_from_infrastructure_access(peer_cluster,
-                                                         'network-mgmt',
-                                                         ocm)
-        if not acc_aws:
-            raise BadTerraformPeeringState(
-                "could not find an AWS account with the "
-                f"'network-mgmt' access level on cluster {cluster_name}, "
-                f"peering {peer_connection_name}"
-            )
-
         accepter_vpc_id, accepter_route_table_ids, _ = \
             awsapi.get_cluster_vpc_details(
                 acc_aws,
@@ -147,7 +199,7 @@ def build_desired_state_single_cluster(cluster_info, ocm: OCM,
             )
         if accepter_vpc_id is None:
             raise BadTerraformPeeringState(
-                f'{peer_cluster_name} could not find VPC ID for cluster'
+                f'[{peer_cluster_name}] could not find VPC ID for cluster'
             )
 
         requester['peer_owner_id'] = acc_aws['assume_role'].split(':')[4]

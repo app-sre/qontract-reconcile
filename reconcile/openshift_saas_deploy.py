@@ -7,7 +7,7 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 
 from reconcile import mr_client_gateway
-from reconcile.slack_base import init_slack
+from reconcile.slack_base import slackapi_from_slack_workspace
 from reconcile.status import ExitCodes
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
@@ -69,6 +69,7 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
     all_saas_files = queries.get_saas_files(v1=True, v2=True)
     saas_files = queries.get_saas_files(saas_file_name, env_name,
                                         v1=True, v2=True)
+    app_interface_settings = queries.get_app_interface_settings()
     if not saas_files:
         logging.error('no saas files found')
         sys.exit(ExitCodes.ERROR)
@@ -82,8 +83,10 @@ def run(dry_run, thread_pool_size=10, io_dir='throughput/',
         saas_file = saas_files[0]
         slack_info = saas_file.get('slack')
         if slack_info:
-            slack = init_slack(slack_info, QONTRACT_INTEGRATION,
-                               init_usergroups=False)
+            slack = slackapi_from_slack_workspace(slack_info,
+                                                  app_interface_settings,
+                                                  QONTRACT_INTEGRATION,
+                                                  init_usergroups=False)
             # support built-in start and end slack notifications
             # only in v2 saas files
             if saas_file['apiVersion'] == 'v2':

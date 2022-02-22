@@ -10,13 +10,15 @@ from sretoolbox.utils import retry
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.labels import (
+    APPROVED, AUTO_MERGE, AWAITING_APPROVAL, BLOCKED_BOT_ACCESS,
+    DO_NOT_MERGE_HOLD, DO_NOT_MERGE_PENDING_REVIEW, HOLD, LGTM,
+    SAAS_FILE_UPDATE)
 
-LGTM_LABEL = 'lgtm'
-MERGE_LABELS_PRIORITY = ['bot/approved', LGTM_LABEL, 'bot/automerge']
-SAAS_FILE_LABEL = 'saas-file-update'
+MERGE_LABELS_PRIORITY = [APPROVED, LGTM, AUTO_MERGE]
 REBASE_LABELS_PRIORITY = MERGE_LABELS_PRIORITY
-HOLD_LABELS = ['awaiting-approval', 'blocked/bot-access', 'hold', 'bot/hold',
-               'do-not-merge/hold', 'do-not-merge/pending-review']
+HOLD_LABELS = [AWAITING_APPROVAL, BLOCKED_BOT_ACCESS, HOLD,
+               DO_NOT_MERGE_HOLD, DO_NOT_MERGE_PENDING_REVIEW]
 
 QONTRACT_INTEGRATION = 'gitlab-housekeeping'
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -217,13 +219,13 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
             if not good_to_merge:
                 continue
 
-            if SAAS_FILE_LABEL in labels and LGTM_LABEL in labels:
+            if SAAS_FILE_UPDATE in labels and LGTM in labels:
                 logging.warning(
                     f"[{gl.project.name}/{mr.iid}] 'lgtm' label not " +
                     "suitable for saas file update. removing 'lgtm' label"
                 )
                 if not dry_run:
-                    gl.remove_label_from_merge_request(mr.iid, LGTM_LABEL)
+                    gl.remove_label_from_merge_request(mr.iid, LGTM)
                 continue
 
             target_branch = mr.target_branch

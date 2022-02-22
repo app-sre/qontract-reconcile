@@ -59,6 +59,7 @@ setup(
         "dyn~=1.8.1",
         "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.9.0",
+        "MarkupSafe==2.0.1",
     ],
 
     test_suite="tests",
