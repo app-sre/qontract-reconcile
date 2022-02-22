@@ -98,6 +98,7 @@ commandTests:
 
   - name: skopeo
     command: skopeo
+    args: ["--help"]
     expectedOutput: ['Various operations with container images and container image registries']
 
   - name: git-secrets
