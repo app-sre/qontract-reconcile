@@ -1,5 +1,7 @@
 import sys
 
+from textwrap import indent
+
 from reconcile.utils import expiration
 from reconcile.utils import gql
 from reconcile.utils.smtp_client import SmtpClient
@@ -9,9 +11,20 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 
+TF_POLICY = """
+name
+mandatory
+policy
+account {
+  name
+  uid
+}
+"""
+
 TF_QUERY = """
 {
   roles: roles_v1 {
+    name
     users {
       org_username
       aws_username
@@ -24,20 +37,18 @@ TF_QUERY = """
         name
         consoleUrl
         uid
+        policies {
+          %s
+        }
       }
     }
     user_policies {
-      name
-      policy
-      account {
-        name
-        uid
-      }
+      %s
     }
     expirationDate
   }
 }
-"""
+""" % (indent(TF_POLICY, 10*' '), indent(TF_POLICY, 6*' '))
 
 QONTRACT_INTEGRATION = 'terraform_users'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
@@ -58,12 +69,9 @@ def setup(print_to_file, thread_pool_size):
                      accounts,
                      settings=settings)
     err = ts.populate_users(tf_roles)
-    if err:
-        return None
-
     working_dirs = ts.dump(print_to_file)
 
-    return accounts, working_dirs
+    return accounts, working_dirs, err
 
 
 def send_email_invites(new_users, settings):
@@ -104,10 +112,13 @@ def cleanup_and_exit(tf=None, status=False):
 def run(dry_run, print_to_file=None,
         enable_deletion=False, io_dir='throughput/',
         thread_pool_size=10, send_mails=True):
-    accounts, working_dirs = setup(print_to_file, thread_pool_size)
+    # setup errors should skip resources that will lead
+    # to terraform errors. we should still do our best
+    # to reconcile all valid resources for all accounts.
+    accounts, working_dirs, setup_err = setup(print_to_file, thread_pool_size)
     if print_to_file:
         cleanup_and_exit()
-    if working_dirs is None:
+    if not working_dirs:
         err = True
         cleanup_and_exit(status=err)
 
@@ -130,7 +141,7 @@ def run(dry_run, print_to_file=None,
         cleanup_and_exit(tf, disabled_deletions_detected)
 
     if dry_run:
-        cleanup_and_exit(tf)
+        cleanup_and_exit(tf, setup_err)
 
     err = tf.apply()
     if err:
@@ -141,4 +152,4 @@ def run(dry_run, print_to_file=None,
         settings = queries.get_app_interface_settings()
         send_email_invites(new_users, settings)
 
-    cleanup_and_exit(tf)
+    cleanup_and_exit(tf, setup_err)

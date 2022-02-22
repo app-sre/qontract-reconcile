@@ -342,17 +342,44 @@ class TerrascriptClient:
     def _get_aws_username(user):
         return user.get('aws_username') or user['org_username']
 
+    @staticmethod
+    def _validate_mandatory_policies(
+        account: Mapping[str, Any],
+        user_policies: Iterable[Mapping[str, Any]],
+        role_name: str
+    ) -> bool:
+        ok = True
+        mandatory_policies = \
+            [p for p in account.get('policies') or [] if p.get('mandatory')]
+        for mp in mandatory_policies:
+            if mp not in user_policies:
+                msg = \
+                    f"[{account['name']}] mandatory policy " + \
+                    f"{mp['name']} not associated to role {role_name}"
+                logging.error(msg)
+                ok = False
+        return ok
+
     def populate_iam_users(self, roles):
+        error = False
         for role in roles:
             users = role['users']
             if len(users) == 0:
                 continue
 
             aws_groups = role['aws_groups'] or []
+            user_policies = role['user_policies'] or []
+
             for aws_group in aws_groups:
                 group_name = aws_group['name']
-                account_name = aws_group['account']['name']
-                account_console_url = aws_group['account']['consoleUrl']
+                account = aws_group['account']
+                account_name = account['name']
+                account_console_url = account['consoleUrl']
+
+                ok = self._validate_mandatory_policies(
+                    account, user_policies, role['name'])
+                if not ok:
+                    error = True
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
@@ -390,20 +417,19 @@ class TerrascriptClient:
                     user_public_gpg_key = user['public_gpg_key']
                     if user_public_gpg_key is None:
                         msg = \
-                            'user {} does not have a public gpg key ' \
-                            'and will be created without a password.'.format(
-                                user_name)
-                        logging.warning(msg)
+                            f'{user_name} does not have a public gpg key.'
+                        logging.error(msg)
+                        error = True
                         continue
                     try:
                         gpg_key_valid(user_public_gpg_key)
                     except ValueError as e:
                         msg = \
-                            'invalid public gpg key for user {}: {}'.format(
-                                user_name, str(e))
+                            f'invalid public gpg key for {user_name}. ' + \
+                            f'details: {str(e)}'
                         logging.error(msg)
                         error = True
-                        return error
+                        continue
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -429,7 +455,6 @@ class TerrascriptClient:
                     tf_output = Output(output_name_0_13, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-            user_policies = role['user_policies'] or []
             for user_policy in user_policies:
                 policy_name = user_policy['name']
                 account_name = user_policy['account']['name']
@@ -464,11 +489,12 @@ class TerrascriptClient:
                     self.add_resource(account_name,
                                       tf_iam_user_policy_attachment)
 
+        return error
+
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
         err = self.populate_iam_users(roles)
-        if err:
-            return err
+        return err
 
     @staticmethod
     def get_user_id_from_arn(assume_role):

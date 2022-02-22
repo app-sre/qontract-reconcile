@@ -10,7 +10,7 @@ from gitlab.exceptions import GitlabError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.sqs_gateway import SQSGateway
 
-from reconcile.utils.mr.labels import DO_NOT_MERGE
+from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 
 
 LOG = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         self.sqs_msg_data = {**self.__dict__}
 
         self.gitlab_cli = None
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
         self.branch = f'{self.name}-{random_id}'
