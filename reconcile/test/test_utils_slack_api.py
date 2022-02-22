@@ -258,33 +258,29 @@ def test_update_usergroup_users_empty_list(mock_get_deleted, slack_api):
            call(usergroup='ABCD', users=['a-deleted-user'])
 
 
-@patch('reconcile.utils.slack_api.get_config', autospec=True)
-def test_get_user_id_by_name_user_not_found(get_config_mock, slack_api):
+def test_get_user_id_by_name_user_not_found(slack_api):
     """
     Check that UserNotFoundException will be raised under expected conditions.
     """
-    get_config_mock.return_value = {'smtp': {'mail_address': 'redhat.com'}}
     slack_api.mock_slack_client.return_value\
         .users_lookupByEmail.side_effect = \
         SlackApiError('Some error message', {'error': 'users_not_found'})
 
     with pytest.raises(UserNotFoundException):
-        slack_api.client.get_user_id_by_name('someuser')
+        slack_api.client.get_user_id_by_name('someuser', 'redhat.com')
 
 
-@patch('reconcile.utils.slack_api.get_config', autospec=True)
-def test_get_user_id_by_name_reraise(get_config_mock, slack_api):
+def test_get_user_id_by_name_reraise(slack_api):
     """
     Check that SlackApiError is re-raised when not otherwise handled as a user
     not found error.
     """
-    get_config_mock.return_value = {'smtp': {'mail_address': 'redhat.com'}}
     slack_api.mock_slack_client.return_value\
         .users_lookupByEmail.side_effect = \
         SlackApiError('Some error message', {'error': 'internal_error'})
 
     with pytest.raises(SlackApiError):
-        slack_api.client.get_user_id_by_name('someuser')
+        slack_api.client.get_user_id_by_name('someuser', 'redhat.com')
 
 
 def test_update_usergroups_users_empty_no_raise(mocker, slack_api):

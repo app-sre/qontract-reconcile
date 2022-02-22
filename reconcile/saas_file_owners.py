@@ -7,6 +7,7 @@ from reconcile import queries
 from reconcile.utils import throughput
 
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.labels import APPROVED, HOLD, SAAS_FILE_UPDATE
 
 
 QONTRACT_INTEGRATION = 'saas-file-owners'
@@ -271,9 +272,6 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         write_baseline_to_file(io_dir, baseline)
         return
 
-    saas_label = 'saas-file-update'
-    approved_label = 'bot/approved'
-    hold_label = 'bot/hold'
     gl = init_gitlab(gitlab_project_id)
     baseline = read_baseline_from_file(io_dir)
     owners = baseline['owners']
@@ -303,19 +301,20 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     print(output)
 
     labels = gl.get_merge_request_labels(gitlab_merge_request_id)
-    if valid_saas_file_changes_only and saas_label not in labels:
-        gl.add_label_to_merge_request(gitlab_merge_request_id, saas_label)
-    if not valid_saas_file_changes_only and saas_label in labels:
+    if valid_saas_file_changes_only and SAAS_FILE_UPDATE not in labels:
+        gl.add_label_to_merge_request(
+            gitlab_merge_request_id, SAAS_FILE_UPDATE)
+    if not valid_saas_file_changes_only and SAAS_FILE_UPDATE in labels:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, saas_label)
+            gitlab_merge_request_id, SAAS_FILE_UPDATE)
 
     if desired_state == current_state:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, approved_label)
+            gitlab_merge_request_id, APPROVED)
         return
     if not is_valid_diff:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, approved_label)
+            gitlab_merge_request_id, APPROVED)
         return
 
     comments = gl.get_merge_request_comments(gitlab_merge_request_id)
@@ -343,13 +342,13 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
         hold = hold or current_hold
         if hold:
             gl.add_label_to_merge_request(
-                gitlab_merge_request_id, hold_label)
+                gitlab_merge_request_id, HOLD)
         else:
             gl.remove_label_from_merge_request(
-                gitlab_merge_request_id, hold_label)
+                gitlab_merge_request_id, HOLD)
         if not valid_lgtm:
             gl.remove_label_from_merge_request(
-                gitlab_merge_request_id, approved_label)
+                gitlab_merge_request_id, APPROVED)
             comment_line_body = \
                 f"- changes to saas file '{saas_file_name}' " + \
                 f"require approval (`/lgtm`) from one of: {saas_file_owners}."
@@ -371,11 +370,11 @@ def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None,
     # if there are still entries in this list - they are not approved
     if len(changed_paths) != 0:
         gl.remove_label_from_merge_request(
-            gitlab_merge_request_id, approved_label)
+            gitlab_merge_request_id, APPROVED)
         return
 
     if not valid_saas_file_changes_only:
         return
 
     # add approved label to merge request!
-    gl.add_label_to_merge_request(gitlab_merge_request_id, approved_label)
+    gl.add_label_to_merge_request(gitlab_merge_request_id, APPROVED)

@@ -11,7 +11,8 @@ def accounts():
             'name': 'some-account',
             'automationToken': {
                 'path': 'path',
-            }
+            },
+            'resourcesDefaultRegion': 'default-region'
         }
     ]
 
@@ -23,7 +24,7 @@ def aws_api(accounts, mocker):
     mock_secret_reader.return_value.read_all.return_value = {
         'aws_access_key_id': 'key_id',
         'aws_secret_access_key': 'access_key',
-        'region': 'region',
+        'region': 'tf_state_bucket_region',
     }
     return AWSApi(1, accounts, init_users=False)
 
@@ -73,3 +74,9 @@ def test_get_user_key_status(aws_api, iam_client):
     key = aws_api.get_user_keys(iam_client, 'user')[0]
     status = aws_api.get_user_key_status(iam_client, 'user', key)
     assert status == 'Active'
+
+
+def test_default_region(aws_api, accounts):
+    for a in accounts:
+        assert aws_api.sessions[a['name']].region_name == \
+            a['resourcesDefaultRegion']

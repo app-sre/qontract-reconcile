@@ -12,7 +12,10 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
     python3 -m pip wheel . --wheel-dir /work/wheels
 
 
-FROM quay.io/app-sre/qontract-reconcile-base:0.7.1
+FROM quay.io/app-sre/qontract-reconcile-base:0.7.2
+
+ARG CONTAINER_UID=1000
+RUN useradd --uid ${CONTAINER_UID} reconcile
 
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
@@ -30,5 +33,9 @@ WORKDIR /work
 RUN python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile
 RUN python3 -m pip install -e .
 
+RUN chown -R reconcile /work && \
+    chown -R reconcile /.terraform.d
+
+USER reconcile
 VOLUME ["/work"]
 CMD [ "/work/dev/run.sh" ]

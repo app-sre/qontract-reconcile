@@ -4,10 +4,9 @@ from pathlib import Path
 from jinja2 import Template
 
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.mr.labels import DO_NOT_MERGE
+from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
+from reconcile.utils.constants import PROJ_ROOT
 
-
-PROJ_ROOT = (Path(__file__) / '..' / '..' / '..').resolve()
 EMAIL_TEMPLATE = PROJ_ROOT / 'templates' / 'email.yml.j2'
 
 
@@ -34,7 +33,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [DO_NOT_MERGE]
+        self.labels = [DO_NOT_MERGE_HOLD]
 
     @property
     def title(self):

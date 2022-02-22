@@ -20,7 +20,7 @@ import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
 import reconcile.ocm_upgrade_scheduler as ous
 
-from reconcile.slack_base import init_slack_workspace
+from reconcile.slack_base import slackapi_from_queries
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.terraform_client import TerraformClient as Terraform
@@ -398,7 +398,7 @@ def clusters_egress_ips(ctx):
         account = tfvpc.aws_account_from_infrastructure_access(
             cluster,
             'network-mgmt',
-            ocm_map
+            ocm_map.get(cluster_name)
         )
         aws_api = AWSApi(1, [account], settings=settings)
         egress_ips = \
@@ -416,7 +416,7 @@ def clusters_egress_ips(ctx):
 @get.command()
 @click.pass_context
 def terraform_users_credentials(ctx):
-    accounts, working_dirs = tfu.setup(False, 1)
+    accounts, working_dirs, _ = tfu.setup(False, 1)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
                    tfu.QONTRACT_INTEGRATION_VERSION,
                    tfu.QONTRACT_TF_PREFIX,
@@ -857,10 +857,12 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
     """
-    slack = init_slack_workspace('qontract-cli')
+    settings = queries.get_app_interface_settings()
+    slack = slackapi_from_queries('qontract-cli')
     ugid = slack.get_usergroup_id(usergroup)
     if username:
-        users = [slack.get_user_id_by_name(username)]
+        mail_address = settings['smtp']['mailAddress']
+        users = [slack.get_user_id_by_name(username, mail_address)]
     else:
         users = [slack.get_random_deleted_user()]
     slack.update_usergroup_users(ugid, users)

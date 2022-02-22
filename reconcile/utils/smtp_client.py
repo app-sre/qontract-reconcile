@@ -8,20 +8,16 @@ from email.utils import formataddr
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.config import get_config
 
 
 class SmtpClient:
     def __init__(self, settings):
-        config = get_config()
-
-        smtp_secret_path = config['smtp']['secret_path']
-        smtp_config = self.get_smtp_config(smtp_secret_path, settings)
+        smtp_config = self.get_smtp_config(settings)
         self.host = smtp_config['server']
         self.port = str(smtp_config['port'])
         self.user = smtp_config['username']
         self.passwd = smtp_config['password']
-        self.mail_address = config['smtp']['mail_address']
+        self.mail_address = settings['smtp']['mailAddress']
 
         self._client = None
         self._server = None
@@ -43,12 +39,12 @@ class SmtpClient:
         return self._server
 
     @staticmethod
-    def get_smtp_config(path, settings):
+    def get_smtp_config(settings):
         config = {}
         required_keys = ('password', 'port', 'require_tls', 'server',
                          'username')
         secret_reader = SecretReader(settings=settings)
-        data = secret_reader.read_all({'path': path})
+        data = secret_reader.read_all(settings['smtp']['credentials'])
         try:
             for k in required_keys:
                 config[k] = data[k]

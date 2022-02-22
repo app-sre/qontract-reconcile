@@ -7,7 +7,7 @@ from github import Github
 
 from reconcile.github_repo_invites import run as get_invitations
 from reconcile.jenkins_job_builder import init_jjb
-from reconcile.github_org import get_config
+from reconcile.github_org import get_default_config
 from reconcile.utils.semver_helper import make_semver
 
 
@@ -25,21 +25,20 @@ def get_jobs(jjb, instance_name):
     return pr_check_jobs
 
 
-def init_github(bot_token_org_name):
+def init_github():
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
-    config = get_config(desired_org_name=bot_token_org_name)
-    token = config['github'][bot_token_org_name]['token']
+    token = get_default_config()['token']
     return Github(token, base_url=base_url)
 
 
-def run(dry_run, instance_name, bot_token_org_name):
+def run(dry_run, instance_name):
     jjb, _ = init_jjb()
     pr_check_jobs = get_jobs(jjb, instance_name)
     if not pr_check_jobs:
         logging.error(f'no jobs found for instance {instance_name}')
         sys.exit(1)
 
-    gh = init_github(bot_token_org_name)
+    gh = init_github()
 
     invitations = get_invitations(dry_run=True)
 

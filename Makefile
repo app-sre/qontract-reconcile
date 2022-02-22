@@ -22,7 +22,7 @@ build:
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile.dev .
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --build-arg CONTAINER_UID=${UID} -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile.dev .
 
 push:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest

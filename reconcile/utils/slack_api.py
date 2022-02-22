@@ -8,7 +8,6 @@ from slack_sdk.http_retry import RateLimitErrorRetryHandler, RetryHandler, \
     RetryState, HttpRequest, HttpResponse
 
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.config import get_config
 
 MAX_RETRIES = 5
 TIMEOUT = 30
@@ -112,7 +111,7 @@ class SlackApi:
                  workspace_name: str,
                  token: Mapping[str, str],
                  api_config: Optional[SlackApiConfig] = None,
-                 settings: Optional[Mapping[str, Any]] = None,
+                 app_interface_settings: Optional[Mapping[str, Any]] = None,
                  init_usergroups=True,
                  channel: Optional[str] = None,
                  **chat_kwargs) -> None:
@@ -120,7 +119,7 @@ class SlackApi:
         :param workspace_name: Slack workspace name (ex. coreos)
         :param token: data to pass to SecretReader.read() to get the token
         :param api_config: Slack API configuration
-        :param settings: settings to pass to SecretReader
+        :param app_interface_settings: settings to pass to SecretReader
         :param init_usergroups: whether or not to get a list of all Slack
         usergroups when instantiated
         :param channel: the Slack channel to post messages to, only used
@@ -135,7 +134,7 @@ class SlackApi:
         else:
             self.config = SlackApiConfig()
 
-        secret_reader = SecretReader(settings=settings)
+        secret_reader = SecretReader(settings=app_interface_settings)
         slack_token = secret_reader.read(token)
 
         self._sc = WebClient(token=slack_token, timeout=self.config.timeout)
@@ -289,7 +288,7 @@ class SlackApi:
                       'empty usergroup will not work')
         return ''
 
-    def get_user_id_by_name(self, user_name: str) -> str:
+    def get_user_id_by_name(self, user_name: str, mail_address: str) -> str:
         """
         Get user id from their username.
 
@@ -299,9 +298,6 @@ class SlackApi:
         Slack API
         :raises UserNotFoundException: if the Slack user is not found
         """
-        config = get_config()
-        mail_address = config['smtp']['mail_address']
-
         try:
             result = self._sc.users_lookupByEmail(
                 email=f"{user_name}@{mail_address}"

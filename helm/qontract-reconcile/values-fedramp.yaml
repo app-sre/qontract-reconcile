@@ -87,10 +87,10 @@ integrations:
 - name: terraform-resources
   resources:
     requests:
-      memory: 500Mi
+      memory: 1500Mi
       cpu: 200m
     limits:
-      memory: 700Mi
+      memory: 2000Mi
       cpu: 400m
   logs:
     slack: true
@@ -104,6 +104,17 @@ integrations:
     limits:
       memory: 3000Mi
       cpu: 600m
+  logs:
+    slack: true
+  disableUnleash: true
+- name: terraform-vpc-peerings
+  resources:
+    requests:
+      memory: 2600Mi
+      cpu: 500m
+    limits:
+      memory: 3200Mi
+      cpu: 1400m
   logs:
     slack: true
   disableUnleash: true

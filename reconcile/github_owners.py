@@ -77,10 +77,10 @@ def get_current_github_usernames(github_org_name, github, raw_github):
 
 def run(dry_run):
     base_url = os.environ.get('GITHUB_API', 'https://api.github.com')
+    config = get_config()
     desired_state = fetch_desired_state()
 
     for github_org_name, desired_github_usernames in desired_state.items():
-        config = get_config(desired_org_name=github_org_name)
         token = config['github'][github_org_name]['token']
         gh = Github(token, base_url=base_url)
         raw_gh = RawGithubApi(token)

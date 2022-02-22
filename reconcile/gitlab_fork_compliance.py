@@ -6,13 +6,12 @@ from gitlab.exceptions import GitlabGetError
 
 from reconcile import queries
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.labels import BLOCKED_BOT_ACCESS
 
 
 LOG = logging.getLogger(__name__)
 
 QONTRACT_INTEGRATION = 'gitlab-fork-compliance'
-
-BLOCKED_LABEL = 'blocked/bot-access'
 
 MSG_BRANCH = ('@{user}, this Merge Request is using the "master" '
               'source branch. Please submit a new Merge Request from another '
@@ -43,10 +42,6 @@ class GitlabForkCompliance:
                                 settings=self.settings)
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
-        self.src = GitLabApi(self.instance,
-                             project_id=self.mr.source_project_id,
-                             settings=self.settings)
-
     def run(self):
         self.exit_code |= self.check_branch()
         self.exit_code |= self.check_bot_access()
@@ -70,9 +65,9 @@ class GitlabForkCompliance:
         # Last but not least, we remove the blocked label, in case
         # it is set
         mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)
-        if BLOCKED_LABEL in mr_labels:
+        if BLOCKED_BOT_ACCESS in mr_labels:
             self.gl_cli.remove_label_from_merge_request(self.mr.iid,
-                                                        BLOCKED_LABEL)
+                                                        BLOCKED_BOT_ACCESS)
 
         sys.exit(self.exit_code)
 
@@ -87,6 +82,9 @@ class GitlabForkCompliance:
     def check_bot_access(self):
         # The bot needs access to the fork project
         try:
+            self.src = GitLabApi(self.instance,
+                                 project_id=self.mr.source_project_id,
+                                 settings=self.settings)
             project_bot = self.src.project.members.get(self.gl_cli.user.id)
         except GitlabGetError:
             self.handle_error('access denied for user {bot}', MSG_ACCESS)
@@ -103,7 +101,7 @@ class GitlabForkCompliance:
     def handle_error(self, log_msg, mr_msg):
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
         self.gl_cli.add_label_to_merge_request(self.mr.iid,
-                                               BLOCKED_LABEL)
+                                               BLOCKED_BOT_ACCESS)
         comment = mr_msg.format(user=self.mr.author['username'],
                                 bot=self.gl_cli.user.username,
                                 project_name=self.gl_cli.project.name)

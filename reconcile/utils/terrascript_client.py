@@ -1,4 +1,6 @@
 import base64
+from dataclasses import dataclass
+import enum
 import json
 import logging
 import os
@@ -9,7 +11,9 @@ import tempfile
 
 from threading import Lock
 
-from typing import Any, Dict, List, Iterable, MutableMapping, Optional
+from typing import (
+    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional
+)
 from ipaddress import ip_network, ip_address
 
 import anymarkup
@@ -47,7 +51,9 @@ from terrascript.resource import (
     aws_security_group,
     aws_security_group_rule,
     aws_route,
-    aws_cloudwatch_log_group, aws_kms_key,
+    aws_cloudwatch_log_group,
+    aws_cloudwatch_log_resource_policy,
+    aws_kms_key,
     aws_kms_alias,
     aws_elasticsearch_domain,
     aws_iam_service_linked_role,
@@ -79,8 +85,7 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
-from reconcile.github_org import get_config
-from reconcile.utils.oc import StatusCodeError
+from reconcile.github_org import get_default_config
 from reconcile.utils.gpg import gpg_key_valid
 from reconcile.utils.exceptions import (FetchResourceError,
                                         PrintToFileInGitRepositoryError)
@@ -101,7 +106,7 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access', 'cloudinit_configs']
+                 'aws_infrastructure_access', 'cloudinit_configs', 'image']
 
 
 class UnknownProviderError(Exception):
@@ -134,12 +139,25 @@ class time_sleep(Resource):
     pass
 
 
+class ElasticSearchLogGroupType(enum.Enum):
+    INDEX_SLOW_LOGS = 'INDEX_SLOW_LOGS'
+    SEARCH_SLOW_LOGS = 'SEARCH_SLOW_LOGS'
+    ES_APPLICATION_LOGS = 'ES_APPLICATION_LOGS'
+
+
+@dataclass
+class ElasticSearchLogGroupInfo:
+    account: str
+    account_id: str
+    region: str
+    log_group_identifier: str
+
+
 class TerrascriptClient:
     def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, oc_map=None, settings=None):
+                 thread_pool_size, accounts, settings=None):
         self.integration = integration
         self.integration_prefix = integration_prefix
-        self.oc_map = oc_map
         self.settings = settings
         self.thread_pool_size = thread_pool_size
         filtered_accounts = self.filter_disabled_accounts(accounts)
@@ -211,8 +229,7 @@ class TerrascriptClient:
             with self.logtoes_zip_lock:
                 # this may have already happened, so we check again
                 if not self.logtoes_zip:
-                    github_config = get_config()['github']
-                    self.token = github_config['app-sre']['token']
+                    self.token = get_default_config()['token']
                     self.logtoes_zip = \
                         self.download_logtoes_zip(LOGTOES_RELEASE)
         if release_url == LOGTOES_RELEASE:
@@ -325,17 +342,44 @@ class TerrascriptClient:
     def _get_aws_username(user):
         return user.get('aws_username') or user['org_username']
 
+    @staticmethod
+    def _validate_mandatory_policies(
+        account: Mapping[str, Any],
+        user_policies: Iterable[Mapping[str, Any]],
+        role_name: str
+    ) -> bool:
+        ok = True
+        mandatory_policies = \
+            [p for p in account.get('policies') or [] if p.get('mandatory')]
+        for mp in mandatory_policies:
+            if mp not in user_policies:
+                msg = \
+                    f"[{account['name']}] mandatory policy " + \
+                    f"{mp['name']} not associated to role {role_name}"
+                logging.error(msg)
+                ok = False
+        return ok
+
     def populate_iam_users(self, roles):
+        error = False
         for role in roles:
             users = role['users']
             if len(users) == 0:
                 continue
 
             aws_groups = role['aws_groups'] or []
+            user_policies = role['user_policies'] or []
+
             for aws_group in aws_groups:
                 group_name = aws_group['name']
-                account_name = aws_group['account']['name']
-                account_console_url = aws_group['account']['consoleUrl']
+                account = aws_group['account']
+                account_name = account['name']
+                account_console_url = account['consoleUrl']
+
+                ok = self._validate_mandatory_policies(
+                    account, user_policies, role['name'])
+                if not ok:
+                    error = True
 
                 # we want to include the console url in the outputs
                 # to be used later to generate the email invitations
@@ -373,20 +417,19 @@ class TerrascriptClient:
                     user_public_gpg_key = user['public_gpg_key']
                     if user_public_gpg_key is None:
                         msg = \
-                            'user {} does not have a public gpg key ' \
-                            'and will be created without a password.'.format(
-                                user_name)
-                        logging.warning(msg)
+                            f'{user_name} does not have a public gpg key.'
+                        logging.error(msg)
+                        error = True
                         continue
                     try:
                         gpg_key_valid(user_public_gpg_key)
                     except ValueError as e:
                         msg = \
-                            'invalid public gpg key for user {}: {}'.format(
-                                user_name, str(e))
+                            f'invalid public gpg key for {user_name}. ' + \
+                            f'details: {str(e)}'
                         logging.error(msg)
                         error = True
-                        return error
+                        continue
                     # Ref: terraform aws iam_user_login_profile
                     tf_iam_user_login_profile = aws_iam_user_login_profile(
                         user_name,
@@ -412,7 +455,6 @@ class TerrascriptClient:
                     tf_output = Output(output_name_0_13, value=output_value)
                     self.add_resource(account_name, tf_output)
 
-            user_policies = role['user_policies'] or []
             for user_policy in user_policies:
                 policy_name = user_policy['name']
                 account_name = user_policy['account']['name']
@@ -425,23 +467,34 @@ class TerrascriptClient:
                     policy = \
                         policy.replace('${aws:accountid}', account_uid)
 
-                    # Ref: terraform aws iam_user_policy
+                    # Ref: terraform aws_iam_policy
                     tf_iam_user = self.get_tf_iam_user(user_name)
-                    tf_aws_iam_user_policy = aws_iam_user_policy(
-                        user_name + '-' + policy_name,
-                        name=user_name + '-' + policy_name,
-                        user=user_name,
+                    identifier = f'{user_name}-{policy_name}'
+                    tf_aws_iam_policy = aws_iam_policy(
+                        identifier,
+                        name=identifier,
                         policy=policy,
-                        depends_on=self.get_dependencies([tf_iam_user])
                     )
                     self.add_resource(account_name,
-                                      tf_aws_iam_user_policy)
+                                      tf_aws_iam_policy)
+                    # Ref: terraform aws_iam_user_policy_attachment
+                    tf_iam_user_policy_attachment = \
+                        aws_iam_user_policy_attachment(
+                            identifier,
+                            user=user_name,
+                            policy_arn=f"${{{tf_aws_iam_policy.arn}}}",
+                            depends_on=self.get_dependencies(
+                                [tf_iam_user, tf_aws_iam_policy])
+                        )
+                    self.add_resource(account_name,
+                                      tf_iam_user_policy_attachment)
+
+        return error
 
     def populate_users(self, roles):
         self.populate_iam_groups(roles)
         err = self.populate_iam_users(roles)
-        if err:
-            return err
+        return err
 
     @staticmethod
     def get_user_id_from_arn(assume_role):
@@ -1038,12 +1091,9 @@ class TerrascriptClient:
             else:
                 try:
                     existing_secret = existing_secrets[account][output_prefix]
-                    password = \
-                        existing_secret['db.password']
+                    password = existing_secret['db.password']
                 except KeyError:
-                    password = \
-                        self.determine_db_password(namespace_info,
-                                                   output_resource_name)
+                    password = self.generate_random_password()
         else:
             password = ""
         values['password'] = password
@@ -1275,44 +1325,6 @@ class TerrascriptClient:
         pattern = r'^[a-zA-Z][a-zA-Z0-9_]+$'
         return re.search(pattern, name) and len(name) < 64
 
-    def determine_db_password(self, namespace_info, output_resource_name,
-                              secret_key='db.password'):
-        existing_oc_resource = \
-            self.fetch_existing_oc_resource(namespace_info,
-                                            output_resource_name)
-        if existing_oc_resource is not None:
-            enc_password = existing_oc_resource['data'].get(secret_key)
-            if enc_password:
-                return base64.b64decode(enc_password).decode('utf-8')
-        return self.generate_random_password()
-
-        # TODO: except KeyError?
-        # a KeyError will indicate that this secret
-        # exists, but the db.password field is missing.
-        # this could indicate that a secret with this
-        # this name is 'taken', or that the secret
-        # was updated manually. at this point, it may
-        # be better to let the exception stop the process.
-        # for now, we assume a happy path, where there is
-        # no competition over secret names, but we should
-        # circle back here at a later point.
-
-    def fetch_existing_oc_resource(self, namespace_info, resource_name):
-        cluster, namespace = self.unpack_namespace_info(namespace_info)
-        try:
-            if not self.oc_map:
-                return None
-            oc = self.oc_map.get(cluster)
-            if not oc:
-                logging.log(level=oc.log_level, msg=oc.message)
-                return None
-            return oc.get(namespace, 'Secret', resource_name)
-        except StatusCodeError as e:
-            if str(e).startswith('Error from server (NotFound):'):
-                msg = 'Secret {} does not exist.'.format(resource_name)
-                logging.debug(msg)
-        return None
-
     @staticmethod
     def generate_random_password(string_length=20):
         """Generate a random string of letters and digits """
@@ -1402,6 +1414,7 @@ class TerrascriptClient:
             rc_configs = []
             for config in replication_configs:
                 rc_values = {}
+                dest_bucket_id = config['destination_bucket_identifier']
 
                 # iam roles
                 # Terraform resource reference:
@@ -1429,6 +1442,7 @@ class TerrascriptClient:
                 # iam policy
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/iam_policy.html
+
                 rc_values.clear()
                 rc_values['name'] = config['rule_name'] + '_iam_policy'
                 policy = {
@@ -1441,7 +1455,8 @@ class TerrascriptClient:
                             ],
                             "Effect": "Allow",
                             "Resource": [
-                                "${aws_s3_bucket." + identifier + ".arn}"
+                                "${aws_s3_bucket." + identifier + ".arn}",
+                                "${aws_s3_bucket." + dest_bucket_id + ".arn}"
                             ]
                         },
                         {
@@ -1698,10 +1713,12 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        region = values.pop('region', self.default_regions.get(account))
+        default_region = self.default_regions.get(account)
+        desired_region = values.pop('region', default_region)
+
         provider = ''
-        if region is not None and self._multiregion_account(account):
-            provider = 'aws.' + region
+        if desired_region is not None and self._multiregion_account(account):
+            provider = 'aws.' + desired_region
             values['provider'] = provider
 
         parameter_group = values.get('parameter_group')
@@ -1710,9 +1727,16 @@ class TerrascriptClient:
 
         if parameter_group:
             pg_values = self.get_values(parameter_group)
-            pg_identifier = pg_values['name']
-            pg_values['parameter'] = pg_values.pop('parameters')
+            pg_name = pg_values['name']
+            pg_identifier = pg_name
 
+            # If the desired region is not the same as the default region
+            # we append the region to the identifier to make it unique
+            # in the terraform config
+            if desired_region is not None and desired_region != default_region:
+                pg_identifier = f"{pg_name}-{desired_region}"
+
+            pg_values['parameter'] = pg_values.pop('parameters')
             for param in pg_values['parameter']:
                 if param['name'] == 'cluster-enabled' \
                         and param['value'] == 'yes':
@@ -1723,18 +1747,17 @@ class TerrascriptClient:
             pg_tf_resource = \
                 aws_elasticache_parameter_group(pg_identifier, **pg_values)
             tf_resources.append(pg_tf_resource)
-            values['depends_on'] = self.get_dependencies([pg_tf_resource])
-            values['parameter_group_name'] = pg_identifier
+            values['depends_on'] = [
+                f'aws_elasticache_parameter_group.{pg_identifier}',
+            ]
+            values['parameter_group_name'] = pg_name
             values.pop('parameter_group', None)
 
         try:
             auth_token = \
                 existing_secrets[account][output_prefix]['db.auth_token']
         except KeyError:
-            auth_token = \
-                self.determine_db_password(namespace_info,
-                                           output_resource_name,
-                                           secret_key='db.auth_token')
+            auth_token = self.generate_random_password()
 
         if values.get('transit_encryption_enabled', False):
             values['auth_token'] = auth_token
@@ -2985,13 +3008,19 @@ class TerrascriptClient:
             working_dirs = {}
         else:
             working_dirs = existing_dirs
+
+        if print_to_file:
+            if is_file_in_git_repo(print_to_file):
+                raise PrintToFileInGitRepositoryError(print_to_file)
+            if os.path.isfile(print_to_file):
+                os.remove(print_to_file)
+
         for name, ts in self.tss.items():
             if print_to_file:
-                if is_file_in_git_repo(print_to_file):
-                    raise PrintToFileInGitRepositoryError(print_to_file)
-                with open(print_to_file, 'w') as f:
-                    f.write('##### {} #####\n'.format(name))
+                with open(print_to_file, 'a') as f:
+                    f.write(f'##### {name} #####\n')
                     f.write(str(ts))
+                    f.write('\n')
             if existing_dirs is None:
                 wd = tempfile.mkdtemp()
             else:
@@ -3133,7 +3162,7 @@ class TerrascriptClient:
     def get_elasticsearch_service_role_tf_resource():
         """ Service role for ElasticSearch. """
         service_role = {
-          'aws_service_name': "es.amazonaws.com"
+            'aws_service_name': 'es.amazonaws.com',
         }
         return aws_iam_service_linked_role('elasticsearch', **service_role)
 
@@ -3147,6 +3176,165 @@ class TerrascriptClient:
             return False
         pattern = r'^[a-z][a-z0-9-]+$'
         return re.search(pattern, name)
+
+    @staticmethod
+    def elasticsearch_log_group_identifier(
+        domain_identifier: str,
+        log_type: ElasticSearchLogGroupType
+    ) -> str:
+        log_type_name = log_type.value.lower()
+        return f'OpenSearchService__{domain_identifier}__{log_type_name}'
+
+    def _elasticsearch_get_all_log_group_infos(
+        self
+    ) -> list[ElasticSearchLogGroupInfo]:
+        """
+        Gather all cloud_watch_log_groups for the
+        current account. This is required to set
+        an account-wide resource policy.
+        """
+        log_group_infos = []
+        for resources in self.account_resources.values():
+            for i in resources:
+                res = i['resource']
+                ns = i['namespace_info']
+                if res.get('provider') != 'elasticsearch':
+                    continue
+                # res.get('', []) won't work, as publish_log_types is
+                # explicitly set to None if not set
+                log_types = res['publish_log_types'] or []
+                for log_type in log_types:
+                    region = ns['cluster']['spec']['region']
+                    account = res['account']
+                    account_id = self.accounts[account]['uid']
+                    lg_identifier = \
+                        TerrascriptClient.elasticsearch_log_group_identifier(
+                            domain_identifier=res['identifier'],
+                            log_type=ElasticSearchLogGroupType(log_type),
+                        )
+                    log_group_infos.append(
+                        ElasticSearchLogGroupInfo(
+                            account=account,
+                            account_id=account_id,
+                            region=region,
+                            log_group_identifier=lg_identifier,
+                        )
+                    )
+        return log_group_infos
+
+    def _get_elasticsearch_account_wide_resource_policy(
+        self, account: str
+    ) -> Optional[aws_cloudwatch_log_resource_policy]:
+        """
+        https://docs.aws.amazon.com/opensearch-service/latest/developerguide/createdomain-configure-slow-logs.html
+        CloudWatch Logs supports 10 resource policies per Region.
+        If you plan to enable logs for several OpenSearch Service domains,
+        you should create and reuse a broader policy that includes multiple
+        log groups to avoid reaching this limit.
+        I.e., ideally we aggregate ALL log group identifiers for each
+        account first.
+
+        This function returns None, if no log groups are found for that
+        account.
+        """
+        log_group_infos = \
+            self._elasticsearch_get_all_log_group_infos()
+
+        if not log_group_infos:
+            return None
+
+        log_groups_policy = {
+            'Version': '2012-10-17',
+            'Statement': [{
+                'Effect': 'Allow',
+                'Principal': {
+                    'Service': 'es.amazonaws.com',
+                },
+                'Action': [
+                    'logs:PutLogEvents',
+                    'logs:CreateLogStream',
+                ],
+                'Resource': [
+                    (
+                        f'arn:aws:logs:{info.region}:{info.account_id}'
+                        f':log-group:{info.log_group_identifier}:*'
+                    )
+                    for info in log_group_infos if info.account == account
+                ],
+            }]
+        }
+        log_groups_policy_values = {
+            'policy_name': 'es-log-publishing-permissions',
+            'policy_document': json.dumps(log_groups_policy, sort_keys=True),
+        }
+        resource_policy = aws_cloudwatch_log_resource_policy(
+            'es_log_publishing_resource_policy',
+            **log_groups_policy_values,
+        )
+        return resource_policy
+
+    def _get_tf_resource_elasticsearch_log_groups(
+        self, identifier: str, account: str,
+        resource: Mapping[str, Any], values: Mapping[str, Any],
+        output_prefix: str
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        """
+        Generate cloud_watch_log_group terraform_resources
+        for the given resource. Further, generate
+        publishing_options blocks which will be further used
+        by the consumer.
+        """
+        ES_LOG_GROUP_RETENTION_DAYS = 90
+        tf_resources = []
+        publishing_options = []
+
+        # res.get('', []) won't work, as publish_log_types is
+        # explicitly set to None if not set
+        log_types = resource['publish_log_types'] or []
+        for log_type in log_types:
+            log_type_identifier = \
+                TerrascriptClient.elasticsearch_log_group_identifier(
+                    domain_identifier=identifier,
+                    log_type=ElasticSearchLogGroupType(log_type),
+                )
+            log_group_values = {
+                'name': log_type_identifier,
+                'tags': {},
+                'retention_in_days': ES_LOG_GROUP_RETENTION_DAYS,
+            }
+            region = values.get('region') or \
+                self.default_regions.get(account)
+            if self._multiregion_account(account):
+                log_group_values['provider'] = f'aws.{region}'
+            log_group_tf_resource = \
+                aws_cloudwatch_log_group(log_type_identifier,
+                                         **log_group_values)
+            tf_resources.append(log_group_tf_resource)
+            arn = f'${{{log_group_tf_resource.arn}}}'
+
+            # add arn to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_arn'
+            )
+            output_value = arn
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+
+            # add name to output
+            output_name_0_13 = (
+                f'{output_prefix}__cloudwatch_log_group_'
+                f'{log_type.lower()}_name'
+            )
+            output_value = log_type_identifier
+            tf_resources.append(Output(output_name_0_13, value=output_value))
+            publishing_options.append(
+                {
+                    'log_type': log_type,
+                    'cloudwatch_log_group_arn': arn,
+                }
+            )
+
+        return tf_resources, publishing_options
 
     def populate_tf_resource_elasticsearch(self, resource, namespace_info):
 
@@ -3172,6 +3360,23 @@ class TerrascriptClient:
         es_values["elasticsearch_version"] = \
             values.get('elasticsearch_version')
 
+        log_group_resources, publishing_options = \
+            self._get_tf_resource_elasticsearch_log_groups(
+                identifier=identifier,
+                account=account,
+                resource=resource,
+                values=values,
+                output_prefix=output_prefix
+            )
+        tf_resources += log_group_resources
+
+        resource_policy = self._get_elasticsearch_account_wide_resource_policy(
+            account=account,
+        )
+        if resource_policy:
+            tf_resources.append(resource_policy)
+
+        es_values['log_publishing_options'] = publishing_options
         ebs_options = values.get('ebs_options', {})
 
         es_values["ebs_options"] = {
@@ -3275,10 +3480,13 @@ class TerrascriptClient:
 
         svc_role_tf_resource = \
             self.get_elasticsearch_service_role_tf_resource()
-
-        es_values['depends_on'] = self.get_dependencies(
-            [svc_role_tf_resource])
         tf_resources.append(svc_role_tf_resource)
+        es_deps = [svc_role_tf_resource]
+        if resource_policy:
+            es_deps.append(resource_policy)
+        es_values['depends_on'] = self.get_dependencies(
+            es_deps,
+        )
 
         access_policies = {
             "Version": "2012-10-17",
@@ -3508,7 +3716,7 @@ class TerrascriptClient:
                 cluster['name'],
                 account['uid'],
                 account['terraformUsername'],
-            )
+        )
         account['assume_region'] = cluster['spec']['region']
         service_name = \
             f"{namespace_info['name']}/{openshift_service}"
@@ -3533,6 +3741,14 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
+        default_region = self.default_regions.get(account)
+        cluster_region = namespace_info['cluster']['spec']['region']
+
+        if self._multiregion_account(account):
+            provider = 'aws.' + cluster_region
+        else:
+            provider = 'aws.' + default_region
+
         vpc = resource['vpc']
         vpc_id = vpc['vpc_id']
         vpc_cidr_block = vpc['cidr_block']
@@ -3548,6 +3764,7 @@ class TerrascriptClient:
             'self': None,
         }
         values = {
+            'provider': provider,
             'vpc_id': vpc_id,
             'tags': common_values['tags'],
 
@@ -3598,6 +3815,7 @@ class TerrascriptClient:
 
         # https://www.terraform.io/docs/providers/aws/r/lb.html
         values = {
+            'provider': provider,
             'name': identifier,
             'internal': False,
             'ip_address_type': 'dualstack',
@@ -3651,6 +3869,7 @@ class TerrascriptClient:
             # https://www.terraform.io/docs/providers/aws/r/
             # lb_target_group.html
             values = {
+                'provider': provider,
                 'name': f'{target_name}-${{{lbt_random_id.hex}}}',
                 'port': 443,
                 'protocol': 'HTTPS',
@@ -3681,6 +3900,7 @@ class TerrascriptClient:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # lb_target_group_attachment.html
                 values = {
+                    'provider': provider,
                     'target_group_arn': f'${{{lbt_tf_resource.arn}}}',
                     'target_id': ip,
                     'port': 443,
@@ -3697,6 +3917,7 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/lb_listener.html
         # redirect
         values = {
+            'provider': provider,
             'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
             'port': 80,
             'protocol': 'HTTP',
@@ -3718,6 +3939,7 @@ class TerrascriptClient:
         if not default_target:
             raise KeyError('expected a single default target')
         values = {
+            'provider': provider,
             'load_balancer_arn': f'${{{lb_tf_resource.arn}}}',
             'port': 443,
             'protocol': 'HTTPS',
@@ -3741,6 +3963,7 @@ class TerrascriptClient:
             config_methods = condition.get('methods', None)
 
             values = {
+                'provider': provider,
                 'listener_arn': f'${{{forward_lbl_tf_resource.arn}}}',
                 'priority': rule_num + 1,
                 'action': {
@@ -3864,7 +4087,6 @@ class TerrascriptClient:
 
         template_values = {
             "name": identifier,
-            "image_id": common_values.get('image_id'),
             "vpc_security_group_ids":
                 common_values.get('vpc_security_group_ids'),
             "update_default_version":
@@ -3880,9 +4102,12 @@ class TerrascriptClient:
                 {
                     "resource_type": "volume",
                     "tags": tags
-                }
-            ]
+                }]
         }
+
+        image = common_values.get('image')
+        image_id = image.get('id')
+        template_values['image_id'] = image_id
 
         region = common_values.get('region') or \
             self.default_regions.get(account)
@@ -3970,13 +4195,16 @@ class TerrascriptClient:
             "key": k,
             "value": v,
             "propagate_at_launch": True
-            } for k, v in tags.items()]
+        } for k, v in tags.items()]
         asg_resource = aws_autoscaling_group(identifier, **asg_value)
         tf_resources.append(asg_resource)
 
         # outputs
         output_name_0_13 = output_prefix + '__template_latest_version'
         output_value = '${' + template_resource.latest_version + '}'
+        tf_resources.append(Output(output_name_0_13, value=output_value))
+        output_name_0_13 = output_prefix + '__image_id'
+        output_value = image_id
         tf_resources.append(Output(output_name_0_13, value=output_value))
 
         self.add_resources(account, tf_resources)

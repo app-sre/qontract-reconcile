@@ -4,11 +4,12 @@ from datetime import datetime
 from urllib.parse import urlparse
 from sretoolbox.utils import retry
 
+from reconcile.slack_base import slackapi_from_permissions
 from reconcile.utils.github_api import GithubApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.repo_owners import RepoOwners
-from reconcile.utils.slack_api import SlackApi, SlackApiError, SlackApiConfig
+from reconcile.utils.slack_api import SlackApiError
 from reconcile import queries
 
 
@@ -41,21 +42,9 @@ def get_slack_map():
         workspace_name = workspace['name']
         if workspace_name in slack_map:
             continue
-        slack_api_kwargs = {
-            'settings': settings,
-        }
-
-        client_config = workspace.get('api_client')
-
-        if client_config:
-            slack_api_kwargs['api_config'] = \
-                SlackApiConfig.from_dict(client_config)
 
         workspace_spec = {
-            "slack": SlackApi(
-                workspace_name,
-                workspace['token'],
-                **slack_api_kwargs),
+            "slack": slackapi_from_permissions(sp, settings),
             "managed_usergroups": workspace['managedUsergroups']
         }
         slack_map[workspace_name] = workspace_spec
