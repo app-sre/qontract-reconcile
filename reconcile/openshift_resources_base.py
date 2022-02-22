@@ -217,7 +217,7 @@ def lookup_github_file_content(repo, path, ref, tvars=None):
 
     gh = init_github()
     c = gh.get_repo(repo).get_contents(path, ref).decoded_content
-    return repr(c.decode('utf-8'))
+    return c.decode('utf-8')
 
 
 def process_jinja2_template(body, vars=None, env=None):
