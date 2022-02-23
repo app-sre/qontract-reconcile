@@ -196,6 +196,19 @@ class TerraformClient:
                 logging.info(['update', name, 'output', output_name])
                 self.should_apply = True
 
+        # A way to detect deleted outputs is by comparing
+        # the prior state with the output changes.
+        # the output changes do not contain deleted outputs
+        # while the prior state does. for the outputs to
+        # actually be deleted, we should apply.
+        prior_outputs = \
+            output.get('prior_state', {}).get('values', {}).get('outputs', {})
+        deleted_outputs = \
+            [po for po in prior_outputs if po not in output_changes]
+        for output_name in deleted_outputs:
+            logging.info(['delete', name, 'output', output_name])
+            self.should_apply = True
+
         resource_changes = output.get('resource_changes')
         if resource_changes is None:
             return disabled_deletion_detected, deleted_users, created_users
