@@ -53,6 +53,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
       }
     }
     alertingServices
+    endpointMonitoringBlackboxExporterModules
   }
 }
 """
@@ -2670,3 +2671,28 @@ def get_app_metadata(app_path: str) -> dict:
     app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
     gqlapi = gql.get_api()
     return gqlapi.query(app_query)['apps']
+
+
+BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
+{
+  providers: endpoint_monitoring_provider_v1 {
+    name
+    provider
+    description
+    ... on EndpointMonitoringProviderBlackboxExporter_v1 {
+      blackboxExporter {
+        module
+        namespace {
+          name
+        }
+        exporterUrl
+      }
+    }
+  }
+}
+"""
+
+
+def get_blackbox_exporter_monitoring_provider() -> dict:
+    gqlapi = gql.get_api()
+    return gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)['providers']
