@@ -4226,16 +4226,6 @@ class TerrascriptClient:
         zone_tf_resource = aws_route53_zone(zone_id, **values)
         tf_resources.append(zone_tf_resource)
 
-        # outputs
-        # zone id
-        output_name_0_13 = output_prefix + '__zone_id'
-        output_value = f'${{{zone_tf_resource.zone_id}}}'
-        tf_resources.append(Output(output_name_0_13, value=output_value))
-        # name servers
-        output_name_0_13 = output_prefix + '__name_servers'
-        output_value = f'${{{zone_tf_resource.name_servers}}}'
-        tf_resources.append(Output(output_name_0_13, value=output_value))
-
         policy = {
             "Version": "2012-10-17",
             "Statement": [
