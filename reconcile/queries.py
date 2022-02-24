@@ -403,6 +403,21 @@ CLUSTERS_QUERY = """
       }
       accessLevel
     }
+    awsInfrastructureManagementAccounts {
+      account {
+        name
+        uid
+        terraformUsername
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+      }
+      accessLevel
+      default
+    }
     spec {
       id
       external_id

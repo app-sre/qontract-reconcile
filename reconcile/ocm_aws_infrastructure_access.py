@@ -43,7 +43,8 @@ def fetch_desired_state():
     desired_state = []
 
     # get desired state defined in awsInfrastructureAccess
-    # section of cluster files
+    # or awsInfrastructureManagementAccounts
+    # sections of cluster files
     clusters = queries.get_clusters()
     for cluster_info in clusters:
         cluster = cluster_info['name']
@@ -66,14 +67,20 @@ def fetch_desired_state():
                 }
                 desired_state.append(item)
 
-            # add terraform user account with network management access level
+        aws_infra_management_items = \
+            cluster_info.get('awsInfrastructureManagementAccounts') or []
+        for aws_infra_management in aws_infra_management_items:
+            aws_account = aws_infra_management['account']
+            access_level = aws_infra_management['accessLevel']
+            aws_account_uid = aws_account['uid']
+            # add terraform user account
             tf_user = aws_account.get('terraformUsername')
             if tf_user:
                 item = {
                     'cluster': cluster,
                     'user_arn':
                         f"arn:aws:iam::{aws_account_uid}:user/{tf_user}",
-                    'access_level': 'network-mgmt'
+                    'access_level': access_level
                 }
                 desired_state.append(item)
 
