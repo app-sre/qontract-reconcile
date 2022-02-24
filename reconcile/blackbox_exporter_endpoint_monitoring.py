@@ -169,7 +169,8 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
         use_jump_host: bool, defer=None) -> None:
     # verify blackbox-exporter modules
     settings = queries.get_app_interface_settings()
-    allowed_modules = settings["endpointMonitoringBlackboxExporterModules"]
+    allowed_modules = \
+        set(settings["endpointMonitoringBlackboxExporterModules"])
     verification_errors = False
     if allowed_modules:
         for p in get_blackbox_providers():
