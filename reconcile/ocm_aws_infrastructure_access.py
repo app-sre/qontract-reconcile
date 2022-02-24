@@ -56,8 +56,8 @@ def fetch_desired_state():
             aws_account = aws_group['account']
             aws_account_uid = aws_account['uid']
             users = [user['org_username']
-                        for role in aws_group['roles']
-                        for user in role['users']]
+                     for role in aws_group['roles']
+                     for user in role['users']]
 
             for user in users:
                 item = {
