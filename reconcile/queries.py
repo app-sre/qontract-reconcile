@@ -339,6 +339,25 @@ def get_queue_aws_accounts():
     return get_aws_accounts(uid=uid)
 
 
+AWS_INFRA_MANAGEMENT_ACCOUNT = """
+awsInfrastructureManagementAccounts {
+  account {
+    name
+    uid
+    terraformUsername
+    automationToken {
+      path
+      field
+      version
+      format
+    }
+  }
+  accessLevel
+  default
+}
+"""
+
+
 CLUSTERS_QUERY = """
 {
   clusters: clusters_v1 {
@@ -403,6 +422,7 @@ CLUSTERS_QUERY = """
       }
       accessLevel
     }
+    %s
     spec {
       id
       external_id
@@ -536,21 +556,7 @@ CLUSTERS_QUERY = """
               }
               accessLevel
             }
-            awsInfrastructureManagementAccounts {
-              account {
-                name
-                uid
-                terraformUsername
-                automationToken {
-                  path
-                  field
-                  version
-                  format
-                }
-              }
-              accessLevel
-              default
-            }
+            %s
             peering {
               connections {
                 name
@@ -598,7 +604,8 @@ CLUSTERS_QUERY = """
     }
   }
 }
-"""
+""" % (indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4*' '),
+       indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12*' '))
 
 
 CLUSTERS_MINIMAL_QUERY = """
