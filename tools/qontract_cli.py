@@ -486,7 +486,7 @@ def bot_login(ctx, cluster_name):
 @get.command(
     short_help="obtain automation credentials for "
                "aws account by name. executing this "
-               "command will set up the environment:"
+               "command will set up the environment: "
                "$(aws get aws-creds --account-name foo)"
 )
 @click.argument('account_name')
