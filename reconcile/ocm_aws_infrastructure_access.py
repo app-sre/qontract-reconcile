@@ -44,19 +44,19 @@ def fetch_desired_state():
 
     # get desired state defined in awsInfrastructureAccess
     # section of cluster files
-    clusters = [c for c in queries.get_clusters()
-                if c.get('awsInfrastructureAccess') is not None]
+    clusters = queries.get_clusters()
     for cluster_info in clusters:
         cluster = cluster_info['name']
-        aws_infra_access_items = cluster_info['awsInfrastructureAccess']
+        aws_infra_access_items = \
+            cluster_info.get('awsInfrastructureAccess') or []
         for aws_infra_access in aws_infra_access_items:
             aws_group = aws_infra_access['awsGroup']
             access_level = aws_infra_access['accessLevel']
             aws_account = aws_group['account']
             aws_account_uid = aws_account['uid']
             users = [user['org_username']
-                     for role in aws_group['roles']
-                     for user in role['users']]
+                        for role in aws_group['roles']
+                        for user in role['users']]
 
             for user in users:
                 item = {
