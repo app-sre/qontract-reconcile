@@ -7,12 +7,11 @@ from reconcile.utils.saasherder import TriggerTypes
 from reconcile.utils.semver_helper import make_semver
 
 
-QONTRACT_INTEGRATION = 'openshift-saas-deploy-trigger-configs'
+QONTRACT_INTEGRATION = "openshift-saas-deploy-trigger-configs"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 2, 0)
 
 
-def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True):
+def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True):
     error = osdt_base.run(
         dry_run=dry_run,
         trigger_type=TriggerTypes.CONFIGS,
@@ -22,7 +21,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         internal=internal,
         use_jump_host=use_jump_host,
         v1=True,
-        v2=True
+        v2=True,
     )
 
     if error:

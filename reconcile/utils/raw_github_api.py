@@ -12,10 +12,10 @@ class RawGithubApi:
     checking pending invitations
     """
 
-    BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
+    BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
     BASE_HEADERS = {
-        'Accept': 'application/vnd.github.v3+json,'
-        'application/vnd.github.dazzler-preview+json'
+        "Accept": "application/vnd.github.v3+json,"
+        "application/vnd.github.dazzler-preview+json"
     }
 
     def __init__(self, password):
@@ -24,7 +24,7 @@ class RawGithubApi:
     def headers(self, headers={}):
         new_headers = headers.copy()
         new_headers.update(self.BASE_HEADERS)
-        new_headers['Authorization'] = "token %s" % (self.password,)
+        new_headers["Authorization"] = "token %s" % (self.password,)
         return new_headers
 
     def patch(self, url):
@@ -45,9 +45,9 @@ class RawGithubApi:
             for element in result:
                 elements.append(element)
 
-            while 'last' in res.links and 'next' in res.links:
-                if res.links['last']['url'] == res.links['next']['url']:
-                    req_url = res.links['next']['url']
+            while "last" in res.links and "next" in res.links:
+                if res.links["last"]["url"] == res.links["next"]["url"]:
+                    req_url = res.links["next"]["url"]
                     res = requests.get(req_url, headers=h)
                     res.raise_for_status()
 
@@ -56,7 +56,7 @@ class RawGithubApi:
 
                     return elements
                 else:
-                    req_url = res.links['next']['url']
+                    req_url = res.links["next"]["url"]
                     res = requests.get(req_url, headers=h)
                     res.raise_for_status()
 
@@ -68,29 +68,29 @@ class RawGithubApi:
         return result
 
     def org_invitations(self, org):
-        invitations = self.query('/orgs/{}/invitations'.format(org))
+        invitations = self.query("/orgs/{}/invitations".format(org))
 
         return [
-            login for login in (
-                invitation.get('login') for invitation in invitations
-            ) if login is not None
+            login
+            for login in (invitation.get("login") for invitation in invitations)
+            if login is not None
         ]
 
     def team_invitations(self, org_id, team_id):
-        invitations = self.query('/organizations/{}/team/{}/invitations'
-                                 .format(org_id, team_id))
+        invitations = self.query(
+            "/organizations/{}/team/{}/invitations".format(org_id, team_id)
+        )
 
         return [
-            login for login in (
-                invitation.get('login') for invitation in invitations
-            ) if login is not None
+            login
+            for login in (invitation.get("login") for invitation in invitations)
+            if login is not None
         ]
 
     def repo_invitations(self):
-        return self.query('/user/repository_invitations')
+        return self.query("/user/repository_invitations")
 
     def accept_repo_invitation(self, invitation_id):
-        url = self.BASE_URL + \
-            '/user/repository_invitations/{}'.format(invitation_id)
+        url = self.BASE_URL + "/user/repository_invitations/{}".format(invitation_id)
         res = self.patch(url)
         res.raise_for_status()

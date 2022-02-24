@@ -14,10 +14,7 @@ class AggregatedList:
         params_hash = self.hash_params(params)
 
         if self._dict.get(params_hash) is None:
-            self._dict[params_hash] = {
-                'params': params,
-                'items': []
-            }
+            self._dict[params_hash] = {"params": params, "items": []}
 
         if not isinstance(new_items, list):
             new_items = [new_items]
@@ -40,18 +37,16 @@ class AggregatedList:
         right_params = right_state.get_all_params_hash()
 
         diff = {
-            'insert': [
+            "insert": [
                 right_state.get_by_params_hash(p)
                 for p in right_params
                 if p not in left_params
             ],
-            'delete': [
-                self.get_by_params_hash(p)
-                for p in left_params
-                if p not in right_params
+            "delete": [
+                self.get_by_params_hash(p) for p in left_params if p not in right_params
             ],
-            'update-insert': [],
-            'update-delete': []
+            "update-insert": [],
+            "update-delete": [],
         }
 
         union = [p for p in left_params if p in right_params]
@@ -60,23 +55,21 @@ class AggregatedList:
             left = self.get_by_params_hash(p)
             right = right_state.get_by_params_hash(p)
 
-            l_items = left['items']
-            r_items = right['items']
+            l_items = left["items"]
+            r_items = right["items"]
 
             update_insert = [i for i in r_items if i not in l_items]
             update_delete = [i for i in l_items if i not in r_items]
 
             if update_insert:
-                diff['update-insert'].append({
-                    'params': left['params'],
-                    'items': update_insert
-                })
+                diff["update-insert"].append(
+                    {"params": left["params"], "items": update_insert}
+                )
 
             if update_delete:
-                diff['update-delete'].append({
-                    'params': left['params'],
-                    'items': update_delete
-                })
+                diff["update-delete"].append(
+                    {"params": left["params"], "items": update_delete}
+                )
 
         return diff
 
@@ -108,8 +101,8 @@ class AggregatedDiffRunner:
             diff_list = self.diff.get(on, [])
 
             for diff_element in diff_list:
-                params = diff_element['params']
-                items = diff_element['items']
+                params = diff_element["params"]
+                items = diff_element["items"]
 
                 if cond is None or cond(params):
                     try:

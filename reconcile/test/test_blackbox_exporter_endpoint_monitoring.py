@@ -2,12 +2,17 @@ from unittest.mock import ANY
 import pytest
 
 from reconcile.blackbox_exporter_endpoint_monitoring import (
-    queries, get_endpoints, build_probe, parse_prober_url, fill_desired_state)
+    queries,
+    get_endpoints,
+    build_probe,
+    parse_prober_url,
+    fill_desired_state,
+)
 from reconcile.utils.openshift_resource import ResourceInventory
 from .fixtures import Fixtures
 
 
-fxt = Fixtures('blackbox_exporter_endpoint_monitoring')
+fxt = Fixtures("blackbox_exporter_endpoint_monitoring")
 
 
 def get_endpoint_fixtures(path: str) -> dict:
@@ -15,7 +20,7 @@ def get_endpoint_fixtures(path: str) -> dict:
 
 
 def test_invalid_endpoints(mocker):
-    query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
+    query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     query.return_value = get_endpoint_fixtures("test_invalid_endpoints.yaml")
 
     endpoints = get_endpoints()
@@ -23,7 +28,7 @@ def test_invalid_endpoints(mocker):
 
 
 def test_endpoint_loading(mocker):
-    ep_query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
 
     endpoints = get_endpoints()
@@ -39,13 +44,10 @@ def test_parse_prober_url():
     assert parse_prober_url("http://host:1234/path") == {
         "url": "host:1234",
         "scheme": "http",
-        "path": "/path"
+        "path": "/path",
     }
 
-    assert parse_prober_url("http://host") == {
-        "url": "host",
-        "scheme": "http"
-    }
+    assert parse_prober_url("http://host") == {"url": "host", "scheme": "http"}
 
 
 def test_invalid_prober_url():
@@ -55,7 +57,7 @@ def test_invalid_prober_url():
 
 
 def test_probe_building(mocker):
-    ep_query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_probe_building.yaml")
 
     endpoints = get_endpoints()
@@ -70,7 +72,7 @@ def test_probe_building(mocker):
     assert spec.get("prober") == {
         "url": "exporterhost:9115",
         "scheme": "http",
-        "path": "/probe"
+        "path": "/probe",
     }
 
     # verify labels
@@ -87,9 +89,9 @@ def test_probe_building(mocker):
 
 
 def test_filling_desired_state(mocker):
-    ep_query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
-    add_desired_mock = mocker.patch.object(ResourceInventory, 'add_desired')
+    add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
 
     endpoints = get_endpoints()
     provider = list(endpoints.keys())[0]
@@ -101,14 +103,15 @@ def test_filling_desired_state(mocker):
         namespace="openshift-customer-monitoring",
         resource_type="Probe",
         name="blackbox-exporter-http-2xx",
-        value=ANY
+        value=ANY,
     )
 
 
 def test_loading_multiple_providers_per_endpoint(mocker):
-    ep_query = mocker.patch.object(queries, 'get_service_monitoring_endpoints')
-    ep_query.return_value = \
-        get_endpoint_fixtures("test_multiple_providers_per_endpoint.yaml")
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
+    ep_query.return_value = get_endpoint_fixtures(
+        "test_multiple_providers_per_endpoint.yaml"
+    )
     endpoints = get_endpoints()
 
     assert len(endpoints) == 2

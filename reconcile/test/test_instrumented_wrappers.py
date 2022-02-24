@@ -8,11 +8,11 @@ import reconcile.utils.instrumented_wrappers as instrumented
 
 
 class TestInstrumentedImage(TestCase):
-    @patch.object(Counter, 'labels')
-    @patch.object(Image, '_get_manifest')
+    @patch.object(Counter, "labels")
+    @patch.object(Image, "_get_manifest")
     def test_instrumented_reachout(self, getter, counter):
         # pylint: disable=no-self-use
-        i = instrumented.InstrumentedImage('aregistry/animage:atag')
+        i = instrumented.InstrumentedImage("aregistry/animage:atag")
         i._get_manifest()
         getter.assert_called_once_with()
         counter.assert_called_once()
@@ -21,19 +21,19 @@ class TestInstrumentedImage(TestCase):
 
 class TestInstrumentedCache(TestCase):
     def test_get_set(self):
-        c = instrumented.InstrumentedCache('aninteg', 2, 0)
-        c['lifeuniverseandeverything'] = 42
-        self.assertEqual(c['lifeuniverseandeverything'], 42)
+        c = instrumented.InstrumentedCache("aninteg", 2, 0)
+        c["lifeuniverseandeverything"] = 42
+        self.assertEqual(c["lifeuniverseandeverything"], 42)
 
     def test_get_not_exists(self):
-        c = instrumented.InstrumentedCache('aninteg', 2, 0)
+        c = instrumented.InstrumentedCache("aninteg", 2, 0)
         with self.assertRaises(KeyError):
-            c['akeythatdoesnotexist']
+            c["akeythatdoesnotexist"]
 
     def test_del(self):
-        c = instrumented.InstrumentedCache('aninteg', 2, 0)
-        c['todelete'] = 42
-        self.assertEqual(c['todelete'], 42)
-        del c['todelete']
+        c = instrumented.InstrumentedCache("aninteg", 2, 0)
+        c["todelete"] = 42
+        self.assertEqual(c["todelete"], 42)
+        del c["todelete"]
         with self.assertRaises(KeyError):
-            c['todelete']
+            c["todelete"]

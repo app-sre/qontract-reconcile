@@ -10,9 +10,9 @@ def full_name(app):
     :return: full name of the app
     :rtype: string
     """
-    name = app['name']
-    if app.get('parentApp'):
-        parent_app = app['parentApp']['name']
+    name = app["name"]
+    if app.get("parentApp"):
+        parent_app = app["parentApp"]["name"]
         name = f"{parent_app}/{name}"
     return name
 
@@ -26,7 +26,7 @@ def get_latest_sre_checkpoints():
     """
     checkpoints = {}
     for checkpoint in queries.get_sre_checkpoints():
-        name = full_name(checkpoint['app'])
-        date = checkpoint['date']
-        checkpoints[name] = max(checkpoints.get(name, ''), date)
+        name = full_name(checkpoint["app"])
+        date = checkpoint["date"]
+        checkpoints[name] = max(checkpoints.get(name, ""), date)
     return checkpoints

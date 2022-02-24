@@ -8,22 +8,26 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.ocm import OCMMap
 
-QONTRACT_INTEGRATION = 'ocm-addons'
+QONTRACT_INTEGRATION = "ocm-addons"
 
 
 def fetch_current_state(clusters):
     settings = queries.get_app_interface_settings()
-    ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                     settings=settings, init_addons=True)
+    ocm_map = OCMMap(
+        clusters=clusters,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        init_addons=True,
+    )
 
     current_state = []
     for cluster in clusters:
-        cluster_name = cluster['name']
+        cluster_name = cluster["name"]
         ocm = ocm_map.get(cluster_name)
         addons = ocm.get_cluster_addons(cluster_name)
         if addons:
             for addon in addons:
-                addon['cluster'] = cluster_name
+                addon["cluster"] = cluster_name
                 sort_parameters(addon)
                 current_state.append(addon)
 
@@ -33,11 +37,11 @@ def fetch_current_state(clusters):
 def fetch_desired_state(clusters):
     desired_state = []
     for cluster in clusters:
-        cluster_name = cluster['name']
-        addons = cluster['addons']
+        cluster_name = cluster["name"]
+        addons = cluster["addons"]
         for addon in addons:
-            addon['id'] = addon.pop('name')
-            addon['cluster'] = cluster_name
+            addon["id"] = addon.pop("name")
+            addon["cluster"] = cluster_name
             sort_parameters(addon)
             desired_state.append(addon)
 
@@ -45,18 +49,17 @@ def fetch_desired_state(clusters):
 
 
 def sort_parameters(addon):
-    addon_parameters = addon.get('parameters')
+    addon_parameters = addon.get("parameters")
     if addon_parameters:
-        addon['parameters'] = sorted(addon_parameters, key=itemgetter('id'))
+        addon["parameters"] = sorted(addon_parameters, key=itemgetter("id"))
 
 
 def calculate_diff(current_state, desired_state):
     diffs = []
     for d in desired_state:
-        c = [c for c in current_state
-             if d.items() <= c.items()]
+        c = [c for c in current_state if d.items() <= c.items()]
         if not c:
-            d['action'] = 'install'
+            d["action"] = "install"
             diffs.append(d)
 
     return diffs
@@ -65,21 +68,21 @@ def calculate_diff(current_state, desired_state):
 def act(dry_run, diffs, ocm_map):
     err = False
     for diff in diffs:
-        action = diff.pop('action')
-        cluster = diff.pop('cluster')
-        addon_id = diff['id']
+        action = diff.pop("action")
+        cluster = diff.pop("cluster")
+        addon_id = diff["id"]
         logging.info([action, cluster, addon_id])
         ocm = ocm_map.get(cluster)
         if not ocm.get_addon(addon_id):
-            logging.error(f'Addon {addon_id} does not exist')
+            logging.error(f"Addon {addon_id} does not exist")
             err = True
             continue
         if not dry_run:
-            if action == 'install':
+            if action == "install":
                 try:
                     ocm.install_addon(cluster, diff)
                 except Exception as e:
-                    logging.error(f'could not install addon {addon_id}: {e}')
+                    logging.error(f"could not install addon {addon_id}: {e}")
                     err = True
                     continue
             # uninstall is not supported
@@ -89,7 +92,7 @@ def act(dry_run, diffs, ocm_map):
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
-    clusters = [c for c in clusters if c.get('addons') is not None]
+    clusters = [c for c in clusters if c.get("addons") is not None]
     if not clusters:
         logging.debug("No Addon definitions found in app-interface")
         sys.exit(ExitCodes.SUCCESS)

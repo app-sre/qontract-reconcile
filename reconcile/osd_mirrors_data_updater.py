@@ -7,7 +7,7 @@ from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
 
 
-QONTRACT_INTEGRATION = 'osd-mirrors-data-updater'
+QONTRACT_INTEGRATION = "osd-mirrors-data-updater"
 LOG = logging.getLogger(__name__)
 
 
@@ -16,15 +16,15 @@ def get_ecr_tf_resource_info(namespace, identifier):
     Takes a namespace from app-interface and searches
     a given ECR by its identifier.
     """
-    tf_resources = namespace['terraformResources']
+    tf_resources = namespace["terraformResources"]
     for tf_resource in tf_resources:
-        if 'identifier' not in tf_resource:
+        if "identifier" not in tf_resource:
             continue
 
-        if tf_resource['identifier'] != identifier:
+        if tf_resource["identifier"] != identifier:
             continue
 
-        if tf_resource['provider'] != 'ecr':
+        if tf_resource["provider"] != "ecr":
             continue
 
         return tf_resource
@@ -36,9 +36,9 @@ def get_aws_account_info(account):
     desired one.
     """
     for account_info in queries.get_aws_accounts():
-        if 'name' not in account_info:
+        if "name" not in account_info:
             continue
-        if account_info['name'] != account:
+        if account_info["name"] != account:
             continue
         return account_info
 
@@ -47,9 +47,9 @@ def get_image_uri(aws_cli, account, repository):
     """
     Finds the repository URI for a given ECR resource.
     """
-    for repo in aws_cli.resources[account]['ecr']:
-        if repo['repositoryName'] == repository:
-            return repo['repositoryUri']
+    for repo in aws_cli.resources[account]["ecr"]:
+        if repo["repositoryName"] == repository:
+            return repo["repositoryUri"]
 
 
 def run(dry_run, gitlab_project_id=None):
@@ -62,16 +62,16 @@ def run(dry_run, gitlab_project_id=None):
     for namespace in namespaces:
         # We are only interested on the ECR resources from
         # this specific namespace
-        if namespace['name'] != 'osd-operators-ecr-mirrors':
+        if namespace["name"] != "osd-operators-ecr-mirrors":
             continue
 
-        if namespace['terraformResources'] is None:
+        if namespace["terraformResources"] is None:
             continue
 
-        for tfr in namespace['terraformResources']:
-            if tfr['provider'] != 'ecr':
+        for tfr in namespace["terraformResources"]:
+            if tfr["provider"] != "ecr":
                 continue
-            if tfr['mirror'] is None:
+            if tfr["mirror"] is None:
                 continue
 
             osd_mirrors.append(tfr)
@@ -81,12 +81,13 @@ def run(dry_run, gitlab_project_id=None):
     # upstream and the mirror repositories
     instances = queries.get_ocp_release_mirror()
     for instance in instances:
-        namespace = instance['ecrResourcesNamespace']
-        ocp_release_identifier = instance['ocpReleaseEcrIdentifier']
-        ocp_art_dev_identifier = instance['ocpArtDevEcrIdentifier']
+        namespace = instance["ecrResourcesNamespace"]
+        ocp_release_identifier = instance["ocpReleaseEcrIdentifier"]
+        ocp_art_dev_identifier = instance["ocpArtDevEcrIdentifier"]
 
-        ocp_release_tf_info = get_ecr_tf_resource_info(namespace,
-                                                       ocp_release_identifier)
+        ocp_release_tf_info = get_ecr_tf_resource_info(
+            namespace, ocp_release_identifier
+        )
 
         # We get an ECR resource from app-interface, but it has
         # no mirror property as the mirroring is done differently
@@ -96,20 +97,21 @@ def run(dry_run, gitlab_project_id=None):
         # in Hive.
         # Let's just manually inject the mirror information so we
         # process all the ECR resources the same way
-        ocp_release_tf_info['mirror'] = {
-            'url': 'quay.io/openshift-release-dev/ocp-release',
-            'pullCredentials': None,
-            'tags': None,
-            'tagsExclude': None
+        ocp_release_tf_info["mirror"] = {
+            "url": "quay.io/openshift-release-dev/ocp-release",
+            "pullCredentials": None,
+            "tags": None,
+            "tagsExclude": None,
         }
         osd_mirrors.append(ocp_release_tf_info)
-        ocp_art_dev_tf_info = get_ecr_tf_resource_info(namespace,
-                                                       ocp_art_dev_identifier)
-        ocp_art_dev_tf_info['mirror'] = {
-            'url': 'quay.io/openshift-release-dev/ocp-v4.0-art-dev',
-            'pullCredentials': None,
-            'tags': None,
-            'tagsExclude': None
+        ocp_art_dev_tf_info = get_ecr_tf_resource_info(
+            namespace, ocp_art_dev_identifier
+        )
+        ocp_art_dev_tf_info["mirror"] = {
+            "url": "quay.io/openshift-release-dev/ocp-v4.0-art-dev",
+            "pullCredentials": None,
+            "tags": None,
+            "tagsExclude": None,
         }
         osd_mirrors.append(ocp_art_dev_tf_info)
 
@@ -117,13 +119,15 @@ def run(dry_run, gitlab_project_id=None):
     # with ECR resources of interest
     accounts = []
     for tfr in osd_mirrors:
-        account = get_aws_account_info(tfr['account'])
+        account = get_aws_account_info(tfr["account"])
         if account not in accounts:
             accounts.append(account)
-    aws_cli = AWSApi(thread_pool_size=1,
-                     accounts=accounts,
-                     settings=settings,
-                     init_ecr_auth_tokens=True)
+    aws_cli = AWSApi(
+        thread_pool_size=1,
+        accounts=accounts,
+        settings=settings,
+        init_ecr_auth_tokens=True,
+    )
     aws_cli.map_ecr_resources()
 
     # Building up the mirrors information in the
@@ -131,16 +135,14 @@ def run(dry_run, gitlab_project_id=None):
     mirrors_info = []
     for tfr in osd_mirrors:
         image_url = get_image_uri(
-            aws_cli=aws_cli,
-            account=tfr['account'],
-            repository=tfr['identifier']
+            aws_cli=aws_cli, account=tfr["account"], repository=tfr["identifier"]
         )
         mirrors_info.append(
             {
-                'source': tfr['mirror']['url'],
-                'mirrors': [
+                "source": tfr["mirror"]["url"],
+                "mirrors": [
                     image_url,
-                ]
+                ],
             }
         )
 

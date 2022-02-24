@@ -89,8 +89,9 @@ class GqlApi:
         self.client = GraphQLClient(self.url)
 
         if validate_schemas and not int_name:
-            raise Exception('Cannot validate schemas if integration name '
-                            'is not supplied')
+            raise Exception(
+                "Cannot validate schemas if integration name " "is not supplied"
+            )
 
         if token:
             self.client.inject_token(token)
@@ -98,9 +99,9 @@ class GqlApi:
         if int_name:
             integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
 
-            for integration in integrations['integrations']:
-                if integration['name'] == int_name:
-                    self._valid_schemas = integration['schemas']
+            for integration in integrations["integrations"]:
+                if integration["name"] == int_name:
+                    self._valid_schemas = integration["schemas"]
                     break
 
             if not self._valid_schemas:
@@ -112,36 +113,34 @@ class GqlApi:
             # supress print on HTTP error
             # https://github.com/prisma-labs/python-graphql-client
             # /blob/master/graphqlclient/client.py#L32-L33
-            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
+            with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
                 result_json = self.client.execute(query, variables)
         except Exception as e:
-            raise GqlApiError(
-                'Could not connect to GraphQL server ({})'.format(e))
+            raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
 
         result = json.loads(result_json)
 
         # show schemas if log level is debug
-        query_schemas = result.get('extensions', {}).get('schemas', [])
+        query_schemas = result.get("extensions", {}).get("schemas", [])
         self._queried_schemas.update(query_schemas)
 
         for s in query_schemas:
-            logging.debug(['schema', s])
+            logging.debug(["schema", s])
 
         if self.validate_schemas and not skip_validation:
-            forbidden_schemas = [schema for schema in query_schemas
-                                 if schema not in self._valid_schemas]
+            forbidden_schemas = [
+                schema for schema in query_schemas if schema not in self._valid_schemas
+            ]
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
 
-        if 'errors' in result:
-            raise GqlApiError(result['errors'])
+        if "errors" in result:
+            raise GqlApiError(result["errors"])
 
-        if 'data' not in result:
-            raise GqlApiError((
-                "`data` field missing from GraphQL"
-                "server response."))
+        if "data" not in result:
+            raise GqlApiError(("`data` field missing from GraphQL" "server response."))
 
-        return result['data']
+        return result["data"]
 
     def get_resource(self, path):
         query = """
@@ -157,17 +156,14 @@ class GqlApi:
         try:
             # Do not validate schema in resources since schema support in the
             # resources is not complete.
-            resources = self.query(query, {'path': path},
-                                   skip_validation=True)['resources']
+            resources = self.query(query, {"path": path}, skip_validation=True)[
+                "resources"
+            ]
         except GqlApiError:
-            raise GqlGetResourceError(
-                path,
-                'Resource not found.')
+            raise GqlGetResourceError(path, "Resource not found.")
 
         if len(resources) != 1:
-            raise GqlGetResourceError(
-                path,
-                'Expecting one and only one resource.')
+            raise GqlGetResourceError(path, "Expecting one and only one resource.")
 
         return resources[0]
 
@@ -183,45 +179,45 @@ def init(url, token=None, integration=None, validate_schemas=False):
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_sha(server, token=None):
-    sha_endpoint = server._replace(path='/sha256')
-    headers = {'Authorization': token} if token else None
+    sha_endpoint = server._replace(path="/sha256")
+    headers = {"Authorization": token} if token else None
     response = requests.get(sha_endpoint.geturl(), headers=headers)
     response.raise_for_status()
-    sha = response.content.decode('utf-8')
+    sha = response.content.decode("utf-8")
     return sha
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_git_commit_info(sha, server, token=None):
-    git_commit_info_endpoint = server._replace(path=f'/git-commit-info/{sha}')
-    headers = {'Authorization': token} if token else None
-    response = requests.get(git_commit_info_endpoint.geturl(),
-                            headers=headers)
+    git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
+    headers = {"Authorization": token} if token else None
+    response = requests.get(git_commit_info_endpoint.geturl(), headers=headers)
     response.raise_for_status()
     git_commit_info = response.json()
     return git_commit_info
 
 
 @retry(exceptions=requests.exceptions.ConnectionError, max_attempts=5)
-def init_from_config(sha_url=True, integration=None, validate_schemas=False,
-                     print_url=True):
+def init_from_config(
+    sha_url=True, integration=None, validate_schemas=False, print_url=True
+):
     config = get_config()
 
-    server_url = urlparse(config['graphql']['server'])
+    server_url = urlparse(config["graphql"]["server"])
     server = server_url.geturl()
 
-    token = config['graphql'].get('token')
+    token = config["graphql"].get("token")
     if sha_url:
         sha = get_sha(server_url, token)
-        server = server_url._replace(path=f'/graphqlsha/{sha}').geturl()
+        server = server_url._replace(path=f"/graphqlsha/{sha}").geturl()
 
         runing_state = RunningState()
         git_commit_info = get_git_commit_info(sha, server_url, token)
-        runing_state.timestamp = git_commit_info.get('timestamp')
-        runing_state.commit = git_commit_info.get('commit')
+        runing_state.timestamp = git_commit_info.get("timestamp")
+        runing_state.commit = git_commit_info.get("commit")
 
     if print_url:
-        logging.info(f'using gql endpoint {server}')
+        logging.info(f"using gql endpoint {server}")
     return init(server, token, integration, validate_schemas)
 
 

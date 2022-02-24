@@ -16,13 +16,13 @@ from reconcile.utils.state import State
 
 _LOG = logging.getLogger(__name__)
 
-QONTRACT_INTEGRATION = 'openshift-namespace-labels'
+QONTRACT_INTEGRATION = "openshift-namespace-labels"
 
-DESIRED = 'desired'
-MANAGED = 'managed'
-CURRENT = 'current'
-CHANGED = 'changed'
-UPDATED_MANAGED = 'updated-managed'
+DESIRED = "desired"
+MANAGED = "managed"
+CURRENT = "current"
+CHANGED = "changed"
+UPDATED_MANAGED = "updated-managed"
 
 Labels = Dict[str, Optional[str]]
 LabelKeys = List[str]
@@ -32,7 +32,7 @@ Types = Dict[str, LabelsOrKeys]
 InternalLabelInventory = Dict[str, Dict[str, Types]]
 
 
-class LabelInventory():
+class LabelInventory:
     """
     This inventory class will contain for each cluster / namespace:
     - DESIRED: the list of *desired* label key:value
@@ -46,6 +46,7 @@ class LabelInventory():
     This inventory also holds a list of encountered errors for each
     cluster/namespace
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._inv: InternalLabelInventory = {}
@@ -75,20 +76,25 @@ class LabelInventory():
     def _ns(self, cluster: str, namespace: str) -> Types:
         return self._inv.setdefault(cluster, {}).setdefault(namespace, {})
 
-    def get(self, cluster: str, namespace: str, type: str,
-            default: Optional[LabelsOrKeys] = None) -> Optional[LabelsOrKeys]:
+    def get(
+        self,
+        cluster: str,
+        namespace: str,
+        type: str,
+        default: Optional[LabelsOrKeys] = None,
+    ) -> Optional[LabelsOrKeys]:
         """Get the labels or keys for the given cluster / namespace / type"""
         return self._inv.get(cluster, {}).get(namespace, {}).get(type, default)
 
-    def setdefault(self, cluster: str, namespace: str, type: str,
-                   default: LabelsOrKeys) -> LabelsOrKeys:
+    def setdefault(
+        self, cluster: str, namespace: str, type: str, default: LabelsOrKeys
+    ) -> LabelsOrKeys:
         """Get the labels or keys for the given cluster / namespace / type,
         setting it to default if it does not exists"""
         with self._lock:
             return self._ns(cluster, namespace).setdefault(type, default)
 
-    def set(self, cluster: str, namespace: str,
-            type: str, labels: Labels) -> Labels:
+    def set(self, cluster: str, namespace: str, type: str, labels: Labels) -> Labels:
         """Sets the given cluster / namespace / type to 'labels'"""
         with self._lock:
             self._ns(cluster, namespace)[type] = labels
@@ -101,7 +107,7 @@ class LabelInventory():
 
     def __iter__(self) -> Generator[Tuple[str, str, Types], None, None]:
         """Makes the inventory iterable by yielding (cluster, namespace, types)
-        items. Types here is a dict of {type: labelsOrKeys} """
+        items. Types here is a dict of {type: labelsOrKeys}"""
         for cluster, namespaces in self._inv.items():
             for namespace, types in namespaces.items():
                 yield cluster, namespace, types
@@ -116,8 +122,9 @@ class LabelInventory():
         managed = self.get(cluster, namespace, MANAGED, [])
         if managed is None:
             managed = []
-        upd_managed = self.setdefault(cluster, namespace, UPDATED_MANAGED,
-                                      managed.copy())
+        upd_managed = self.setdefault(
+            cluster, namespace, UPDATED_MANAGED, managed.copy()
+        )
 
         assert isinstance(upd_managed, list)  # we never get a Dict here
         if key in managed:
@@ -154,10 +161,13 @@ class LabelInventory():
                     changed[k] = v
                 else:  # k in current:
                     if k not in managed:  # conflicting labels
-                        self.add_error(cluster, ns,
-                                       'Label conflict:' +
-                                       f'desired {k}={v} vs ' +
-                                       f'current {k}={current[k]}')
+                        self.add_error(
+                            cluster,
+                            ns,
+                            "Label conflict:"
+                            + f"desired {k}={v} vs "
+                            + f"current {k}={current[k]}",
+                        )
                     else:
                         if v != current[k]:
                             changed[k] = v
@@ -173,7 +183,7 @@ def get_names_for_namespace(namespace: Dict[str, Any]) -> Tuple[str, str]:
     Get the cluster and namespace names from the provided
     namespace qontract info
     """
-    return namespace['cluster']['name'], namespace['name']
+    return namespace["cluster"]["name"], namespace["name"]
 
 
 def get_gql_namespaces_in_shard() -> List[Any]:
@@ -183,26 +193,37 @@ def get_gql_namespaces_in_shard() -> List[Any]:
     """
     all_namespaces = queries.get_namespaces()
 
-    return [ns for ns in all_namespaces
-            if not ns.get('delete') and
-            is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")]
+    return [
+        ns
+        for ns in all_namespaces
+        if not ns.get("delete") and is_in_shard(f"{ns['cluster']['name']}/{ns['name']}")
+    ]
 
 
-def get_oc_map(namespaces: List[Any], internal: Optional[bool],
-               use_jump_host: bool, thread_pool_size: int) -> OC_Map:
+def get_oc_map(
+    namespaces: List[Any],
+    internal: Optional[bool],
+    use_jump_host: bool,
+    thread_pool_size: int,
+) -> OC_Map:
     """
     Get an OC_Map for our namespaces
     """
     settings = queries.get_app_interface_settings()
-    return OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                  settings=settings, internal=internal,
-                  use_jump_host=use_jump_host,
-                  thread_pool_size=thread_pool_size,
-                  init_projects=True)
+    return OC_Map(
+        namespaces=namespaces,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+        init_projects=True,
+    )
 
 
-def get_desired(inventory: LabelInventory, oc_map: OC_Map,
-                namespaces: List[Any]) -> None:
+def get_desired(
+    inventory: LabelInventory, oc_map: OC_Map, namespaces: List[Any]
+) -> None:
     """
     Fill the provided label inventory with every desired info from the
     input namespaces. Ocm_map is used to not register clusters which are
@@ -210,7 +231,7 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map,
     """
     to_be_ignored = []
     for ns in namespaces:
-        if 'labels' not in ns:
+        if "labels" not in ns:
             continue
 
         cluster, ns_name = get_names_for_namespace(ns)
@@ -218,7 +239,7 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map,
         # eg: internal settings may not match --internal / --external param
         if cluster not in oc_map.clusters():
             continue
-        labels = json.loads(ns['labels'])
+        labels = json.loads(ns["labels"])
 
         validation_errors = validate_labels(labels)
         for err in validation_errors:
@@ -239,8 +260,9 @@ def get_desired(inventory: LabelInventory, oc_map: OC_Map,
         # integration.
         # A dedicated integration or PR check will be done to ensure this
         # case does not occur (anymore)
-        _LOG.debug(f'Found several namespace definitions for '
-                   f'{cluster}/{ns_name}. Ignoring')
+        _LOG.debug(
+            f"Found several namespace definitions for " f"{cluster}/{ns_name}. Ignoring"
+        )
         inventory.delete(cluster, ns_name)
 
 
@@ -278,60 +300,72 @@ def lookup_namespaces(cluster: str, oc_map: OC_Map):
             _LOG.debug(f"Skipping not-handled cluster: {cluster}")
             return cluster, None
         _LOG.debug(f"Looking up namespaces on {cluster}")
-        namespaces = oc.get_all('Namespace')
+        namespaces = oc.get_all("Namespace")
         if namespaces:
-            return cluster, namespaces['items']
+            return cluster, namespaces["items"]
     except StatusCodeError as e:
-        msg = 'cluster: {}, exception: {}'
+        msg = "cluster: {}, exception: {}"
         msg = msg.format(cluster, str(e))
         _LOG.error(msg)
     except ApiException as e:
-        _LOG.error(f'Cluster {cluster} skipped: '
-                   f'APIException [{e.status}:{e.reason}] {e.body}')
+        _LOG.error(
+            f"Cluster {cluster} skipped: "
+            f"APIException [{e.status}:{e.reason}] {e.body}"
+        )
 
     return cluster, None
 
 
-def get_current(inventory: LabelInventory, oc_map: OC_Map,
-                thread_pool_size: int) -> None:
+def get_current(
+    inventory: LabelInventory, oc_map: OC_Map, thread_pool_size: int
+) -> None:
     """
     Fill the provided label inventory with every current info from the
     reachable namespaces. Only namespaces already registered in the inventory
     will be updated. This avoids registering unhandled namespaces.
     """
-    results = threaded.run(lookup_namespaces, oc_map.clusters(),
-                           thread_pool_size, oc_map=oc_map)
+    results = threaded.run(
+        lookup_namespaces, oc_map.clusters(), thread_pool_size, oc_map=oc_map
+    )
 
     for cluster, ns_list in results:
         if ns_list is None:
             continue
         for ns in ns_list:
-            ns_meta = ns['metadata']
-            ns_name = ns_meta['name']
+            ns_meta = ns["metadata"]
+            ns_name = ns_meta["name"]
             # ignore namespaces which are not in our desired list
             if inventory.get(cluster, ns_name, DESIRED) is None:
                 continue
-            labels = ns_meta.get('labels', {})
+            labels = ns_meta.get("labels", {})
             inventory.set(cluster, ns_name, CURRENT, labels)
 
 
-def label(inv_item: Tuple[str, str, Types],
-          oc_map: OC_Map, dry_run: bool, inventory: LabelInventory):
+def label(
+    inv_item: Tuple[str, str, Types],
+    oc_map: OC_Map,
+    dry_run: bool,
+    inventory: LabelInventory,
+):
     cluster, namespace, types = inv_item
     if inventory.errors(cluster, namespace):
         return
     changed = types.get(CHANGED, {})
     if changed:
         prefix = "[dry-run] " if dry_run else ""
-        _LOG.info(prefix +
-                  f'Updating labels on {cluster}/{namespace}: {changed}')
+        _LOG.info(prefix + f"Updating labels on {cluster}/{namespace}: {changed}")
         if not dry_run:
             oc: OCNative = oc_map.get(cluster)
-            oc.label(None, 'Namespace', namespace, changed, overwrite=True)
+            oc.label(None, "Namespace", namespace, changed, overwrite=True)
 
 
-def realize(inventory: LabelInventory, state: State, oc_map: OC_Map,
-            dry_run: bool, thread_pool_size: int) -> None:
+def realize(
+    inventory: LabelInventory,
+    state: State,
+    oc_map: OC_Map,
+    dry_run: bool,
+    thread_pool_size: int,
+) -> None:
     """
     Apply the changes in the state store and on the namespaces
     """
@@ -341,13 +375,19 @@ def realize(inventory: LabelInventory, state: State, oc_map: OC_Map,
         upd_managed = types.get(UPDATED_MANAGED, [])
         if upd_managed:
             key = state_key(cluster, namespace)
-            _LOG.debug(f'Updating state store: {key}: {upd_managed}')
+            _LOG.debug(f"Updating state store: {key}: {upd_managed}")
             if not dry_run:
                 state.add(key, upd_managed, force=True)
 
     # Potential exceptions will get raised up
-    threaded.run(label, inventory, thread_pool_size,
-                 oc_map=oc_map, dry_run=dry_run, inventory=inventory)
+    threaded.run(
+        label,
+        inventory,
+        thread_pool_size,
+        oc_map=oc_map,
+        dry_run=dry_run,
+        inventory=inventory,
+    )
 
 
 class NamespaceLabelError(Exception):
@@ -355,29 +395,35 @@ class NamespaceLabelError(Exception):
 
 
 @defer
-def run(dry_run: bool, thread_pool_size: int = 10,
-        internal: Optional[bool] = None, use_jump_host: bool = True,
-        defer=None, raise_errors=False):
-    _LOG.debug('Collecting GQL data ...')
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: Optional[bool] = None,
+    use_jump_host: bool = True,
+    defer=None,
+    raise_errors=False,
+):
+    _LOG.debug("Collecting GQL data ...")
     namespaces = get_gql_namespaces_in_shard()
 
     inventory = LabelInventory()
 
-    _LOG.debug('Initializing OC_Map ...')
+    _LOG.debug("Initializing OC_Map ...")
     oc_map = get_oc_map(namespaces, internal, use_jump_host, thread_pool_size)
     defer(oc_map.cleanup)
 
-    _LOG.debug('Collecting desired state ...')
+    _LOG.debug("Collecting desired state ...")
     get_desired(inventory, oc_map, namespaces)
 
     settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    state = State(integration=QONTRACT_INTEGRATION,
-                  accounts=accounts, settings=settings)
-    _LOG.debug('Collecting managed state ...')
+    state = State(
+        integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
+    )
+    _LOG.debug("Collecting managed state ...")
     get_managed(inventory, state)
 
-    _LOG.debug('Collecting current state ...')
+    _LOG.debug("Collecting current state ...")
     get_current(inventory, oc_map, thread_pool_size)
 
     inventory.reconcile()
@@ -388,9 +434,9 @@ def run(dry_run: bool, thread_pool_size: int = 10,
         error_messages = []
         for cluster, namespace, errs in inventory.iter_errors():
             for err in errs:
-                msg = f'{cluster}/{namespace}: {err}'
+                msg = f"{cluster}/{namespace}: {err}"
                 _LOG.error(msg)
                 error_messages.append(msg)
         if raise_errors:
-            raise NamespaceLabelError('\n'.join(error_messages))
+            raise NamespaceLabelError("\n".join(error_messages))
         sys.exit(1)

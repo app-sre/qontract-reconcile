@@ -39,49 +39,45 @@ BOTS_QUERY = """
 }
 """
 
-QONTRACT_INTEGRATION = 'gitlab-members'
+QONTRACT_INTEGRATION = "gitlab-members"
 
 
 def get_current_state(instance, gl):
-    return {g: gl.get_group_members(g)
-            for g in instance['managedGroups']}
+    return {g: gl.get_group_members(g) for g in instance["managedGroups"]}
 
 
 def get_desired_state(instance, gl):
     gqlapi = gql.get_api()
-    users = gqlapi.query(USERS_QUERY)['users']
-    bots = gqlapi.query(BOTS_QUERY)['bots']
-    desired_group_members = {g: [] for g in instance['managedGroups']}
+    users = gqlapi.query(USERS_QUERY)["users"]
+    bots = gqlapi.query(BOTS_QUERY)["bots"]
+    desired_group_members = {g: [] for g in instance["managedGroups"]}
     for g in desired_group_members:
         for u in users:
-            for r in u['roles']:
-                for p in r['permissions']:
-                    if 'group' in p and p['group'] == g:
-                        user = u['org_username']
-                        item = {"user": user, "access_level": p['access']}
+            for r in u["roles"]:
+                for p in r["permissions"]:
+                    if "group" in p and p["group"] == g:
+                        user = u["org_username"]
+                        item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
         for b in bots:
-            for r in b['roles']:
-                for p in r['permissions']:
-                    if 'group' in p and p['group'] == g:
-                        user = b['org_username']
-                        item = {"user": user, "access_level": p['access']}
+            for r in b["roles"]:
+                for p in r["permissions"]:
+                    if "group" in p and p["group"] == g:
+                        user = b["org_username"]
+                        item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
     return desired_group_members
 
 
 def calculate_diff(current_state, desired_state):
     diff = []
-    users_to_add = \
-        subtract_states(desired_state, current_state,
-                        "add_user_to_group")
+    users_to_add = subtract_states(desired_state, current_state, "add_user_to_group")
     diff.extend(users_to_add)
-    users_to_remove = \
-        subtract_states(current_state, desired_state,
-                        "remove_user_from_group")
+    users_to_remove = subtract_states(
+        current_state, desired_state, "remove_user_from_group"
+    )
     diff.extend(users_to_remove)
-    users_to_change = \
-        check_access(desired_state, current_state)
+    users_to_change = check_access(desired_state, current_state)
     diff.extend(users_to_change)
 
     return diff
@@ -94,17 +90,19 @@ def subtract_states(from_state, subtract_state, action):
         for f_user in f_users:
             found = False
             for s_user in s_group:
-                if f_user['user'] != s_user['user']:
+                if f_user["user"] != s_user["user"]:
                     continue
                 found = True
                 break
             if not found:
-                result.append({
-                    "action": action,
-                    "group": f_group,
-                    "user": f_user['user'],
-                    "access": f_user['access_level']
-                })
+                result.append(
+                    {
+                        "action": action,
+                        "group": f_group,
+                        "user": f_user["user"],
+                        "access": f_user["access_level"],
+                    }
+                )
     return result
 
 
@@ -114,23 +112,25 @@ def check_access(desired_state, current_state):
         c_group = current_state[d_group]
         for d_user in d_users:
             for c_user in c_group:
-                if d_user['user'] == c_user['user']:
-                    if d_user['access_level'] != c_user['access_level']:
-                        result.append({
-                            "action": "change_access",
-                            "group": d_group,
-                            "user": c_user['user'],
-                            "access": d_user['access_level']
-                        })
+                if d_user["user"] == c_user["user"]:
+                    if d_user["access_level"] != c_user["access_level"]:
+                        result.append(
+                            {
+                                "action": "change_access",
+                                "group": d_group,
+                                "user": c_user["user"],
+                                "access": d_user["access_level"],
+                            }
+                        )
                     break
     return result
 
 
 def act(diff, gl):
-    group = diff['group']
-    user = diff['user']
-    action = diff['action']
-    access = diff['access']
+    group = diff["group"]
+    user = diff["user"]
+    action = diff["action"]
+    access = diff["access"]
     if action == "remove_user_from_group":
         gl.remove_group_member(group, user)
     if action == "add_user_to_group":

@@ -15,8 +15,7 @@ from sretoolbox.utils import retry
 from reconcile.utils.config import get_config
 
 LOG = logging.getLogger(__name__)
-VAULT_AUTO_REFRESH_INTERVAL = int(
-    os.getenv('VAULT_AUTO_REFRESH_INTERVAL') or 600)
+VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)
 
 
 class SecretNotFound(Exception):
@@ -57,18 +56,17 @@ class _VaultClient:
     def __init__(self, auto_refresh=True):
         config = get_config()
 
-        server = config['vault']['server']
-        self.role_id = config['vault']['role_id']
-        self.secret_id = config['vault']['secret_id']
+        server = config["vault"]["server"]
+        self.role_id = config["vault"]["role_id"]
+        self.secret_id = config["vault"]["secret_id"]
 
         # This is a threaded world. Let's define a big
         # connections pool to live in that world
         # (this avoids the warning "Connection pool is
         # full, discarding connection: vault.devshift.net")
         session = requests.Session()
-        adapter = HTTPAdapter(pool_connections=100,
-                              pool_maxsize=100)
-        session.mount('https://', adapter)
+        adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100)
+        session.mount("https://", adapter)
         self._client = hvac.Client(url=server, session=session)
 
         authenticated = False
@@ -84,8 +82,7 @@ class _VaultClient:
             raise VaultConnectionError()
 
         if auto_refresh:
-            t = threading.Thread(target=self._auto_refresh_client_auth,
-                                 daemon=True)
+            t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
             t.start()
 
     def _auto_refresh_client_auth(self):
@@ -94,7 +91,7 @@ class _VaultClient:
         """
         while True:
             time.sleep(VAULT_AUTO_REFRESH_INTERVAL)
-            LOG.debug('auto refresh client auth')
+            LOG.debug("auto refresh client auth")
             self._refresh_client_auth()
 
     def _refresh_client_auth(self):
@@ -109,8 +106,8 @@ class _VaultClient:
         * version (optional) - secret version to read (if this is
                                a v2 KV engine)
         """
-        secret_path = secret['path']
-        secret_version = secret.get('version')
+        secret_path = secret["path"]
+        secret_version = secret.get("version")
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
 
@@ -126,7 +123,7 @@ class _VaultClient:
         return data
 
     def _get_mount_version_by_secret_path(self, path):
-        path_split = path.split('/')
+        path_split = path.split("/")
         mount_point = path_split[0]
         return self._get_mount_version(mount_point)
 
@@ -142,12 +139,11 @@ class _VaultClient:
 
     @functools.lru_cache(maxsize=None)
     def _read_all_v2(self, path, version):
-        path_split = path.split('/')
+        path_split = path.split("/")
         mount_point = path_split[0]
-        read_path = '/'.join(path_split[1:])
+        read_path = "/".join(path_split[1:])
         if version is None:
-            msg = ('version can not be null '
-                   f'for secret with path \'{path}\'.')
+            msg = "version can not be null " f"for secret with path '{path}'."
             raise SecretVersionIsNone(msg)
         elif version == SECRET_VERSION_LATEST:
             # https://github.com/hvac/hvac/blob/
@@ -161,17 +157,15 @@ class _VaultClient:
                 version=version,
             )
         except InvalidPath:
-            msg = (f'version \'{version}\' not found '
-                   f'for secret with path \'{path}\'.')
+            msg = f"version '{version}' not found " f"for secret with path '{path}'."
             raise SecretVersionNotFound(msg)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
-        if secret is None or 'data' not in secret \
-                or 'data' not in secret['data']:
+        if secret is None or "data" not in secret or "data" not in secret["data"]:
             raise SecretNotFound(path)
 
-        data = secret['data']['data']
+        data = secret["data"]["data"]
         return data
 
     def _read_all_v1(self, path):
@@ -181,10 +175,10 @@ class _VaultClient:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbidden(msg)
 
-        if secret is None or 'data' not in secret:
+        if secret is None or "data" not in secret:
             raise SecretNotFound(path)
 
-        return secret['data']
+        return secret["data"]
 
     @retry()
     def read(self, secret):
@@ -197,10 +191,10 @@ class _VaultClient:
         * version (optional) - secret version to read (if this is
                                a v2 KV engine)
         """
-        secret_path = secret['path']
-        secret_field = secret['field']
-        secret_format = secret.get('format', 'plain')
-        secret_version = secret.get('version')
+        secret_path = secret["path"]
+        secret_field = secret["field"]
+        secret_format = secret.get("format", "plain")
+        secret_version = secret.get("version")
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
 
@@ -213,14 +207,14 @@ class _VaultClient:
         if data is None:
             raise SecretNotFound
 
-        return base64.b64decode(data) if secret_format == 'base64' else data
+        return base64.b64decode(data) if secret_format == "base64" else data
 
     def _read_v2(self, path, field, version):
         data = self._read_all_v2(path, version)
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound(f'{path}/{field} ({version})')
+            raise SecretFieldNotFound(f"{path}/{field} ({version})")
         return secret_field
 
     def _read_v1(self, path, field):
@@ -239,11 +233,13 @@ class _VaultClient:
         * path - path to the secret in Vault
         * data - data (dictionary) to write
         """
-        secret_path = secret['path']
-        b64_data = secret['data']
+        secret_path = secret["path"]
+        b64_data = secret["data"]
         if decode_base64:
-            data = {k: base64.b64decode(v or '').decode('utf-8')
-                    for k, v in b64_data.items()}
+            data = {
+                k: base64.b64decode(v or "").decode("utf-8")
+                for k, v in b64_data.items()
+            }
         else:
             data = b64_data
 
@@ -254,19 +250,18 @@ class _VaultClient:
             self._write_v1(secret_path, data)
 
     def _write_v2(self, path, data):
-        path_split = path.split('/')
+        path_split = path.split("/")
         mount_point = path_split[0]
-        write_path = '/'.join(path_split[1:])
+        write_path = "/".join(path_split[1:])
 
         try:
-            current_data = \
-                self._read_all_v2(path, version=SECRET_VERSION_LATEST)
+            current_data = self._read_all_v2(path, version=SECRET_VERSION_LATEST)
             if current_data == data:
-                logging.debug(f'current data is up-to-date, skipping {path}')
+                logging.debug(f"current data is up-to-date, skipping {path}")
                 return
         except SecretVersionNotFound:
             # if the secret is not found we need to write it
-            logging.debug(f'secret not found in {path}, will create it')
+            logging.debug(f"secret not found in {path}, will create it")
 
         try:
             self._client.secrets.kv.v2.create_or_update_secret(

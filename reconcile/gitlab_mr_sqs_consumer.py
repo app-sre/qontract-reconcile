@@ -13,7 +13,7 @@ from reconcile.utils.sqs_gateway import SQSGateway
 from reconcile.utils.gitlab_api import GitLabApi
 
 
-QONTRACT_INTEGRATION = 'gitlab-mr-sqs-consumer'
+QONTRACT_INTEGRATION = "gitlab-mr-sqs-consumer"
 
 
 def run(dry_run, gitlab_project_id):
@@ -24,13 +24,14 @@ def run(dry_run, gitlab_project_id):
 
     instance = queries.get_gitlab_instance()
     saas_files = queries.get_saas_files_minimal(v1=True, v2=True)
-    gitlab_cli = GitLabApi(instance, project_id=gitlab_project_id,
-                           settings=settings, saas_files=saas_files)
+    gitlab_cli = GitLabApi(
+        instance, project_id=gitlab_project_id, settings=settings, saas_files=saas_files
+    )
 
     errors_occured = False
     while True:
         messages = sqs_cli.receive_messages()
-        logging.info('received %s messages', len(messages))
+        logging.info("received %s messages", len(messages))
 
         if not messages:
             # sqs_cli.receive_messages delivers messages in chunks
@@ -44,8 +45,9 @@ def run(dry_run, gitlab_project_id):
 
         for m in messages:
             receipt_handle, body = m[0], m[1]
-            logging.info('received message %s with body %s',
-                         receipt_handle[:6], json.dumps(body))
+            logging.info(
+                "received message %s with body %s", receipt_handle[:6], json.dumps(body)
+            )
 
             if not dry_run:
                 try:

@@ -11,7 +11,8 @@ class RepoOwners:
     """
     Abstracts the owners of a repository with per-path granularity.
     """
-    def __init__(self, git_cli, ref='master'):
+
+    def __init__(self, git_cli, ref="master"):
         self._git_cli = git_cli
         self._ref = ref
         self._owners_map = None
@@ -29,16 +30,15 @@ class RepoOwners:
         :return: the repository owners
         :rtype: dict
         """
-        repo_owners = {'approvers': set(),
-                       'reviewers': set()}
+        repo_owners = {"approvers": set(), "reviewers": set()}
 
-        if '.' in self.owners_map:
-            repo_owners['approvers'].update(self.owners_map['.']['approvers'])
-            repo_owners['reviewers'].update(self.owners_map['.']['reviewers'])
+        if "." in self.owners_map:
+            repo_owners["approvers"].update(self.owners_map["."]["approvers"])
+            repo_owners["reviewers"].update(self.owners_map["."]["reviewers"])
 
         for owners in self.owners_map.values():
-            repo_owners['approvers'].update(owners['approvers'])
-            repo_owners['reviewers'].update(owners['reviewers'])
+            repo_owners["approvers"].update(owners["approvers"])
+            repo_owners["reviewers"].update(owners["reviewers"])
 
         return repo_owners
 
@@ -50,11 +50,10 @@ class RepoOwners:
         :rtype: dict
         """
 
-        if '.' in self.owners_map:
-            return self._set_to_sorted_list(self.owners_map['.'])
+        if "." in self.owners_map:
+            return self._set_to_sorted_list(self.owners_map["."])
 
-        return {'approvers': [],
-                'reviewers': []}
+        return {"approvers": [], "reviewers": []}
 
     def get_path_owners(self, path):
         """
@@ -67,17 +66,16 @@ class RepoOwners:
         :return: the path owners
         :rtype: dict
         """
-        path_owners = {'approvers': set(),
-                       'reviewers': set()}
+        path_owners = {"approvers": set(), "reviewers": set()}
 
-        if '.' in self.owners_map:
-            path_owners['approvers'].update(self.owners_map['.']['approvers'])
-            path_owners['reviewers'].update(self.owners_map['.']['reviewers'])
+        if "." in self.owners_map:
+            path_owners["approvers"].update(self.owners_map["."]["approvers"])
+            path_owners["reviewers"].update(self.owners_map["."]["reviewers"])
 
         for owned_path, owners in self.owners_map.items():
             if path.startswith(owned_path):
-                path_owners['approvers'].update(owners['approvers'])
-                path_owners['reviewers'].update(owners['reviewers'])
+                path_owners["approvers"].update(owners["approvers"])
+                path_owners["reviewers"].update(owners["reviewers"])
 
         return self._set_to_sorted_list(path_owners)
 
@@ -95,8 +93,8 @@ class RepoOwners:
         """
         candidates = []
 
-        if '.' in self.owners_map:
-            candidates.append('.')
+        if "." in self.owners_map:
+            candidates.append(".")
 
         for owned_path in self.owners_map:
             if path.startswith(owned_path):
@@ -107,8 +105,7 @@ class RepoOwners:
             elected = max(candidates, key=len)
             return self._set_to_sorted_list(self.owners_map[elected])
 
-        return {'approvers': [],
-                'reviewers': []}
+        return {"approvers": [], "reviewers": []}
 
     def _get_owners_map(self):
         """
@@ -125,23 +122,22 @@ class RepoOwners:
         aliases = None
         owner_files = []
         for item in repo_tree:
-            if item['path'] == 'OWNERS_ALIASES':
+            if item["path"] == "OWNERS_ALIASES":
                 aliases = self._get_aliases()
-            elif item['name'] == 'OWNERS':
+            elif item["name"] == "OWNERS":
                 owner_files.append(item)
 
         for owner_file in owner_files:
-            raw_owners = self._git_cli.get_file(path=owner_file['path'],
-                                                ref=self._ref)
+            raw_owners = self._git_cli.get_file(path=owner_file["path"], ref=self._ref)
             try:
                 owners = yaml.safe_load(raw_owners.decode())
             except yaml.parser.ParserError:
                 owners = None
             if owners is None:
-                _LOG.warning('Non-parsable OWNERS file')
+                _LOG.warning("Non-parsable OWNERS file")
                 continue
 
-            approvers = owners.get('approvers') or set()
+            approvers = owners.get("approvers") or set()
 
             # Approver might be an alias. Let's resolve them.
             resolved_approvers = set()
@@ -151,7 +147,7 @@ class RepoOwners:
                 else:
                     resolved_approvers.add(approver)
 
-            reviewers = owners.get('reviewers') or set()
+            reviewers = owners.get("reviewers") or set()
 
             # Reviewer might be an alias. Let's resolve them.
             resolved_reviewers = set()
@@ -162,9 +158,11 @@ class RepoOwners:
                     resolved_reviewers.add(reviewer)
 
             # The OWNERS file basedir is the owners_map dictionary key
-            owners_path = str(pathlib.Path(owner_file['path']).parent)
-            owners_map[owners_path] = {'approvers': resolved_approvers,
-                                       'reviewers': resolved_reviewers}
+            owners_path = str(pathlib.Path(owner_file["path"]).parent)
+            owners_map[owners_path] = {
+                "approvers": resolved_approvers,
+                "reviewers": resolved_reviewers,
+            }
         return owners_map
 
     def _get_aliases(self):
@@ -174,8 +172,7 @@ class RepoOwners:
         :return: owners list per alias basis
         :rtype: dict
         """
-        raw_aliases = self._git_cli.get_file(path='OWNERS_ALIASES',
-                                             ref=self._ref)
+        raw_aliases = self._git_cli.get_file(path="OWNERS_ALIASES", ref=self._ref)
         if raw_aliases is None:
             return {}
 
@@ -183,21 +180,20 @@ class RepoOwners:
         if aliases is None:
             return {}
 
-        return aliases['aliases']
+        return aliases["aliases"]
 
     @staticmethod
     def _set_to_sorted_list(owners):
-        approvers = owners['approvers']
+        approvers = owners["approvers"]
         if approvers:
             sorted_approvers = sorted(approvers)
         else:
             sorted_approvers = []
 
-        reviewers = owners['reviewers']
+        reviewers = owners["reviewers"]
         if reviewers:
             sorted_reviewers = sorted(reviewers)
         else:
             sorted_reviewers = []
 
-        return {'approvers': sorted_approvers,
-                'reviewers': sorted_reviewers}
+        return {"approvers": sorted_approvers, "reviewers": sorted_reviewers}

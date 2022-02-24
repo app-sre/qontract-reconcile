@@ -20,11 +20,11 @@ def init(gitlab_project_id=None, sqs_or_gitlab=None):
     """
     if sqs_or_gitlab is None:
         settings = queries.get_app_interface_settings()
-        client_type = settings.get('mergeRequestGateway', 'gitlab')
+        client_type = settings.get("mergeRequestGateway", "gitlab")
     else:
         client_type = sqs_or_gitlab
 
-    if client_type == 'gitlab':
+    if client_type == "gitlab":
         if gitlab_project_id is None:
             raise MRClientGatewayError('Missing "gitlab_project_id".')
 
@@ -32,14 +32,18 @@ def init(gitlab_project_id=None, sqs_or_gitlab=None):
         settings = queries.get_app_interface_settings()
         saas_files = queries.get_saas_files_minimal(v1=True, v2=True)
 
-        return GitLabApi(instance, project_id=gitlab_project_id,
-                         settings=settings, saas_files=saas_files)
+        return GitLabApi(
+            instance,
+            project_id=gitlab_project_id,
+            settings=settings,
+            saas_files=saas_files,
+        )
 
-    elif client_type == 'sqs':
+    elif client_type == "sqs":
         accounts = queries.get_queue_aws_accounts()
         settings = queries.get_app_interface_settings()
 
         return SQSGateway(accounts, settings=settings)
 
     else:
-        raise MRClientGatewayError(f'Invalid client type: {client_type}')
+        raise MRClientGatewayError(f"Invalid client type: {client_type}")

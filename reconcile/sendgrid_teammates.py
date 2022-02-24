@@ -10,7 +10,7 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.status import ExitCodes
 
 LOG = logging.getLogger(__name__)
-QONTRACT_INTEGRATION = 'sendgrid_teammates'
+QONTRACT_INTEGRATION = "sendgrid_teammates"
 
 
 class SendGridAPIError(Exception):
@@ -20,7 +20,7 @@ class SendGridAPIError(Exception):
 class Teammate:
     def __init__(self, email, pending_token=None, username=None):
         self.email = email
-        self.username = username or email.split('@')[0]
+        self.username = username or email.split("@")[0]
         self.pending_token = pending_token
 
     @property
@@ -31,13 +31,13 @@ class Teammate:
 def fetch_desired_state(users):
     desired_state = {}
     for user in users:
-        roles = user.get('roles', [])
+        roles = user.get("roles", [])
         for role in roles:
-            sendgrid_accounts = role.get('sendgrid_accounts') or []
+            sendgrid_accounts = role.get("sendgrid_accounts") or []
             for sg_account in sendgrid_accounts:
-                desired_state.setdefault(sg_account['name'], [])
+                desired_state.setdefault(sg_account["name"], [])
                 t = Teammate(f"{user['org_username']}@redhat.com")
-                desired_state[sg_account['name']].append(t)
+                desired_state[sg_account["name"]].append(t)
 
     return desired_state
 
@@ -47,19 +47,19 @@ def fetch_current_state(sg_client):
     state = []
 
     # pending invites
-    invites = sg_client.teammates.pending.get().to_dict['result']
+    invites = sg_client.teammates.pending.get().to_dict["result"]
     for invite in invites:
-        t = Teammate(invite['email'], pending_token=invite['token'])
+        t = Teammate(invite["email"], pending_token=invite["token"])
         state.append(t)
 
     # current teammates
-    teammates = sg_client.teammates.get().to_dict['result']
+    teammates = sg_client.teammates.get().to_dict["result"]
     for teammate in teammates:
-        if teammate['user_type'] == 'owner':
+        if teammate["user_type"] == "owner":
             # we want to ignore the root account (owner account)
             continue
 
-        t = Teammate(teammate['email'], username=teammate['username'])
+        t = Teammate(teammate["email"], username=teammate["username"])
         state.append(t)
 
     return state
@@ -70,7 +70,7 @@ def raise_if_error(response):
     Raises an SendGridAPIError if the request has returned an error
     """
     if response.status_code >= 300:
-        raise SendGridAPIError(response.body.decode('utf-8'))
+        raise SendGridAPIError(response.body.decode("utf-8"))
 
 
 def act(dry_run, sg_client, desired_state, current_state):
@@ -88,7 +88,7 @@ def act(dry_run, sg_client, desired_state, current_state):
 
     for user in current_state:
         if user.email not in desired_emails:
-            LOG.info(['delete', user.email])
+            LOG.info(["delete", user.email])
             if not dry_run:
                 if user.pending:
                     delete_method = sg_client.teammates.pending
@@ -103,7 +103,7 @@ def act(dry_run, sg_client, desired_state, current_state):
                     raise_if_error(response)
                 except SendGridAPIError as e:
                     error = True
-                    LOG.error(['error deleting user', str(e)])
+                    LOG.error(["error deleting user", str(e)])
 
     for user in desired_state:
         if user.email not in current_emails:
@@ -111,13 +111,13 @@ def act(dry_run, sg_client, desired_state, current_state):
             if user.pending:
                 continue
 
-            LOG.info(['invite', user.email])
+            LOG.info(["invite", user.email])
 
             if not dry_run:
                 req = {
-                    'email': user.email,
-                    'scopes': [],
-                    'is_admin': True,
+                    "email": user.email,
+                    "scopes": [],
+                    "is_admin": True,
                 }
 
                 response = sg_client.teammates.post(request_body=req)
@@ -126,7 +126,7 @@ def act(dry_run, sg_client, desired_state, current_state):
                     raise_if_error(response)
                 except SendGridAPIError as e:
                     error = True
-                    LOG.error(['error inviting user', str(e)])
+                    LOG.error(["error inviting user", str(e)])
 
     return error
 
@@ -140,11 +140,11 @@ def run(dry_run):
 
     sendgrid_accounts = queries.get_sendgrid_accounts()
     for sg_account in sendgrid_accounts:
-        token = secret_reader.read(sg_account['token'])
+        token = secret_reader.read(sg_account["token"])
         sg_client = sendgrid.SendGridAPIClient(api_key=token).client
 
         current_state = fetch_current_state(sg_client)
-        desired_state = desired_state_all.get(sg_account['name'], [])
+        desired_state = desired_state_all.get(sg_account["name"], [])
 
         error = act(dry_run, sg_client, desired_state, current_state)
         if error:

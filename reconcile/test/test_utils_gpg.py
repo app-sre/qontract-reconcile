@@ -51,13 +51,13 @@ W1DegErhvC6nwh/J0GOLws2gRzVo+2RzB7if"""
 
 class TestGpgKeyValid(TestCase):
     def test_gpg_key_invalid_spaces(self):
-        key = 'key with spaces'
+        key = "key with spaces"
         with self.assertRaises(ValueError) as e:
             gpg.gpg_key_valid(key)
         self.assertEqual(str(e.exception), gpg.ERR_SPACES)
 
     def test_gpg_key_invalid_equal_signs(self):
-        key = 'equal=signs=not=at=end=of=key'
+        key = "equal=signs=not=at=end=of=key"
         with self.assertRaises(ValueError) as e:
             gpg.gpg_key_valid(key)
         self.assertEqual(str(e.exception), gpg.ERR_EQUAL_SIGNS)
@@ -65,7 +65,7 @@ class TestGpgKeyValid(TestCase):
     def test_gpg_key_invalid_base64(self):
         # $ echo -n "hello world" | base64
         # aGVsbG8gd29ybGQ=
-        key = 'aGVsbG8gd29ybGQ'
+        key = "aGVsbG8gd29ybGQ"
         with self.assertRaises(ValueError) as e:
             gpg.gpg_key_valid(key)
         self.assertEqual(str(e.exception), gpg.ERR_BASE64)
@@ -75,17 +75,15 @@ class TestGpgKeyValid(TestCase):
 # Popen. Had that module chosen "import subprocess;
 # subprocess.Popen(...)" we'd be patching subprocess instead.
 class TestGpgEncrypt(TestCase):
-    @patch.object(gpg, 'run')
+    @patch.object(gpg, "run")
     def test_gpg_encrypt_all_ok(self, popen):
         popen.return_value.stdout = b"<stdout>"
 
-        self.assertEqual(gpg.gpg_encrypt('acontent', 'akey'),
-                         '<stdout>')
+        self.assertEqual(gpg.gpg_encrypt("acontent", "akey"), "<stdout>")
 
-    @skipIf((sys.version_info.major, sys.version_info.minor) == (3, 6) and
-            os.getuid() == 0,
-            "Jenkins and Python 3.6 fail this test")
+    @skipIf(
+        (sys.version_info.major, sys.version_info.minor) == (3, 6) and os.getuid() == 0,
+        "Jenkins and Python 3.6 fail this test",
+    )
     def test_gpg_encrypt_nomocks(self):
-        self.assertTrue(
-            gpg.gpg_encrypt("a message", VALID_KEY)
-        )
+        self.assertTrue(gpg.gpg_encrypt("a message", VALID_KEY))
