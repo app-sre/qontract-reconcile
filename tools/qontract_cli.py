@@ -483,15 +483,19 @@ def bot_login(ctx, cluster_name):
     print(f"oc login --server {server} --token {token}")
 
 
-@get.command()
+@get.command(
+    short_help="obtain automation credentials for "
+               "aws account by name. executing this "
+               "command will set up the environment:"
+               "$(aws get aws-creds --account-name foo)"
+)
 @click.argument('account_name')
 @click.pass_context
 def aws_creds(ctx, account_name):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    accounts = queries.get_aws_accounts()
-    accounts = [a for a in accounts if a['name'] == account_name]
-    if len(accounts) == 0:
+    accounts = queries.get_aws_accounts(name=account_name)
+    if not accounts:
         print(f"{account_name} not found.")
         sys.exit(1)
 
