@@ -888,9 +888,9 @@ class TerrascriptClient:
     def populate_resources(self, namespaces, existing_secrets, account_name,
                            ocm_map=None):
         self.init_populate_specs(namespaces, account_name)
-        for specs in self.account_resources.values():
+        for account, specs in self.account_resources:
             for spec in specs:
-                self.populate_tf_resources(spec, existing_secrets,
+                self.populate_tf_resources(account, spec, existing_secrets,
                                            ocm_map=ocm_map)
 
     def init_populate_specs(self, namespaces, account_name):
@@ -911,63 +911,73 @@ class TerrascriptClient:
                     self.account_resources[account] = []
                 self.account_resources[account].append(populate_spec)
 
-    def populate_tf_resources(self, populate_spec, existing_secrets,
+    def populate_tf_resources(self, account, populate_spec, existing_secrets,
                               ocm_map=None):
         resource = populate_spec['resource']
         namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
         if provider == 'rds':
-            self.populate_tf_resource_rds(resource, namespace_info,
+            self.populate_tf_resource_rds(account, resource, namespace_info,
                                           existing_secrets)
         elif provider == 's3':
-            self.populate_tf_resource_s3(resource, namespace_info)
+            self.populate_tf_resource_s3(account, resource, namespace_info)
         elif provider == 'elasticache':
-            self.populate_tf_resource_elasticache(resource, namespace_info,
+            self.populate_tf_resource_elasticache(account, resource,
+                                                  namespace_info,
                                                   existing_secrets)
         elif provider == 'aws-iam-service-account':
-            self.populate_tf_resource_service_account(resource,
+            self.populate_tf_resource_service_account(account,
+                                                      resource,
                                                       namespace_info,
                                                       ocm_map=ocm_map)
         elif provider == 'aws-iam-role':
-            self.populate_tf_resource_role(resource, namespace_info)
+            self.populate_tf_resource_role(account, resource, namespace_info)
         elif provider == 'sqs':
-            self.populate_tf_resource_sqs(resource, namespace_info)
+            self.populate_tf_resource_sqs(account, resource, namespace_info)
         elif provider == 'dynamodb':
             self.populate_tf_resource_dynamodb(resource, namespace_info)
         elif provider == 'ecr':
-            self.populate_tf_resource_ecr(resource, namespace_info)
+            self.populate_tf_resource_ecr(account, resource, namespace_info)
         elif provider == 's3-cloudfront':
-            self.populate_tf_resource_s3_cloudfront(resource, namespace_info)
+            self.populate_tf_resource_s3_cloudfront(account, resource,
+                                                    namespace_info)
         elif provider == 's3-sqs':
-            self.populate_tf_resource_s3_sqs(resource, namespace_info)
+            self.populate_tf_resource_s3_sqs(account, resource,
+                                             namespace_info)
         elif provider == 'cloudwatch':
-            self.populate_tf_resource_cloudwatch(resource, namespace_info)
+            self.populate_tf_resource_cloudwatch(account, resource,
+                                                 namespace_info)
         elif provider == 'kms':
-            self.populate_tf_resource_kms(resource, namespace_info)
+            self.populate_tf_resource_kms(account, resource, namespace_info)
         elif provider == 'elasticsearch':
-            self.populate_tf_resource_elasticsearch(resource, namespace_info)
+            self.populate_tf_resource_elasticsearch(account, resource,
+                                                    namespace_info)
         elif provider == 'acm':
-            self.populate_tf_resource_acm(resource, namespace_info)
+            self.populate_tf_resource_acm(account, resource, namespace_info)
         elif provider == 'kinesis':
-            self.populate_tf_resource_kinesis(resource, namespace_info)
+            self.populate_tf_resource_kinesis(account, resource,
+                                              namespace_info)
         elif provider == 's3-cloudfront-public-key':
-            self.populate_tf_resource_s3_cloudfront_public_key(resource,
+            self.populate_tf_resource_s3_cloudfront_public_key(account,
+                                                               resource,
                                                                namespace_info)
         elif provider == 'alb':
-            self.populate_tf_resource_alb(resource, namespace_info,
+            self.populate_tf_resource_alb(account, resource, namespace_info,
                                           ocm_map=ocm_map)
         elif provider == 'secrets-manager':
-            self.populate_tf_resource_secrets_manager(resource, namespace_info)
+            self.populate_tf_resource_secrets_manager(account, resource,
+                                                      namespace_info)
         elif provider == 'asg':
-            self.populate_tf_resource_asg(resource, namespace_info)
+            self.populate_tf_resource_asg(account, resource, namespace_info)
         elif provider == 'route53-zone':
-            self.populate_tf_resource_route53_zone(resource, namespace_info)
+            self.populate_tf_resource_route53_zone(account, resource,
+                                                   namespace_info)
         else:
             raise UnknownProviderError(provider)
 
-    def populate_tf_resource_rds(self, resource, namespace_info,
+    def populate_tf_resource_rds(self, account, resource, namespace_info,
                                  existing_secrets):
-        account, identifier, values, output_prefix, \
+        identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -1332,8 +1342,8 @@ class TerrascriptClient:
         return ''.join(random.choice(letters_and_digits)
                        for i in range(string_length))
 
-    def populate_tf_resource_s3(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_s3(self, account, resource, namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -1701,9 +1711,9 @@ class TerrascriptClient:
 
         return bucket_tf_resource
 
-    def populate_tf_resource_elasticache(self, resource, namespace_info,
-                                         existing_secrets):
-        account, identifier, values, output_prefix, \
+    def populate_tf_resource_elasticache(self, account, resource,
+                                         namespace_info, existing_secrets):
+        identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         values.setdefault('replication_group_id', values['identifier'])
@@ -1793,9 +1803,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_service_account(self, resource, namespace_info,
-                                             ocm_map=None):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_service_account(self, account, resource,
+                                             namespace_info, ocm_map=None):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -1885,8 +1895,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_role(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_role(self, account, resource, namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -1932,8 +1942,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_sqs(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_sqs(self, account, resource, namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         uid = self.uids.get(account)
@@ -2083,8 +2093,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_dynamodb(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_dynamodb(self, account, resource,
+                                      namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         uid = self.uids.get(account)
@@ -2166,8 +2177,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_ecr(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_ecr(self, account, resource, namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -2268,9 +2279,10 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_s3_cloudfront(self, resource, namespace_info):
+    def populate_tf_resource_s3_cloudfront(self, account, resource,
+                                           namespace_info):
         # pylint: disable=unused-variable
-        account, identifier, common_values, output_prefix, \
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -2363,9 +2375,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_s3_sqs(self, resource, namespace_info):
+    def populate_tf_resource_s3_sqs(self, account, resource, namespace_info):
         # pylint: disable=unused-variable
-        account, identifier, common_values, output_prefix, \
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         uid = self.uids.get(account)
@@ -2575,8 +2587,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_cloudwatch(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_cloudwatch(self, account, resource,
+                                        namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -2806,8 +2819,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_kms(self, resource, namespace_info):
-        account, identifier, values, output_prefix, \
+    def populate_tf_resource_kms(self, account, resource, namespace_info):
+        identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -2852,8 +2865,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_kinesis(self, resource, namespace_info):
-        account, identifier, values, output_prefix, \
+    def populate_tf_resource_kinesis(self, account, resource, namespace_info):
+        identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -3032,7 +3045,6 @@ class TerrascriptClient:
         return working_dirs
 
     def init_values(self, resource, namespace_info):
-        account = resource['account']
         provider = resource['provider']
         identifier = resource['identifier']
         defaults_path = resource.get('defaults', None)
@@ -3058,7 +3070,7 @@ class TerrascriptClient:
 
         annotations = json.loads(resource.get('annotations') or '{}')
 
-        return account, identifier, values, output_prefix, \
+        return identifier, values, output_prefix, \
             output_resource_name, annotations
 
     @staticmethod
@@ -3336,9 +3348,9 @@ class TerrascriptClient:
 
         return tf_resources, publishing_options
 
-    def populate_tf_resource_elasticsearch(self, resource, namespace_info):
-
-        account, identifier, values, output_prefix, \
+    def populate_tf_resource_elasticsearch(self, account, resource,
+                                           namespace_info):
+        identifier, values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -3569,8 +3581,8 @@ class TerrascriptClient:
 
         return advanced_security_options
 
-    def populate_tf_resource_acm(self, resource, namespace_info):
-        account, identifier, common_values, \
+    def populate_tf_resource_acm(self, account, resource, namespace_info):
+        identifier, common_values, \
             output_prefix, output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -3653,9 +3665,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_s3_cloudfront_public_key(self, resource,
+    def populate_tf_resource_s3_cloudfront_public_key(self, account, resource,
                                                       namespace_info):
-        account, identifier, common_values, \
+        identifier, common_values, \
             output_prefix, output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -3732,9 +3744,9 @@ class TerrascriptClient:
 
         return ips
 
-    def populate_tf_resource_alb(self, resource, namespace_info,
-                                 ocm_map=None):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_alb(self, account, resource,
+                                 namespace_info, ocm_map=None):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         tf_resources = []
@@ -4027,8 +4039,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_secrets_manager(self, resource, namespace_info):
-        account, identifier, common_values, \
+    def populate_tf_resource_secrets_manager(self, account, resource,
+                                             namespace_info):
+        identifier, common_values, \
             output_prefix, output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -4073,8 +4086,8 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_asg(self, resource, namespace_info):
-        account, identifier, common_values, \
+    def populate_tf_resource_asg(self, account, resource, namespace_info):
+        identifier, common_values, \
             output_prefix, output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
 
@@ -4209,8 +4222,9 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
-    def populate_tf_resource_route53_zone(self, resource, namespace_info):
-        account, identifier, common_values, output_prefix, \
+    def populate_tf_resource_route53_zone(self, account, resource,
+                                          namespace_info):
+        identifier, common_values, output_prefix, \
             output_resource_name, annotations = \
             self.init_values(resource, namespace_info)
         tf_resources = []
