@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 import gitlab
+from gitlab import GitlabGetError
+from gitlab.const import MAINTAINER_ACCESS
 
 from sretoolbox.utils import retry
 
@@ -236,6 +238,28 @@ def merge_merge_requests(dry_run, gl, merge_limit, rebase,
 
             pipelines = mr.pipelines()
             if not pipelines:
+                logging.debug("No pipelines found for MR: %s", mr.attributes)
+
+                created_time = datetime.fromisoformat(
+                    mr.attributes["created_at"].replace("Z", "")
+                )
+                fifteen_minutes_ago = datetime.utcnow() - timedelta(minutes=15)
+
+                # Waiting 15 minutes avoids too many extra calls to the GitLab
+                # API to check if the bot has the required access.
+                if created_time < fifteen_minutes_ago:
+
+                    try:
+                        src_project = gl.gl.projects.get(
+                            mr.attributes['source_project_id']
+                        )
+                        project_bot = src_project.members.get(gl.user.id)
+                    except GitlabGetError:
+                        logging.error("GitLab bot doesn't have access")
+                    else:
+                        if not project_bot or project_bot.access_level != MAINTAINER_ACCESS:
+                            logging.error("GitLab bot isn't a maintainer")
+
                 continue
 
             # If pipeline_timeout is None no pipeline will be canceled
