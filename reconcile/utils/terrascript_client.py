@@ -900,16 +900,17 @@ class TerrascriptClient:
             tf_resources = namespace_info.get('terraformResources')
             if not tf_resources:
                 continue
-            for resource in tf_resources:
-                populate_spec = {'resource': resource,
-                                 'namespace_info': namespace_info}
-                account = resource['account']
+            for account_resources in tf_resources:
+                account = account_resources['account']['name']
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
-                self.account_resources[account].append(populate_spec)
+                for resource in account_resources['resources']:
+                    populate_spec = {'resource': resource,
+                                     'namespace_info': namespace_info}
+                    self.account_resources[account].append(populate_spec)
 
     def populate_tf_resources(self, account, populate_spec, existing_secrets,
                               ocm_map=None):
