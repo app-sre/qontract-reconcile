@@ -460,8 +460,8 @@ def filter_tf_namespaces(namespaces, account_name):
         if not tf_resources:
             tf_namespaces.append(namespace_info)
             continue
-        for resource in tf_resources:
-            if resource['account'] == account_name:
+        for account_resources in tf_resources:
+            if account_resources['account']['name'] == account_name:
                 tf_namespaces.append(namespace_info)
                 break
     return tf_namespaces
