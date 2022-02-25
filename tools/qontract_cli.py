@@ -1,36 +1,31 @@
 import json
 import sys
+from contextlib import suppress
 from typing import Dict, Iterable, List, Mapping, Union
 
-from contextlib import suppress
 import click
-import requests
-import yaml
-
-from tabulate import tabulate
-from reconcile.status_page_components import (
-    update_component_status, fetch_pages)
-
-from reconcile.utils import dnsutils
-from reconcile.utils import gql
-from reconcile.utils import config
-from reconcile import queries
+import reconcile.ocm_upgrade_scheduler as ous
 import reconcile.openshift_resources_base as orb
 import reconcile.terraform_users as tfu
 import reconcile.terraform_vpc_peerings as tfvpc
-import reconcile.ocm_upgrade_scheduler as ous
-
+import requests
+import yaml
+from reconcile import queries
+from reconcile.checkpoint import report_invalid_metadata
+from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.status_page_components import (fetch_pages,
+                                              update_component_status)
+from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.aws_api import AWSApi
-from reconcile.utils.terraform_client import TerraformClient as Terraform
-from reconcile.utils.state import State
 from reconcile.utils.environ import environ
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import parse_semver
-from reconcile.cli import config_file
-from reconcile.checkpoint import report_invalid_metadata
+from reconcile.utils.state import State
+from reconcile.utils.terraform_client import TerraformClient as Terraform
+from tabulate import tabulate
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
 
