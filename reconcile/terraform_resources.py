@@ -25,7 +25,6 @@ from reconcile.utils.vault import VaultClient
 TF_RESOURCE = """
 provider
 ... on NamespaceTerraformResourceRDS_v1 {
-  account
   identifier
   defaults
   availability_zone
@@ -45,7 +44,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3_v1 {
-  account
   region
   identifier
   defaults
@@ -65,7 +63,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElastiCache_v1 {
-  account
   identifier
   defaults
   parameter_group
@@ -75,7 +72,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceServiceAccount_v1 {
-  account
   identifier
   variables
   policies
@@ -91,7 +87,6 @@ provider
   }
 }
 ... on NamespaceTerraformResourceRole_v1 {
-  account
   identifier
   assume_role {
     AWS
@@ -102,7 +97,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSQS_v1 {
-  account
   region
   identifier
   output_resource_name
@@ -116,7 +110,6 @@ provider
   }
 }
 ... on NamespaceTerraformResourceDynamoDB_v1 {
-  account
   region
   identifier
   output_resource_name
@@ -130,7 +123,6 @@ provider
   }
 }
 ... on NamespaceTerraformResourceECR_v1 {
-  account
   identifier
   region
   output_resource_name
@@ -138,7 +130,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFront_v1 {
-  account
   region
   identifier
   defaults
@@ -147,7 +138,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3SQS_v1 {
-  account
   region
   identifier
   defaults
@@ -157,7 +147,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceCloudWatch_v1 {
-  account
   region
   identifier
   defaults
@@ -167,7 +156,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKMS_v1 {
-  account
   region
   identifier
   defaults
@@ -176,7 +164,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceElasticSearch_v1 {
-  account
   region
   identifier
   defaults
@@ -185,7 +172,6 @@ provider
   publish_log_types
 }
 ... on NamespaceTerraformResourceACM_v1 {
-  account
   region
   identifier
   secret {
@@ -202,7 +188,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceKinesis_v1 {
-  account
   region
   identifier
   defaults
@@ -210,7 +195,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
-  account
   region
   identifier
   secret {
@@ -223,7 +207,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceALB_v1 {
-  account
   region
   identifier
   vpc {
@@ -255,7 +238,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceSecretsManager_v1 {
-  account
   region
   identifier
   secret {
@@ -268,7 +250,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceASG_v1 {
-  account
   region
   identifier
   defaults
@@ -285,7 +266,6 @@ provider
   annotations
 }
 ... on NamespaceTerraformResourceRoute53Zone_v1 {
-  account
   region
   identifier
   name
@@ -301,7 +281,25 @@ TF_NAMESPACES_QUERY = """
     name
     managedTerraformResources
     terraformResources {
-      %s
+      account {
+        path
+        name
+        uid
+        terraformUsername
+        consoleUrl
+        resourcesDefaultRegion
+        supportedDeploymentRegions
+        providerVersion
+        automationToken {
+          path
+          field
+          version
+          format
+        }
+      }
+      resources {
+        %s
+      }
     }
     cluster {
       name
