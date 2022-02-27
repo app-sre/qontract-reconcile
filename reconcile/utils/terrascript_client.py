@@ -901,7 +901,7 @@ class TerrascriptClient:
             if not tf_resources:
                 continue
             for account_resources in tf_resources:
-                account = account_resources['account']['name']
+                account = account_resources['provisioner']['name']
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue

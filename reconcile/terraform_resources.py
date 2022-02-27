@@ -281,24 +281,14 @@ TF_NAMESPACES_QUERY = """
     name
     managedTerraformResources
     terraformResources {
-      account {
-        path
-        name
-        uid
-        terraformUsername
-        consoleUrl
-        resourcesDefaultRegion
-        supportedDeploymentRegions
-        providerVersion
-        automationToken {
-          path
-          field
-          version
-          format
+      provider
+      ... on NamespaceTerraformResourcesProviderAWS_v1 {
+        provisioner {
+          name
         }
-      }
-      resources {
-        %s
+        resources {
+          %s
+        }
       }
     }
     cluster {
@@ -461,7 +451,7 @@ def filter_tf_namespaces(namespaces, account_name):
             tf_namespaces.append(namespace_info)
             continue
         for account_resources in tf_resources:
-            if account_resources['account']['name'] == account_name:
+            if account_resources['provisioner']['name'] == account_name:
                 tf_namespaces.append(namespace_info)
                 break
     return tf_namespaces
