@@ -353,7 +353,6 @@ TF_NAMESPACES_QUERY = """
 )
 
 
-
 QONTRACT_INTEGRATION = 'terraform_resources'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
@@ -482,9 +481,9 @@ def filter_tf_namespaces(namespaces, account_name):
             tf_namespaces.append(namespace_info)
             continue
         for provider_resource in tf_provider_resources:
-          if provider_resource['provisioner']['name'] == account_name:
-              tf_namespaces.append(namespace_info)
-              break
+            if provider_resource['provisioner']['name'] == account_name:
+                tf_namespaces.append(namespace_info)
+                break
         for resource in tf_resources:
             if resource['account'] == account_name:
                 tf_namespaces.append(namespace_info)
