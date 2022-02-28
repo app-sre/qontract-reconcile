@@ -18,7 +18,7 @@ class TestData:
     def apps(self) -> list[dict]:
         return self._apps
 
-    @apps.setter  # type: ignore[no-redef, attr-defined]
+    @apps.setter
     def apps(self, apps: list[dict]) -> None:
         if not isinstance(apps, list):
             raise TypeError(f"Expecting list, have {type(apps)}")
