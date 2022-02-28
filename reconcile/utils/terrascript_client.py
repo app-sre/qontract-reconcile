@@ -897,37 +897,62 @@ class TerrascriptClient:
         self.account_resources = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
-            tf_resources = namespace_info.get('terraformResources')
-            if not tf_resources:
+            tf_provider_resources = \
+                namespace_info.get('terraformProviderResources') or []
+            tf_resources = namespace_info.get('terraformResources') or []
+            if not (tf_provider_resources or tf_resources):
                 continue
+            for provider_resource in tf_provider_resources:
+                provision_provider = provider_resource['provider']
+                # Skip if provision provider is not aws
+                if provision_provider != 'aws':
+                    continue
+                account = provider_resource['provisioner']['name']
+                # Skip if account_name is specified
+                if account_name and account != account_name:
+                    continue
+                if account not in self.account_resources:
+                    self.account_resources[account] = []
+                for resource in provider_resource['resources']:
+                    resource['account'] = account
+                    populate_spec = {'resource': resource,
+                                     'provision_provider': provision_provider,
+                                     'namespace_info': namespace_info}
+                    self.account_resources[account].append(populate_spec)
             for resource in tf_resources:
-                populate_spec = {'resource': resource,
-                                 'namespace_info': namespace_info}
+                # terraformResources is aws specific
+                provision_provider = 'aws'
                 account = resource['account']
                 # Skip if account_name is specified
                 if account_name and account != account_name:
                     continue
                 if account not in self.account_resources:
                     self.account_resources[account] = []
+                populate_spec = {'resource': resource,
+                                 'provision_provider': provision_provider,
+                                 'namespace_info': namespace_info}
                 self.account_resources[account].append(populate_spec)
 
     def populate_tf_resources(self, populate_spec, existing_secrets,
                               ocm_map=None):
         resource = populate_spec['resource']
+        provision_provider = populate_spec['provision_provider']
         namespace_info = populate_spec['namespace_info']
         provider = resource['provider']
+        if provision_provider != 'aws':
+            return
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info,
-                                          existing_secrets)
+                                            existing_secrets)
         elif provider == 's3':
             self.populate_tf_resource_s3(resource, namespace_info)
         elif provider == 'elasticache':
             self.populate_tf_resource_elasticache(resource, namespace_info,
-                                                  existing_secrets)
+                existing_secrets)
         elif provider == 'aws-iam-service-account':
             self.populate_tf_resource_service_account(resource,
-                                                      namespace_info,
-                                                      ocm_map=ocm_map)
+                                                        namespace_info,
+                                                        ocm_map=ocm_map)
         elif provider == 'aws-iam-role':
             self.populate_tf_resource_role(resource, namespace_info)
         elif provider == 'sqs':
@@ -955,7 +980,7 @@ class TerrascriptClient:
                                                                namespace_info)
         elif provider == 'alb':
             self.populate_tf_resource_alb(resource, namespace_info,
-                                          ocm_map=ocm_map)
+                                            ocm_map=ocm_map)
         elif provider == 'secrets-manager':
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
         elif provider == 'asg':
