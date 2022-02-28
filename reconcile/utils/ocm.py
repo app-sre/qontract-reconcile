@@ -8,22 +8,20 @@ from sretoolbox.utils import retry
 from reconcile.utils.secret_reader import SecretReader
 
 
-STATUS_READY = 'ready'
-STATUS_FAILED = 'failed'
-STATUS_DELETING = 'deleting'
+STATUS_READY = "ready"
+STATUS_FAILED = "failed"
+STATUS_DELETING = "deleting"
 
-AMS_API_BASE = '/api/accounts_mgmt'
-CS_API_BASE = '/api/clusters_mgmt'
-KAS_API_BASE = '/api/kafkas_mgmt'
+AMS_API_BASE = "/api/accounts_mgmt"
+CS_API_BASE = "/api/clusters_mgmt"
+KAS_API_BASE = "/api/kafkas_mgmt"
 
-MACHINE_POOL_DESIRED_KEYS = {'id', 'instance_type',
-                             'replicas', 'labels', 'taints'}
-UPGRADE_CHANNELS = {'stable', 'fast', 'candidate'}
-UPGRADE_POLICY_DESIRED_KEYS = \
-    {'id', 'schedule_type', 'schedule', 'next_run', 'version'}
-ROUTER_DESIRED_KEYS = {'id', 'listening', 'dns_name', 'route_selectors'}
-AUTOSCALE_DESIRED_KEYS = {'min_replicas', 'max_replicas'}
-CLUSTER_ADDON_DESIRED_KEYS = {'id', 'parameters'}
+MACHINE_POOL_DESIRED_KEYS = {"id", "instance_type", "replicas", "labels", "taints"}
+UPGRADE_CHANNELS = {"stable", "fast", "candidate"}
+UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
+ROUTER_DESIRED_KEYS = {"id", "listening", "dns_name", "route_selectors"}
+AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
+CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 
@@ -48,9 +46,18 @@ class OCM:
     :type init_addons: bool
     :type blocked_version: list
     """
-    def __init__(self, name, url, access_token_client_id, access_token_url,
-                 offline_token, init_provision_shards=False,
-                 init_addons=False, blocked_versions=None):
+
+    def __init__(
+        self,
+        name,
+        url,
+        access_token_client_id,
+        access_token_url,
+        offline_token,
+        init_provision_shards=False,
+        init_addons=False,
+        blocked_versions=None,
+    ):
         """Initiates access token and gets clusters information."""
         self.name = name
         self.url = url
@@ -69,18 +76,19 @@ class OCM:
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
         self.get_aws_infrastructure_access_role_grants = functools.lru_cache()(
-                self.get_aws_infrastructure_access_role_grants)
+            self.get_aws_infrastructure_access_role_grants
+        )
 
     @retry()
     def _init_access_token(self):
         data = {
-            'grant_type': 'refresh_token',
-            'client_id': self.access_token_client_id,
-            'refresh_token': self.offline_token
+            "grant_type": "refresh_token",
+            "client_id": self.access_token_client_id,
+            "refresh_token": self.offline_token,
         }
         r = requests.post(self.access_token_url, data=data)
         r.raise_for_status()
-        self.access_token = r.json().get('access_token')
+        self.access_token = r.json().get("access_token")
 
     def _init_request_headers(self):
         self.headers = {
@@ -89,57 +97,55 @@ class OCM:
         }
 
     def _init_clusters(self, init_provision_shards):
-        api = f'{CS_API_BASE}/v1/clusters'
-        clusters = self._get_json(api)['items']
-        self.cluster_ids = {c['name']: c['id'] for c in clusters}
+        api = f"{CS_API_BASE}/v1/clusters"
+        clusters = self._get_json(api)["items"]
+        self.cluster_ids = {c["name"]: c["id"] for c in clusters}
         self.clusters = {
-            c['name']: self._get_cluster_ocm_spec(c, init_provision_shards)
-            for c in clusters if c['managed']
-            and c['state'] == STATUS_READY
+            c["name"]: self._get_cluster_ocm_spec(c, init_provision_shards)
+            for c in clusters
+            if c["managed"] and c["state"] == STATUS_READY
         }
-        self.not_ready_clusters = [c['name'] for c in clusters
-                                   if c['managed']
-                                   and c['state'] != STATUS_READY]
+        self.not_ready_clusters = [
+            c["name"] for c in clusters if c["managed"] and c["state"] != STATUS_READY
+        ]
 
     def _get_cluster_ocm_spec(self, cluster, init_provision_shards):
         ocm_spec = {
-            'spec': {
-                'id': cluster['id'],
-                'external_id': cluster['external_id'],
-                'provider': cluster['cloud_provider']['id'],
-                'region': cluster['region']['id'],
-                'channel': cluster['version']['channel_group'],
-                'version': cluster['openshift_version'],
-                'multi_az': cluster['multi_az'],
-                'instance_type':
-                    cluster['nodes']['compute_machine_type']['id'],
-                'storage':
-                    int(cluster['storage_quota']['value'] / 1073741824),
-                'load_balancers': cluster['load_balancer_quota'],
-                'private': cluster['api']['listening'] == 'internal',
-                'provision_shard_id':
-                    self.get_provision_shard(cluster['id'])['id']
-                    if init_provision_shards else None,
-                DISABLE_UWM_ATTR: cluster[DISABLE_UWM_ATTR]
+            "spec": {
+                "id": cluster["id"],
+                "external_id": cluster["external_id"],
+                "provider": cluster["cloud_provider"]["id"],
+                "region": cluster["region"]["id"],
+                "channel": cluster["version"]["channel_group"],
+                "version": cluster["openshift_version"],
+                "multi_az": cluster["multi_az"],
+                "instance_type": cluster["nodes"]["compute_machine_type"]["id"],
+                "storage": int(cluster["storage_quota"]["value"] / 1073741824),
+                "load_balancers": cluster["load_balancer_quota"],
+                "private": cluster["api"]["listening"] == "internal",
+                "provision_shard_id": self.get_provision_shard(cluster["id"])["id"]
+                if init_provision_shards
+                else None,
+                DISABLE_UWM_ATTR: cluster[DISABLE_UWM_ATTR],
             },
-            'network': {
-                'type': cluster['network'].get('type') or 'OpenShiftSDN',
-                'vpc': cluster['network']['machine_cidr'],
-                'service': cluster['network']['service_cidr'],
-                'pod': cluster['network']['pod_cidr']
+            "network": {
+                "type": cluster["network"].get("type") or "OpenShiftSDN",
+                "vpc": cluster["network"]["machine_cidr"],
+                "service": cluster["network"]["service_cidr"],
+                "pod": cluster["network"]["pod_cidr"],
             },
-            'server_url': cluster['api']['url'],
-            'console_url': cluster['console']['url'],
-            'domain': cluster['dns']['base_domain'],
+            "server_url": cluster["api"]["url"],
+            "console_url": cluster["console"]["url"],
+            "domain": cluster["dns"]["base_domain"],
         }
-        cluster_nodes = cluster['nodes']
-        nodes_count = cluster_nodes.get('compute')
+        cluster_nodes = cluster["nodes"]
+        nodes_count = cluster_nodes.get("compute")
         if nodes_count:
-            ocm_spec['spec']['nodes'] = nodes_count
+            ocm_spec["spec"]["nodes"] = nodes_count
         else:
-            autoscale = cluster_nodes.get('autoscale_compute')
+            autoscale = cluster_nodes.get("autoscale_compute")
             if autoscale:
-                ocm_spec['spec']['autoscale'] = self._get_autoscale(cluster)
+                ocm_spec["spec"]["autoscale"] = self._get_autoscale(cluster)
         return ocm_spec
 
     def create_cluster(self, name, cluster, dry_run):
@@ -154,59 +160,47 @@ class OCM:
         :type cluster: dict
         :type dry_run: bool
         """
-        api = f'{CS_API_BASE}/v1/clusters'
-        cluster_spec = cluster['spec']
-        cluster_network = cluster['network']
+        api = f"{CS_API_BASE}/v1/clusters"
+        cluster_spec = cluster["spec"]
+        cluster_network = cluster["network"]
         ocm_spec = {
-            'name': name,
-            'cloud_provider': {
-                'id': cluster_spec['provider']
+            "name": name,
+            "cloud_provider": {"id": cluster_spec["provider"]},
+            "region": {"id": cluster_spec["region"]},
+            "version": {
+                "id": "openshift-v" + cluster_spec["initial_version"],
+                "channel_group": cluster_spec["channel"],
             },
-            'region': {
-                'id': cluster_spec['region']
+            "multi_az": cluster_spec["multi_az"],
+            "nodes": {"compute_machine_type": {"id": cluster_spec["instance_type"]}},
+            "storage_quota": {
+                "value": float(cluster_spec["storage"] * 1073741824)  # 1024^3
             },
-            'version': {
-                'id': 'openshift-v' + cluster_spec['initial_version'],
-                'channel_group': cluster_spec['channel']
+            "load_balancer_quota": cluster_spec["load_balancers"],
+            "network": {
+                "type": cluster_network.get("type") or "OpenShiftSDN",
+                "machine_cidr": cluster_network["vpc"],
+                "service_cidr": cluster_network["service"],
+                "pod_cidr": cluster_network["pod"],
             },
-            'multi_az': cluster_spec['multi_az'],
-            'nodes': {
-                'compute_machine_type': {
-                    'id': cluster_spec['instance_type']
-                }
-            },
-            'storage_quota': {
-                'value': float(cluster_spec['storage'] * 1073741824)  # 1024^3
-            },
-            'load_balancer_quota': cluster_spec['load_balancers'],
-            'network': {
-                'type': cluster_network.get('type') or 'OpenShiftSDN',
-                'machine_cidr': cluster_network['vpc'],
-                'service_cidr': cluster_network['service'],
-                'pod_cidr': cluster_network['pod'],
-            },
-            'api': {
-                'listening':
-                    'internal' if cluster_spec['private']
-                    else 'external'
-            },
-            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or True
+            "api": {"listening": "internal" if cluster_spec["private"] else "external"},
+            DISABLE_UWM_ATTR: cluster_spec.get(DISABLE_UWM_ATTR) or True,
         }
 
-        provision_shard_id = cluster_spec.get('provision_shard_id')
+        provision_shard_id = cluster_spec.get("provision_shard_id")
         if provision_shard_id:
-            ocm_spec.setdefault('properties', {})
-            ocm_spec['properties']['provision_shard_id'] = provision_shard_id
+            ocm_spec.setdefault("properties", {})
+            ocm_spec["properties"]["provision_shard_id"] = provision_shard_id
 
-        autoscale = cluster_spec.get('autoscale')
+        autoscale = cluster_spec.get("autoscale")
         if autoscale is not None:
-            ocm_spec['nodes']['autoscale_compute'] = autoscale
+            ocm_spec["nodes"]["autoscale_compute"] = autoscale
         else:
-            ocm_spec['nodes']['compute'] = cluster_spec['nodes']
+            ocm_spec["nodes"]["compute"] = cluster_spec["nodes"]
 
         params = {}
         if dry_run:
-            params['dryRun'] = 'true'
+            params["dryRun"] = "true"
 
         self._post(api, ocm_spec, params)
 
@@ -223,48 +217,36 @@ class OCM:
         :type dry_run: bool
         """
         cluster_id = self.cluster_ids.get(name)
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}"
         ocm_spec = {}
 
-        instance_type = cluster_spec.get('instance_type')
+        instance_type = cluster_spec.get("instance_type")
         if instance_type is not None:
-            ocm_spec['nodes'] = {
-                'compute_machine_type': {'id': instance_type}
-            }
+            ocm_spec["nodes"] = {"compute_machine_type": {"id": instance_type}}
 
-        storage = cluster_spec.get('storage')
+        storage = cluster_spec.get("storage")
         if storage is not None:
-            ocm_spec['storage_quota'] = {
-                'value': float(storage * 1073741824)  # 1024^3
-            }
+            ocm_spec["storage_quota"] = {"value": float(storage * 1073741824)}  # 1024^3
 
-        load_balancers = cluster_spec.get('load_balancers')
+        load_balancers = cluster_spec.get("load_balancers")
         if load_balancers is not None:
-            ocm_spec['load_balancer_quota'] = load_balancers
+            ocm_spec["load_balancer_quota"] = load_balancers
 
-        private = cluster_spec.get('private')
+        private = cluster_spec.get("private")
         if private is not None:
-            ocm_spec['api'] = {
-                'listening': 'internal' if private else 'external'
-            }
+            ocm_spec["api"] = {"listening": "internal" if private else "external"}
 
-        channel = cluster_spec.get('channel')
+        channel = cluster_spec.get("channel")
         if channel is not None:
-            ocm_spec['version'] = {
-                'channel_group': channel
-            }
+            ocm_spec["version"] = {"channel_group": channel}
 
-        autoscale = cluster_spec.get('autoscale')
+        autoscale = cluster_spec.get("autoscale")
         if autoscale is not None:
-            ocm_spec['nodes'] = {
-                'autoscale_compute': autoscale
-            }
+            ocm_spec["nodes"] = {"autoscale_compute": autoscale}
 
-        nodes = cluster_spec.get('nodes')
+        nodes = cluster_spec.get("nodes")
         if nodes:
-            ocm_spec['nodes'] = {
-                'compute': cluster_spec['nodes']
-            }
+            ocm_spec["nodes"] = {"compute": cluster_spec["nodes"]}
 
         disable_uwm = cluster_spec.get(DISABLE_UWM_ATTR)
         if disable_uwm is not None:
@@ -272,7 +254,7 @@ class OCM:
 
         params = {}
         if dry_run:
-            params['dryRun'] = 'true'
+            params["dryRun"] = "true"
 
         self._patch(api, ocm_spec, params)
 
@@ -289,15 +271,14 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return None
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/groups'
-        groups = self._get_json(api)['items']
-        if group_id not in [g['id'] for g in groups]:
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/groups"
+        groups = self._get_json(api)["items"]
+        if group_id not in [g["id"] for g in groups]:
             return None
 
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              f'groups/{group_id}/users'
-        users = self._get_json(api)['items']
-        return {'users': [u['id'] for u in users]}
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"groups/{group_id}/users"
+        users = self._get_json(api)["items"]
+        return {"users": [u["id"] for u in users]}
 
     def add_user_to_group(self, cluster, group_id, user):
         """
@@ -312,9 +293,8 @@ class OCM:
         :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              f'groups/{group_id}/users'
-        self._post(api, {'id': user})
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"groups/{group_id}/users"
+        self._post(api, {"id": user})
 
     def del_user_from_group(self, cluster, group_id, user_id):
         """Deletes a user from a group in a cluster.
@@ -328,8 +308,10 @@ class OCM:
         :type user: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              f'groups/{group_id}/users/{user_id}'
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"groups/{group_id}/users/{user_id}"
+        )
         self._delete(api)
 
     # pylint: disable=method-hidden
@@ -344,32 +326,36 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return []
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api).get('items', [])
-        return [(r['user_arn'], r['role']['id'], r['state'], r['console_url'])
-                for r in role_grants]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + "aws_infrastructure_access_role_grants"
+        )
+        role_grants = self._get_json(api).get("items", [])
+        return [
+            (r["user_arn"], r["role"]["id"], r["state"], r["console_url"])
+            for r in role_grants
+        ]
 
-    def get_aws_infrastructure_access_terraform_assume_role(self, cluster,
-                                                            tf_account_id,
-                                                            tf_user):
+    def get_aws_infrastructure_access_terraform_assume_role(
+        self, cluster, tf_account_id, tf_user
+    ):
         role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
         for arn, role_id, _, console_url in role_grants:
             if arn != user_arn:
                 continue
-            if role_id != 'network-mgmt':
+            if role_id != "network-mgmt":
                 continue
             # split out only the url arguments
-            account_and_role = console_url.split('?')[1]
-            account, role = account_and_role.split('&')
-            role_account_id = account.replace('account=', '')
-            role_name = role.replace('roleName=', '')
+            account_and_role = console_url.split("?")[1]
+            account, role = account_and_role.split("&")
+            role_account_id = account.replace("account=", "")
+            role_name = role.replace("roleName=", "")
             return f"arn:aws:iam::{role_account_id}:role/{role_name}"
 
-    def add_user_to_aws_infrastructure_access_role_grants(self, cluster,
-                                                          user_arn,
-                                                          access_level):
+    def add_user_to_aws_infrastructure_access_role_grants(
+        self, cluster, user_arn, access_level
+    ):
         """
         Adds a user to AWS infrastructure access in a cluster.
 
@@ -382,13 +368,15 @@ class OCM:
         :type access_level: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              'aws_infrastructure_access_role_grants'
-        self._post(api, {'user_arn': user_arn, 'role': {'id': access_level}})
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + "aws_infrastructure_access_role_grants"
+        )
+        self._post(api, {"user_arn": user_arn, "role": {"id": access_level}})
 
-    def del_user_from_aws_infrastructure_access_role_grants(self, cluster,
-                                                            user_arn,
-                                                            access_level):
+    def del_user_from_aws_infrastructure_access_role_grants(
+        self, cluster, user_arn, access_level
+    ):
         """
         Deletes a user from AWS infrastructure access in a cluster.
 
@@ -401,15 +389,17 @@ class OCM:
         :type access_level: string
         """
         cluster_id = self.cluster_ids[cluster]
-        api = f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-              'aws_infrastructure_access_role_grants'
-        role_grants = self._get_json(api).get('items', [])
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + "aws_infrastructure_access_role_grants"
+        )
+        role_grants = self._get_json(api).get("items", [])
         for rg in role_grants:
-            if rg['user_arn'] != user_arn:
+            if rg["user_arn"] != user_arn:
                 continue
-            if rg['role']['id'] != access_level:
+            if rg["role"]["id"] != access_level:
                 continue
-            aws_infrastructure_access_role_grant_id = rg['id']
+            aws_infrastructure_access_role_grant_id = rg["id"]
             self._delete(f"{api}/{aws_infrastructure_access_role_grant_id}")
 
     def get_github_idp_teams(self, cluster):
@@ -423,25 +413,24 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return result_idps
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers'
-        idps = self._get_json(api).get('items')
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
+        idps = self._get_json(api).get("items")
         if not idps:
             return result_idps
 
         for idp in idps:
-            if idp['type'] != 'GithubIdentityProvider':
+            if idp["type"] != "GithubIdentityProvider":
                 continue
-            if idp['mapping_method'] != 'claim':
+            if idp["mapping_method"] != "claim":
                 continue
-            idp_name = idp['name']
-            idp_github = idp['github']
+            idp_name = idp["name"]
+            idp_github = idp["github"]
 
             item = {
-                'cluster': cluster,
-                'name': idp_name,
-                'client_id': idp_github['client_id'],
-                'teams': idp_github.get('teams')
+                "cluster": cluster,
+                "name": idp_name,
+                "client_id": idp_github["client_id"],
+                "teams": idp_github.get("teams"),
             }
             result_idps.append(item)
         return result_idps
@@ -455,19 +444,18 @@ class OCM:
         :type cluster: string
         :type spec: dictionary
         """
-        cluster = spec['cluster']
+        cluster = spec["cluster"]
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
         payload = {
-            'type': 'GithubIdentityProvider',
-            'mapping_method': 'claim',
-            'name': spec['name'],
-            'github': {
-                'client_id': spec['client_id'],
-                'client_secret': spec['client_secret'],
-                'teams': spec['teams']
-            }
+            "type": "GithubIdentityProvider",
+            "mapping_method": "claim",
+            "name": spec["name"],
+            "github": {
+                "client_id": spec["client_id"],
+                "client_secret": spec["client_secret"],
+                "teams": spec["teams"],
+            },
         }
         self._post(api, payload)
 
@@ -482,16 +470,16 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
-            '/external_configuration/labels'
-        items = self._get_json(api).get('items')
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}" + "/external_configuration/labels"
+        )
+        items = self._get_json(api).get("items")
         if not items:
             return results
 
         for item in items:
-            key = item['key']
-            value = item['value']
+            key = item["key"]
+            value = item["value"]
             results[key] = value
 
         return results
@@ -506,9 +494,9 @@ class OCM:
         :type label: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
-            '/external_configuration/labels'
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}" + "/external_configuration/labels"
+        )
         self._post(api, label)
 
     def delete_external_configuration_label(self, cluster, label):
@@ -521,17 +509,18 @@ class OCM:
         :type label: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
-            '/external_configuration/labels'
-        items = self._get_json(api).get('items')
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}" + "/external_configuration/labels"
+        )
+        items = self._get_json(api).get("items")
         item = [item for item in items if label.items() <= item.items()]
         if not item:
             return
-        label_id = item[0]['id']
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}' + \
-            f'/external_configuration/labels/{label_id}'
+        label_id = item[0]["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}"
+            + f"/external_configuration/labels/{label_id}"
+        )
         self._delete(api)
 
     def get_machine_pools(self, cluster):
@@ -545,15 +534,13 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools'
-        items = self._get_json(api).get('items')
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools"
+        items = self._get_json(api).get("items")
         if not items:
             return results
 
         for item in items:
-            result = {k: v for k, v in item.items()
-                      if k in MACHINE_POOL_DESIRED_KEYS}
+            result = {k: v for k, v in item.items() if k in MACHINE_POOL_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -568,8 +555,7 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools"
         self._post(api, spec)
 
     def update_machine_pool(self, cluster, spec):
@@ -582,12 +568,13 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        machine_pool_id = spec['id']
-        labels = spec.get('labels', {})
-        spec['labels'] = labels
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/' + \
-            f'{machine_pool_id}'
+        machine_pool_id = spec["id"]
+        labels = spec.get("labels", {})
+        spec["labels"] = labels
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
+            + f"{machine_pool_id}"
+        )
         self._patch(api, spec)
 
     def delete_machine_pool(self, cluster, spec):
@@ -600,10 +587,11 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        machine_pool_id = spec['id']
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/' + \
-            f'{machine_pool_id}'
+        machine_pool_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
+            + f"{machine_pool_id}"
+        )
         self._delete(api)
 
     def version_blocked(self, version):
@@ -632,12 +620,12 @@ class OCM:
             list: available versions to upgrade to
         """
         if channel not in UPGRADE_CHANNELS:
-            raise KeyError(f'channel should be one of {UPGRADE_CHANNELS}')
-        version_id = f'openshift-v{version}'
-        if channel != 'stable':
-            version_id = f'{version_id}-{channel}'
-        api = f'{CS_API_BASE}/v1/versions/{version_id}'
-        return self._get_json(api).get('available_upgrades', [])
+            raise KeyError(f"channel should be one of {UPGRADE_CHANNELS}")
+        version_id = f"openshift-v{version}"
+        if channel != "stable":
+            version_id = f"{version_id}-{channel}"
+        api = f"{CS_API_BASE}/v1/versions/{version_id}"
+        return self._get_json(api).get("available_upgrades", [])
 
     def get_upgrade_policies(self, cluster, schedule_type=None):
         """Returns a list of details of Upgrade Policies
@@ -650,17 +638,15 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies'
-        items = self._get_json(api).get('items')
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
+        items = self._get_json(api).get("items")
         if not items:
             return results
 
         for item in items:
-            if schedule_type and item['schedule_type'] != schedule_type:
+            if schedule_type and item["schedule_type"] != schedule_type:
                 continue
-            result = {k: v for k, v in item.items()
-                      if k in UPGRADE_POLICY_DESIRED_KEYS}
+            result = {k: v for k, v in item.items() if k in UPGRADE_POLICY_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -675,8 +661,7 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/upgrade_policies"
         self._post(api, spec)
 
     def delete_upgrade_policy(self, cluster, spec):
@@ -689,10 +674,11 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        upgrade_policy_id = spec['id']
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-            f'upgrade_policies/{upgrade_policy_id}'
+        upgrade_policy_id = spec["id"]
+        api = (
+            f"{CS_API_BASE}/v1/clusters/{cluster_id}/"
+            + f"upgrade_policies/{upgrade_policy_id}"
+        )
         self._delete(api)
 
     def get_additional_routers(self, cluster):
@@ -706,18 +692,16 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses'
-        items = self._get_json(api).get('items')
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses"
+        items = self._get_json(api).get("items")
         if not items:
             return results
 
         for item in items:
             # filter out default router
-            if item['default']:
+            if item["default"]:
                 continue
-            result = {k: v for k, v in item.items()
-                      if k in ROUTER_DESIRED_KEYS}
+            result = {k: v for k, v in item.items() if k in ROUTER_DESIRED_KEYS}
             results.append(result)
 
         return results
@@ -732,8 +716,7 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses"
         self._post(api, spec)
 
     def delete_additional_router(self, cluster, spec):
@@ -746,10 +729,8 @@ class OCM:
         :type spec: dictionary
         """
         cluster_id = self.cluster_ids[cluster]
-        router_id = spec['id']
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/' + \
-            f'ingresses/{router_id}'
+        router_id = spec["id"]
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"ingresses/{router_id}"
         self._delete(api)
 
     def get_provision_shard(self, cluster_id):
@@ -759,69 +740,69 @@ class OCM:
 
         :type cluster: string
         """
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/provision_shard'
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/provision_shard"
         return self._get_json(api)
 
     @staticmethod
     def _get_autoscale(cluster):
-        autoscale = cluster['nodes'].get('autoscale_compute', None)
+        autoscale = cluster["nodes"].get("autoscale_compute", None)
         if autoscale is None:
             return None
-        return {k: v for k, v in autoscale.items()
-                if k in AUTOSCALE_DESIRED_KEYS}
+        return {k: v for k, v in autoscale.items() if k in AUTOSCALE_DESIRED_KEYS}
 
-    def get_pull_secrets(self,):
-        api = f'{AMS_API_BASE}/v1/access_token'
+    def get_pull_secrets(
+        self,
+    ):
+        api = f"{AMS_API_BASE}/v1/access_token"
         return self._post(api)
 
     def get_kafka_clusters(self, fields=None):
-        """Returns details of the Kafka clusters """
-        api = f'{KAS_API_BASE}/v1/kafkas'
-        clusters = self._get_json(api)['items']
+        """Returns details of the Kafka clusters"""
+        api = f"{KAS_API_BASE}/v1/kafkas"
+        clusters = self._get_json(api)["items"]
         if fields:
-            clusters = [{k: v for k, v in cluster.items()
-                         if k in fields}
-                        for cluster in clusters]
+            clusters = [
+                {k: v for k, v in cluster.items() if k in fields}
+                for cluster in clusters
+            ]
         return clusters
 
     def get_kafka_service_accounts(self, fields=None):
-        """Returns details of the Kafka service accounts """
+        """Returns details of the Kafka service accounts"""
         results = []
-        api = f'{KAS_API_BASE}/v1/service_accounts'
-        service_accounts = self._get_json(api)['items']
+        api = f"{KAS_API_BASE}/v1/service_accounts"
+        service_accounts = self._get_json(api)["items"]
         for sa in service_accounts:
-            sa_id = sa['id']
-            id_api = f'{api}/{sa_id}'
+            sa_id = sa["id"]
+            id_api = f"{api}/{sa_id}"
             sa_details = self._get_json(id_api)
             if fields:
-                sa_details = {k: v for k, v in sa_details.items()
-                              if k in fields}
+                sa_details = {k: v for k, v in sa_details.items() if k in fields}
             results.append(sa_details)
         return results
 
     def create_kafka_cluster(self, data):
-        """Creates (async) a Kafka cluster """
-        api = f'{KAS_API_BASE}/v1/kafkas'
-        params = {'async': 'true'}
+        """Creates (async) a Kafka cluster"""
+        api = f"{KAS_API_BASE}/v1/kafkas"
+        params = {"async": "true"}
         self._post(api, data, params)
 
     def create_kafka_service_account(self, name, fields=None):
-        """ Creates a Kafka service account """
-        api = f'{KAS_API_BASE}/v1/service_accounts'
-        result = self._post(api, {'name': name})
+        """Creates a Kafka service account"""
+        api = f"{KAS_API_BASE}/v1/service_accounts"
+        result = self._post(api, {"name": name})
         if fields:
             result = {k: v for k, v in result.items() if k in fields}
         return result
 
     def _init_addons(self):
-        """Returns a list of Addons """
-        api = f'{CS_API_BASE}/v1/addons'
-        self.addons = self._get_json(api).get('items')
+        """Returns a list of Addons"""
+        api = f"{CS_API_BASE}/v1/addons"
+        self.addons = self._get_json(api).get("items")
 
     def get_addon(self, id):
         for addon in self.addons:
-            addon_id = addon['id']
+            addon_id = addon["id"]
             if id == addon_id:
                 return addon
         return None
@@ -837,24 +818,22 @@ class OCM:
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/addons'
-        items = self._get_json(api).get('items')
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addons"
+        items = self._get_json(api).get("items")
         if not items:
             return results
 
         for item in items:
-            result = {k: v for k, v in item.items()
-                      if k in CLUSTER_ADDON_DESIRED_KEYS}
-            parameters = result.pop('parameters', None)
+            result = {k: v for k, v in item.items() if k in CLUSTER_ADDON_DESIRED_KEYS}
+            parameters = result.pop("parameters", None)
             if parameters is not None:
-                result['parameters'] = parameters['items']
+                result["parameters"] = parameters["items"]
             results.append(result)
 
         return results
 
     def install_addon(self, cluster, spec):
-        """ Installs an addon on a cluster
+        """Installs an addon on a cluster
 
         :param cluster: cluster name
         :param spec: required information for installation
@@ -863,13 +842,12 @@ class OCM:
         :type spec: dictionary ({'id': <addon_id>})
         """
         cluster_id = self.cluster_ids[cluster]
-        api = \
-            f'{CS_API_BASE}/v1/clusters/{cluster_id}/addons'
-        parameters = spec.pop('parameters', None)
-        data = {'addon': spec}
+        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/addons"
+        parameters = spec.pop("parameters", None)
+        data = {"addon": spec}
         if parameters is not None:
-            data['parameters'] = {}
-            data['parameters']['items'] = parameters
+            data["parameters"] = {}
+            data["parameters"]["items"] = parameters
         self._post(api, data)
 
     def _init_blocked_versions(self, blocked_versions):
@@ -882,8 +860,7 @@ class OCM:
             try:
                 re.compile(b)
             except re.error:
-                raise TypeError(
-                    f'blocked version is not a valid regex expression: {b}')
+                raise TypeError(f"blocked version is not a valid regex expression: {b}")
 
     @retry(max_attempts=10)
     def _get_json(self, api):
@@ -893,10 +870,7 @@ class OCM:
 
     def _post(self, api, data=None, params=None):
         r = requests.post(
-            f"{self.url}{api}",
-            headers=self.headers,
-            json=data,
-            params=params
+            f"{self.url}{api}", headers=self.headers, json=data, params=params
         )
         try:
             r.raise_for_status()
@@ -949,10 +923,16 @@ class OCMMap:
     :type init_provision_shards: bool
     :type init_addons: bool
     """
-    def __init__(self, clusters=None, namespaces=None,
-                 integration='', settings=None,
-                 init_provision_shards=False,
-                 init_addons=False):
+
+    def __init__(
+        self,
+        clusters=None,
+        namespaces=None,
+        integration="",
+        settings=None,
+        init_provision_shards=False,
+        init_addons=False,
+    ):
         """Initiates OCM instances for each OCM referenced in a cluster."""
         self.clusters_map = {}
         self.ocm_map = {}
@@ -960,21 +940,18 @@ class OCMMap:
         self.settings = settings
 
         if clusters and namespaces:
-            raise KeyError('expected only one of clusters or namespaces.')
+            raise KeyError("expected only one of clusters or namespaces.")
         elif clusters:
             for cluster_info in clusters:
-                self.init_ocm_client(cluster_info, init_provision_shards,
-                                     init_addons)
+                self.init_ocm_client(cluster_info, init_provision_shards, init_addons)
         elif namespaces:
             for namespace_info in namespaces:
-                cluster_info = namespace_info['cluster']
-                self.init_ocm_client(cluster_info, init_provision_shards,
-                                     init_addons)
+                cluster_info = namespace_info["cluster"]
+                self.init_ocm_client(cluster_info, init_provision_shards, init_addons)
         else:
-            raise KeyError('expected one of clusters or namespaces.')
+            raise KeyError("expected one of clusters or namespaces.")
 
-    def init_ocm_client(self, cluster_info, init_provision_shards,
-                        init_addons):
+    def init_ocm_client(self, cluster_info, init_provision_shards, init_addons):
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
@@ -989,30 +966,34 @@ class OCMMap:
         """
         if self.cluster_disabled(cluster_info):
             return
-        cluster_name = cluster_info['name']
-        ocm_info = cluster_info['ocm']
-        ocm_name = ocm_info['name']
+        cluster_name = cluster_info["name"]
+        ocm_info = cluster_info["ocm"]
+        ocm_name = ocm_info["name"]
         # pointer from each cluster to its referenced OCM instance
         self.clusters_map[cluster_name] = ocm_name
         if self.ocm_map.get(ocm_name):
             return
 
-        access_token_client_id = ocm_info.get('accessTokenClientId')
-        access_token_url = ocm_info.get('accessTokenUrl')
-        ocm_offline_token = ocm_info.get('offlineToken')
+        access_token_client_id = ocm_info.get("accessTokenClientId")
+        access_token_url = ocm_info.get("accessTokenUrl")
+        ocm_offline_token = ocm_info.get("offlineToken")
         if ocm_offline_token is None:
             self.ocm_map[ocm_name] = False
         else:
-            url = ocm_info['url']
-            name = ocm_info['name']
+            url = ocm_info["url"]
+            name = ocm_info["name"]
             secret_reader = SecretReader(settings=self.settings)
             token = secret_reader.read(ocm_offline_token)
-            self.ocm_map[ocm_name] = \
-                OCM(name, url,
-                    access_token_client_id, access_token_url, token,
-                    init_provision_shards=init_provision_shards,
-                    init_addons=init_addons,
-                    blocked_versions=ocm_info.get('blockedVersions'))
+            self.ocm_map[ocm_name] = OCM(
+                name,
+                url,
+                access_token_client_id,
+                access_token_url,
+                token,
+                init_provision_shards=init_provision_shards,
+                init_addons=init_addons,
+                blocked_versions=ocm_info.get("blockedVersions"),
+            )
 
     def instances(self):
         """Get list of OCM instance names initiated in the OCM map."""
@@ -1027,8 +1008,8 @@ class OCMMap:
         :type cluster_info: dict
         """
         try:
-            integrations = cluster_info['disable']['integrations']
-            if self.calling_integration.replace('_', '-') in integrations:
+            integrations = cluster_info["disable"]["integrations"]
+            if self.calling_integration.replace("_", "-") in integrations:
                 return True
         except (KeyError, TypeError):
             pass
@@ -1063,8 +1044,16 @@ class OCMMap:
 
     def kafka_cluster_specs(self):
         """Get dictionary of Kafka cluster names and specs in the OCM map."""
-        fields = ['id', 'status', 'cloud_provider', 'region', 'multi_az',
-                  'name', 'bootstrap_server_host', 'failed_reason']
+        fields = [
+            "id",
+            "status",
+            "cloud_provider",
+            "region",
+            "multi_az",
+            "name",
+            "bootstrap_server_host",
+            "failed_reason",
+        ]
         cluster_specs = []
         for ocm in self.ocm_map.values():
             clusters = ocm.get_kafka_clusters(fields=fields)
@@ -1072,8 +1061,8 @@ class OCMMap:
         return cluster_specs
 
     def kafka_service_account_specs(self):
-        """ Get dictionary of Kafka service account specs in the OCM map. """
-        fields = ['name', 'client_id']
+        """Get dictionary of Kafka service account specs in the OCM map."""
+        fields = ["name", "client_id"]
         service_account_specs = []
         for ocm in self.ocm_map.values():
             service_accounts = ocm.get_kafka_service_accounts(fields=fields)

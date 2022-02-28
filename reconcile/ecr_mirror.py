@@ -11,7 +11,7 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.secret_reader import SecretReader
 
 
-QONTRACT_INTEGRATION = 'ecr-mirror'
+QONTRACT_INTEGRATION = "ecr-mirror"
 LOG = logging.getLogger(__name__)
 
 
@@ -24,16 +24,16 @@ class EcrMirror:
         self.skopeo_cli = Skopeo(dry_run)
         self.error = False
 
-        identifier = instance['identifier']
-        account = instance['account']
-        region = instance.get('region')
+        identifier = instance["identifier"]
+        account = instance["account"]
+        region = instance.get("region")
 
-        self.aws_cli = AWSApi(thread_pool_size=1,
-                              accounts=[
-                                  self._get_aws_account_info(account)
-                              ],
-                              settings=self.settings,
-                              init_ecr_auth_tokens=True)
+        self.aws_cli = AWSApi(
+            thread_pool_size=1,
+            accounts=[self._get_aws_account_info(account)],
+            settings=self.settings,
+            init_ecr_auth_tokens=True,
+        )
 
         self.aws_cli.map_ecr_resources()
 
@@ -49,62 +49,66 @@ class EcrMirror:
             account=account,
             region=region,
         )
-        self.ecr_auth = f'{self.ecr_username}:{self.ecr_password}'
+        self.ecr_auth = f"{self.ecr_username}:{self.ecr_password}"
 
         self.image_username = None
         self.image_password = None
         self.image_auth = None
-        pull_secret = self.instance['mirror']['pullCredentials']
+        pull_secret = self.instance["mirror"]["pullCredentials"]
         if pull_secret is not None:
             raw_data = self.secret_reader.read_all(pull_secret)
             self.image_username = raw_data["user"]
             self.image_password = raw_data["token"]
-            self.image_auth = f'{self.image_username}:{self.image_password}'
+            self.image_auth = f"{self.image_username}:{self.image_password}"
 
     def run(self):
         if self.error:
             return
 
-        ecr_mirror = Image(self.ecr_uri,
-                           username=self.ecr_username,
-                           password=self.ecr_password)
+        ecr_mirror = Image(
+            self.ecr_uri, username=self.ecr_username, password=self.ecr_password
+        )
 
-        image = Image(self.instance['mirror']['url'],
-                      username=self.image_username,
-                      password=self.image_password)
+        image = Image(
+            self.instance["mirror"]["url"],
+            username=self.image_username,
+            password=self.image_password,
+        )
 
-        LOG.debug('[checking %s -> %s]', image, ecr_mirror)
+        LOG.debug("[checking %s -> %s]", image, ecr_mirror)
         for tag in image:
             if tag not in ecr_mirror:
                 try:
-                    self.skopeo_cli.copy(src_image=image[tag],
-                                         src_creds=self.image_auth,
-                                         dst_image=ecr_mirror[tag],
-                                         dest_creds=self.ecr_auth)
+                    self.skopeo_cli.copy(
+                        src_image=image[tag],
+                        src_creds=self.image_auth,
+                        dst_image=ecr_mirror[tag],
+                        dest_creds=self.ecr_auth,
+                    )
                 except SkopeoCmdError as details:
-                    LOG.error('[%s]', details)
+                    LOG.error("[%s]", details)
 
     def _get_ecr_creds(self, account, region):
         if region is None:
-            region = self.aws_cli.accounts[account]['resourcesDefaultRegion']
-        auth_token = f'{account}/{region}'
+            region = self.aws_cli.accounts[account]["resourcesDefaultRegion"]
+        auth_token = f"{account}/{region}"
         data = self.aws_cli.auth_tokens[auth_token]
-        auth_data = data['authorizationData'][0]
-        token = auth_data['authorizationToken']
-        password = base64.b64decode(token).decode('utf-8').split(':')[1]
-        return 'AWS', password
+        auth_data = data["authorizationData"][0]
+        token = auth_data["authorizationToken"]
+        password = base64.b64decode(token).decode("utf-8").split(":")[1]
+        return "AWS", password
 
     def _get_image_uri(self, account, repository):
-        for repo in self.aws_cli.resources[account]['ecr']:
-            if repo['repositoryName'] == repository:
-                return repo['repositoryUri']
+        for repo in self.aws_cli.resources[account]["ecr"]:
+            if repo["repositoryName"] == repository:
+                return repo["repositoryUri"]
 
     @staticmethod
     def _get_aws_account_info(account):
         for account_info in queries.get_aws_accounts():
-            if 'name' not in account_info:
+            if "name" not in account_info:
                 continue
-            if account_info['name'] != account:
+            if account_info["name"] != account:
                 continue
             return account_info
 
@@ -119,19 +123,19 @@ def run(dry_run, thread_pool_size=10):
     tfrs_to_mirror = []
     for namespace in namespaces:
 
-        if namespace['terraformResources'] is None:
+        if namespace["terraformResources"] is None:
             continue
 
-        for tfr in namespace['terraformResources']:
-            if tfr['provider'] != 'ecr':
+        for tfr in namespace["terraformResources"]:
+            if tfr["provider"] != "ecr":
                 continue
 
-            if tfr['mirror'] is None:
+            if tfr["mirror"] is None:
                 continue
 
             tfrs_to_mirror.append(tfr)
 
-    work_list = threaded.run(EcrMirror, tfrs_to_mirror,
-                             thread_pool_size=thread_pool_size,
-                             dry_run=dry_run)
+    work_list = threaded.run(
+        EcrMirror, tfrs_to_mirror, thread_pool_size=thread_pool_size, dry_run=dry_run
+    )
     threaded.run(worker, work_list, thread_pool_size=thread_pool_size)

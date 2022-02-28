@@ -12,27 +12,31 @@ from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.saasherder import SaasHerder, Providers, \
-    UNIQUE_SAAS_FILE_ENV_COMBO_LEN
+from reconcile.utils.saasherder import (
+    SaasHerder,
+    Providers,
+    UNIQUE_SAAS_FILE_ENV_COMBO_LEN,
+)
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.defer import defer
-from reconcile.openshift_tekton_resources import \
-    build_one_per_saas_file_tkn_object_name
+from reconcile.openshift_tekton_resources import build_one_per_saas_file_tkn_object_name
 
 _trigger_lock = Lock()
 
 
 @defer
-def run(dry_run,
-        trigger_type,
-        integration,
-        integration_version,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        v1=True,
-        v2=True,
-        defer=None):
+def run(
+    dry_run,
+    trigger_type,
+    integration,
+    integration_version,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    v1=True,
+    v2=True,
+    defer=None,
+):
     """Run trigger integration
 
     Args:
@@ -50,16 +54,15 @@ def run(dry_run,
     Returns:
         bool: True if there was an error, False otherwise
     """
-    saasherder, jenkins_map, oc_map, settings, error = \
-        setup(
-            thread_pool_size=thread_pool_size,
-            internal=internal,
-            use_jump_host=use_jump_host,
-            integration=integration,
-            integration_version=integration_version,
-            v1=v1,
-            v2=v2
-        )
+    saasherder, jenkins_map, oc_map, settings, error = setup(
+        thread_pool_size=thread_pool_size,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        integration=integration,
+        integration_version=integration_version,
+        v1=v1,
+        v2=v2,
+    )
     if error:
         return error
     defer(oc_map.cleanup)
@@ -69,33 +72,28 @@ def run(dry_run,
     # we need it to be consistent across all iterations
     already_triggered = set()
 
-    errors = \
-        threaded.run(
-            trigger,
-            trigger_specs,
-            thread_pool_size,
-            dry_run=dry_run,
-            saasherder=saasherder,
-            jenkins_map=jenkins_map,
-            oc_map=oc_map,
-            already_triggered=already_triggered,
-            settings=settings,
-            trigger_type=trigger_type,
-            integration=integration,
-            integration_version=integration_version
-        )
+    errors = threaded.run(
+        trigger,
+        trigger_specs,
+        thread_pool_size,
+        dry_run=dry_run,
+        saasherder=saasherder,
+        jenkins_map=jenkins_map,
+        oc_map=oc_map,
+        already_triggered=already_triggered,
+        settings=settings,
+        trigger_type=trigger_type,
+        integration=integration,
+        integration_version=integration_version,
+    )
     errors.append(diff_err)
 
     return any(errors)
 
 
-def setup(thread_pool_size,
-          internal,
-          use_jump_host,
-          integration,
-          integration_version,
-          v1,
-          v2):
+def setup(
+    thread_pool_size, internal, use_jump_host, integration, integration_version, v1, v2
+):
     """Setup required resources for triggering integrations
 
     Args:
@@ -117,17 +115,17 @@ def setup(thread_pool_size,
 
     saas_files = queries.get_saas_files(v1=v1, v2=v2)
     if not saas_files:
-        logging.error('no saas files found')
+        logging.error("no saas files found")
         return None, None, None, None, True
-    saas_files = [sf for sf in saas_files if is_in_shard(sf['name'])]
+    saas_files = [sf for sf in saas_files if is_in_shard(sf["name"])]
 
     # Remove saas-file targets that are disabled
     for saas_file in saas_files[:]:
-        resource_templates = saas_file['resourceTemplates']
+        resource_templates = saas_file["resourceTemplates"]
         for rt in resource_templates[:]:
-            targets = rt['targets']
+            targets = rt["targets"]
             for target in targets[:]:
-                if target['disable']:
+                if target["disable"]:
                     targets.remove(target)
 
     instance = queries.get_gitlab_instance()
@@ -136,15 +134,18 @@ def setup(thread_pool_size,
     gl = GitLabApi(instance, settings=settings)
     jenkins_map = jenkins_base.get_jenkins_map()
     pipelines_providers = queries.get_pipelines_providers()
-    tkn_provider_namespaces = [pp['namespace'] for pp in pipelines_providers
-                               if pp['provider'] == 'tekton']
+    tkn_provider_namespaces = [
+        pp["namespace"] for pp in pipelines_providers if pp["provider"] == "tekton"
+    ]
 
     oc_map = OC_Map(
         namespaces=tkn_provider_namespaces,
         integration=integration,
-        settings=settings, internal=internal,
+        settings=settings,
+        internal=internal,
         use_jump_host=use_jump_host,
-        thread_pool_size=thread_pool_size)
+        thread_pool_size=thread_pool_size,
+    )
 
     saasherder = SaasHerder(
         saas_files,
@@ -154,21 +155,24 @@ def setup(thread_pool_size,
         integration_version=integration_version,
         settings=settings,
         jenkins_map=jenkins_map,
-        accounts=accounts)
+        accounts=accounts,
+    )
 
     return saasherder, jenkins_map, oc_map, settings, False
 
 
-def trigger(spec,
-            dry_run,
-            saasherder,
-            jenkins_map,
-            oc_map,
-            already_triggered,
-            settings,
-            trigger_type,
-            integration,
-            integration_version):
+def trigger(
+    spec,
+    dry_run,
+    saasherder,
+    jenkins_map,
+    oc_map,
+    already_triggered,
+    settings,
+    trigger_type,
+    integration,
+    integration_version,
+):
     """Trigger a deployment according to the specified pipelines provider
 
     Args:
@@ -189,8 +193,8 @@ def trigger(spec,
     """
 
     # TODO: Convert these into a dataclass.
-    saas_file_name = spec['saas_file_name']
-    provider_name = spec['pipelines_provider']['provider']
+    saas_file_name = spec["saas_file_name"]
+    provider_name = spec["pipelines_provider"]["provider"]
 
     error = False
     if provider_name == Providers.JENKINS:
@@ -201,7 +205,8 @@ def trigger(spec,
             jenkins_map,
             already_triggered,
             settings,
-            trigger_type)
+            trigger_type,
+        )
 
     elif provider_name == Providers.TEKTON:
         error = _trigger_tekton(
@@ -212,38 +217,31 @@ def trigger(spec,
             already_triggered,
             trigger_type,
             integration,
-            integration_version)
+            integration_version,
+        )
 
     else:
         error = True
-        logging.error(
-            f'[{saas_file_name}] unsupported provider: ' +
-            f'{provider_name}'
-        )
+        logging.error(f"[{saas_file_name}] unsupported provider: " + f"{provider_name}")
 
     return error
 
 
-def _trigger_jenkins(spec,
-                     dry_run,
-                     saasherder,
-                     jenkins_map,
-                     already_triggered,
-                     settings,
-                     trigger_type):
+def _trigger_jenkins(
+    spec, dry_run, saasherder, jenkins_map, already_triggered, settings, trigger_type
+):
     # TODO: Convert these into a dataclass.
-    saas_file_name = spec['saas_file_name']
-    env_name = spec['env_name']
-    pipelines_provider = spec['pipelines_provider']
+    saas_file_name = spec["saas_file_name"]
+    env_name = spec["env_name"]
+    pipelines_provider = spec["pipelines_provider"]
 
-    instance_name = pipelines_provider['instance']['name']
-    job_name = get_openshift_saas_deploy_job_name(
-        saas_file_name, env_name, settings)
+    instance_name = pipelines_provider["instance"]["name"]
+    job_name = get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings)
 
     error = False
     to_trigger = _register_trigger(job_name, already_triggered)
     if to_trigger:
-        logging.info(['trigger_job', instance_name, job_name])
+        logging.info(["trigger_job", instance_name, job_name])
         if not dry_run:
             jenkins = jenkins_map[instance_name]
             try:
@@ -251,8 +249,8 @@ def _trigger_jenkins(spec,
             except Exception as e:
                 error = True
                 logging.error(
-                    f"could not trigger job {job_name} " +
-                    f"in {instance_name}. details: {str(e)}"
+                    f"could not trigger job {job_name} "
+                    + f"in {instance_name}. details: {str(e)}"
                 )
 
     if not error and not dry_run:
@@ -261,43 +259,51 @@ def _trigger_jenkins(spec,
     return error
 
 
-def _trigger_tekton(spec,
-                    dry_run,
-                    saasherder,
-                    oc_map,
-                    already_triggered,
-                    trigger_type,
-                    integration,
-                    integration_version):
+def _trigger_tekton(
+    spec,
+    dry_run,
+    saasherder,
+    oc_map,
+    already_triggered,
+    trigger_type,
+    integration,
+    integration_version,
+):
     # TODO: Convert these into a dataclass.
-    saas_file_name = spec['saas_file_name']
-    env_name = spec['env_name']
-    pipelines_provider = spec['pipelines_provider']
+    saas_file_name = spec["saas_file_name"]
+    env_name = spec["env_name"]
+    pipelines_provider = spec["pipelines_provider"]
 
-    pipeline_template_name = pipelines_provider['defaults'][
-        'pipelineTemplates']['openshiftSaasDeploy']['name']
+    pipeline_template_name = pipelines_provider["defaults"]["pipelineTemplates"][
+        "openshiftSaasDeploy"
+    ]["name"]
 
-    if pipelines_provider['pipelineTemplates']:
-        pipeline_template_name = pipelines_provider[
-            'pipelineTemplates']['openshiftSaasDeploy']['name']
+    if pipelines_provider["pipelineTemplates"]:
+        pipeline_template_name = pipelines_provider["pipelineTemplates"][
+            "openshiftSaasDeploy"
+        ]["name"]
 
     tkn_pipeline_name = build_one_per_saas_file_tkn_object_name(
-        pipeline_template_name, saas_file_name)
+        pipeline_template_name, saas_file_name
+    )
 
-    tkn_namespace_info = pipelines_provider['namespace']
-    tkn_namespace_name = tkn_namespace_info['name']
-    tkn_cluster_name = tkn_namespace_info['cluster']['name']
-    tkn_cluster_console_url = tkn_namespace_info['cluster']['consoleUrl']
+    tkn_namespace_info = pipelines_provider["namespace"]
+    tkn_namespace_name = tkn_namespace_info["name"]
+    tkn_cluster_name = tkn_namespace_info["cluster"]["name"]
+    tkn_cluster_console_url = tkn_namespace_info["cluster"]["consoleUrl"]
 
     # if pipeline does not exist it means that either it hasn't been
     # statically created from app-interface or it hasn't been dynamically
     # created from openshift-tekton-resources. In either case, we return here
     # to avoid triggering anything or updating the state. We don't return an
     # error as this is an expected condition when adding a new saas file
-    if not _pipeline_exists(tkn_pipeline_name, tkn_cluster_name,
-                            tkn_namespace_name, oc_map):
-        logging.warning(f"Pipeline {tkn_pipeline_name} does not exist in "
-                        f"{tkn_cluster_name}/{tkn_namespace_name}.")
+    if not _pipeline_exists(
+        tkn_pipeline_name, tkn_cluster_name, tkn_namespace_name, oc_map
+    ):
+        logging.warning(
+            f"Pipeline {tkn_pipeline_name} does not exist in "
+            f"{tkn_cluster_name}/{tkn_namespace_name}."
+        )
         return False
 
     tkn_trigger_resource, tkn_name = _construct_tekton_trigger_resource(
@@ -307,25 +313,27 @@ def _trigger_tekton(spec,
         tkn_cluster_console_url,
         tkn_namespace_name,
         integration,
-        integration_version
+        integration_version,
     )
 
     error = False
     to_trigger = _register_trigger(tkn_name, already_triggered)
     if to_trigger:
         try:
-            osb.create(dry_run=dry_run,
-                       oc_map=oc_map,
-                       cluster=tkn_cluster_name,
-                       namespace=tkn_namespace_name,
-                       resource_type=tkn_trigger_resource.kind,
-                       resource=tkn_trigger_resource)
+            osb.create(
+                dry_run=dry_run,
+                oc_map=oc_map,
+                cluster=tkn_cluster_name,
+                namespace=tkn_namespace_name,
+                resource_type=tkn_trigger_resource.kind,
+                resource=tkn_trigger_resource,
+            )
         except Exception as e:
             error = True
             logging.error(
-                f"could not trigger pipeline {tkn_name} " +
-                f"in {tkn_cluster_name}/{tkn_namespace_name}. " +
-                f"details: {str(e)}"
+                f"could not trigger pipeline {tkn_name} "
+                + f"in {tkn_cluster_name}/{tkn_namespace_name}. "
+                + f"details: {str(e)}"
             )
 
     if not error and not dry_run:
@@ -336,17 +344,20 @@ def _trigger_tekton(spec,
 
 def _pipeline_exists(name, tkn_cluster_name, tkn_namespace_name, oc_map):
     oc = oc_map.get(tkn_cluster_name)
-    return oc.get(namespace=tkn_namespace_name, kind='Pipeline', name=name,
-                  allow_not_found=True)
+    return oc.get(
+        namespace=tkn_namespace_name, kind="Pipeline", name=name, allow_not_found=True
+    )
 
 
-def _construct_tekton_trigger_resource(saas_file_name,
-                                       env_name,
-                                       tkn_pipeline_name,
-                                       tkn_cluster_console_url,
-                                       tkn_namespace_name,
-                                       integration,
-                                       integration_version):
+def _construct_tekton_trigger_resource(
+    saas_file_name,
+    env_name,
+    tkn_pipeline_name,
+    tkn_cluster_console_url,
+    tkn_namespace_name,
+    integration,
+    integration_version,
+):
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
     Args:
@@ -365,42 +376,25 @@ def _construct_tekton_trigger_resource(saas_file_name,
     # using a timestamp to make the resource name unique.
     # we may want to revisit traceability, but this is compatible
     # with what we currently have in Jenkins.
-    ts = datetime.datetime.utcnow().strftime('%Y%m%d%H%M')  # len 12
+    ts = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")  # len 12
     # max name length can be 63. leaving 12 for the timestamp - 51
     name = f"{long_name[:UNIQUE_SAAS_FILE_ENV_COMBO_LEN]}-{ts}"
 
     body = {
         "apiVersion": "tekton.dev/v1beta1",
         "kind": "PipelineRun",
-        "metadata": {
-            "name": name
-        },
+        "metadata": {"name": name},
         "spec": {
-            "pipelineRef": {
-                "name": tkn_pipeline_name
-            },
+            "pipelineRef": {"name": tkn_pipeline_name},
             "params": [
-                {
-                    "name": "saas_file_name",
-                    "value": saas_file_name
-                },
-                {
-                    "name": "env_name",
-                    "value": env_name
-                },
-                {
-                    "name": "tkn_cluster_console_url",
-                    "value": tkn_cluster_console_url
-                },
-                {
-                    "name": "tkn_namespace_name",
-                    "value": tkn_namespace_name
-                }
-            ]
-        }
+                {"name": "saas_file_name", "value": saas_file_name},
+                {"name": "env_name", "value": env_name},
+                {"name": "tkn_cluster_console_url", "value": tkn_cluster_console_url},
+                {"name": "tkn_namespace_name", "value": tkn_namespace_name},
+            ],
+        },
     }
-    return OR(body, integration, integration_version,
-              error_details=name), long_name
+    return OR(body, integration, integration_version, error_details=name), long_name
 
 
 def _register_trigger(name, already_triggered):

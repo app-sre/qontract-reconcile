@@ -49,7 +49,7 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get('vault'):
+        if self.settings and self.settings.get("vault"):
             try:
                 data = self.vault_client.read(secret)
             except vault.SecretNotFound as e:
@@ -78,12 +78,13 @@ class SecretReader:
         :raises secret_reader.SecretNotFound:
         """
 
-        if self.settings and self.settings.get('vault'):
+        if self.settings and self.settings.get("vault"):
             try:
                 data = self.vault_client.read_all(secret)
             except Forbidden:
-                raise VaultForbidden(f'permission denied reading vault secret '
-                                     f'at {secret["path"]}')
+                raise VaultForbidden(
+                    f"permission denied reading vault secret " f'at {secret["path"]}'
+                )
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e
         else:

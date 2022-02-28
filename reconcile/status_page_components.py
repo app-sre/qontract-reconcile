@@ -60,8 +60,7 @@ class StatusPageProvider(BaseModel):
         return []
 
     @abstractmethod
-    def apply_component(self, dry_run: bool,
-                        desired: StatusComponent) -> Optional[str]:
+    def apply_component(self, dry_run: bool, desired: StatusComponent) -> Optional[str]:
         return None
 
     @abstractmethod
@@ -69,8 +68,7 @@ class StatusPageProvider(BaseModel):
         return None
 
     @abstractmethod
-    def update_component_status(self, dry_run: bool,
-                                id: str, status: str) -> None:
+    def update_component_status(self, dry_run: bool, id: str, status: str) -> None:
         return None
 
 
@@ -88,9 +86,11 @@ class StatusPage(BaseModel):
 
     def get_page_provider(self) -> StatusPageProvider:
         if self.provider == "atlassian":
-            provider = AtlassianStatusPage(page_id=self.page_id,
-                                           api_url=self.api_url,
-                                           token=self.credentials.get("token"))
+            provider = AtlassianStatusPage(
+                page_id=self.page_id,
+                api_url=self.api_url,
+                token=self.credentials.get("token"),
+            )
             provider.rebuild_state()
             return provider
         else:
@@ -98,19 +98,18 @@ class StatusPage(BaseModel):
 
     def get_component_by_name(self, name) -> Optional[StatusComponent]:
         return next(
-            filter(lambda c: c.name == name, self.components),  # type: ignore
-            None
+            filter(lambda c: c.name == name, self.components), None  # type: ignore
         )
 
-    def update_component_status(self, dry_run: bool,
-                                component_name: str, component_status: str,
-                                state: State) -> None:
+    def update_component_status(
+        self, dry_run: bool, component_name: str, component_status: str, state: State
+    ) -> None:
         component_id = state.get(component_name)
         if component_id:
             page_provider = self.get_page_provider()
-            page_provider.update_component_status(dry_run,
-                                                  component_id,
-                                                  component_status)
+            page_provider.update_component_status(
+                dry_run, component_id, component_status
+            )
         else:
             raise ValueError(f"component {component_name} unknown")
 
@@ -130,10 +129,14 @@ class StatusPage(BaseModel):
             # not known to the desired state, it was once managed by this
             # integration but was delete from app-interface -> delete from page
             name_for_current_component = id_to_name_state.get(current_id)
-            if (name_for_current_component and
-               name_for_current_component not in desired_component_names):
-                LOG.info(f"delete component {name_for_current_component} "
-                         f"from page {self.name}")
+            if (
+                name_for_current_component
+                and name_for_current_component not in desired_component_names
+            ):
+                LOG.info(
+                    f"delete component {name_for_current_component} "
+                    f"from page {self.name}"
+                )
                 page_provider.delete_component(dry_run, current_id)
                 if not dry_run:
                     state.rm(name_for_current_component)
@@ -144,19 +147,24 @@ class StatusPage(BaseModel):
             if component_id and desired.component_id != component_id:
                 self._bind_component(dry_run, desired, component_id, state)
 
-    def _bind_component(self, dry_run: bool,
-                        component: StatusComponent, component_id: str,
-                        state: State) -> None:
-        LOG.info(f"bind component {component.name} to ID {component_id} "
-                 f"on page {self.name}")
+    def _bind_component(
+        self, dry_run: bool, component: StatusComponent, component_id: str, state: State
+    ) -> None:
+        LOG.info(
+            f"bind component {component.name} to ID {component_id} "
+            f"on page {self.name}"
+        )
         if not dry_run:
             state.add(component.name, component_id, force=True)
             component.component_id = component_id
 
 
 ATLASSIAN_COMPONENT_STATES = [
-    "operational", "under_maintenance", "degraded_performance",
-    "partial_outage", "major_outage"
+    "operational",
+    "under_maintenance",
+    "degraded_performance",
+    "partial_outage",
+    "major_outage",
 ]
 
 
@@ -179,22 +187,22 @@ class AtlassianStatusPage(StatusPageProvider):
     def component_ids(self) -> Iterable[str]:
         return self.components_by_id.keys()
 
-    def _find_component(self,
-                        component: StatusComponent
-                        ) -> Optional[AtlassianComponent]:
-        if component.component_id \
-           and component.component_id in self.components_by_id:
+    def _find_component(
+        self, component: StatusComponent
+    ) -> Optional[AtlassianComponent]:
+        if component.component_id and component.component_id in self.components_by_id:
             return self.components_by_id.get(component.component_id)
         else:
             return self.components_by_displayname.get(component.display_name)
 
-    def apply_component(self, dry_run: bool,
-                        desired: StatusComponent) -> Optional[str]:
+    def apply_component(self, dry_run: bool, desired: StatusComponent) -> Optional[str]:
         current = self._find_component(desired)
-        if current \
-           and desired.display_name == current.name \
-           and desired.description == current.description \
-           and desired.group_name == current.group_name:
+        if (
+            current
+            and desired.display_name == current.name
+            and desired.description == current.description
+            and desired.group_name == current.group_name
+        ):
             # todo logging
             return current.id
 
@@ -203,19 +211,22 @@ class AtlassianStatusPage(StatusPageProvider):
         if desired.group_name:
             group_id = self.group_name_to_id.get(desired.group_name, None)
             if not group_id:
-                raise ValueError(f"Group {desired.group_name} referenced "
-                                 f"by {desired.name} does not exist")
+                raise ValueError(
+                    f"Group {desired.group_name} referenced "
+                    f"by {desired.name} does not exist"
+                )
 
         # Special handling if a component needs to be moved out of any grouping
         # We would need to use the component_group endpoint but for now let's
         # just raise this as an error because of lazyness へ‿(ツ)‿ㄏ
         if current and current.group_name and not desired.group_name:
-            raise ValueError(f"Remove grouping from the component "
-                             f"{desired.group_name} is currently unsupported")
+            raise ValueError(
+                f"Remove grouping from the component "
+                f"{desired.group_name} is currently unsupported"
+            )
 
         component_update = dict(
-            name=desired.display_name,
-            description=desired.description
+            name=desired.display_name, description=desired.description
         )
         if group_id:
             component_update["group_id"] = group_id
@@ -249,14 +260,12 @@ class AtlassianStatusPage(StatusPageProvider):
         group_ids_to_name = {g.id: g.name for g in raw_components if g.group}
         return [
             AtlassianComponent(
-                **c.toDict(),
-                group_name=group_ids_to_name.get(c.group_id, None)
+                **c.toDict(), group_name=group_ids_to_name.get(c.group_id, None)
             )
             for c in raw_components
         ]
 
-    def update_component_status(self, dry_run: bool,
-                                id: str, status: str) -> None:
+    def update_component_status(self, dry_run: bool, id: str, status: str) -> None:
         if status in ATLASSIAN_COMPONENT_STATES:
             if not dry_run:
                 self._update_component(id, {"status": status})
@@ -267,9 +276,9 @@ class AtlassianStatusPage(StatusPageProvider):
             )
 
     def _client(self):
-        return statuspageio.Client(api_key=self.token,
-                                   page_id=self.page_id,
-                                   organization_id="unset")
+        return statuspageio.Client(
+            api_key=self.token, page_id=self.page_id, organization_id="unset"
+        )
 
 
 def fetch_pages() -> list[StatusPage]:
@@ -279,21 +288,18 @@ def fetch_pages() -> list[StatusPage]:
 def get_state() -> State:
     settings = queries.get_app_interface_settings()
     accounts = queries.get_state_aws_accounts()
-    return State(integration=QONTRACT_INTEGRATION,
-                 accounts=accounts,
-                 settings=settings)
+    return State(integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings)
 
 
-def update_component_status(dry_run: bool,
-                            component_name: str, component_status: str):
+def update_component_status(dry_run: bool, component_name: str, component_status: str):
     state = get_state()
     updated = False
     for page in fetch_pages():
         component = page.get_component_by_name(component_name)
         if component:
-            page.update_component_status(dry_run,
-                                         component_name, component_status,
-                                         state)
+            page.update_component_status(
+                dry_run, component_name, component_status, state
+            )
             updated = True
     if not updated:
         raise ValueError(f"component {component_name} not found")

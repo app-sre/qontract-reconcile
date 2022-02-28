@@ -4,7 +4,7 @@ from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 
-QONTRACT_INTEGRATION = 'jenkins-webhooks-cleaner'
+QONTRACT_INTEGRATION = "jenkins-webhooks-cleaner"
 
 
 def run(dry_run):
@@ -21,13 +21,13 @@ def run(dry_run):
             hook_url = hook.url
             if hook_url in found_hook_urls:
                 # duplicate! remove
-                logging.info(['delete_hook', repo, hook_url])
+                logging.info(["delete_hook", repo, hook_url])
                 if not dry_run:
                     hook.delete()
                 continue
             found_hook_urls.add(hook_url)
             for previous_url in previous_urls:
                 if hook_url.startswith(previous_url):
-                    logging.info(['delete_hook', repo, hook_url])
+                    logging.info(["delete_hook", repo, hook_url])
                     if not dry_run:
                         hook.delete()

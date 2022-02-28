@@ -22,23 +22,23 @@ def run_test(func, *args):
 
 
 @click.group()
-@click.option('--config', 'configfile',
-              required=True,
-              help='Path to configuration file in toml format.')
-@click.option('--log-level',
-              help='log-level of the command. Defaults to INFO.',
-              type=click.Choice([
-                  'DEBUG',
-                  'INFO',
-                  'WARNING',
-                  'ERROR',
-                  'CRITICAL']))
+@click.option(
+    "--config",
+    "configfile",
+    required=True,
+    help="Path to configuration file in toml format.",
+)
+@click.option(
+    "--log-level",
+    help="log-level of the command. Defaults to INFO.",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
 @click.pass_context
 def test(ctx, configfile, log_level):
     ctx.ensure_object(dict)
 
     level = getattr(logging, log_level) if log_level else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=level)
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
 
     config.init_from_toml(configfile)
 

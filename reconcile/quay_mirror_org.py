@@ -15,7 +15,7 @@ from reconcile.quay_base import get_quay_api_store
 
 _LOG = logging.getLogger(__name__)
 
-QONTRACT_INTEGRATION = 'quay-mirror-org'
+QONTRACT_INTEGRATION = "quay-mirror-org"
 
 
 class QuayMirrorOrg:
@@ -29,12 +29,14 @@ class QuayMirrorOrg:
         for org, data in sync_tasks.items():
             for item in data:
                 try:
-                    self.skopeo_cli.copy(src_image=item['mirror_url'],
-                                         src_creds=item['mirror_creds'],
-                                         dst_image=item['image_url'],
-                                         dest_creds=self.get_push_creds(org))
+                    self.skopeo_cli.copy(
+                        src_image=item["mirror_url"],
+                        src_creds=item["mirror_creds"],
+                        dst_image=item["image_url"],
+                        dest_creds=self.get_push_creds(org),
+                    )
                 except SkopeoCmdError as details:
-                    _LOG.error('[%s]', details)
+                    _LOG.error("[%s]", details)
 
     def process_org_mirrors(self, summary):
         """adds new keys to the summary dict with information about mirrored
@@ -50,30 +52,30 @@ class QuayMirrorOrg:
         """
 
         for org_key, org_info in self.quay_api_store.items():
-            if not org_info.get('mirror'):
+            if not org_info.get("mirror"):
                 continue
 
-            quay_api = org_info['api']
-            upstream_org_key = org_info['mirror']
+            quay_api = org_info["api"]
+            upstream_org_key = org_info["mirror"]
             upstream_org = self.quay_api_store[upstream_org_key]
-            upstream_quay_api = upstream_org['api']
+            upstream_quay_api = upstream_org["api"]
 
-            username = upstream_org['push_token']['user']
-            token = upstream_org['push_token']['token']
+            username = upstream_org["push_token"]["user"]
+            token = upstream_org["push_token"]["token"]
 
-            repos = [item['name'] for item in quay_api.list_images()]
+            repos = [item["name"] for item in quay_api.list_images()]
             for repo in upstream_quay_api.list_images():
-                if repo['name'] not in repos:
+                if repo["name"] not in repos:
                     continue
-                server_url = upstream_org['url']
+                server_url = upstream_org["url"]
                 url = f"{server_url}/{org_key.org_name}/{repo['name']}"
                 data = {
-                    'name': repo['name'],
-                    'mirror': {
-                        'url': url,
-                        'username': username,
-                        'token': token,
-                    }
+                    "name": repo["name"],
+                    "mirror": {
+                        "url": url,
+                        "username": username,
+                        "token": token,
+                    },
                 }
                 summary[org_key].append(data)
 
@@ -91,76 +93,93 @@ class QuayMirrorOrg:
             org = self.quay_api_store[org_key]
             org_name = org_key.org_name
 
-            server_url = org['url']
-            username = org['push_token']['user']
-            password = org['push_token']['token']
+            server_url = org["url"]
+            username = org["push_token"]["user"]
+            password = org["push_token"]["token"]
 
             for item in data:
-                image = Image(f'{server_url}/{org_name}/{item["name"]}',
-                              username=username, password=password)
+                image = Image(
+                    f'{server_url}/{org_name}/{item["name"]}',
+                    username=username,
+                    password=password,
+                )
 
-                mirror_url = item['mirror']['url']
+                mirror_url = item["mirror"]["url"]
 
                 mirror_username = None
                 mirror_password = None
                 mirror_creds = None
 
-                if item['mirror'].get('username') and \
-                        item['mirror'].get('token'):
-                    mirror_username = item['mirror']['username']
-                    mirror_password = item['mirror']['token']
-                    mirror_creds = f'{mirror_username}:{mirror_password}'
+                if item["mirror"].get("username") and item["mirror"].get("token"):
+                    mirror_username = item["mirror"]["username"]
+                    mirror_password = item["mirror"]["token"]
+                    mirror_creds = f"{mirror_username}:{mirror_password}"
 
-                image_mirror = Image(mirror_url, username=mirror_username,
-                                     password=mirror_password)
+                image_mirror = Image(
+                    mirror_url, username=mirror_username, password=mirror_password
+                )
 
                 for tag in image_mirror:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
                     if tag not in image:
-                        _LOG.debug('Image %s and mirror %s are out of sync',
-                                   downstream, upstream)
-                        task = {'mirror_url': str(upstream),
-                                'mirror_creds': mirror_creds,
-                                'image_url': str(downstream)}
+                        _LOG.debug(
+                            "Image %s and mirror %s are out of sync",
+                            downstream,
+                            upstream,
+                        )
+                        task = {
+                            "mirror_url": str(upstream),
+                            "mirror_creds": mirror_creds,
+                            "image_url": str(downstream),
+                        }
                         sync_tasks[org_key].append(task)
                         continue
 
                     # Deep (slow) check only in non dry-run mode
                     if self.dry_run:
-                        _LOG.debug('Image %s and mirror %s are in sync',
-                                   downstream, upstream)
+                        _LOG.debug(
+                            "Image %s and mirror %s are in sync", downstream, upstream
+                        )
                         continue
 
                     # Deep (slow) check only from time to time
                     if not is_deep_sync:
-                        _LOG.debug('Image %s and mirror %s are in sync',
-                                   downstream, upstream)
+                        _LOG.debug(
+                            "Image %s and mirror %s are in sync", downstream, upstream
+                        )
                         continue
 
                     try:
                         if downstream == upstream:
-                            _LOG.debug('Image %s and mirror %s are in sync',
-                                       downstream, upstream)
+                            _LOG.debug(
+                                "Image %s and mirror %s are in sync",
+                                downstream,
+                                upstream,
+                            )
                             continue
                     except ImageComparisonError as details:
-                        _LOG.error('[%s]', details)
+                        _LOG.error("[%s]", details)
                         continue
 
-                    _LOG.debug('Image %s and mirror %s are out of sync',
-                               downstream, upstream)
-                    sync_tasks[org_key].append({'mirror_url': str(upstream),
-                                                'mirror_creds': mirror_creds,
-                                                'image_url': str(downstream)})
+                    _LOG.debug(
+                        "Image %s and mirror %s are out of sync", downstream, upstream
+                    )
+                    sync_tasks[org_key].append(
+                        {
+                            "mirror_url": str(upstream),
+                            "mirror_creds": mirror_creds,
+                            "image_url": str(downstream),
+                        }
+                    )
 
         return sync_tasks
 
     def _is_deep_sync(self, interval):
-        control_file_name = 'qontract-reconcile-quay-mirror-org.timestamp'
-        control_file_path = os.path.join(tempfile.gettempdir(),
-                                         control_file_name)
+        control_file_name = "qontract-reconcile-quay-mirror-org.timestamp"
+        control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
-            with open(control_file_path, 'r') as file_obj:
+            with open(control_file_path, "r") as file_obj:
                 last_deep_sync = float(file_obj.read())
         except FileNotFoundError:
             self._record_timestamp(control_file_path)
@@ -175,7 +194,7 @@ class QuayMirrorOrg:
 
     @staticmethod
     def _record_timestamp(path):
-        with open(path, 'w') as file_object:
+        with open(path, "w") as file_object:
             file_object.write(str(time.time()))
 
     def get_push_creds(self, org_key):
@@ -187,9 +206,9 @@ class QuayMirrorOrg:
         :rtype: tuple(str, str)
         """
 
-        push_token = self.quay_api_store[org_key]['push_token']
-        username = push_token['user']
-        password = push_token['token']
+        push_token = self.quay_api_store[org_key]["push_token"]
+        username = push_token["user"]
+        password = push_token["token"]
         return f"{username}:{password}"
 
 

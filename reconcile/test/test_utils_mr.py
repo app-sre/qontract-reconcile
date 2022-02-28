@@ -10,7 +10,6 @@ from reconcile.utils.mr.base import MergeRequestProcessingError
 
 
 class DummyMergeRequest(MergeRequestBase):
-
     def __init__(self, process_error: Optional[Exception] = None):
         super().__init__()
         self.process_error = process_error
@@ -23,10 +22,11 @@ class DummyMergeRequest(MergeRequestBase):
             raise self.process_error
 
 
-def build_gitlab_cli_mock(mr_exists: bool = False,
-                          diffs: Optional[list] = None,
-                          create_branch_error: Optional[Exception] = None) \
-        -> GitLabApi:
+def build_gitlab_cli_mock(
+    mr_exists: bool = False,
+    diffs: Optional[list] = None,
+    create_branch_error: Optional[Exception] = None,
+) -> GitLabApi:
     cli = MagicMock(spec=GitLabApi)
     cli.mr_exists.return_value = mr_exists
     if create_branch_error:
@@ -34,7 +34,7 @@ def build_gitlab_cli_mock(mr_exists: bool = False,
     cli.project = MagicMock()
     cli.project.mergerequests = MagicMock()
     if diffs is not None:
-        cli.project.repository_compare.return_value = {'diffs': diffs}
+        cli.project.repository_compare.return_value = {"diffs": diffs}
     return cli
 
 

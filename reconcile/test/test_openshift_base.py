@@ -10,27 +10,23 @@ fxt = Fixtures("namespaces")
 
 
 class TestInitSpecsToFetch(testslide.TestCase):
-
     def setUp(self) -> None:
         super().setUp()
         self.resource_inventory = cast(
-            resource.ResourceInventory,
-            testslide.StrictMock(resource.ResourceInventory)
+            resource.ResourceInventory, testslide.StrictMock(resource.ResourceInventory)
         )
 
         self.oc_map = cast(oc.OC_Map, testslide.StrictMock(oc.OC_Map))
-        self.mock_constructor(oc, 'OC_Map').to_return_value(self.oc_map)
+        self.mock_constructor(oc, "OC_Map").to_return_value(self.oc_map)
         self.namespaces = [fxt.get_anymarkup("valid-ns.yml")]
 
         self.mock_callable(
-            self.resource_inventory, 'initialize_resource_type'
-        ).for_call(
-            'cs1', 'ns1', 'Template'
-        ).to_return_value(None)
+            self.resource_inventory, "initialize_resource_type"
+        ).for_call("cs1", "ns1", "Template").to_return_value(None)
 
-        self.mock_callable(
-            self.oc_map, 'get'
-        ).for_call("cs1", False).to_return_value("stuff")
+        self.mock_callable(self.oc_map, "get").for_call("cs1", False).to_return_value(
+            "stuff"
+        )
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
 
     def test_only_cluster_or_namespace(self) -> None:
@@ -39,7 +35,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 self.resource_inventory,
                 self.oc_map,
                 [{"foo": "bar"}],
-                [{"name": 'cluster1'}],
+                [{"name": "cluster1"}],
             )
 
     def test_no_cluster_or_namespace(self) -> None:
@@ -47,7 +43,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
             sut.init_specs_to_fetch(self.resource_inventory, self.oc_map)
 
     def assert_specs_match(
-            self, result: List[sut.StateSpec], expected: List[sut.StateSpec]
+        self, result: List[sut.StateSpec], expected: List[sut.StateSpec]
     ) -> None:
         """Assert that two list of StateSpec are equal. Needed since StateSpec
         doesn't implement __eq__ and it's not worth to add for we will convert
@@ -72,12 +68,9 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 oc="stuff",
                 cluster="cs1",
                 namespace="ns1",
-                resource={
-                    "provider": "resource",
-                    "path": "/some/path.yml"
-                },
-                parent=self.namespaces[0]
-            )
+                resource={"provider": "resource", "path": "/some/path.yml"},
+                parent=self.namespaces[0],
+            ),
         ]
 
         rs = sut.init_specs_to_fetch(
@@ -88,11 +81,8 @@ class TestInitSpecsToFetch(testslide.TestCase):
         self.assert_specs_match(rs, expected)
 
     def test_namespaces_managed_with_overrides(self) -> None:
-        self.namespaces[0]['managedResourceTypeOverrides'] = [
-            {
-                "resource": "Template",
-                "override": "something.template"
-            }
+        self.namespaces[0]["managedResourceTypeOverrides"] = [
+            {"resource": "Template", "override": "something.template"}
         ]
         expected = [
             sut.StateSpec(
@@ -109,12 +99,9 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 oc="stuff",
                 cluster="cs1",
                 namespace="ns1",
-                resource={
-                    "provider": "resource",
-                    "path": "/some/path.yml"
-                },
-                parent=self.namespaces[0]
-            )
+                resource={"provider": "resource", "path": "/some/path.yml"},
+                parent=self.namespaces[0],
+            ),
         ]
         rs = sut.init_specs_to_fetch(
             self.resource_inventory,
@@ -125,8 +112,8 @@ class TestInitSpecsToFetch(testslide.TestCase):
         self.assert_specs_match(rs, expected)
 
     def test_namespaces_no_managedresourcenames(self) -> None:
-        self.namespaces[0]['managedResourceNames'] = None
-        self.namespaces[0]['managedResourceTypeOverrides'] = None
+        self.namespaces[0]["managedResourceNames"] = None
+        self.namespaces[0]["managedResourceTypeOverrides"] = None
         self.maxDiff = None
         expected = [
             sut.StateSpec(
@@ -138,19 +125,15 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 resource="Template",
                 resource_names=None,
                 resource_type_override=None,
-
             ),
             sut.StateSpec(
                 type="desired",
                 oc="stuff",
                 cluster="cs1",
                 namespace="ns1",
-                resource={
-                    "provider": "resource",
-                    "path": "/some/path.yml"
-                },
-                parent=self.namespaces[0]
-            )
+                resource={"provider": "resource", "path": "/some/path.yml"},
+                parent=self.namespaces[0],
+            ),
         ]
         rs = sut.init_specs_to_fetch(
             self.resource_inventory,
@@ -160,7 +143,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
         self.assert_specs_match(rs, expected)
 
     def test_namespaces_no_managedresourcetypes(self) -> None:
-        self.namespaces[0]['managedResourceTypes'] = None
+        self.namespaces[0]["managedResourceTypes"] = None
         rs = sut.init_specs_to_fetch(
             self.resource_inventory,
             self.oc_map,
@@ -171,7 +154,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
 
     def test_namespaces_extra_managed_resource_name(self) -> None:
         # mypy doesn't recognize that this is a list
-        self.namespaces[0]['managedResourceNames'].append(  # type: ignore
+        self.namespaces[0]["managedResourceNames"].append(  # type: ignore
             {
                 "resource": "Secret",
                 "resourceNames": ["s1", "s2"],
@@ -186,7 +169,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
             )
 
     def test_namespaces_extra_override(self) -> None:
-        self.namespaces[0]['managedResourceTypeOverrides'] = [
+        self.namespaces[0]["managedResourceTypeOverrides"] = [
             {
                 "resource": "Project",
                 "override": "something.project",
@@ -195,13 +178,11 @@ class TestInitSpecsToFetch(testslide.TestCase):
 
         with self.assertRaises(KeyError):
             sut.init_specs_to_fetch(
-                self.resource_inventory,
-                self.oc_map,
-                namespaces=self.namespaces
+                self.resource_inventory, self.oc_map, namespaces=self.namespaces
             )
 
     def test_namespaces_override_managed_type(self) -> None:
-        self.namespaces[0]['managedResourceTypeOverrides'] = [
+        self.namespaces[0]["managedResourceTypeOverrides"] = [
             {
                 "resource": "Project",
                 "override": "wonderful.project",
@@ -218,28 +199,27 @@ class TestInitSpecsToFetch(testslide.TestCase):
                 resource="LimitRanges",
                 resource_names=None,
                 resource_type_override=None,
-
             ),
             sut.StateSpec(
                 type="desired",
                 oc="stuff",
                 cluster="cs1",
                 namespace="ns1",
-                resource={
-                    "provider": "resource",
-                    "path": "/some/path.yml"
-                },
-                parent=self.namespaces[0]
-            )
+                resource={"provider": "resource", "path": "/some/path.yml"},
+                parent=self.namespaces[0],
+            ),
         ]
 
         self.maxDiff = None
         self.mock_callable(
-            self.resource_inventory, 'initialize_resource_type'
-        ).for_call(
-            'cs1', 'ns1', 'LimitRanges'
-        ).to_return_value(None).and_assert_called_once()
+            self.resource_inventory, "initialize_resource_type"
+        ).for_call("cs1", "ns1", "LimitRanges").to_return_value(
+            None
+        ).and_assert_called_once()
         rs = sut.init_specs_to_fetch(
-            self.resource_inventory, oc_map=self.oc_map,
-            namespaces=self.namespaces, override_managed_types=['LimitRanges'])
+            self.resource_inventory,
+            oc_map=self.oc_map,
+            namespaces=self.namespaces,
+            override_managed_types=["LimitRanges"],
+        )
         self.assert_specs_match(rs, expected)

@@ -22,8 +22,8 @@ def init_from_config():
 
     config = get_config()
 
-    serverUrl = config['ldap']['server']
-    _base_dn = config['ldap']['base_dn']
+    serverUrl = config["ldap"]["server"]
+    _base_dn = config["ldap"]["base_dn"]
     return init(serverUrl)
 
 
@@ -33,9 +33,7 @@ def get_users(uids):
     with init_from_config() as client:
         user_filter = "".join((f"(uid={u})" for u in uids))
         _, _, results, _ = client.search(
-            _base_dn,
-            f'(&(objectclass=person)(|{user_filter}))',
-            attributes=["uid"]
+            _base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
         # pylint: disable=not-an-iterable
-        return set(r['attributes']['uid'][0] for r in results)
+        return set(r["attributes"]["uid"][0] for r in results)

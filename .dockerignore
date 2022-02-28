@@ -1,5 +1,6 @@
 *.egg-info
-*.toml
+config.toml
+config.*.toml
 .eggs
 build
 .pytest_cache

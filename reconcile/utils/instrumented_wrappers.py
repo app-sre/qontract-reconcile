@@ -7,9 +7,9 @@ from reconcile.utils import metrics
 
 # TODO: move these to a shared, constants module
 
-INTEGRATION_NAME = os.environ.get('INTEGRATION_NAME', '')
-SHARDS = os.environ.get('SHARDS', 1)
-SHARD_ID = int(os.environ.get('SHARD_ID', 0))
+INTEGRATION_NAME = os.environ.get("INTEGRATION_NAME", "")
+SHARDS = os.environ.get("SHARDS", 1)
+SHARD_ID = int(os.environ.get("SHARD_ID", 0))
 
 
 class InstrumentedImage(Image):
@@ -32,26 +32,19 @@ class InstrumentedImage(Image):
 
 
 class InstrumentedCache:
-
     def __init__(self, integration_name, shards, shard_id):
         self.integraton_name = integration_name
         self.shards = shards
         self.shard_id = shard_id
 
         self._hits = metrics.cache_hits.labels(
-            integration=integration_name,
-            shards=shards,
-            shard_id=shard_id
+            integration=integration_name, shards=shards, shard_id=shard_id
         )
         self._misses = metrics.cache_misses.labels(
-            integration=integration_name,
-            shards=shards,
-            shard_id=shard_id
+            integration=integration_name, shards=shards, shard_id=shard_id
         )
         self._size = metrics.cache_size.labels(
-            integration=integration_name,
-            shards=shards,
-            shard_id=shard_id
+            integration=integration_name, shards=shards, shard_id=shard_id
         )
 
         self._cache = {}
@@ -73,12 +66,9 @@ class InstrumentedCache:
 
 
 class InstrumentedSkopeo(Skopeo):
-
     def copy(self, *args, **kwargs):
         # pylint: disable=signature-differs
         metrics.copy_count.labels(
-            integration=INTEGRATION_NAME,
-            shard=SHARDS,
-            shard_id=SHARD_ID
+            integration=INTEGRATION_NAME, shard=SHARDS, shard_id=SHARD_ID
         ).inc()
         return super().copy(*args, **kwargs)

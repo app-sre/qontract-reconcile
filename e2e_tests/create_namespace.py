@@ -9,14 +9,12 @@ import e2e_tests.network_policy_test_base as npt
 
 from reconcile.utils.defer import defer
 
-QONTRACT_E2E_TEST = 'create-namespace'
+QONTRACT_E2E_TEST = "create-namespace"
 
 
 def test_cluster(cluster, oc_map, ns_under_test):
     oc = oc_map.get(cluster)
-    logging.info("[{}] Creating namespace '{}'".format(
-        cluster, ns_under_test
-    ))
+    logging.info("[{}] Creating namespace '{}'".format(cluster, ns_under_test))
 
     try:
         oc.new_project(ns_under_test)
@@ -35,6 +33,10 @@ def run(thread_pool_size=10, defer=None):
     oc_map = tb.get_oc_map(QONTRACT_E2E_TEST)
     defer(oc_map.cleanup)
     ns_under_test = tb.get_test_namespace_name()
-    threaded.run(test_cluster, oc_map.clusters(), thread_pool_size,
-                 oc_map=oc_map,
-                 ns_under_test=ns_under_test)
+    threaded.run(
+        test_cluster,
+        oc_map.clusters(),
+        thread_pool_size,
+        oc_map=oc_map,
+        ns_under_test=ns_under_test,
+    )
