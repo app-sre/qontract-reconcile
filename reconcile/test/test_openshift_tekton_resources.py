@@ -35,13 +35,13 @@ class TstData:
     def saas_files(self) -> list[dict[str, Any]]:
         return self._saas_files
 
-    @providers.setter  # type: ignore[no-redef, attr-defined]
+    @providers.setter
     def providers(self, providers: list[dict[str, Any]]) -> None:
         if not isinstance(providers, list):
             raise TypeError(f"Expecting list, have {type(providers)}")
         self._providers = providers
 
-    @saas_files.setter  # type: ignore[no-redef, attr-defined]
+    @saas_files.setter
     def saas_files(self, saas_files: list[dict[str, Any]]) -> None:
         if not isinstance(saas_files, list):
             raise TypeError(f"Expecting list, have {type(saas_files)}")

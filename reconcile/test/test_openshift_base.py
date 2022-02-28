@@ -153,8 +153,7 @@ class TestInitSpecsToFetch(testslide.TestCase):
         self.assertEqual(rs, [])
 
     def test_namespaces_extra_managed_resource_name(self) -> None:
-        # mypy doesn't recognize that this is a list
-        self.namespaces[0]["managedResourceNames"].append(  # type: ignore
+        self.namespaces[0]["managedResourceNames"].append(
             {
                 "resource": "Secret",
                 "resourceNames": ["s1", "s2"],

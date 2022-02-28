@@ -133,7 +133,7 @@ def report_invalid_metadata(
     """
     if dry_run:
         do_cut = partial(
-            render_template,  # type: ignore
+            render_template,
             template=MISSING_DATA_TEMPLATE,
             name=app["name"],
             path=path,
@@ -152,7 +152,7 @@ def report_invalid_metadata(
     for field, validator in VALIDATORS.items():
         value = app.get(field)
         try:
-            if not validator(value):  # type: ignore
+            if not validator(value):
                 i = do_cut(field=field, bad_value=str(value))
                 logging.error(
                     f"Reporting bad field {field} with value {value}: {i}"
