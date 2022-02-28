@@ -24,7 +24,7 @@ class SecretReader:
         containing `value: true` if Vault is to be used as the secret backend.
         """
         self.settings = settings
-        self._vault_client = None
+        self._vault_client: Optional[VaultClient] = None
 
     @property
     def vault_client(self):

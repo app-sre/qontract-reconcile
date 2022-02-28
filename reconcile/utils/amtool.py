@@ -1,5 +1,5 @@
 import tempfile
-from subprocess import run, PIPE
+from subprocess import run, PIPE, CalledProcessError
 
 
 class AmtoolResult:
@@ -28,7 +28,7 @@ def _run_yaml_str_cmd(cmd, yaml_str):
             fp.flush()
             cmd.append(fp.name)
             result = run(cmd, stdout=PIPE, stderr=PIPE, check=True)
-    except Exception as e:
+    except CalledProcessError as e:
         msg = f'Error running amtool command [{" ".join(cmd)}]'
         if e.stdout:
             msg += f" {e.stdout.decode()}"
