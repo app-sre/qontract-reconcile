@@ -9,7 +9,7 @@ from reconcile.utils.aws_api import AWSApi
 from reconcile.utils import ocm
 from reconcile.utils.ocm import OCM, OCMMap
 import reconcile.utils.terraform_client as terraform
-import reconcile.utils.terrascript_client as terrascript
+import reconcile.utils.terrascript_aws_client as terrascript
 
 from reconcile.utils.defer import defer
 from reconcile.utils.semver_helper import make_semver

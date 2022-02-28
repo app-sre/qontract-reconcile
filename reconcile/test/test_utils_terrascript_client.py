@@ -1,4 +1,4 @@
-import reconcile.utils.terrascript_client as tsclient
+import reconcile.utils.terrascript_aws_client as tsclient
 
 
 def test_sanitize_resource_with_dots():

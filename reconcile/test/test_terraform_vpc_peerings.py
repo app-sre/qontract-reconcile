@@ -7,7 +7,7 @@ import reconcile.terraform_vpc_peerings as integ
 from reconcile.terraform_vpc_peerings import BadTerraformPeeringState
 from reconcile.utils import aws_api
 import reconcile.utils.terraform_client as terraform
-import reconcile.utils.terrascript_client as terrascript
+import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
 from reconcile.utils import ocm
 
