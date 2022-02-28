@@ -943,7 +943,7 @@ class TerrascriptClient:
             return
         if provider == 'rds':
             self.populate_tf_resource_rds(resource, namespace_info,
-                                            existing_secrets)
+                                          existing_secrets)
         elif provider == 's3':
             self.populate_tf_resource_s3(resource, namespace_info)
         elif provider == 'elasticache':
@@ -951,8 +951,8 @@ class TerrascriptClient:
                 existing_secrets)
         elif provider == 'aws-iam-service-account':
             self.populate_tf_resource_service_account(resource,
-                                                        namespace_info,
-                                                        ocm_map=ocm_map)
+                                                      namespace_info,
+                                                      ocm_map=ocm_map)
         elif provider == 'aws-iam-role':
             self.populate_tf_resource_role(resource, namespace_info)
         elif provider == 'sqs':
@@ -980,7 +980,7 @@ class TerrascriptClient:
                                                                namespace_info)
         elif provider == 'alb':
             self.populate_tf_resource_alb(resource, namespace_info,
-                                            ocm_map=ocm_map)
+                                          ocm_map=ocm_map)
         elif provider == 'secrets-manager':
             self.populate_tf_resource_secrets_manager(resource, namespace_info)
         elif provider == 'asg':
