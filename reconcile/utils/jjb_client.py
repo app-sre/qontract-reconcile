@@ -63,7 +63,7 @@ except ValueError:
     monkey_patch_md5(modules_to_patch)
 
 
-class JJB:
+class JJB:  # pylint: disable=too-many-public-methods
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True,

@@ -6,7 +6,7 @@ import requests
 from sretoolbox.utils import retry
 
 
-class SentryClient:
+class SentryClient:  # pylint: disable=too-many-public-methods
     ORGANIZATION = "sentry"
 
     def __init__(self, host, token):

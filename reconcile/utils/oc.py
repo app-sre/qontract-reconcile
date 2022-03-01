@@ -186,7 +186,7 @@ class OCProcessReconcileTimeDecoratorMsg:
         self.is_log_slow_oc_reconcile = is_log_slow_oc_reconcile
 
 
-class OCDeprecated:
+class OCDeprecated:  # pylint: disable=too-many-public-methods
     def __init__(self, cluster_name, server, token, jh=None, settings=None,
                  init_projects=False, init_api_resources=False,
                  local=False, insecure_skip_tls_verify=False):

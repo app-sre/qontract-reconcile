@@ -43,7 +43,7 @@ Account = Dict[str, Any]
 KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
 
-class AWSApi:
+class AWSApi:  # pylint: disable=too-many-public-methods
     """Wrapper around AWS SDK"""
 
     def __init__(self, thread_pool_size, accounts, settings=None,

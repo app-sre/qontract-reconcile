@@ -32,7 +32,7 @@ class DeletionApprovalExpirationValueError(Exception):
     pass
 
 
-class TerraformClient:
+class TerraformClient:  # pylint: disable=too-many-public-methods
     def __init__(self, integration, integration_version,
                  integration_prefix, accounts, working_dirs, thread_pool_size,
                  init_users=False):
