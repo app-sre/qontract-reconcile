@@ -1,7 +1,6 @@
 [MESSAGES CONTROL]
 disable = attribute-defined-outside-init,
           broad-except,
-          cell-var-from-loop,
           consider-using-dict-items,
           dangerous-default-value,
           duplicate-code,

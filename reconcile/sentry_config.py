@@ -464,18 +464,11 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
         # Users that should exist
         members = []
 
-        def append_github_username_members(member):
-            email = get_github_email(ghapi, member)
+        for user in role['users'] + role['bots']:
+            email = get_github_email(ghapi, user)
             if email is not None:
                 members.append(email)
-
-        for user in role['users']:
-            append_github_username_members(user)
             process_user_role(user, role, sentryUrl)
-
-        for bot in role['bots']:
-            append_github_username_members(bot)
-            process_user_role(bot, role, sentryUrl)
 
         for team in role['sentry_teams']:
             # Only add users if the team they are a part of is in the same
