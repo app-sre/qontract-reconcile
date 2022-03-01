@@ -102,16 +102,10 @@ def fetch_desired_state():
         if permissions:
             members = []
 
-            def append_quay_username_members(member):
-                quay_username = member.get('quay_username')
+            for user in role['users'] + role['bots']:
+                quay_username = user.get('quay_username')
                 if quay_username:
                     members.append(quay_username)
-
-            for user in role['users']:
-                append_quay_username_members(user)
-
-            for bot in role['bots']:
-                append_quay_username_members(bot)
 
             for p in permissions:
                 state.add(p, members)

@@ -5,8 +5,10 @@ from functools import wraps
 from distutils.spawn import find_executable
 
 
-def binary(binaries=[]):
+def binary(binaries=None):
     """Check that a binary exists before execution."""
+    if binaries is None:
+        binaries = []
 
     def deco_binary(f):
         @wraps(f)

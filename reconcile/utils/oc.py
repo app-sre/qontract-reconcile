@@ -306,7 +306,9 @@ class OCDeprecated:
             cmd.append('--all-namespaces')
         return self._run_json(cmd)
 
-    def process(self, template, parameters={}):
+    def process(self, template, parameters=None):
+        if parameters is None:
+            parameters = {}
         parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
         cmd = [
             'process',

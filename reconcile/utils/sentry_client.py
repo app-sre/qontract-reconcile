@@ -244,7 +244,9 @@ class SentryClient:
                 response.append(resp)
         return response
 
-    def create_user(self, email, role, teams=[]):
+    def create_user(self, email, role, teams=None):
+        if teams is None:
+            teams = []
         params = {"email": email, "role": role, "teams": teams}
         response = self._do_sentry_api_call("post", "organizations",
                                             [self.ORGANIZATION, "members"],

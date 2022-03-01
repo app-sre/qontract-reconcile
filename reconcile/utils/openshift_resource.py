@@ -490,11 +490,10 @@ class ResourceInventory:
             current[name] = value
 
     def __iter__(self):
-        for cluster in self._clusters:
-            for namespace in self._clusters[cluster]:
-                for resource_type in self._clusters[cluster][namespace]:
-                    data = self._clusters[cluster][namespace][resource_type]
-                    yield (cluster, namespace, resource_type, data)
+        for cluster_name, cluster in self._clusters.items():
+            for namespace_name, namespace in cluster.items():
+                for resource_type, resource in namespace.items():
+                    yield (cluster_name, namespace_name, resource_type, resource)
 
     def register_error(self, cluster=None):
         self._error_registered = True
