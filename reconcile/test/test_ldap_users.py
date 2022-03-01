@@ -4,7 +4,7 @@ from reconcile import ldap_users
 
 
 @pytest.fixture
-def mocked_queries_get_users(mocker):
+def patched_queries_get_users(mocker):
     queries_get_users_mock = mocker.patch.object(
         ldap_users.queries, "get_users", autospec=True
     )
@@ -36,7 +36,7 @@ def mocked_queries_get_users(mocker):
 
 
 @pytest.fixture
-def mocked_queries_get_app_interface_settings(mocker):
+def patched_queries_get_app_interface_settings(mocker):
     queries_get_app_interface_settings = mocker.patch.object(
         ldap_users.queries, "get_app_interface_settings", autospec=True
     )
@@ -58,7 +58,7 @@ def mocked_ldap_client(mocker):
 
 
 @pytest.fixture
-def mocked_mr_client_gateway(mocker):
+def patched_mr_client_gateway(mocker):
     mock_mr_client_gateway = mocker.patch.object(
         ldap_users.mr_client_gateway, "init", autospec=True
     )
@@ -66,7 +66,7 @@ def mocked_mr_client_gateway(mocker):
 
 
 @pytest.fixture
-def mocked_create_delete_user(mocker):
+def patched_create_delete_user(mocker):
     mock_create_delete_user = mocker.patch(
         "reconcile.ldap_users.CreateDeleteUser", autospec=True
     )
@@ -75,18 +75,18 @@ def mocked_create_delete_user(mocker):
 
 def test_ldap_users_no_dry_run(
     mocker,
-    mocked_queries_get_users,
-    mocked_queries_get_app_interface_settings,
+    patched_queries_get_users,
+    patched_queries_get_app_interface_settings,
     mocked_ldap_client,
-    mocked_mr_client_gateway,
-    mocked_create_delete_user,
+    patched_mr_client_gateway,
+    patched_create_delete_user,
 ):
 
     ldap_users.run(False, None)
 
-    mocked_mr_client_gateway.assert_called_once()
-    mocked_create_delete_user.assert_called_once()
-    assert mocked_create_delete_user.call_args == mocker.call(
+    patched_mr_client_gateway.assert_called_once()
+    patched_create_delete_user.assert_called_once()
+    assert patched_create_delete_user.call_args == mocker.call(
         "username3",
         [
             {"type": 0, "path": "datablah"},
@@ -95,18 +95,18 @@ def test_ldap_users_no_dry_run(
             {"type": 3, "path": "datayet_another_test_path3"},
         ],
     )
-    assert mocked_create_delete_user.method_calls[0][0] == "().submit"
+    assert patched_create_delete_user.method_calls[0][0] == "().submit"
 
 
 def test_ldap_users_dry_run(
-    mocked_queries_get_users,
-    mocked_queries_get_app_interface_settings,
+    patched_queries_get_users,
+    patched_queries_get_app_interface_settings,
     mocked_ldap_client,
-    mocked_mr_client_gateway,
-    mocked_create_delete_user,
+    patched_mr_client_gateway,
+    patched_create_delete_user,
 ):
 
     ldap_users.run(True, None)
 
-    assert mocked_mr_client_gateway.call_count == 0
-    assert mocked_create_delete_user.call_count == 0
+    patched_mr_client_gateway.assert_not_called()
+    patched_create_delete_user.assert_not_called()

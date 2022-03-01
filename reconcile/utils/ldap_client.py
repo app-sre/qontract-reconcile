@@ -1,4 +1,5 @@
 from ldap3 import Server, Connection, ALL, SAFE_SYNC
+from typing import Iterable
 
 
 class LdapClient:
@@ -9,7 +10,7 @@ class LdapClient:
     appropriately.
     """
 
-    def __init__(self, base_dn, connection):
+    def __init__(self, base_dn: str, connection: Connection):
         self.base_dn = base_dn
         self.connection = connection
 
@@ -20,15 +21,18 @@ class LdapClient:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.connection.unbind()
 
-    def get_users(self, uids: list) -> set:
+    def get_users(self, uids: Iterable[str]) -> set[str]:
         user_filter = "".join((f"(uid={u})" for u in uids))
         _, _, results, _ = self.connection.search(
             self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
         return set(r["attributes"]["uid"][0] for r in results)
 
-    @staticmethod
-    def from_settings(settings):
+    @classmethod
+    def from_settings(cls, settings: dict) -> "LdapClient":
+        """Requires a nested dictionary with key 'ldap' and sub keys
+           'serverUrl', 'baseDn'.
+        """
         connection = Connection(
             Server(settings["ldap"]["serverUrl"], get_info=ALL),
             None,
@@ -36,4 +40,4 @@ class LdapClient:
             client_strategy=SAFE_SYNC,
         )
         base_dn = settings["ldap"]["baseDn"]
-        return LdapClient(base_dn, connection)
+        return cls(base_dn, connection)
