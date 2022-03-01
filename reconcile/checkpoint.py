@@ -18,7 +18,6 @@ from jira import Issue
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jira_client import JiraClient
 
-
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 
 # We reject the full RFC 5322 standard since many clients will choke
@@ -157,8 +156,9 @@ def report_invalid_metadata(
                 logging.error(
                     f"Reporting bad field {field} with value {value}: {i}"
                 )
-        except Exception:
+        except Exception as e:
             i = do_cut(field=field, bad_value=str(value))
-            logging.exception(
-                f"Problems with {field} for {app['name']} - reporting {i}"
+            logging.error(
+                f"Problems with {field} for {app['name']}: {e} - reporting {i}",
             )
+            logging.debug(f"Stack trace of {e}:", exc_info=True)
