@@ -34,7 +34,7 @@ def test_ldap_client(mocker, connection_search_result):
     mocked_connection = mocker.Mock(spec=ldap3.Connection)
     mocked_connection.search.return_value = None, None, connection_search_result, None
 
-    with LdapClient('test', mocked_connection) as ldap_client:
+    with LdapClient("test", mocked_connection) as ldap_client:
         uids = ["user1", "user2", "user3"]
         ldap_client.get_users(uids)
 

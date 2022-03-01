@@ -30,7 +30,7 @@ class LdapClient:
 
     @classmethod
     def from_settings(cls, settings: dict) -> "LdapClient":
-        """Requires a nested dictionary with key 'ldap' in addition sub keys 'serverUrl' and 'baseDn'. """
+        """Requires a nested dictionary with key 'ldap' in addition sub keys 'serverUrl' and 'baseDn'."""
         connection = Connection(
             Server(settings["ldap"]["serverUrl"], get_info=ALL),
             None,
