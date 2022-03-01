@@ -3,8 +3,10 @@ import os
 from functools import wraps
 
 
-def environ(variables=[]):
+def environ(variables=None):
     """Check that environment variables are set before execution."""
+    if variables is None:
+        variables = []
 
     def deco_environ(f):
         @wraps(f)

@@ -469,7 +469,9 @@ def filter_tf_namespaces(namespaces, account_name):
     return tf_namespaces
 
 
-def cleanup_and_exit(tf=None, status=False, working_dirs={}):
+def cleanup_and_exit(tf=None, status=False, working_dirs=None):
+    if working_dirs is None:
+        working_dirs = {}
     if tf is None:
         for wd in working_dirs.values():
             shutil.rmtree(wd)

@@ -21,7 +21,9 @@ class RawGithubApi:
     def __init__(self, password):
         self.password = password
 
-    def headers(self, headers={}):
+    def headers(self, headers=None):
+        if headers is None:
+            headers = {}
         new_headers = headers.copy()
         new_headers.update(self.BASE_HEADERS)
         new_headers["Authorization"] = "token %s" % (self.password,)
@@ -33,7 +35,9 @@ class RawGithubApi:
         return res
 
     @retry()
-    def query(self, url, headers={}):
+    def query(self, url, headers=None):
+        if headers is None:
+            headers = {}
         h = self.headers(headers)
         res = requests.get(self.BASE_URL + url, headers=h)
         res.raise_for_status()

@@ -127,7 +127,9 @@ class SentryState:
         # List of duplicate sentry user objects that should be deleted
         self.dup_users = []
 
-    def init_users(self, users, dups=[]):
+    def init_users(self, users, dups=None):
+        if dups is None:
+            dups = []
         self.users = users
         self.dup_users = dups
 
