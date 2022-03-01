@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Union
 
 import requests
+from requests.exceptions import ConnectionError, InvalidURL, MissingSchema
 from jinja2 import Template
 from jira import Issue
 
@@ -40,7 +41,11 @@ def url_makes_sense(url: str) -> bool:
     The URL is non-sensical if the server is crashing, the document
     doesn't exist or the specified URL can't be even probed with GET.
     """
-    rs = requests.get(url)
+    try:
+        rs = requests.get(url)
+    except (ConnectionError, InvalidURL,  MissingSchema):
+        return False
+
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
     # broken resource
