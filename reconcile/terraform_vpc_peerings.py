@@ -40,7 +40,8 @@ def find_matching_peering(from_cluster, to_cluster, desired_provider):
     return None
 
 
-def _get_default_management_account(cluster):
+def _get_default_management_account(
+                    cluster: dict[str, Any]) -> Optional[dict[str, Any]]:
     cluster_infra_accounts = cluster["awsInfrastructureManagementAccounts"]
     for infra_account_def in cluster_infra_accounts or []:
         if infra_account_def["accessLevel"] == "network-mgmt" and \
