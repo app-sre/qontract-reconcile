@@ -36,7 +36,7 @@ def init_users():
 
 def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    with LdapClient(queries.get_app_interface_settings()) as ldap_client:
+    with LdapClient.from_settings(queries.get_app_interface_settings()) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
 
     users_to_delete = [u for u in users if u["username"] not in ldap_users]

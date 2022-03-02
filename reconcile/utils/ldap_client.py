@@ -10,15 +10,9 @@ class LdapClient:
     appropriately.
     """
 
-    def __init__(self, settings: dict):
-        self.base_dn = settings["ldap"]["baseDn"]
-        self.server_url = settings["ldap"]["serverUrl"]
-        self.connection = Connection(
-            Server(self.server_url, get_info=ALL),
-            None,
-            None,
-            client_strategy=SAFE_SYNC,
-        )
+    def __init__(self, base_dn: str, connection: Connection):
+        self.base_dn = base_dn
+        self.connection = connection
 
     def __enter__(self):
         self.connection.bind()
@@ -28,13 +22,20 @@ class LdapClient:
         self.connection.unbind()
 
     def get_users(self, uids: Iterable[str]) -> set[str]:
-        search_filter = self.apply_search_filter_by_person(uids)
+        user_filter = "".join((f"(uid={u})" for u in uids))
         _, _, results, _ = self.connection.search(
-            self.base_dn, search_filter, attributes=["uid"]
+            self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
         return set(r["attributes"]["uid"][0] for r in results)
 
-    @staticmethod
-    def apply_search_filter_by_person(uids: Iterable[str]) -> str:
-        user_filter = "".join((f"(uid={u})" for u in uids))
-        return f"(&(objectclass=person)(|{user_filter}))"
+    @classmethod
+    def from_settings(cls, settings: dict) -> "LdapClient":
+        """Requires a nested dictionary with key 'ldap' in addition sub keys 'serverUrl' and 'baseDn'."""
+        connection = Connection(
+            Server(settings["ldap"]["serverUrl"], get_info=ALL),
+            None,
+            None,
+            client_strategy=SAFE_SYNC,
+        )
+        base_dn = settings["ldap"]["baseDn"]
+        return cls(base_dn, connection)
