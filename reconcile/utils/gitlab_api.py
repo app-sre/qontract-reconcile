@@ -26,7 +26,7 @@ class MRState:
     ALL = 'all'
 
 
-class GitLabApi:
+class GitLabApi:  # pylint: disable=too-many-public-methods
     def __init__(self, instance, project_id=None, ssl_verify=True,
                  settings=None, project_url=None, saas_files=None, timeout=30):
         self.server = instance['url']

@@ -153,7 +153,7 @@ class ElasticSearchLogGroupInfo:
     log_group_identifier: str
 
 
-class TerrascriptClient:
+class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def __init__(self, integration, integration_prefix,
                  thread_pool_size, accounts, settings=None):
         self.integration = integration

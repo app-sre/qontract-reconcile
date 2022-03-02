@@ -26,7 +26,7 @@ CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
 
 
-class OCM:
+class OCM:  # pylint: disable=too-many-public-methods
     """
     OCM is an instance of OpenShift Cluster Manager.
 
@@ -899,7 +899,7 @@ class OCM:
         r.raise_for_status()
 
 
-class OCMMap:
+class OCMMap:  # pylint: disable=too-many-public-methods
     """
     OCMMap gets a GraphQL query results list as input
     and initiates a dictionary of OCM clients per OCM.
