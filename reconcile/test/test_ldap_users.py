@@ -85,14 +85,13 @@ def test_ldap_users_no_dry_run(
     ldap_users.run(False, None)
 
     patched_mr_client_gateway.assert_called_once()
-    patched_create_delete_user.assert_called_once()
-    assert patched_create_delete_user.call_args == mocker.call(
+    patched_create_delete_user.assert_called_once_with(
         "username3",
         [
-            {"type": 0, "path": "datablah"},
-            {"type": 1, "path": "datatest_path3"},
-            {"type": 2, "path": "dataanother_test_path3"},
-            {"type": 3, "path": "datayet_another_test_path3"},
+            {"path": "datablah", "type": 0},
+            {"path": "datatest_path3", "type": 1},
+            {"path": "dataanother_test_path3", "type": 2},
+            {"path": "datayet_another_test_path3", "type": 3},
         ],
     )
     assert patched_create_delete_user.method_calls[0][0] == "().submit"

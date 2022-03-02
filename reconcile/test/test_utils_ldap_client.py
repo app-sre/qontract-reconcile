@@ -43,7 +43,7 @@ def test_ldap_client_get_users(mocker, connection_search_result):
         uids = ["user1", "user2", "user3"]
         ldap_client.get_users(uids)
 
-    assert mocked_connection.search.call_args == mocker.call(
+    mocked_connection.search.assert_called_once_with(
         "test",
         "(&(objectclass=person)(|(uid=user1)(uid=user2)(uid=user3)))",
         attributes=["uid"],
