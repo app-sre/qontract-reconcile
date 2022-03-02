@@ -40,6 +40,14 @@ def find_matching_peering(from_cluster, to_cluster, desired_provider):
     return None
 
 
+def _get_default_management_account(cluster):
+    cluster_infra_accounts = cluster["awsInfrastructureManagementAccounts"]
+    for infra_account_def in cluster_infra_accounts or []:
+        if infra_account_def["accessLevel"] == "network-mgmt" and \
+                infra_account_def.get("default") is True:
+            return infra_account_def["account"]
+
+
 def _build_infrastructure_assume_role(
                     account: dict[str, Any],
                     cluster: dict[str, Any],
@@ -93,13 +101,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     if not account:
         # look for a network-mgmt account marked as default on the accepters
         # clusters awsInfrastructureManagementAccounts
-        cluster_infra_accounts = \
-            accepter_cluster["awsInfrastructureManagementAccounts"]
-        for infra_account_def in cluster_infra_accounts or []:
-            if infra_account_def["accessLevel"] == "network-mgmt" and \
-                    infra_account_def.get("default") is True:
-                account = infra_account_def["account"]
-                break
+        account = _get_default_management_account(accepter_cluster)
 
     if not account:
         raise BadTerraformPeeringState(
