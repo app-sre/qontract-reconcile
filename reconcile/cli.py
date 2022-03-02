@@ -75,6 +75,7 @@ import reconcile.gitlab_projects
 import reconcile.aws_garbage_collector
 import reconcile.aws_iam_keys
 import reconcile.aws_iam_password_reset
+import reconcile.aws_ami_share
 import reconcile.aws_ecr_image_pull_secrets
 import reconcile.aws_support_cases_sos
 import reconcile.ocm_groups
@@ -808,6 +809,14 @@ def aws_iam_keys(ctx, thread_pool_size, account_name):
 @click.pass_context
 def aws_iam_password_reset(ctx):
     run_integration(reconcile.aws_iam_password_reset, ctx.obj)
+
+
+@integration.command(
+    short_help="Share AMI and AMI tags between accounts."
+)
+@click.pass_context
+def aws_ami_share(ctx):
+    run_integration(reconcile.aws_ami_share, ctx.obj)
 
 
 @integration.command(
