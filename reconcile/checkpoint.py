@@ -158,7 +158,6 @@ def report_invalid_metadata(
                 )
         except Exception as e:
             i = do_cut(field=field, bad_value=str(value))
-            logging.error(
-                f"Problems with {field} for {app['name']}: {e} - reporting {i}",
-            )
+            logging.error(f"Problems with {field} for {app['name']}: {e}")
+            logging.error(f"Will report as {i}")
             logging.debug(f"Stack trace of {e}:", exc_info=True)

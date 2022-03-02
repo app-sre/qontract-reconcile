@@ -258,9 +258,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self.set_resouces(account, 'ecr', repositories)
 
     @staticmethod
-    def paginate(client, method, key, params={}):
+    def paginate(client, method, key, params=None):
         """ paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
+        if params is None:
+            params = {}
         paginator = client.get_paginator(method)
         return [values
                 for page in paginator.paginate(**params)
@@ -762,8 +764,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     # filters a list of aws resources according to tags
     @staticmethod
-    def filter_on_tags(items: Iterable[Any], tags: Mapping[str, str] = {}) \
+    def filter_on_tags(items: Iterable[Any], tags: Optional[Mapping[str, str]] = None) \
             -> List[Any]:
+        if tags is None:
+            tags = {}
         res = []
         for item in items:
             tags_dict = {t['Key']: t['Value'] for t in item.get('Tags', [])}

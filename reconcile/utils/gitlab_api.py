@@ -119,7 +119,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.project.commits.create(data)
 
     def create_mr(self, source_branch, target_branch, title,
-                  remove_source_branch=True, labels=[]):
+                  remove_source_branch=True, labels=None):
+        if labels is None:
+            labels = []
         data = {
             'source_branch': source_branch,
             'target_branch': target_branch,

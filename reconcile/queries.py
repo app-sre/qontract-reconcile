@@ -27,6 +27,10 @@ APP_INTERFACE_SETTINGS_QUERY = """
         format
       }
     }
+    ldap {
+      serverUrl
+      baseDn
+    }
     dependencies {
       type
       services {
@@ -345,6 +349,7 @@ awsInfrastructureManagementAccounts {
     name
     uid
     terraformUsername
+    resourcesDefaultRegion
     automationToken {
       path
       field

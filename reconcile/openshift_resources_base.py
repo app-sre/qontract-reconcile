@@ -242,7 +242,9 @@ def process_jinja2_template(body, vars=None, env=None):
     return r
 
 
-def process_extracurlyjinja2_template(body, vars={}):
+def process_extracurlyjinja2_template(body, vars=None):
+    if vars is None:
+        vars = {}
     env = {
         'block_start_string': '{{%',
         'block_end_string': '%}}',
@@ -700,10 +702,12 @@ def canonicalize_namespaces(
 
 @defer
 def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True, providers=[],
+        use_jump_host=True, providers=None,
         cluster_name=None, namespace_name=None,
         init_api_resources=False,
         defer=None):
+    if providers is None:
+        providers = []
     gqlapi = gql.get_api()
     namespaces = [namespace_info for namespace_info
                   in gqlapi.query(NAMESPACES_QUERY)['namespaces']
