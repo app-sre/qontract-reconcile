@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict
 
 from reconcile import queries
-from reconcile.utils import ldap_client
+from reconcile.utils.ldap_client import LdapClient
 
 from reconcile import mr_client_gateway
 from reconcile.utils.mr import CreateDeleteUser
@@ -36,7 +36,9 @@ def init_users():
 
 def run(dry_run, gitlab_project_id=None):
     users = init_users()
-    ldap_users = ldap_client.get_users([u["username"] for u in users])
+    with LdapClient.from_settings(queries.get_app_interface_settings()) as ldap_client:
+        ldap_users = ldap_client.get_users([u["username"] for u in users])
+
     users_to_delete = [u for u in users if u["username"] not in ldap_users]
 
     if not dry_run:
