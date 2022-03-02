@@ -40,15 +40,15 @@ def patched_queries_get_app_interface_settings(mocker):
     queries_get_app_interface_settings = mocker.patch.object(
         ldap_users.queries, "get_app_interface_settings", autospec=True
     )
-    queries_get_app_interface_settings.return_value = {}
+    queries_get_app_interface_settings.return_value = {
+        "ldap": {"baseDn": "test", "serverUrl": "testUrl"}
+    }
     return queries_get_app_interface_settings
 
 
 @pytest.fixture
 def mocked_ldap_client(mocker):
-    mock_ldap_client = mocker.patch.object(
-        ldap_users.LdapClient, "from_settings", autospec=True
-    )
+    mock_ldap_client = mocker.patch("reconcile.ldap_users.LdapClient", autospec=True)
     dummy_ldap_client = mocker.Mock(spec=ldap_users.LdapClient)
     dummy_ldap_client.__enter__ = dummy_ldap_client
     dummy_ldap_client.__exit__ = mocker.Mock(return_value=None)
