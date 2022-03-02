@@ -22,14 +22,14 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import (
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
-        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImagesTypeDef
+        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImageTypeDef
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
-        AccessKeyMetadataTypeDef = ImagesTypeDef = object
+        AccessKeyMetadataTypeDef = ImageTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -767,7 +767,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     # pylint: disable=method-hidden
-    def get_account_amis(ec2: EC2Client, owner: str) -> List[ImagesTypeDef]:
+    def get_account_amis(ec2: EC2Client, owner: str) -> List[ImageTypeDef]:
         amis = ec2.describe_images(Owners=[owner])
         return amis.get('Images', [])
 
