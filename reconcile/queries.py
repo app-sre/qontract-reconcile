@@ -345,6 +345,7 @@ awsInfrastructureManagementAccounts {
     name
     uid
     terraformUsername
+    resourcesDefaultRegion
     automationToken {
       path
       field
