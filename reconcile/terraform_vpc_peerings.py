@@ -47,6 +47,7 @@ def _get_default_management_account(
         if infra_account_def["accessLevel"] == "network-mgmt" and \
                 infra_account_def.get("default") is True:
             return infra_account_def["account"]
+    return None
 
 
 def _build_infrastructure_assume_role(
