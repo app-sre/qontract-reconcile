@@ -2,6 +2,7 @@ import functools
 import json
 import logging
 import os
+import re
 import time
 
 from datetime import datetime
@@ -21,14 +22,14 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import (
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
-        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef
+        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImagesTypeDef
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
-        AccessKeyMetadataTypeDef = object
+        AccessKeyMetadataTypeDef = ImagesTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -72,6 +73,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self._get_assumed_role_client)
         self.get_account_vpcs = functools.lru_cache()(
             self.get_account_vpcs)
+        self.get_account_amis = functools.lru_cache()(
+            self.get_account_amis)
         self.get_vpc_route_tables = functools.lru_cache()(
             self.get_vpc_route_tables)
         self.get_vpc_subnets = functools.lru_cache()(
@@ -762,6 +765,12 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         vpcs = ec2.describe_vpcs()
         return vpcs.get('Vpcs', [])
 
+    @staticmethod
+    # pylint: disable=method-hidden
+    def get_account_amis(ec2: EC2Client, owner: str) -> List[ImagesTypeDef]:
+        amis = ec2.describe_images(Owners=[owner])
+        return amis.get('Images', [])
+
     # filters a list of aws resources according to tags
     @staticmethod
     def filter_on_tags(items: Iterable[Any], tags: Optional[Mapping[str, str]] = None) \
@@ -873,6 +882,32 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 results.append(item)
 
         return results
+
+    def get_amis_details(self, account, owner_account, regex):
+        results = []
+        pattern = re.compile(regex)
+        ec2 = self._account_ec2_client(account['name'])
+        images = self.get_account_amis(ec2, owner=owner_account['uid'])
+        for i in images:
+            if re.search(pattern, i['Name']):
+                item = {
+                    'image_id': i['ImageId'],
+                    'tags': i.get('Tags', [])
+                }
+                results.append(item)
+
+        return results
+
+    def share_ami(self, account, share_account, image_id):
+        session = self.sessions[account['name']]
+        ec2 = session.resource('ec2')
+        image = ec2.Image(image_id)
+        launch_permission = {'Add': [{'UserId': share_account['uid']}]}
+        image.modify_attribute(LaunchPermission=launch_permission)
+
+    def create_tag(self, account, resource_id, tag):
+        ec2 = self._account_ec2_client(account['name'])
+        ec2.create_tags(Resources=[resource_id], Tags=[tag])
 
     def get_alb_network_interface_ips(self, account, service_name):
         assumed_role_data = self._get_account_assume_data(account)
