@@ -385,15 +385,16 @@ def clusters_egress_ips(ctx):
     clusters = queries.get_clusters()
     clusters = [c for c in clusters
                 if c.get('ocm') is not None
-                and c.get('awsInfrastructureAccess') is not None]
+                and c.get('awsInfrastructureManagementAccounts') is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
 
     results = []
     for cluster in clusters:
         cluster_name = cluster['name']
-        account = tfvpc.aws_account_from_infrastructure_access(
+        management_account = tfvpc._get_default_management_account(cluster)
+        account = tfvpc._build_infrastructure_assume_role(
+            management_account,
             cluster,
-            'network-mgmt',
             ocm_map.get(cluster_name)
         )
         aws_api = AWSApi(1, [account], settings=settings)
