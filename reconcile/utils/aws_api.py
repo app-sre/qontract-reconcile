@@ -883,7 +883,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def get_amis_details(self, account, owner_account, regex):
+    def get_amis_details(self,
+                         account: dict[str, Any],
+                         owner_account: dict[str, Any],
+                         regex: str) -> list[str]:
         results = []
         pattern = re.compile(regex)
         ec2 = self._account_ec2_client(account['name'])
@@ -898,14 +901,20 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def share_ami(self, account, share_account, image_id):
+    def share_ami(self,
+                  account: dict[str, Any],
+                  share_account: dict[str, Any],
+                  image_id: str):
         session = self.sessions[account['name']]
         ec2 = session.resource('ec2')
         image = ec2.Image(image_id)
         launch_permission = {'Add': [{'UserId': share_account['uid']}]}
         image.modify_attribute(LaunchPermission=launch_permission)
 
-    def create_tag(self, account, resource_id, tag):
+    def create_tag(self,
+                   account: dict[str, Any],
+                   resource_id: str,
+                   tag: dict):
         ec2 = self._account_ec2_client(account['name'])
         ec2.create_tags(Resources=[resource_id], Tags=[tag])
 

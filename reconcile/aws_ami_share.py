@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from reconcile import queries
 
@@ -8,7 +9,7 @@ QONTRACT_INTEGRATION = "aws-ami-share"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
-def filter_accounts(accounts):
+def filter_accounts(accounts: list[dict[str, Any]]):
     sharing_account_names = set()
     for a in accounts:
         sharing = a.get("sharing")
