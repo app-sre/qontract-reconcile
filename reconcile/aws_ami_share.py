@@ -21,6 +21,16 @@ def filter_accounts(accounts: list[dict[str, Any]]):
     return [a for a in accounts if a["name"] in sharing_account_names]
 
 
+def get_region(
+    share: dict[str, Any], src_account: dict[str, Any], dst_account: dict[str, Any]
+) -> str:
+    region = share.get("region") or src_account["resourcesDefaultRegion"]
+    if region not in dst_account["supportedDeploymentRegions"]:
+        raise ValueError(f"region {region} is not supported in {dst_account['name']}")
+
+    return region
+
+
 def run(dry_run):
     accounts = queries.get_aws_accounts(sharing=True)
     sharing_accounts = filter_accounts(accounts)
@@ -36,8 +46,9 @@ def run(dry_run):
                 continue
             dst_account = share["account"]
             regex = share["regex"]
-            src_amis = aws_api.get_amis_details(src_account, src_account, regex)
-            dst_amis = aws_api.get_amis_details(dst_account, src_account, regex)
+            region = get_region(share, src_account, dst_account)
+            src_amis = aws_api.get_amis_details(src_account, src_account, regex, region)
+            dst_amis = aws_api.get_amis_details(dst_account, src_account, regex, region)
 
             for src_ami in src_amis:
                 src_ami_id = src_ami["image_id"]

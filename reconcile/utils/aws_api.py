@@ -886,10 +886,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_amis_details(self,
                          account: dict[str, Any],
                          owner_account: dict[str, Any],
-                         regex: str) -> list[str]:
+                         regex: str,
+                         region: Optional[str] = None) -> list[str]:
         results = []
         pattern = re.compile(regex)
-        ec2 = self._account_ec2_client(account['name'])
+        ec2 = self._account_ec2_client(account['name'], region_name=region)
         images = self.get_account_amis(ec2, owner=owner_account['uid'])
         for i in images:
             if re.search(pattern, i['Name']):
