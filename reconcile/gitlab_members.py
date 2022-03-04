@@ -53,14 +53,14 @@ def get_desired_state(instance, gl):
     desired_group_members = {g: [] for g in instance["managedGroups"]}
     for g in desired_group_members:
         for u in users:
-            for r in u["roles"]:
+            for r in u.get("roles") or []:
                 for p in r["permissions"]:
                     if "group" in p and p["group"] == g:
                         user = u["org_username"]
                         item = {"user": user, "access_level": p["access"]}
                         desired_group_members[g].append(item)
         for b in bots:
-            for r in b["roles"]:
+            for r in b.get("roles") or []:
                 for p in r["permissions"]:
                     if "group" in p and p["group"] == g:
                         user = b["org_username"]
