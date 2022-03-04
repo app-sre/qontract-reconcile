@@ -31,7 +31,7 @@ class Teammate:
 def fetch_desired_state(users):
     desired_state = {}
     for user in users:
-        roles = user.get("roles", [])
+        roles = user.get("roles") or []
         for role in roles:
             sendgrid_accounts = role.get("sendgrid_accounts") or []
             for sg_account in sendgrid_accounts:
