@@ -53,7 +53,7 @@ def test_get_region_share_valid():
 
 
 def test_get_region_default_no_share():
-    share = {}
+    share = {'region': None}
     src_account = {"resourcesDefaultRegion": "valid"}
     dst_account = {"supportedDeploymentRegions": ["valid"]}
     result = integ.get_region(share, src_account, dst_account)
