@@ -322,7 +322,7 @@ AWS_ACCOUNTS_QUERY = """
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         regex
-        supportedDeploymentRegions
+        region
       }
     }
     {% endif %}
