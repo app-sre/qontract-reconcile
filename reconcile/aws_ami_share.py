@@ -65,7 +65,9 @@ def run(dry_run):
                         ]
                     )
                     if not dry_run:
-                        aws_api.share_ami(src_account, dst_account, src_ami_id)
+                        aws_api.share_ami(
+                            src_account, dst_account["uid"], src_ami_id, region
+                        )
                     # we assume an unshared ami does not have tags
                     found_dst_amis = [{"image_id": src_ami_id, "tags": []}]
 
