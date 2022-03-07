@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Iterable, Mapping
 
 from reconcile import queries
 
@@ -10,7 +10,7 @@ QONTRACT_INTEGRATION = "aws-ami-share"
 MANAGED_TAG = TagTypeDef(Key="managed_by_integration", Value=QONTRACT_INTEGRATION)
 
 
-def filter_accounts(accounts: list[dict[str, Any]]):
+def filter_accounts(accounts: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     sharing_account_names = set()
     for a in accounts:
         sharing = a.get("sharing")
@@ -23,7 +23,9 @@ def filter_accounts(accounts: list[dict[str, Any]]):
 
 
 def get_region(
-    share: dict[str, Any], src_account: dict[str, Any], dst_account: dict[str, Any]
+    share: Mapping[str, Any],
+    src_account: Mapping[str, Any],
+    dst_account: Mapping[str, Any],
 ) -> str:
     region = share.get("region") or src_account["resourcesDefaultRegion"]
     if region not in dst_account["supportedDeploymentRegions"]:
