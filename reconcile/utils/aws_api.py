@@ -7,7 +7,7 @@ import time
 
 from datetime import datetime
 from threading import Lock
-from typing import Collection, Literal, Sequence, Union, TYPE_CHECKING
+from typing import Literal, Union, TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
@@ -889,7 +889,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                          account: dict[str, Any],
                          owner_account: dict[str, Any],
                          regex: str,
-                         region: Optional[str] = None) -> List[Dict[str, Sequence[Collection[str]]]]:
+                         region: Optional[str] = None) -> List[Dict[str, Any]]:
         results = []
         pattern = re.compile(regex)
         ec2 = self._account_ec2_client(account['name'], region_name=region)
