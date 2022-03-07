@@ -9,7 +9,7 @@ QONTRACT_INTEGRATION = "aws-ami-share"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
-def filter_accounts(accounts: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def filter_accounts(accounts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     sharing_account_names = set()
     for a in accounts:
         sharing = a.get("sharing")
