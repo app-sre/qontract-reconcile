@@ -319,6 +319,7 @@ AWS_ACCOUNTS_QUERY = """
       account {
         name
         uid
+        supportedDeploymentRegions
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         regex
