@@ -7,7 +7,7 @@ import time
 
 from datetime import datetime
 from threading import Lock
-from typing import Literal, Union, TYPE_CHECKING
+from typing import Collection, Literal, Sequence, Union, TYPE_CHECKING
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from boto3 import Session
@@ -22,14 +22,16 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import (
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
-        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImageTypeDef
+        TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImageTypeDef,
+        LaunchPermissionModificationsTypeDef, TagTypeDef
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
 else:
     EC2Client = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
-        AccessKeyMetadataTypeDef = ImageTypeDef = object
+        AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
+        LaunchPermissionModificationsTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -887,7 +889,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                          account: dict[str, Any],
                          owner_account: dict[str, Any],
                          regex: str,
-                         region: Optional[str] = None) -> list[str]:
+                         region: Optional[str] = None) -> List[Dict[str, Sequence[Collection[str]]]]:
         results = []
         pattern = re.compile(regex)
         ec2 = self._account_ec2_client(account['name'], region_name=region)
@@ -909,13 +911,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.sessions[account['name']]
         ec2 = session.resource('ec2')
         image = ec2.Image(image_id)
-        launch_permission = {'Add': [{'UserId': share_account['uid']}]}
+        launch_permission: LaunchPermissionModificationsTypeDef = {'Add': [{'UserId': share_account['uid']}]}
         image.modify_attribute(LaunchPermission=launch_permission)
 
     def create_tag(self,
                    account: dict[str, Any],
                    resource_id: str,
-                   tag: dict):
+                   tag: TagTypeDef):
         ec2 = self._account_ec2_client(account['name'])
         ec2.create_tags(Resources=[resource_id], Tags=[tag])
 
