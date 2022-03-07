@@ -313,12 +313,27 @@ AWS_ACCOUNTS_QUERY = """
       region
     }
     partition
+    {% if sharing %}
+    sharing {
+      provider
+      account {
+        name
+        uid
+        supportedDeploymentRegions
+      }
+      ... on AWSAccountSharingOptionAMI_v1 {
+        regex
+        region
+      }
+    }
+    {% endif %}
   }
 }
 """
 
 
-def get_aws_accounts(reset_passwords=False, name=None, uid=None):
+def get_aws_accounts(reset_passwords=False, name=None, uid=None,
+                     sharing=False):
     """ Returns all AWS accounts """
     gqlapi = gql.get_api()
     search = name or uid
@@ -327,6 +342,7 @@ def get_aws_accounts(reset_passwords=False, name=None, uid=None):
         search=search,
         name=name,
         uid=uid,
+        sharing=sharing,
     )
     return gqlapi.query(query)['accounts']
 

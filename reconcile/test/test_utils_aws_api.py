@@ -80,3 +80,22 @@ def test_default_region(aws_api, accounts):
     for a in accounts:
         assert aws_api.sessions[a['name']].region_name == \
             a['resourcesDefaultRegion']
+
+
+def test_filter_amis(aws_api):
+    regex = '^match.*$'
+    images = [
+        {
+            'Name': 'match-regex',
+            'ImageId': 'id1',
+            'Tags': []
+        },
+        {
+            'Name': 'no-match-regex',
+            'ImageId': 'id2',
+            'Tags': []
+        }
+    ]
+    results = aws_api._filter_amis(images, regex)
+    expected = {'image_id': 'id1', 'tags': []}
+    assert results == [expected]

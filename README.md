@@ -12,6 +12,7 @@ Additional tools that use the libraries created by the reconciliations are also 
 ### qontract-reconcile
 
 ```
+  aws-ami-share                   Share AMI and AMI tags between accounts.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
 
