@@ -917,9 +917,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def create_tag(self,
                    account: dict[str, Any],
                    resource_id: str,
-                   tag: TagTypeDef):
+                   tag: Dict[str, str]):
         ec2 = self._account_ec2_client(account['name'])
-        ec2.create_tags(Resources=[resource_id], Tags=[tag])
+        tag_type_def = TagTypeDef(Key=tag['Key'], Value=tag['Value'])
+        ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
 
     def get_alb_network_interface_ips(self, account, service_name):
         assumed_role_data = self._get_account_assume_data(account)
