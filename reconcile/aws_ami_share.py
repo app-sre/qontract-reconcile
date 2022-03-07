@@ -4,9 +4,10 @@ from typing import Any
 from reconcile import queries
 
 from reconcile.utils.aws_api import AWSApi
+from mypy_boto3_ec2.type_defs import TagTypeDef
 
 QONTRACT_INTEGRATION = "aws-ami-share"
-MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
+MANAGED_TAG = TagTypeDef(Key="managed_by_integration", Value=QONTRACT_INTEGRATION)
 
 
 def filter_accounts(accounts: list[dict[str, Any]]):
