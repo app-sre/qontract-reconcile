@@ -894,7 +894,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return results
 
     @staticmethod
-    def _filter_amis(images: List[ImageTypeDef], regex: str) -> List[Dict[str, Any]]:
+    def _filter_amis(images: Iterable[ImageTypeDef], regex: str) -> List[Dict[str, Any]]:
         results = []
         pattern = re.compile(regex)
         for i in images:
@@ -908,8 +908,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return results
 
     def get_amis_details(self,
-                         account: dict[str, Any],
-                         owner_account: dict[str, Any],
+                         account: Mapping[str, Any],
+                         owner_account: Mapping[str, Any],
                          regex: str,
                          region: Optional[str] = None) -> List[Dict[str, Any]]:
         ec2 = self._account_ec2_client(account['name'], region_name=region)
@@ -917,7 +917,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return self._filter_amis(images, regex)
 
     def share_ami(self,
-                  account: dict[str, Any],
+                  account: Mapping[str, Any],
                   share_account_uid: str,
                   image_id: str,
                   region: Optional[str] = None):
@@ -927,9 +927,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         image.modify_attribute(LaunchPermission=launch_permission)
 
     def create_tag(self,
-                   account: dict[str, Any],
+                   account: Mapping[str, Any],
                    resource_id: str,
-                   tag: Dict[str, str]):
+                   tag: Mapping[str, str]):
         ec2 = self._account_ec2_client(account['name'])
         tag_type_def = TagTypeDef(Key=tag['Key'], Value=tag['Value'])
         ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
