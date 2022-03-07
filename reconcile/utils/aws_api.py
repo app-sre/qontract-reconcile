@@ -885,15 +885,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def get_amis_details(self,
-                         account: dict[str, Any],
-                         owner_account: dict[str, Any],
-                         regex: str,
-                         region: Optional[str] = None) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _filter_amis(images: List[ImageTypeDef], regex: str) -> List[Dict[str, Any]]:
         results = []
         pattern = re.compile(regex)
-        ec2 = self._account_ec2_client(account['name'], region_name=region)
-        images = self.get_account_amis(ec2, owner=owner_account['uid'])
         for i in images:
             if re.search(pattern, i['Name']):
                 item = {
@@ -903,6 +898,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 results.append(item)
 
         return results
+
+    def get_amis_details(self,
+                         account: dict[str, Any],
+                         owner_account: dict[str, Any],
+                         regex: str,
+                         region: Optional[str] = None) -> List[Dict[str, Any]]:
+        ec2 = self._account_ec2_client(account['name'], region_name=region)
+        images = self.get_account_amis(ec2, owner=owner_account['uid'])
+        return self._filter_amis(images, regex)
 
     def share_ami(self,
                   account: dict[str, Any],
