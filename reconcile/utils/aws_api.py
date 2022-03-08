@@ -898,12 +898,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         results = []
         pattern = re.compile(regex)
         for i in images:
-            if re.search(pattern, i['Name']):
-                item = {
-                    'image_id': i['ImageId'],
-                    'tags': i.get('Tags', [])
-                }
-                results.append(item)
+            if not re.search(pattern, i['Name']):
+                continue
+            if i['State'] != "available":
+                continue
+            item = {
+                'image_id': i['ImageId'],
+                'tags': i.get('Tags', [])
+            }
+            results.append(item)
 
         return results
 

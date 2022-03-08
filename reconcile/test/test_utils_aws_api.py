@@ -82,17 +82,40 @@ def test_default_region(aws_api, accounts):
             a['resourcesDefaultRegion']
 
 
-def test_filter_amis(aws_api):
+def test_filter_amis_regex(aws_api):
     regex = '^match.*$'
     images = [
         {
             'Name': 'match-regex',
             'ImageId': 'id1',
+            'State': 'available',
             'Tags': []
         },
         {
             'Name': 'no-match-regex',
             'ImageId': 'id2',
+            'State': 'available',
+            'Tags': []
+        }
+    ]
+    results = aws_api._filter_amis(images, regex)
+    expected = {'image_id': 'id1', 'tags': []}
+    assert results == [expected]
+
+
+def test_filter_amis_state(aws_api):
+    regex = '^match.*$'
+    images = [
+        {
+            'Name': 'match-regex-1',
+            'ImageId': 'id1',
+            'State': 'available',
+            'Tags': []
+        },
+        {
+            'Name': 'match-regex-2',
+            'ImageId': 'id2',
+            'State': 'pending',
             'Tags': []
         }
     ]
