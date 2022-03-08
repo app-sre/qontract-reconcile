@@ -62,6 +62,15 @@ integrations:
   logs:
     slack: true
   disableUnleash: true
+- name: openshift-serviceaccount-tokens
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 200m
+    limits:
+      memory: 1000Mi
+      cpu: 400m
+  extraArgs: --vault-output-path osd-fedramp/integrations-output
 - name: openshift-vault-secrets
   resources:
     requests:
