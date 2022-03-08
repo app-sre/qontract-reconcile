@@ -931,7 +931,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                    resource_id: str,
                    tag: Mapping[str, str]):
         ec2 = self._account_ec2_client(account['name'])
-        tag_type_def = TagTypeDef(Key=tag['Key'], Value=tag['Value'])
+        tag_type_def: TagTypeDef = {
+            'Key': tag['Key'],
+            'Value': tag['Value']
+        }
         ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
 
     def get_alb_network_interface_ips(self, account, service_name):
