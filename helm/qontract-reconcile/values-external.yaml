@@ -279,7 +279,7 @@ integrations:
     limits:
       memory: 1200Mi
       cpu: 1200m
-  extraArgs: --no-use-jump-host
+  extraArgs: --external --no-use-jump-host
 - name: openshift-resources
   resources:
     requests:

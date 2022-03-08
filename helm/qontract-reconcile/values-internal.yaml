@@ -117,6 +117,15 @@ integrations:
   extraArgs: --internal --no-use-jump-host
   logs:
     slack: true
+- name: openshift-resourcequotas
+  resources:
+    requests:
+      memory: 800Mi
+      cpu: 900m
+    limits:
+      memory: 1200Mi
+      cpu: 1200m
+  extraArgs: --internal --no-use-jump-host
 - name: openshift-resources
   resources:
     requests:
