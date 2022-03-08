@@ -102,6 +102,7 @@ def test_filter_amis_regex(aws_api):
     expected = {'image_id': 'id1', 'tags': []}
     assert results == [expected]
 
+
 def test_filter_amis_state(aws_api):
     regex = '^match.*$'
     images = [
