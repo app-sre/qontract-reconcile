@@ -900,6 +900,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         for i in images:
             if not re.search(pattern, i['Name']):
                 continue
+            if i['State'] != "available":
+                continue
             item = {
                 'image_id': i['ImageId'],
                 'tags': i.get('Tags', [])
