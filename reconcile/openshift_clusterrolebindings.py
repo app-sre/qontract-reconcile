@@ -106,7 +106,6 @@ def fetch_desired_state(ri, oc_map, no_github):
         bot_users = []
 
         if no_github is True:
-            print("FEDRAMP TRUE")
             users = [user['org_username']
                     for user in role['users']]
             bot_users = [bot['org_username']
