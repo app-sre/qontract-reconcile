@@ -344,7 +344,6 @@ class SaasHerder():
             )
             self.valid = False
 
-
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
         namespaces = []
