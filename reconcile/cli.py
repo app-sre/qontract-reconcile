@@ -551,6 +551,10 @@ def github_validator(ctx):
 @integration.command(
     short_help="Configures ClusterRolebindings in OpenShift clusters."
 )
+@click.option('--no-github',
+              is_flag=True,
+              help='use org_username instead of github_username for ' + 
+                    'user <> clusterrolebinding associations')
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -558,24 +562,30 @@ def github_validator(ctx):
 @use_jump_host()
 @click.pass_context
 def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
-                                  use_jump_host):
+                                  use_jump_host, no_github):
     run_integration(reconcile.openshift_clusterrolebindings,
                     ctx.obj, thread_pool_size, internal,
-                    use_jump_host)
+                    use_jump_host, no_github)
 
 
 @integration.command(
     short_help="Configures Rolebindings in OpenShift clusters."
 )
+@click.option('--no-github',
+              is_flag=True,
+              help='use org_username instead of github_username for ' + 
+                    'user <> rolebinding associations')
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host,
+                           no_github):
     run_integration(reconcile.openshift_rolebindings, ctx.obj,
-                    thread_pool_size, internal, use_jump_host)
+                    thread_pool_size, internal, use_jump_host,
+                    no_github)
 
 
 @integration.command(
