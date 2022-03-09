@@ -20,6 +20,7 @@ ROLES_QUERY = """
       github_username
     }
     bots {
+      org_username
       github_username
       openshift_serviceaccount
     }
@@ -175,8 +176,8 @@ def fetch_desired_state(ri, oc_map, no_github):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None,
-        use_jump_host=True, defer=None, no_github=False):
+def run(dry_run, no_github, thread_pool_size=10, internal=None,
+        use_jump_host=True, defer=None):
     clusters = [cluster_info for cluster_info
                 in queries.get_clusters()
                 if cluster_info.get('managedClusterRoles')]
