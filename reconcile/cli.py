@@ -561,8 +561,8 @@ def github_validator(ctx):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
-                                  use_jump_host, no_github):
+def openshift_clusterrolebindings(ctx, no_github, thread_pool_size,
+                                  internal, use_jump_host):
     run_integration(reconcile.openshift_clusterrolebindings,
                     ctx.obj, thread_pool_size, internal,
                     use_jump_host, no_github)
@@ -581,8 +581,8 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal,
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host,
-                           no_github):
+def openshift_rolebindings(ctx, no_github, thread_pool_size, internal,
+                           use_jump_host):
     run_integration(reconcile.openshift_rolebindings, ctx.obj,
                     thread_pool_size, internal, use_jump_host,
                     no_github)
