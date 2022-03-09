@@ -15,9 +15,11 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     bots {
+      org_username
       github_username
       openshift_serviceaccount
     }
@@ -85,7 +87,7 @@ def construct_sa_oc_resource(role, namespace, sa_name):
               error_details=name), name
 
 
-def fetch_desired_state(ri, oc_map):
+def fetch_desired_state(ri, oc_map, no_github):
     gqlapi = gql.get_api()
     roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     users_desired_state = []
@@ -99,11 +101,22 @@ def fetch_desired_state(ri, oc_map):
         if not permissions:
             continue
 
-        users = [user['github_username']
-                 for user in role['users']]
-        bot_users = [bot['github_username']
-                     for bot in role['bots']
-                     if bot.get('github_username')]
+        users = []
+        bot_users = []
+
+        if no_github is True:
+            users = [user['org_username']
+                    for user in role['users']]
+            bot_users = [bot['org_username']
+                        for bot in role['bots']
+                        if bot.get('org_username')]
+        else:
+            users = [user['github_username']
+                    for user in role['users']]
+            bot_users = [bot['github_username']
+                        for bot in role['bots']
+                        if bot.get('github_username')]
+        
         users.extend(bot_users)
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
@@ -163,7 +176,7 @@ def fetch_desired_state(ri, oc_map):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None,
+def run(dry_run, no_github, thread_pool_size=10, internal=None,
         use_jump_host=True, defer=None):
     namespaces = [namespace_info for namespace_info
                   in queries.get_namespaces()
@@ -180,7 +193,7 @@ def run(dry_run, thread_pool_size=10, internal=None,
         internal=internal,
         use_jump_host=use_jump_host)
     defer(oc_map.cleanup)
-    fetch_desired_state(ri, oc_map)
+    fetch_desired_state(ri, oc_map, no_github)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
     if ri.has_error_registered():
