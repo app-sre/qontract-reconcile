@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2.type_defs import (
         RouteTableTypeDef, SubnetTypeDef, TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef, VpcTypeDef, ImageTypeDef,
-        LaunchPermissionModificationsTypeDef, TagTypeDef
+        LaunchPermissionModificationsTypeDef, TagTypeDef, FilterTypeDef
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
@@ -31,7 +31,7 @@ else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
-        LaunchPermissionModificationsTypeDef = object
+        LaunchPermissionModificationsTypeDef = FilterTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -1281,3 +1281,26 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                           f'unknown DNS zone {zone_id}')
         except Exception as e:
             logging.error(f'[{account_name}] unhandled exception: {e}')
+
+    def get_image_id(self, account_name: str, region_name: str,
+                     tag: Mapping[str, str]) -> str:
+        """
+        Get AMI ID matching the specified criteria.
+
+        :param account_name: the account name to operate on
+        :param region_name: aws region name to operate on
+        https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-images.html
+        """
+        ec2 = self._account_ec2_client(account_name, region_name)
+        filter_type_def: FilterTypeDef = {
+            'Name': 'tag:' + tag['Key'],
+            'Values': [tag['Value']]
+        }
+        images = ec2.describe_images(Filters=[filter_type_def])['Images']
+        if len(images) > 1:
+            raise ValueError(
+                f"found multiple AMI with tag {tag} " +
+                f"in account {account_name}")
+        elif not images:
+            return ''
+        return images[0]['ImageId']
