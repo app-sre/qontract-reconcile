@@ -30,7 +30,8 @@ class TestSaasFileValid(TestCase):
                                 'namespace': {
                                     'name': 'ns',
                                     'environment': {
-                                        'name': 'env1'
+                                        'name': 'env1',
+                                        'parameters': '{}'
                                     },
                                     'cluster': {
                                         'name': 'cluster'
@@ -49,7 +50,8 @@ class TestSaasFileValid(TestCase):
                                 'namespace': {
                                     'name': 'ns',
                                     'environment': {
-                                        'name': 'env2'
+                                        'name': 'env2',
+                                        'parameters': '{}'
                                     },
                                     'cluster': {
                                         'name': 'cluster'
@@ -117,6 +119,38 @@ class TestSaasFileValid(TestCase):
     def test_check_saas_file_upstream_used_with_commit_sha(self):
         self.saas_files[0]['resourceTemplates'][0]['targets'][0]['ref'] = \
             '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30'
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+
+        self.assertFalse(saasherder.valid)
+
+    def test_validate_image_tag_not_equals_ref_valid(self):
+        self.saas_files[0]['resourceTemplates'][0]['targets'][0]['parameters'] = \
+            '{"IMAGE_TAG": "2637b6c"}'
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+
+        self.assertTrue(saasherder.valid)
+
+    def test_validate_image_tag_not_equals_ref_invalid(self):
+        self.saas_files[0]['resourceTemplates'][0]['targets'][0]['ref'] = \
+            '2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30'
+        self.saas_files[0]['resourceTemplates'][0]['targets'][0]['parameters'] = \
+            '{"IMAGE_TAG": "2637b6c"}'
         saasherder = SaasHerder(
             self.saas_files,
             thread_pool_size=1,
