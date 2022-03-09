@@ -162,6 +162,12 @@ class SaasHerder():
                     if not target_parameters:
                         continue
                     target_parameters = json.loads(target_parameters)
+                    self._validate_image_tag_not_equals_ref(
+                        saas_file_name,
+                        resource_template_name,
+                        target['ref'],
+                        target_parameters
+                    )
                     environment_parameters = environment['parameters']
                     if not environment_parameters:
                         continue
@@ -321,6 +327,23 @@ class SaasHerder():
                     f'[{saas_file_name}/{resource_template_name}] '
                     f'upstream used with commit sha: {ref}')
                 self.valid = False
+
+    def _validate_image_tag_not_equals_ref(
+            self,
+            saas_file_name: str,
+            resource_template_name: str,
+            ref: str,
+            parameters: dict,
+    ):
+        image_tag = parameters.get('IMAGE_TAG')
+        if image_tag and str(ref).startswith(str(image_tag)):
+            logging.error(
+                f'[{saas_file_name}/{resource_template_name}] '
+                f'IMAGE_TAG {image_tag} is the same as ref {ref}. '
+                'please remove the IMAGE_TAG parameter, it is automatically generated.'
+            )
+            self.valid = False
+
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
