@@ -12,7 +12,7 @@ QONTRACT_INTEGRATION = "aws-support-cases-sos"
 
 
 def filter_accounts(accounts):
-    return [a for a in accounts if a.get('premiumSupport')]
+    return [a for a in accounts if a.get("premiumSupport")]
 
 
 def get_deleted_keys(accounts):
