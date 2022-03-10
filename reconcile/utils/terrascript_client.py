@@ -4121,7 +4121,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         aws = AWSApi(1, [aws_account],
                      settings=self.settings,
                      init_users=False)
-        commit_sha = 'test'
         tag = {
             'Key': tag_name,
             'Value': commit_sha
