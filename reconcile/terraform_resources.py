@@ -279,7 +279,9 @@ provider
   }
   variables
   image {
-    id
+    tag_name
+    url
+    ref
   }
   output_resource_name
   annotations
