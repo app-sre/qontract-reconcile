@@ -4127,7 +4127,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
         image_id = aws.get_image_id(account, region, tag)
         if not image_id:
-            raise ValueError(f"could not find ami with tag {tag}"
+            raise ValueError(f"could not find ami with tag {tag} "
                              f"in account {account}")
 
         return image_id, commit_sha
