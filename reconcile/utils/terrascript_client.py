@@ -109,7 +109,8 @@ VARIABLE_KEYS = ['region', 'availability_zone', 'parameter_group', 'name',
                  'variables', 'policies', 'user_policy',
                  'es_identifier', 'filter_pattern',
                  'specs', 'secret', 'public', 'domain',
-                 'aws_infrastructure_access', 'cloudinit_configs', 'image']
+                 'aws_infrastructure_access', 'cloudinit_configs', 'image',
+                 'assume_role', 'inline_policy', 'assume_condition']
 
 
 class UnknownProviderError(Exception):
@@ -1911,7 +1912,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.init_common_outputs(tf_resources, namespace_info, output_prefix,
                                  output_resource_name, annotations)
 
-        assume_role = resource['assume_role']
+        assume_role = common_values['assume_role']
         assume_role = {k: v for k, v in assume_role.items() if v is not None}
         # assume role policy
         assume_role_policy = {
@@ -1924,6 +1925,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 }
             ]
         }
+        assume_condition = \
+            json.loads(common_values.get('assume_condition') or '{}')
+        if assume_condition:
+            assume_role_policy['Statement'][0]['Condition'] = assume_condition
 
         # iam role
         values = {
@@ -1932,7 +1937,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             'assume_role_policy': json.dumps(assume_role_policy)
         }
 
-        inline_policy = resource.get('inline_policy')
+        inline_policy = common_values.get('inline_policy')
         if inline_policy:
             values['inline_policy'] = {
                 'name': identifier,

@@ -97,6 +97,7 @@ provider
     AWS
     Service
   }
+  assume_condition
   inline_policy
   output_resource_name
   annotations
