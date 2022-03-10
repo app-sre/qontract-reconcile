@@ -65,7 +65,7 @@ def run(
         if account_name:
             raise ValueError(f"aws account {account_name} not found")
         else:
-            logging.debug('no accounts found')
+            logging.debug("no accounts found")
             sys.exit()
 
     settings = queries.get_app_interface_settings()
