@@ -1,6 +1,5 @@
 import sys
 import shutil
-import logging
 
 from reconcile import queries
 
@@ -62,11 +61,7 @@ def run(
 ):
     accounts = filter_accounts(queries.get_aws_accounts(), account_name)
     if not accounts:
-        if account_name:
-            raise ValueError(f"aws account {account_name} not found")
-        else:
-            logging.debug("no accounts found")
-            sys.exit()
+        raise ValueError(f"aws account {account_name} not found")
 
     settings = queries.get_app_interface_settings()
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
