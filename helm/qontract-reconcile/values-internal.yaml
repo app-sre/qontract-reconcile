@@ -461,3 +461,55 @@ cronjobs:
   - name: XDG_CACHE_HOME
     value: /tmp/.cache
   extraArgs: --gitlab-project-id=${APP_INTERFACE_PROJECT_ID} --reports-path=/tmp/report
+- name: create-namespace
+  command: e2e-tests
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  cron: '0 8,20 * * *'
+  extraArgs: --thread-pool-size 1
+- name: dedicated-admin-rolebindings
+  command: e2e-tests
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  cron: '0 8,20 * * *'
+  extraArgs: --thread-pool-size 1
+- name: default-project-labels
+  command: e2e-tests
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  cron: '0 8,20 * * *'
+  extraArgs: --thread-pool-size 1
+- name: default-network-policies
+  command: e2e-tests
+  concurrencyPolicy: Replace
+  restartPolicy: Never
+  resources:
+    requests:
+      memory: 300Mi
+      cpu: 100m
+    limits:
+      memory: 400Mi
+      cpu: 200m
+  cron: '0 8,20 * * *'
+  extraArgs: --thread-pool-size 1

@@ -33,12 +33,20 @@ def run_test(func, *args):
     help="log-level of the command. Defaults to INFO.",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
+@click.option(
+    "--dry-run/--no-dry-run",
+    "dry_run",
+    default=False,
+    help="Only print the planned actions if `true`",
+)
 @click.pass_context
-def test(ctx, configfile, log_level):
+def test(ctx, configfile, log_level, dry_run):
     ctx.ensure_object(dict)
 
     level = getattr(logging, log_level) if log_level else logging.INFO
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+
+    ctx.obj["dry_run"] = dry_run
 
     config.init_from_toml(configfile)
 
@@ -49,7 +57,7 @@ def test(ctx, configfile, log_level):
 @threaded()
 @click.pass_context
 def create_namespace(ctx, thread_pool_size):
-    run_test(e2e_tests.create_namespace.run, thread_pool_size)
+    run_test(e2e_tests.create_namespace.run, thread_pool_size, ctx.obj["dry_run"])
 
 
 @test.command()

@@ -310,8 +310,18 @@ objects:
   kind: CronJob
   metadata:
     labels:
+      {{- if $integration.command }}
+        {{- if eq $integration.command "e2e-tests" }}
+      app: e2e-tests-{{ $integration.name }}
+    name: e2e-tests-{{ $integration.name }}
+        {{- else }}
+      app: qontract-reconcile-{{ $integration.name }}
+    name: qontract-reconcile-{{ $integration.name }} 
+        {{- end }}
+      {{- else }}
       app: qontract-reconcile-{{ $integration.name }}
     name: qontract-reconcile-{{ $integration.name }}
+      {{- end }}
   spec:
     schedule: "{{ $integration.cron }}"
     concurrencyPolicy: {{ $integration.concurrencyPolicy | default "Allow" }}
