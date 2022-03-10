@@ -553,8 +553,8 @@ def github_validator(ctx):
 )
 @click.option('--no-github',
               is_flag=True,
-              help='use org_username instead of github_username for ' + 
-                    'user <> clusterrolebinding associations')
+              help='use org_username instead of github_username for ' +
+              'user <> clusterrolebinding associations')
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
@@ -573,8 +573,8 @@ def openshift_clusterrolebindings(ctx, no_github, thread_pool_size,
 )
 @click.option('--no-github',
               is_flag=True,
-              help='use org_username instead of github_username for ' + 
-                    'user <> rolebinding associations')
+              help='use org_username instead of github_username for ' +
+              'user <> rolebinding associations')
 @threaded()
 @binary(['oc', 'ssh'])
 @binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
