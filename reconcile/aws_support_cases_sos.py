@@ -11,6 +11,10 @@ from reconcile.utils.aws_api import AWSApi
 QONTRACT_INTEGRATION = "aws-support-cases-sos"
 
 
+def filter_accounts(accounts):
+    return [a for a in accounts if a.get("premiumSupport")]
+
+
 def get_deleted_keys(accounts):
     return {
         account["name"]: account["deleteKeys"]
@@ -53,7 +57,7 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete):
 
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10, enable_deletion=False):
-    accounts = queries.get_aws_accounts()
+    accounts = filter_accounts(queries.get_aws_accounts())
     settings = queries.get_app_interface_settings()
     aws = AWSApi(thread_pool_size, accounts, settings=settings)
     deleted_keys = get_deleted_keys(accounts)
