@@ -55,7 +55,7 @@ def fetch_current_state(thread_pool_size, internal, use_jump_host):
 def fetch_desired_state(oc_map):
     desired_state = []
     flat_rolebindings_desired_state = openshift_rolebindings.fetch_desired_state(
-        ri=None, oc_map=oc_map
+        ri=None, oc_map=oc_map, no_github=False
     )
     desired_state.extend(flat_rolebindings_desired_state)
 

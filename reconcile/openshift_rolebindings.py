@@ -106,17 +106,17 @@ def fetch_desired_state(ri, oc_map, no_github):
 
         if no_github is True:
             users = [user['org_username']
-                    for user in role['users']]
+                     for user in role['users']]
             bot_users = [bot['org_username']
-                        for bot in role['bots']
-                        if bot.get('org_username')]
+                         for bot in role['bots']
+                         if bot.get('org_username')]
         else:
             users = [user['github_username']
-                    for user in role['users']]
+                     for user in role['users']]
             bot_users = [bot['github_username']
-                        for bot in role['bots']
-                        if bot.get('github_username')]
-        
+                         for bot in role['bots']
+                         if bot.get('github_username')]
+
         users.extend(bot_users)
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
