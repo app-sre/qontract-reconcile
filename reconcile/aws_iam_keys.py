@@ -11,6 +11,7 @@ QONTRACT_INTEGRATION = "aws-iam-keys"
 
 
 def filter_accounts(accounts, account_name):
+    accounts = [a for a in accounts if a.get("deleteKeys")]
     if account_name:
         accounts = [a for a in accounts if a["name"] == account_name]
     return accounts
