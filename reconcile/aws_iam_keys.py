@@ -62,7 +62,7 @@ def run(
 ):
     accounts = filter_accounts(queries.get_aws_accounts(), account_name)
     if not accounts:
-        logging.debug(f"nothing to do here")
+        logging.debug("nothing to do here")
         # using return because terraform-resources
         # may be the calling entity, and has more to do
         return
