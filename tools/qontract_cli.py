@@ -1135,17 +1135,18 @@ def promquery(cluster, query):
 
 @root.command()
 @click.option('--app-path',
-              help="Path in app-interface of the app.yml being reviewed")
+              help="Path in app-interface of the app.yml being reviewed (ex. /services/$APP_NAME/app.yml")
 @click.option('--parent-ticket',
-              help="JIRA ticket to link all found issues to",
+              help="JIRA ticket to link all found issues to (ex. APPSRE-NNNN)",
               default=None)
 @click.option('--jiraboard',
               help="JIRA board where to send any new tickets. If not "
               "provided, the folder found in the application's escalation "
-              "policy will be used.",
+              "policy will be used. (ex. APPSRE)",
               default=None)
 @click.option('--jiradef',
-              help="Path to the JIRA server's definition in app-interface",
+              help="Path to the JIRA server's definition in app-interface ("
+                   "ex. /teams/$TEAM_NAME/jira/$JIRA_FILE.yaml",
               default=None)
 @click.option('--create-parent-ticket/--no-create-parent-ticket',
               help="Whether to create a parent ticket if none was provided",
