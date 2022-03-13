@@ -6,7 +6,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple, Union
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple
 
 from contextlib import suppress
 import yaml
