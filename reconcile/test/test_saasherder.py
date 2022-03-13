@@ -12,6 +12,14 @@ from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 from .fixtures import Fixtures
 
 
+class MockJJB():
+    def __init__(self, data):
+        self.jobs = data
+
+    def get_all_jobs(self, job_types):
+        return self.jobs
+
+
 class TestSaasFileValid(TestCase):
     def setUp(self):
         self.saas_files = [
@@ -161,6 +169,34 @@ class TestSaasFileValid(TestCase):
             validate=True
         )
 
+        self.assertFalse(saasherder.valid)
+
+    def test_validate_upstream_jobs_valid(self):
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+        jjb = MockJJB({'ci': [{'name': 'job'}]})
+        saasherder.validate_upstream_jobs(jjb)
+        self.assertTrue(saasherder.valid)
+
+    def test_validate_upstream_jobs_invalid(self):
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+        jjb = MockJJB({'ci': []})
+        saasherder.validate_upstream_jobs(jjb)
         self.assertFalse(saasherder.valid)
 
     def test_check_saas_file_promotion_same_source(self):
