@@ -1,4 +1,5 @@
 import base64
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -40,6 +41,18 @@ class TriggerTypes:
     CONFIGS = 0
     MOVING_COMMITS = 1
     UPSTREAM_JOBS = 2
+
+
+@dataclass
+class UpstreamJob:
+    instance: str
+    job: str
+
+    def __str__(self):
+        return f"{self.instance}/{self.job}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
@@ -367,11 +380,7 @@ class SaasHerder():
                 job_ref = jjb.get_ref(job)
                 if ref != job_ref:
                     continue
-                item = {
-                    'instance': instance,
-                    'job_name': job['name']
-                }
-                results.append(item)
+                results.append(UpstreamJob(instance, job['name']))
         return results
 
     def validate_upstream_jobs(
@@ -392,14 +401,22 @@ class SaasHerder():
                 if isinstance(upstream, str):
                     # skip v1 saas files
                     continue
-                instance_name, job_name = upstream['instance']['name'], upstream['name']
-                found_jobs = [j for j in all_jobs[instance_name] if j["name"] == job_name]
-                if not found_jobs:
-                    upstream_jobs = self._get_upstream_jobs(jjb, all_jobs, url, ref)
+                upstream_job = UpstreamJob(upstream['instance']['name'], upstream['name'])
+                possible_upstream_jobs = self._get_upstream_jobs(jjb, all_jobs, url, ref)
+                found_jobs = [j for j in all_jobs[upstream_job.instance] if j["name"] == upstream_job.job]
+                if found_jobs:
+                    if upstream_job not in possible_upstream_jobs:
+                        logging.error(
+                            f"[{sf_name}/{rt_name}] upstream job "
+                            f"incorrect: {upstream_job}. "
+                            f"should be one of: {possible_upstream_jobs}"
+                        )
+                        self.valid = False
+                else:
                     logging.error(
                         f"[{sf_name}/{rt_name}] upstream job "
-                        f"not found: {instance_name}/{job_name}. "
-                        f"should be one of: {upstream_jobs}"
+                        f"not found: {upstream_job}. "
+                        f"should be one of: {possible_upstream_jobs}"
                     )
                     self.valid = False
 
