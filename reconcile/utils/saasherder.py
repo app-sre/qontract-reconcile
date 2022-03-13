@@ -1091,11 +1091,11 @@ class SaasHerder():
 
     def update_state(self, trigger_type, job_spec):
         if trigger_type == TriggerTypes.MOVING_COMMITS:
-            self.update_moving_commit(job_spec)
+            self._update_moving_commit(job_spec)
         elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
-            self.update_upstream_job(job_spec)
+            self._update_upstream_job(job_spec)
         elif trigger_type == TriggerTypes.CONFIGS:
-            self.update_config(job_spec)
+            self._update_config(job_spec)
         else:
             raise NotImplementedError(
                 f'saasherder update_state for trigger type: {trigger_type}')
@@ -1172,7 +1172,7 @@ class SaasHerder():
 
         return trigger_specs
 
-    def update_moving_commit(self, job_spec):
+    def _update_moving_commit(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
@@ -1279,7 +1279,7 @@ class SaasHerder():
 
         return trigger_specs
 
-    def update_upstream_job(self, job_spec):
+    def _update_upstream_job(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
@@ -1439,7 +1439,7 @@ class SaasHerder():
                             if k in new_job_fields['app']}
         return namespace
 
-    def update_config(self, job_spec):
+    def _update_config(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
