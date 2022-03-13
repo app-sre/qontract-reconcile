@@ -383,6 +383,10 @@ class JJB:  # pylint: disable=too-many-public-methods
         repo_url_raw = job['properties'][0]['github']['url']
         return repo_url_raw.strip('/').replace('.git', '')
 
+    @staticmethod
+    def get_ref(job):
+        return job['scm'][0]['git']['branches'][0]
+
     def get_all_jobs(self, job_types=None, instance_name=None,
                      include_test=False):
         if job_types is None:

@@ -6,7 +6,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Mapping, Any, MutableMapping, Tuple
+from typing import Mapping, Any, MutableMapping, Tuple, Union
 
 from contextlib import suppress
 import yaml
@@ -26,6 +26,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+from reconcile.utils.jjb_client import JJB
 
 TARGET_CONFIG_HASH = "target_config_hash"
 
@@ -88,6 +89,12 @@ class SaasHerder():
             self._get_saas_file_feature_enabled('clusterAdmin')
         if accounts:
             self._initiate_state(accounts)
+
+    def __iter__(self):
+        for saas_file in self.saas_files:
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+                    yield (saas_file, resource_template, target)
 
     def _get_saas_file_feature_enabled(self, name, default=None):
         """Returns a bool indicating if a feature is enabled in a saas file,
@@ -343,6 +350,52 @@ class SaasHerder():
                 'please remove the IMAGE_TAG parameter, it is automatically generated.'
             )
             self.valid = False
+
+    @staticmethod
+    def _get_upstream_jobs(jjb, all_jobs, url, ref):
+        results = []
+        for instance, jobs in all_jobs.items():
+            for job in jobs:
+                job_repo_url = jjb.get_repo_url(job)
+                if url != job_repo_url:
+                    continue
+                job_ref = jjb.get_ref(job)
+                if ref != job_ref:
+                    continue
+                item = {
+                    'instance': instance,
+                    'job_name': job['name']
+                }
+                results.append(item)
+        return results
+
+    def validate_upstream_jobs(
+            self,
+            jjb: JJB,
+    ):
+        all_jobs = jjb.get_all_jobs(job_types=["build"])
+        pattern = r'^[0-9a-f]{40}$'
+        for sf, rt, t in self:
+            sf_name = sf['name']
+            rt_name = rt['name']
+            url = rt['url']
+            ref = t['ref']
+            if re.search(pattern, ref):
+                continue
+            upstream = t.get("upstream")
+            if upstream:
+                if isinstance(upstream, str):
+                    # skip v1 saas files
+                    continue
+                instance_name, job_name = upstream['instance']['name'], upstream['name']
+                found_jobs = [j for j in all_jobs[instance_name] if j["name"] == job_name]
+                if not found_jobs:
+                    upstream_jobs = self._get_upstream_jobs(jjb, all_jobs, url, ref)
+                    logging.error(
+                        f"[{sf_name}/{rt_name}] upstream job "
+                        f"not found: {instance_name}/{job_name}. "
+                        f"should be one of: {upstream_jobs}"
+                    )
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
