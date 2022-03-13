@@ -6,7 +6,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Mapping, Any, MutableMapping, Tuple, Union
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple, Union
 
 from contextlib import suppress
 import yaml
@@ -352,7 +352,12 @@ class SaasHerder():
             self.valid = False
 
     @staticmethod
-    def _get_upstream_jobs(jjb, all_jobs, url, ref):
+    def _get_upstream_jobs(
+            jjb: JJB,
+            all_jobs: Mapping[str, dict],
+            url: str,
+            ref: str,
+    ) -> Iterable[Mapping[str, str]]:
         results = []
         for instance, jobs in all_jobs.items():
             for job in jobs:
@@ -396,6 +401,7 @@ class SaasHerder():
                         f"not found: {instance_name}/{job_name}. "
                         f"should be one of: {upstream_jobs}"
                     )
+                    self.valid = False
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
