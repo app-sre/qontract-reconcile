@@ -370,7 +370,7 @@ class SaasHerder():
             all_jobs: Mapping[str, dict],
             url: str,
             ref: str,
-    ) -> Iterable[Mapping[str, str]]:
+    ) -> Iterable[UpstreamJob]:
         results = []
         for instance, jobs in all_jobs.items():
             for job in jobs:
