@@ -4186,7 +4186,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 image_id = existing_secrets[account][output_prefix]['image_id']
             else:
                 raise ValueError(f"could not find ami for commit {commit_sha} "
-                                f"in account {account}")
+                                 f"in account {account}")
         template_values['image_id'] = image_id
 
         if self._multiregion_account(account):
