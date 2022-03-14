@@ -1,4 +1,5 @@
 import base64
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Mapping, Any, MutableMapping, Tuple
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple
 
 from contextlib import suppress
 import yaml
@@ -26,6 +27,7 @@ from reconcile.utils.openshift_resource import (OpenshiftResource as OR,
                                                 ResourceKeyExistsError)
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
+from reconcile.utils.jjb_client import JJB
 
 TARGET_CONFIG_HASH = "target_config_hash"
 
@@ -39,6 +41,18 @@ class TriggerTypes:
     CONFIGS = 0
     MOVING_COMMITS = 1
     UPSTREAM_JOBS = 2
+
+
+@dataclass
+class UpstreamJob:
+    instance: str
+    job: str
+
+    def __str__(self):
+        return f"{self.instance}/{self.job}"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 50
@@ -88,6 +102,12 @@ class SaasHerder():
             self._get_saas_file_feature_enabled('clusterAdmin')
         if accounts:
             self._initiate_state(accounts)
+
+    def __iter__(self):
+        for saas_file in self.saas_files:
+            for resource_template in saas_file['resourceTemplates']:
+                for target in resource_template['targets']:
+                    yield (saas_file, resource_template, target)
 
     def _get_saas_file_feature_enabled(self, name, default=None):
         """Returns a bool indicating if a feature is enabled in a saas file,
@@ -343,6 +363,62 @@ class SaasHerder():
                 'please remove the IMAGE_TAG parameter, it is automatically generated.'
             )
             self.valid = False
+
+    @staticmethod
+    def _get_upstream_jobs(
+            jjb: JJB,
+            all_jobs: Mapping[str, dict],
+            url: str,
+            ref: str,
+    ) -> Iterable[UpstreamJob]:
+        results = []
+        for instance, jobs in all_jobs.items():
+            for job in jobs:
+                job_repo_url = jjb.get_repo_url(job)
+                if url != job_repo_url:
+                    continue
+                job_ref = jjb.get_ref(job)
+                if ref != job_ref:
+                    continue
+                results.append(UpstreamJob(instance, job['name']))
+        return results
+
+    def validate_upstream_jobs(
+            self,
+            jjb: JJB,
+    ):
+        all_jobs = jjb.get_all_jobs(job_types=["build"])
+        pattern = r'^[0-9a-f]{40}$'
+        for sf, rt, t in self:
+            sf_name = sf['name']
+            rt_name = rt['name']
+            url = rt['url']
+            ref = t['ref']
+            if re.search(pattern, ref):
+                continue
+            upstream = t.get("upstream")
+            if upstream:
+                if isinstance(upstream, str):
+                    # skip v1 saas files
+                    continue
+                upstream_job = UpstreamJob(upstream['instance']['name'], upstream['name'])
+                possible_upstream_jobs = self._get_upstream_jobs(jjb, all_jobs, url, ref)
+                found_jobs = [j for j in all_jobs[upstream_job.instance] if j["name"] == upstream_job.job]
+                if found_jobs:
+                    if upstream_job not in possible_upstream_jobs:
+                        logging.error(
+                            f"[{sf_name}/{rt_name}] upstream job "
+                            f"incorrect: {upstream_job}. "
+                            f"should be one of: {possible_upstream_jobs}"
+                        )
+                        self.valid = False
+                else:
+                    logging.error(
+                        f"[{sf_name}/{rt_name}] upstream job "
+                        f"not found: {upstream_job}. "
+                        f"should be one of: {possible_upstream_jobs}"
+                    )
+                    self.valid = False
 
     def _collect_namespaces(self):
         # namespaces may appear more then once in the result
@@ -1032,11 +1108,11 @@ class SaasHerder():
 
     def update_state(self, trigger_type, job_spec):
         if trigger_type == TriggerTypes.MOVING_COMMITS:
-            self.update_moving_commit(job_spec)
+            self._update_moving_commit(job_spec)
         elif trigger_type == TriggerTypes.UPSTREAM_JOBS:
-            self.update_upstream_job(job_spec)
+            self._update_upstream_job(job_spec)
         elif trigger_type == TriggerTypes.CONFIGS:
-            self.update_config(job_spec)
+            self._update_config(job_spec)
         else:
             raise NotImplementedError(
                 f'saasherder update_state for trigger type: {trigger_type}')
@@ -1113,7 +1189,7 @@ class SaasHerder():
 
         return trigger_specs
 
-    def update_moving_commit(self, job_spec):
+    def _update_moving_commit(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
@@ -1220,7 +1296,7 @@ class SaasHerder():
 
         return trigger_specs
 
-    def update_upstream_job(self, job_spec):
+    def _update_upstream_job(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']
@@ -1380,7 +1456,7 @@ class SaasHerder():
                             if k in new_job_fields['app']}
         return namespace
 
-    def update_config(self, job_spec):
+    def _update_config(self, job_spec):
         saas_file_name = job_spec['saas_file_name']
         env_name = job_spec['env_name']
         rt_name = job_spec['rt_name']

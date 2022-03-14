@@ -7,9 +7,26 @@ import yaml
 from github import GithubException
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.jjb_client import JJB
 from reconcile.utils.saasherder import TARGET_CONFIG_HASH
 
 from .fixtures import Fixtures
+
+
+class MockJJB():
+    def __init__(self, data):
+        self.jobs = data
+
+    def get_all_jobs(self, job_types):
+        return self.jobs
+
+    @staticmethod
+    def get_repo_url(job):
+        return JJB.get_repo_url(job)
+
+    @staticmethod
+    def get_ref(job):
+        return JJB.get_ref(job)
 
 
 class TestSaasFileValid(TestCase):
@@ -74,6 +91,50 @@ class TestSaasFileValid(TestCase):
                 ]
             }
         ]
+        jjb_mock_data = {
+            'ci':
+            [
+                {
+                    'name': 'job',
+                    'properties': [
+                        {
+                            'github': {
+                                'url': 'url'
+                            }
+                        }
+                    ],
+                    'scm': [
+                        {
+                            'git': {
+                                'branches': [
+                                    'main'
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    'name': 'job',
+                    'properties': [
+                        {
+                            'github': {
+                                'url': 'url'
+                            }
+                        }
+                    ],
+                    'scm': [
+                        {
+                            'git': {
+                                'branches': [
+                                    'master'
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        self.jjb = MockJJB(jjb_mock_data)
 
     def test_check_saas_file_env_combo_unique(self):
         saasherder = SaasHerder(
@@ -161,6 +222,33 @@ class TestSaasFileValid(TestCase):
             validate=True
         )
 
+        self.assertFalse(saasherder.valid)
+
+    def test_validate_upstream_jobs_valid(self):
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+        saasherder.validate_upstream_jobs(self.jjb)
+        self.assertTrue(saasherder.valid)
+
+    def test_validate_upstream_jobs_invalid(self):
+        saasherder = SaasHerder(
+            self.saas_files,
+            thread_pool_size=1,
+            gitlab=None,
+            integration='',
+            integration_version='',
+            settings={},
+            validate=True
+        )
+        jjb = MockJJB({'ci': []})
+        saasherder.validate_upstream_jobs(jjb)
         self.assertFalse(saasherder.valid)
 
     def test_check_saas_file_promotion_same_source(self):

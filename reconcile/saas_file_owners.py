@@ -79,6 +79,7 @@ def collect_state():
                 cluster = namespace_info['cluster']['name']
                 environment = namespace_info['environment']['name']
                 target_ref = target['ref']
+                target_upstream = target.get('upstream')
                 target_disable = target.get('disable')
                 target_delete = target.get('delete')
                 target_parameters = \
@@ -100,6 +101,7 @@ def collect_state():
                     'parameters': parameters,
                     'saas_file_definitions':
                         copy.deepcopy(saas_file_definitions),
+                    'upstream': target_upstream,
                     'disable': target_disable,
                     'delete': target_delete,
                 })
@@ -205,6 +207,7 @@ def valid_diff(current_state, desired_state):
         c.pop('ref')
         c.pop('parameters')
         c['saas_file_definitions'].pop('use_channel_in_image_tag')
+        c.pop('upstream')
         c.pop('disable')
         c.pop('saas_file_deploy_resources')
     desired_state_copy = copy.deepcopy(desired_state)
@@ -212,6 +215,7 @@ def valid_diff(current_state, desired_state):
         d.pop('ref')
         d.pop('parameters')
         d['saas_file_definitions'].pop('use_channel_in_image_tag')
+        d.pop('upstream')
         d.pop('disable')
         d.pop('saas_file_deploy_resources')
     return current_state_copy == desired_state_copy
