@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pip install -r /work/requirements-debugger.txt
+pip install -r /work/requirements/requirements-debugger.txt
 
 if [ "$DEBUGGER" == "debugpy" ]
 then
