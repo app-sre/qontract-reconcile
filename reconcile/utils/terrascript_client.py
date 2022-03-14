@@ -85,6 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
@@ -262,6 +263,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     token = get_default_config()['token']
                     self.github = Github(token, base_url=GH_BASE_URL)
         return self.github
+
+    def init_jenkins(self, instance: dict) -> JenkinsApi:
+        return JenkinsApi(instance['token'], settings=self.settings)
 
     def filter_disabled_accounts(self, accounts):
         filtered_accounts = []
@@ -4129,6 +4133,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return image_id, commit_sha
 
+    def _use_previous_image_id(self, image: dict) -> bool:
+        # if upstream job is running - use previous commit
+        upstream = image.get('upstream')
+        if upstream:
+            jenkins = self.init_jenkins(upstream['instance'])
+            if jenkins.is_job_running(upstream['name']):
+                # AMI is being built, use previous known image id
+                return True
+        return False
+
     def populate_tf_resource_asg(self, resource: dict,
                                  namespace_info: dict,
                                  existing_secrets: dict) -> None:
@@ -4169,8 +4183,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         image_id, commit_sha = \
             self._get_asg_image_id(image, account, region)
         if not image_id:
-            raise ValueError(f"could not find ami for commit {commit_sha} "
-                             f"in account {account}")
+            if self._use_previous_image_id(image):
+                image_id = existing_secrets[account][output_prefix]['image_id']
+            else:
+                raise ValueError(f"could not find ami for commit {commit_sha} "
+                                f"in account {account}")
         template_values['image_id'] = image_id
 
         if self._multiregion_account(account):
