@@ -4134,7 +4134,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return image_id, commit_sha
 
     def _use_previous_image_id(self, image: dict) -> bool:
-        # if upstream job is running - use previous commit
         upstream = image.get('upstream')
         if upstream:
             jenkins = self.init_jenkins(upstream['instance'])
