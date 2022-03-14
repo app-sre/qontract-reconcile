@@ -4106,7 +4106,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return ''
 
     def _get_asg_image_id(self, image: dict,
-                          account: str, region: str) -> Tuple[str, str]:
+                          account: str, region: str) -> Tuple[Optional[str], str]:
         """
         AMI ID comes form AWS Api filter result.
         AMI needs to be shared by integration aws-ami-share.
@@ -4126,9 +4126,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             'Value': commit_sha
         }
         image_id = aws.get_image_id(account, region, tag)
-        if not image_id:
-            raise ValueError(f"could not find ami with tag {tag} "
-                             f"in account {account}")
 
         return image_id, commit_sha
 
@@ -4171,6 +4168,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         image = common_values.get('image')
         image_id, commit_sha = \
             self._get_asg_image_id(image, account, region)
+        if not image_id:
+            raise ValueError(f"could not find ami for commit {commit_sha} "
+                             f"in account {account}")
         template_values['image_id'] = image_id
 
         if self._multiregion_account(account):
