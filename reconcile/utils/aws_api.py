@@ -1283,7 +1283,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             logging.error(f'[{account_name}] unhandled exception: {e}')
 
     def get_image_id(self, account_name: str, region_name: str,
-                     tag: Mapping[str, str]) -> str:
+                     tag: Mapping[str, str]) -> Optional[str]:
         """
         Get AMI ID matching the specified criteria.
 
@@ -1302,5 +1302,5 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 f"found multiple AMI with tag {tag} " +
                 f"in account {account_name}")
         elif not images:
-            return ''
+            return None
         return images[0]['ImageId']

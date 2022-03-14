@@ -282,6 +282,17 @@ provider
     tag_name
     url
     ref
+    upstream {
+      instance {
+        token {
+          path
+          field
+          version
+          format
+        }
+      }
+      name
+    }
   }
   output_resource_name
   annotations

@@ -85,6 +85,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
@@ -262,6 +263,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     token = get_default_config()['token']
                     self.github = Github(token, base_url=GH_BASE_URL)
         return self.github
+
+    def init_jenkins(self, instance: dict) -> JenkinsApi:
+        return JenkinsApi(instance['token'], settings=self.settings)
 
     def filter_disabled_accounts(self, accounts):
         filtered_accounts = []
@@ -4106,7 +4110,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return ''
 
     def _get_asg_image_id(self, image: dict,
-                          account: str, region: str) -> Tuple[str, str]:
+                          account: str, region: str) -> Tuple[Optional[str], str]:
         """
         AMI ID comes form AWS Api filter result.
         AMI needs to be shared by integration aws-ami-share.
@@ -4126,11 +4130,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             'Value': commit_sha
         }
         image_id = aws.get_image_id(account, region, tag)
-        if not image_id:
-            raise ValueError(f"could not find ami with tag {tag} "
-                             f"in account {account}")
 
         return image_id, commit_sha
+
+    def _use_previous_image_id(self, image: dict) -> bool:
+        upstream = image.get('upstream')
+        if upstream:
+            jenkins = self.init_jenkins(upstream['instance'])
+            if jenkins.is_job_running(upstream['name']):
+                # AMI is being built, use previous known image id
+                return True
+        return False
 
     def populate_tf_resource_asg(self, resource: dict,
                                  namespace_info: dict,
@@ -4171,6 +4181,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         image = common_values.get('image')
         image_id, commit_sha = \
             self._get_asg_image_id(image, account, region)
+        if not image_id:
+            if self._use_previous_image_id(image):
+                image_id = existing_secrets[account][output_prefix]['image_id']
+                commit_sha = existing_secrets[account][output_prefix]['commit_sha']
+                logging.warning(
+                    f"[{account}] ami {image_id} not yet available. "
+                    f"using ami for previous commit {commit_sha}."
+                )
+            else:
+                raise ValueError(f"could not find ami for commit {commit_sha} "
+                                 f"in account {account}")
         template_values['image_id'] = image_id
 
         if self._multiregion_account(account):
