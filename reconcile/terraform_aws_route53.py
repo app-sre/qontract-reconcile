@@ -18,7 +18,11 @@ QONTRACT_INTEGRATION = "terraform_aws_route53"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def build_desired_state(zones, all_accounts, settings):
+def build_desired_state(
+        zones: list[dict],
+        all_accounts: list[dict],
+        settings: dict
+    ) -> list[dict]:
     """
     Build the desired state from the app-interface resources
 
