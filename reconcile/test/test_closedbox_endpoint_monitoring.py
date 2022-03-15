@@ -9,9 +9,11 @@ from reconcile.closedbox_endpoint_monitoring_base import (
 )
 from reconcile.blackbox_exporter_endpoint_monitoring import (
     build_probe as blackbox_exporter_probe_builder,
-)
-from reconcile.blackbox_exporter_endpoint_monitoring import (
     PROVIDER as BLACKBOX_EXPORTER_PROVIDER,
+)
+from reconcile.signalfx_endpoint_monitoring import (
+    build_probe as signalfx_probe_builder,
+    PROVIDER as SIGNALFX_PROVIDER,
 )
 from reconcile.utils.openshift_resource import ResourceInventory
 from .fixtures import Fixtures
@@ -93,7 +95,55 @@ def test_blackbox_exporter_probe_building(mocker):
     assert "https://test2.url" in spec["targets"]["staticConfig"]["static"]
 
 
-def test_filling_desired_state(mocker):
+def test_signalfx_probe_building(mocker):
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
+    ep_query.return_value = get_endpoint_fixtures("test_signalfx_probe_building.yaml")
+
+    endpoints = get_endpoints(SIGNALFX_PROVIDER)
+    assert len(endpoints) == 1
+
+    provider = list(endpoints.keys())[0]
+    probe_resource = signalfx_probe_builder(provider, endpoints.get(provider))
+    assert probe_resource is not None
+
+    # verify prober url decomposition
+    spec = probe_resource.body.get("spec")
+    assert spec.get("prober") == {
+        "url": "signalfxexporter:9091",
+        "scheme": "http",
+        "path": "/metrics/probe",
+    }
+
+    # verify labels
+    labels = spec["targets"]["staticConfig"]["labels"]
+    assert labels.get("environment") == "staging"
+
+    # verify timeout and interval
+    assert spec["scrapeTimeout"] == provider.timeout
+    assert spec["interval"] == provider.checkInterval
+
+    # verify targets
+    assert "test_1" in spec["targets"]["staticConfig"]["static"]
+    assert "test_2" in spec["targets"]["staticConfig"]["static"]
+
+    # verify relabeling
+    assert {
+        "action": "replace",
+        "regex": f"^test_1$",
+        "replacement": "https://test1.url",
+        "sourceLabels": ["instance"],
+        "targetLabel": ["instance"],
+    } in spec["targets"]["staticConfig"]["relabelingConfigs"]
+    assert {
+        "action": "replace",
+        "regex": f"^test_2$",
+        "replacement": "https://test2.url",
+        "sourceLabels": ["instance"],
+        "targetLabel": ["instance"],
+    } in spec["targets"]["staticConfig"]["relabelingConfigs"]
+
+
+def test_blackbox_exporter_filling_desired_state(mocker):
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
@@ -109,6 +159,26 @@ def test_filling_desired_state(mocker):
         namespace="openshift-customer-monitoring",
         resource_type="Probe",
         name="blackbox-exporter-http-2xx",
+        value=ANY,
+    )
+
+
+def test_signalfx_filling_desired_state(mocker):
+    ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
+    ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
+    add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
+
+    endpoints = get_endpoints(SIGNALFX_PROVIDER)
+    provider = list(endpoints.keys())[0]
+    probe = signalfx_probe_builder(provider, endpoints[provider])
+    fill_desired_state(provider, probe, ResourceInventory())
+
+    assert add_desired_mock.call_count == 1
+    add_desired_mock.assert_called_with(
+        cluster="app-sre-stage-01",
+        namespace="openshift-customer-monitoring",
+        resource_type="Probe",
+        name="signalfx-exporter-http-2xx",
         value=ANY,
     )
 

@@ -110,6 +110,7 @@ import reconcile.cluster_deployment_mapper
 import reconcile.gabi_authorized_users
 import reconcile.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
+import reconcile.signalfx_endpoint_monitoring
 
 from reconcile.status import ExitCodes
 from reconcile.status import RunningState
@@ -1690,7 +1691,7 @@ def status_page_components(ctx):
 
 
 @integration.command(
-    short_help="Manages Prometheus Probe resources."
+    short_help="Manages Prometheus Probe resources for blackbox-exporter"
 )
 @threaded()
 @internal()
@@ -1699,4 +1700,17 @@ def status_page_components(ctx):
 def blackbox_exporter_endpoint_monitoring(ctx, thread_pool_size,
                                           internal, use_jump_host):
     run_integration(reconcile.blackbox_exporter_endpoint_monitoring,
+                    ctx.obj, thread_pool_size, internal, use_jump_host)
+
+
+@integration.command(
+    short_help="Manages Prometheus Probe resources for signalfx exporter"
+)
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def signalfx_prometheus_endpoint_monitoring(ctx, thread_pool_size,
+                                            internal, use_jump_host):
+    run_integration(reconcile.signalfx_endpoint_monitoring,
                     ctx.obj, thread_pool_size, internal, use_jump_host)

@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from typing import Any, Callable, Optional
 import json
 from dataclasses import field
+from attr import frozen
 
 from pydantic.dataclasses import dataclass
 
@@ -26,6 +27,16 @@ class BlackboxMonitoringProvider:
 
 
 @dataclass(frozen=True, eq=True)
+class SignalfxMonitoringProvier:
+
+    # the namespace of a blackbox-exporter provider is mapped as dict
+    # since its only use with ob.fetch_current_state is as a dict
+    namespace: dict[str, Any] = field(compare=False, hash=False)
+    exporterUrl: str
+    targetFilterLabel: str
+
+
+@dataclass(frozen=True, eq=True)
 class EndpointMonitoringProvider:
 
     name: str
@@ -34,12 +45,15 @@ class EndpointMonitoringProvider:
     timeout: Optional[str] = None
     checkInterval: Optional[str] = None
     blackboxExporter: Optional[BlackboxMonitoringProvider] = None
+    signalFx: Optional[SignalfxMonitoringProvier] = None
     metricLabels: Optional[str] = None
 
     @property
     def namespace(self) -> Optional[dict[str, Any]]:
         if self.blackboxExporter:
             return self.blackboxExporter.namespace
+        elif self.signalFx:
+            return self.signalFx.namespace
         else:
             return None
 
