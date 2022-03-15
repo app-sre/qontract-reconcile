@@ -797,3 +797,17 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
         else:
             namespace_type_resources = shared_type_resources_items
             namespace_info[shared_resources_type] = namespace_type_resources
+
+
+def determine_user_key_for_access(cluster_info: dict) -> str:
+    service = cluster_info["auth"]["service"]
+    if service == "github-org":
+        return "github_username"
+    if service == "github-org-team":
+        return "github_username"
+    if service == "oidc":
+        return "org_username"
+
+    raise NotImplementedError(
+        f"[{cluster_info['name']} auth service not implemented: {service}]"
+    )
