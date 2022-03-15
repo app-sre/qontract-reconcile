@@ -18,7 +18,6 @@ ROLES_QUERY = """
       github_username
     }
     bots {
-      github_username
       openshift_serviceaccount
     }
     access {
