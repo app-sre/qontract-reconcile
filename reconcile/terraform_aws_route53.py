@@ -19,10 +19,8 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def build_desired_state(
-        zones: list[dict],
-        all_accounts: list[dict],
-        settings: dict
-    ) -> list[dict]:
+    zones: list[dict], all_accounts: list[dict], settings: dict
+) -> list[dict]:
     """
     Build the desired state from the app-interface resources
 

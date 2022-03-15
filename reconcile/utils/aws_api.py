@@ -28,12 +28,13 @@ if TYPE_CHECKING:
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
         LaunchPermissionModificationsTypeDef = FilterTypeDef = \
-        Route53Client = object
+        Route53Client = ResourceRecordSetTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -1166,18 +1167,33 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def get_route53_zone_ns_records(self, account_name, zone_name, region):
-        route53 = self._account_route53_client(account_name, region)
+    def _get_hosted_zone_record_sets(self,
+                                     route53: Route53Client,
+                                     zone_name: str) -> List[ResourceRecordSetTypeDef]:
         zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
         if not zones:
-            return None
+            return []
         # 'Id': '/hostedzone/THISISTHEZONEID'
         zone_id = zones[0]["Id"].split("/")[-1]
-        record_sets = route53.list_resource_record_sets(HostedZoneId=zone_id)["ResourceRecordSets"]
-        ns_records = [r for r in record_sets
-                      if r["Name"] == f"{zone_name}."
-                      and r["Type"] == "NS"][0]["ResourceRecords"]
-        return [r['Value'].rstrip(".") for r in ns_records]
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)["ResourceRecordSets"]
+
+    @staticmethod
+    def _filter_record_sets(record_sets: List[ResourceRecordSetTypeDef],
+                            zone_name: str,
+                            zone_type: str) -> List[ResourceRecordSetTypeDef]:
+        return [r for r in record_sets if r["Name"] == f"{zone_name}." and r["Type"] == zone_type]
+
+    @staticmethod
+    def _extract_records(resource_records: List[ResourceRecordSetTypeDef]) -> list[str]:
+        # [{'Value': 'ns.example.com.'}, ...]
+        return [r['Value'].rstrip(".") for r in resource_records]
+
+    def get_route53_zone_ns_records(self, account_name, zone_name, region):
+        route53 = self._account_route53_client(account_name, region)
+        record_sets = self._get_hosted_zone_record_sets(route53, zone_name)
+        resource_records = self._filter_record_sets(record_sets, zone_name, "NS")[0]["ResourceRecords"]
+        ns_records = self._extract_records(resource_records)
+        return ns_records
 
     def get_route53_zones(self):
         """
