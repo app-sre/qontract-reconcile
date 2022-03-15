@@ -1167,8 +1167,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def _get_hosted_zone_record_sets(self,
-                                     route53: Route53Client,
+    @staticmethod
+    def _get_hosted_zone_record_sets(route53: Route53Client,
                                      zone_name: str) -> List[ResourceRecordSetTypeDef]:
         zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
         if not zones:
