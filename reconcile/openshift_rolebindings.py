@@ -15,6 +15,7 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     bots {
@@ -26,6 +27,9 @@ ROLES_QUERY = """
         managedRoles
         cluster {
           name
+          auth {
+            service
+          }
         }
       }
       role
@@ -89,7 +93,7 @@ def fetch_desired_state(ri, oc_map):
     roles = expiration.filter(gqlapi.query(ROLES_QUERY)['roles'])
     users_desired_state = []
     for role in roles:
-        permissions = [{'cluster': a['namespace']['cluster']['name'],
+        permissions = [{'cluster': a['namespace']['cluster'],
                         'namespace': a['namespace']['name'],
                         'role': a['role']}
                        for a in role['access'] or []
@@ -98,30 +102,31 @@ def fetch_desired_state(ri, oc_map):
         if not permissions:
             continue
 
-        users = [user['github_username']
-                 for user in role['users']]
+        users = [user for user in role['users']]
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
                             if bot.get('openshift_serviceaccount')]
 
         for permission in permissions:
-            cluster = permission['cluster']
+            cluster_info = permission['cluster']
+            cluster = cluster_info['name']
             namespace = permission['namespace']
             if not is_in_shard(f"{cluster}/{namespace}"):
                 continue
             if oc_map and not oc_map.get(cluster):
                 continue
+            user_key = ob.determine_user_key_for_access(cluster_info)
             for user in users:
                 # used by openshift-users and github integrations
                 # this is just to simplify things a bit on the their side
                 users_desired_state.append({
                     'cluster': cluster,
-                    'user': user
+                    'user': user[user_key]
                 })
                 if ri is None:
                     continue
                 oc_resource, resource_name = \
-                    construct_user_oc_resource(permission['role'], user)
+                    construct_user_oc_resource(permission['role'], user[user_key])
                 try:
                     ri.add_desired(
                         cluster,
