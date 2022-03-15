@@ -800,14 +800,15 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 
 def determine_user_key_for_access(cluster_info: dict) -> str:
+    AUTH_METHOD_USER_KEY = {
+        "github-org": "github_username",
+        "github-org-team": "github_username",
+        "oidc": "org_username",
+    }
     service = cluster_info["auth"]["service"]
-    if service == "github-org":
-        return "github_username"
-    if service == "github-org-team":
-        return "github_username"
-    if service == "oidc":
-        return "org_username"
-
-    raise NotImplementedError(
-        f"[{cluster_info['name']} auth service not implemented: {service}]"
-    )
+    try:
+        return AUTH_METHOD_USER_KEY[service]
+    except KeyError:
+        raise NotImplementedError(
+            f"[{cluster_info['name']} auth service not implemented: {service}]"
+        )
