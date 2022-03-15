@@ -28,13 +28,13 @@ if TYPE_CHECKING:
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_route53 import Route53Client
-    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef
+    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef, HostedZoneTypeDef
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
         LaunchPermissionModificationsTypeDef = FilterTypeDef = \
-        Route53Client = ResourceRecordSetTypeDef = object
+        Route53Client = ResourceRecordSetTypeDef = HostedZoneTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -1168,13 +1168,17 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return results
 
     @staticmethod
-    def _get_hosted_zone_record_sets(route53: Route53Client,
+    def _get_hosted_zone_id(zone: HostedZoneTypeDef) -> str:
+        # 'Id': '/hostedzone/THISISTHEZONEID'
+        return zone["Id"].split("/")[-1]
+
+    def _get_hosted_zone_record_sets(self,
+                                     route53: Route53Client,
                                      zone_name: str) -> List[ResourceRecordSetTypeDef]:
         zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
         if not zones:
             return []
-        # 'Id': '/hostedzone/THISISTHEZONEID'
-        zone_id = zones[0]["Id"].split("/")[-1]
+        zone_id = self._get_hosted_zone_id(zones[0])
         return route53.list_resource_record_sets(HostedZoneId=zone_id)["ResourceRecordSets"]
 
     @staticmethod
