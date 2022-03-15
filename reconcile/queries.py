@@ -406,8 +406,15 @@ CLUSTERS_QUERY = """
     }
     auth {
       service
-      org
-      team
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
     }
     ocm {
       name
