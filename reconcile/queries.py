@@ -2130,6 +2130,19 @@ DNS_ZONES_QUERY = """
         name
         elbFQDN
       }
+      _target_namespace_zone {
+        namespace {
+          terraformResources {
+            provider
+            ... on NamespaceTerraformResourceRoute53Zone_v1 {
+              account
+              region
+              name
+            }
+          }
+        }
+        name
+      }
     }
   }
 }
