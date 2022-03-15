@@ -28,13 +28,13 @@ if TYPE_CHECKING:
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_route53 import Route53Client
-    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef, HostedZoneTypeDef
+    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef, ResourceRecordTypeDef, HostedZoneTypeDef
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
         LaunchPermissionModificationsTypeDef = FilterTypeDef = \
-        Route53Client = ResourceRecordSetTypeDef = HostedZoneTypeDef = object
+        Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = HostedZoneTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -1188,7 +1188,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return [r for r in record_sets if r["Name"] == f"{zone_name}." and r["Type"] == zone_type]
 
     @staticmethod
-    def _extract_records(resource_records: List[ResourceRecordSetTypeDef]) -> list[str]:
+    def _extract_records(resource_records: List[ResourceRecordTypeDef]) -> list[str]:
         # [{'Value': 'ns.example.com.'}, ...]
         return [r['Value'].rstrip(".") for r in resource_records]
 
