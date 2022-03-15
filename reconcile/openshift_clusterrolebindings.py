@@ -103,7 +103,6 @@ def fetch_desired_state(ri, oc_map):
         if not permissions:
             continue
 
-        users = [user for user in role['users']]
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
                             if bot.get('openshift_serviceaccount')]
@@ -114,7 +113,7 @@ def fetch_desired_state(ri, oc_map):
             if not oc_map.get(cluster):
                 continue
             user_key = ob.determine_user_key_for_access(cluster_info)
-            for user in users:
+            for user in role['users']:
                 # used by openshift-users and github integrations
                 # this is just to simplify things a bit on the their side
                 users_desired_state.append({
