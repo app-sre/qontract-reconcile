@@ -16,6 +16,7 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     bots {
@@ -24,6 +25,9 @@ ROLES_QUERY = """
     access {
       cluster {
         name
+        auth {
+          service
+        }
       }
       clusterRole
     }
@@ -92,35 +96,36 @@ def fetch_desired_state(ri, oc_map):
     # set namespace to something indicative
     namepsace = 'cluster'
     for role in roles:
-        permissions = [{'cluster': a['cluster']['name'],
+        permissions = [{'cluster': a['cluster'],
                         'cluster_role': a['clusterRole']}
                        for a in role['access'] or []
                        if None not in [a['cluster'], a['clusterRole']]]
         if not permissions:
             continue
 
-        users = [user['github_username']
-                 for user in role['users']]
+        users = [user for user in role['users']]
         service_accounts = [bot['openshift_serviceaccount']
                             for bot in role['bots']
                             if bot.get('openshift_serviceaccount')]
 
         for permission in permissions:
-            cluster = permission['cluster']
+            cluster_info = permission['cluster']
+            cluster = cluster_info['name']
             if not oc_map.get(cluster):
                 continue
+            user_key = ob.determine_user_key_for_access(cluster_info)
             for user in users:
                 # used by openshift-users and github integrations
                 # this is just to simplify things a bit on the their side
                 users_desired_state.append({
                     'cluster': cluster,
-                    'user': user
+                    'user': user[user_key]
                 })
                 if ri is None:
                     continue
                 oc_resource, resource_name = \
                     construct_user_oc_resource(
-                        permission['cluster_role'], user)
+                        permission['cluster_role'], user[user_key])
                 try:
                     ri.add_desired(
                         cluster,
