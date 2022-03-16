@@ -146,7 +146,7 @@ def fetch_desired_state(ri, oc_map):
                         permission['cluster_role'], namespace, sa_name)
                 try:
                     ri.add_desired(
-                        permission['cluster'],
+                        cluster,
                         namepsace,
                         'ClusterRoleBinding',
                         resource_name,

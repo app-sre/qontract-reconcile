@@ -147,7 +147,7 @@ def fetch_desired_state(ri, oc_map):
                         permission['role'], namespace, sa_name)
                 try:
                     ri.add_desired(
-                        permission['cluster'],
+                        cluster,
                         permission['namespace'],
                         'RoleBinding.authorization.openshift.io',
                         resource_name,
