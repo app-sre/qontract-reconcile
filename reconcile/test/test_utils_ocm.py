@@ -1,5 +1,4 @@
-from cmath import exp
-from unittest import TestCase, expectedFailure
+from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
@@ -72,7 +71,7 @@ def test_get_cluster_aws_account_id_none(mocker, ocm):
     )
     role_grants_mock.return_value = []
     result = ocm.get_cluster_aws_account_id("cluster")
-    assert result == None
+    assert result is None
 
 
 def test_get_cluster_aws_account_id_ok(mocker, ocm):
