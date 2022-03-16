@@ -324,6 +324,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         and parsing out the console_url from one of them.
         """
         role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
+        # filter for role grants with a console url
+        role_grants = [r for r in role_grants if r[-1]]
         if not role_grants:
             return None
         switch_role_link = role_grants[0][-1]
