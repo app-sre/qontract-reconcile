@@ -323,8 +323,18 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                 raise FetchResourceError(e_msg)
 
     if validate_alertmanager_config:
-        decode_base64 = True if body['kind'] == 'Secret' else False
-        check_alertmanager_config(body['data'], path,
+        if body['kind'] == 'Secret':
+            if 'data' in body:
+                am_data = body['data']
+                decode_base64 = True
+            elif 'stringData' in body:
+                am_data = body['stringData']
+                decode_base64 = False
+        else:
+            am_data = body['data']
+            decode_base64 = False
+
+        check_alertmanager_config(am_data, path,
                                   alertmanager_config_key,
                                   decode_base64)
 
