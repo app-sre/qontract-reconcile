@@ -1481,6 +1481,15 @@ SAAS_FILES_QUERY_V1 = """
       }
     }
     parameters
+    secretParameters {
+      name
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
     resourceTemplates {
       name
       url
@@ -1488,12 +1497,30 @@ SAAS_FILES_QUERY_V1 = """
       provider
       hash_length
       parameters
+      secretParameters {
+        name
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       targets {
         namespace {
           name
           environment {
             name
             parameters
+            secretParameters {
+              name
+              secret {
+                path
+                field
+                version
+                format
+              }
+            }
           }
           app {
             name
@@ -1549,6 +1576,15 @@ SAAS_FILES_QUERY_V1 = """
           }
         }
         parameters
+        secretParameters {
+          name
+          secret {
+            path
+            field
+            version
+            format
+          }
+        }
         upstream
         disable
         delete
@@ -1676,6 +1712,15 @@ SAAS_FILES_QUERY_V2 = """
       }
     }
     parameters
+    secretParameters {
+      name
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
     resourceTemplates {
       name
       url
@@ -1683,12 +1728,30 @@ SAAS_FILES_QUERY_V2 = """
       provider
       hash_length
       parameters
+      secretParameters {
+        name
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
       targets {
         namespace {
           name
           environment {
             name
             parameters
+            secretParameters {
+              name
+              secret {
+                path
+                field
+                version
+                format
+              }
+            }
           }
           app {
             name
@@ -1744,6 +1807,15 @@ SAAS_FILES_QUERY_V2 = """
           }
         }
         parameters
+        secretParameters {
+          name
+          secret {
+            path
+            field
+            version
+            format
+          }
+        }
         upstream {
           instance {
             name
