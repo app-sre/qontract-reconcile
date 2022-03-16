@@ -22,6 +22,13 @@ def test_get_role_arn_from_role_link():
     assert result == expected
 
 
+def test_get_account_uid_from_role_link():
+    role_link = "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
+    expected = "12345"
+    result = awsh.get_account_uid_from_role_link(role_link)
+    assert result == expected
+
+
 def test_get_account_uid_from_assume_role():
     uid = "12345"
     arn = f"arn:aws:iam::{uid}:role/role-1"
