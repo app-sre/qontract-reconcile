@@ -1,3 +1,4 @@
+import base64
 import copy
 import datetime
 import hashlib
@@ -329,6 +330,14 @@ class OpenshiftResource:
         # ConfigMaps and Secrets are by default Opaque
         if body["kind"] in ("ConfigMap", "Secret") and body.get("type") == "Opaque":
             body.pop("type")
+
+        if body["kind"] == "Secret":
+            string_data = body.pop('stringData', None)
+            if string_data:
+                body.setdefault('data', {})
+                for k, v in string_data.items():
+                    v = base64.b64encode(str(v).encode()).decode('utf-8')
+                    body['data'][k] = v
 
         if body["kind"] == "Deployment":
             annotations.pop("deployment.kubernetes.io/revision", None)
