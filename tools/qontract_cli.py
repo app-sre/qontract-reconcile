@@ -233,7 +233,7 @@ def soaking_days(history, upgrades, workload, only_soaking):
 def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                              show_only_soaking_upgrades=False,
                              by_workload=False):
-    settings = queries.get_app_interface_settings()
+    md_output = ctx.obj['options']['output'] == 'md'
     clusters = queries.get_clusters()
     clusters = [c for c in clusters if c.get('upgradePolicy') is not None]
     if cluster:
@@ -241,9 +241,8 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
     if workload:
         clusters = [c for c in clusters
                     if workload in c['upgradePolicy'].get('workloads', [])]
+    ocm_map, current_state = ous.fetch_current_state(clusters)
     desired_state = ous.fetch_desired_state(clusters)
-
-    ocm_map = OCMMap(clusters=clusters, settings=settings)
 
     history = ous.get_version_history(
         dry_run=True,
@@ -254,13 +253,17 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
     results = []
     upgrades_cache = {}
 
-    def soaking_str(soaking, soakdays):
-        sorted_soaking = sorted(soaking.items(), key=lambda x: x[1])
-        if ctx.obj['options']['output'] == 'md':
-            for i, data in enumerate(sorted_soaking):
+    def soaking_str(soaking, soakdays, ongoing_upgrade):
+        sorted_soaking = sorted(soaking.items(), key=lambda x: (x[1], x[0]))
+        if md_output:
+            for i, data in enumerate(reversed(sorted_soaking)):
                 v, s = data
-                if s > soakdays:
-                    sorted_soaking[i] = (v, f'{s} :tada:')
+                if s >= soakdays:
+                    emoji = ":tada:"
+                    if v == ongoing_upgrade:
+                        emoji = ":dizzy:"
+                    sorted_soaking[len(sorted_soaking) - i - 1] = (v, f'{s} {emoji}')
+                    break
         return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
 
     for c in desired_state:
@@ -287,6 +290,11 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
             upgrades = ocm.get_available_upgrades(version, channel)
             upgrades_cache[(version, channel)] = upgrades
 
+        current = [c for c in current_state if c["cluster"] == cluster_name]
+        ongoing_upgrade = None
+        if current and current[0]["schedule_type"] == "manual":
+            ongoing_upgrade = current[0]["version"]
+
         workload_soaking_upgrades = {}
         for w in c.get('workloads', []):
             if not workload or workload == w:
@@ -298,7 +306,7 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
             for w, soaking in workload_soaking_upgrades.items():
                 i = item.copy()
                 i.update({'workload': w,
-                          'soaking_upgrades': soaking_str(soaking, soakdays)})
+                          'soaking_upgrades': soaking_str(soaking, soakdays, ongoing_upgrade)})
                 results.append(i)
         else:
             workloads = sorted(c.get('workloads', []))
@@ -311,10 +319,10 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
                 if not show_only_soaking_upgrades or min_soaks > 0:
                     soaking[v] = min_soaks
             item.update({'workload': w,
-                         'soaking_upgrades': soaking_str(soaking, soakdays)})
+                         'soaking_upgrades': soaking_str(soaking, soakdays, ongoing_upgrade)})
             results.append(item)
 
-    if ctx.obj['options']['output'] == 'md':
+    if md_output:
         print("""
 The table below regroups upgrade information for each clusters:
 * `version` is the current openshift version on the cluster
@@ -333,7 +341,8 @@ for that cluster. The number in parenthesis shows the number of days this
 version has been running on other clusters with the same workloads. By
 comparing with the `soak_days` columns, you can see when a version is close to
 be upgraded to. A :tada: sign is displayed for versions which have soaked
-enough and are ready to be upgraded to.
+enough and are ready to be upgraded to. A :dizzy: sign is displayed for versions
+which are scheduled or being upgraded to.
         """)
 
     columns = ['cluster', 'version', 'channel', 'schedule', 'mutexes', 'soak_days',
