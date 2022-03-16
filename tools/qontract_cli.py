@@ -267,12 +267,14 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
         cluster_name, version = c['cluster'], c['current_version']
         channel, schedule = c['channel'], c.get('schedule')
         soakdays = c.get('conditions', {}).get('soakDays')
+        mutexes = c.get('conditions', {}).get('mutexes') or []
         item = {
             'cluster': cluster_name,
             'version': parse_semver(version),
             'channel': channel,
             'schedule': schedule,
             'soak_days': soakdays,
+            'mutexes': ', '.join(mutexes),
         }
         ocm = ocm_map.get(cluster_name)
 
@@ -330,7 +332,7 @@ be upgraded to. A :tada: sign is displayed for versions which have soaked
 enough and are ready to be upgraded to.
         """)
 
-    columns = ['cluster', 'version', 'channel', 'schedule', 'soak_days',
+    columns = ['cluster', 'version', 'channel', 'schedule', 'mutexes', 'soak_days',
                'workload', 'soaking_upgrades']
     ctx.obj['options']['to_string'] = True
     print_output(ctx.obj['options'], results, columns)

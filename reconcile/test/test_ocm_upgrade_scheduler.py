@@ -1,7 +1,9 @@
 from unittest import TestCase
 from unittest.mock import patch, Mock
+from croniter import croniter
 from datetime import datetime
 from dateutil import parser
+import pytest
 
 import reconcile.ocm_upgrade_scheduler as ous
 
@@ -119,3 +121,88 @@ class TestVersionConditionsMet(TestCase):
             upgrade_conditions,
         )
         self.assertTrue(conditions_met)
+
+
+class TestUpgradeLock:
+    @staticmethod
+    @pytest.fixture
+    @patch("reconcile.ocm_upgrade_scheduler.OCMMap", autospec=True)
+    def ocm_map(mock_ocm_map):
+        map = mock_ocm_map.return_value
+        ocm = map.get.return_value
+        ocm.get_available_upgrades.return_value = ["4.3.5", "4.3.6"]
+        ocm.version_blocked.return_value = False
+        return map
+
+    @staticmethod
+    def set_upgradeable():
+        ous.version_conditions_met.return_value = True
+        ous.datetime.utcnow.return_value = parser.parse("2021-08-30 18:00:00.00000")
+        schedule = ous.croniter.return_value
+        schedule.get_next.return_value = parser.parse("2021-08-30 19:00:00.00000")
+        return True
+
+    current_cluster1 = {
+        "cluster": "cluster1",
+    }
+
+    desired_cluster1 = {
+        "cluster": "cluster1",
+        "current_version": "4.3.0",
+        "channel": "stable",
+        "schedule": None,
+        "workloads": None,
+        "conditions": {"mutexes": ["mutex1"]},
+    }
+
+    expected_cluster1 = {
+        "action": "create",
+        "cluster": "cluster1",
+        "version": "4.3.6",
+        "schedule_type": "manual",
+        "next_run": "2021-08-30T19:00:00Z",
+    }
+
+    @patch.object(ous, "datetime", Mock(wraps=datetime))
+    @patch.object(ous, "croniter", Mock(wraps=croniter))
+    @patch.object(ous, "version_conditions_met", Mock())
+    # cluster needing upgrade, and able to (not locked out)
+    def test_calculate_diff_no_lock(self, ocm_map):
+        current_state = []
+        desired_state = [self.desired_cluster1]
+        self.set_upgradeable()
+        diffs = ous.calculate_diff(current_state, desired_state, ocm_map, {})
+        expected = [self.expected_cluster1]
+        assert diffs == expected
+
+    @patch.object(ous, "datetime", Mock(wraps=datetime))
+    @patch.object(ous, "croniter", Mock(wraps=croniter))
+    @patch.object(ous, "version_conditions_met", Mock())
+    # cluster needing upgrade, but mutex held by an other cluster
+    def test_calculate_diff_locked_out(self, ocm_map):
+        current_state = [self.current_cluster1]
+        desired_cluster2 = self.desired_cluster1.copy()
+        desired_cluster2["cluster"] = "cluster2"
+        desired_state = [self.desired_cluster1, desired_cluster2]
+        self.set_upgradeable()
+
+        diffs = ous.calculate_diff(current_state, desired_state, ocm_map, {})
+
+        expected = []
+        assert diffs == expected
+
+    @patch.object(ous, "datetime", Mock(wraps=datetime))
+    @patch.object(ous, "croniter", Mock(wraps=croniter))
+    @patch.object(ous, "version_conditions_met", Mock())
+    # 2 clusters needing upgrade, but using the same mutex. Only the first one will get upgraded
+    def test_calculate_diff_inter_lock(self, ocm_map):
+        current_state = []
+        desired_cluster2 = self.desired_cluster1.copy()
+        desired_cluster2["cluster"] = "cluster2"
+        desired_state = [self.desired_cluster1, desired_cluster2]
+        self.set_upgradeable()
+
+        diffs = ous.calculate_diff(current_state, desired_state, ocm_map, {})
+
+        expected = [self.expected_cluster1]
+        assert diffs == expected
