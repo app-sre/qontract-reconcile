@@ -323,8 +323,6 @@ class OpenshiftResource:
         body["metadata"].pop("managedFields", None)
         annotations.pop("kubectl.kubernetes.io/last-applied-configuration", None)
 
-        labels = body["metadata"].get("labels", {})
-
         # remove status
         body.pop("status", None)
 
@@ -345,21 +343,22 @@ class OpenshiftResource:
             annotations.pop("deployment.kubernetes.io/revision", None)
 
         if body["kind"] == "ManagedCluster":
-            body["metadata"].pop("finalizers", None)
+            # ACM adds labels with dynamically detected values
             drop_labels = {
-                "feature.open-cluster-management.io/addon-work-manager",
                 "clusterID",
                 "managed-by",
                 "openshiftVersion",
+                "vendor",
+                "cloud",
+                "name",
             }
-            for l in drop_labels:
-                if l in labels:
-                    labels.pop(l, None)
-            if "open-cluster-management/created-via" in annotations:
-                annotations.pop("open-cluster-management/created-via", None)
-            body["spec"].pop("managedClusterClientConfigs", None)
-            for taint in body["spec"].get("taints", []):
-                taint.pop("timeAdded", None)
+            # ... or even a dynamic set of labels indicating detected features
+            # on the managed cluster
+            feature_label_prefix = "feature.open-cluster-management.io/"
+            labels = body["metadata"].get("labels", {})
+            for label in set(labels.keys()):
+                if label in drop_labels or label.startswith(feature_label_prefix):
+                    labels.pop(label)
 
         if body["kind"] == "Route":
             if body["spec"].get("wildcardPolicy") == "None":
