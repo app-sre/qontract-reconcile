@@ -800,15 +800,24 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
 
 
 def determine_user_key_for_access(cluster_info: dict) -> str:
+    DEFAULT = "github_username"
     AUTH_METHOD_USER_KEY = {
         "github-org": "github_username",
         "github-org-team": "github_username",
         "oidc": "org_username",
     }
-    service = cluster_info["auth"]["service"]
+    cluster_auth = cluster_info["auth"]
+    if not cluster_auth:
+        # for backwards compatibility
+        logging.debug(
+            f"[{cluster_info['name']}] auth section missing, defaulting to: {DEFAULT}"
+        )
+        return DEFAULT
+
+    service = cluster_auth["service"]
     try:
         return AUTH_METHOD_USER_KEY[service]
     except KeyError:
         raise NotImplementedError(
-            f"[{cluster_info['name']} auth service not implemented: {service}]"
+            f"[{cluster_info['name']}] auth service not implemented: {service}"
         )

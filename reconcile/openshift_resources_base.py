@@ -109,10 +109,18 @@ NAMESPACES_QUERY = """
     cluster {
       name
       serverUrl
-      auth {
-        org
-        team
-      }
+        auth {
+          service
+          ... on ClusterAuthGithubOrg_v1 {
+              org
+          }
+          ... on ClusterAuthGithubOrgTeam_v1 {
+              org
+              team
+          }
+          # ... on ClusterAuthOIDC_v1 {
+          # }
+        }
       insecureSkipTLSVerify
       jumpHost {
           hostname
