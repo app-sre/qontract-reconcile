@@ -97,6 +97,7 @@ from reconcile.utils.elasticsearch_exceptions \
             ElasticSearchResourceMissingSubnetIdError,
             ElasticSearchResourceZoneAwareSubnetInvalidError)
 import reconcile.openshift_resources_base as orb
+import reconcile.utils.aws_helper as awsh
 
 
 GH_BASE_URL = os.environ.get('GITHUB_API', 'https://api.github.com')
@@ -514,27 +515,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return err
 
     @staticmethod
-    def get_user_id_from_arn(assume_role):
-        # arn:aws:iam::12345:user/id --> id
-        return assume_role.split('/')[1]
-
-    @staticmethod
-    def get_role_arn_from_role_link(role_link):
-        # https://signin.aws.amazon.com/switchrole?
-        # account=<uid>&roleName=<role_name> -->
-        # arn:aws:iam::12345:role/role-1
-        details = role_link.split('?')[1].split('&')
-        uid = details[0].split('=')[1]
-        role_name = details[1].split('=')[1]
-        return f"arn:aws:iam::{uid}:role/{role_name}"
-
-    @staticmethod
-    def get_alias_uid_from_assume_role(assume_role):
-        # arn:aws:iam::12345:role/role-1 --> 12345
-        return assume_role.split(':')[4]
-
-    def get_alias_name_from_assume_role(self, assume_role):
-        uid = self.get_alias_uid_from_assume_role(assume_role)
+    def get_alias_name_from_assume_role(assume_role):
+        uid = awsh.get_account_uid_from_arn(assume_role)
         return f"account-{uid}"
 
     def populate_additional_providers(self, accounts):
@@ -727,7 +709,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             acc_account_name = acc_account['name']
             acc_alias = self.get_alias_name_from_assume_role(
                 acc_account['assume_role'])
-            acc_uid = self.get_alias_uid_from_assume_role(
+            acc_uid = awsh.get_account_uid_from_arn(
                 acc_account['assume_role'])
 
             tags = {
@@ -1885,13 +1867,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     ocm.get_aws_infrastructure_access_role_grants(cluster)
                 for user_arn, _, state, switch_role_link in role_grants:
                     # find correct user by identifier
-                    user_id = self.get_user_id_from_arn(user_arn)
+                    user_id = awsh.get_user_id_from_arn(user_arn)
                     # output will only be added once
                     # terraform-resources created the user
                     # and ocm-aws-infrastructure-access granted it the role
                     if identifier == user_id and state != 'failed':
                         switch_role_arn = \
-                            self.get_role_arn_from_role_link(switch_role_link)
+                            awsh.get_role_arn_from_role_link(switch_role_link)
                         output_name_0_13 = output_prefix + '__role_arn'
                         tf_resources.append(
                             Output(output_name_0_13, value=switch_role_arn))

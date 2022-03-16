@@ -414,6 +414,28 @@ def clusters_egress_ips(ctx):
 
 @get.command()
 @click.pass_context
+def clusters_aws_account_ids(ctx):
+    settings = queries.get_app_interface_settings()
+    clusters = [c for c in queries.get_clusters() if c.get('ocm') is not None]
+    ocm_map = OCMMap(clusters=clusters, settings=settings)
+
+    results = []
+    for cluster in clusters:
+        cluster_name = cluster['name']
+        ocm = ocm_map.get(cluster_name)
+        aws_account_id = ocm.get_cluster_aws_account_id(cluster_name)
+        item = {
+            'cluster': cluster_name,
+            'aws_account_id': aws_account_id,
+        }
+        results.append(item)
+
+    columns = ['cluster', 'aws_account_id']
+    print_output(ctx.obj['options'], results, columns)
+
+
+@get.command()
+@click.pass_context
 def terraform_users_credentials(ctx):
     accounts, working_dirs, _ = tfu.setup(False, 1)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
