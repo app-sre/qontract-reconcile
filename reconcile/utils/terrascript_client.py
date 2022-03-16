@@ -12,7 +12,7 @@ import tempfile
 from threading import Lock
 
 from typing import (
-    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional, Tuple
+    Any, Dict, List, Iterable, Mapping, MutableMapping, Optional, Tuple, cast
 )
 from ipaddress import ip_network, ip_address
 
@@ -86,6 +86,7 @@ from sretoolbox.utils import threaded
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.github_org import get_default_config
@@ -159,8 +160,21 @@ class ElasticSearchLogGroupInfo:
 
 
 class TerrascriptClient:  # pylint: disable=too-many-public-methods
-    def __init__(self, integration, integration_prefix,
-                 thread_pool_size, accounts, settings=None):
+    """
+    At a high-level, this class is responsible for generating Terraform configuration in
+    JSON format from app-interface schemas/openshift/terraform-resource-1.yml objects.
+
+    Usage example (mostly to demonstrate API):
+
+    ts = TerrascriptClient("terraform_resources", "qrtf", 20, accounts, settings)
+    ts.populate_resources(tf_namespaces, existing_secrets, account_name, ocm_map=ocm_map)
+    ts.dump(print_to_file, existing_dirs=working_dirs)
+
+    More information on Terrascript: https://python-terrascript.readthedocs.io/en/develop/
+    """
+    def __init__(self, integration: str, integration_prefix: str,
+                 thread_pool_size: int, accounts: list[dict[str, Any]],
+                 settings: Optional[Mapping[str, Any]] = None) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
         self.settings = settings
@@ -218,8 +232,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             ts += Terraform(backend=b)
             tss[name] = ts
             locks[name] = Lock()
-        self.tss = tss
-        self.locks = locks
+
+        self.tss: dict[str, Terrascript] = tss
+        """AWS account name to Terrascript mapping."""
+
+        self.locks: dict[str, Lock] = locks
+        """AWS account name to Lock mapping."""
+
         self.accounts = {a['name']: a for a in filtered_accounts}
         self.uids = {a['name']: a['uid'] for a in filtered_accounts}
         self.default_regions = {a['name']: a['resourcesDefaultRegion']
@@ -228,7 +247,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                            for a in filtered_accounts}
         self.logtoes_zip = ''
         self.logtoes_zip_lock = Lock()
-        self.github = None
+        self.github: Optional[Github] = None
         self.github_lock = Lock()
 
     def get_logtoes_zip(self, release_url):
@@ -269,7 +288,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
     def init_jenkins(self, instance: dict) -> JenkinsApi:
         return JenkinsApi(instance['token'], settings=self.settings)
 
-    def filter_disabled_accounts(self, accounts):
+    def filter_disabled_accounts(self, accounts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         filtered_accounts = []
         for account in accounts:
             try:
@@ -880,16 +899,27 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return results
 
-    def populate_resources(self, namespaces, existing_secrets, account_name,
-                           ocm_map=None):
+    def populate_resources(self, namespaces: Iterable[Mapping[str, Any]],
+                           existing_secrets: Mapping[str, Any],
+                           account_name: str,
+                           ocm_map: Optional[OCMMap] = None) -> None:
+        """
+        Populates the terraform configuration from the definitions in app-interface
+        (schemas/openshift/terraform-resource-1.yml).
+        :param namespaces: schemas/openshift/namespace-1.yml object
+        :param existing_secrets:
+        :param account_name: AWS account name
+        :param ocm_map:
+        """
         self.init_populate_specs(namespaces, account_name)
         for specs in self.account_resources.values():
             for spec in specs:
                 self.populate_tf_resources(spec, existing_secrets,
                                            ocm_map=ocm_map)
 
-    def init_populate_specs(self, namespaces, account_name):
-        self.account_resources = {}
+    def init_populate_specs(self, namespaces: Iterable[Mapping[str, Any]],
+                            account_name: str) -> None:
+        self.account_resources: dict[str, list[dict[str, Any]]] = {}
         for namespace_info in namespaces:
             # Skip if namespace has no terraformResources
             tf_resources = namespace_info.get('terraformResources')
@@ -3003,9 +3033,18 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def dump(self, print_to_file=None, existing_dirs=None):
+    def dump(self, print_to_file: Optional[str] = None, existing_dirs: Optional[dict[str, str]] = None) -> dict[str, str]:
+        """
+        Dump the Terraform configurations (in JSON format) to the working directories.
+
+        :param print_to_file: an alternative path to write the file to in addition to
+                              the standard location
+        :param existing_dirs: existing working directory, key is account name, value is
+                              the directory location
+        :return: key is AWS account name and value is directory location
+        """
         if existing_dirs is None:
-            working_dirs = {}
+            working_dirs: dict[str, str] = {}
         else:
             working_dirs = existing_dirs
 
@@ -3031,7 +3070,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return working_dirs
 
-    def init_values(self, resource, namespace_info):
+    def init_values(self, resource: Mapping[str, Any], namespace_info: Mapping[str, Any]) -> tuple[str, str, dict, str, str, dict]:
+        """
+        Initialize the values of the terraform resource and merge the defaults and
+        overrides.
+
+        :param resource: schemas/openshift/terraform-resource-1.yml object
+        :param namespace_info: schemas/openshift/namespace-1.yml object
+        """
         account = resource['account']
         provider = resource['provider']
         identifier = resource['identifier']
@@ -4072,7 +4118,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         self.add_resources(account, tf_resources)
 
-    def _get_commit_sha(self, repo_info: dict) -> str:
+    def _get_commit_sha(self, repo_info: Mapping) -> str:
         url = repo_info['url']
         ref = repo_info['ref']
         pattern = r'^[0-9a-f]{40}$'
@@ -4091,7 +4137,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return ''
 
-    def _get_asg_image_id(self, image: dict,
+    def _get_asg_image_id(self, image: Mapping,
                           account: str, region: str) -> Tuple[Optional[str], str]:
         """
         AMI ID comes form AWS Api filter result.
@@ -4137,8 +4183,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         tags = common_values['tags']
         tags['Name'] = identifier
-        region = common_values.get('region') or \
-            self.default_regions.get(account)
+        # common_values is untyped, so casting is necessary
+        region = cast(str, common_values.get('region')) or \
+            cast(str, self.default_regions.get(account))
 
         template_values = {
             "name": identifier,
@@ -4160,7 +4207,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 }]
         }
 
-        image = common_values.get('image')
+        # common_values is untyped, so casting is necessary
+        image = cast(dict, common_values.get('image'))
         image_id, commit_sha = \
             self._get_asg_image_id(image, account, region)
         if not image_id:
@@ -4255,7 +4303,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if instance_types:
             override = [{"instance_type": i} for i in instance_types]
             (asg_value['mixed_instances_policy']
-                      ['launch_template']['override']) = override
+                      ['launch_template']['override']) = override  # type: ignore[assignment,index]
         asg_value['tags'] = [{
             "key": k,
             "value": v,

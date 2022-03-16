@@ -3,6 +3,8 @@ import shutil
 import sys
 
 from textwrap import indent
+from typing import Any, Optional
+
 from sretoolbox.utils import threaded
 
 
@@ -415,8 +417,8 @@ def fetch_current_state(dry_run, namespaces, thread_pool_size,
     return ri, oc_map
 
 
-def init_working_dirs(accounts, thread_pool_size,
-                      oc_map=None, settings=None):
+def init_working_dirs(accounts: list[dict[str, Any]], thread_pool_size: int,
+                      oc_map: Optional[OCMMap] = None, settings: Optional[dict[str, Any]] = None) -> tuple[Terrascript, dict[str, str]]:
     ts = Terrascript(QONTRACT_INTEGRATION,
                      QONTRACT_TF_PREFIX,
                      thread_pool_size,

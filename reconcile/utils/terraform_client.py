@@ -8,6 +8,8 @@ from datetime import datetime
 from collections import defaultdict
 from threading import Lock
 from dataclasses import dataclass
+from typing import Iterable, Mapping, Any
+
 from python_terraform import Terraform, IsFlagged, TerraformCommandError
 from ruamel import yaml
 from sretoolbox.utils import retry
@@ -33,8 +35,9 @@ class DeletionApprovalExpirationValueError(Exception):
 
 
 class TerraformClient:  # pylint: disable=too-many-public-methods
-    def __init__(self, integration, integration_version,
-                 integration_prefix, accounts, working_dirs, thread_pool_size,
+    def __init__(self, integration: str, integration_version: str,
+                 integration_prefix: str, accounts: Iterable[Mapping[str, Any]],
+                 working_dirs: Mapping[str, str], thread_pool_size: int,
                  init_users=False):
         self.integration = integration
         self.integration_version = integration_version
