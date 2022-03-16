@@ -350,17 +350,13 @@ class OpenshiftResource:
                 "feature.open-cluster-management.io/addon-work-manager",
                 "clusterID",
                 "managed-by",
-                "openshiftVersion"
+                "openshiftVersion",
             }
             for l in drop_labels:
                 if l in labels:
-                    labels.pop(
-                        l, None
-                    )
+                    labels.pop(l, None)
             if "open-cluster-management/created-via" in annotations:
-                annotations.pop(
-                    "open-cluster-management/created-via", None
-                )
+                annotations.pop("open-cluster-management/created-via", None)
             body["spec"].pop("managedClusterClientConfigs", None)
             for taint in body["spec"].get("taints", []):
                 taint.pop("timeAdded", None)
