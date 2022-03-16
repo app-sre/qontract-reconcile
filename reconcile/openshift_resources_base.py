@@ -300,13 +300,13 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
         content = tfunc(content, tvars)
 
     try:
-        resource['body'] = anymarkup.parse(
+        body = anymarkup.parse(
             content,
             force_types=None
         )
-        resource['body'].pop('$schema', None)
+        body.pop('$schema', None)
     except TypeError:
-        body_type = type(resource['body']).__name__
+        body_type = type(body).__name__
         e_msg = f"invalid resource type {body_type} found in path: {path}"
         raise FetchResourceError(e_msg)
     except anymarkup.AnyMarkupError:
@@ -314,7 +314,7 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
         raise FetchResourceError(e_msg)
 
     if validate_json:
-        files = resource['body']['data']
+        files = body['data']
         for file_name, file_content in files.items():
             try:
                 json.loads(file_content)
@@ -323,13 +323,22 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                 raise FetchResourceError(e_msg)
 
     if validate_alertmanager_config:
-        decode_base64 = True if resource['body']['kind'] == 'Secret' else False
-        check_alertmanager_config(resource['body']['data'], path,
+        if body['kind'] == 'Secret':
+            if 'data' in body:
+                am_data = body['data']
+                decode_base64 = True
+            elif 'stringData' in body:
+                am_data = body['stringData']
+                decode_base64 = False
+        else:
+            am_data = body['data']
+            decode_base64 = False
+
+        check_alertmanager_config(am_data, path,
                                   alertmanager_config_key,
                                   decode_base64)
 
     if add_path_to_prom_rules:
-        body = resource['body']
         if body['kind'] == 'PrometheusRule':
             try:
                 groups = body['spec']['groups']
@@ -348,7 +357,7 @@ def fetch_provider_resource(path, tfunc=None, tvars=None,
                     body['name'])
 
     try:
-        return OR(resource['body'],
+        return OR(body,
                   QONTRACT_INTEGRATION,
                   QONTRACT_INTEGRATION_VERSION,
                   error_details=path)

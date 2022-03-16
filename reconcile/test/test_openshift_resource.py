@@ -132,3 +132,27 @@ class TestOpenshiftResource:
         }
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
         assert not openshift_resource.has_owner_reference()
+
+
+def test_secret_string_data():
+    resource = {
+        'kind': 'Secret',
+        'metadata': {
+            'name': 'resource'
+        },
+        'stringData': {
+            'k': 'v'
+        }
+    }
+    expected = {
+        'kind': 'Secret',
+        'metadata': {
+            'annotations': {},
+            'name': 'resource'
+        },
+        'data': {
+            'k': 'dg=='
+        }
+    }
+    result = OR.canonicalize(resource)
+    assert result == expected
