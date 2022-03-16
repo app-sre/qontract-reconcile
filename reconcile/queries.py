@@ -27,6 +27,14 @@ APP_INTERFACE_SETTINGS_QUERY = """
         format
       }
     }
+    githubRepoInvites {
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
     ldap {
       serverUrl
       baseDn
