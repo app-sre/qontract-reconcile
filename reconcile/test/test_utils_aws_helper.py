@@ -8,6 +8,13 @@ def test_get_user_id_from_arn():
     assert result == user_id
 
 
+def test_get_account_uid_from_arn():
+    uid = "12345"
+    arn = f"arn:aws:iam::{uid}:role/role-1"
+    result = awsh.get_account_uid_from_arn(arn)
+    assert result == uid
+
+
 def test_get_details_from_role_link():
     role_link = "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
     expected = ("12345", "role-1")
@@ -27,10 +34,3 @@ def test_get_account_uid_from_role_link():
     expected = "12345"
     result = awsh.get_account_uid_from_role_link(role_link)
     assert result == expected
-
-
-def test_get_account_uid_from_assume_role():
-    uid = "12345"
-    arn = f"arn:aws:iam::{uid}:role/role-1"
-    result = awsh.get_account_uid_from_assume_role(arn)
-    assert result == uid

@@ -516,7 +516,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def get_alias_name_from_assume_role(assume_role):
-        uid = awsh.get_account_uid_from_assume_role(assume_role)
+        uid = awsh.get_account_uid_from_arn(assume_role)
         return f"account-{uid}"
 
     def populate_additional_providers(self, accounts):
@@ -709,7 +709,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             acc_account_name = acc_account['name']
             acc_alias = self.get_alias_name_from_assume_role(
                 acc_account['assume_role'])
-            acc_uid = awsh.get_account_uid_from_assume_role(
+            acc_uid = awsh.get_account_uid_from_arn(
                 acc_account['assume_role'])
 
             tags = {

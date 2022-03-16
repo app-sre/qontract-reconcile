@@ -1,6 +1,11 @@
-def get_user_id_from_arn(assume_role):
+def get_user_id_from_arn(arn):
     # arn:aws:iam::12345:user/id --> id
-    return assume_role.split("/")[1]
+    return arn.split("/")[1]
+
+
+def get_account_uid_from_arn(arn):
+    # arn:aws:iam::12345:role/role-1 --> 12345
+    return arn.split(":")[4]
 
 
 def get_details_from_role_link(role_link):
@@ -24,8 +29,3 @@ def get_role_arn_from_role_link(role_link):
 def get_account_uid_from_role_link(role_link):
     uid, _ = get_details_from_role_link(role_link)
     return uid
-
-
-def get_account_uid_from_assume_role(assume_role):
-    # arn:aws:iam::12345:role/role-1 --> 12345
-    return assume_role.split(":")[4]
