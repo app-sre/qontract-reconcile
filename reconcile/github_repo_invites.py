@@ -9,8 +9,6 @@ from reconcile.utils import raw_github_api
 from reconcile.utils.secret_reader import SecretReader
 from reconcile import queries
 
-from reconcile.utils.config import get_config
-
 
 REPOS_QUERY = """
 {
@@ -83,17 +81,7 @@ def run(dry_run):
     result = gqlapi.query(REPOS_QUERY)
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-
-    # TODO kfischer: This is placed for backwards compatibility.
-    # Once all app-interfaces added the new 'githubRepoInvites' section,
-    # then we can remove this.
-    secret = {}
-    if not settings.get("githubRepoInvites"):
-        config = get_config()["github-repo-invites"]
-        secret = {"path": config["secret_path"], "field": config["secret_field"]}
-    else:
-        secret = settings["githubRepoInvites"]["credentials"]
-
+    secret = settings["githubRepoInvites"]["credentials"]
     token = secret_reader.read(secret)
     g = raw_github_api.RawGithubApi(token)
 
