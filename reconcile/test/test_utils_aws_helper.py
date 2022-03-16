@@ -15,8 +15,8 @@ def test_get_role_arn_from_role_link():
     assert result == expected
 
 
-def test_get_alias_uid_from_assume_role():
+def test_get_account_uid_from_assume_role():
     uid = "12345"
     arn = f"arn:aws:iam::{uid}:role/role-1"
-    result = awsh.get_alias_uid_from_assume_role(arn)
+    result = awsh.get_account_uid_from_assume_role(arn)
     assert result == uid

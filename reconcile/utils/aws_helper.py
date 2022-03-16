@@ -13,6 +13,6 @@ def get_role_arn_from_role_link(role_link):
     return f"arn:aws:iam::{uid}:role/{role_name}"
 
 
-def get_alias_uid_from_assume_role(assume_role):
+def get_account_uid_from_assume_role(assume_role):
     # arn:aws:iam::12345:role/role-1 --> 12345
     return assume_role.split(":")[4]
