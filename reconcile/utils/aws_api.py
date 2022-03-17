@@ -27,11 +27,14 @@ if TYPE_CHECKING:
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
+    from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef, ResourceRecordTypeDef, HostedZoneTypeDef
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
-        LaunchPermissionModificationsTypeDef = FilterTypeDef = object
+        LaunchPermissionModificationsTypeDef = FilterTypeDef = \
+        Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = HostedZoneTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -71,6 +74,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         # since the cache keeps a reference to self.
         self._account_ec2_client = functools.lru_cache()(
             self._account_ec2_client)
+        self._account_route53_client = functools.lru_cache()(
+            self._account_route53_client)
         self._account_ec2_resource = functools.lru_cache()(
             self._account_ec2_resource)
         self._get_assumed_role_client = functools.lru_cache()(
@@ -122,6 +127,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.resource('ec2', region_name=region)
+
+    # pylint: disable=method-hidden
+    def _account_route53_client(self, account_name: str,
+                                region_name: Optional[str] = None) -> Route53Client:
+        session = self.get_session(account_name)
+        region = region_name if region_name else session.region_name
+        return session.client('route53', region_name=region)
 
     def get_tf_secrets(self, account):
         account_name = account['name']
@@ -1154,6 +1166,38 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             results.append(item)
 
         return results
+
+    @staticmethod
+    def _get_hosted_zone_id(zone: HostedZoneTypeDef) -> str:
+        # 'Id': '/hostedzone/THISISTHEZONEID'
+        return zone["Id"].split("/")[-1]
+
+    def _get_hosted_zone_record_sets(self,
+                                     route53: Route53Client,
+                                     zone_name: str) -> List[ResourceRecordSetTypeDef]:
+        zones = route53.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
+        if not zones:
+            return []
+        zone_id = self._get_hosted_zone_id(zones[0])
+        return route53.list_resource_record_sets(HostedZoneId=zone_id)["ResourceRecordSets"]
+
+    @staticmethod
+    def _filter_record_sets(record_sets: List[ResourceRecordSetTypeDef],
+                            zone_name: str,
+                            zone_type: str) -> List[ResourceRecordSetTypeDef]:
+        return [r for r in record_sets if r["Name"] == f"{zone_name}." and r["Type"] == zone_type]
+
+    @staticmethod
+    def _extract_records(resource_records: List[ResourceRecordTypeDef]) -> list[str]:
+        # [{'Value': 'ns.example.com.'}, ...]
+        return [r['Value'].rstrip(".") for r in resource_records]
+
+    def get_route53_zone_ns_records(self, account_name, zone_name, region):
+        route53 = self._account_route53_client(account_name, region)
+        record_sets = self._get_hosted_zone_record_sets(route53, zone_name)
+        resource_records = self._filter_record_sets(record_sets, zone_name, "NS")[0]["ResourceRecords"]
+        ns_records = self._extract_records(resource_records)
+        return ns_records
 
     def get_route53_zones(self):
         """
