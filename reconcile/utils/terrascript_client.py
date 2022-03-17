@@ -3033,7 +3033,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         with self.locks[account]:
             self.tss[account].add(tf_resource)
 
-    def dump(self, print_to_file: Optional[str] = None, existing_dirs: Optional[dict[str, str]] = None) -> dict[str, str]:
+    def dump(self,
+             print_to_file: Optional[str] = None,
+             existing_dirs: Optional[dict[str, str]] = None) -> dict[str, str]:
         """
         Dump the Terraform configurations (in JSON format) to the working directories.
 
@@ -3070,7 +3072,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         return working_dirs
 
-    def init_values(self, resource: Mapping[str, Any], namespace_info: Mapping[str, Any]) -> tuple[str, str, dict, str, str, dict]:
+    def init_values(self,
+                    resource: Mapping[str, Any],
+                    namespace_info: Mapping[str, Any]
+                    ) -> tuple[str, str, dict, str, str, dict]:
         """
         Initialize the values of the terraform resource and merge the defaults and
         overrides.
