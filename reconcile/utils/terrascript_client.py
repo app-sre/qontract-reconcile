@@ -3762,7 +3762,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         # this can be enhanced when a use case comes along
         # https://github.com/hashicorp/terraform-provider-aws/issues/878
         empty_required_sg_values = {
-            'ipv6_cidr_blocks': None,
             'prefix_list_ids': None,
             'security_groups': None,
             'self': None,
