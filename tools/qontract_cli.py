@@ -320,6 +320,10 @@ The table below regroups upgrade information for each clusters:
 * `version` is the current openshift version on the cluster
 * `channel` is the OCM upgrade channel being tracked by the cluster
 * `schedule` is the cron-formatted schedule for cluster upgrades
+* `mutexes` are named locks a cluster needs to acquire in order to get upgraded.
+Only one cluster can acquire a given mutex at a given time. A cluster needs to
+acquire all its mutexes in order to get upgraded. Mutexes are held for the full
+duration of the cluster upgrade.
 * `soak_days` is the minimum number of days a given version must have been
 running on other clusters with the same workload to be considered for an
 upgrade.

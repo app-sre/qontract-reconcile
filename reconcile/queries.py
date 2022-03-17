@@ -27,6 +27,14 @@ APP_INTERFACE_SETTINGS_QUERY = """
         format
       }
     }
+    githubRepoInvites {
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
     ldap {
       serverUrl
       baseDn
@@ -2218,6 +2226,19 @@ DNS_ZONES_QUERY = """
       _target_cluster {
         name
         elbFQDN
+      }
+      _target_namespace_zone {
+        namespace {
+          terraformResources {
+            provider
+            ... on NamespaceTerraformResourceRoute53Zone_v1 {
+              account
+              region
+              name
+            }
+          }
+        }
+        name
       }
     }
   }
