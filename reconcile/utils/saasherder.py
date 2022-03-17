@@ -472,6 +472,17 @@ class SaasHerder():
                 parameters[k] = json.dumps(v)
         return parameters
 
+    def _collect_secret_parameters(self, container):
+        parameters = {}
+        secret_parameters = container.get("secretParameters") or []
+        for sp in secret_parameters:
+            name = sp["name"]
+            secret = sp["secret"]
+            value = self.secret_reader.read(secret)
+            parameters[name] = value
+
+        return parameters
+
     @staticmethod
     def _get_file_contents_github(repo, path, commit_sha):
         try:
@@ -650,12 +661,16 @@ class SaasHerder():
             parameters = options['parameters']
             environment = target['namespace']['environment']
             environment_parameters = self._collect_parameters(environment)
+            environment_secret_parameters = self._collect_secret_parameters(environment)
             target_parameters = self._collect_parameters(target)
+            target_secret_parameters = self._collect_secret_parameters(target)
 
             consolidated_parameters = {}
             consolidated_parameters.update(environment_parameters)
+            consolidated_parameters.update(environment_secret_parameters)
             consolidated_parameters.update(parameters)
             consolidated_parameters.update(target_parameters)
+            consolidated_parameters.update(target_secret_parameters)
 
             for replace_key, replace_value in consolidated_parameters.items():
                 if not isinstance(replace_value, str):
@@ -938,6 +953,7 @@ class SaasHerder():
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
         saas_file_parameters = self._collect_parameters(saas_file)
+        saas_file_secret_parameters = self._collect_secret_parameters(saas_file)
 
         target_configs = self.get_saas_targets_config(saas_file)
         # iterate over resource templates (multiple per saas_file)
@@ -947,11 +963,14 @@ class SaasHerder():
             path = rt['path']
             provider = rt.get('provider') or 'openshift-template'
             hash_length = rt.get('hash_length') or self.settings['hashLength']
-            parameters = self._collect_parameters(rt)
+            resource_template_parameters = self._collect_parameters(rt)
+            resource_template_secret_parameters = self._collect_secret_parameters(rt)
 
             consolidated_parameters = {}
             consolidated_parameters.update(saas_file_parameters)
-            consolidated_parameters.update(parameters)
+            consolidated_parameters.update(saas_file_secret_parameters)
+            consolidated_parameters.update(resource_template_parameters)
+            consolidated_parameters.update(resource_template_secret_parameters)
 
             # Iterate over targets (each target is a namespace).
             for target in rt['targets']:

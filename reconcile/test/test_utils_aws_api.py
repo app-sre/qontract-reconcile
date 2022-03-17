@@ -1,6 +1,6 @@
 import pytest
 import boto3
-from moto import mock_iam
+from moto import mock_iam, mock_route53
 from reconcile.utils.aws_api import AWSApi
 
 
@@ -122,3 +122,70 @@ def test_filter_amis_state(aws_api):
     results = aws_api._filter_amis(images, regex)
     expected = {'image_id': 'id1', 'tags': []}
     assert results == [expected]
+
+
+@pytest.fixture
+def route53_client():
+    with mock_route53():
+        route53_client = boto3.client('route53')
+        yield route53_client
+
+
+def test_get_hosted_zone_id(aws_api):
+    zone_id = 'THISISTHEZONEID'
+    zone = {'Id': f'/hostedzone/{zone_id}'}
+    result = aws_api._get_hosted_zone_id(zone)
+    assert result == zone_id
+
+
+def test_get_hosted_zone_record_sets_empty(aws_api, route53_client):
+    zone_name = 'test.example.com.'
+    results = aws_api._get_hosted_zone_record_sets(route53_client, zone_name)
+    assert results == []
+
+
+def test_get_hosted_zone_record_sets_exists(aws_api, route53_client):
+    zone_name = 'test.example.com.'
+    route53_client.create_hosted_zone(Name=zone_name, CallerReference='test')
+    zones = route53_client.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
+    zone_id = aws_api._get_hosted_zone_id(zones[0])
+    record_set = {
+        'Name': zone_name,
+        'Type': 'NS',
+        'ResourceRecords': [
+            {'Value': 'ns'}
+        ]
+    }
+    change_batch = {
+        'Changes': [
+            {
+                'Action': 'CREATE',
+                'ResourceRecordSet': record_set
+            }
+        ]
+    }
+    route53_client.change_resource_record_sets(HostedZoneId=zone_id, ChangeBatch=change_batch)
+    results = aws_api._get_hosted_zone_record_sets(route53_client, zone_name)
+    assert results == [record_set]
+
+
+def test_filter_record_sets(aws_api):
+    zone_name = 'a'
+    record_type = 'NS'
+    expected = {'Name': f'{zone_name}.', 'Type': record_type}
+    record_sets = [
+        expected,
+        {'Name': f'{zone_name}.', 'Type': 'SOA'},
+        {'Name': f'not-{zone_name}.', 'Type': record_type},
+    ]
+    results = aws_api._filter_record_sets(record_sets, zone_name, 'NS')
+    assert results == [expected]
+
+
+def test_extract_records(aws_api):
+    record = 'ns.example.com'
+    resource_records = [
+        {'Value': f'{record}.'},
+    ]
+    results = aws_api._extract_records(resource_records)
+    assert results == [record]
