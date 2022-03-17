@@ -9,15 +9,7 @@ extend-exclude = '''
     | reconcile/blackbox_exporter_endpoint_monitoring.py
     | reconcile/checkpoint.py
     | reconcile/cli.py
-    | reconcile/github_org.py
-    | reconcile/github_owners.py
-    | reconcile/github_repo_permissions_validator.py
-    | reconcile/github_users.py
-    | reconcile/gitlab_fork_compliance.py
-    | reconcile/gitlab_housekeeping.py
-    | reconcile/gitlab_owners.py
     | reconcile/jenkins_roles.py
-    | reconcile/jira_watcher.py
     | reconcile/ocm_aws_infrastructure_access.py
     | reconcile/openshift_clusterrolebindings.py
     | reconcile/openshift_groups.py
@@ -31,25 +23,9 @@ extend-exclude = '''
     | reconcile/saas_file_owners.py
     | reconcile/sentry_config.py
     | reconcile/sentry_helper.py
-    | reconcile/slack_base.py
-    | reconcile/slack_cluster_usergroups.py
-    | reconcile/slack_usergroups.py
     | reconcile/terraform_resources.py
     | reconcile/terraform_users.py
     | reconcile/terraform_vpc_peerings.py
-    | reconcile/test/test_checkpoint.py
-    | reconcile/test/test_openshift_resource.py
-    | reconcile/test/test_saasherder.py
-    | reconcile/test/test_slack_base.py
-    | reconcile/test/test_slack_usergroups.py
-    | reconcile/test/test_terraform_vpc_peerings_build_desired_state.py
-    | reconcile/test/test_terraform_vpc_peerings.py
-    | reconcile/test/test_terrascript_client_utils.py
-    | reconcile/test/test_utils_aws_api.py
-    | reconcile/test/test_utils_expiration.py
-    | reconcile/test/test_utils_sharding.py
-    | reconcile/test/test_utils_slack_api.py
-    | reconcile/test/test_utils_terrascript_client.py
     | reconcile/unleash_watcher.py
     | reconcile/user_validator.py
     | reconcile/utils/aws_api.py
