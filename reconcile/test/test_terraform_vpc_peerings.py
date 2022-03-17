@@ -352,13 +352,12 @@ class TestRun(testslide.TestCase):
             .and_assert_called_once()
         )
 
-        self.mock_callable(
-            self.terrascript,
-            'populate_vpc_peerings').to_return_value(
-            None).and_assert_called_once()
-        self.mock_callable(
-            self.terrascript,
-            'dump').to_return_value({'some_account': '/some/dir'}).and_assert_called_once()
+        self.mock_callable(self.terrascript, "populate_vpc_peerings").to_return_value(
+            None
+        ).and_assert_called_once()
+        self.mock_callable(self.terrascript, "dump").to_return_value(
+            {"some_account": "/some/dir"}
+        ).and_assert_called_once()
         # Sigh...
         self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
@@ -493,4 +492,4 @@ class TestRun(testslide.TestCase):
         ).and_assert_not_called()
         self.exit.for_call(0).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(True, print_to_file='some/dir', enable_deletion=False)
+            integ.run(True, print_to_file="some/dir", enable_deletion=False)
