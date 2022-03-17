@@ -27,6 +27,14 @@ APP_INTERFACE_SETTINGS_QUERY = """
         format
       }
     }
+    githubRepoInvites {
+      credentials {
+        path
+        field
+        version
+        format
+      }
+    }
     ldap {
       serverUrl
       baseDn
@@ -406,8 +414,15 @@ CLUSTERS_QUERY = """
     }
     auth {
       service
-      org
-      team
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
     }
     ocm {
       name
@@ -473,6 +488,7 @@ CLUSTERS_QUERY = """
       schedule
       conditions {
         soakDays
+        mutexes
       }
     }
     additionalRouters {
@@ -668,7 +684,16 @@ CLUSTERS_MINIMAL_QUERY = """
       integrations
     }
     auth {
-      team
+      service
+      ... on ClusterAuthGithubOrg_v1 {
+        org
+      }
+      ... on ClusterAuthGithubOrgTeam_v1 {
+        org
+        team
+      }
+      # ... on ClusterAuthOIDC_v1 {
+      # }
     }
   }
 }
@@ -2239,7 +2264,16 @@ OCP_RELEASE_ECR_MIRROR_QUERY = """
         integrations
       }
       auth {
-        team
+        service
+        ... on ClusterAuthGithubOrg_v1 {
+          org
+        }
+        ... on ClusterAuthGithubOrgTeam_v1 {
+          org
+          team
+        }
+        # ... on ClusterAuthOIDC_v1 {
+        # }
       }
     }
     ecrResourcesNamespace {

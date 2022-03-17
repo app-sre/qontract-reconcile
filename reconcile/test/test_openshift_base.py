@@ -1,4 +1,5 @@
 from typing import List, cast
+import pytest
 
 import testslide
 import reconcile.openshift_base as sut
@@ -222,3 +223,27 @@ class TestInitSpecsToFetch(testslide.TestCase):
             override_managed_types=["LimitRanges"],
         )
         self.assert_specs_match(rs, expected)
+
+
+def test_determine_user_key_for_access_github_org():
+    cluster_info = {"auth": {"service": "github-org"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
+    assert user_key == "github_username"
+
+
+def test_determine_user_key_for_access_github_org_team():
+    cluster_info = {"auth": {"service": "github-org-team"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
+    assert user_key == "github_username"
+
+
+def test_determine_user_key_for_access_oidc():
+    cluster_info = {"auth": {"service": "oidc"}}
+    user_key = sut.determine_user_key_for_access(cluster_info)
+    assert user_key == "org_username"
+
+
+def test_determine_user_key_for_access_not_implemented():
+    cluster_info = {"auth": {"service": "not-implemented"}, "name": "c"}
+    with pytest.raises(NotImplementedError):
+        sut.determine_user_key_for_access(cluster_info)

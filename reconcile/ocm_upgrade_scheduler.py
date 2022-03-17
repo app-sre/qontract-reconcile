@@ -167,6 +167,11 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     return conditions_met
 
 
+def cluster_mutexes(policy: dict) -> list[str]:
+    """List all mutex locks for the given cluster"""
+    return (policy.get("conditions") or {}).get("mutexes") or []
+
+
 def calculate_diff(current_state, desired_state, ocm_map, version_history):
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
@@ -181,6 +186,13 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
         list: upgrade policies to be applied
     """
     diffs = []
+
+    # all clusters with a current upgradePolicy are considered locked
+    locked = {}
+    for policy in desired_state:
+        if policy["cluster"] in [s["cluster"] for s in current_state]:
+            for mutex in cluster_mutexes(policy):
+                locked[mutex] = policy["cluster"]
 
     now = datetime.utcnow()
     for d in desired_state:
@@ -222,6 +234,13 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             logging.debug(f"[{cluster}] skipping cluster with no upcoming upgrade")
             continue
 
+        if any(lock in locked for lock in cluster_mutexes(d)):
+            locking = {
+                lock: locked[lock] for lock in cluster_mutexes(d) if lock in locked
+            }
+            logging.debug(f"[{cluster}] skipping cluster: locked out by {locking}")
+            continue
+
         # choose version that meets the conditions and add it to the diffs
         available_upgrades = ocm.get_available_upgrades(
             d["current_version"], d["channel"]
@@ -242,6 +261,8 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
                     "schedule_type": "manual",
                     "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }
+                for mutex in cluster_mutexes(d):
+                    locked[mutex] = cluster
                 diffs.append(item)
                 break
 

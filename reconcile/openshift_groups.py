@@ -4,6 +4,8 @@ import itertools
 
 from sretoolbox.utils import threaded
 
+import reconcile.openshift_base as ob
+
 from reconcile.utils import gql
 from reconcile import queries
 from reconcile.utils import expiration
@@ -17,12 +19,16 @@ ROLES_QUERY = """
   roles: roles_v1 {
     name
     users {
+      org_username
       github_username
     }
     expirationDate
     access {
       cluster {
         name
+        auth {
+          service
+        }
       }
       group
     }
@@ -120,14 +126,15 @@ def fetch_desired_state(oc_map):
             if oc_map and a['cluster']['name'] not in oc_map.clusters():
                 continue
 
+            user_key = ob.determine_user_key_for_access(a['cluster'])
             for u in r['users']:
-                if u['github_username'] is None:
+                if u[user_key] is None:
                     continue
 
                 desired_state.append({
                     "cluster": a['cluster']['name'],
                     "group": a['group'],
-                    "user": u['github_username']
+                    "user": u[user_key]
                 })
 
     return desired_state

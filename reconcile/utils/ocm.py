@@ -1,11 +1,14 @@
 import functools
 import logging
 import re
+from typing import Optional
 import requests
 
 from sretoolbox.utils import retry
 
 from reconcile.utils.secret_reader import SecretReader
+
+import reconcile.utils.aws_helper as awsh
 
 
 STATUS_READY = "ready"
@@ -313,6 +316,20 @@ class OCM:  # pylint: disable=too-many-public-methods
             + f"groups/{group_id}/users/{user_id}"
         )
         self._delete(api)
+
+    def get_cluster_aws_account_id(self, cluster: str) -> Optional[str]:
+        """Returns the AWS account id of the cluster.
+        Since there is no direct API to get this information,
+        we hack our way by relying on existing role grants
+        and parsing out the console_url from one of them.
+        """
+        role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
+        # filter for role grants with a console url
+        role_grants = [r for r in role_grants if r[-1]]
+        if not role_grants:
+            return None
+        switch_role_link = role_grants[0][-1]
+        return awsh.get_account_uid_from_role_link(switch_role_link)
 
     # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
