@@ -1195,7 +1195,10 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def get_route53_zone_ns_records(self, account_name, zone_name, region):
         route53 = self._account_route53_client(account_name, region)
         record_sets = self._get_hosted_zone_record_sets(route53, zone_name)
-        resource_records = self._filter_record_sets(record_sets, zone_name, "NS")[0]["ResourceRecords"]
+        filtered_record_sets = self._filter_record_sets(record_sets, zone_name, "NS")
+        if not filtered_record_sets:
+            return []
+        resource_records = filtered_record_sets[0]["ResourceRecords"]
         ns_records = self._extract_records(resource_records)
         return ns_records
 
