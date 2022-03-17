@@ -159,9 +159,7 @@ def test_report_invalid_metadata_dry_run(mocker, app, needs_ticket):
         "architectureDocument": bool,
         "grafanaUrls": lambda _: True,
     }
-    sut.report_invalid_metadata(
-        app, "/a/path", "jiraboard", {}, "TICKET-123", True
-    )
+    sut.report_invalid_metadata(app, "/a/path", "jiraboard", {}, "TICKET-123", True)
     if needs_ticket:
         renderer.assert_called_once()
     else:

@@ -11,16 +11,20 @@ from reconcile.utils.mr.labels import BLOCKED_BOT_ACCESS
 
 LOG = logging.getLogger(__name__)
 
-QONTRACT_INTEGRATION = 'gitlab-fork-compliance'
+QONTRACT_INTEGRATION = "gitlab-fork-compliance"
 
-MSG_BRANCH = ('@{user}, this Merge Request is using the "master" '
-              'source branch. Please submit a new Merge Request from another '
-              'branch.')
+MSG_BRANCH = (
+    '@{user}, this Merge Request is using the "master" '
+    "source branch. Please submit a new Merge Request from another "
+    "branch."
+)
 
-MSG_ACCESS = ('@{user}, the user @{bot} is not a Maintainer in '
-              'your fork of {project_name}. '
-              'Please add the @{bot} user to your fork as a Maintainer '
-              'and retest by commenting "/retest" on the Merge Request.')
+MSG_ACCESS = (
+    "@{user}, the user @{bot} is not a Maintainer in "
+    "your fork of {project_name}. "
+    "Please add the @{bot} user to your fork as a Maintainer "
+    'and retest by commenting "/retest" on the Merge Request.'
+)
 
 
 class GitlabForkCompliance:
@@ -38,8 +42,9 @@ class GitlabForkCompliance:
         self.instance = queries.get_gitlab_instance()
         self.settings = queries.get_app_interface_settings()
 
-        self.gl_cli = GitLabApi(self.instance, project_id=project_id,
-                                settings=self.settings)
+        self.gl_cli = GitLabApi(
+            self.instance, project_id=project_id, settings=self.settings
+        )
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
     def run(self):
@@ -57,24 +62,22 @@ class GitlabForkCompliance:
         for member in maintainers:
             if member.username in project_maintainers:
                 continue
-            LOG.info([f'adding {member.username} as maintainer'])
-            user_payload = {'user_id': member.id,
-                            'access_level': MAINTAINER_ACCESS}
+            LOG.info([f"adding {member.username} as maintainer"])
+            user_payload = {"user_id": member.id, "access_level": MAINTAINER_ACCESS}
             member = self.src.project.members.create(user_payload)
             member.save()
         # Last but not least, we remove the blocked label, in case
         # it is set
         mr_labels = self.gl_cli.get_merge_request_labels(self.mr.iid)
         if BLOCKED_BOT_ACCESS in mr_labels:
-            self.gl_cli.remove_label_from_merge_request(self.mr.iid,
-                                                        BLOCKED_BOT_ACCESS)
+            self.gl_cli.remove_label_from_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
 
         sys.exit(self.exit_code)
 
     def check_branch(self):
         # The Merge Request can use the 'master' source branch
-        if self.mr.source_branch == 'master':
-            self.handle_error('source branch can not be master', MSG_BRANCH)
+        if self.mr.source_branch == "master":
+            self.handle_error("source branch can not be master", MSG_BRANCH)
             return self.ERR_MASTER_BRANCH
 
         return self.OK
@@ -82,30 +85,34 @@ class GitlabForkCompliance:
     def check_bot_access(self):
         # The bot needs access to the fork project
         try:
-            self.src = GitLabApi(self.instance,
-                                 project_id=self.mr.source_project_id,
-                                 settings=self.settings)
+            self.src = GitLabApi(
+                self.instance,
+                project_id=self.mr.source_project_id,
+                settings=self.settings,
+            )
             project_bot = self.src.project.members.get(self.gl_cli.user.id)
         except GitlabGetError:
-            self.handle_error('access denied for user {bot}', MSG_ACCESS)
+            self.handle_error("access denied for user {bot}", MSG_ACCESS)
             return self.ERR_NOT_A_MEMBER
 
         # The bot has to be a maintainer of the fork project
         if not project_bot or project_bot.access_level != MAINTAINER_ACCESS:
-            self.handle_error('{bot} is not a maintainer in the fork project',
-                              MSG_ACCESS)
+            self.handle_error(
+                "{bot} is not a maintainer in the fork project", MSG_ACCESS
+            )
             return self.ERR_NOT_A_MAINTAINER
 
         return self.OK
 
     def handle_error(self, log_msg, mr_msg):
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
-        self.gl_cli.add_label_to_merge_request(self.mr.iid,
-                                               BLOCKED_BOT_ACCESS)
-        comment = mr_msg.format(user=self.mr.author['username'],
-                                bot=self.gl_cli.user.username,
-                                project_name=self.gl_cli.project.name)
-        self.mr.notes.create({'body': comment})
+        self.gl_cli.add_label_to_merge_request(self.mr.iid, BLOCKED_BOT_ACCESS)
+        comment = mr_msg.format(
+            user=self.mr.author["username"],
+            bot=self.gl_cli.user.username,
+            project_name=self.gl_cli.project.name,
+        )
+        self.mr.notes.create({"body": comment})
 
 
 def run(dry_run, project_id, mr_id, maintainers_group):
