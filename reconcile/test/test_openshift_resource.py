@@ -156,3 +156,55 @@ def test_secret_string_data():
     }
     result = OR.canonicalize(resource)
     assert result == expected
+
+
+def test_managed_cluster_drift():
+    d1 = {
+        "apiVersion": "cluster.open-cluster-management.io/v1",
+        "kind": "ManagedCluster",
+        "metadata": {
+            "labels": {
+                "cluster.open-cluster-management.io/clusterset": "default",
+            },
+            "name": "xxx"
+        },
+        "spec": {
+            "hubAcceptsClient": True
+        }
+    }
+    o1 = OR(d1, TEST_INT, TEST_INT_VER)
+    d2 = {
+        "apiVersion": "cluster.open-cluster-management.io/v1",
+        "kind": "ManagedCluster",
+        "metadata": {
+            "labels": {
+                "cloud": "Amazon",
+                "cluster.open-cluster-management.io/clusterset": "default",
+                "name": "xxx",
+                "vendor": "OpenShift",
+                "clusterID": "yyy",
+                "feature.open-cluster-management.io/addon-work-manager": "available",
+                "managed-by": "platform",
+                "openshiftVersion": "x.y.z"
+            },
+            "name": "xxx"
+        },
+        "spec": {
+            "hubAcceptsClient": True,
+            "leaseDurationSeconds": 60,
+            "managedClusterClientConfigs": [
+                {
+                    "caBundle": "xxx",
+                    "url": "https://api.xxx:6443"
+                }
+            ]
+        },
+        "status": {
+        }
+    }
+    o2 = OR(d2, TEST_INT, TEST_INT_VER)
+    assert o1 != o2
+
+    c1 = OR(OR.canonicalize(o1.body), TEST_INT, TEST_INT_VER)
+    c2 = OR(OR.canonicalize(o2.body), TEST_INT, TEST_INT_VER)
+    assert c1 == c2

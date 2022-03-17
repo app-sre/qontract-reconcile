@@ -342,6 +342,24 @@ class OpenshiftResource:
         if body["kind"] == "Deployment":
             annotations.pop("deployment.kubernetes.io/revision", None)
 
+        if body["kind"] == "ManagedCluster":
+            # ACM adds labels with dynamically detected values
+            drop_labels = {
+                "clusterID",
+                "managed-by",
+                "openshiftVersion",
+                "vendor",
+                "cloud",
+                "name",
+            }
+            # ... or even a dynamic set of labels indicating detected features
+            # on the managed cluster
+            feature_label_prefix = "feature.open-cluster-management.io/"
+            labels = body["metadata"].get("labels", {})
+            for label in set(labels.keys()):
+                if label in drop_labels or label.startswith(feature_label_prefix):
+                    labels.pop(label)
+
         if body["kind"] == "Route":
             if body["spec"].get("wildcardPolicy") == "None":
                 body["spec"].pop("wildcardPolicy")
