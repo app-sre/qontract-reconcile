@@ -142,20 +142,22 @@ def test_secret_string_data():
     assert result == expected
 
 
-def test_managed_cluster_drift():
-    d1 = {
+def test_managed_cluster_label_ignore():
+    desired = {
         "apiVersion": "cluster.open-cluster-management.io/v1",
         "kind": "ManagedCluster",
         "metadata": {
             "labels": {
+                "cloud": "Amazon",
+                "vendor": "OpenShift",
                 "cluster.open-cluster-management.io/clusterset": "default",
+                "name": "xxx",
             },
             "name": "xxx",
         },
         "spec": {"hubAcceptsClient": True},
     }
-    o1 = OR(d1, TEST_INT, TEST_INT_VER)
-    d2 = {
+    current = {
         "apiVersion": "cluster.open-cluster-management.io/v1",
         "kind": "ManagedCluster",
         "metadata": {
@@ -171,18 +173,10 @@ def test_managed_cluster_drift():
             },
             "name": "xxx",
         },
-        "spec": {
-            "hubAcceptsClient": True,
-            "leaseDurationSeconds": 60,
-            "managedClusterClientConfigs": [
-                {"caBundle": "xxx", "url": "https://api.xxx:6443"}
-            ],
-        },
-        "status": {},
+        "spec": {"hubAcceptsClient": True},
     }
-    o2 = OR(d2, TEST_INT, TEST_INT_VER)
-    assert o1 != o2
 
-    c1 = OR(OR.canonicalize(o1.body), TEST_INT, TEST_INT_VER)
-    c2 = OR(OR.canonicalize(o2.body), TEST_INT, TEST_INT_VER)
-    assert c1 == c2
+    d_r = OR(desired, TEST_INT, TEST_INT_VER)
+    c_r = OR(current, TEST_INT, TEST_INT_VER)
+    assert d_r == c_r
+    assert d_r.sha256sum() == c_r.sha256sum()
