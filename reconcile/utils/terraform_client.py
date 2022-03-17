@@ -232,6 +232,17 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     logging.debug(
                         [action, name, resource_type, resource_name])
                     continue
+                # Ignore RDS modifications that are going to occur during the next
+                # maintenance window. This can be up to 7 days away and will cause
+                # unnecessary Terraform state updates until they complete.
+                if action == 'update' and resource_type == 'aws_db_instance' and \
+                        self._is_ignored_rds_modification(
+                            resource_name, resource_change, output):
+                    logging.warning(
+                        f"Not setting should_apply for {resource_name} because the "
+                        f"only change is EngineVersion and that setting is in "
+                        f"PendingModifiedValues")
+                    continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
                     self.should_apply = True
@@ -564,3 +575,37 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def cleanup(self):
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
+
+    @staticmethod
+    def _is_ignored_rds_modification(resource_name: str,
+                                     resource_change: Mapping[str, Any],
+                                     output: Mapping[str, Any]) -> bool:
+        """
+        Determines whether the RDS resource changes are cases that we don't care about
+        """
+        before = resource_change['before']
+        after = resource_change['after']
+        changed_terraform_args = [
+            key for key, value in before.items() if value != after[key]
+        ]
+        if len(changed_terraform_args) == 1 \
+                and 'engine_version' in changed_terraform_args:
+            # TODO: I'm open to better ways to get creds. I looked at AWSApi, but I
+            #  wasn't convinced it was much better with the dependency on settings,
+            #  accounts, etc. that aren't accessible from this class
+            #  (without modification)
+            aws_config = output['configuration']['provider_config'][
+                'aws']['expressions']
+            access_key = aws_config['access_key']['constant_value']
+            secret_key = aws_config['secret_key']['constant_value']
+            rds_client = boto3.client('rds', aws_access_key_id=access_key,
+                                      aws_secret_access_key=secret_key)
+            response = rds_client.describe_db_instances(
+                DBInstanceIdentifier=resource_name)
+            pending_modified_values = response['DBInstances'][0][
+                'PendingModifiedValues']
+            if 'EngineVersion' in pending_modified_values and \
+                    pending_modified_values['EngineVersion'] \
+                    == resource_change['after']['engine_version']:
+                return True
+        return False
