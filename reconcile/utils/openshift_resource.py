@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import re
+from typing import Union
 
 from threading import Lock
 
@@ -31,6 +32,17 @@ DNS_NAMES_URL = (
 )
 
 IGNORABLE_DATA_FIELDS = ["service-ca.crt"]
+# these labels existance and/or value is determined by a controller running
+# on the cluster. we need to ignore their existance in the current state,
+# otherwise we will deal with constant reconciliation
+CONTROLLER_MANAGED_LABELS: dict[str, set[Union[str, re.Pattern]]] = {
+    "ManagedCluster": {
+        "clusterID",
+        "managed-by",
+        "openshiftVersion",
+        re.compile("feature.open-cluster-management.io/.*"),
+    }
+}
 
 
 class OpenshiftResource:
@@ -63,7 +75,18 @@ class OpenshiftResource:
                     pass
                 elif self.ignorable_key_value_pair(obj1_k, obj1_v):
                     pass
-                elif obj1_k in ["data", "labels", "matchLabels"]:
+                elif obj1_k == "labels":
+                    diff = [
+                        k
+                        for k in obj2_v
+                        if k not in obj1_v
+                        and not OpenshiftResource.is_controller_managed_label(
+                            self.kind, k
+                        )
+                    ]
+                    if diff or not self.obj_intersect_equal(obj1_v, obj2_v):
+                        return False
+                elif obj1_k in ["data", "matchLabels"]:
                     diff = [
                         k
                         for k in obj2_v
@@ -224,6 +247,15 @@ class OpenshiftResource:
         except KeyError:
             pass
 
+    @staticmethod
+    def is_controller_managed_label(kind, label) -> bool:
+        for il in CONTROLLER_MANAGED_LABELS.get(kind, []):
+            if isinstance(il, str) and il == label:
+                return True
+            elif isinstance(il, re.Pattern) and re.search(il, label):
+                return True
+        return False
+
     def has_qontract_annotations(self):
         try:
             annotations = self.body["metadata"]["annotations"]
@@ -326,6 +358,12 @@ class OpenshiftResource:
         # remove status
         body.pop("status", None)
 
+        # remove controller managed labels
+        labels = body["metadata"].get("labels", {})
+        for label in set(labels.keys()):
+            if OpenshiftResource.is_controller_managed_label(body["kind"], label):
+                labels.pop(label)
+
         # Default fields for specific resource types
         # ConfigMaps and Secrets are by default Opaque
         if body["kind"] in ("ConfigMap", "Secret") and body.get("type") == "Opaque":
@@ -341,24 +379,6 @@ class OpenshiftResource:
 
         if body["kind"] == "Deployment":
             annotations.pop("deployment.kubernetes.io/revision", None)
-
-        if body["kind"] == "ManagedCluster":
-            # ACM adds labels with dynamically detected values
-            drop_labels = {
-                "clusterID",
-                "managed-by",
-                "openshiftVersion",
-                "vendor",
-                "cloud",
-                "name",
-            }
-            # ... or even a dynamic set of labels indicating detected features
-            # on the managed cluster
-            feature_label_prefix = "feature.open-cluster-management.io/"
-            labels = body["metadata"].get("labels", {})
-            for label in set(labels.keys()):
-                if label in drop_labels or label.startswith(feature_label_prefix):
-                    labels.pop(label)
 
         if body["kind"] == "Route":
             if body["spec"].get("wildcardPolicy") == "None":
