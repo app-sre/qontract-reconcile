@@ -18,25 +18,35 @@ class MRState:
     """
     Data class to help users selecting the correct Merge Request state.
     """
+
     # Values taken from https://docs.gitlab.com/ee/api/merge_requests.html
-    OPENED = 'opened'
-    CLOSED = 'closed'
-    LOCKED = 'locked'
-    MERGED = 'merged'
-    ALL = 'all'
+    OPENED = "opened"
+    CLOSED = "closed"
+    LOCKED = "locked"
+    MERGED = "merged"
+    ALL = "all"
 
 
 class GitLabApi:  # pylint: disable=too-many-public-methods
-    def __init__(self, instance, project_id=None, ssl_verify=True,
-                 settings=None, project_url=None, saas_files=None, timeout=30):
-        self.server = instance['url']
+    def __init__(
+        self,
+        instance,
+        project_id=None,
+        ssl_verify=True,
+        settings=None,
+        project_url=None,
+        saas_files=None,
+        timeout=30,
+    ):
+        self.server = instance["url"]
         secret_reader = SecretReader(settings=settings)
-        token = secret_reader.read(instance['token'])
-        ssl_verify = instance['sslVerify']
+        token = secret_reader.read(instance["token"])
+        ssl_verify = instance["sslVerify"]
         if ssl_verify is None:
             ssl_verify = True
-        self.gl = gitlab.Gitlab(self.server, private_token=token,
-                                ssl_verify=ssl_verify, timeout=timeout)
+        self.gl = gitlab.Gitlab(
+            self.server, private_token=token, ssl_verify=ssl_verify, timeout=timeout
+        )
         self._auth()
         self.user = self.gl.user
         if project_id is None:
@@ -44,7 +54,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             # using the project_url
             if project_url is not None:
                 parsed_project_url = urlparse(project_url)
-                name_with_namespace = parsed_project_url.path.strip('/')
+                name_with_namespace = parsed_project_url.path.strip("/")
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
             self.project = self.gl.projects.get(project_id)
@@ -55,10 +65,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         self.gl.auth()
 
     def create_branch(self, new_branch, source_branch):
-        data = {
-            'branch': new_branch,
-            'ref': source_branch
-        }
+        data = {"branch": new_branch, "ref": source_branch}
         self.project.branches.create(data)
 
     def delete_branch(self, branch):
@@ -71,72 +78,67 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                          #create-a-commit-with-multiple-files-and-actions
         """
 
-        self.project.commits.create({
-            'branch': branch_name,
-            'commit_message': commit_message,
-            'actions': actions
-        })
+        self.project.commits.create(
+            {
+                "branch": branch_name,
+                "commit_message": commit_message,
+                "actions": actions,
+            }
+        )
 
     def create_file(self, branch_name, file_path, commit_message, content):
         data = {
-            'branch': branch_name,
-            'commit_message': commit_message,
-            'actions': [
-                {
-                    'action': 'create',
-                    'file_path': file_path,
-                    'content': content
-                }
-            ]
+            "branch": branch_name,
+            "commit_message": commit_message,
+            "actions": [
+                {"action": "create", "file_path": file_path, "content": content}
+            ],
         }
         self.project.commits.create(data)
 
     def delete_file(self, branch_name, file_path, commit_message):
         data = {
-            'branch': branch_name,
-            'commit_message': commit_message,
-            'actions': [
-                {
-                    'action': 'delete',
-                    'file_path': file_path
-                }
-            ]
+            "branch": branch_name,
+            "commit_message": commit_message,
+            "actions": [{"action": "delete", "file_path": file_path}],
         }
         self.project.commits.create(data)
 
     def update_file(self, branch_name, file_path, commit_message, content):
         data = {
-            'branch': branch_name,
-            'commit_message': commit_message,
-            'actions': [
-                {
-                    'action': 'update',
-                    'file_path': file_path,
-                    'content': content
-                }
-            ]
+            "branch": branch_name,
+            "commit_message": commit_message,
+            "actions": [
+                {"action": "update", "file_path": file_path, "content": content}
+            ],
         }
         self.project.commits.create(data)
 
-    def create_mr(self, source_branch, target_branch, title,
-                  remove_source_branch=True, labels=None):
+    def create_mr(
+        self,
+        source_branch,
+        target_branch,
+        title,
+        remove_source_branch=True,
+        labels=None,
+    ):
         if labels is None:
             labels = []
         data = {
-            'source_branch': source_branch,
-            'target_branch': target_branch,
-            'title': title,
-            'remove_source_branch': str(remove_source_branch),
-            'labels': labels
+            "source_branch": source_branch,
+            "target_branch": target_branch,
+            "title": title,
+            "remove_source_branch": str(remove_source_branch),
+            "labels": labels,
         }
         return self.project.mergerequests.create(data)
 
     def mr_exists(self, title):
-        mrs = self.get_merge_requests(state='opened')
+        mrs = self.get_merge_requests(state="opened")
         for mr in mrs:
             # since we are using a naming convention for these MRs
             # we can determine if a pending MR exists based on the title
-            if mr.attributes.get('title') != title:
+            if mr.attributes.get("title") != title:
                 continue
 
             return True
@@ -155,7 +157,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self):
-        app_sre_group = self.gl.groups.get('app-sre')
+        app_sre_group = self.gl.groups.get("app-sre")
         return list(app_sre_group.members.list(all=True))
 
     def check_group_exists(self, group_name):
@@ -170,10 +172,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             logging.error(group_name + " group not found")
             return []
         group = self.gl.groups.get(group_name)
-        return ([{
+        return [
+            {
                 "user": m.username,
-                "access_level": self.get_access_level_string(m.access_level)}
-            for m in group.members.list(all=True)])
+                "access_level": self.get_access_level_string(m.access_level),
+            }
+            for m in group.members.list(all=True)
+        ]
 
     def add_project_member(self, repo_url, user, access="maintainer"):
         project = self.get_project(repo_url)
@@ -181,10 +186,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return
         access_level = self.get_access_level(access)
         try:
-            project.members.create({
-                'user_id': user.id,
-                'access_level': access_level
-            })
+            project.members.create({"user_id": user.id, "access_level": access_level})
         except gitlab.exceptions.GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = access_level
@@ -198,10 +200,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             access_level = self.get_access_level(access)
             if user is not None:
                 try:
-                    group.members.create({
-                        'user_id': user.id,
-                        'access_level': access_level
-                    })
+                    group.members.create(
+                        {"user_id": user.id, "access_level": access_level}
+                    )
                 except gitlab.exceptions.GitlabCreateError:
                     member = group.members.get(user.id)
                     member.access_level = access_level
@@ -251,18 +252,18 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return group.id, [p.name for p in self.get_items(group.projects.list)]
 
     def create_project(self, group_id, project):
-        self.gl.projects.create({'name': project, 'namespace_id': group_id})
+        self.gl.projects.create({"name": project, "namespace_id": group_id})
 
     def get_project_url(self, group, project):
         return f"{self.server}/{group}/{project}"
 
     @retry()
     def get_project(self, repo_url):
-        repo = repo_url.replace(self.server + '/', '')
+        repo = repo_url.replace(self.server + "/", "")
         try:
             project = self.gl.projects.get(repo)
         except gitlab.exceptions.GitlabGetError:
-            logging.warning(f'{repo_url} not found')
+            logging.warning(f"{repo_url} not found")
             project = None
         return project
 
@@ -277,11 +278,11 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def get_merge_request_changed_paths(self, mr_id):
         merge_request = self.project.mergerequests.get(mr_id)
-        changes = merge_request.changes()['changes']
+        changes = merge_request.changes()["changes"]
         changed_paths = set()
         for change in changes:
-            old_path = change['old_path']
-            new_path = change['new_path']
+            old_path = change["old_path"]
+            new_path = change["new_path"]
             changed_paths.add(old_path)
             changed_paths.add(new_path)
         return list(changed_paths)
@@ -292,13 +293,17 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         for note in merge_request.notes.list(all=True):
             if note.system:
                 continue
-            username = note.author['username']
+            username = note.author["username"]
             body = note.body
             created_at = note.created_at
-            comments.append({'username': username,
-                             'body': body,
-                             'created_at': created_at,
-                             'id': note.id})
+            comments.append(
+                {
+                    "username": username,
+                    "body": body,
+                    "created_at": created_at,
+                    "id": note.id,
+                }
+            )
         return comments
 
     def delete_gitlab_comment(self, mr_id, comment_id):
@@ -308,7 +313,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def add_merge_request_comment(self, mr_id, comment):
         merge_request = self.project.mergerequests.get(mr_id)
-        merge_request.notes.create({'body': comment})
+        merge_request.notes.create({"body": comment})
 
     def get_project_labels(self):
         return [ln.name for ln in self.project.labels.list(all=True)]
@@ -319,27 +324,27 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
 
     def add_label_to_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
-        labels = merge_request.attributes.get('labels')
+        labels = merge_request.attributes.get("labels")
         labels.append(label)
-        self.update_labels(merge_request, 'merge-request', labels)
+        self.update_labels(merge_request, "merge-request", labels)
 
     def add_labels_to_merge_request(self, mr_id, labels):
-        """ Adds labels to a Merge Request """
+        """Adds labels to a Merge Request"""
         merge_request = self.project.mergerequests.get(mr_id)
-        mr_labels = merge_request.attributes.get('labels')
+        mr_labels = merge_request.attributes.get("labels")
         mr_labels += labels
-        self.update_labels(merge_request, 'merge-request', mr_labels)
+        self.update_labels(merge_request, "merge-request", mr_labels)
 
     def remove_label_from_merge_request(self, mr_id, label):
         merge_request = self.project.mergerequests.get(mr_id)
-        labels = merge_request.attributes.get('labels')
+        labels = merge_request.attributes.get("labels")
         if label in labels:
             labels.remove(label)
-        self.update_labels(merge_request, 'merge-request', labels)
+        self.update_labels(merge_request, "merge-request", labels)
 
     def add_comment_to_merge_request(self, mr_id, body):
         merge_request = self.project.mergerequests.get(mr_id)
-        merge_request.notes.create({'body': body})
+        merge_request.notes.create({"body": body})
 
     @staticmethod
     def get_items(method, **kwargs):
@@ -355,40 +360,37 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         return all_items
 
     def create_label(self, label_text: str, label_color: str) -> None:
-        self.project.labels.create({
-            'name': label_text,
-            'color': label_color
-        })
+        self.project.labels.create({"name": label_text, "color": label_color})
 
     def add_label(self, item, item_type, label):
         note_body = (
-            'item has been marked as {0}. '
-            'to remove say `/{0} cancel`').format(label)
-        labels = item.attributes.get('labels')
+            "item has been marked as {0}. " "to remove say `/{0} cancel`"
+        ).format(label)
+        labels = item.attributes.get("labels")
         labels.append(label)
-        item.notes.create({'body': note_body})
+        item.notes.create({"body": note_body})
         self.update_labels(item, item_type, labels)
 
     def remove_label(self, item, item_type, label):
-        labels = item.attributes.get('labels')
+        labels = item.attributes.get("labels")
         labels.remove(label)
         self.update_labels(item, item_type, labels)
 
     def update_labels(self, item, item_type, labels):
-        if item_type == 'issue':
-            editable_item = \
-                self.project.issues.get(
-                    item.attributes.get('iid'), lazy=True)
-        elif item_type == 'merge-request':
-            editable_item = \
-                self.project.mergerequests.get(
-                    item.attributes.get('iid'), lazy=True)
+        if item_type == "issue":
+            editable_item = self.project.issues.get(
+                item.attributes.get("iid"), lazy=True
+            )
+        elif item_type == "merge-request":
+            editable_item = self.project.mergerequests.get(
+                item.attributes.get("iid"), lazy=True
+            )
         editable_item.labels = labels
         editable_item.save()
 
     @staticmethod
     def close(item):
-        item.state_event = 'close'
+        item.state_event = "close"
         item.save()
 
     def get_user(self, username):
@@ -409,31 +411,29 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         p = self.get_project(repo_url)
         if p is None:
             return
-        url = data['job_url']
-        trigger = data['trigger']
+        url = data["job_url"]
+        trigger = data["trigger"]
         hook = {
-            'url': url,
-            'enable_ssl_verification': 1,
-            'note_events': int(trigger == 'mr'),
-            'push_events': int(trigger == 'push'),
-            'merge_requests_events': int(trigger == 'mr'),
+            "url": url,
+            "enable_ssl_verification": 1,
+            "note_events": int(trigger == "mr"),
+            "push_events": int(trigger == "push"),
+            "merge_requests_events": int(trigger == "mr"),
         }
         p.hooks.create(hook)
 
-    def get_repository_tree(self, ref='master'):
+    def get_repository_tree(self, ref="master"):
         """
         Wrapper around Gitlab.repository_tree() with pagination disabled.
         """
-        return self.project.repository_tree(ref=ref,
-                                            recursive=True,
-                                            all=True)
+        return self.project.repository_tree(ref=ref, recursive=True, all=True)
 
-    def get_file(self, path, ref='master'):
+    def get_file(self, path, ref="master"):
         """
         Wrapper around Gitlab.files.get() with exception handling.
         """
         try:
-            path = path.lstrip('/')
+            path = path.lstrip("/")
             return self.project.files.get(file_path=path, ref=ref)
         except gitlab.exceptions.GitlabGetError:
             return None
@@ -444,10 +444,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             return
         self.project = project
         self.create_file(
-            'master',
-            'README.md',
-            'Initial commit',
-            'Use the staging or the production branches.'
+            "master",
+            "README.md",
+            "Initial commit",
+            "Use the staging or the production branches.",
         )
-        self.create_branch('staging', 'master')
-        self.create_branch('production', 'master')
+        self.create_branch("staging", "master")
+        self.create_branch("production", "master")
