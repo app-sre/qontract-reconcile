@@ -33,7 +33,7 @@ class MergeRequestBase(metaclass=ABCMeta):
     Base abstract class for all merge request types.
     """
 
-    name = 'merge-request-base'
+    name = "merge-request-base"
 
     def __init__(self):
         # Let's first get all the attributes from the instance
@@ -46,19 +46,21 @@ class MergeRequestBase(metaclass=ABCMeta):
         self.labels = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
-        self.branch = f'{self.name}-{random_id}'
+        self.branch = f"{self.name}-{random_id}"
         self.branch_created = False
 
-        self.main_branch = 'master'
+        self.main_branch = "master"
         self.remove_source_branch = True
 
         self.cancelled = False
 
     def cancel(self, message):
         self.cancelled = True
-        raise CancelMergeRequest(f"{self.name} MR canceled for "
-                                 f"branch {self.branch}. "
-                                 f"Reason: {message}")
+        raise CancelMergeRequest(
+            f"{self.name} MR canceled for "
+            f"branch {self.branch}. "
+            f"Reason: {message}"
+        )
 
     @abstractmethod
     def title(self):
@@ -86,7 +88,7 @@ class MergeRequestBase(metaclass=ABCMeta):
         the Merge Request class instance.
         """
         return {
-            'pr_type': self.name,
+            "pr_type": self.name,
             **self.sqs_msg_data,
         }
 
@@ -105,11 +107,11 @@ class MergeRequestBase(metaclass=ABCMeta):
         The Gitlab payload for creating the Merge Request.
         """
         return {
-            'source_branch': self.branch,
-            'target_branch': self.main_branch,
-            'title': self.title,
-            'remove_source_branch': self.remove_source_branch,
-            'labels': self.labels
+            "source_branch": self.branch,
+            "target_branch": self.main_branch,
+            "title": self.title,
+            "remove_source_branch": self.remove_source_branch,
+            "labels": self.labels,
         }
 
     def submit_to_gitlab(self, gitlab_cli):
@@ -131,8 +133,10 @@ class MergeRequestBase(metaclass=ABCMeta):
         try:
             # Avoiding duplicate MRs
             if gitlab_cli.mr_exists(title=self.title):
-                self.cancel(f"MR with the same name '{self.title}' "
-                            f"already exists. Aborting MR creation.")
+                self.cancel(
+                    f"MR with the same name '{self.title}' "
+                    f"already exists. Aborting MR creation."
+                )
 
             self.ensure_tmp_branch_exists(gitlab_cli)
 
@@ -140,8 +144,10 @@ class MergeRequestBase(metaclass=ABCMeta):
 
             # Avoiding empty MRs
             if not self.diffs(gitlab_cli):
-                self.cancel(f"No changes when compared to {self.main_branch}. "
-                            "Aborting MR creation.")
+                self.cancel(
+                    f"No changes when compared to {self.main_branch}. "
+                    "Aborting MR creation."
+                )
 
             return gitlab_cli.project.mergerequests.create(self.gitlab_data)
         except CancelMergeRequest as mr_cancel:
@@ -165,8 +171,9 @@ class MergeRequestBase(metaclass=ABCMeta):
 
     def ensure_tmp_branch_exists(self, gitlab_cli):
         if not self.branch_created:
-            gitlab_cli.create_branch(new_branch=self.branch,
-                                     source_branch=self.main_branch)
+            gitlab_cli.create_branch(
+                new_branch=self.branch, source_branch=self.main_branch
+            )
             self.branch_created = True
 
     def delete_tmp_branch(self, gitlab_cli):
@@ -177,12 +184,14 @@ class MergeRequestBase(metaclass=ABCMeta):
             except GitlabError as gitlab_error:
                 # we are not going to let an otherwise fine MR
                 # processing fail just because of this
-                LOG.error(f"Failed to delete branch {self.branch}. "
-                          f"Reason: {gitlab_error}")
+                LOG.error(
+                    f"Failed to delete branch {self.branch}. " f"Reason: {gitlab_error}"
+                )
 
     def diffs(self, gitlab_cli):
-        return gitlab_cli.project.repository_compare(from_=self.main_branch,
-                                                     to=self.branch)['diffs']
+        return gitlab_cli.project.repository_compare(
+            from_=self.main_branch, to=self.branch
+        )["diffs"]
 
     def submit(self, cli):
         if isinstance(cli, GitLabApi):
@@ -191,4 +200,4 @@ class MergeRequestBase(metaclass=ABCMeta):
         if isinstance(cli, SQSGateway):
             return self.submit_to_sqs(sqs_cli=cli)
 
-        raise AttributeError(f'client {cli} not supported')
+        raise AttributeError(f"client {cli} not supported")

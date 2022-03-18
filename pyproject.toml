@@ -31,20 +31,9 @@ extend-exclude = '''
     | reconcile/utils/aws_api.py
     | reconcile/utils/constants.py
     | reconcile/utils/expiration.py
-    | reconcile/utils/gitlab_api.py
-    | reconcile/utils/jira_client.py
-    | reconcile/utils/jjb_client.py
-    | reconcile/utils/mr/app_interface_reporter.py
-    | reconcile/utils/mr/aws_access.py
-    | reconcile/utils/mr/base.py
-    | reconcile/utils/mr/labels.py
-    | reconcile/utils/mr/notificator.py
     | reconcile/utils/oc.py
     | reconcile/utils/saasherder.py
-    | reconcile/utils/sentry_client.py
     | reconcile/utils/sharding.py
-    | reconcile/utils/slack_api.py
-    | reconcile/utils/smtp_client.py
     | reconcile/utils/terraform_client.py
     | reconcile/utils/terrascript_client.py
     | setup.py
