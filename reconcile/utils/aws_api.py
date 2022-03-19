@@ -103,7 +103,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         for account, secret in results:
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
-            region_name = secret['region']
+            region_name = [a for a in accounts if a["name"] == account][0]["resourcesDefaultRegion"]
             session = Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
@@ -139,8 +139,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         account_name = account['name']
         automation_token = account['automationToken']
         secret = self.secret_reader.read_all(automation_token)
-        # Override the terraform state bucket region
-        secret['region'] = account['resourcesDefaultRegion']
         return (account_name, secret)
 
     def init_users(self):
