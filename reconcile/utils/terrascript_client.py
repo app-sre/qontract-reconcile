@@ -281,20 +281,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 filtered_accounts.append(account)
         return filtered_accounts
 
-    def populate_configs(self, accounts):
-        results = threaded.run(self.get_tf_secrets, accounts,
+    def populate_configs(self, accounts: Iterable[awsh.Account]):
+        results = threaded.run(awsh.get_tf_secrets, accounts,
                                self.thread_pool_size)
-        self.configs = dict(results)
-
-    def get_tf_secrets(self, account):
-        account_name = account['name']
-        automation_token = account['automationToken']
-        secret = self.secret_reader.read_all(automation_token)
-        secret['supportedDeploymentRegions'] = \
-            account['supportedDeploymentRegions']
-        secret['resourcesDefaultRegion'] = \
-            account['resourcesDefaultRegion']
-        return (account_name, secret)
+        self.configs: Dict[str, Dict] = {}
+        for account_name, config in results:
+            account = awsh.get_account(accounts, account_name)
+            config['supportedDeploymentRegions'] = account['supportedDeploymentRegions']
+            config['resourcesDefaultRegion'] = account['resourcesDefaultRegion']
+            self.configs[account_name] = config
 
     def _get_partition(self, account):
         return self.partitions.get(account) or 'aws'
