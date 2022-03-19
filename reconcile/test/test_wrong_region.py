@@ -69,7 +69,13 @@ def test_wrong_region_terrascript(terrascript, accounts, tf_bucket_region):
         assert terrascript.configs[a["name"]]["region"] == tf_bucket_region
 
 
-def test_wrong_region_both(aws_api, terrascript, accounts, default_region, tf_bucket_region):
+def test_wrong_region_both_aws_api_first(aws_api, terrascript, accounts, default_region, tf_bucket_region):
     for a in accounts:
         assert aws_api.sessions[a["name"]].region_name == default_region
         assert terrascript.configs[a["name"]]["region"] == tf_bucket_region
+
+
+def test_wrong_region_both_tf_client_first(terrascript, aws_api, accounts, tf_bucket_region, default_region):
+    for a in accounts:
+        assert terrascript.configs[a["name"]]["region"] == tf_bucket_region
+        assert aws_api.sessions[a["name"]].region_name == default_region
