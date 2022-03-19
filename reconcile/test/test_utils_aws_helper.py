@@ -38,7 +38,8 @@ def test_get_account_uid_from_role_link():
 
 
 class MockSecretReader:
-    def read_all(self, token):
+    @staticmethod
+    def read_all(token):
         return token
 
 
