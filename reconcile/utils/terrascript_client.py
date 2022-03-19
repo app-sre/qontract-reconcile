@@ -283,7 +283,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
     def populate_configs(self, accounts: Iterable[awsh.Account]):
         results = threaded.run(awsh.get_tf_secrets, accounts,
-                               self.thread_pool_size)
+                               self.thread_pool_size,
+                               secret_reader=self.secret_reader)
         self.configs: Dict[str, Dict] = {}
         for account_name, config in results:
             account = awsh.get_account(accounts, account_name)

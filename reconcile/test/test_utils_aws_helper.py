@@ -46,7 +46,7 @@ class MockSecretReader:
 def test_get_tf_secrets():
     account = {"name": "a", "automationToken": "at"}
     secret_reader = MockSecretReader()
-    result = awsh.get_tf_secrets(secret_reader, account)
+    result = awsh.get_tf_secrets(account, secret_reader)
     assert result == ("a", "at")
 
 

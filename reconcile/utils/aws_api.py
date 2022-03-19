@@ -97,7 +97,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
         results = threaded.run(awsh.get_tf_secrets, accounts,
-                               self.thread_pool_size)
+                               self.thread_pool_size,
+                               secret_reader=self.secret_reader)
         self.sessions: Dict[str, Session] = {}
         self.resources: Dict[str, Any] = {}
         for account_name, secret in results:
@@ -693,7 +694,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         auth_tokens = {}
         results = threaded.run(self.get_tf_secrets, accounts_with_ecr,
-                               self.thread_pool_size)
+                               self.thread_pool_size,
+                               secret_reader=self.secret_reader)
         account_secrets = dict(results)
         for account in accounts_with_ecr:
             account_name = account['name']
