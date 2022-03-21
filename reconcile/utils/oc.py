@@ -709,7 +709,7 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
             volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = \
                 "configMap", "name", "configMapRef", "configMapKeyRef", "name"
 
-        resources = {}
+        resources: Dict[str, Set[str]] = {}
         for v in spec.get("volumes", []):
             try:
                 resource_name = v[volume_kind][volume_kind_ref]
