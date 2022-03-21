@@ -1052,11 +1052,11 @@ class SaasHerder():
                 else:
                     logging.info(
                         f"Skipping resource of kind {kind} on "
-                        f"{cluster}/{namespace} - {instance_name}"
+                        f"{cluster}/{namespace}"
                     )
             else:
                 logging.info("Skipping non-dictionary resource on "
-                             f"{cluster}/{namespace} - {instance_name}")
+                             f"{cluster}/{namespace}")
         # additional processing of resources
         resources = rs
         self._additional_resource_process(resources, html_url)
