@@ -944,11 +944,6 @@ class SaasHerder():
         saas_file_name = saas_file['name']
         github = self._initiate_github(saas_file)
         image_auth = self._initiate_image_auth(saas_file)
-
-        # Instance exists in v1 saas files only.
-        instance = saas_file.get('instance')
-        instance_name = instance['name'] if instance else None
-
         managed_resource_types = saas_file['managedResourceTypes']
         image_patterns = saas_file['imagePatterns']
         resource_templates = saas_file['resourceTemplates']
@@ -1014,8 +1009,6 @@ class SaasHerder():
                     'managed_resource_types': managed_resource_types,
                     'process_template_options': process_template_options,
                     'check_images_options_base': check_images_options_base,
-                    'instance_name': instance_name,
-                    'upstream': target.get('upstream'),
                     'delete': target.get('delete'),
                     'privileged': saas_file.get('clusterAdmin', False) is True
                 }
@@ -1034,8 +1027,6 @@ class SaasHerder():
         managed_resource_types = set(spec['managed_resource_types'])
         process_template_options = spec['process_template_options']
         check_images_options_base = spec['check_images_options_base']
-        instance_name = spec['instance_name']
-        upstream = spec['upstream']
 
         resources, html_url, promotion = \
             self._process_template(process_template_options)
@@ -1052,32 +1043,24 @@ class SaasHerder():
                 else:
                     logging.info(
                         f"Skipping resource of kind {kind} on "
-                        f"{cluster}/{namespace} - {instance_name}"
+                        f"{cluster}/{namespace}"
                     )
             else:
                 logging.info("Skipping non-dictionary resource on "
-                             f"{cluster}/{namespace} - {instance_name}")
+                             f"{cluster}/{namespace}")
         # additional processing of resources
         resources = rs
         self._additional_resource_process(resources, html_url)
         # check images
-        skip_check_images = upstream and self.jenkins_map and instance_name \
-            and self.jenkins_map[instance_name].is_job_running(upstream)
-        if skip_check_images:
-            logging.warning(
-                "skipping check_image since " +
-                f"upstream job {upstream} is running"
-            )
-        else:
-            check_images_options = {
-                'html_url': html_url,
-                'resources': resources
-            }
-            check_images_options.update(check_images_options_base)
-            image_error = self._check_images(check_images_options)
-            if image_error:
-                ri.register_error()
-                return
+        check_images_options = {
+            'html_url': html_url,
+            'resources': resources
+        }
+        check_images_options.update(check_images_options_base)
+        image_error = self._check_images(check_images_options)
+        if image_error:
+            ri.register_error()
+            return
         # add desired resources
         for resource in resources:
             resource_kind = resource['kind']
