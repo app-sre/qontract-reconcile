@@ -14,6 +14,7 @@ from boto3 import Session
 from sretoolbox.utils import threaded
 import botocore
 
+import reconcile.utils.aws_helper as awsh
 import reconcile.utils.lean_terraform_client as terraform
 
 from reconcile.utils.secret_reader import SecretReader
@@ -45,7 +46,6 @@ class MissingARNError(Exception):
     pass
 
 
-Account = Dict[str, Any]
 KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
 
@@ -95,22 +95,24 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.get_transit_gateway_vpc_attachments = functools.lru_cache()(
             self.get_transit_gateway_vpc_attachments)
 
-    def init_sessions_and_resources(self, accounts: Iterable[Account]):
-        results = threaded.run(self.get_tf_secrets, accounts,
-                               self.thread_pool_size)
+    def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
+        results = threaded.run(awsh.get_tf_secrets, accounts,
+                               self.thread_pool_size,
+                               secret_reader=self.secret_reader)
         self.sessions: Dict[str, Session] = {}
         self.resources: Dict[str, Any] = {}
-        for account, secret in results:
+        for account_name, secret in results:
+            account = awsh.get_account(accounts, account_name)
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
-            region_name = secret['region']
+            region_name = account['resourcesDefaultRegion']
             session = Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
                 region_name=region_name,
             )
-            self.sessions[account] = session
-            self.resources[account] = {}
+            self.sessions[account_name] = session
+            self.resources[account_name] = {}
 
     def get_session(self, account: str) -> Session:
         return self.sessions[account]
@@ -134,14 +136,6 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.client('route53', region_name=region)
-
-    def get_tf_secrets(self, account):
-        account_name = account['name']
-        automation_token = account['automationToken']
-        secret = self.secret_reader.read_all(automation_token)
-        # Override the terraform state bucket region
-        secret['region'] = account['resourcesDefaultRegion']
-        return (account_name, secret)
 
     def init_users(self):
         self.users = {}
@@ -700,7 +694,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         auth_tokens = {}
         results = threaded.run(self.get_tf_secrets, accounts_with_ecr,
-                               self.thread_pool_size)
+                               self.thread_pool_size,
+                               secret_reader=self.secret_reader)
         account_secrets = dict(results)
         for account in accounts_with_ecr:
             account_name = account['name']
@@ -723,7 +718,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         self.auth_tokens = auth_tokens
 
     @staticmethod
-    def _get_account_assume_data(account: Account) -> Tuple[str, str, str]:
+    def _get_account_assume_data(account: awsh.Account) -> Tuple[str, str, str]:
         """
         returns mandatory data to be able to assume a role with this account:
         (account_name, assume_role, assume_region)

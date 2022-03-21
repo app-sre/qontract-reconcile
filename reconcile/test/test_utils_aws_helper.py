@@ -1,4 +1,6 @@
+import pytest
 import reconcile.utils.aws_helper as awsh
+from reconcile.utils.secret_reader import SecretReader
 
 
 def test_get_user_id_from_arn():
@@ -34,3 +36,32 @@ def test_get_account_uid_from_role_link():
     expected = "12345"
     result = awsh.get_account_uid_from_role_link(role_link)
     assert result == expected
+
+
+def test_get_tf_secrets(mocker):
+    account_name = "a"
+    automation_token = "at"
+    account = {"name": account_name, "automationToken": automation_token}
+    mocker.patch(
+        "reconcile.utils.secret_reader.SecretReader.read_all",
+        return_value=automation_token,
+    )
+    secret_reader = SecretReader()
+    result = awsh.get_tf_secrets(account, secret_reader)
+    assert result == (account_name, automation_token)
+
+
+def test_get_account_found():
+    account_name = "a'"
+    acc_a = {"name": account_name}
+    accounts = [
+        acc_a,
+        {"name": "b"},
+    ]
+    result = awsh.get_account(accounts, account_name)
+    assert result == acc_a
+
+
+def test_get_account_not_found():
+    with pytest.raises(awsh.AccountNotFoundError):
+        awsh.get_account([], "a")
