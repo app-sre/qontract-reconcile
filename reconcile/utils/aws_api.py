@@ -96,16 +96,18 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             self.get_transit_gateway_vpc_attachments)
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]):
+        overrides = {'region': 'resourcesDefaultRegion'}
         results = threaded.run(awsh.get_tf_secrets, accounts,
                                self.thread_pool_size,
-                               secret_reader=self.secret_reader)
+                               secret_reader=self.secret_reader,
+                               overrides=overrides)
         self.sessions: Dict[str, Session] = {}
         self.resources: Dict[str, Any] = {}
         for account_name, secret in results:
-            account = awsh.get_account(accounts, account_name)
+            # account = awsh.get_account(accounts, account_name)
             access_key = secret['aws_access_key_id']
             secret_key = secret['aws_secret_access_key']
-            region_name = account['resourcesDefaultRegion']
+            region_name = secret['region']
             session = Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,

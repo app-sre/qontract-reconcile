@@ -282,14 +282,19 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return filtered_accounts
 
     def populate_configs(self, accounts: Iterable[awsh.Account]):
+        overrides = {
+            'supportedDeploymentRegions': 'supportedDeploymentRegions',
+            'resourcesDefaultRegion': 'resourcesDefaultRegion',
+        }
         results = threaded.run(awsh.get_tf_secrets, accounts,
                                self.thread_pool_size,
-                               secret_reader=self.secret_reader)
+                               secret_reader=self.secret_reader,
+                               overrides=overrides)
         self.configs: Dict[str, Dict] = {}
         for account_name, config in results:
-            account = awsh.get_account(accounts, account_name)
-            config['supportedDeploymentRegions'] = account['supportedDeploymentRegions']
-            config['resourcesDefaultRegion'] = account['resourcesDefaultRegion']
+            # account = awsh.get_account(accounts, account_name)
+            # config['supportedDeploymentRegions'] = account['supportedDeploymentRegions']
+            # config['resourcesDefaultRegion'] = account['resourcesDefaultRegion']
             self.configs[account_name] = config
 
     def _get_partition(self, account):

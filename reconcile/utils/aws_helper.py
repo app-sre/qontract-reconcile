@@ -42,10 +42,12 @@ def get_account_uid_from_role_link(role_link):
     return uid
 
 
-def get_tf_secrets(account: Account, secret_reader: SecretReader) -> Tuple[str, Dict]:
+def get_tf_secrets(account: Account, secret_reader: SecretReader, overrides: dict) -> Tuple[str, Dict]:
     account_name = account["name"]
     automation_token = account["automationToken"]
     secret = secret_reader.read_all(automation_token)
+    for k, v in overrides.items():
+        secret[k] = account[v]
     return (account_name, secret)
 
 
