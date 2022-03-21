@@ -701,53 +701,37 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
     @staticmethod
     def get_resources_used_in_pod_spec(spec: Dict[str, Any], kind: str) -> Dict[str, Set[str]]:
         if kind not in ("Secret", "ConfigMap"):
-            raise KeyError(f"unsupported kind for get_resources_used_in_pod_spec: {kind}")
+            raise KeyError(f"unsupported resource kind: {kind}")
         if kind == "Secret":
-            volume_kind = "secret"
-            volume_kind_ref = "secretName"
-            env_from_kind = "secretRef"
-            env_kind = "secretKeyRef"
-            env_ref = "name"
+            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = \
+                "secret", "secretName", "secretRef", "secretKeyRef", "name"
         elif kind == "ConfigMap":
-            volume_kind = "configMap"
-            volume_kind_ref = "name"
-            env_from_kind = "configMapRef"
-            env_kind = "configMapKeyRef"
-            env_ref = "name"
+            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = \
+                "configMap", "name", "configMapRef", "configMapKeyRef", "name"
 
         resources = {}
-        volumes = spec.get("volumes")
-        if volumes:
-            for v in volumes:
+        for v in spec.get("volumes", []):
+            try:
+                resource_name = v[volume_kind][volume_kind_ref]
+                resources.setdefault(resource_name, set())
+            except (KeyError, TypeError):
+                continue
+        for c in spec["containers"] + spec.get("initContainers", []):
+            for e in c.get("envFrom", []):
                 try:
-                    resource_name = v[volume_kind][volume_kind_ref]
+                    resource_name = e[env_from_kind][env_ref]
                     resources.setdefault(resource_name, set())
                 except (KeyError, TypeError):
                     continue
-        containers = spec["containers"]
-        init_containers = spec.get("initContainers")
-        if init_containers:
-            containers += init_containers
-        for c in containers:
-            env_from = c.get("envFrom")
-            if env_from:
-                for e in env_from:
-                    try:
-                        resource_name = e[env_from_kind][env_ref]
-                        resources.setdefault(resource_name, set())
-                    except (KeyError, TypeError):
-                        continue
-            env = c.get("env")
-            if env:
-                for e in env:
-                    try:
-                        resource_ref = e["valueFrom"][env_kind]
-                        resource_name = resource_ref[env_ref]
-                        resources.setdefault(resource_name, set())
-                        secret_key = resource_ref["key"]
-                        resources[resource_name].add(secret_key)
-                    except (KeyError, TypeError):
-                        continue
+            for e in c.get("env", []):
+                try:
+                    resource_ref = e["valueFrom"][env_kind]
+                    resource_name = resource_ref[env_ref]
+                    resources.setdefault(resource_name, set())
+                    secret_key = resource_ref["key"]
+                    resources[resource_name].add(secret_key)
+                except (KeyError, TypeError):
+                    continue
 
         return resources
 
