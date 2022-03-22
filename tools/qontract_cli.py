@@ -28,6 +28,7 @@ from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tabulate import tabulate
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
+from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
 
 
 def output(function):
@@ -1210,3 +1211,41 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
         board_info['name'] = jiraboard
     report_invalid_metadata(app, app_path, board_info, settings,
                             parent_ticket, dry_run)
+
+
+@root.command()
+@click.option('--vault-secret-path',
+              help="Path to the secret in vault")
+@click.option('--secret-file',
+              help="Local file path to the secret")
+@click.option('--output',
+              help="File to print encrypted output to")
+@click.option('--for-user',
+              help="OrgName of user whose gpg key will be used for encryption",
+              default=None,
+              required=True,)
+def gpg_encrypt(vault_secret_path, secret_file, output, for_user):
+    """
+    Encrypt the specified secret (local file or vault path) with a
+    users gpg key. This is intended for easily sharing secrets with
+    customers in case of emergency.
+
+    :param vault_secret_path: The path to the secret in vault.
+    :param secret_file: The local path to the file which contains the secret.
+    :param output: Optional. Local path to a file to which encrypted content.
+                   should be written to. If not specified, prints to stdout.
+    :param for_user: The OrgName of the user whose GPG key should be used
+                     for encryption.
+    """
+    return GPGEncryptCommand.create(
+        command_data=GPGEncryptCommandData(
+            vault_secret_path=vault_secret_path,
+            secret_file_path=secret_file,
+            output=output,
+            target_user=for_user,
+        ),
+    ).execute()
+
+
+if __name__ == '__main__':
+    root()
