@@ -176,10 +176,14 @@ def get_slack_usernames_from_owners(owners_from_repo, users, usergroup):
         all_username_keys = [u[user_key] for u in users]
 
         slack_usernames = [
-            get_slack_username(u) for u in users if u[user_key] in all_owners
+            get_slack_username(u)
+            for u in users
+            if u[user_key].lower() in [o.lower() for o in all_owners]
         ]
         not_found_users = [
-            owner for owner in all_owners if owner not in all_username_keys
+            owner
+            for owner in all_owners
+            if owner.lower() not in [u.lower() for u in all_username_keys]
         ]
         if not_found_users:
             msg = (
