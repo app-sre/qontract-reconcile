@@ -91,17 +91,17 @@ class GPGEncryptCommand:
         secret_reader: Optional[SecretReader] = None,
         gpg_encrypt_func: Optional[Callable] = None,
     ) -> GPGEncryptCommand:
-        if not users:
-            users = queries.get_users()
-        if not secret_reader:
-            secret_reader = SecretReader(
-                settings=config.get_config(),
-            )
-        if not gpg_encrypt_func:
-            gpg_encrypt_func = gpg.gpg_encrypt
+        cls_users = users if users else queries.get_users()
+        cls_secret_reader = (
+            secret_reader
+            if secret_reader
+            else SecretReader(settings=config.get_config())
+        )
+        gpg_casted: Callable = gpg.gpg_encrypt
+        cls_gpg_func: Callable = gpg_encrypt_func if gpg_encrypt_func else gpg_casted
         return cls(
             command_data=command_data,
-            users=users,
-            secret_reader=secret_reader,
-            gpg_encrypt_func=gpg_encrypt_func,
+            users=cls_users,
+            secret_reader=cls_secret_reader,
+            gpg_encrypt_func=cls_gpg_func,
         )

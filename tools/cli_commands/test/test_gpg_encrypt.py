@@ -84,7 +84,7 @@ def test_gpg_encrypt_from_vault_with_version(command):
     command._users = users
     command.execute()
     command._secret_reader.read_all.assert_called_once_with(
-        {"path": vault_secret_path, "version": '4'}
+        {"path": vault_secret_path, "version": "4"}
     )
 
 
