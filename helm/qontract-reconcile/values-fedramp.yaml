@@ -213,16 +213,4 @@ integrations:
   logs:
     slack: true
   disableUnleash: true
-- name: openshift-users
-  resources:
-    requests:
-      # Known peaks are at 800Mi
-      memory: 800Mi
-      cpu: 400m
-    limits:
-      # Limits 30% above requests
-      memory: 1040Mi
-      cpu: 500m
-  logs:
-    slack: true
-  disableUnleash: true
+
