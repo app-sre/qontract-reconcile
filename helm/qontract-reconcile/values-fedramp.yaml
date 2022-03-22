@@ -191,3 +191,26 @@ integrations:
   logs:
     slack: true
   disableUnleash: true
+- name: openshift-rolebindings
+  resources:
+    requests:
+      memory: 550Mi
+      cpu: 100m
+    limits:
+      memory: 720Mi
+      cpu: 200m
+  logs:
+    slack: true
+  disableUnleash: true
+- name: openshift-clusterrolebindings
+  resources:
+    requests:
+      memory: 350Mi
+      cpu: 100m
+    limits:
+      memory: 500Mi
+      cpu: 200m
+  logs:
+    slack: true
+  disableUnleash: true
+
