@@ -356,7 +356,7 @@ class TestRun(testslide.TestCase):
             None
         ).and_assert_called_once()
         self.mock_callable(self.terrascript, "dump").to_return_value(
-            None
+            {"some_account": "/some/dir"}
         ).and_assert_called_once()
         # Sigh...
         self.exit = self.mock_callable(sys, "exit").to_raise(OSError("Exit called!"))
@@ -434,7 +434,7 @@ class TestRun(testslide.TestCase):
         ).and_assert_called_once()
         self.exit.for_call(0).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(False, False, False, None)
+            integ.run(False, print_to_file=None, enable_deletion=False)
 
     def test_fail_state(self):
         """Ensure we don't change the world if there are failures"""
@@ -450,7 +450,7 @@ class TestRun(testslide.TestCase):
         ).and_assert_not_called()
         self.exit.for_call(1).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(False, False, True)
+            integ.run(False, print_to_file=None, enable_deletion=True)
 
     def test_dry_run(self):
         self.initialize_desired_states(False)
@@ -466,7 +466,7 @@ class TestRun(testslide.TestCase):
         ).and_assert_not_called()
         self.exit.for_call(0).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(True, False, False)
+            integ.run(True, print_to_file=None, enable_deletion=False)
 
     def test_dry_run_with_failures(self):
         """This is what we do during PR checks and new clusters!"""
@@ -479,7 +479,7 @@ class TestRun(testslide.TestCase):
         ).and_assert_not_called()
         self.exit.for_call(1).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(True, False, False)
+            integ.run(True, print_to_file=None, enable_deletion=False)
 
     def test_dry_run_print_only_with_failures(self):
         """This is what we do during PR checks and new clusters!"""
@@ -492,4 +492,4 @@ class TestRun(testslide.TestCase):
         ).and_assert_not_called()
         self.exit.for_call(0).and_assert_called_once()
         with self.assertRaises(OSError):
-            integ.run(True, True, False)
+            integ.run(True, print_to_file="some/dir", enable_deletion=False)
