@@ -240,7 +240,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if action == 'update' and resource_type == 'aws_db_instance' and \
                         self._is_ignored_rds_modification(
                             name, resource_name, resource_change, output):
-                    logging.warning(
+                    logging.debug(
                         f"Not setting should_apply for {resource_name} because the "
                         f"only change is EngineVersion and that setting is in "
                         f"PendingModifiedValues")
