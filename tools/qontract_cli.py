@@ -1216,6 +1216,9 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
 @root.command()
 @click.option('--vault-secret-path',
               help="Path to the secret in vault")
+@click.option('--vault-secret-version',
+              help="Optionally specify the secret's version",
+              default=-1,)
 @click.option('--secret-file',
               help="Local file path to the secret")
 @click.option('--output',
@@ -1224,13 +1227,14 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
               help="OrgName of user whose gpg key will be used for encryption",
               default=None,
               required=True,)
-def gpg_encrypt(vault_secret_path, secret_file, output, for_user):
+def gpg_encrypt(vault_secret_path, vault_secret_version, secret_file, output, for_user):
     """
     Encrypt the specified secret (local file or vault path) with a
     users gpg key. This is intended for easily sharing secrets with
     customers in case of emergency.
 
     :param vault_secret_path: The path to the secret in vault.
+    :param vault_secret_version: Optional. The secret's version in vault.
     :param secret_file: The local path to the file which contains the secret.
     :param output: Optional. Local path to a file to which encrypted content.
                    should be written to. If not specified, prints to stdout.
@@ -1240,6 +1244,7 @@ def gpg_encrypt(vault_secret_path, secret_file, output, for_user):
     return GPGEncryptCommand.create(
         command_data=GPGEncryptCommandData(
             vault_secret_path=vault_secret_path,
+            vault_secret_version=int(vault_secret_version),
             secret_file_path=secret_file,
             output=output,
             target_user=for_user,
@@ -1248,4 +1253,4 @@ def gpg_encrypt(vault_secret_path, secret_file, output, for_user):
 
 
 if __name__ == '__main__':
-    root()
+    root()  # noqa: E1120

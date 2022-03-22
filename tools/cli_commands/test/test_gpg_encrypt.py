@@ -22,6 +22,7 @@ def command() -> GPGEncryptCommand:
     command = GPGEncryptCommand.create(
         command_data=GPGEncryptCommandData(
             vault_secret_path="",
+            vault_secret_version=-1,
             secret_file_path="",
             output="",
             target_user="x",
@@ -49,6 +50,7 @@ def test_gpg_encrypt_from_vault(command):
     ]
     command._command_data = GPGEncryptCommandData(
         vault_secret_path=vault_secret_path,
+        vault_secret_version=-1,
         target_user=target_user,
         secret_file_path="",
         output="",
@@ -56,6 +58,34 @@ def test_gpg_encrypt_from_vault(command):
     command._users = users
     command.execute()
     command._secret_reader.read_all.assert_called_once_with({"path": vault_secret_path})
+
+
+def test_gpg_encrypt_from_vault_with_version(command):
+    vault_secret_path = "app-sre/test"
+    target_user = "testuser"
+    gpg_key = "xyz"
+    users = [
+        {
+            "org_username": target_user,
+            "public_gpg_key": gpg_key,
+        },
+        {
+            "org_username": "other_user",
+            "public_gpg_key": "other_key",
+        },
+    ]
+    command._command_data = GPGEncryptCommandData(
+        vault_secret_path=vault_secret_path,
+        vault_secret_version=4,
+        target_user=target_user,
+        secret_file_path="",
+        output="",
+    )
+    command._users = users
+    command.execute()
+    command._secret_reader.read_all.assert_called_once_with(
+        {"path": vault_secret_path, "version": 4}
+    )
 
 
 @patch("builtins.open", new_callable=mock_open, read_data="test-data")
@@ -74,6 +104,7 @@ def test_gpg_encrypt_from_file(mock_file, command, capsys):
     ]
     command._command_data = GPGEncryptCommandData(
         vault_secret_path="",
+        vault_secret_version=-1,
         target_user=target_user,
         secret_file_path="/tmp/tmp",
         output="",
@@ -99,6 +130,7 @@ def test_gpg_encrypt_user_not_found(command):
     ]
     command._command_data = GPGEncryptCommandData(
         vault_secret_path="app-sre/test",
+        vault_secret_version=-1,
         target_user="does_not_exist",
         secret_file_path="",
         output="",
@@ -116,7 +148,11 @@ def test_gpg_encrypt_no_secret_specified(command):
         },
     ]
     command._command_data = GPGEncryptCommandData(
-        vault_secret_path="", target_user="one_user", secret_file_path="", output=""
+        vault_secret_path="",
+        vault_secret_version=-1,
+        target_user="one_user",
+        secret_file_path="",
+        output="",
     )
     command._users = users
     with pytest.raises(ArgumentException):

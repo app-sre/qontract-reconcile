@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, Iterable, Mapping
+from typing import Callable, Iterable, Mapping, Optional
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils import config
@@ -13,6 +13,7 @@ import json
 @dataclass
 class GPGEncryptCommandData:
     vault_secret_path: str
+    vault_secret_version: int
     secret_file_path: str
     output: str
     target_user: str
@@ -41,11 +42,10 @@ class GPGEncryptCommand:
 
     def _fetch_secret_content(self) -> str:
         if self._command_data.vault_secret_path:
-            secret = self._secret_reader.read_all(
-                {
-                    "path": self._command_data.vault_secret_path,
-                }
-            )
+            d = {"path": self._command_data.vault_secret_path}
+            if self._command_data.vault_secret_version > 0:
+                d["version"] = str(self._command_data.vault_secret_version)
+            secret = self._secret_reader.read_all(d)
             return json.dumps(secret, sort_keys=True, indent=4)
         elif self._command_data.secret_file_path:
             with open(self._command_data.secret_file_path) as f:
@@ -55,7 +55,7 @@ class GPGEncryptCommand:
                 f"No argument given which defines how to fetch the secret {self._command_data}"
             )
 
-    def _get_gpg_key(self) -> str:
+    def _get_gpg_key(self) -> Optional[str]:
         try:
             return [
                 user.get("public_gpg_key")
@@ -87,9 +87,9 @@ class GPGEncryptCommand:
     def create(
         cls,
         command_data: GPGEncryptCommandData,
-        users: Iterable[Mapping[str, str]] = None,
-        secret_reader: SecretReader = None,
-        gpg_encrypt_func: Callable = None,
+        users: Optional[Iterable[Mapping[str, str]]] = None,
+        secret_reader: Optional[SecretReader] = None,
+        gpg_encrypt_func: Optional[Callable] = None,
     ) -> GPGEncryptCommand:
         if not users:
             users = queries.get_users()
