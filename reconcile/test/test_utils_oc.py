@@ -2,6 +2,8 @@ import os
 from unittest import TestCase
 from unittest.mock import patch
 
+import pytest
+
 import reconcile.utils.oc
 from reconcile.utils.oc import (
     LABEL_MAX_KEY_NAME_LENGTH,
@@ -511,3 +513,92 @@ class TestOCMapGetClusters(TestCase):
 
         oc_map = OC_Map(integration=calling_int, namespaces=[namespace])
         self.assertFalse(oc_map.get(cluster["name"]))
+
+
+@pytest.fixture
+def oc():
+    os.environ["USE_NATIVE_CLIENT"] = "False"
+    return OC("cluster", "server", "token", local=True)
+
+
+@pytest.fixture
+def pod():
+    return {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "metadata": {
+            "name": "pod1",
+        },
+        "spec": {
+            "volumes": [
+                {"secret": {"secretName": "secret1"}},
+                {"configMap": {"name": "configmap1"}},
+            ],
+            "containers": [
+                {
+                    "envFrom": [
+                        {
+                            "secretRef": {"name": "secret2"},
+                        },
+                        {"configMapRef": {"name": "configmap2"}},
+                    ],
+                    "env": [
+                        {
+                            "valueFrom": {
+                                "secretKeyRef": {"name": "secret3", "key": "secretkey3"}
+                            }
+                        },
+                        {
+                            "valueFrom": {
+                                "configMapKeyRef": {
+                                    "name": "configmap3",
+                                    "key": "configmapkey3",
+                                }
+                            }
+                        },
+                    ],
+                }
+            ],
+        },
+    }
+
+
+def test_get_resources_used_in_pod_spec_unsupported_kind(oc):
+    with pytest.raises(KeyError):
+        oc.get_resources_used_in_pod_spec({}, "Deployment")
+
+
+def test_get_resources_used_in_pod_spec_secret(oc, pod):
+    expected = {"secret1": set(), "secret2": set(), "secret3": {"secretkey3"}}
+    results = oc.get_resources_used_in_pod_spec(pod["spec"], "Secret")
+    assert results == expected
+
+
+def test_get_resources_used_in_pod_spec_configmap(oc, pod):
+    expected = {
+        "configmap1": set(),
+        "configmap2": set(),
+        "configmap3": {"configmapkey3"},
+    }
+    results = oc.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
+    assert results == expected
+
+
+def test_secret_used_in_pod_true(oc, pod):
+    result = oc.secret_used_in_pod("secret1", pod)
+    assert result is True
+
+
+def test_secret_used_in_pod_false(oc, pod):
+    result = oc.secret_used_in_pod("secret9999", pod)
+    assert result is False
+
+
+def test_configmap_used_in_pod_true(oc, pod):
+    result = oc.configmap_used_in_pod("configmap1", pod)
+    assert result is True
+
+
+def test_configmap_used_in_pod_false(oc, pod):
+    result = oc.configmap_used_in_pod("configmap9999", pod)
+    assert result is False

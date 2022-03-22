@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Set
 
 import urllib3
 
@@ -690,57 +690,50 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
                     )
         return obj
 
-    @staticmethod
-    def secret_used_in_pod(name, pod):
-        volumes = pod['spec']['volumes']
-        for v in volumes:
-            volume_item = v.get('secret', {})
-            try:
-                if volume_item['secretName'] == name:
-                    return True
-            except KeyError:
-                continue
-        containers = pod['spec']['containers']
-        for c in containers:
-            for e in c.get('envFrom', []):
-                try:
-                    if e['secretRef']['name'] == name:
-                        return True
-                except KeyError:
-                    continue
-            for e in c.get('env', []):
-                try:
-                    if e['valueFrom']['secretKeyRef']['name'] == name:
-                        return True
-                except KeyError:
-                    continue
-        return False
+    def secret_used_in_pod(self, name, pod):
+        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "Secret")
+        return name in used_resources
+
+    def configmap_used_in_pod(self, name, pod):
+        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
+        return name in used_resources
 
     @staticmethod
-    def configmap_used_in_pod(name, pod):
-        volumes = pod['spec']['volumes']
-        for v in volumes:
-            volume_item = v.get('configMap', {})
+    def get_resources_used_in_pod_spec(spec: Dict[str, Any], kind: str) -> Dict[str, Set[str]]:
+        if kind not in ("Secret", "ConfigMap"):
+            raise KeyError(f"unsupported resource kind: {kind}")
+        if kind == "Secret":
+            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = \
+                "secret", "secretName", "secretRef", "secretKeyRef", "name"
+        elif kind == "ConfigMap":
+            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = \
+                "configMap", "name", "configMapRef", "configMapKeyRef", "name"
+
+        resources: Dict[str, Set[str]] = {}
+        for v in spec.get("volumes", []):
             try:
-                if volume_item['name'] == name:
-                    return True
-            except KeyError:
+                resource_name = v[volume_kind][volume_kind_ref]
+                resources.setdefault(resource_name, set())
+            except (KeyError, TypeError):
                 continue
-        containers = pod['spec']['containers']
-        for c in containers:
-            for e in c.get('envFrom', []):
+        for c in spec["containers"] + spec.get("initContainers", []):
+            for e in c.get("envFrom", []):
                 try:
-                    if e['configMapRef']['name'] == name:
-                        return True
-                except KeyError:
+                    resource_name = e[env_from_kind][env_ref]
+                    resources.setdefault(resource_name, set())
+                except (KeyError, TypeError):
                     continue
-            for e in c.get('env', []):
+            for e in c.get("env", []):
                 try:
-                    if e['valueFrom']['configMapKeyRef']['name'] == name:
-                        return True
-                except KeyError:
+                    resource_ref = e["valueFrom"][env_kind]
+                    resource_name = resource_ref[env_ref]
+                    resources.setdefault(resource_name, set())
+                    secret_key = resource_ref["key"]
+                    resources[resource_name].add(secret_key)
+                except (KeyError, TypeError):
                     continue
-        return False
+
+        return resources
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
     def _run(self, cmd, **kwargs):
