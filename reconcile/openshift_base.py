@@ -17,7 +17,6 @@ from reconcile.utils.oc import MetaDataAnnotationsTooLongApplyError
 from reconcile.utils.oc import StatefulSetUpdateForbidden
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
-from reconcile.utils.oc import UnableToApplyError
 from reconcile.utils.oc import UnsupportedMediaTypeError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
@@ -524,7 +523,7 @@ def _realize_resource_data(
                 "privileged": privileged,
             }
             actions.append(action)
-        except (StatusCodeError, UnableToApplyError) as e:
+        except StatusCodeError as e:
             ri.register_error()
             err = (
                 str(e)
