@@ -1253,4 +1253,4 @@ def gpg_encrypt(vault_secret_path, vault_secret_version, secret_file, output, fo
 
 
 if __name__ == '__main__':
-    root()  # noqa: E1120
+    root()  # pylint: disable=no-value-for-parameter
