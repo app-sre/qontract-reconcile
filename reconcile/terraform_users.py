@@ -4,6 +4,7 @@ from textwrap import indent
 
 from reconcile.utils import expiration
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile import queries
 
@@ -70,8 +71,9 @@ def setup(print_to_file, thread_pool_size):
                      settings=settings)
     err = ts.populate_users(tf_roles)
     working_dirs = ts.dump(print_to_file)
+    aws_api = AWSApi(1, accounts, settings)
 
-    return accounts, working_dirs, err
+    return accounts, working_dirs, err, aws_api
 
 
 def send_email_invites(new_users, settings):
@@ -115,7 +117,7 @@ def run(dry_run, print_to_file=None,
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best
     # to reconcile all valid resources for all accounts.
-    accounts, working_dirs, setup_err = setup(print_to_file, thread_pool_size)
+    accounts, working_dirs, setup_err, aws_api = setup(print_to_file, thread_pool_size)
     if print_to_file:
         cleanup_and_exit()
     if not working_dirs:
@@ -128,6 +130,7 @@ def run(dry_run, print_to_file=None,
                    accounts,
                    working_dirs,
                    thread_pool_size,
+                   aws_api,
                    init_users=True)
     if tf is None:
         err = True

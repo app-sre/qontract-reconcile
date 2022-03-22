@@ -30,12 +30,15 @@ if TYPE_CHECKING:
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_route53 import Route53Client
     from mypy_boto3_route53.type_defs import ResourceRecordSetTypeDef, ResourceRecordTypeDef, HostedZoneTypeDef
+    from mypy_boto3_rds import RDSClient
+    from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
 else:
     EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = TransitGatewayTypeDef = \
         TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = \
         AccessKeyMetadataTypeDef = ImageTypeDef = TagTypeDef = \
         LaunchPermissionModificationsTypeDef = FilterTypeDef = \
-        Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = HostedZoneTypeDef = object
+        Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = HostedZoneTypeDef = \
+        RDSClient = DBInstanceMessageTypeDef = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -136,6 +139,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         session = self.get_session(account_name)
         region = region_name if region_name else session.region_name
         return session.client('route53', region_name=region)
+
+    # pylint: disable=method-hidden
+    def _account_rds_client(self, account_name: str,
+                            region_name: Optional[str] = None) -> RDSClient:
+        session = self.get_session(account_name)
+        region = region_name if region_name else session.region_name
+        return session.client('rds', region_name=region)
 
     def init_users(self):
         self.users = {}
@@ -1346,3 +1356,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         elif not images:
             return None
         return images[0]['ImageId']
+
+    def describe_rds_db_instance(self, account_name: str,
+                                 db_instance_name: str) -> DBInstanceMessageTypeDef:
+        """
+        Describe a single RDS instance.
+        :param account_name: the name of the account in app-interface
+        :param db_instance_name: the name of the database (ex. some-database-stage)
+        :return: https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DescribeDBInstances.html#API_DescribeDBInstances_ResponseElements
+        """
+        rds = self._account_rds_client(account_name)
+        return rds.describe_db_instances(DBInstanceIdentifier=db_instance_name)

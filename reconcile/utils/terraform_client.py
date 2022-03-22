@@ -18,6 +18,7 @@ from sretoolbox.utils import threaded
 import reconcile.utils.lean_terraform_client as lean_tf
 
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
@@ -38,7 +39,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def __init__(self, integration: str, integration_version: str,
                  integration_prefix: str, accounts: Iterable[Mapping[str, Any]],
                  working_dirs: Mapping[str, str], thread_pool_size: int,
-                 init_users=False):
+                 aws_api: AWSApi, init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
@@ -46,6 +47,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self.accounts = {a['name']: a for a in accounts}
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
+        self._aws_api = aws_api
         self._log_lock = Lock()
         self.should_apply = False
 
@@ -237,7 +239,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 # unnecessary Terraform state updates until they complete.
                 if action == 'update' and resource_type == 'aws_db_instance' and \
                         self._is_ignored_rds_modification(
-                            resource_name, resource_change, output):
+                            name, resource_name, resource_change, output):
                     logging.warning(
                         f"Not setting should_apply for {resource_name} because the "
                         f"only change is EngineVersion and that setting is in "
@@ -576,8 +578,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
 
-    @staticmethod
-    def _is_ignored_rds_modification(resource_name: str,
+    def _is_ignored_rds_modification(self, account_name: str, resource_name: str,
                                      resource_change: Mapping[str, Any],
                                      output: Mapping[str, Any]) -> bool:
         """
@@ -590,18 +591,8 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         ]
         if len(changed_terraform_args) == 1 \
                 and 'engine_version' in changed_terraform_args:
-            # TODO: I'm open to better ways to get creds. I looked at AWSApi, but I
-            #  wasn't convinced it was much better with the dependency on settings,
-            #  accounts, etc. that aren't accessible from this class
-            #  (without modification)
-            aws_config = output['configuration']['provider_config'][
-                'aws']['expressions']
-            access_key = aws_config['access_key']['constant_value']
-            secret_key = aws_config['secret_key']['constant_value']
-            rds_client = boto3.client('rds', aws_access_key_id=access_key,
-                                      aws_secret_access_key=secret_key)
-            response = rds_client.describe_db_instances(
-                DBInstanceIdentifier=resource_name)
+            response = \
+                self._aws_api.describe_rds_db_instance(account_name, resource_name)
             pending_modified_values = response['DBInstances'][0][
                 'PendingModifiedValues']
             if 'EngineVersion' in pending_modified_values and \

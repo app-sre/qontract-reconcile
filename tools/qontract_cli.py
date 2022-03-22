@@ -453,12 +453,15 @@ def clusters_aws_account_ids(ctx):
 @click.pass_context
 def terraform_users_credentials(ctx):
     accounts, working_dirs, _ = tfu.setup(False, 1)
+    settings = queries.get_app_interface_settings()
+    aws_api = AWSApi(1, accounts, settings=settings)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
                    tfu.QONTRACT_INTEGRATION_VERSION,
                    tfu.QONTRACT_TF_PREFIX,
                    accounts,
                    working_dirs,
                    10,
+                   aws_api,
                    init_users=True)
     credentials = []
     for account, output in tf.outputs.items():
