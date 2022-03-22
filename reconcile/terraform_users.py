@@ -1,6 +1,7 @@
 import sys
 
 from textwrap import indent
+from typing import Any
 
 from reconcile.utils import expiration
 from reconcile.utils import gql
@@ -56,7 +57,8 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def setup(print_to_file, thread_pool_size):
+def setup(print_to_file, thread_pool_size: int) \
+        -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()

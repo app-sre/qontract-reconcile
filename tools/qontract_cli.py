@@ -451,10 +451,8 @@ def clusters_aws_account_ids(ctx):
 
 @get.command()
 @click.pass_context
-def terraform_users_credentials(ctx):
-    accounts, working_dirs, _ = tfu.setup(False, 1)
-    settings = queries.get_app_interface_settings()
-    aws_api = AWSApi(1, accounts, settings=settings)
+def terraform_users_credentials(ctx) -> None:
+    accounts, working_dirs, _, aws_api = tfu.setup(False, 1)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
                    tfu.QONTRACT_INTEGRATION_VERSION,
                    tfu.QONTRACT_TF_PREFIX,
