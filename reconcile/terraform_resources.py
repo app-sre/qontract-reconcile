@@ -13,6 +13,7 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.aws_iam_keys import run as disable_keys
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import OC_Map
@@ -448,12 +449,14 @@ def setup(dry_run, print_to_file, thread_pool_size, internal,
                                      internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          settings=settings)
+    aws_api = AWSApi(1, accounts, settings=settings)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
                    accounts,
                    working_dirs,
-                   thread_pool_size)
+                   thread_pool_size,
+                   aws_api)
     existing_secrets = tf.get_terraform_output_secrets()
     clusters = [c for c in queries.get_clusters()
                 if c.get('ocm') is not None]

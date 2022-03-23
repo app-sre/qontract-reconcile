@@ -5,8 +5,8 @@ from typing import Any, Optional, Tuple
 
 from reconcile import queries
 from reconcile.utils import aws_api
-from reconcile.utils.aws_api import AWSApi
 from reconcile.utils import ocm
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.ocm import OCM, OCMMap
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_client as terrascript
@@ -528,7 +528,8 @@ def run(dry_run, print_to_file=None,
         "",
         accounts,
         working_dirs,
-        thread_pool_size)
+        thread_pool_size,
+        awsapi)
 
     if tf is None or any(errors):
         sys.exit(1)

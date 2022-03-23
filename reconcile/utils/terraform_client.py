@@ -18,6 +18,7 @@ from sretoolbox.utils import threaded
 import reconcile.utils.lean_terraform_client as lean_tf
 
 from reconcile.utils import gql
+from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 ALLOWED_TF_SHOW_FORMAT_VERSION = "0.1"
@@ -38,7 +39,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def __init__(self, integration: str, integration_version: str,
                  integration_prefix: str, accounts: Iterable[Mapping[str, Any]],
                  working_dirs: Mapping[str, str], thread_pool_size: int,
-                 init_users=False):
+                 aws_api: AWSApi, init_users=False):
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
@@ -46,6 +47,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         self.accounts = {a['name']: a for a in accounts}
         self.parallelism = thread_pool_size
         self.thread_pool_size = thread_pool_size
+        self._aws_api = aws_api
         self._log_lock = Lock()
         self.should_apply = False
 
@@ -231,6 +233,17 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 if action == 'no-op':
                     logging.debug(
                         [action, name, resource_type, resource_name])
+                    continue
+                # Ignore RDS modifications that are going to occur during the next
+                # maintenance window. This can be up to 7 days away and will cause
+                # unnecessary Terraform state updates until they complete.
+                if action == 'update' and resource_type == 'aws_db_instance' and \
+                        self._is_ignored_rds_modification(
+                            name, resource_name, resource_change):
+                    logging.debug(
+                        f"Not setting should_apply for {resource_name} because the "
+                        f"only change is EngineVersion and that setting is in "
+                        f"PendingModifiedValues")
                     continue
                 with self._log_lock:
                     logging.info([action, name, resource_type, resource_name])
@@ -564,3 +577,26 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def cleanup(self):
         for _, wd in self.working_dirs.items():
             shutil.rmtree(wd)
+
+    def _is_ignored_rds_modification(self, account_name: str, resource_name: str,
+                                     resource_change: Mapping[str, Any]) -> bool:
+        """
+        Determine whether the RDS resource changes are cases where a terraform apply
+        should be skipped.
+        """
+        before = resource_change['before']
+        after = resource_change['after']
+        changed_terraform_args = [
+            key for key, value in before.items() if value != after[key]
+        ]
+        if len(changed_terraform_args) == 1 \
+                and 'engine_version' in changed_terraform_args:
+            response = \
+                self._aws_api.describe_rds_db_instance(account_name, resource_name)
+            pending_modified_values = response['DBInstances'][0][
+                'PendingModifiedValues']
+            if 'EngineVersion' in pending_modified_values and \
+                    pending_modified_values['EngineVersion'] \
+                    == resource_change['after']['engine_version']:
+                return True
+        return False
