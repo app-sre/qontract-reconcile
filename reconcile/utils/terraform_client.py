@@ -239,7 +239,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 # unnecessary Terraform state updates until they complete.
                 if action == 'update' and resource_type == 'aws_db_instance' and \
                         self._is_ignored_rds_modification(
-                            name, resource_name, resource_change, output):
+                            name, resource_name, resource_change):
                     logging.debug(
                         f"Not setting should_apply for {resource_name} because the "
                         f"only change is EngineVersion and that setting is in "
@@ -579,10 +579,10 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             shutil.rmtree(wd)
 
     def _is_ignored_rds_modification(self, account_name: str, resource_name: str,
-                                     resource_change: Mapping[str, Any],
-                                     output: Mapping[str, Any]) -> bool:
+                                     resource_change: Mapping[str, Any]) -> bool:
         """
-        Determines whether the RDS resource changes are cases that we don't care about
+        Determine whether the RDS resource changes are cases where a terraform apply
+        should be skipped.
         """
         before = resource_change['before']
         after = resource_change['after']
