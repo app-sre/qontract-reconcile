@@ -701,7 +701,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def _get_aws_support_api_region(self, region: str) -> str:
         """
         The AWS support API is only available in a single region for standard AWS and
-        GovCloud.
+        GovCloud. See: https://docs.aws.amazon.com/general/latest/gr/awssupport.html
         """
         if region.startswith('us-gov'):
             support_region = 'us-gov-west-1'
