@@ -1231,15 +1231,8 @@ def gpg_encrypt(vault_secret_path, vault_secret_version, secret_file, output, fo
     """
     Encrypt the specified secret (local file or vault path) with a
     users gpg key. This is intended for easily sharing secrets with
-    customers in case of emergency.
-
-    :param vault_secret_path: The path to the secret in vault.
-    :param vault_secret_version: Optional. The secret's version in vault.
-    :param secret_file: The local path to the file which contains the secret.
-    :param output: Optional. Local path to a file to which encrypted content.
-                   should be written to. If not specified, prints to stdout.
-    :param for_user: The OrgName of the user whose GPG key should be used
-                     for encryption.
+    customers in case of emergency. The command requires access to
+    a running gql server.
     """
     return GPGEncryptCommand.create(
         command_data=GPGEncryptCommandData(

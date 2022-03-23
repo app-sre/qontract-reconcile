@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import logging
 import itertools
@@ -1214,7 +1215,15 @@ def get_quay_orgs():
 
 USERS_QUERY = """
 {
-  users: users_v1 {
+  users: users_v1
+  {% if filter %}
+  (
+    {% if filter.org_username %}
+    org_username: "{{ filter.org_username }}"
+    {% endif %}
+  )
+  {% endif %}
+  {
     path
     name
     org_username
@@ -1325,7 +1334,25 @@ def get_roles(aws=True, saas_files=True, sendgrid=False):
 def get_users(refs=False):
     """ Returnes all Users. """
     gqlapi = gql.get_api()
-    query = Template(USERS_QUERY).render(refs=refs)
+    query = Template(USERS_QUERY).render(
+      filter=None,
+      refs=refs,
+    )
+    return gqlapi.query(query)['users']
+
+
+@dataclass
+class UserFilter:
+    org_username: str = ""
+
+
+def get_users_by(refs: bool, filter: UserFilter):
+    """ Returnes all Users that satisfy given filter """
+    gqlapi = gql.get_api()
+    query = Template(USERS_QUERY).render(
+      filter=filter,
+      refs=refs,
+    )
     return gqlapi.query(query)['users']
 
 
