@@ -51,6 +51,10 @@ class MissingARNError(Exception):
 
 KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
+# The AWS support API uses a us-east-1 endpoint for all regions
+# https://docs.aws.amazon.com/general/latest/gr/awssupport.html
+AWS_SUPPORT_REGION = 'us-east-1'
+
 
 class AWSApi:  # pylint: disable=too-many-public-methods
     """Wrapper around AWS SDK"""
@@ -685,7 +689,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             if not self.accounts[account].get('premiumSupport'):
                 continue
             try:
-                support = s.client('support')
+                support = s.client('support', region_name=AWS_SUPPORT_REGION)
                 support_cases = support.describe_cases(
                     includeResolvedCases=True,
                     includeCommunications=True
