@@ -1214,31 +1214,34 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
 
 
 @root.command()
-@click.option('--vault-secret-path',
+@click.option('--vault-path',
               help="Path to the secret in vault")
 @click.option('--vault-secret-version',
-              help="Optionally specify the secret's version",
+              help="Optionally also specify the secret's version",
               default=-1,)
-@click.option('--secret-file',
+@click.option('--file-path',
               help="Local file path to the secret")
+@click.option('--openshift-path',
+              help="{cluster}/{namespace}/{secret}")
 @click.option('--output',
-              help="File to print encrypted output to")
+              help="File to print encrypted output to. If not set, prints to stdout.")
 @click.option('--for-user',
               help="OrgName of user whose gpg key will be used for encryption",
               default=None,
               required=True,)
-def gpg_encrypt(vault_secret_path, vault_secret_version, secret_file, output, for_user):
+def gpg_encrypt(vault_path, vault_secret_version, file_path, openshift_path, output, for_user):
     """
-    Encrypt the specified secret (local file or vault path) with a
-    users gpg key. This is intended for easily sharing secrets with
+    Encrypt the specified secret (local file, vault or openshift) with a
+    given users gpg key. This is intended for easily sharing secrets with
     customers in case of emergency. The command requires access to
     a running gql server.
     """
     return GPGEncryptCommand.create(
         command_data=GPGEncryptCommandData(
-            vault_secret_path=vault_secret_path,
+            vault_secret_path=vault_path,
             vault_secret_version=int(vault_secret_version),
-            secret_file_path=secret_file,
+            secret_file_path=file_path,
+            openshift_path=openshift_path,
             output=output,
             target_user=for_user,
         ),

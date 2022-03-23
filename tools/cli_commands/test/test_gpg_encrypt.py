@@ -104,6 +104,54 @@ def test_gpg_encrypt_from_vault_with_version(get_users_by_mock, gpg_encrypt_mock
     )
 
 
+@patch("reconcile.queries.get_users_by")
+@patch("reconcile.queries.get_clusters")
+def test_gpg_encrypt_oc_bad_path(get_clusters_mock, get_users_by_mock):
+    target_user = "testuser"
+    user_query = {
+        "org_username": target_user,
+        "public_gpg_key": "xyz",
+    }
+    command = craft_command(
+        command_data=GPGEncryptCommandData(
+            openshift_path="cluster/secret",
+            target_user=target_user,
+        ),
+        secret={},
+    )
+
+    get_users_by_mock.side_effect = [[user_query]]
+    get_clusters_mock.side_effect = [[{"name": "cluster"}]]
+
+    with pytest.raises(ArgumentException) as exc:
+        command.execute()
+    assert "Wrong format!" in str(exc.value)
+
+
+@patch("reconcile.queries.get_users_by")
+@patch("reconcile.queries.get_clusters")
+def test_gpg_encrypt_oc_bad_cluster(get_clusters_mock, get_users_by_mock):
+    target_user = "testuser"
+    user_query = {
+        "org_username": target_user,
+        "public_gpg_key": "xyz",
+    }
+    command = craft_command(
+        command_data=GPGEncryptCommandData(
+            openshift_path="cluster/namespace/secret",
+            target_user=target_user,
+        ),
+        secret={},
+    )
+
+    get_users_by_mock.side_effect = [[user_query]]
+    get_clusters_mock.side_effect = [[{"name": "does-not-exist"}]]
+
+    with pytest.raises(ArgumentException) as exc:
+        command.execute()
+    assert "No cluster found" in str(exc.value)
+
+
 @patch("builtins.open", new_callable=mock_open, read_data="test-data")
 @patch("reconcile.utils.gpg.gpg_encrypt")
 @patch("reconcile.queries.get_users_by")

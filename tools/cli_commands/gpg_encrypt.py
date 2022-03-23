@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
+from typing import Mapping, Optional
+from reconcile.utils.oc import OC_Map
 
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils import config
@@ -14,6 +15,7 @@ import json
 class GPGEncryptCommandData:
     vault_secret_path: str = ""
     vault_secret_version: int = -1
+    openshift_path: str = ""
     secret_file_path: str = ""
     output: str = ""
     target_user: str = ""
@@ -36,19 +38,58 @@ class GPGEncryptCommand:
         self._secret_reader = secret_reader
         self._command_data = command_data
 
-    def _fetch_secret_content(self) -> str:
+    @staticmethod
+    def _format(data: Mapping[str, str]) -> str:
+        return json.dumps(data, sort_keys=True, indent=4)
+
+    def _fetch_oc_secret(self) -> str:
+        parts = self._command_data.openshift_path.split("/")
+        if len(parts) != 3:
+            raise ArgumentException(
+                f"Wrong format! --openshift-path must be of format {{cluster}}/{{namespace}}/{{secret}}. Got {self._command_data.openshift_path}"
+            )
+        cluster_name, namespace, secret = parts
+        clusters = [
+            cluster
+            for cluster in queries.get_clusters()
+            if cluster.get("name") == cluster_name
+        ]
+        if not clusters:
+            raise ArgumentException(f"No cluster found with name '{cluster_name}'")
+
+        settings = queries.get_app_interface_settings()
+        oc_map = OC_Map(
+            clusters=clusters,
+            integration="qontract-cli",
+            settings=settings,
+            use_jump_host=True,
+            thread_pool_size=1,
+            init_projects=False,
+        )
+        oc = oc_map.get(cluster_name)
+        data = oc.get(namespace, "Secret", name=secret, allow_not_found=False)["data"]
+        return GPGEncryptCommand._format(data)
+
+    def _fetch_vault_secret(self) -> str:
         vault_path = self._command_data.vault_secret_path
         vault_version = self._command_data.vault_secret_version
-        file_path = self._command_data.secret_file_path
-        if vault_path:
-            d = {"path": vault_path}
-            if vault_version > 0:
-                d["version"] = str(vault_version)
-            secret = self._secret_reader.read_all(d)
-            return json.dumps(secret, sort_keys=True, indent=4)
-        elif file_path:
-            with open(file_path) as f:
-                return f.read()
+        d = {"path": vault_path}
+        if vault_version > 0:
+            d["version"] = str(vault_version)
+        secret = self._secret_reader.read_all(d)
+        return GPGEncryptCommand._format(secret)
+
+    def _fetch_local_file_secret(self) -> str:
+        with open(self._command_data.secret_file_path) as f:
+            return f.read()
+
+    def _fetch_secret(self) -> str:
+        if self._command_data.vault_secret_path:
+            return self._fetch_vault_secret()
+        elif self._command_data.secret_file_path:
+            return self._fetch_local_file_secret()
+        elif self._command_data.openshift_path:
+            return self._fetch_oc_secret()
         else:
             raise ArgumentException(
                 f"No argument given which defines how to fetch the secret {self._command_data}"
@@ -84,7 +125,7 @@ class GPGEncryptCommand:
             f.write(content)
 
     def execute(self):
-        secret = self._fetch_secret_content()
+        secret = self._fetch_secret()
         gpg_key = self._get_gpg_key()
         encrypted_content = gpg.gpg_encrypt(
             content=secret,
