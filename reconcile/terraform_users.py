@@ -73,7 +73,7 @@ def setup(print_to_file, thread_pool_size: int) \
                      settings=settings)
     err = ts.populate_users(tf_roles)
     working_dirs = ts.dump(print_to_file)
-    aws_api = AWSApi(1, accounts, settings)
+    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
 
     return accounts, working_dirs, err, aws_api
 
