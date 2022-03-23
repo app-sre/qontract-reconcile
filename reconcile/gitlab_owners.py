@@ -249,7 +249,8 @@ class MRApproval:
 
         if approvers:
             markdown_report += (
-                "\nIn case of emergency, the override approvers (from parent directories) are:\n\n"
+                "\nIn case of emergency, the override approvers "
+                "(from parent directories) are:\n\n"
             )
             markdown_report += f'* {", ".join(sorted(approvers))}\n'
 
