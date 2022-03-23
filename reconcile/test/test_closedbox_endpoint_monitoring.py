@@ -39,12 +39,15 @@ def test_blackbox_exporter_endpoint_loading(mocker):
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
 
     endpoints = get_endpoints(BLACKBOX_EXPORTER_PROVIDER)
+    assert endpoints is not None
     assert len(endpoints) == 1
 
     provider = list(endpoints.keys())[0]
     assert provider.provider == BLACKBOX_EXPORTER_PROVIDER
-    ep = endpoints.get(provider)[0]
-    assert len(ep.monitoring) == 1
+    provider_endpoints = endpoints.get(provider)
+    assert provider_endpoints is not None
+    assert len(provider_endpoints) == 1
+    assert len(provider_endpoints[0].monitoring) == 1
 
 
 def test_parse_prober_url():
@@ -71,7 +74,9 @@ def test_blackbox_exporter_probe_building(mocker):
     assert len(endpoints) == 1
 
     provider = list(endpoints.keys())[0]
-    probe_resource = blackbox_exporter_probe_builder(provider, endpoints.get(provider))
+    provider_endpoints = endpoints.get(provider)
+    assert provider_endpoints is not None
+    probe_resource = blackbox_exporter_probe_builder(provider, provider_endpoints)
     assert probe_resource is not None
 
     # verify prober url decomposition
@@ -103,7 +108,9 @@ def test_signalfx_probe_building(mocker):
     assert len(endpoints) == 1
 
     provider = list(endpoints.keys())[0]
-    probe_resource = signalfx_probe_builder(provider, endpoints.get(provider))
+    provider_endpoints = endpoints.get(provider)
+    assert provider_endpoints is not None
+    probe_resource = signalfx_probe_builder(provider, provider_endpoints)
     assert probe_resource is not None
 
     # verify prober url decomposition
@@ -129,14 +136,14 @@ def test_signalfx_probe_building(mocker):
     # verify relabeling
     assert {
         "action": "replace",
-        "regex": f"^test_1$",
+        "regex": "^test_1$",
         "replacement": "https://test1.url",
         "sourceLabels": ["instance"],
         "targetLabel": ["instance"],
     } in spec["targets"]["staticConfig"]["relabelingConfigs"]
     assert {
         "action": "replace",
-        "regex": f"^test_2$",
+        "regex": "^test_2$",
         "replacement": "https://test2.url",
         "sourceLabels": ["instance"],
         "targetLabel": ["instance"],
@@ -151,6 +158,7 @@ def test_blackbox_exporter_filling_desired_state(mocker):
     endpoints = get_endpoints(BLACKBOX_EXPORTER_PROVIDER)
     provider = list(endpoints.keys())[0]
     probe = blackbox_exporter_probe_builder(provider, endpoints[provider])
+    assert probe is not None
     fill_desired_state(provider, probe, ResourceInventory())
 
     assert add_desired_mock.call_count == 1
@@ -171,6 +179,7 @@ def test_signalfx_filling_desired_state(mocker):
     endpoints = get_endpoints(SIGNALFX_PROVIDER)
     provider = list(endpoints.keys())[0]
     probe = signalfx_probe_builder(provider, endpoints[provider])
+    assert probe is not None
     fill_desired_state(provider, probe, ResourceInventory())
 
     assert add_desired_mock.call_count == 1

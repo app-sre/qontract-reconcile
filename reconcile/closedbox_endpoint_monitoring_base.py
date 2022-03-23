@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 from typing import Any, Callable, Optional
 import json
 from dataclasses import field
-from attr import frozen
 
 from pydantic.dataclasses import dataclass
 
@@ -153,9 +152,10 @@ def run_for_provider(
         defer(oc_map.cleanup)
 
         # reconcile
-        for provider, endpoints in desired_endpoints.items():
-            probe = probe_builder(provider, endpoints)
-            fill_desired_state(provider, probe, ri)
+        for ep_mon_provider, endpoints in desired_endpoints.items():
+            probe = probe_builder(ep_mon_provider, endpoints)
+            if probe:
+                fill_desired_state(ep_mon_provider, probe, ri)
         ob.realize_data(dry_run, oc_map, ri, thread_pool_size, recycle_pods=False)
 
         if ri.has_error_registered():

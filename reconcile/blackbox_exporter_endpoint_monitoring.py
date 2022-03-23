@@ -6,7 +6,6 @@ from reconcile import queries
 from reconcile.utils.openshift_resource import (
     OpenshiftResource)
 from reconcile.utils.semver_helper import make_semver
-import reconcile.openshift_base as ob
 
 from reconcile.closedbox_endpoint_monitoring_base import run_for_provider, EndpointMonitoringProvider, Endpoint, parse_prober_url
 
@@ -17,6 +16,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 PROVIDER = "blackbox-exporter"
 
 LOG = logging.getLogger(__name__)
+
 
 def run(dry_run: bool, thread_pool_size: int, internal: bool,
         use_jump_host: bool) -> None:
