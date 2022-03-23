@@ -449,7 +449,7 @@ def setup(dry_run, print_to_file, thread_pool_size, internal,
                                      internal, use_jump_host, account_name)
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
                                          settings=settings)
-    aws_api = AWSApi(1, accounts, settings=settings)
+    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
                    QONTRACT_TF_PREFIX,
