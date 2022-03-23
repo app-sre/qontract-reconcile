@@ -51,10 +51,6 @@ class MissingARNError(Exception):
 
 KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
-# The AWS support API uses a us-east-1 endpoint for all regions
-# https://docs.aws.amazon.com/general/latest/gr/awssupport.html
-AWS_SUPPORT_REGION = 'us-east-1'
-
 
 class AWSApi:  # pylint: disable=too-many-public-methods
     """Wrapper around AWS SDK"""
@@ -688,8 +684,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         for account, s in self.sessions.items():
             if not self.accounts[account].get('premiumSupport'):
                 continue
+            support_region = self._get_aws_support_api_region(s.region_name)
             try:
-                support = s.client('support', region_name=AWS_SUPPORT_REGION)
+                support = s.client('support', region_name=support_region)
                 support_cases = support.describe_cases(
                     includeResolvedCases=True,
                     includeCommunications=True
@@ -700,6 +697,18 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                 logging.error(msg.format(account, str(e)))
 
         return all_support_cases
+
+    def _get_aws_support_api_region(self, region: str) -> str:
+        """
+        The AWS support API is only available in a single region for standard AWS and
+        GovCloud.
+        """
+        if region.startswith('us-gov'):
+            support_region = 'us-gov-west-1'
+        else:
+            support_region = 'us-east-1'
+
+        return support_region
 
     def init_ecr_auth_tokens(self, accounts):
         accounts_with_ecr = [a for a in accounts if a.get('ecrs')]
