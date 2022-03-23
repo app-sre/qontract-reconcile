@@ -51,6 +51,8 @@ class MissingARNError(Exception):
 
 KeyStatus = Union[Literal['Active'], Literal['Inactive']]
 
+GOVCLOUD_PARTITION = 'aws-us-gov'
+
 
 class AWSApi:  # pylint: disable=too-many-public-methods
     """Wrapper around AWS SDK"""
@@ -684,7 +686,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         for account, s in self.sessions.items():
             if not self.accounts[account].get('premiumSupport'):
                 continue
-            support_region = self._get_aws_support_api_region(s.region_name)
+            support_region = self._get_aws_support_api_region(
+                self.accounts[account]['partition'])
             try:
                 support = s.client('support', region_name=support_region)
                 support_cases = support.describe_cases(
@@ -699,12 +702,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return all_support_cases
 
     @staticmethod
-    def _get_aws_support_api_region(region: str) -> str:
+    def _get_aws_support_api_region(partition: str) -> str:
         """
-        The AWS support API is only available in a single region for standard AWS and
-        GovCloud. See: https://docs.aws.amazon.com/general/latest/gr/awssupport.html
+        The AWS support API is only available in a single region for the aws and
+        aws-us-gov partitions.
+
+        https://docs.aws.amazon.com/general/latest/gr/awssupport.html
         """
-        if region.startswith('us-gov'):
+        if partition == GOVCLOUD_PARTITION:
             support_region = 'us-gov-west-1'
         else:
             support_region = 'us-east-1'
