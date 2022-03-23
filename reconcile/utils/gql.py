@@ -85,13 +85,13 @@ class GqlApi:
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
-        self.req_headers = None
+        self._req_headers = None
         if token:
             # The token stored in vault is already in the format 'Basic ...'
-            self.req_headers = {"Authorization": token}
+            self._req_headers = {"Authorization": token}
         # Here we are explicitly using sync strategy
         self.client = Client(
-            transport=RequestsHTTPTransport(self.url, headers=self.req_headers)
+            transport=RequestsHTTPTransport(self.url, headers=self._req_headers)
         )
 
         if validate_schemas and not int_name:
@@ -135,7 +135,7 @@ class GqlApi:
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
 
-        return result.get("data")
+        return result["data"]
 
     def get_resource(self, path):
         query = """
