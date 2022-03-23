@@ -156,7 +156,7 @@ def run(
     ts.populate_additional_providers(participating_accounts)
     ts.populate_tgw_attachments(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
-    aws_api = AWSApi(1, accounts, settings)
+    aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
 
     if print_to_file:
         sys.exit()
