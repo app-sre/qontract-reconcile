@@ -1,7 +1,4 @@
-import contextlib
-import json
 import logging
-import os
 import textwrap
 from typing import Set, Any
 
@@ -10,12 +7,14 @@ from urllib.parse import urlparse
 import requests
 
 from sretoolbox.utils import retry
-from graphqlclient import GraphQLClient
+
 from sentry_sdk import capture_exception
 
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
 
 _gqlapi = None
 
@@ -86,15 +85,19 @@ class GqlApi:
         self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
-        self.client = GraphQLClient(self.url)
+        self.req_headers = None
+        if token:
+            # The token stored in vault is already in the format 'Basic ...'
+            self.req_headers = {"Authorization": token}
+        # Here we are explicitly using sync strategy
+        self.client = Client(
+            transport=RequestsHTTPTransport(self.url, headers=self.req_headers)
+        )
 
         if validate_schemas and not int_name:
             raise Exception(
                 "Cannot validate schemas if integration name " "is not supplied"
             )
-
-        if token:
-            self.client.inject_token(token)
 
         if int_name:
             integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
@@ -110,15 +113,13 @@ class GqlApi:
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(self, query, variables=None, skip_validation=False):
         try:
-            # supress print on HTTP error
-            # https://github.com/prisma-labs/python-graphql-client
-            # /blob/master/graphqlclient/client.py#L32-L33
-            with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
-                result_json = self.client.execute(query, variables)
+            result = self.client.execute(
+                gql(query), variables, get_execution_result=True
+            ).formatted
         except Exception as e:
+            # The client raises TransportQueryError if there is error returned with payload
+            # or AssertionError when no data is returned
             raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
-
-        result = json.loads(result_json)
 
         # show schemas if log level is debug
         query_schemas = result.get("extensions", {}).get("schemas", [])
@@ -134,13 +135,7 @@ class GqlApi:
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
 
-        if "errors" in result:
-            raise GqlApiError(result["errors"])
-
-        if "data" not in result:
-            raise GqlApiError(("`data` field missing from GraphQL" "server response."))
-
-        return result["data"]
+        return result.get("data")
 
     def get_resource(self, path):
         query = """
