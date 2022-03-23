@@ -698,7 +698,8 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return all_support_cases
 
-    def _get_aws_support_api_region(self, region: str) -> str:
+    @staticmethod
+    def _get_aws_support_api_region(region: str) -> str:
         """
         The AWS support API is only available in a single region for standard AWS and
         GovCloud. See: https://docs.aws.amazon.com/general/latest/gr/awssupport.html
