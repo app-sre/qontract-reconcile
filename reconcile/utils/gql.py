@@ -16,6 +16,9 @@ from reconcile.status import RunningState
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
+from typing import Dict
+
+
 _gqlapi = None
 
 
@@ -111,7 +114,7 @@ class GqlApi:
                 raise GqlApiIntegrationNotFound(int_name)
 
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
-    def query(self, query, variables=None, skip_validation=False):
+    def query(self, query, variables=None, skip_validation=False) -> Dict[str, Dict]:
         try:
             result = self.client.execute(
                 gql(query), variables, get_execution_result=True
