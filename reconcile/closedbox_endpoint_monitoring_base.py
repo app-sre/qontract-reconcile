@@ -1,3 +1,4 @@
+from collections import defaultdict
 import logging
 import sys
 from urllib.parse import urlparse
@@ -28,7 +29,7 @@ class BlackboxMonitoringProvider:
 @dataclass(frozen=True, eq=True)
 class SignalfxMonitoringProvier:
 
-    # the namespace of a blackbox-exporter provider is mapped as dict
+    # the namespace of a signalfx provider is mapped as dict
     # since its only use with ob.fetch_current_state is as a dict
     namespace: dict[str, Any] = field(compare=False, hash=False)
     exporterUrl: str
@@ -89,7 +90,9 @@ def parse_prober_url(url: str) -> dict[str, str]:
 
 
 def get_endpoints(provider: str) -> dict[EndpointMonitoringProvider, list[Endpoint]]:
-    endpoints: dict[EndpointMonitoringProvider, list[Endpoint]] = {}
+    endpoints: dict[EndpointMonitoringProvider, list[Endpoint]] = defaultdict(
+        list[Endpoint]
+    )
     for app in queries.get_service_monitoring_endpoints():
         for ep_data in app.get("endPoints") or []:
             monitoring = ep_data.get("monitoring")
@@ -99,7 +102,6 @@ def get_endpoints(provider: str) -> dict[EndpointMonitoringProvider, list[Endpoi
                 ]
                 ep = Endpoint(**ep_data)
                 for mon in ep.monitoring:
-                    endpoints.setdefault(mon.provider, [])
                     endpoints[mon.provider].append(ep)
     return endpoints
 
