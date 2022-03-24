@@ -4,44 +4,51 @@ import logging
 import os
 import re
 import time
-
 from datetime import datetime
 from threading import Lock
-from typing import Literal, Union, TYPE_CHECKING
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
-from boto3 import Session
-from sretoolbox.utils import threaded
 import botocore
-
 import reconcile.utils.aws_helper as awsh
 import reconcile.utils.lean_terraform_client as terraform
-
+from boto3 import Session
 from reconcile.utils.secret_reader import SecretReader
+from sretoolbox.utils import threaded
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client, EC2ServiceResource
     from mypy_boto3_ec2.type_defs import (
+        FilterTypeDef,
+        ImageTypeDef,
+        LaunchPermissionModificationsTypeDef,
         RouteTableTypeDef,
         SubnetTypeDef,
+        TagTypeDef,
         TransitGatewayTypeDef,
         TransitGatewayVpcAttachmentTypeDef,
         VpcTypeDef,
-        ImageTypeDef,
-        LaunchPermissionModificationsTypeDef,
-        TagTypeDef,
-        FilterTypeDef,
     )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
-    from mypy_boto3_route53 import Route53Client
-    from mypy_boto3_route53.type_defs import (
-        ResourceRecordSetTypeDef,
-        ResourceRecordTypeDef,
-        HostedZoneTypeDef,
-    )
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
+    from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_route53.type_defs import (
+        HostedZoneTypeDef,
+        ResourceRecordSetTypeDef,
+        ResourceRecordTypeDef,
+    )
 else:
     EC2Client = (
         EC2ServiceResource
@@ -713,29 +720,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return all_support_cases
 
-    @staticmethod
-    def _get_aws_support_api_region(partition: str) -> str:
-        """
-        The AWS support API is only available in a single region for the aws and
-        aws-us-gov partitions.
-
-        https://docs.aws.amazon.com/general/latest/gr/awssupport.html
-        """
-        if partition == GOVCLOUD_PARTITION:
-            support_region = "us-gov-west-1"
-        else:
-            support_region = "us-east-1"
-
-        return support_region
-
-    def init_ecr_auth_tokens(self, accounts):
+    def init_ecr_auth_tokens(self, accounts: Iterable[awsh.Account]) -> None:
         accounts_with_ecr = [a for a in accounts if a.get("ecrs")]
         if not accounts_with_ecr:
             return
 
         auth_tokens = {}
         results = threaded.run(
-            self.get_tf_secrets,
+            awsh.get_tf_secrets,
             accounts_with_ecr,
             self.thread_pool_size,
             secret_reader=self.secret_reader,
