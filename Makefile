@@ -1,6 +1,7 @@
 .PHONY: help build push rc build-test test-app test-container-image test clean
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
+CONTAINER_UID ?= $(shell id -u)
 IMAGE_TEST := reconcile-test
 
 IMAGE_NAME := quay.io/app-sre/qontract-reconcile
@@ -22,7 +23,7 @@ build:
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --build-arg CONTAINER_UID=${UID} -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
 
 push:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest

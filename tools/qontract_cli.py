@@ -28,6 +28,7 @@ from reconcile.utils.terraform_client import TerraformClient as Terraform
 from tabulate import tabulate
 
 from tools.sre_checkpoints import full_name, get_latest_sre_checkpoints
+from tools.cli_commands.gpg_encrypt import GPGEncryptCommand, GPGEncryptCommandData
 
 
 def output(function):
@@ -451,14 +452,15 @@ def clusters_aws_account_ids(ctx):
 
 @get.command()
 @click.pass_context
-def terraform_users_credentials(ctx):
-    accounts, working_dirs, _ = tfu.setup(False, 1)
+def terraform_users_credentials(ctx) -> None:
+    accounts, working_dirs, _, aws_api = tfu.setup(False, 1)
     tf = Terraform(tfu.QONTRACT_INTEGRATION,
                    tfu.QONTRACT_INTEGRATION_VERSION,
                    tfu.QONTRACT_TF_PREFIX,
                    accounts,
                    working_dirs,
                    10,
+                   aws_api,
                    init_users=True)
     credentials = []
     for account, output in tf.outputs.items():
@@ -1209,3 +1211,42 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
         board_info['name'] = jiraboard
     report_invalid_metadata(app, app_path, board_info, settings,
                             parent_ticket, dry_run)
+
+
+@root.command()
+@click.option('--vault-path',
+              help="Path to the secret in vault")
+@click.option('--vault-secret-version',
+              help="Optionally also specify the secret's version",
+              default=-1,)
+@click.option('--file-path',
+              help="Local file path to the secret")
+@click.option('--openshift-path',
+              help="{cluster}/{namespace}/{secret}")
+@click.option('-o', '--output',
+              help="File to print encrypted output to. If not set, prints to stdout.")
+@click.option('--for-user',
+              help="OrgName of user whose gpg key will be used for encryption",
+              default=None,
+              required=True,)
+def gpg_encrypt(vault_path, vault_secret_version, file_path, openshift_path, output, for_user):
+    """
+    Encrypt the specified secret (local file, vault or openshift) with a
+    given users gpg key. This is intended for easily sharing secrets with
+    customers in case of emergency. The command requires access to
+    a running gql server.
+    """
+    return GPGEncryptCommand.create(
+        command_data=GPGEncryptCommandData(
+            vault_secret_path=vault_path,
+            vault_secret_version=int(vault_secret_version),
+            secret_file_path=file_path,
+            openshift_path=openshift_path,
+            output=output,
+            target_user=for_user,
+        ),
+    ).execute()
+
+
+if __name__ == '__main__':
+    root()  # pylint: disable=no-value-for-parameter

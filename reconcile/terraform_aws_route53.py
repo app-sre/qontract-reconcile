@@ -209,6 +209,7 @@ def run(
 
     ts.populate_route53(desired_state)
     working_dirs = ts.dump(print_to_file=print_to_file)
+    aws_api = AWSApi(1, participating_accounts, settings=settings, init_users=False)
 
     if print_to_file:
         sys.exit(ExitCodes.SUCCESS)
@@ -220,6 +221,7 @@ def run(
         participating_accounts,
         working_dirs,
         thread_pool_size,
+        aws_api,
     )
 
     if tf is None:
