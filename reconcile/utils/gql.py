@@ -15,12 +15,10 @@ from reconcile.status import RunningState
 
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
-
-from typing import Dict
+from gql.transport.exceptions import TransportQueryError
 
 
 _gqlapi = None
-
 
 INTEGRATIONS_QUERY = """
 {
@@ -83,19 +81,10 @@ class GqlApi:
     _valid_schemas = None
     _queried_schemas: Set[Any] = set()
 
-    def __init__(self, url, token=None, int_name=None, validate_schemas=False):
-        self.url = url
-        self.token = token
+    def __init__(self, client, int_name=None, validate_schemas=False) -> None:
         self.integration = int_name
         self.validate_schemas = validate_schemas
-        self._req_headers = None
-        if token:
-            # The token stored in vault is already in the format 'Basic ...'
-            self._req_headers = {"Authorization": token}
-        # Here we are explicitly using sync strategy
-        self.client = Client(
-            transport=RequestsHTTPTransport(self.url, headers=self._req_headers)
-        )
+        self.client = client
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -114,15 +103,19 @@ class GqlApi:
                 raise GqlApiIntegrationNotFound(int_name)
 
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
-    def query(self, query, variables=None, skip_validation=False) -> Dict[str, Dict]:
+    def query(self, query, variables=None, skip_validation=False) -> dict[str, dict]:
         try:
             result = self.client.execute(
                 gql(query), variables, get_execution_result=True
             ).formatted
-        except Exception as e:
-            # The client raises TransportQueryError if there is error returned with payload
-            # or AssertionError when no data is returned
+        except requests.exceptions.ConnectionError as e:
             raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
+        except TransportQueryError as e:
+            raise GqlApiError("`error` returned with GraphQL response {}".format(e))
+        except AssertionError:
+            raise GqlApiError("`data` field missing from GraphQL response payload")
+        except Exception as e:
+            raise GqlApiError("{}".format(e))
 
         # show schemas if log level is debug
         query_schemas = result.get("extensions", {}).get("schemas", [])
@@ -171,8 +164,17 @@ class GqlApi:
 
 def init(url, token=None, integration=None, validate_schemas=False):
     global _gqlapi
-    _gqlapi = GqlApi(url, token, integration, validate_schemas)
+    client = _init_gql_client(url, token)
+    _gqlapi = GqlApi(client, integration, validate_schemas)
     return _gqlapi
+
+
+def _init_gql_client(url, token) -> Client:
+    if token:
+        # The token stored in vault is already in the format 'Basic ...'
+        req_headers = {"Authorization": token}
+    # Here we are explicitly using sync strategy
+    return Client(transport=RequestsHTTPTransport(url, headers=req_headers))
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
