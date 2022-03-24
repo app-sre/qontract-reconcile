@@ -2,4 +2,4 @@
 
 from pathlib import Path
 
-PROJ_ROOT = (Path(__file__) / '..' / '..').resolve()
+PROJ_ROOT = (Path(__file__) / ".." / "..").resolve()
