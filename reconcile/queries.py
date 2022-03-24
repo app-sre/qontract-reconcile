@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import logging
 import itertools
@@ -386,10 +387,21 @@ awsInfrastructureManagementAccounts {
 }
 """
 
+CLUSTER_FILTER_QUERY = """
+{% if filter %}
+(
+  {% if filter.name %}
+  name: "{{ filter.name }}"
+  {% endif %}
+)
+{% endif %}
+"""
 
 CLUSTERS_QUERY = """
 {
-  clusters: clusters_v1 {
+  clusters: clusters_v1
+  %s
+  {
     path
     name
     serverUrl
@@ -641,13 +653,16 @@ CLUSTERS_QUERY = """
     }
   }
 }
-""" % (indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4*' '),
+""" % (indent(CLUSTER_FILTER_QUERY, 2*' '),
+       indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4*' '),
        indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12*' '))
 
 
 CLUSTERS_MINIMAL_QUERY = """
 {
-  clusters: clusters_v1 {
+  clusters: clusters_v1
+  %s
+  {
     name
     serverUrl
     consoleUrl
@@ -697,13 +712,31 @@ CLUSTERS_MINIMAL_QUERY = """
     }
   }
 }
-"""
+""" % (indent(CLUSTER_FILTER_QUERY, 2*' '),)
 
 
 def get_clusters(minimal=False):
     """ Returns all Clusters """
     gqlapi = gql.get_api()
-    query = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    query = Template(tmpl).render(
+      filter=None,
+    )
+    return gqlapi.query(query)['clusters']
+
+
+@dataclass
+class ClusterFilter:
+    name: str = ""
+
+
+def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
+    """ Returns all Clusters fitting given filter """
+    gqlapi = gql.get_api()
+    tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    query = Template(tmpl).render(
+      filter=filter,
+    )
     return gqlapi.query(query)['clusters']
 
 
@@ -1214,7 +1247,15 @@ def get_quay_orgs():
 
 USERS_QUERY = """
 {
-  users: users_v1 {
+  users: users_v1
+  {% if filter %}
+  (
+    {% if filter.org_username %}
+    org_username: "{{ filter.org_username }}"
+    {% endif %}
+  )
+  {% endif %}
+  {
     path
     name
     org_username
@@ -1325,7 +1366,25 @@ def get_roles(aws=True, saas_files=True, sendgrid=False):
 def get_users(refs=False):
     """ Returnes all Users. """
     gqlapi = gql.get_api()
-    query = Template(USERS_QUERY).render(refs=refs)
+    query = Template(USERS_QUERY).render(
+      filter=None,
+      refs=refs,
+    )
+    return gqlapi.query(query)['users']
+
+
+@dataclass
+class UserFilter:
+    org_username: str = ""
+
+
+def get_users_by(filter: UserFilter, refs: bool = False) -> list[dict[str, str]]:
+    """ Returnes all Users that satisfy given filter """
+    gqlapi = gql.get_api()
+    query = Template(USERS_QUERY).render(
+      filter=filter,
+      refs=refs,
+    )
     return gqlapi.query(query)['users']
 
 
