@@ -728,14 +728,14 @@ class AWSApi:  # pylint: disable=too-many-public-methods
 
         return support_region
 
-    def init_ecr_auth_tokens(self, accounts):
+    def init_ecr_auth_tokens(self, accounts: Iterable[awsh.Account]) -> None:
         accounts_with_ecr = [a for a in accounts if a.get("ecrs")]
         if not accounts_with_ecr:
             return
 
         auth_tokens = {}
         results = threaded.run(
-            self.get_tf_secrets,
+            awsh.get_tf_secrets,
             accounts_with_ecr,
             self.thread_pool_size,
             secret_reader=self.secret_reader,
