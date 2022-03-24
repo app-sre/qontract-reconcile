@@ -399,7 +399,7 @@ CLUSTER_FILTER_QUERY = """
 
 CLUSTERS_QUERY = """
 {
-  clusters: clusters_v1 
+  clusters: clusters_v1
   %s
   {
     path
