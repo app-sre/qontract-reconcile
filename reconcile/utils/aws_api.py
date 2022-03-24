@@ -6,8 +6,18 @@ import re
 import time
 from datetime import datetime
 from threading import Lock
-from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, Literal, Mapping,
-                    Optional, Tuple, Union)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import botocore
 import reconcile.utils.aws_helper as awsh
@@ -18,20 +28,27 @@ from sretoolbox.utils import threaded
 
 if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client, EC2ServiceResource
-    from mypy_boto3_ec2.type_defs import (FilterTypeDef, ImageTypeDef,
-                                          LaunchPermissionModificationsTypeDef,
-                                          RouteTableTypeDef, SubnetTypeDef,
-                                          TagTypeDef, TransitGatewayTypeDef,
-                                          TransitGatewayVpcAttachmentTypeDef,
-                                          VpcTypeDef)
+    from mypy_boto3_ec2.type_defs import (
+        FilterTypeDef,
+        ImageTypeDef,
+        LaunchPermissionModificationsTypeDef,
+        RouteTableTypeDef,
+        SubnetTypeDef,
+        TagTypeDef,
+        TransitGatewayTypeDef,
+        TransitGatewayVpcAttachmentTypeDef,
+        VpcTypeDef,
+    )
     from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import DBInstanceMessageTypeDef
     from mypy_boto3_route53 import Route53Client
-    from mypy_boto3_route53.type_defs import (HostedZoneTypeDef,
-                                              ResourceRecordSetTypeDef,
-                                              ResourceRecordTypeDef)
+    from mypy_boto3_route53.type_defs import (
+        HostedZoneTypeDef,
+        ResourceRecordSetTypeDef,
+        ResourceRecordTypeDef,
+    )
 else:
     EC2Client = (
         EC2ServiceResource
@@ -704,14 +721,17 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return all_support_cases
 
     def init_ecr_auth_tokens(self, accounts: Iterable[awsh.Account]) -> None:
-        accounts_with_ecr = [a for a in accounts if a.get('ecrs')]
+        accounts_with_ecr = [a for a in accounts if a.get("ecrs")]
         if not accounts_with_ecr:
             return
 
         auth_tokens = {}
-        results = threaded.run(awsh.get_tf_secrets, accounts_with_ecr,
-                               self.thread_pool_size,
-                               secret_reader=self.secret_reader)
+        results = threaded.run(
+            awsh.get_tf_secrets,
+            accounts_with_ecr,
+            self.thread_pool_size,
+            secret_reader=self.secret_reader,
+        )
         account_secrets = dict(results)
         for account in accounts_with_ecr:
             account_name = account["name"]
