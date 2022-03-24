@@ -169,6 +169,7 @@ def init(url, token=None, integration=None, validate_schemas=False):
 
 
 def _init_gql_client(url, token) -> Client:
+    req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
         req_headers = {"Authorization": token}
