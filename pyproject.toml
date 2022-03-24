@@ -5,35 +5,19 @@ include = '^.*\.py$'
 extend-exclude = '''
 ^/(
     dockerfiles/hack/run-integration.py
-    | reconcile/aws_iam_password_reset.py
     | reconcile/blackbox_exporter_endpoint_monitoring.py
     | reconcile/checkpoint.py
     | reconcile/cli.py
     | reconcile/jenkins_roles.py
     | reconcile/ocm_aws_infrastructure_access.py
-    | reconcile/openshift_clusterrolebindings.py
-    | reconcile/openshift_groups.py
-    | reconcile/openshift_resources_base.py
-    | reconcile/openshift_rolebindings.py
-    | reconcile/openshift_saas_deploy.py
-    | reconcile/openshift_tekton_resources.py
-    | reconcile/openshift_upgrade_watcher.py
     | reconcile/quay_membership.py
     | reconcile/queries.py
     | reconcile/saas_file_owners.py
-    | reconcile/sentry_config.py
-    | reconcile/sentry_helper.py
     | reconcile/terraform_resources.py
     | reconcile/terraform_users.py
     | reconcile/terraform_vpc_peerings.py
     | reconcile/unleash_watcher.py
     | reconcile/user_validator.py
-    | reconcile/utils/aws_api.py
-    | reconcile/utils/constants.py
-    | reconcile/utils/expiration.py
-    | reconcile/utils/oc.py
-    | reconcile/utils/saasherder.py
-    | reconcile/utils/sharding.py
     | reconcile/utils/terraform_client.py
     | reconcile/utils/terrascript_client.py
     | setup.py

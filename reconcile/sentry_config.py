@@ -111,7 +111,7 @@ SENTRY_INSTANCES_QUERY = """
 }
 """
 
-QONTRACT_INTEGRATION = 'sentry-config'
+QONTRACT_INTEGRATION = "sentry-config"
 
 
 class SentryState:
@@ -150,9 +150,9 @@ class SentryState:
                 # TODO: Retrieve project and store relevant config
                 p = client.get_project(project)
                 pdata = {
-                    "name": p['slug'],
-                    "email_prefix": p['subjectPrefix'],
-                    "platform": p['platform']
+                    "name": p["slug"],
+                    "email_prefix": p["subjectPrefix"],
+                    "platform": p["platform"],
                 }
 
                 optional_fields = {
@@ -201,10 +201,11 @@ class SentryReconciler:
 
         # Delete duplicate user accounts
         for user in current.dup_users:
-            logging.info(["delete_duplicate_user", user['email'],
-                          user['id'], self.client.host])
+            logging.info(
+                ["delete_duplicate_user", user["email"], user["id"], self.client.host]
+            )
             if not self.dry_run:
-                self.client.delete_user_by_id(user['id'])
+                self.client.delete_user_by_id(user["id"])
 
         # Reconcile users
         for user in current.users.keys():
@@ -221,49 +222,47 @@ class SentryReconciler:
 
             if user not in current.users.keys():
                 logging.info(
-                    ["add_user", desired_role, user, ",".join(teams),
-                     self.client.host])
+                    ["add_user", desired_role, user, ",".join(teams), self.client.host]
+                )
                 if not self.dry_run:
                     self.client.create_user(user, desired_role, teams)
             else:
                 if not self._is_same_list_(teams, current.users[user]):
-                    logging.info(["team_membership", user,
-                                  ",".join(teams), self.client.host])
+                    logging.info(
+                        ["team_membership", user, ",".join(teams), self.client.host]
+                    )
                     if not self.dry_run:
                         self.client.set_user_teams(user, teams)
 
                 if desired_role != current.roles[user]:
-                    logging.info(
-                        ["user_role", user, desired_role, self.client.host])
+                    logging.info(["user_role", user, desired_role, self.client.host])
                     if not self.dry_run:
                         self.client.change_user_role(user, desired_role)
 
         # Reconcile projects
         for projects in current.projects.values():
             for current_project in projects:
-                if project_in_project_list(current_project,
-                                           desired.projects.values()):
+                if project_in_project_list(current_project, desired.projects.values()):
                     continue
-                project_name = current_project['name']
-                logging.info(
-                    ["delete_project", project_name, self.client.host])
+                project_name = current_project["name"]
+                logging.info(["delete_project", project_name, self.client.host])
                 if not self.dry_run:
                     self.client.delete_project(project_name)
 
         for team in desired.projects.keys():
             for desired_project in desired.projects[team]:
-                project_name = desired_project['name']
-                if not project_in_project_list(desired_project,
-                                               current.projects.values()):
-                    logging.info(
-                        ["add_project", project_name, self.client.host])
+                project_name = desired_project["name"]
+                if not project_in_project_list(
+                    desired_project, current.projects.values()
+                ):
+                    logging.info(["add_project", project_name, self.client.host])
                     if not self.dry_run:
                         self.client.create_project(team, project_name)
                     project_fields_to_update = desired_project
                 else:
-                    project_fields_to_update = \
-                        self._project_fields_need_updating_(project_name,
-                                                            desired_project)
+                    project_fields_to_update = self._project_fields_need_updating_(
+                        project_name, desired_project
+                    )
 
                     # Verify project ownership.  It is possible the project
                     # changed team ownership so need to make sure the project
@@ -274,36 +273,41 @@ class SentryReconciler:
                         # Delete all teams who are not supposed to be owners of
                         # the project
                         for owner in owners:
-                            if owner['slug'] == team:
+                            if owner["slug"] == team:
                                 project_owner = team
                                 continue
 
-                            logging.info(["delete_project_owner", project_name,
-                                          owner['slug'], self.client.host])
+                            logging.info(
+                                [
+                                    "delete_project_owner",
+                                    project_name,
+                                    owner["slug"],
+                                    self.client.host,
+                                ]
+                            )
                             if not self.dry_run:
                                 self.client.delete_project_owner(
-                                    project_name, owner['slug'])
+                                    project_name, owner["slug"]
+                                )
                     else:
-                        project_owner = owners[0]['slug']
+                        project_owner = owners[0]["slug"]
 
                     if project_owner != team:
-                        logging.info(["add_project_owner", project_name, team,
-                                      self.client.host])
+                        logging.info(
+                            ["add_project_owner", project_name, team, self.client.host]
+                        )
                         if not self.dry_run:
-                            self.client.add_project_owner(
-                                project_name, team)
+                            self.client.add_project_owner(project_name, team)
 
                 if len(project_fields_to_update) > 0:
                     updates = {}
                     for field in project_fields_to_update:
                         updates[field] = desired_project[field]
-                    logging.info(
-                        ["update_project", updates, self.client.host])
+                    logging.info(["update_project", updates, self.client.host])
                     try:
                         self.client.validate_project_options(updates)
                     except ValueError as e:
-                        logging.error(
-                            ["update_project", str(e), self.client.host])
+                        logging.error(["update_project", str(e), self.client.host])
                         continue
 
                     if not self.dry_run:
@@ -317,32 +321,50 @@ class SentryReconciler:
                     # Project doesn't exist so must be a create operation
                     # in dry-run mode.  Use rule created by default for
                     # new projects
-                    rules = [{'environment': None, 'actionMatch': 'all',
-                              'frequency': 30,
-                              'name': 'Send a notification for new issues',
-                              'conditions': [
-                                  {'id': 'sentry.rules.conditions.' +
-                                   'first_seen_event.FirstSeenEventCondition',
-                                   'name': 'An issue is first seen'}],
-                              'id': '1',
-                              'actions': [
-                                  {'id': 'sentry.rules.actions.' +
-                                   'notify_event.NotifyEventAction',
-                                   'name': 'Send a notification ' +
-                                   '(for all legacy integrations)'}]}]
+                    rules = [
+                        {
+                            "environment": None,
+                            "actionMatch": "all",
+                            "frequency": 30,
+                            "name": "Send a notification for new issues",
+                            "conditions": [
+                                {
+                                    "id": "sentry.rules.conditions."
+                                    + "first_seen_event.FirstSeenEventCondition",
+                                    "name": "An issue is first seen",
+                                }
+                            ],
+                            "id": "1",
+                            "actions": [
+                                {
+                                    "id": "sentry.rules.actions."
+                                    + "notify_event.NotifyEventAction",
+                                    "name": "Send a notification "
+                                    + "(for all legacy integrations)",
+                                }
+                            ],
+                        }
+                    ]
                 for rule in rules:
-                    logging.info(["delete_project_alert_rule",
-                                  project_name, rule, self.client.host])
+                    logging.info(
+                        [
+                            "delete_project_alert_rule",
+                            project_name,
+                            rule,
+                            self.client.host,
+                        ]
+                    )
                     if not self.dry_run:
-                        self.client.delete_project_alert_rule(
-                            project_name, rule)
+                        self.client.delete_project_alert_rule(project_name, rule)
 
     def _project_fields_need_updating_(self, project, options):
         fields_to_update = []
 
         project = self.client.get_project(project)
-        fields = {**self.client.required_project_fields(), **
-                  self.client.optional_project_fields()}
+        fields = {
+            **self.client.required_project_fields(),
+            **self.client.optional_project_fields(),
+        }
         for k, v in fields.items():
             if v in options:
                 if k not in project or project[k] != options[v]:
@@ -365,7 +387,7 @@ class SentryReconciler:
 def project_in_project_list(project, project_list):
     for projects in project_list:
         for p in projects:
-            if p['name'] == project['name']:
+            if p["name"] == project["name"]:
                 return True
     return False
 
@@ -375,21 +397,21 @@ def fetch_current_state(client, ignore_users):
 
     # Retrieve all the teams
     sentry_teams = client.get_teams()
-    teams = [team['slug'] for team in sentry_teams]
+    teams = [team["slug"] for team in sentry_teams]
     state.init_teams(teams)
 
     # Retrieve the projects and the teams associated with them
     sentry_projects = client.get_projects()
     projects = {}
     for sentry_project in sentry_projects:
-        project_slug = sentry_project['slug']
+        project_slug = sentry_project["slug"]
         if project_slug == "internal":
             # This project can't be deleted
             continue
         project = client.get_project(project_slug)
         project_teams = []
-        for team in project['teams']:
-            project_teams.append(team['slug'])
+        for team in project["teams"]:
+            project_teams.append(team["slug"])
         projects[project_slug] = project_teams
     state.init_projects_from_current_state(client, projects)
 
@@ -399,7 +421,7 @@ def fetch_current_state(client, ignore_users):
     roles = {}
     dup_users = []
     for sentry_user in sentry_users:
-        user_name = sentry_user['email']
+        user_name = sentry_user["email"]
         if user_name in ignore_users:
             continue
         user, dups = find_active_account(client.get_user(user_name))
@@ -408,10 +430,10 @@ def fetch_current_state(client, ignore_users):
                 if d not in dup_users:
                     dup_users.append(d)
         teams = []
-        for team in user['teams']:
+        for team in user["teams"]:
             teams.append(team)
         users[user_name] = teams
-        roles[user_name] = user['role']
+        roles[user_name] = user["role"]
     state.init_roles(roles)
     state.init_users(users, dups=dup_users)
     return state
@@ -424,7 +446,7 @@ def find_active_account(users):
         return users[0], dups
 
     for u in users:
-        if u['pending'] is True:
+        if u["pending"] is True:
             dups.append(u)
         else:
             user = u
@@ -435,15 +457,15 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
     user_roles = {}
 
     def process_user_role(user, role, sentryUrl):
-        if role['sentry_roles'] is not None:
-            for r in role['sentry_roles']:
-                if r['instance']['consoleUrl'] == sentryUrl and \
-                   r['role'] is not None:
+        if role["sentry_roles"] is not None:
+            for r in role["sentry_roles"]:
+                if r["instance"]["consoleUrl"] == sentryUrl and r["role"] is not None:
                     try:
-                        process_role(user, r['role'])
+                        process_role(user, r["role"])
                     except ValueError:
-                        logging.error(["desired_state", "multiple_roles",
-                                       user, sentryUrl])
+                        logging.error(
+                            ["desired_state", "multiple_roles", user, sentryUrl]
+                        )
 
     def process_role(gh_user, sentryRole):
         email = get_github_email(ghapi, gh_user)
@@ -457,29 +479,29 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
 
     # Query for users that should be in sentry
     team_members = {}
-    sentryUrl = sentry_instance['consoleUrl']
-    roles = expiration.filter(gqlapi.query(SENTRY_USERS_QUERY)['roles'])
+    sentryUrl = sentry_instance["consoleUrl"]
+    roles = expiration.filter(gqlapi.query(SENTRY_USERS_QUERY)["roles"])
     for role in roles:
-        if role['sentry_teams'] is None:
+        if role["sentry_teams"] is None:
             continue
 
         # Users that should exist
         members = []
 
-        for user in role['users'] + role['bots']:
+        for user in role["users"] + role["bots"]:
             email = get_github_email(ghapi, user)
             if email is not None:
                 members.append(email)
             process_user_role(user, role, sentryUrl)
 
-        for team in role['sentry_teams']:
+        for team in role["sentry_teams"]:
             # Only add users if the team they are a part of is in the same
             # sentry instance we are querying for information
-            if team['instance']['consoleUrl'] == sentryUrl:
-                if team['name'] not in team_members:
-                    team_members[team['name']] = members
+            if team["instance"]["consoleUrl"] == sentryUrl:
+                if team["name"] not in team_members:
+                    team_members[team["name"]] = members
                 else:
-                    team_members[team['name']].extend(members)
+                    team_members[team["name"]].extend(members)
 
     state.init_roles(user_roles)
     state.init_users_from_desired_state(team_members)
@@ -487,33 +509,35 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
     # Query for teams that should be in sentry
     result = gqlapi.query(SENTRY_TEAMS_QUERY)
     teams = []
-    for team in result['teams']:
-        if team['instance']['consoleUrl'] == sentry_instance['consoleUrl']:
+    for team in result["teams"]:
+        if team["instance"]["consoleUrl"] == sentry_instance["consoleUrl"]:
             if team in teams:
                 logging.error(["team_exists", team])
                 continue
-            teams.append(_to_slug_(team['name']))
+            teams.append(_to_slug_(team["name"]))
     state.init_teams(teams)
 
     # Query for projects that should be in sentry
     result = gqlapi.query(SENTRY_PROJECTS_QUERY)
     projects = {}
-    for app in result['apps']:
-        sentry_projects = app.get('sentryProjects')
+    for app in result["apps"]:
+        sentry_projects = app.get("sentryProjects")
 
         if sentry_projects is None:
             continue
 
         for sentry_project in sentry_projects:
-            if sentry_project['team']['instance']['consoleUrl'] != \
-               sentry_instance['consoleUrl']:
+            if (
+                sentry_project["team"]["instance"]["consoleUrl"]
+                != sentry_instance["consoleUrl"]
+            ):
                 continue
 
-            team = _to_slug_(sentry_project['team']['name'])
+            team = _to_slug_(sentry_project["team"]["name"])
             team_projects = []
-            for project_config in sentry_project['projects']:
+            for project_config in sentry_project["projects"]:
                 if project_in_project_list(project_config, projects.values()):
-                    logging.error(["project_exists", project_config['name']])
+                    logging.error(["project_exists", project_config["name"]])
                     continue
 
                 config = {}
@@ -534,7 +558,7 @@ def fetch_desired_state(gqlapi, sentry_instance, ghapi):
 
 
 def _to_slug_(name):
-    return name.replace(' ', '-').lower()
+    return name.replace(" ", "-").lower()
 
 
 # Cache of github_username:github_email
@@ -542,7 +566,7 @@ github_email_cache = {}
 
 
 def get_github_email(gh, user):
-    github_username = user.get('github_username')
+    github_username = user.get("github_username")
     if github_username:
         if github_username not in github_email_cache:
             try:
@@ -563,15 +587,13 @@ def run(dry_run):
     github = init_github()
     secret_reader = SecretReader(settings=settings)
     # Reconcile against all sentry instances
-    instances = gqlapi.query(SENTRY_INSTANCES_QUERY)['instances']
-    tokens = {i['name']: secret_reader.read(i['automationToken'])
-              for i in instances}
-    skip_users = {i['name']: secret_reader.read(i['adminUser'])
-                  for i in instances}
+    instances = gqlapi.query(SENTRY_INSTANCES_QUERY)["instances"]
+    tokens = {i["name"]: secret_reader.read(i["automationToken"]) for i in instances}
+    skip_users = {i["name"]: secret_reader.read(i["adminUser"]) for i in instances}
     for instance in instances:
-        instance_name = instance['name']
+        instance_name = instance["name"]
         token = tokens[instance_name]
-        host = instance['consoleUrl']
+        host = instance["consoleUrl"]
         sentry_client = SentryClient(host, token)
         skip_user = skip_users[instance_name]
         current_state = fetch_current_state(sentry_client, [skip_user])
