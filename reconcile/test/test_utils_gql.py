@@ -21,14 +21,21 @@ TEST_QUERY = """
 """
 
 
-def test_gqlapi_throws_gqlapierror_exception(mocker):
-    mocked_client = mocker.Mock(spec=Client)
+@pytest.fixture
+def mocked_client(mocker):
+    mocked_client = mocker.Mock(spec=Client, create_autospec=True)
+    return mocked_client
+
+
+def test_gqlapi_throws_gqlapierror_when_generic_exception_thrown(mocked_client):
 
     mocked_client.execute.side_effect = Exception("Something went wrong!")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi(mocked_client, validate_schemas=False)
         gql_api.query(TEST_QUERY)
 
+
+def test_gqlapi_throws_gqlapierror_when_connectionerror_exception_thrown(mocked_client):
     mocked_client.execute.side_effect = requests.exceptions.ConnectionError(
         "Could not connect with GraphQL API"
     )
@@ -36,11 +43,17 @@ def test_gqlapi_throws_gqlapierror_exception(mocker):
         gql_api = GqlApi(mocked_client, validate_schemas=False)
         gql_api.query(TEST_QUERY)
 
+
+def test_gqlapi_throws_gqlapierror_when_transportqueryerror_exception_thrown(
+    mocked_client,
+):
     mocked_client.execute.side_effect = TransportQueryError("Error in GraphQL payload")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi(mocked_client, validate_schemas=False)
         gql_api.query(TEST_QUERY)
 
+
+def test_gqlapi_throws_gqlapierror_when_assertionerror_exception_thrown(mocked_client):
     mocked_client.execute.side_effect = AssertionError(
         "Transport returned an ExecutionResult without data or errors"
     )
@@ -49,8 +62,7 @@ def test_gqlapi_throws_gqlapierror_exception(mocker):
         gql_api.query(TEST_QUERY)
 
 
-def test_gqlapi_throws_gqlapiintegrationnotfound_exception(mocker):
-    mocked_client = mocker.Mock(spec=Client)
+def test_gqlapi_throws_gqlapiintegrationnotfound_exception(mocked_client):
     mocked_client.execute.return_value.formatted = {
         "data": {"integrations": [{"name": "INTEGRATION", "schemas": "TEST_SCHEMA"}]}
     }
@@ -60,8 +72,7 @@ def test_gqlapi_throws_gqlapiintegrationnotfound_exception(mocker):
         gql_api.query(TEST_QUERY)
 
 
-def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(mocker):
-    mocked_client = mocker.Mock(spec=Client)
+def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(mocked_client):
     mocked_client.execute.return_value.formatted = {
         "data": {"integrations": [{"name": "INTEGRATION", "schemas": "TEST_SCHEMA"}]},
         "extensions": {"schemas": ["TEST_SCHEMA", "FORBIDDEN_TEST_SCHEMA"]},

@@ -80,7 +80,7 @@ class GqlApi:
     _valid_schemas = None
     _queried_schemas: Set[Any] = set()
 
-    def __init__(self, client, int_name=None, validate_schemas=False) -> None:
+    def __init__(self, client: Client, int_name=None, validate_schemas=False) -> None:
         self.integration = int_name
         self.validate_schemas = validate_schemas
         self.client = client
@@ -168,7 +168,7 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
-def _init_gql_client(url, token) -> Client:
+def _init_gql_client(url: str, token: str) -> Client:
     req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
