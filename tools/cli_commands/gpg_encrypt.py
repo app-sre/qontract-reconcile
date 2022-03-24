@@ -29,6 +29,10 @@ class ArgumentException(Exception):
     pass
 
 
+class OpenshiftException(Exception):
+    pass
+
+
 class GPGEncryptCommand:
     def __init__(
         self,
@@ -49,25 +53,36 @@ class GPGEncryptCommand:
                 f"Wrong format! --openshift-path must be of format {{cluster}}/{{namespace}}/{{secret}}. Got {self._command_data.openshift_path}"
             )
         cluster_name, namespace, secret = parts
-        clusters = [
-            cluster
-            for cluster in queries.get_clusters()
-            if cluster.get("name") == cluster_name
-        ]
+        clusters = queries.get_clusters_by(
+            filter=queries.ClusterFilter(
+                name=cluster_name,
+            )
+        )
+
         if not clusters:
             raise ArgumentException(f"No cluster found with name '{cluster_name}'")
 
         settings = queries.get_app_interface_settings()
-        oc_map = OC_Map(
-            clusters=clusters,
-            integration="qontract-cli",
-            settings=settings,
-            use_jump_host=True,
-            thread_pool_size=1,
-            init_projects=False,
-        )
-        oc = oc_map.get(cluster_name)
-        data = oc.get(namespace, "Secret", name=secret, allow_not_found=False)["data"]
+        data = {}
+
+        try:
+            oc_map = OC_Map(
+                clusters=clusters,
+                integration="qontract-cli",
+                settings=settings,
+                use_jump_host=True,
+                thread_pool_size=1,
+                init_projects=False,
+            )
+            oc = oc_map.get(cluster_name)
+            data = oc.get(namespace, "Secret", name=secret, allow_not_found=False)[
+                "data"
+            ]
+        except Exception as e:
+            raise OpenshiftException(
+                f"Could not fetch secret from Openshift cluster {cluster_name}"
+            ) from e
+
         return GPGEncryptCommand._format(data)
 
     def _fetch_vault_secret(self) -> str:

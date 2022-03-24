@@ -129,8 +129,8 @@ def test_gpg_encrypt_oc_bad_path(get_clusters_mock, get_users_by_mock):
 
 
 @patch("reconcile.queries.get_users_by")
-@patch("reconcile.queries.get_clusters")
-def test_gpg_encrypt_oc_bad_cluster(get_clusters_mock, get_users_by_mock):
+@patch("reconcile.queries.get_clusters_by")
+def test_gpg_encrypt_oc_cluster_not_exists(get_clusters_mock, get_users_by_mock):
     target_user = "testuser"
     user_query = {
         "org_username": target_user,
@@ -145,7 +145,7 @@ def test_gpg_encrypt_oc_bad_cluster(get_clusters_mock, get_users_by_mock):
     )
 
     get_users_by_mock.side_effect = [[user_query]]
-    get_clusters_mock.side_effect = [[{"name": "does-not-exist"}]]
+    get_clusters_mock.side_effect = [[]]
 
     with pytest.raises(ArgumentException) as exc:
         command.execute()
@@ -196,8 +196,9 @@ def test_gpg_encrypt_user_not_found(get_users_by_mock):
     )
     get_users_by_mock.side_effect = [[]]
 
-    with pytest.raises(UserException):
+    with pytest.raises(UserException) as exc:
         command.execute()
+    assert "Expected to find exactly one user" in str(exc.value)
 
 
 @patch("reconcile.queries.get_users_by")
@@ -212,8 +213,9 @@ def test_gpg_encrypt_user_no_gpg_key(get_users_by_mock):
     )
     get_users_by_mock.side_effect = [[{"org_username": target_user}]]
 
-    with pytest.raises(UserException):
+    with pytest.raises(UserException) as exc:
         command.execute()
+    assert "associated GPG key" in str(exc.value)
 
 
 def test_gpg_encrypt_no_secret_specified():
@@ -224,5 +226,6 @@ def test_gpg_encrypt_no_secret_specified():
         secret={},
     )
 
-    with pytest.raises(ArgumentException):
+    with pytest.raises(ArgumentException) as exc:
         command.execute()
+    assert "No argument given" in str(exc.value)

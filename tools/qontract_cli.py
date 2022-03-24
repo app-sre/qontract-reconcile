@@ -1223,7 +1223,7 @@ def sre_checkpoint_metadata(app_path, parent_ticket, jiraboard,
               help="Local file path to the secret")
 @click.option('--openshift-path',
               help="{cluster}/{namespace}/{secret}")
-@click.option('--output',
+@click.option('-o', '--output',
               help="File to print encrypted output to. If not set, prints to stdout.")
 @click.option('--for-user',
               help="OrgName of user whose gpg key will be used for encryption",

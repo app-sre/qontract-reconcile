@@ -387,10 +387,21 @@ awsInfrastructureManagementAccounts {
 }
 """
 
+CLUSTER_FILTER_QUERY = """
+{% if filter %}
+(
+  {% if filter.name %}
+  name: "{{ filter.name }}"
+  {% endif %}
+)
+{% endif %}
+"""
 
 CLUSTERS_QUERY = """
 {
-  clusters: clusters_v1 {
+  clusters: clusters_v1 
+  %s
+  {
     path
     name
     serverUrl
@@ -642,13 +653,16 @@ CLUSTERS_QUERY = """
     }
   }
 }
-""" % (indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4*' '),
+""" % (indent(CLUSTER_FILTER_QUERY, 2*' '),
+       indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 4*' '),
        indent(AWS_INFRA_MANAGEMENT_ACCOUNT, 12*' '))
 
 
 CLUSTERS_MINIMAL_QUERY = """
 {
-  clusters: clusters_v1 {
+  clusters: clusters_v1
+  %s
+  {
     name
     serverUrl
     consoleUrl
@@ -698,13 +712,31 @@ CLUSTERS_MINIMAL_QUERY = """
     }
   }
 }
-"""
+""" % (indent(CLUSTER_FILTER_QUERY, 2*' '),)
 
 
 def get_clusters(minimal=False):
     """ Returns all Clusters """
     gqlapi = gql.get_api()
-    query = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    query = Template(tmpl).render(
+      filter=None,
+    )
+    return gqlapi.query(query)['clusters']
+
+
+@dataclass
+class ClusterFilter:
+    name: str = ""
+
+
+def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
+    """ Returns all Clusters fitting given filter """
+    gqlapi = gql.get_api()
+    tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
+    query = Template(tmpl).render(
+      filter=filter,
+    )
     return gqlapi.query(query)['clusters']
 
 
@@ -1346,7 +1378,7 @@ class UserFilter:
     org_username: str = ""
 
 
-def get_users_by(refs: bool, filter: UserFilter):
+def get_users_by(filter: UserFilter, refs: bool = False) -> list[dict[str, str]]:
     """ Returnes all Users that satisfy given filter """
     gqlapi = gql.get_api()
     query = Template(USERS_QUERY).render(
