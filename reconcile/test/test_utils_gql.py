@@ -23,7 +23,7 @@ TEST_QUERY = """
 
 @pytest.fixture
 def mocked_client(mocker):
-    mocked_client = mocker.Mock(spec=Client, create_autospec=True)
+    mocked_client = mocker.create_autospec(Client)
     return mocked_client
 
 

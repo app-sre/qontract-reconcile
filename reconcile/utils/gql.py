@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any
+from typing import Set, Any, Optional, Dict, Any
 
 from urllib.parse import urlparse
 
@@ -102,7 +102,9 @@ class GqlApi:
                 raise GqlApiIntegrationNotFound(int_name)
 
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
-    def query(self, query, variables=None, skip_validation=False) -> dict[str, dict]:
+    def query(
+        self, query: str, variables=None, skip_validation=False
+    ) -> Optional[Dict[str, Any]]:
         try:
             result = self.client.execute(
                 gql(query), variables, get_execution_result=True
@@ -129,6 +131,11 @@ class GqlApi:
             ]
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
+
+        # This is to appease mypy. This exception won't be thrown as this condition
+        # is already handled above with AssertionError
+        if result["data"] is None:
+            raise GqlApiError("`data` not received in GraphQL payload")
 
         return result["data"]
 
