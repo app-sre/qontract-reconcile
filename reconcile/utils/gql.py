@@ -13,10 +13,9 @@ from sentry_sdk import capture_exception
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-from gql.transport.exceptions import TransportQueryError
-
+from gql import gql, Client  # type: ignore
+from gql.transport.requests import RequestsHTTPTransport  # type: ignore
+from gql.transport.exceptions import TransportQueryError  # type: ignore
 
 _gqlapi = None
 
@@ -126,7 +125,7 @@ class GqlApi:
 
         if self.validate_schemas and not skip_validation:
             forbidden_schemas = [
-                schema for schema in query_schemas if schema not in self._valid_schemas
+                schema for schema in query_schemas if schema not in self._valid_schemas  # type: ignore
             ]
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
