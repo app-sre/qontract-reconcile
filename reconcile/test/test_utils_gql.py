@@ -6,8 +6,8 @@ from reconcile.utils.gql import (
     GqlApiErrorForbiddenSchema,
     GqlApiIntegrationNotFound,
 )
-from gql import Client  # type: ignore
-from gql.transport.exceptions import TransportQueryError  # type: ignore
+from gql import Client
+from gql.transport.exceptions import TransportQueryError
 import pytest
 
 TEST_QUERY = """

@@ -13,9 +13,9 @@ from sentry_sdk import capture_exception
 from reconcile.utils.config import get_config
 from reconcile.status import RunningState
 
-from gql import gql, Client  # type: ignore
-from gql.transport.requests import RequestsHTTPTransport  # type: ignore
-from gql.transport.exceptions import TransportQueryError  # type: ignore
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
+from gql.transport.exceptions import TransportQueryError
 
 _gqlapi = None
 
