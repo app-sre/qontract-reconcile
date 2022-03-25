@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional, Dict, cast, Iterable
+from typing import Set, Any, Optional, Dict, cast
 
 from urllib.parse import urlparse
 
@@ -127,7 +127,8 @@ class GqlApi:
 
         if self.validate_schemas and not skip_validation:
             forbidden_schemas = [
-                schema for schema in query_schemas if schema not in cast(Iterable, self._valid_schemas)
+                # Here we are explicitly type casting _valid_schemas to list as mypy is unable to infer the type
+                schema for schema in query_schemas if schema not in cast(list, self._valid_schemas)
             ]
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
