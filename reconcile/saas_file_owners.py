@@ -47,10 +47,11 @@ def collect_owners():
                 owners[saas_file_name].add(owner_username)
 
     # make owners suitable for json dump
-    for k in owners:
-        owners[k] = list(owners[k])  # pylint: disable=modified-iterating-dict
+    ans = {}
+    for k, v in owners.items():
+        ans[k] = list(v)
 
-    return owners
+    return ans
 
 
 def collect_state():
