@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional, Dict, cast
+from typing import Set, Any, Optional, Dict
 
 from urllib.parse import urlparse
 
