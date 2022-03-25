@@ -35,15 +35,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -82,15 +73,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-namespace-labels] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -227,15 +209,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -274,15 +247,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-namespaces] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -412,15 +376,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -459,15 +414,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-network-policies] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -597,15 +543,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -644,15 +581,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-resources] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -782,15 +710,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -829,15 +748,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-routes] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -967,15 +877,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -1014,15 +915,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-vault-secrets] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -1152,15 +1044,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -1199,15 +1082,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-aws-route53] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -1337,15 +1211,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -1384,15 +1249,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-resources] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -1522,15 +1378,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -1569,15 +1416,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-tgw-attachments] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -1707,15 +1545,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -1754,15 +1583,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-vpc-peerings] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2086,15 +1906,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2133,15 +1944,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[jenkins-webhooks] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2273,15 +2075,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL_TRIGGER}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2320,15 +2113,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL_TRIGGER}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-saas-deploy-trigger-configs] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2465,15 +2249,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL_TRIGGER}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2512,15 +2287,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL_TRIGGER}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-saas-deploy-trigger-configs] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2657,15 +2423,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL_TRIGGER}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2704,15 +2461,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL_TRIGGER}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-saas-deploy-trigger-configs] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -2849,15 +2597,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -2896,15 +2635,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-tekton-resources] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -3034,15 +2764,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3081,15 +2802,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[terraform-users] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -3219,15 +2931,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3266,15 +2969,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[gitlab-housekeeping] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -3404,15 +3098,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3451,15 +3136,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-rolebindings] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
@@ -3589,15 +3265,6 @@ objects:
               memory: 20Mi
               cpu: 25m
           env:
-          - name: SLACK_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.webhook_url
-                name: app-interface
-          - name: SLACK_CHANNEL
-            value: ${SLACK_CHANNEL}
-          - name: SLACK_ICON_EMOJI
-            value: ${SLACK_ICON_EMOJI}
           - name: LOG_GROUP_NAME
             valueFrom:
               secretKeyRef:
@@ -3636,15 +3303,6 @@ objects:
 
             <match integration>
               @type copy
-              <store>
-                @type slack
-                webhook_url ${SLACK_WEBHOOK_URL}
-                channel ${SLACK_CHANNEL}
-                icon_emoji ${SLACK_ICON_EMOJI}
-                username sd-app-sre-bot
-                flush_interval 10s
-                message "\`\`\`[openshift-clusterrolebindings] %s\`\`\`"
-              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}
