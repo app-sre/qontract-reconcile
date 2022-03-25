@@ -127,7 +127,7 @@ class _VaultClient:
         mount_point = path_split[0]
         return self._get_mount_version(mount_point)
 
-    @functools.lru_cache()
+    @functools.lru_cache(maxsize=128)  # pylint: disable=lru-cache-decorating-method
     def _get_mount_version(self, mount_point):
         try:
             self._client.secrets.kv.v2.read_configuration(mount_point)

@@ -48,7 +48,7 @@ def collect_owners():
 
     # make owners suitable for json dump
     for k in owners:
-        owners[k] = list(owners[k])
+        owners[k] = list(owners[k])  # pylint: disable=modified-iterating-dict
 
     return owners
 

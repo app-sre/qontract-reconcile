@@ -2,7 +2,7 @@ import re
 import subprocess
 
 from functools import wraps
-from distutils.spawn import find_executable
+from distutils.spawn import find_executable  # pylint: disable=deprecated-module
 
 
 def binary(binaries=None):
