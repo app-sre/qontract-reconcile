@@ -10,7 +10,7 @@ integrations:
       cpu: 500m
   state: true
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-namespaces
   resources:
@@ -23,7 +23,7 @@ integrations:
       memory: 1040Mi
       cpu: 500m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-network-policies
   resources:
@@ -36,7 +36,7 @@ integrations:
       memory: 1040Mi
       cpu: 200m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-resources
   resources:
@@ -47,7 +47,7 @@ integrations:
       memory: 3600Mi
       cpu: 1200m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-routes
   resources:
@@ -60,7 +60,7 @@ integrations:
       memory: 1040Mi
       cpu: 300m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-vault-secrets
   resources:
@@ -71,7 +71,7 @@ integrations:
       memory: 800Mi
       cpu: 1200m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: terraform-aws-route53
   resources:
@@ -82,7 +82,7 @@ integrations:
       memory: 1000Mi
       cpu: 500m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: terraform-resources
   resources:
@@ -93,7 +93,7 @@ integrations:
       memory: 2000Mi
       cpu: 400m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
   extraArgs: --vault-output-path osd-fedramp/integrations-output
 - name: terraform-tgw-attachments
@@ -105,7 +105,7 @@ integrations:
       memory: 3000Mi
       cpu: 600m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: terraform-vpc-peerings
   resources:
@@ -116,7 +116,7 @@ integrations:
       memory: 3200Mi
       cpu: 1400m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: jenkins-job-builder
   resources:
@@ -139,7 +139,7 @@ integrations:
       cpu: 200m
   cache: true
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-saas-deploy-trigger-configs
   resources:
@@ -153,7 +153,7 @@ integrations:
   shards: 3
   trigger: true
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-tekton-resources
   resources:
@@ -164,7 +164,7 @@ integrations:
       memory: 1500Mi
       cpu: 600m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: terraform-users
   resources:
@@ -176,7 +176,7 @@ integrations:
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: gitlab-housekeeping
   sleepDurationSecs: 600
@@ -189,7 +189,7 @@ integrations:
       cpu: 200m
   extraArgs: --wait-for-pipeline
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-rolebindings
   resources:
@@ -200,7 +200,7 @@ integrations:
       memory: 720Mi
       cpu: 200m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 - name: openshift-clusterrolebindings
   resources:
@@ -211,6 +211,6 @@ integrations:
       memory: 500Mi
       cpu: 200m
   logs:
-    slack: true
+    slack: false
   disableUnleash: true
 
