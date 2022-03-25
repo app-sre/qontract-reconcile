@@ -21,7 +21,7 @@ setup(
     install_requires=[
         "sretoolbox~=1.2",
         "Click>=7.0,<8.0",
-        "gql==3.1.0",
+        "graphqlclient>=0.2.4,<0.3.0",
         "toml>=0.10.0,<0.11.0",
         "jsonpath-rw>=1.4.0,<1.5.0",
         "PyGithub>=1.55,<1.56",
