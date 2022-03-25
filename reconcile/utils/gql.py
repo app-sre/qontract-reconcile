@@ -127,7 +127,6 @@ class GqlApi:
 
         if self.validate_schemas and not skip_validation:
             forbidden_schemas = [
-                # Here we are explicitly type casting _valid_schemas to list as mypy is unable to infer the type
                 schema
                 for schema in query_schemas
                 if schema not in self._valid_schemas
