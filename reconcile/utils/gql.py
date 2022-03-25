@@ -77,7 +77,7 @@ class GqlGetResourceError(Exception):
 
 
 class GqlApi:
-    _valid_schemas = None
+    _valid_schemas: list[str] = []
     _queried_schemas: Set[Any] = set()
 
     def __init__(self, client: Client, int_name=None, validate_schemas=False) -> None:
@@ -130,7 +130,7 @@ class GqlApi:
                 # Here we are explicitly type casting _valid_schemas to list as mypy is unable to infer the type
                 schema
                 for schema in query_schemas
-                if schema not in cast(list, self._valid_schemas)
+                if schema not in self._valid_schemas
             ]
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchema(forbidden_schemas)
