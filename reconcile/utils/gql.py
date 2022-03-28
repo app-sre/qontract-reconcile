@@ -177,6 +177,10 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
+def get_resource(path):
+    return get_api().get_resource(path)
+
+
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_sha(server, token=None):
     sha_endpoint = server._replace(path="/sha256")
