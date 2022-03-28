@@ -246,9 +246,7 @@ def process_jinja2_template(body, vars=None, env=None):
     vars.update(
         {"github": lambda u, p, r, v=None: lookup_github_file_content(u, p, r, vars)}
     )
-    vars.update(
-        {"query": lambda path, **kwargs: lookup_graphql_query_results(path, **kwargs)}
-    )
+    vars.update({"query": lookup_graphql_query_results})
     try:
         env = jinja2.Environment(
             extensions=[B64EncodeExtension, RaiseErrorExtension],
