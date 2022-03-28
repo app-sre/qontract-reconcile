@@ -229,10 +229,10 @@ def lookup_github_file_content(repo, path, ref, tvars=None):
     return c.decode("utf-8")
 
 
-def lookup_graphql_query_results(query: str, kwargs: dict[str, Any] = {}) -> list[Any]:
+def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     gqlapi = gql.get_api()
     resource = gqlapi.get_resource(query)["content"]
-    rendered_resource = jinja2.Template(resource).render(kwargs)
+    rendered_resource = jinja2.Template(resource).render(**kwargs)
     results = list(gqlapi.query(rendered_resource).values())[0]
     return results
 
@@ -247,7 +247,7 @@ def process_jinja2_template(body, vars=None, env=None):
         {"github": lambda u, p, r, v=None: lookup_github_file_content(u, p, r, vars)}
     )
     vars.update(
-        {"query": lambda path, **kwargs: lookup_graphql_query_results(path, kwargs)}
+        {"query": lambda path, **kwargs: lookup_graphql_query_results(path, **kwargs)}
     )
     try:
         env = jinja2.Environment(
