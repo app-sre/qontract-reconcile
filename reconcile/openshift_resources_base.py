@@ -229,10 +229,11 @@ def lookup_github_file_content(repo, path, ref, tvars=None):
     return c.decode("utf-8")
 
 
-def lookup_graphql_query_results(query: str) -> list[Any]:
+def lookup_graphql_query_results(query: str, **kwargs) -> list[Any]:
     gqlapi = gql.get_api()
     resource = gqlapi.get_resource(query)["content"]
-    results = list(gqlapi.query(resource).values())[0]
+    rendered_resource = jinja2.Template(resource).render(**kwargs)
+    results = list(gqlapi.query(rendered_resource).values())[0]
     return results
 
 
