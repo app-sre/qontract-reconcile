@@ -102,10 +102,9 @@ def get_prometheus_rules(cluster_name):
             rules[path][cluster][namespace] = {"spec": openshift_resource.body["spec"]}
 
             # we keep variables to use them in the rule tests
-            if "variables" in r:
-                rules[path][cluster][namespace]["variables"] = json.loads(
-                    r["variables"]
-                )
+            variables = r["variables"]
+            if variables:
+                rules[path][cluster][namespace]["variables"] = json.loads(variables)
 
     # We return rules that are actually consumed from a namespace becaused
     # those are the only ones that can be resolved as they can be templates
