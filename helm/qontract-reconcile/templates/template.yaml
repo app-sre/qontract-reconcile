@@ -331,6 +331,7 @@ objects:
       spec:
         template:
           spec:
+            serviceAccountName: qontract-reconcile
             containers:
             - name: int
               image: ${IMAGE}:${IMAGE_TAG}
