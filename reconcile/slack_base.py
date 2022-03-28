@@ -27,6 +27,8 @@ def slackapi_from_slack_workspace(
     workspace_name = slack_workspace["workspace"]["name"]
     client_config = slack_workspace["workspace"].get("api_client")
 
+    if "integrations" not in slack_workspace["workspace"]:
+        raise ValueError('Slack workspace not containing any "integrations"')
     [slack_integration_config] = [
         i
         for i in slack_workspace["workspace"]["integrations"]
