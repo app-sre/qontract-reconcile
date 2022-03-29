@@ -388,7 +388,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     oc_resource
                 )
 
-
     @staticmethod
     def get_replicas_info(namespaces):
         replicas_info = defaultdict(dict)
