@@ -1,6 +1,4 @@
-from setuptools import find_packages
-from setuptools import setup
-
+from setuptools import find_packages, setup
 
 setup(
     name="qontract-reconcile",
@@ -46,7 +44,6 @@ setup(
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
         "jenkins-job-builder~=3.12.0",
-        "tzlocal==2.1",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
         "dnspython~=2.1",
