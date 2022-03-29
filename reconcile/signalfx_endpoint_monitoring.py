@@ -53,7 +53,7 @@ def build_probe(
             "regex": f"^{ep.name}$",
             "replacement": ep.url,
             "sourceLabels": ["instance"],
-            "targetLabel": ["instance"],
+            "targetLabel": "instance",
         }
         for ep in endpoints
     ]

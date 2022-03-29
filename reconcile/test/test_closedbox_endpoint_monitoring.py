@@ -139,14 +139,14 @@ def test_signalfx_probe_building(mocker):
         "regex": "^test_1$",
         "replacement": "https://test1.url",
         "sourceLabels": ["instance"],
-        "targetLabel": ["instance"],
+        "targetLabel": "instance",
     } in spec["targets"]["staticConfig"]["relabelingConfigs"]
     assert {
         "action": "replace",
         "regex": "^test_2$",
         "replacement": "https://test2.url",
         "sourceLabels": ["instance"],
-        "targetLabel": ["instance"],
+        "targetLabel": "instance",
     } in spec["targets"]["staticConfig"]["relabelingConfigs"]
 
 
