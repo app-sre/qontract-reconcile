@@ -27,19 +27,21 @@ def get_accounts_names():
     return ts.uids.keys()
 
 
-def tfu_run_wrapper(dry_run,
+def tfu_run_wrapper(account_name,
+                    dry_run,
+                    internal_thread_pool_size,
                     print_to_file=None,
                     enable_deletion=False,
                     io_dir='throughput/',
-                    thread_pool_size=10,
                     send_mails=True):
     exit_code = 0
     try:
-        tfu.run(dry_run=dry_run,
+        tfu.run(account_name=account_name,
+                dry_run=dry_run,
                 print_to_file=print_to_file,
                 enable_deletion=enable_deletion,
                 io_dir=io_dir,
-                thread_pool_size=thread_pool_size,
+                thread_pool_size=internal_thread_pool_size,
                 send_mails=send_mails)
     except SystemExit as e:
         exit_code = e.code
@@ -48,9 +50,8 @@ def tfu_run_wrapper(dry_run,
 
 def run(dry_run, print_to_file=None,
         enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, internal=None, use_jump_host=True,
-        light=False, vault_output_path='', extra_labels=None,
-        send_mails=True):
+        thread_pool_size=10, internal=None, send_mails=True):
+
     account_names = [
         name for index, name in enumerate(sorted(get_accounts_names()))
         if is_in_shard_round_robin(name, index)
@@ -61,17 +62,14 @@ def run(dry_run, print_to_file=None,
         return
 
     exit_codes = threaded.run(
-        tfu_run_wrapper, account_names, thread_pool_size,
+        tfu_run_wrapper,
+        account_names,
+        thread_pool_size,
         dry_run=dry_run,
         print_to_file=print_to_file,
         enable_deletion=enable_deletion,
         io_dir=io_dir,
         internal_thread_pool_size=thread_pool_size,
-        internal=internal,
-        use_jump_host=use_jump_host,
-        light=light,
-        vault_output_path=vault_output_path,
-        extra_labels=extra_labels,
         send_mails=send_mails
     )
 

@@ -1322,18 +1322,12 @@ def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
 )
 @print_to_file
 @throughput
-@vault_output_path
 @threaded(default=20)
-@binary(['terraform', 'oc', 'git'])
+@binary(['terraform', 'gpg', 'git'])
 @binary_version('terraform', ['version'],
                 TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@binary_version('oc', ['version', '--client'], OC_VERSION_REGEX, OC_VERSION)
-@internal()
-@use_jump_host()
-@enable_deletion(default=False)
-@click.option('--light/--full',
-              default=False,
-              help='run without executing terraform plan and apply.')
+@enable_deletion(default=True)
+@send_mails(default=True)
 @click.pass_context
 def terraform_users_wrapper(ctx, print_to_file, enable_deletion, io_dir,
                             thread_pool_size, send_mails):
