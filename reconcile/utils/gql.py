@@ -18,8 +18,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import log as requests_logger
 
-
-requests_logger.setLevel(logging.WARNING)
+from threading import Lock
 
 
 _gqlapi = None
@@ -33,6 +32,10 @@ INTEGRATIONS_QUERY = """
     }
 }
 """
+
+requests_logger.setLevel(logging.WARNING)
+
+_lock = Lock()
 
 
 def capture_and_forget(error):
@@ -110,18 +113,21 @@ class GqlApi:
     def query(
         self, query: str, variables=None, skip_validation=False
     ) -> Optional[Dict[str, Any]]:
-        try:
-            result = self.client.execute(
-                gql(query), variables, get_execution_result=True
-            ).formatted
-        except requests.exceptions.ConnectionError as e:
-            raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
-        except TransportQueryError as e:
-            raise GqlApiError("`error` returned with GraphQL response {}".format(e))
-        except AssertionError:
-            raise GqlApiError("`data` field missing from GraphQL response payload")
-        except Exception as e:
-            raise GqlApiError("Unexpected error occurred") from e
+        global _lock
+
+        with _lock:
+            try:
+                result = self.client.execute(
+                    gql(query), variables, get_execution_result=True
+                ).formatted
+            except requests.exceptions.ConnectionError as e:
+                raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
+            except TransportQueryError as e:
+                raise GqlApiError("`error` returned with GraphQL response {}".format(e))
+            except AssertionError:
+                raise GqlApiError("`data` field missing from GraphQL response payload")
+            except Exception as e:
+                raise GqlApiError("Unexpected error occurred") from e
 
         # show schemas if log level is debug
         query_schemas = result.get("extensions", {}).get("schemas", [])
