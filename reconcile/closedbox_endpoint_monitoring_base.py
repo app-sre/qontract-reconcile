@@ -1,6 +1,5 @@
 from collections import defaultdict
 import logging
-import sys
 from urllib.parse import urlparse
 from typing import Any, Callable, Optional
 import json
@@ -14,6 +13,10 @@ from reconcile.utils.defer import defer
 import reconcile.openshift_base as ob
 
 LOG = logging.getLogger(__name__)
+
+
+class ClosedBoxReconcilerError(Exception):
+    pass
 
 
 @dataclass(frozen=True, eq=True)
@@ -161,4 +164,4 @@ def run_for_provider(
         ob.realize_data(dry_run, oc_map, ri, thread_pool_size, recycle_pods=False)
 
         if ri.has_error_registered():
-            sys.exit(1)
+            raise ClosedBoxReconcilerError("ResourceInventory has registered errors")

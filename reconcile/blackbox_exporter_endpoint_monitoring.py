@@ -39,7 +39,15 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
     if verification_errors:
         sys.exit(1)
 
-    run_for_provider(PROVIDER, build_probe, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, dry_run, thread_pool_size, internal, use_jump_host)
+    try:
+        run_for_provider(
+            PROVIDER, build_probe,
+            QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
+            dry_run, thread_pool_size, internal, use_jump_host
+        )
+    except Exception as e:
+        LOG.error(e)
+        sys.exit(1)
 
 
 def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
