@@ -6,7 +6,7 @@ https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre
 """
 import logging
 import re
-from functools import partial
+from functools import partial, lru_cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Union
@@ -30,6 +30,7 @@ MISSING_DATA_TEMPLATE = (
 )
 
 
+@lru_cache
 def url_makes_sense(url: str) -> bool:
     """Guesses whether the URL may have a meaningful document.
 
