@@ -40,7 +40,10 @@ def url_makes_sense(url: str) -> bool:
     The URL is non-sensical if the server is crashing, the document
     doesn't exist or the specified URL can't be even probed with GET.
     """
-    rs = requests.get(url)
+    try:
+        rs = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        return False
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
     # broken resource
