@@ -16,6 +16,11 @@ from reconcile.status import RunningState
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.exceptions import TransportQueryError
+from gql.transport.requests import log as requests_logger
+
+
+requests_logger.setLevel(logging.WARNING)
+
 
 _gqlapi = None
 
@@ -116,7 +121,7 @@ class GqlApi:
         except AssertionError:
             raise GqlApiError("`data` field missing from GraphQL response payload")
         except Exception as e:
-            raise GqlApiError("{}".format(e))
+            raise GqlApiError("Unexpected error occurred") from e
 
         # show schemas if log level is debug
         query_schemas = result.get("extensions", {}).get("schemas", [])
