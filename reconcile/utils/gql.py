@@ -142,7 +142,7 @@ class GqlApi:
 
         return result["data"]
 
-    def get_resource(self, path):
+    def get_resource(self, path: str) -> dict[str, Any]:
         query = """
         query Resource($path: String) {
             resources: resources_v1 (path: $path) {
@@ -177,7 +177,7 @@ def init(url, token=None, integration=None, validate_schemas=False):
     return _gqlapi
 
 
-def get_resource(path):
+def get_resource(path: str) -> dict[str, Any]:
     return get_api().get_resource(path)
 
 
