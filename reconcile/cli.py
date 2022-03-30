@@ -108,6 +108,7 @@ import reconcile.osd_mirrors_data_updater
 import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
+import reconcile.resource_scraper
 import reconcile.gabi_authorized_users
 import reconcile.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
@@ -349,6 +350,14 @@ def cluster_name(function):
 def namespace_name(function):
     function = click.option('--namespace-name',
                             help='namespace name to act on.',
+                            default=None)(function)
+
+    return function
+
+
+def resource_kind(function):
+    function = click.option('--resource-kind',
+                            help='kind to act on.',
                             default=None)(function)
 
     return function
@@ -1665,6 +1674,18 @@ def sendgrid_teammates(ctx):
 def cluster_deployment_mapper(ctx, vault_output_path):
     run_integration(reconcile.cluster_deployment_mapper, ctx.obj,
                     vault_output_path)
+
+
+@integration.command(
+    short_help="Get resources from clusters and store in Vault."
+)
+@namespace_name
+@resource_kind
+@vault_output_path
+@click.pass_context
+def resource_scraper(ctx, namespace_name, resource_kind, vault_output_path):
+    run_integration(reconcile.resource_scraper, ctx.obj,
+                    namespace_name, resource_kind, vault_output_path)
 
 
 @integration.command(
