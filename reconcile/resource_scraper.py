@@ -1,11 +1,12 @@
 import sys
 import logging
+from typing import cast
 
 from reconcile import queries
 
 from reconcile.status import ExitCodes
 from reconcile.utils.oc import OC_Map
-from reconcile.utils.vault import VaultClient
+from reconcile.utils.vault import _VaultClient, VaultClient
 
 
 QONTRACT_INTEGRATION = "resource-scraper"
@@ -48,7 +49,7 @@ def run(dry_run, namespace_name, resource_kind, vault_output_path):
             results.append(item)
 
     if not dry_run:
-        vault_client = VaultClient()
+        vault_client = cast(_VaultClient, VaultClient())
         for item in results:
             secret = {
                 "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{item['cluster']}/{namespace_name}/{item['name']}",
