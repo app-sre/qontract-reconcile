@@ -3435,16 +3435,6 @@ objects:
                   configMapKeyRef:
                     name: app-interface
                     key: GITHUB_API
-              - name: UNLEASH_API_URL
-                valueFrom:
-                  secretKeyRef:
-                    name: unleash
-                    key: API_URL
-              - name: UNLEASH_CLIENT_ACCESS_TOKEN
-                valueFrom:
-                  secretKeyRef:
-                    name: unleash
-                    key: CLIENT_ACCESS_TOKEN
               volumeMounts:
               - name: qontract-reconcile-toml
                 mountPath: /config
