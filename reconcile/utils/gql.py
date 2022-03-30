@@ -1,6 +1,6 @@
 import logging
 import textwrap
-from typing import Set, Any, Optional, Dict
+from typing import Set, Any, Optional
 
 from urllib.parse import urlparse
 
@@ -18,9 +18,6 @@ from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import log as requests_logger
 
-from threading import Lock
-
-
 _gqlapi = None
 
 INTEGRATIONS_QUERY = """
@@ -34,8 +31,6 @@ INTEGRATIONS_QUERY = """
 """
 
 requests_logger.setLevel(logging.WARNING)
-
-_lock = Lock()
 
 
 def capture_and_forget(error):
@@ -88,10 +83,13 @@ class GqlApi:
     _valid_schemas: list[str] = []
     _queried_schemas: Set[Any] = set()
 
-    def __init__(self, client: Client, int_name=None, validate_schemas=False) -> None:
+    def __init__(
+        self, url: str, token: str, int_name=None, validate_schemas=False
+    ) -> None:
+        self.url = url
+        self.token = token
         self.integration = int_name
         self.validate_schemas = validate_schemas
-        self.client = client
 
         if validate_schemas and not int_name:
             raise Exception(
@@ -112,22 +110,27 @@ class GqlApi:
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(
         self, query: str, variables=None, skip_validation=False
-    ) -> Optional[Dict[str, Any]]:
-        global _lock
+    ) -> Optional[dict[str, Any]]:
 
-        with _lock:
-            try:
-                result = self.client.execute(
-                    gql(query), variables, get_execution_result=True
-                ).formatted
-            except requests.exceptions.ConnectionError as e:
-                raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
-            except TransportQueryError as e:
-                raise GqlApiError("`error` returned with GraphQL response {}".format(e))
-            except AssertionError:
-                raise GqlApiError("`data` field missing from GraphQL response payload")
-            except Exception as e:
-                raise GqlApiError("Unexpected error occurred") from e
+        # Here we are recreating client on purpose as some integrations such as `openshift-resource` require multiple
+        # queries in separate threads. With RequestsHTTPTransport that is currently not possible as it expects
+        # session to be reused and thus throws `Transport is already connected` error.
+        # Adding a synchronization mechanism would lead to increase wait time given some of our integrations are not
+        # sharded and thread pool capacity is also large for those.
+        # Hence, we are recreating client for every query.
+        client = _init_gql_client(self.url, self.token)
+        try:
+            result = client.execute(
+                gql(query), variables, get_execution_result=True
+            ).formatted
+        except requests.exceptions.ConnectionError as e:
+            raise GqlApiError("Could not connect to GraphQL server ({})".format(e))
+        except TransportQueryError as e:
+            raise GqlApiError("`error` returned with GraphQL response {}".format(e))
+        except AssertionError:
+            raise GqlApiError("`data` field missing from GraphQL response payload")
+        except Exception as e:
+            raise GqlApiError("Unexpected error occurred") from e
 
         # show schemas if log level is debug
         query_schemas = result.get("extensions", {}).get("schemas", [])
@@ -181,8 +184,7 @@ class GqlApi:
 
 def init(url, token=None, integration=None, validate_schemas=False):
     global _gqlapi
-    client = _init_gql_client(url, token)
-    _gqlapi = GqlApi(client, integration, validate_schemas)
+    _gqlapi = GqlApi(url, token, integration, validate_schemas)
     return _gqlapi
 
 
