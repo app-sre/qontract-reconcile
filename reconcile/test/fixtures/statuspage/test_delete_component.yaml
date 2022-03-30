@@ -24,7 +24,7 @@ atlassianApi:
     # this one was previously managed by app-interface -> delete
     - id: comp_id_1
       name: Component 1
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com
@@ -34,7 +34,7 @@ atlassianApi:
     # this one is not managed by app-interface -> ignore
     - id: comp_id_2
       name: Component 2
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com
@@ -44,7 +44,7 @@ atlassianApi:
     # this one is still managed by app-interface -> keep
     - id: comp_id_3
       name: Component 3
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com

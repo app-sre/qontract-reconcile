@@ -44,7 +44,7 @@ atlassianApi:
     # actual components
     - id: comp_id_1
       name: Component 1 Old
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com
@@ -53,7 +53,7 @@ atlassianApi:
       group_name: group_1
     - id: comp_id_2
       name: Component 2
-      descripton: null
+      description: null
       position: 2
       status: Ok
       automation_email: automate-me@please.com
@@ -62,7 +62,7 @@ atlassianApi:
       group_name: group_1
     - id: comp_id_3
       name: Component 3
-      descripton: null
+      description: null
       position: 3
       status: Ok
       automation_email: automate-me@please.com
@@ -71,7 +71,7 @@ atlassianApi:
       group_name: group_2
     - id: comp_id_4
       name: Component 4
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com
@@ -81,7 +81,7 @@ atlassianApi:
     # groups
     - id: group_id_1
       name:  group_1
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: null
@@ -89,7 +89,7 @@ atlassianApi:
       group: true
     - id: group_id_2
       name:  group_2
-      descripton: null
+      description: null
       position: 2
       status: Ok
       automation_email: null

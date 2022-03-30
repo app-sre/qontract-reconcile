@@ -2,19 +2,17 @@ from typing import Optional
 import re
 from unittest.mock import ANY
 
-import pytest
-
-from reconcile.status_page_components import (
-    AtlassianComponent,
-    AtlassianStatusPage,
-    StatusComponent,
-    StatusPage,
-)
+from reconcile.statuspage.atlassian import AtlassianComponent, AtlassianStatusPage
+from reconcile.statuspage.models import StatusComponent, StatusPage
+from reconcile.statuspage.status_page_components import register_providers
 from reconcile.utils.vaultsecretref import VaultSecretRef
 from .fixtures import Fixtures
 
+import pytest
 
 fxt = Fixtures("statuspage")
+
+register_providers()
 
 
 def get_page_fixtures(path: str) -> list[StatusPage]:

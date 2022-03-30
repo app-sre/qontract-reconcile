@@ -20,11 +20,10 @@ atlassianApi:
     page_1:
     - id: comp_id_1
       name: Component 1
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: automate-me@please.com
       group_id: group_id_1
       group: false
       group_name: group_1
-

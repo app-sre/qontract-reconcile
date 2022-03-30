@@ -14,8 +14,9 @@ from reconcile import queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.status_page_components import (fetch_pages,
-                                              update_component_status)
+from reconcile.statuspage.status_page_components import (
+    fetch_pages,
+    update_component_status)
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ

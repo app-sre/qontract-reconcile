@@ -108,7 +108,7 @@ import reconcile.dashdotdb_slo
 import reconcile.jenkins_job_builds_cleaner
 import reconcile.cluster_deployment_mapper
 import reconcile.gabi_authorized_users
-import reconcile.status_page_components
+import reconcile.statuspage.status_page_components
 import reconcile.blackbox_exporter_endpoint_monitoring
 
 from reconcile.status import ExitCodes
@@ -1686,7 +1686,7 @@ def dyn_traffic_director(ctx, enable_deletion):
 )
 @click.pass_context
 def status_page_components(ctx):
-    run_integration(reconcile.status_page_components, ctx.obj)
+    run_integration(reconcile.statuspage.status_page_components, ctx.obj)
 
 
 @integration.command(
