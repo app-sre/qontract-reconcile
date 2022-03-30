@@ -12,6 +12,7 @@ from sretoolbox.utils import threaded
 
 import anymarkup
 import jinja2
+from reconcile.checkpoint import url_makes_sense
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -247,6 +248,7 @@ def process_jinja2_template(body, vars=None, env=None):
         {"github": lambda u, p, r, v=None: lookup_github_file_content(u, p, r, vars)}
     )
     vars.update({"query": lookup_graphql_query_results})
+    vars.update({"url": url_makes_sense})
     try:
         env = jinja2.Environment(
             extensions=[B64EncodeExtension, RaiseErrorExtension],

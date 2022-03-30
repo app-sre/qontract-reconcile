@@ -68,6 +68,16 @@ def test_url_makes_sense_unknown(mocker):
     assert not sut.url_makes_sense("https://www.redhat.com/nonexisting")
 
 
+def test_url_makes_sense_error():
+    """Ensure rejection of URLs returning ConnectionError."""
+    assert not sut.url_makes_sense("https://TODO")
+
+
+def test_url_makes_sense_empty():
+    """Ensure rejection of empty URLs."""
+    assert not sut.url_makes_sense("")
+
+
 def test_render_template():
     """Confirm rendering of all placeholders in the ticket template."""
     txt = sut.render_template(
