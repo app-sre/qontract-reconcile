@@ -6,10 +6,10 @@ https://gitlab.cee.redhat.com/app-sre/contract/-/blob/master/content/process/sre
 """
 import logging
 import re
-from functools import partial
+from functools import partial, lru_cache
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Union
+from typing import Any, Callable, Dict, Iterable, Mapping, Union
 
 import requests
 from jinja2 import Template
@@ -30,6 +30,7 @@ MISSING_DATA_TEMPLATE = (
 )
 
 
+@lru_cache
 def url_makes_sense(url: str) -> bool:
     """Guesses whether the URL may have a meaningful document.
 
@@ -40,7 +41,12 @@ def url_makes_sense(url: str) -> bool:
     The URL is non-sensical if the server is crashing, the document
     doesn't exist or the specified URL can't be even probed with GET.
     """
-    rs = requests.get(url)
+    if not url:
+        return False
+    try:
+        rs = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        return False
     # Codes above NOT_FOUND mean the URL to the document doesn't
     # exist, that the URL is very malformed or that it points to a
     # broken resource
@@ -58,7 +64,7 @@ def valid_owners(owners: Iterable[Mapping[str, str]]) -> bool:
     )
 
 
-VALIDATORS = {
+VALIDATORS: Dict[str, Callable] = {
     "sopsUrl": url_makes_sense,
     "architectureDocument": url_makes_sense,
     "grafanaUrls": lambda x: all(url_makes_sense(y["url"]) for y in x),
