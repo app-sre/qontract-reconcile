@@ -84,7 +84,7 @@ class GqlApi:
     _queried_schemas: Set[Any] = set()
 
     def __init__(
-        self, url: str, token: str, int_name=None, validate_schemas=False
+        self, url: str, token: str = None, int_name=None, validate_schemas=False
     ) -> None:
         self.url = url
         self.token = token
