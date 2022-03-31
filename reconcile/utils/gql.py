@@ -84,7 +84,7 @@ class GqlApi:
     _queried_schemas: Set[Any] = set()
 
     def __init__(
-        self, url: str, token: str = None, int_name=None, validate_schemas=False
+        self, url: str, token: Optional[str] = None, int_name=None, validate_schemas=False
     ) -> None:
         self.url = url
         self.token = token
@@ -182,7 +182,7 @@ class GqlApi:
         return list(self._queried_schemas)
 
 
-def init(url, token=None, integration=None, validate_schemas=False):
+def init(url: str, token: Optional[str] =None, integration=None, validate_schemas=False):
     global _gqlapi
     _gqlapi = GqlApi(url, token, integration, validate_schemas)
     return _gqlapi
@@ -192,7 +192,7 @@ def get_resource(path: str) -> dict[str, Any]:
     return get_api().get_resource(path)
 
 
-def _init_gql_client(url: str, token: str) -> Client:
+def _init_gql_client(url: str, token: Optional[str]) -> Client:
     req_headers = None
     if token:
         # The token stored in vault is already in the format 'Basic ...'
