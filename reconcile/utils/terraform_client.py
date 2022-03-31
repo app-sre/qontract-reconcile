@@ -408,7 +408,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     replica_src_db = None
                     defaults_ref = tf_resource.get('defaults')
                     if defaults_ref is not None:
-                        defaults_res = gql.get_api().get_resource(
+                        defaults_res = gql.get_resource(
                             defaults_ref
                         )
                         defaults = yaml.safe_load(defaults_res['content'])
