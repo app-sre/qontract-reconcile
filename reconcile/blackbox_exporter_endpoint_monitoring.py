@@ -41,9 +41,14 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
 
     try:
         run_for_provider(
-            PROVIDER, build_probe,
-            QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION,
-            dry_run, thread_pool_size, internal, use_jump_host
+            provider=PROVIDER,
+            probe_builder=build_probe,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host
         )
     except Exception as e:
         LOG.error(e)
