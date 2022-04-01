@@ -40,7 +40,7 @@ setup(
         "ruamel.yaml>=0.16.5,<0.17.0",
         "terrascript==0.9.0",
         "tabulate>=0.8.6,<0.9.0",
-        "UnleashClient>=3.4.2,<3.5.0",
+        "UnleashClient~=5.1",
         "prometheus-client~=0.8",
         "sentry-sdk~=0.14",
         "jenkins-job-builder~=3.12.0",
