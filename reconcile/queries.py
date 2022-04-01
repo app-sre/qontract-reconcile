@@ -2773,6 +2773,16 @@ STATUS_PAGE_QUERY = """
       apps {
         name
       }
+      status {
+        provider
+        ... on ManualStatusProvider_v1 {
+          manual {
+            componentStatus
+            from
+            until
+          }
+        }
+      }
     }
   }
 }

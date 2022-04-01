@@ -25,20 +25,6 @@ def get_state() -> State:
     return State(integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings)
 
 
-def update_component_status(dry_run: bool, component_name: str, component_status: str):
-    state = get_state()
-    updated = False
-    for page in fetch_pages():
-        component = page.get_component_by_name(component_name)
-        if component:
-            page.update_component_status(
-                dry_run, component_name, component_status, state
-            )
-            updated = True
-    if not updated:
-        raise ValueError(f"component {component_name} not found")
-
-
 def run(dry_run: bool = False):
     register_providers()
     state = get_state()

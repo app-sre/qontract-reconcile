@@ -14,9 +14,6 @@ from reconcile import queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.statuspage.status_page_components import (
-    fetch_pages,
-    update_component_status)
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
@@ -928,40 +925,6 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     else:
         users = [slack.get_random_deleted_user()]
     slack.update_usergroup_users(ugid, users)
-
-
-@get.command()
-@click.pass_context
-def statuspage_components(ctx):
-    data = []
-    for page in fetch_pages():
-        for component in page.components:
-            data.append({
-                "component_name": component.name,
-                "component_display_name": component.display_name,
-                "page": page.name
-            })
-    columns = ['component_name', 'component_display_name', 'page']
-    print_output(ctx.obj['options'], data, columns)
-
-
-@set.command()
-@click.argument('component_name')
-@click.argument('component_status')
-@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
-def statuspage_component_status(component_name, component_status):
-    """Set the status of a status page component.
-
-    COMPONENT_NAME is the name of a component; get a list with
-        'qontract-cli get statuspage-components'
-
-    COMPONENT_STATUS one of: operational, under_maintenance,
-        degraded_performance, partial_outage, major_outage
-    """
-    try:
-        update_component_status(False, component_name, component_status)
-    except Exception as e:
-        print(f"failed - {e}")
 
 
 @root.group()

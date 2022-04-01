@@ -1,9 +1,15 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import re
 from unittest.mock import ANY
 
 from reconcile.statuspage.atlassian import AtlassianComponent, AtlassianStatusPage
-from reconcile.statuspage.models import StatusComponent, StatusPage
+from reconcile.statuspage.models import (
+    StatusComponent,
+    StatusPage,
+    StatusPageComponentStatusProvider,
+    StatusPageComponentStatusProviderManualConfig,
+)
 from reconcile.statuspage.status_page_components import register_providers
 from reconcile.utils.vaultsecretref import VaultSecretRef
 from .fixtures import Fixtures
@@ -56,7 +62,9 @@ def get_state_fixture(path: str) -> StateStub:
 
 
 def component_to_dict(
-    component: StatusComponent, group_id: Optional[str]
+    component: StatusComponent,
+    group_id: Optional[str] = None,
+    status: Optional[str] = None,
 ) -> dict[str, Optional[str]]:
     data = dict(
         name=component.display_name,
@@ -64,6 +72,8 @@ def component_to_dict(
     )
     if group_id:
         data["group_id"] = group_id
+    if status:
+        data["status"] = status
     return data
 
 
@@ -96,7 +106,7 @@ def test_create_component(mocker):
     page.reconcile(False, StateStub())
 
     create_mock.assert_called_with(
-        ANY, component_to_dict(page.components[0], "group_id_1")
+        ANY, component_to_dict(page.components[0], group_id="group_id_1")
     )
 
 
@@ -153,17 +163,17 @@ def test_update_component(mocker):
     update_mock.assert_any_call(
         ANY,
         page.components[0].component_id,
-        component_to_dict(page.components[0], "group_id_1"),
+        component_to_dict(page.components[0], group_id="group_id_1"),
     )
     update_mock.assert_any_call(
         ANY,
         page.components[1].component_id,
-        component_to_dict(page.components[1], "group_id_1"),
+        component_to_dict(page.components[1], group_id="group_id_1"),
     )
     update_mock.assert_any_call(
         ANY,
         page.components[2].component_id,
-        component_to_dict(page.components[2], "group_id_1"),
+        component_to_dict(page.components[2], group_id="group_id_1"),
     )
     assert update_mock.call_count == 3
 
@@ -336,55 +346,159 @@ def _exec_dry_run_test_on_update(mocker, dry_run):
         update_mock.assert_called()
 
 
-def test_update_missing_component(mocker):
-    fixture_name = "test_component_status_update.yaml"
-    fetch_mock = mocker.patch.object(
-        AtlassianStatusPage, "_fetch_components", autospec=True
-    )
-    fetch_mock.return_value = []
-    mocker.patch.object(
-        VaultSecretRef, "_resolve_secret", new_callable=stub_resolve_secret
-    )
+def test_no_status_management_provider():
+    """
+    status page component without or with empty status section
+    """
 
+    fixture_name = "test_no_status_management.yaml"
     page = get_page_fixtures(fixture_name)[0]
-    state = get_state_fixture(fixture_name)
 
-    with pytest.raises(ValueError):
-        page.update_component_status(True, "comp_x", "operational", state)
+    for component in page.components:
+        assert not component.status_management_enabled()
 
 
-def test_update(mocker):
-    fixture_name = "test_component_status_update.yaml"
+def test_no_desired_status_when_no_management_enabled():
+    """
+    test if desired status is none when no status management is enabled
+    """
 
-    mocker.patch.object(
-        VaultSecretRef, "_resolve_secret", new_callable=stub_resolve_secret
-    )
+    fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
-    fetch_mock = mocker.patch.object(
-        AtlassianStatusPage, "_fetch_components", autospec=True
-    )
-    fetch_mock.return_value = get_atlassian_component_fixtures(fixture_name, page.name)
+    component = page.components[0]
+    component.status_config = []
+
+    assert not component.status_management_enabled()
+    assert component.desired_component_status() is None
+
+
+def test_atlassian_component_status_update(mocker):
     update_mock = mocker.patch.object(
-        AtlassianStatusPage, "update_component_status", autospec=True
+        AtlassianStatusPage, "_update_component", autospec=True
     )
-    state = get_state_fixture(fixture_name)
-
-    page.update_component_status(True, "comp_1", "operational", state)
-
-    update_mock.assert_called_with(ANY, True, "comp_id_1", "operational")
-
-
-def test_wrong_status(mocker):
-    fixture_name = "test_component_status_update.yaml"
-    mocker.patch.object(
-        VaultSecretRef, "_resolve_secret", new_callable=stub_resolve_secret
-    )
-    page = get_page_fixtures(fixture_name)[0]
     fetch_mock = mocker.patch.object(
         AtlassianStatusPage, "_fetch_components", autospec=True
     )
-    fetch_mock.return_value = get_atlassian_component_fixtures(fixture_name, page.name)
-    state = get_state_fixture(fixture_name)
+    fetch_mock.return_value = [
+        AtlassianComponent(
+            id="comp_id_1",
+            name="comp_1",
+            description="old description",
+            position=1,
+            status="operational",
+        )
+    ]
+    provider = AtlassianStatusPage(
+        page_id="page_id", api_url="https://a.com", token="token"
+    )
+    provider.rebuild_state()
+
+    status_config = StatusPageComponentStatusProvider(
+        provider="manual",
+        manual=StatusPageComponentStatusProviderManualConfig(
+            componentStatus="under_maintenance"
+        ),
+    )
+
+    component = StatusComponent(
+        name="comp_1", displayName="comp_1", groupName=None, status=[status_config]
+    )
+    provider.apply_component(False, component)
+
+    update_mock.assert_called_with(
+        ANY, "comp_id_1", component_to_dict(component, status="under_maintenance")
+    )
+
+
+def test_manual_status_management_provider():
+    """
+    test if status management is detected
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+
+    assert component.status_management_enabled()
+    assert component.desired_component_status() == "under_maintenance"
+
+
+def test_manual_status_management_provider_from_active():
+    """
+    test if status page component management is
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    assert component.desired_component_status() == "under_maintenance"
+
+
+def test_manual_status_management_provider_from_inactive():
+    """
+    test if status page component management is
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    assert component.desired_component_status() == "operational"
+
+
+def test_manual_status_management_provider_until_active():
+    """
+    test if status page component management is honoring end the the future
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    assert component.desired_component_status() == "under_maintenance"
+
+
+def test_manual_status_management_provider_until_inactive():
+    """
+    test if status page component management is honoring end date in the past
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    assert component.desired_component_status() == "operational"
+
+
+def test_manual_status_management_provider_from_until_active():
+    """
+    test if status page component management is honoring start and end date
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(hours=1)
+    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    assert component.desired_component_status() == "under_maintenance"
+
+
+def test_manual_status_management_provider_invalid_timerange():
+    """
+    test for invalid timerange: end before start
+    """
+
+    fixture_name = "test_status_management_manual.yaml"
+    page = get_page_fixtures(fixture_name)[0]
+    component = page.components[0]
+    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(hours=1)
+    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(hours=1)
 
     with pytest.raises(ValueError):
-        page.update_component_status(True, "comp_1", "invalid", state)
+        component.desired_component_status()

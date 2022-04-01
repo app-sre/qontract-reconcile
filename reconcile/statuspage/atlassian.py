@@ -28,15 +28,6 @@ class AtlassianComponent(BaseModel):
     group_name: Optional[str]
 
 
-ATLASSIAN_COMPONENT_STATES = [
-    "operational",
-    "under_maintenance",
-    "degraded_performance",
-    "partial_outage",
-    "major_outage",
-]
-
-
 class AtlassianStatusPage(StatusPageProvider):
 
     page_id: str
@@ -66,13 +57,19 @@ class AtlassianStatusPage(StatusPageProvider):
 
     def apply_component(self, dry_run: bool, desired: StatusComponent) -> Optional[str]:
         current = self._find_component(desired)
+
+        desired_component_status = desired.desired_component_status()
+        status_update_required = desired_component_status and (
+            not current or desired_component_status != current.status
+        )
+
         if (
             current
             and desired.display_name == current.name
             and desired.description == current.description
             and desired.group_name == current.group_name
+            and not status_update_required
         ):
-            # todo logging
             return current.id
 
         # precheck - does the desired group exists?
@@ -99,6 +96,9 @@ class AtlassianStatusPage(StatusPageProvider):
         )
         if group_id:
             component_update["group_id"] = group_id
+
+        if status_update_required:
+            component_update["status"] = desired_component_status
 
         if current:
             LOG.info(f"update component {desired.name}: {component_update}")
@@ -133,16 +133,6 @@ class AtlassianStatusPage(StatusPageProvider):
             )
             for c in raw_components
         ]
-
-    def update_component_status(self, dry_run: bool, id: str, status: str) -> None:
-        if status in ATLASSIAN_COMPONENT_STATES:
-            if not dry_run:
-                self._update_component(id, {"status": status})
-        else:
-            raise ValueError(
-                f"unsupported state {status} - "
-                f"must be one of {ATLASSIAN_COMPONENT_STATES}"
-            )
 
     def _client(self):
         return statuspageio.Client(

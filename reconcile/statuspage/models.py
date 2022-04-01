@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from datetime import datetime, timezone
 import logging
 from typing import Callable, Iterable, Optional
 from pydantic import Field, BaseModel
@@ -11,6 +12,64 @@ from reconcile.utils.vaultsecretref import VaultSecretRef
 LOG = logging.getLogger(__name__)
 
 
+class StatusPageComponentStatusProviderConfig(BaseModel):
+    @abstractmethod
+    def get_status(self) -> Optional[str]:
+        return None
+
+
+class StatusPageComponentStatusProviderManualConfig(
+    StatusPageComponentStatusProviderConfig
+):
+    """
+    app-interface schema dependencies/status-page-component-1#status.manual
+    """
+
+    start: Optional[datetime] = Field(default=None, alias="from")
+    end: Optional[datetime] = Field(default=None, alias="until")
+    component_status: str = Field(..., alias="componentStatus")
+
+    def get_status(self) -> Optional[str]:
+        if self._is_active():
+            return self.component_status
+        else:
+            return None
+
+    def _is_active(self) -> bool:
+        if self.start and self.end and self.end < self.start:
+            raise ValueError(
+                "manual component status time window for is invalid - end before start"
+            )
+        now = datetime.now(timezone.utc)
+        if self.start and now < self.start:
+            return False
+        elif self.end and self.end < now:
+            return False
+        return True
+
+
+class StatusPageComponentStatusProvider(BaseModel):
+    """
+    app-interface schema dependencies/status-page-component-1#status
+    """
+
+    provider: str
+    manual: Optional[StatusPageComponentStatusProviderManualConfig]
+
+    def _config(self) -> Optional[StatusPageComponentStatusProviderConfig]:
+        if self.manual:
+            return self.manual
+        else:
+            return None
+
+    def get_status(self) -> Optional[str]:
+        config = self._config()
+        if config:
+            return config.get_status()
+        else:
+            return None
+
+
 class StatusComponent(BaseModel):
     """
     app-interface schema dependencies/status-page-component-1
@@ -21,6 +80,23 @@ class StatusComponent(BaseModel):
     description: Optional[str]
     group_name: Optional[str] = Field(..., alias="groupName")
     component_id: Optional[str]
+    status_config: Optional[list[StatusPageComponentStatusProvider]] = Field(
+        default=None, alias="status"
+    )
+
+    def status_management_enabled(self) -> bool:
+        return self.status_config is not None and len(self.status_config) > 0
+
+    def desired_component_status(self) -> Optional[str]:
+        if self.status_management_enabled():
+            if self.status_config:
+                for provider in self.status_config:
+                    status = provider.get_status()
+                    if status:
+                        return status
+            return "operational"
+        else:
+            return None
 
 
 class StatusPageProvider(BaseModel):
@@ -39,10 +115,6 @@ class StatusPageProvider(BaseModel):
 
     @abstractmethod
     def delete_component(self, dry_run: bool, id: str) -> None:
-        return None
-
-    @abstractmethod
-    def update_component_status(self, dry_run: bool, id: str, status: str) -> None:
         return None
 
 
@@ -69,18 +141,6 @@ class StatusPage(BaseModel):
         return next(
             filter(lambda c: c.name == name, self.components), None  # type: ignore
         )
-
-    def update_component_status(
-        self, dry_run: bool, component_name: str, component_status: str, state: State
-    ) -> None:
-        component_id = state.get(component_name)
-        if component_id:
-            page_provider = self.get_page_provider()
-            page_provider.update_component_status(
-                dry_run, component_id, component_status
-            )
-        else:
-            raise ValueError(f"component {component_name} unknown")
 
     def reconcile(self, dry_run: bool, state: State):
         name_to_id_state = state.get_all("")
