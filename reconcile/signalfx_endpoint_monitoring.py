@@ -47,6 +47,11 @@ def build_probe(
     prober_url = parse_prober_url(signalfx.exporterUrl)
     prober_url["path"] += "/" + signalfx.targetFilterLabel
 
+    # the scraped metrics have the endpoint name in their instance label. to be
+    # compatible with the results of blackbox exporter, we replace the endpoint
+    # name with the endpoint url. the endpoint name itself will still be
+    # available on the scraped metrics in the field specified by
+    # `targetFilterLabel``
     relabeling = [
         {
             "action": "replace",
