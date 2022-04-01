@@ -29,7 +29,8 @@ def show_json(working_dir, out_file):
     )
     out, err = proc.communicate()
     if proc.returncode:
-        logging.warning(err)
         # out_file is the name of the account as well
-        raise Exception(f"[{out_file}] terraform show failed: {str(err)}")
+        msg = f"[{out_file}] terraform show failed: {str(err)}"
+        logging.warning(msg)
+        raise Exception(msg)
     return json.loads(out)
