@@ -1,4 +1,4 @@
-anymarkup==0.7.0
+anymarkup==0.8.1
 flake8~=4.0
 httpretty
 kubernetes~=12.0

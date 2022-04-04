@@ -25,7 +25,7 @@ setup(
         "PyGithub>=1.55,<1.56",
         "hvac>=0.7.0,<0.8.0",
         "ldap3>=2.9.1,<2.10.0",
-        "anymarkup>=0.7.0,<0.8.0",
+        "anymarkup>=0.7.0,<0.9.0",
         "python-gitlab>=1.11.0,<1.12.0",
         "semver~=2.13",
         "python-terraform>=0.10.0,<0.11.0",
