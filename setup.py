@@ -42,7 +42,7 @@ setup(
         "tabulate>=0.8.6,<0.9.0",
         "UnleashClient~=5.1",
         "prometheus-client~=0.8",
-        "sentry-sdk~=0.14",
+        "sentry-sdk>=0.14,<2.0",
         "jenkins-job-builder~=3.12.0",
         "parse==1.18.0",
         "sendgrid>=6.4.8,<6.5.0",
