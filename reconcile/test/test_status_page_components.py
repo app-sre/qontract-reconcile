@@ -3,14 +3,14 @@ from typing import Optional
 import re
 from unittest.mock import ANY
 
-from reconcile.statuspage.atlassian import AtlassianComponent, AtlassianStatusPage
-from reconcile.statuspage.models import (
+from reconcile.utils.statuspage.atlassian import AtlassianComponent, AtlassianStatusPage
+from reconcile.utils.statuspage.models import (
     StatusComponent,
     StatusPage,
     StatusPageComponentStatusProvider,
     StatusPageComponentStatusProviderManualConfig,
 )
-from reconcile.statuspage.status_page_components import register_providers
+from reconcile.status_page_components import register_providers
 from reconcile.utils.vaultsecretref import VaultSecretRef
 from .fixtures import Fixtures
 

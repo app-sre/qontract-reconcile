@@ -2,8 +2,8 @@ import logging
 import sys
 
 from reconcile import queries
-from reconcile.statuspage import atlassian
-from reconcile.statuspage.models import StatusPage, register_provider
+from reconcile.utils.statuspage import atlassian
+from reconcile.utils.statuspage.models import StatusPage, register_provider
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State
 
