@@ -14,16 +14,10 @@ appInterface:
       path: /dependencies/statuspage/test-component.yml
       groupName: group_1
       apps: []
-
-atlassianApi:
-  components:
-    page_1:
-    - id: comp_id_1
-      name: Component 1
+      status: []
+    - name: comp_1
+      displayName: Component 1
       description: null
-      position: 1
-      status: Ok
-      automation_email: automate-me@please.com
-      group_id: group_id_1
-      group: false
-      group_name: group_1
+      path: /dependencies/statuspage/test-component.yml
+      groupName: group_1
+      apps: []

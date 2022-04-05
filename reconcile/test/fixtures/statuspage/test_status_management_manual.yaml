@@ -1,6 +1,4 @@
 appInterface:
-  state:
-    comp_1: comp_id_1
   pages:
   - name: page_1
     pageId: page_1
@@ -16,16 +14,7 @@ appInterface:
       path: /dependencies/statuspage/test-component.yml
       groupName: group_1
       apps: []
-
-atlassianApi:
-  components:
-    page_1:
-    - id: comp_id_1
-      name: Component 1
-      descripton: null
-      position: 1
-      status: Ok
-      automation_email: automate-me@please.com
-      group_id: group_id_1
-      group: false
-      group_name: group_1
+      status:
+      - provider: manual
+        manual:
+          componentStatus: under_maintenance
