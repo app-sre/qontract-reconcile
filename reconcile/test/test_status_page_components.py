@@ -431,7 +431,9 @@ def test_manual_status_management_provider_from_active():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(hours=1)
+    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(
+        hours=1
+    )
 
     assert component.desired_component_status() == "under_maintenance"
 
@@ -444,7 +446,9 @@ def test_manual_status_management_provider_from_inactive():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(hours=1)
+    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(
+        hours=1
+    )
 
     assert component.desired_component_status() == "operational"
 
@@ -457,7 +461,9 @@ def test_manual_status_management_provider_until_active():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(hours=1)
+    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(
+        hours=1
+    )
 
     assert component.desired_component_status() == "under_maintenance"
 
@@ -470,7 +476,9 @@ def test_manual_status_management_provider_until_inactive():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(hours=1)
+    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(
+        hours=1
+    )
 
     assert component.desired_component_status() == "operational"
 
@@ -483,8 +491,12 @@ def test_manual_status_management_provider_from_until_active():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(hours=1)
-    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(hours=1)
+    component.status_config[0].manual.start = datetime.now(timezone.utc) - timedelta(
+        hours=1
+    )
+    component.status_config[0].manual.end = datetime.now(timezone.utc) + timedelta(
+        hours=1
+    )
 
     assert component.desired_component_status() == "under_maintenance"
 
@@ -497,8 +509,12 @@ def test_manual_status_management_provider_invalid_timerange():
     fixture_name = "test_status_management_manual.yaml"
     page = get_page_fixtures(fixture_name)[0]
     component = page.components[0]
-    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(hours=1)
-    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(hours=1)
+    component.status_config[0].manual.start = datetime.now(timezone.utc) + timedelta(
+        hours=1
+    )
+    component.status_config[0].manual.end = datetime.now(timezone.utc) - timedelta(
+        hours=1
+    )
 
     with pytest.raises(ValueError):
         component.desired_component_status()
