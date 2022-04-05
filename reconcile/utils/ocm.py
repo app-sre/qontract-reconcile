@@ -27,6 +27,7 @@ AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
+BYTES_IN_GIGABYTE = 1024**3
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -123,7 +124,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 "version": cluster["openshift_version"],
                 "multi_az": cluster["multi_az"],
                 "instance_type": cluster["nodes"]["compute_machine_type"]["id"],
-                "storage": int(cluster["storage_quota"]["value"] / 1073741824),
+                "storage": cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
                 "load_balancers": cluster["load_balancer_quota"],
                 "private": cluster["api"]["listening"] == "internal",
                 "provision_shard_id": self.get_provision_shard(cluster["id"])["id"]
@@ -177,7 +178,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             "multi_az": cluster_spec["multi_az"],
             "nodes": {"compute_machine_type": {"id": cluster_spec["instance_type"]}},
             "storage_quota": {
-                "value": float(cluster_spec["storage"] * 1073741824)  # 1024^3
+                "value": float(cluster_spec["storage"] * BYTES_IN_GIGABYTE)
             },
             "load_balancer_quota": cluster_spec["load_balancers"],
             "network": {
