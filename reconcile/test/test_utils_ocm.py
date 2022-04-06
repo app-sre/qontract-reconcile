@@ -2,7 +2,6 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
-
 from reconcile.utils.ocm import OCM
 
 
@@ -85,3 +84,19 @@ def test_get_cluster_aws_account_id_ok(mocker, ocm):
     role_grants_mock.return_value = [(None, None, None, console_url)]
     result = ocm.get_cluster_aws_account_id("cluster")
     assert result == expected
+
+
+@pytest.fixture
+def clusters_by_readiness():
+    return [
+        ({"managed": False, "state": "ready", "storage_quota": 42}, False),
+        ({"managed": True, "state": "ready", "storage_quota": 42}, True),
+        ({"managed": True, "state": "not ready", "storage_quota": 42}, False),
+        # ROSA-like cluster
+        ({"managed": True, "state": "ready"}, False),
+    ]
+
+
+def test__ready_for_app_interface(clusters_by_readiness, ocm):
+    for cluster, readiness in clusters_by_readiness:
+        assert ocm._ready_for_app_interface(cluster) == readiness
