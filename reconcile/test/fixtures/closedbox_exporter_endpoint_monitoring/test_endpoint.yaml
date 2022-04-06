@@ -24,4 +24,22 @@ appInterface:
                   field: token
             exporterUrl: http://exporterhost:9115/probe
       - provider:
+          name: signalfx-exporter-http-2xx
+          description: Loads metrics from signalfx
+          provider: signalfx
+          timeout: null
+          checkInterval: null
+          signalFx:
+            exporterUrl: http://signalfxexporter:9091/metrics
+            targetFilterLabel: probe
+            namespace:
+              name: openshift-customer-monitoring
+              cluster:
+                name: app-sre-stage-01
+                serverUrl: http://asdf:6443
+                internal: false
+                automationToken:
+                  path: app-sre/creds/kube-configs/app-sre-stage-01
+                  field: token
+      - provider:
           provider: other

@@ -1,80 +1,66 @@
 import logging
 import sys
-from urllib.parse import urlparse
 from typing import Any, Optional
-import json
-from dataclasses import field
-
-from pydantic.dataclasses import dataclass
 
 from reconcile import queries
 from reconcile.utils.openshift_resource import (
-    OpenshiftResource, ResourceInventory)
-from reconcile.utils.defer import defer
+    OpenshiftResource)
 from reconcile.utils.semver_helper import make_semver
-import reconcile.openshift_base as ob
+
+from reconcile.closedbox_endpoint_monitoring_base import run_for_provider, EndpointMonitoringProvider, Endpoint, parse_prober_url
+
 
 QONTRACT_INTEGRATION = "blackbox-exporter-endpoint-monitoring"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+PROVIDER = "blackbox-exporter"
+
 LOG = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, eq=True)
-class BlackboxMonitoringProvider:
+def run(dry_run: bool, thread_pool_size: int, internal: bool,
+        use_jump_host: bool) -> None:
+    # verify that only allowed blackbox-exporter modules are used
+    settings = queries.get_app_interface_settings()
+    allowed_modules = \
+        set(settings["endpointMonitoringBlackboxExporterModules"])
+    verification_errors = False
+    if allowed_modules:
+        for p in get_blackbox_providers():
+            if p.blackboxExporter and \
+                 p.blackboxExporter.module not in allowed_modules:
+                LOG.error(
+                    f"endpoint monitoring provider {p.name} uses "
+                    f"blackbox-exporter module {p.blackboxExporter.module} "
+                    f"which is not in the allow list {allowed_modules} of "
+                    "app-interface-settings"
+                )
+                verification_errors = True
+    if verification_errors:
+        sys.exit(1)
 
-    module: str
-    # the namespace of a blackbox-exporter provider is mapped as dict
-    # since its only use with ob.fetch_current_state is as a dict
-    namespace: dict[str, Any] = field(compare=False, hash=False)
-    exporterUrl: str
-
-
-@dataclass(frozen=True, eq=True)
-class EndpointMonitoringProvider:
-
-    name: str
-    provider: str
-    description: str
-    timeout: Optional[str] = None
-    checkInterval: Optional[str] = None
-    blackboxExporter: Optional[BlackboxMonitoringProvider] = None
-    metricLabels: Optional[str] = None
-
-    @property
-    def metric_labels(self):
-        return json.loads(self.metricLabels) if self.metricLabels else {}
-
-
-@dataclass
-class Endpoint:
-
-    name: str
-    description: str
-    url: str
-
-    @dataclass
-    class Monitoring:
-
-        provider: EndpointMonitoringProvider
-
-    monitoring: list[Monitoring]
-
-
-def parse_prober_url(url: str) -> dict[str, str]:
-    parsed_url = urlparse(url)
-    if parsed_url.scheme not in ["http", "https"]:
-        raise ValueError(
-            "the prober URL needs to be an http:// or https:// one "
-            f"but is {url}"
+    try:
+        run_for_provider(
+            provider=PROVIDER,
+            probe_builder=build_probe,
+            integration=QONTRACT_INTEGRATION,
+            integration_version=QONTRACT_INTEGRATION_VERSION,
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host
         )
-    data = {
-        "url": parsed_url.netloc,
-        "scheme": parsed_url.scheme
-    }
-    if parsed_url.path:
-        data["path"] = parsed_url.path
-    return data
+    except Exception as e:
+        LOG.error(e)
+        sys.exit(1)
+
+
+def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
+    return [
+        EndpointMonitoringProvider(**p)
+        for p in queries.get_blackbox_exporter_monitoring_provider()
+        if p["provider"] == PROVIDER
+    ]
 
 
 def build_probe(provider: EndpointMonitoringProvider,
@@ -122,96 +108,3 @@ def build_probe(provider: EndpointMonitoringProvider,
         )
     else:
         return None
-
-
-def get_endpoints() -> dict[EndpointMonitoringProvider, list[Endpoint]]:
-    endpoints: dict[EndpointMonitoringProvider, list[Endpoint]] = {}
-    for app in queries.get_service_monitoring_endpoints():
-        for ep_data in app.get("endPoints") or []:
-            monitoring = ep_data.get("monitoring")
-            if monitoring:
-                ep_data["monitoring"] = [
-                    m for m in monitoring
-                    if m["provider"]["provider"] == "blackbox-exporter"
-                ]
-                ep = Endpoint(**ep_data)
-                for mon in ep.monitoring:
-                    endpoints.setdefault(mon.provider, [])
-                    endpoints[mon.provider].append(ep)
-    return endpoints
-
-
-def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
-    return [
-        EndpointMonitoringProvider(**p)
-        for p in queries.get_blackbox_exporter_monitoring_provider()
-        if p["provider"] == "blackbox-exporter"
-    ]
-
-
-def fill_desired_state(provider: EndpointMonitoringProvider,
-                       endpoints: list[Endpoint],
-                       ri: ResourceInventory) -> None:
-    probe = build_probe(provider, endpoints)
-    if probe and provider.blackboxExporter:
-        ns = provider.blackboxExporter.namespace
-        ri.add_desired(
-            cluster=ns["cluster"]["name"],
-            namespace=ns["name"],
-            resource_type=probe.kind,
-            name=probe.name,
-            value=probe
-        )
-
-
-@defer
-def run(dry_run: bool, thread_pool_size: int, internal: bool,
-        use_jump_host: bool, defer=None) -> None:
-    # verify blackbox-exporter modules
-    settings = queries.get_app_interface_settings()
-    allowed_modules = \
-        set(settings["endpointMonitoringBlackboxExporterModules"])
-    verification_errors = False
-    if allowed_modules:
-        for p in get_blackbox_providers():
-            if p.blackboxExporter and \
-                 p.blackboxExporter.module not in allowed_modules:
-                LOG.error(
-                    f"endpoint monitoring provider {p.name} uses "
-                    f"blackbox-exporter module {p.blackboxExporter.module} "
-                    f"which is not in the allow list {allowed_modules} of "
-                    "app-interface-settings"
-                )
-                verification_errors = True
-    if verification_errors:
-        sys.exit(1)
-
-    # prepare
-    desired_endpoints = get_endpoints()
-    namespaces = {
-        p.blackboxExporter.namespace.get("name"):
-        p.blackboxExporter.namespace
-        for p in desired_endpoints
-        if p.blackboxExporter
-    }
-
-    if namespaces:
-        ri, oc_map = ob.fetch_current_state(
-            namespaces.values(),
-            thread_pool_size=thread_pool_size,
-            internal=internal,
-            use_jump_host=use_jump_host,
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-            override_managed_types=["Probe"]
-        )
-        defer(oc_map.cleanup)
-
-        # reconcile
-        for provider, endpoints in desired_endpoints.items():
-            fill_desired_state(provider, endpoints, ri)
-        ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-                        recycle_pods=False)
-
-        if ri.has_error_registered():
-            sys.exit(1)
