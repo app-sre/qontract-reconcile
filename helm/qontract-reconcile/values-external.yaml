@@ -571,6 +571,15 @@ integrations:
       memory: 500Mi
       cpu: 300m
   extraArgs: --external --no-use-jump-host
+- name: signalfx-prometheus-endpoint-monitoring
+  resources:
+    requests:
+      memory: 100Mi
+      cpu: 100m
+    limits:
+      memory: 500Mi
+      cpu: 300m
+  extraArgs: --external --no-use-jump-host
 cronjobs:
 - name: aws-ecr-image-pull-secrets
   resources:

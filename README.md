@@ -15,117 +15,90 @@ Additional tools that use the libraries created by the reconciliations are also 
   aws-ami-share                   Share AMI and AMI tags between accounts.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
-
   aws-garbage-collector           Delete orphan AWS resources.
   aws-iam-keys                    Delete IAM access keys by access key ID.
   aws-iam-password-reset          Reset IAM user password by user reference.
   aws-support-cases-sos           Scan AWS support cases for reports of leaked
                                   keys and remove them (only submits PR)
-
   blackbox-exporter-endpoint-monitoring
-                                  Manages Prometheus Probe resources.
+                                  Manages Prometheus Probe resources for
+                                  blackbox-exporter
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-
   dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
                                   the clusters and posts them to Dashdotdb.
-
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
-
   dashdotdb-slo                   Collects the ServiceSloMetrics from all the
                                   clusters and posts them to Dashdotdb.
-
   dyn-traffic-director            Manage Traffic Director services in Dyn DNS.
   ecr-mirror                      Mirrors external images into AWS ECR.
   email-sender                    Send email notifications to app-interface
                                   audience.
-
   gabi-authorized-users           Manages user access for GABI instances.
   gcr-mirror                      Mirrors external images into Google
                                   Container Registry.
-
   github                          Configures the teams and members in a GitHub
                                   org.
-
   github-owners                   Configures owners in a GitHub org.
   github-repo-invites             Accept GitHub repository invitations for
                                   known repositories.
-
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-
   github-scanner                  Scan GitHub repositories for leaked keys and
                                   remove them (only submits PR).
-
   github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-ci-skipper               Determines if CI can be skipped.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
-
   gitlab-housekeeping             Manage issues and merge requests on GitLab
                                   projects.
-
   gitlab-integrations             Manage integrations on GitLab projects.
   gitlab-labeler                  Guesses and adds labels to merge requests
                                   according to changed paths.
-
   gitlab-members                  Manage GitLab group members.
   gitlab-mr-sqs-consumer          Listen to SQS and creates MRs out of the
                                   messages.
-
   gitlab-owners                   Manages labels on gitlab merge requests
                                   based on OWNERS files schema.
-
   gitlab-permissions              Manage permissions on GitLab projects.
   gitlab-projects                 Create GitLab projects.
   integrations-validator          Ensures all integrations are defined in App-
                                   Interface.
-
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
-
   jenkins-job-builds-cleaner      Clean up jenkins job history.
   jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
                                   instances.
-
   jenkins-plugins                 Manage Jenkins plugins installation via REST
                                   API.
-
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
-
   jenkins-webhooks                Manage web hooks to Jenkins jobs.
   jenkins-webhooks-cleaner        Remove webhooks to previous Jenkins
                                   instances.
-
   jira-watcher                    Watch for changes in Jira boards and notify
                                   on Slack.
-
   kafka-clusters                  Manages Kafka clusters via OCM.
   ldap-users                      Removes users which are not found in LDAP
                                   search.
-
   ocm-additional-routers          Manage additional routers in OCM.
   ocm-addons                      Manages cluster Addons in OCM.
   ocm-aws-infrastructure-access   Grants AWS infrastructure access to members
                                   in AWS groups via OCM.
-
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
   ocm-github-idp                  Manage GitHub Identity Providers in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
-
   ocm-machine-pools               Manage Machine Pools in OCM.
   ocm-upgrade-scheduler           Manage Upgrade Policy schedules in OCM.
   ocp-release-mirror              Mirrors OCP release images.
   openshift-clusterrolebindings   Configures ClusterRolebindings in OpenShift
                                   clusters.
-
   openshift-groups                Manages OpenShift Groups.
   openshift-limitranges           Manages OpenShift LimitRange objects.
   openshift-namespace-labels      Manages labels on OpenShift namespaces.
@@ -135,39 +108,31 @@ Additional tools that use the libraries created by the reconciliations are also 
   openshift-resources             Manages OpenShift Resources.
   openshift-rolebindings          Configures Rolebindings in OpenShift
                                   clusters.
-
   openshift-routes                Manages OpenShift Routes.
   openshift-saas-deploy           Manage OpenShift resources defined in Saas
                                   files.
-
   openshift-saas-deploy-trigger-cleaner
                                   Clean up deployment related resources.
   openshift-saas-deploy-trigger-configs
                                   Trigger deployments when configuration
                                   changes.
-
   openshift-saas-deploy-trigger-moving-commits
                                   Trigger deployments when a commit changed
                                   for a ref.
-
   openshift-saas-deploy-trigger-upstream-jobs
                                   Trigger deployments when upstream job runs.
   openshift-saas-deploy-wrapper   A wrapper around openshift-saas-deploy.
   openshift-serviceaccount-tokens
                                   Use OpenShift ServiceAccount tokens across
                                   namespaces/clusters.
-
   openshift-tekton-resources      Manages custom resources for Tekton based
                                   deployments.
-
   openshift-upgrade-watcher       Watches for OpenShift upgrades and sends
                                   notifications.
-
   openshift-users                 Deletion of users from OpenShift clusters.
   openshift-vault-secrets         Manages OpenShift Secrets from Vault.
   osd-mirrors-data-updater        Collects OSD mirror information and updates
                                   app-interface via MR.
-
   prometheus-rules-tester         Tests prometheus rules using promtool.
   quay-membership                 Configures the teams and members in Quay.
   quay-mirror                     Mirrors external images into Quay.
@@ -176,48 +141,38 @@ Additional tools that use the libraries created by the reconciliations are also 
   quay-repos                      Creates and Manages Quay Repos.
   requests-sender                 Send emails to users based on requests
                                   submitted to app-interface.
-
   saas-file-owners                Manages labels on merge requests based on
                                   approver schema for saas files.
-
   saas-file-validator             Validates Saas files.
   sendgrid-teammates              Manages SendGrid teammates for a given
                                   account.
-
   sentry-config                   Configure and enforce sentry instance
                                   configuration.
-
   sentry-helper                   Watch for Sentry access requests and notify
                                   on Slack.
-
   service-dependencies            Validate dependencies are defined for each
                                   service.
-
+  signalfx-prometheus-endpoint-monitoring
+                                  Manages Prometheus Probe resources for
+                                  signalfx exporter
   slack-cluster-usergroups        Manage Slack User Groups (channels and
                                   users) for OpenShift users notifications.
-
   slack-usergroups                Manage Slack User Groups (channels and
                                   users).
-
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
-
   status-page-components          Manages components on statuspage.io hosted
                                   status pages.
-
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
-
   terraform-resources             Manage AWS Resources using Terraform.
   terraform-resources-wrapper     A wrapper around terraform-resources.
   terraform-tgw-attachments       Manages Transit Gateway attachments.
   terraform-users                 Manage AWS users using Terraform.
   terraform-vpc-peerings          Manage VPC peerings between OSD clusters and
                                   AWS accounts or other OSD clusters.
-
   unleash-watcher                 Watch for changes in Unleah feature toggles
                                   and notify on Slack.
-
   user-validator                  Validate user files.
 ```
 
