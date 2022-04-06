@@ -135,8 +135,6 @@ integrations:
       memory: 3600Mi
       cpu: 1200m
   extraArgs: --internal --no-use-jump-host
-  logs:
-    slack: true
   internalCertificates: true
 - name: openshift-vault-secrets
   resources:
