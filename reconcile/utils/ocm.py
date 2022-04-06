@@ -1,15 +1,12 @@
 import functools
 import logging
 import re
-from typing import Optional
-import requests
-
-from sretoolbox.utils import retry
-
-from reconcile.utils.secret_reader import SecretReader
+from typing import Any, Optional
 
 import reconcile.utils.aws_helper as awsh
-
+import requests
+from reconcile.utils.secret_reader import SecretReader
+from sretoolbox.utils import retry
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -27,6 +24,7 @@ AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
+BYTES_IN_GIGABYTE = 1024**3
 
 
 class OCM:  # pylint: disable=too-many-public-methods
@@ -99,6 +97,14 @@ class OCM:  # pylint: disable=too-many-public-methods
             "accept": "application/json",
         }
 
+    @staticmethod
+    def _ready_for_app_interface(cluster: dict[str, Any]) -> bool:
+        return (
+            cluster["managed"]
+            and cluster["state"] == STATUS_READY
+            and "storage_quota" in cluster
+        )
+
     def _init_clusters(self, init_provision_shards):
         api = f"{CS_API_BASE}/v1/clusters"
         clusters = self._get_json(api)["items"]
@@ -106,7 +112,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         self.clusters = {
             c["name"]: self._get_cluster_ocm_spec(c, init_provision_shards)
             for c in clusters
-            if c["managed"] and c["state"] == STATUS_READY
+            if self._ready_for_app_interface(c)
         }
         self.not_ready_clusters = [
             c["name"] for c in clusters if c["managed"] and c["state"] != STATUS_READY
@@ -123,7 +129,7 @@ class OCM:  # pylint: disable=too-many-public-methods
                 "version": cluster["openshift_version"],
                 "multi_az": cluster["multi_az"],
                 "instance_type": cluster["nodes"]["compute_machine_type"]["id"],
-                "storage": int(cluster["storage_quota"]["value"] / 1073741824),
+                "storage": cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE,
                 "load_balancers": cluster["load_balancer_quota"],
                 "private": cluster["api"]["listening"] == "internal",
                 "provision_shard_id": self.get_provision_shard(cluster["id"])["id"]
@@ -177,7 +183,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             "multi_az": cluster_spec["multi_az"],
             "nodes": {"compute_machine_type": {"id": cluster_spec["instance_type"]}},
             "storage_quota": {
-                "value": float(cluster_spec["storage"] * 1073741824)  # 1024^3
+                "value": float(cluster_spec["storage"] * BYTES_IN_GIGABYTE)
             },
             "load_balancer_quota": cluster_spec["load_balancers"],
             "network": {
