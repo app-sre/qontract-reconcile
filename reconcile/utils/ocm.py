@@ -103,6 +103,7 @@ class OCM:  # pylint: disable=too-many-public-methods
             cluster["managed"]
             and cluster["state"] == STATUS_READY
             and "storage_quota" in cluster
+            and "load_balancer_quota" in cluster
         )
 
     def _init_clusters(self, init_provision_shards):
