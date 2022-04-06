@@ -20,7 +20,7 @@ atlassianApi:
     page_1:
     - id: group_id_1
       name:  group_1
-      descripton: null
+      description: null
       position: 1
       status: Ok
       automation_email: null

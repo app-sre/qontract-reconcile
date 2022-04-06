@@ -14,11 +14,10 @@ from reconcile import queries
 from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import config_file
 from reconcile.slack_base import slackapi_from_queries
-from reconcile.status_page_components import (fetch_pages,
-                                              update_component_status)
 from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
+from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -543,6 +542,34 @@ def aws_creds(ctx, account_name):
     print(f"export AWS_SECRET_ACCESS_KEY={secret['aws_secret_access_key']}")
 
 
+@get.command(
+    short_help="obtain vault secrets for "
+               "jenkins job by instance and name. executing this "
+               "command will set up the environment: "
+               "$(qontract-cli get jenkins-job-vault-secrets --instance-name ci --job-name job)"
+)
+@click.argument('instance_name')
+@click.argument('job_name')
+@click.pass_context
+def jenkins_job_vault_secrets(ctx, instance_name, job_name):
+    jjb, _ = init_jjb(instance_name, config_name=None, print_only=True)
+    jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
+    if not jobs:
+        print(f"{instance_name}/{job_name} not found.")
+        sys.exit(1)
+    job = jobs[0]
+    for w in job["wrappers"]:
+        vault_secrets = w.get("vault-secrets")
+        if vault_secrets:
+            vault_url = vault_secrets.get("vault-url")
+            secrets = vault_secrets.get("secrets")
+            for s in secrets:
+                secret_path = s["secret-path"]
+                secret_values = s["secret-values"]
+                for sv in secret_values:
+                    print(f"export {sv['env-var']}=\"$(vault read -address={vault_url} -field={sv['vault-key']} {secret_path})\"")
+
+
 @get.command()
 @click.argument('name', default='')
 @click.pass_context
@@ -927,40 +954,6 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     else:
         users = [slack.get_random_deleted_user()]
     slack.update_usergroup_users(ugid, users)
-
-
-@get.command()
-@click.pass_context
-def statuspage_components(ctx):
-    data = []
-    for page in fetch_pages():
-        for component in page.components:
-            data.append({
-                "component_name": component.name,
-                "component_display_name": component.display_name,
-                "page": page.name
-            })
-    columns = ['component_name', 'component_display_name', 'page']
-    print_output(ctx.obj['options'], data, columns)
-
-
-@set.command()
-@click.argument('component_name')
-@click.argument('component_status')
-@environ(['APP_INTERFACE_STATE_BUCKET', 'APP_INTERFACE_STATE_BUCKET_ACCOUNT'])
-def statuspage_component_status(component_name, component_status):
-    """Set the status of a status page component.
-
-    COMPONENT_NAME is the name of a component; get a list with
-        'qontract-cli get statuspage-components'
-
-    COMPONENT_STATUS one of: operational, under_maintenance,
-        degraded_performance, partial_outage, major_outage
-    """
-    try:
-        update_component_status(False, component_name, component_status)
-    except Exception as e:
-        print(f"failed - {e}")
 
 
 @root.group()
