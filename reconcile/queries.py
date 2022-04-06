@@ -2828,6 +2828,25 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
               exporterUrl
             }
           }
+          ... on EndpointMonitoringProviderSignalFx_v1 {
+            signalFx {
+              exporterUrl
+              targetFilterLabel
+              namespace {
+                name
+                cluster {
+                  name
+                  serverUrl
+                  automationToken {
+                    path
+                    field
+                    version
+                  }
+                  internal
+                }
+              }
+            }
+          }
         }
       }
     }
