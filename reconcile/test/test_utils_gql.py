@@ -1,9 +1,12 @@
 import pytest
 import requests
 from gql.transport.exceptions import TransportQueryError
-from reconcile.utils.gql import (GqlApi, GqlApiError,
-                                 GqlApiErrorForbiddenSchema,
-                                 GqlApiIntegrationNotFound)
+from reconcile.utils.gql import (
+    GqlApi,
+    GqlApiError,
+    GqlApiErrorForbiddenSchema,
+    GqlApiIntegrationNotFound,
+)
 
 TEST_QUERY = """
 {
