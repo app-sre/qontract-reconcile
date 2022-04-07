@@ -11,7 +11,7 @@ from reconcile import queries
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.state import State
 from reconcile.utils.data_structures import get_or_init
-from reconcile.utils.semver_helper import sort_versions
+from reconcile.utils.semver_helper import parse_semver, sort_versions
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
@@ -44,7 +44,16 @@ def fetch_desired_state(clusters):
         upgrade_policy["channel"] = cluster["spec"]["channel"]
         desired_state.append(upgrade_policy)
 
-    return desired_state
+    # consider first lower versions and lower soakdays (when versions are equal)
+    def sort_key(d: dict) -> tuple:
+        return (
+            parse_semver(d["current_version"]),
+            d["conditions"].get("soakDays") or 0,
+        )
+
+    sorted_desired_state = sorted(desired_state, key=sort_key)
+
+    return sorted_desired_state
 
 
 def update_history(history, upgrade_policies):
