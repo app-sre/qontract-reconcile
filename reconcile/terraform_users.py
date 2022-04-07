@@ -1,7 +1,7 @@
 import sys
 
 from textwrap import indent
-from typing import Any
+from typing import Any, Optional
 
 from reconcile.utils import expiration
 from reconcile.utils import gql
@@ -57,7 +57,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def setup(print_to_file, thread_pool_size: int, account_name: str) \
+def setup(print_to_file, thread_pool_size: int, account_name: Optional[str] = None) \
         -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
@@ -118,9 +118,10 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(dry_run, print_to_file=None,
-        enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, send_mails=True, account_name=None):
+def run(dry_run: bool, print_to_file: Optional[str] = None,
+        enable_deletion: bool = False, io_dir: str = 'throughput/',
+        thread_pool_size: int = 10, send_mails: bool = True,
+        account_name: Optional[str] = None):
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best
     # to reconcile all valid resources for all accounts.

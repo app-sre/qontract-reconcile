@@ -2,6 +2,7 @@ import sys
 import logging
 
 from sretoolbox.utils import threaded
+from typing import Iterable, Optional
 
 import reconcile.terraform_users as tfu
 
@@ -15,7 +16,7 @@ QONTRACT_INTEGRATION = 'terraform-users-wrapper'
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def get_accounts_names():
+def get_accounts_names() -> Iterable[str]:
     accounts = queries.get_aws_accounts()
     settings = queries.get_app_interface_settings()
     # using Terrascript to filter out disabled accounts
@@ -27,13 +28,13 @@ def get_accounts_names():
     return ts.uids.keys()
 
 
-def tfu_run_wrapper(account_name,
-                    dry_run,
-                    internal_thread_pool_size,
-                    print_to_file=None,
-                    enable_deletion=False,
-                    io_dir='throughput/',
-                    send_mails=True):
+def tfu_run_wrapper(account_name: str,
+                    dry_run: bool,
+                    internal_thread_pool_size: int,
+                    print_to_file: Optional[str] = None,
+                    enable_deletion: bool = False,
+                    io_dir: str = 'throughput/',
+                    send_mails: bool = True) -> int:
     exit_code = 0
     try:
         tfu.run(account_name=account_name,
@@ -48,9 +49,9 @@ def tfu_run_wrapper(account_name,
     return exit_code
 
 
-def run(dry_run, print_to_file=None,
-        enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, internal=None, send_mails=True):
+def run(dry_run: bool, print_to_file: Optional[str] =None,
+        enable_deletion: bool = False, io_dir: str = 'throughput/',
+        thread_pool_size: int = 10, send_mails: bool = True) -> None:
 
     account_names = [
         name for index, name in enumerate(sorted(get_accounts_names()))
