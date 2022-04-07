@@ -1,13 +1,12 @@
+import pytest
 import requests
-
+from gql.transport.exceptions import TransportQueryError
 from reconcile.utils.gql import (
     GqlApi,
     GqlApiError,
     GqlApiErrorForbiddenSchema,
     GqlApiIntegrationNotFound,
 )
-from gql.transport.exceptions import TransportQueryError
-import pytest
 
 TEST_QUERY = """
 {
@@ -25,7 +24,7 @@ def test_gqlapi_throws_gqlapierror_when_generic_exception_thrown(mocker):
     patched_client.side_effect = Exception("Something went wrong!")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
 
 
 def test_gqlapi_throws_gqlapierror_when_connectionerror_exception_thrown(mocker):
@@ -35,7 +34,7 @@ def test_gqlapi_throws_gqlapierror_when_connectionerror_exception_thrown(mocker)
     )
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
 
 
 def test_gqlapi_throws_gqlapierror_when_transportqueryerror_exception_thrown(mocker):
@@ -43,7 +42,7 @@ def test_gqlapi_throws_gqlapierror_when_transportqueryerror_exception_thrown(moc
     patched_client.side_effect = TransportQueryError("Error in GraphQL payload")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
 
 
 def test_gqlapi_throws_gqlapierror_when_assertionerror_exception_thrown(mocker):
@@ -53,7 +52,7 @@ def test_gqlapi_throws_gqlapierror_when_assertionerror_exception_thrown(mocker):
     )
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
 
 
 def test_gqlapi_throws_gqlapiintegrationnotfound_exception(mocker):
@@ -66,7 +65,7 @@ def test_gqlapi_throws_gqlapiintegrationnotfound_exception(mocker):
         gql_api = GqlApi(
             "test_url", "test_token", "INTEGRATION_NOT_FOUND", validate_schemas=True
         )
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
 
 
 def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(mocker):
@@ -78,4 +77,4 @@ def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(mocker):
 
     with pytest.raises(GqlApiErrorForbiddenSchema):
         gql_api = GqlApi("test_url", "test_token", "INTEGRATION", validate_schemas=True)
-        gql_api.query(TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
