@@ -253,17 +253,15 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
     results = []
     upgrades_cache = {}
 
-    def soaking_str(soaking, soakdays, ongoing_upgrade):
-        sorted_soaking = sorted(soaking.items(), key=lambda x: (x[1], x[0]))
+    def soaking_str(soaking, ongoing_upgrade, upgradeable_version):
+        sorted_soaking = sorted(soaking.items(), key=lambda x: parse_semver(x[0]))
         if md_output:
-            for i, data in enumerate(reversed(sorted_soaking)):
+            for i, data in enumerate(sorted_soaking):
                 v, s = data
-                if s >= soakdays:
-                    emoji = ":tada:"
-                    if v == ongoing_upgrade:
-                        emoji = ":dizzy:"
-                    sorted_soaking[len(sorted_soaking) - i - 1] = (v, f'{s} {emoji}')
-                    break
+                if v == ongoing_upgrade:
+                    sorted_soaking[i] = (v, f"{s} :dizzy:")
+                elif v == upgradeable_version:
+                    sorted_soaking[i] = (v, f"{s} :tada:")
         return ', '.join([f'{v} ({s})' for v, s in sorted_soaking])
 
     for c in desired_state:
@@ -295,31 +293,31 @@ def cluster_upgrade_policies(ctx, cluster=None, workload=None,
         if current and current[0]["schedule_type"] == "manual":
             ongoing_upgrade = current[0]["version"]
 
+        upgradeable_version = ous.upgradeable_version(c, history, ocm)
+
         workload_soaking_upgrades = {}
         for w in c.get('workloads', []):
             if not workload or workload == w:
-                s = soaking_days(history, upgrades, w,
-                                 show_only_soaking_upgrades)
+                s = soaking_days(history, upgrades, w, show_only_soaking_upgrades)
                 workload_soaking_upgrades[w] = s
 
         if by_workload:
             for w, soaking in workload_soaking_upgrades.items():
                 i = item.copy()
                 i.update({'workload': w,
-                          'soaking_upgrades': soaking_str(soaking, soakdays, ongoing_upgrade)})
+                          'soaking_upgrades': soaking_str(soaking, ongoing_upgrade, upgradeable_version)})
                 results.append(i)
         else:
             workloads = sorted(c.get('workloads', []))
             w = ', '.join(workloads)
             soaking = {}
             for v in upgrades:
-                soaks = [s.get(v, 0)
-                         for s in workload_soaking_upgrades.values()]
+                soaks = [s.get(v, 0) for s in workload_soaking_upgrades.values()]
                 min_soaks = min(soaks)
                 if not show_only_soaking_upgrades or min_soaks > 0:
                     soaking[v] = min_soaks
             item.update({'workload': w,
-                         'soaking_upgrades': soaking_str(soaking, soakdays, ongoing_upgrade)})
+                         'soaking_upgrades': soaking_str(soaking, ongoing_upgrade, upgradeable_version)})
             results.append(item)
 
     if md_output:
