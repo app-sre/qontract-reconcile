@@ -3,7 +3,7 @@ import logging
 import copy
 
 from datetime import datetime
-from typing import Optional
+from typing import Mapping, Optional
 from dateutil import parser
 from croniter import croniter
 
@@ -177,7 +177,7 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     return conditions_met
 
 
-def upgradeable_version(policy: dict, history: dict, ocm: OCM) -> Optional[str]:
+def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
     upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
     for version in reversed(sort_versions(upgrades)):
