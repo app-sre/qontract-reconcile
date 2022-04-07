@@ -1,15 +1,9 @@
 import os
-import subprocess
 
 import pytest
 
 from reconcile.utils.git import has_uncommited_changes
-
-
-def run_make(sub_command):
-    cmd = ["make", sub_command]
-    return subprocess.run(cmd, check=True)
-
+from reconcile.utils.make import generate
 
 
 class TestMake:
@@ -21,7 +15,7 @@ class TestMake:
     def test_make_generate():
         assert not has_uncommited_changes(), "No uncommited changes must " "exists"
 
-        result = run_make("generate")
+        result = generate()
         # Just to make sure the command does not fail
         assert not result.returncode
 
