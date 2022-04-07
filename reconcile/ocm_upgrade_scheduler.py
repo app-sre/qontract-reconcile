@@ -3,12 +3,13 @@ import logging
 import copy
 
 from datetime import datetime
+from typing import Mapping, Optional
 from dateutil import parser
 from croniter import croniter
 
 from reconcile import queries
 
-from reconcile.utils.ocm import OCMMap
+from reconcile.utils.ocm import OCM, OCMMap
 from reconcile.utils.state import State
 from reconcile.utils.data_structures import get_or_init
 from reconcile.utils.semver_helper import parse_semver, sort_versions
@@ -176,6 +177,23 @@ def version_conditions_met(version, history, ocm_name, workloads, upgrade_condit
     return conditions_met
 
 
+def upgradeable_version(policy: Mapping, history: Mapping, ocm: OCM) -> Optional[str]:
+    """Get the highest next version we can upgrade to, fulfilling all conditions"""
+    upgrades = ocm.get_available_upgrades(policy["current_version"], policy["channel"])
+    for version in reversed(sort_versions(upgrades)):
+        if ocm.version_blocked(version):
+            continue
+        if version_conditions_met(
+            version,
+            history,
+            ocm.name,
+            policy["workloads"],
+            policy["conditions"],
+        ):
+            return version
+    return None
+
+
 def cluster_mutexes(policy: dict) -> list[str]:
     """List all mutex locks for the given cluster"""
     return (policy.get("conditions") or {}).get("mutexes") or []
@@ -251,29 +269,18 @@ def calculate_diff(current_state, desired_state, ocm_map, version_history):
             continue
 
         # choose version that meets the conditions and add it to the diffs
-        available_upgrades = ocm.get_available_upgrades(
-            d["current_version"], d["channel"]
-        )
-        for version in reversed(sort_versions(available_upgrades)):
-            logging.debug(f"[{cluster}] checking conditions for version {version}")
-            if ocm.version_blocked(version):
-                logging.debug(f"[{cluster}] version {version} is blocked")
-                continue
-            if version_conditions_met(
-                version, version_history, ocm.name, d["workloads"], d["conditions"]
-            ):
-                logging.debug(f"[{cluster}] conditions met for version {version}")
-                item = {
-                    "action": "create",
-                    "cluster": cluster,
-                    "version": version,
-                    "schedule_type": "manual",
-                    "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                }
-                for mutex in cluster_mutexes(d):
-                    locked[mutex] = cluster
-                diffs.append(item)
-                break
+        version = upgradeable_version(d, version_history, ocm)
+        if version:
+            item = {
+                "action": "create",
+                "cluster": cluster,
+                "version": version,
+                "schedule_type": "manual",
+                "next_run": next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            }
+            for mutex in cluster_mutexes(d):
+                locked[mutex] = cluster
+            diffs.append(item)
 
     return diffs
 
