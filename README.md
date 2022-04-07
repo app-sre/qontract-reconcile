@@ -324,9 +324,9 @@ make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run I
 
 ## Release
 
-Submit a PR to update setup.py (`version`) with the new version according to [semver](https://semver.org/).
+Each PR should update setup.py (`version`) with the new version according to [semver](https://semver.org/).
 
-After the PR is merged, push a matching tag. This will trigger a CI job that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
+After the PR is merged, a CI job will be triggered that will publish the package to pypi: https://pypi.org/project/qontract-reconcile.
 
 ## Licence
 

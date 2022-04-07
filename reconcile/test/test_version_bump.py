@@ -17,4 +17,4 @@ def test_version_bump():
     ]["version"]
     assert (
         is_version_bumped(current_version, pypi_version) is True
-    ), "setup.py version must be bumped. see CONTRIBUTING.md for details"
+    ), "setup.py version must be bumped. see README.md#release for details"
