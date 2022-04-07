@@ -21,3 +21,7 @@ def sort_versions(versions: Iterable[str]) -> List[str]:
     """
     semver_versions = sorted([parse_semver(v) for v in versions])
     return [str(v) for v in semver_versions]
+
+
+def is_version_bumped(current_version: str, previous_version: str) -> bool:
+    return parse_semver(current_version) > parse_semver(previous_version)
