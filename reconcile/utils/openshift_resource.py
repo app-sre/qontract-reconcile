@@ -512,6 +512,9 @@ class ResourceInventory:
             resource_type, {"current": {}, "desired": {}, "use_admin_token": {}}
         )
 
+    def is_cluster_present(self, cluster: str) -> bool:
+        return cluster in self._clusters
+
     def add_desired(
         self, cluster, namespace, resource_type, name, value, privileged=False
     ):

@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 import json
 from typing import Any, Optional, cast
+import base64
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
 @dataclass
@@ -48,6 +50,39 @@ class TerraformResourceSpec:
 
     def get_secret_field(self, field: str) -> Optional[str]:
         return self.secret.get(field)
+
+    def id_object(self) -> "TerraformResourceIdentifier":
+        return TerraformResourceIdentifier.from_dict(self.resource)
+
+    def construct_oc_resource(self, integration: str, integration_version: str) -> OR:
+        annotations = dict(self.annotations)
+        annotations["qontract.recycle"] = "true"
+
+        secret_data = {}
+        for k, v in self.secret.items():
+            if v == "":
+                secret_value = None
+            else:
+                # convert to str to maintain compatability
+                # as ports are now ints and not strs
+                secret_value = base64.b64encode(str(v).encode()).decode("utf-8")
+            secret_data[k] = secret_value
+
+        body = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "type": "Opaque",
+            "metadata": {"name": self.output_resource_name, "annotations": annotations},
+            "data": secret_data,
+        }
+
+        return OR(
+            body,
+            integration,
+            integration_version,
+            error_details=self.output_resource_name,
+            caller_name=self.account,
+        )
 
 
 @dataclass(frozen=True)

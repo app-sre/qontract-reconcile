@@ -26,7 +26,8 @@ from reconcile.utils.ocm import OCMMap
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
-from reconcile.utils.terraform_client import OR, TerraformClient as Terraform
+from reconcile.utils.terraform_client import TerraformClient as Terraform
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.vault import VaultClient
 
 
@@ -449,7 +450,6 @@ def setup(
     ResourceInventory,
     OC_Map,
     Terraform,
-    list[dict[str, Any]],
     TerraformResourceSpecDict,
 ]:
     gqlapi = gql.get_api()
@@ -497,7 +497,7 @@ def setup(
                           ocm_map=ocm_map)
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
-    return ri, oc_map, tf, tf_namespaces, resource_specs
+    return ri, oc_map, tf, resource_specs
 
 
 def filter_tf_namespaces(
@@ -561,6 +561,22 @@ def write_outputs_to_vault(vault_path, ri):
             vault_client.write(secret)
 
 
+def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecDict) -> None:
+    for spec in resource_specs.values():
+        if ri.is_cluster_present(spec.cluster_name):
+            oc_resource = spec.construct_oc_resource(
+                QONTRACT_INTEGRATION,
+                QONTRACT_INTEGRATION_VERSION
+            )
+            ri.add_desired(
+                cluster=spec.cluster_name,
+                namespace=spec.namespace_name,
+                resource_type=oc_resource.kind,
+                name=spec.output_resource_name,
+                value=oc_resource
+            )
+
+
 @defer
 def run(
     dry_run,
@@ -577,7 +593,7 @@ def run(
     defer=None,
 ):
 
-    ri, oc_map, tf, tf_namespaces, resource_specs = setup(
+    ri, oc_map, tf, resource_specs = setup(
         dry_run,
         print_to_file,
         thread_pool_size,
@@ -612,7 +628,13 @@ def run(
         if err:
             cleanup_and_exit(tf, err)
 
-    tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
+    # refresh output data after terraform apply
+    tf.populate_terraform_output_secrets(
+        resource_specs=resource_specs,
+        init_rds_replica_source=True
+    )
+    # populate resourceinventory with latest output data
+    populate_desired_state(ri, resource_specs)
 
     actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
                               caller=account_name)
