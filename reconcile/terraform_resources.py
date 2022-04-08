@@ -3,7 +3,7 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Optional, Mapping, Tuple
+from typing import Any, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
 
@@ -28,7 +28,7 @@ from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.vault import VaultClient
+from reconcile.utils.vault import _VaultClient, VaultClient
 
 
 TF_RESOURCE = """
@@ -550,15 +550,15 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
     sys.exit(status)
 
 
-def write_outputs_to_vault(vault_path, ri):
+def write_outputs_to_vault(vault_path: str, resoure_specs: TerraformResourceSpecDict) -> None:
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
-    vault_client = VaultClient()
-    for cluster, namespace, _, data in ri:
-        for name, d_item in data['desired'].items():
-            secret_path = \
-                f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
-            secret = {'path': secret_path, 'data': d_item.body['data']}
-            vault_client.write(secret)
+    vault_client = cast(_VaultClient, VaultClient())
+    for spec in resoure_specs.values():
+        secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
+        # vault only stores strings as values - by converting to str upfront, we can compare current to desired
+        stringified_secret = {k: str(v) for k, v in spec.secret.items()}
+        desired_secret = {'path': secret_path, 'data': stringified_secret}
+        vault_client.write(desired_secret)
 
 
 def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecDict) -> None:
@@ -644,7 +644,7 @@ def run(
                  account_name=account_name)
 
     if actions and vault_output_path:
-        write_outputs_to_vault(vault_output_path, ri)
+        write_outputs_to_vault(vault_output_path, resource_specs)
 
     if ri.has_error_registered():
         err = True
