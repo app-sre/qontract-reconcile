@@ -3,7 +3,7 @@ import requests
 import pkg_resources
 import pytest
 
-from reconcile.utils.semver_helper import is_version_bumped
+import packaging.version as pep440
 
 
 @pytest.mark.skipif(
@@ -15,6 +15,4 @@ def test_version_bump():
     pypi_version = requests.get("https://pypi.org/pypi/qontract-reconcile/json").json()[
         "info"
     ]["version"]
-    assert (
-        is_version_bumped(current_version, pypi_version) is True
-    ), "setup.py version must be bumped. see README.md#release for details"
+    assert pep440.Version(current_version) > pep440.Version(pypi_version)

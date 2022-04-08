@@ -16,3 +16,5 @@ config.toml
 config.*.toml
 .container_tmp
 .idea
+
+GIT_VERSION
