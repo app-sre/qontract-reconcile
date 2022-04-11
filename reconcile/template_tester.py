@@ -3,7 +3,6 @@ import sys
 import yaml
 import reconcile.openshift_resources_base as orb
 
-from textwrap import indent
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
