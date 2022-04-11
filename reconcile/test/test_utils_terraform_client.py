@@ -164,7 +164,7 @@ def test_get_replicas_info_via_overrides_with_defaults_present(mocker: MockerFix
     assert result == expected
 
 
-def test_construct_oc_resource():
+def test_build_oc_secret():
     integration = "integ"
     integration_version = "v1"
     account = "account"
@@ -192,7 +192,7 @@ def test_construct_oc_resource():
         "qontract.recycle": "true",
     }
 
-    resource = spec.construct_oc_resource(integration, integration_version)
+    resource = spec.build_oc_secret(integration, integration_version)
 
     # check metadata
     assert resource.caller == account

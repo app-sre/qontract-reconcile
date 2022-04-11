@@ -54,7 +54,7 @@ class TerraformResourceSpec:
     def id_object(self) -> "TerraformResourceIdentifier":
         return TerraformResourceIdentifier.from_dict(self.resource)
 
-    def construct_oc_resource(self, integration: str, integration_version: str) -> OR:
+    def build_oc_secret(self, integration: str, integration_version: str) -> OR:
         annotations = dict(self.annotations)
         annotations["qontract.recycle"] = "true"
 
@@ -106,17 +106,6 @@ class TerraformResourceIdentifier:
             identifier=cast(str, data["identifier"]),
             provider=cast(str, data["provider"]),
             account=cast(str, data["account"]),
-        )
-
-    @staticmethod
-    def from_output_prefix(
-        output_prefix: str, account: str
-    ) -> "TerraformResourceIdentifier":
-        identifier, provider = output_prefix.rsplit("-", 1)
-        return TerraformResourceIdentifier(
-            identifier=identifier,
-            provider=provider,
-            account=account,
         )
 
 

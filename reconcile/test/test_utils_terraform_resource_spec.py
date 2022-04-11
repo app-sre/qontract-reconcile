@@ -12,13 +12,6 @@ def test_identifier_creation_from_dict():
     assert id.account == "a"
 
 
-def test_identifier_creation_from_output_prefix():
-    id = TRI.from_output_prefix("i-p", "a")
-    assert id.identifier == "i"
-    assert id.provider == "p"
-    assert id.account == "a"
-
-
 def test_identifier_missing():
     with pytest.raises(ValueError):
         TRI.from_dict({"provider": "p", "account": "a"})

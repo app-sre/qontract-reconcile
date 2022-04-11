@@ -476,7 +476,7 @@ def setup(
     ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
 
     # initialize terraform client
-    # it used to plan and apply according to the output of terrascript
+    # it is used to plan and apply according to the output of terrascript
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
     tf = Terraform(QONTRACT_INTEGRATION,
                    QONTRACT_INTEGRATION_VERSION,
@@ -564,7 +564,7 @@ def write_outputs_to_vault(vault_path: str, resoure_specs: TerraformResourceSpec
 def populate_desired_state(ri: ResourceInventory, resource_specs: TerraformResourceSpecDict) -> None:
     for spec in resource_specs.values():
         if ri.is_cluster_present(spec.cluster_name):
-            oc_resource = spec.construct_oc_resource(
+            oc_resource = spec.build_oc_secret(
                 QONTRACT_INTEGRATION,
                 QONTRACT_INTEGRATION_VERSION
             )
@@ -633,7 +633,7 @@ def run(
         resource_specs=resource_specs,
         init_rds_replica_source=True
     )
-    # populate resourceinventory with latest output data
+    # populate the resource inventory with latest output data
     populate_desired_state(ri, resource_specs)
 
     actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
