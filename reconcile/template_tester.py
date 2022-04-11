@@ -45,8 +45,7 @@ def run(dry_run):
     for tt in template_tests:
         resource = tt["resource"]
         resource["add_path_to_prom_rules"] = False
-        parent = load_resource(tt["resourceParent"])
-        openshift_resource = orb.fetch_openshift_resource(tt["resource"], parent)
+        openshift_resource = orb.fetch_openshift_resource(tt["resource"], tt["resourceParent"])
         expected_result = load_resource(tt["expectedResult"])
         if openshift_resource.body != expected_result:
             logging.error(
