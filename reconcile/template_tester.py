@@ -16,7 +16,7 @@ TEMPLATE_TESTS_QUERY = """
 {
   tests: template_tests_v1 {
     name
-    resource_path
+    resourcePath
     expectedResult
   }
 }
@@ -33,7 +33,7 @@ def run(dry_run):
     error = False
     for tt in template_tests:
         found = False
-        resource_path = tt["resource_path"]
+        resource_path = tt["resourcePath"]
         expected_result = load_resource(tt["expectedResult"])
         for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]:
             openshift_resources = n.get("openshiftResources")
