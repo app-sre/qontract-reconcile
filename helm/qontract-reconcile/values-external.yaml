@@ -131,7 +131,7 @@ integrations:
       memory: 50Mi
       cpu: 100m
     limits:
-      memory: 100Mi
+      memory: 300Mi
       cpu: 200m
   logs:
     slack: true
