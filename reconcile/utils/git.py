@@ -31,3 +31,13 @@ def is_file_in_git_repo(file_path):
         cmd, cwd=dir_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     return result.returncode == 0
+
+
+def has_uncommited_changes() -> bool:
+    cmd = ["git", "diff"]
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
+    )
+    if result.stdout:
+        return True
+    return False

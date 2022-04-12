@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="qontract-reconcile",
-    version="0.6.1",
+    version="0.6.2",
     license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",

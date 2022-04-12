@@ -1,37 +1,22 @@
 import os
-import subprocess
 
 import pytest
 
-
-def run_make(sub_command):
-    cmd = ["make", sub_command]
-    return subprocess.run(cmd, check=True)
+from reconcile.utils.git import has_uncommited_changes
+from reconcile.utils.make import generate
 
 
-def has_uncommited_changes():
-    cmd = ["git", "diff"]
-    result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
+@pytest.mark.skipif(
+    os.getuid() != 0,
+    reason="This test is only for CI environments",
+)
+def test_make_generate():
+    assert not has_uncommited_changes(), "No uncommited changes must " "exists"
+
+    result = generate()
+    # Just to make sure the command does not fail
+    assert not result.returncode
+
+    assert not has_uncommited_changes(), (
+        "No uncommited changes must " 'exists after "make generate"'
     )
-    if result.stdout:
-        return True
-    return False
-
-
-class TestMake:
-    @staticmethod
-    @pytest.mark.skipif(
-        os.getuid() != 0,
-        reason="This test is only for CI environments",
-    )
-    def test_make_generate():
-        assert not has_uncommited_changes(), "No uncommited changes must " "exists"
-
-        result = run_make("generate")
-        # Just to make sure the command does not fail
-        assert not result.returncode
-
-        assert not has_uncommited_changes(), (
-            "No uncommited changes must " 'exists after "make generate"'
-        )
