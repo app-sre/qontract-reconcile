@@ -12,6 +12,7 @@ from reconcile.status import ExitCodes
 QUAY_REPOS_QUERY = """
 {
   apps: apps_v1 {
+    name
     quayRepos {
       org {
         name
@@ -75,11 +76,15 @@ def fetch_desired_state(quay_api_store):
             continue
 
         for quay_repo in quay_repos:
+            org_name = quay_repo["org"]["name"]
             if not quay_repo["org"]["managedRepos"]:
-                continue
+                logging.error(
+                    f"[{app['name']}] Can not manage repos in {org_name} "
+                    "since managedRepos is set to false."
+                )
+                sys.exit(ExitCodes.ERROR)
 
             instance_name = quay_repo["org"]["instance"]["name"]
-            org_name = quay_repo["org"]["name"]
             org_key = OrgKey(instance_name, org_name)
 
             for repo_item in quay_repo["items"]:

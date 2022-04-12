@@ -14,6 +14,7 @@ QUAY_REPOS_QUERY = """
     quayRepos {
       org {
         name
+        managedRepos
         automationToken {
           path
           field
@@ -63,6 +64,14 @@ def run(dry_run):
             instance_name = quay_repo_config["org"]["instance"]["name"]
             org_name = quay_repo_config["org"]["name"]
             org_key = (instance_name, org_name)
+
+            if not quay_repo_config["org"]["managedRepos"]:
+                logging.error(
+                    f"[{app['name']}] Can not manage repo permissions in {org_name} "
+                    "since managedRepos is set to false."
+                )
+                error = True
+                continue
 
             # processing quayRepos section
             logging.debug(["app", app["name"], instance_name, org_name])
