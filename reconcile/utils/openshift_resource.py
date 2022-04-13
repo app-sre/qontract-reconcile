@@ -509,8 +509,21 @@ class ResourceInventory:
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
-            resource_type, {"current": {}, "desired": {}, "use_admin_token": {}}
+            resource_type,
+            {
+                "current": {},
+                "desired": {},
+                "use_admin_token": {},
+                "managed_resource_names": [],
+            },
         )
+
+    def initalize_resource_names(
+        self, cluster, namespace, resource_type, resource_names
+    ):
+        self._clusters[cluster][namespace][resource_type][
+            "managed_resource_names"
+        ] = resource_names
 
     def add_desired(
         self, cluster, namespace, resource_type, name, value, privileged=False
