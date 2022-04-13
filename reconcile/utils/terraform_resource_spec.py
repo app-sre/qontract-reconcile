@@ -1,8 +1,9 @@
-from dataclasses import dataclass, field
+from dataclasses import field
+from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Optional, cast
+from typing import Any, Optional
 import base64
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import OpenshiftResource
 
 
 @dataclass
@@ -54,7 +55,9 @@ class TerraformResourceSpec:
     def id_object(self) -> "TerraformResourceIdentifier":
         return TerraformResourceIdentifier.from_dict(self.resource)
 
-    def build_oc_secret(self, integration: str, integration_version: str) -> OR:
+    def build_oc_secret(
+        self, integration: str, integration_version: str
+    ) -> OpenshiftResource:
         annotations = dict(self.annotations)
         annotations["qontract.recycle"] = "true"
 
@@ -76,7 +79,7 @@ class TerraformResourceSpec:
             "data": secret_data,
         }
 
-        return OR(
+        return OpenshiftResource(
             body,
             integration,
             integration_version,
@@ -98,15 +101,7 @@ class TerraformResourceIdentifier:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "TerraformResourceIdentifier":
-        if "identifier" not in data or "provider" not in data or "account" not in data:
-            raise ValueError(
-                "dict does not include required both keys 'identifier' and 'provider'"
-            )
-        return TerraformResourceIdentifier(
-            identifier=cast(str, data["identifier"]),
-            provider=cast(str, data["provider"]),
-            account=cast(str, data["account"]),
-        )
+        return TerraformResourceIdentifier(**data)
 
 
 TerraformResourceSpecDict = dict[TerraformResourceIdentifier, TerraformResourceSpec]

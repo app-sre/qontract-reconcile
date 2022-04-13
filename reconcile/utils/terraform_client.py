@@ -359,26 +359,19 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 # When replica_source is not there, we look for
                 # replicate_source_db in the defaults
                 replica_src_db = None
-                defaults_ref = tf_resource.get('defaults')
-                if defaults_ref is not None:
-                    defaults_res = gql.get_resource(
-                        defaults_ref
+                defaults_reference = tf_resource.get('defaults')
+                if defaults_reference is not None:
+                    defaults_resource = gql.get_resource(
+                        defaults_reference
                     )
-                    defaults = yaml.safe_load(defaults_res['content'])
+                    defaults = yaml.safe_load(defaults_resource['content'])
                     replica_src_db = defaults.get('replicate_source_db')
 
                 # Also, we look for replicate_source_db in the overrides
-                override_replica_src_db = None
-                overrides = tf_resource.get('overrides')
-                if overrides is not None:
-                    override_replica_src_db = json.loads(overrides).get(
-                        'replicate_source_db'
-                    )
-                if override_replica_src_db is not None:
-                    replica_src_db = override_replica_src_db
-
-                # Getting whatever we probed here
-                replica_src = replica_src_db
+                overrides = tf_resource.get('overrides') or "{}"
+                replica_src = json.loads(overrides).get(
+                    'replicate_source_db', replica_src_db
+                )
 
             if replica_src is None:
                 # No replica source information anywhere
@@ -457,11 +450,12 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             return data[list(data.keys())[0]]
         return data
 
-    def populate_terraform_output_secrets(self, resource_specs: TerraformResourceSpecDict, init_rds_replica_source: bool = False) -> None:
+    def populate_terraform_output_secrets(self, resource_specs: TerraformResourceSpecDict,
+                                          init_rds_replica_source: bool = False) -> None:
         """
         find the terraform output data for each resource spec and populate its `secret` field.
-        if the `init_rds_replica_source` a replica RDS gets its DB user and password fields populated
-        by looking at the replica source DB.
+        if the `init_rds_replica_source` a replica RDS gets its DB user and password fields
+        populated by looking at the replica source DB.
         """
         self.init_outputs()  # get updated output
         existing_secets = self.get_terraform_output_secrets()
@@ -470,10 +464,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         else:
             replicas_info = {}
 
-        self._populate_terraform_output_secrets(resource_specs, existing_secets, self.integration_prefix, replicas_info)
+        self._populate_terraform_output_secrets(
+            resource_specs, existing_secets, self.integration_prefix, replicas_info
+        )
 
     @staticmethod
-    def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecDict, existing_secrets: dict[str, dict[str, dict[str, str]]], integration_prefix: str, replica_sources: dict[str, dict[str, str]]) -> None:
+    def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecDict,
+                                           existing_secrets: dict[str, dict[str, dict[str, str]]],
+                                           integration_prefix: str,
+                                           replica_sources: dict[str, dict[str, str]]) -> None:
         for spec in resource_specs.values():
             secret = existing_secrets.get(spec.account, {}).get(spec.output_prefix, None)
             if not secret:

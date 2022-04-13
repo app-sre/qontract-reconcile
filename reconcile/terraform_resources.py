@@ -3,7 +3,7 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Optional, Mapping, Tuple, cast
+from typing import Any, Iterable, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
 
@@ -445,7 +445,7 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-    extra_labels,
+    extra_labels: dict[str, str],
 ) -> Tuple[
     ResourceInventory,
     OC_Map,
@@ -501,7 +501,7 @@ def setup(
 
 
 def filter_tf_namespaces(
-    namespaces: list[dict[str, Any]], account_name: Optional[str]
+    namespaces: Iterable[dict[str, Any]], account_name: Optional[str]
 ) -> list[dict[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
@@ -550,10 +550,10 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
     sys.exit(status)
 
 
-def write_outputs_to_vault(vault_path: str, resoure_specs: TerraformResourceSpecDict) -> None:
+def write_outputs_to_vault(vault_path: str, resource_specs: TerraformResourceSpecDict) -> None:
     integration_name = QONTRACT_INTEGRATION.replace('_', '-')
     vault_client = cast(_VaultClient, VaultClient())
-    for spec in resoure_specs.values():
+    for spec in resource_specs.values():
         secret_path = f"{vault_path}/{integration_name}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
         # vault only stores strings as values - by converting to str upfront, we can compare current to desired
         stringified_secret = {k: str(v) for k, v in spec.secret.items()}
