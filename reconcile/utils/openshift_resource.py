@@ -15,6 +15,10 @@ class ResourceKeyExistsError(Exception):
     pass
 
 
+class ResourceNameUnauthorized(Exception):
+    pass
+
+
 class ConstructResourceError(Exception):
     def __init__(self, msg):
         super().__init__("error constructing openshift resource: " + str(msg))
@@ -536,6 +540,9 @@ class ResourceInventory:
         # us to implement per-resource configuration in the future
         with self._lock:
             inventory = self._clusters[cluster][namespace][resource_type]
+            managed_resource_names = inventory["managed_resource_names"]
+            if managed_resource_names and name not in managed_resource_names:
+                raise ResourceNameUnauthorized(name)
             desired = inventory["desired"]
             if name in desired:
                 raise ResourceKeyExistsError(name)

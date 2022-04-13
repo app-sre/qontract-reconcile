@@ -33,6 +33,7 @@ from reconcile.utils.openshift_resource import (
     ConstructResourceError,
     ResourceInventory,
     ResourceKeyExistsError,
+    ResourceNameUnauthorized,
 )
 from reconcile.utils.vault import SecretVersionNotFound, SecretVersionIsNone
 from reconcile.utils.vault import VaultClient
@@ -662,6 +663,19 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent, privileged
         ri.register_error()
         msg = ("[{}/{}] desired item already exists: {}/{}.").format(
             cluster, namespace, openshift_resource.kind, openshift_resource.name
+        )
+        _log_lock.acquire()  # pylint: disable=consider-using-with
+        logging.error(msg)
+        _log_lock.release()
+        return
+    except ResourceNameUnauthorized:
+        # This is failing because an attempt to add
+        # a desired resource with a name that is not
+        # in the managedResourceNames list of the namespace
+        ri.register_error()
+        msg = (
+            f"[{cluster}/{namespace}] desired item not in allowed in "
+            + f"managedResourceNames list: {openshift_resource.kind}/{openshift_resource.name}."
         )
         _log_lock.acquire()  # pylint: disable=consider-using-with
         logging.error(msg)
