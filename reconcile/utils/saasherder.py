@@ -35,7 +35,6 @@ TARGET_CONFIG_HASH = "target_config_hash"
 
 
 class Providers:
-    JENKINS = "jenkins"
     TEKTON = "tekton"
 
 
@@ -1451,26 +1450,7 @@ class SaasHerder:
 
     @staticmethod
     def _get_pipelines_provider(saas_file):
-        """Returns the Pipelines Provider for a SaaS file.
-
-        Args:
-            saas_file (dict): SaaS file GQL query result with apiVersion key
-
-        Returns:
-            dict: Pipelines Provider details
-        """
-        saas_file_api_version = saas_file["apiVersion"]
-        if saas_file_api_version == "v1":
-            # wrapping the instance in a pipelines provider structure
-            # for backwards compatibility
-            pipelines_provider = {
-                "provider": Providers.JENKINS,
-                "instance": saas_file["instance"],
-            }
-        if saas_file_api_version == "v2":
-            pipelines_provider = saas_file["pipelinesProvider"]
-
-        return pipelines_provider
+        return saas_file["pipelinesProvider"]
 
     @staticmethod
     def sanitize_namespace(namespace):
