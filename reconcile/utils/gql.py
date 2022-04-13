@@ -204,7 +204,7 @@ def _init_gql_client(url: str, token: Optional[str]) -> Client:
         # The token stored in vault is already in the format 'Basic ...'
         req_headers = {"Authorization": token}
     # Here we are explicitly using sync strategy
-    return Client(transport=RequestsHTTPTransport(url, headers=req_headers))
+    return Client(transport=RequestsHTTPTransport(url, headers=req_headers, timeout=30))
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
