@@ -522,14 +522,12 @@ class ResourceInventory:
         # mismatch between schema and implementation for now, it will enable
         # us to implement per-resource configuration in the future
         with self._lock:
-            desired = self._clusters[cluster][namespace][resource_type]["desired"]
+            inventory = self._clusters[cluster][namespace][resource_type]
+            desired = inventory["desired"]
             if name in desired:
                 raise ResourceKeyExistsError(name)
             desired[name] = value
-            admin_token_usage = self._clusters[cluster][namespace][resource_type][
-                "use_admin_token"
-            ]
-            admin_token_usage[name] = privileged
+            inventory["use_admin_token"][name] = privileged
 
     def add_current(self, cluster, namespace, resource_type, name, value):
         with self._lock:
