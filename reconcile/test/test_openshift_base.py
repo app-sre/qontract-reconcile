@@ -25,6 +25,10 @@ class TestInitSpecsToFetch(testslide.TestCase):
             self.resource_inventory, "initialize_resource_type"
         ).for_call("cs1", "ns1", "Template").to_return_value(None)
 
+        self.mock_callable(
+            self.resource_inventory, "initialize_resource_names"
+        ).for_call("cs1", "ns1", "Template", ["tp1", "tp2"]).to_return_value(None)
+
         self.mock_callable(self.oc_map, "get").for_call("cs1", False).to_return_value(
             "stuff"
         )
