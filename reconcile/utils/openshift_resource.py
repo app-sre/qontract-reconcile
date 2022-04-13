@@ -522,7 +522,7 @@ class ResourceInventory:
             },
         )
 
-    def initalize_resource_names(
+    def initialize_resource_names(
         self, cluster, namespace, resource_type, resource_names
     ):
         self._clusters[cluster][namespace][resource_type][

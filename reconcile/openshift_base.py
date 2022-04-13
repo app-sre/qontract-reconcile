@@ -147,7 +147,7 @@ def init_specs_to_fetch(
                 )
                 state_specs.append(c_spec)
                 managed_types.remove(kind)
-                ri.initalize_resource_names(cluster, namespace, kind, names)
+                ri.initialize_resource_names(cluster, namespace, kind, names)
 
             # Produce "empty" StateSpec's for any resource type that
             # doesn't have an explicit managedResourceName listed in
