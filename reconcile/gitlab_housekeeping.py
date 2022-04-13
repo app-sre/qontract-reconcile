@@ -10,6 +10,7 @@ from sretoolbox.utils import retry
 from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.mr.labels import (
     APPROVED,
     AUTO_MERGE,
@@ -88,9 +89,9 @@ def handle_stale_items(dry_run, gl, days_interval, enable_closing, item_type):
     LABEL = "stale"
 
     if item_type == "issue":
-        items = gl.get_issues(state="opened")
+        items = gl.get_issues(state=MRState.OPENED)
     elif item_type == "merge-request":
-        items = gl.get_merge_requests(state="opened")
+        items = gl.get_merge_requests(state=MRState.OPENED)
 
     now = datetime.utcnow()
     for item in items:
@@ -167,7 +168,7 @@ def rebase_merge_requests(
     gl_instance=None,
     gl_settings=None,
 ):
-    mrs = gl.get_merge_requests(state="opened")
+    mrs = gl.get_merge_requests(state=MRState.OPENED)
     rebases = 0
     for rebase_label in REBASE_LABELS_PRIORITY:
         for mr in reversed(mrs):
@@ -238,7 +239,7 @@ def merge_merge_requests(
     gl_instance=None,
     gl_settings=None,
 ):
-    mrs = gl.get_merge_requests(state="opened")
+    mrs = gl.get_merge_requests(state=MRState.OPENED)
     merges = 0
     for merge_label in MERGE_LABELS_PRIORITY:
         for mr in reversed(mrs):
