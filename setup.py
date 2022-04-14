@@ -1,8 +1,10 @@
 from setuptools import find_packages, setup
 
+from release import version
+
 setup(
     name="qontract-reconcile",
-    version="0.6.5",
+    version=version.pip(),
     license="Apache License 2.0",
 
     author="Red Hat App-SRE Team",
@@ -57,6 +59,9 @@ setup(
         "transity-statuspageio>=0.0.3,<0.1",
         "pydantic~=1.9.0",
         "MarkupSafe==2.1.1",
+        # this is really needed only in lint and type validations.
+        # Is there any better place to put this in?
+        "packaging~=21.3",
     ],
 
     test_suite="tests",

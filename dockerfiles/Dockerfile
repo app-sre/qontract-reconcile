@@ -4,8 +4,10 @@ WORKDIR /work
 
 COPY e2e_tests e2e_tests
 COPY reconcile reconcile
+COPY release release
 COPY tools tools
 COPY setup.py .
+COPY GIT_VERSION .
 COPY dockerfiles/hack/run-integration.py .
 
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
