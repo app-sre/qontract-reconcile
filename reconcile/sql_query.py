@@ -132,6 +132,7 @@ def get_tf_resource_info(namespace, identifier):
 
         defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
         defaults = yaml.safe_load(defaults_ref["content"])
+        engine_version = defaults.get("engine_version", "latest")
 
         output_resource_name = tf_resource["output_resource_name"]
         if output_resource_name is None:
@@ -143,7 +144,7 @@ def get_tf_resource_info(namespace, identifier):
             "cluster": namespace["cluster"]["name"],
             "output_resource_name": output_resource_name,
             "engine": defaults.get("engine", "postgres"),
-            "engine_version": defaults.get("engine_version", "latest"),
+            "engine_version": engine_version,
         }
 
 
