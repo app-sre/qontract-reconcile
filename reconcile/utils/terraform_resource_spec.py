@@ -2,8 +2,7 @@ from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
 from typing import Any, Mapping, Optional
-import base64
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.openshift_resource import OpenshiftResource, build_secret
 
 
 @dataclass
@@ -60,30 +59,14 @@ class TerraformResourceSpec:
         annotations = self._annotations()
         annotations["qontract.recycle"] = "true"
 
-        secret_data = {}
-        for k, v in self.secret.items():
-            if v == "":
-                secret_value = None
-            else:
-                # convert to str to maintain compatability
-                # as ports are now ints and not strs
-                secret_value = base64.b64encode(str(v).encode()).decode("utf-8")
-            secret_data[k] = secret_value
-
-        body = {
-            "apiVersion": "v1",
-            "kind": "Secret",
-            "type": "Opaque",
-            "metadata": {"name": self.output_resource_name, "annotations": annotations},
-            "data": secret_data,
-        }
-
-        return OpenshiftResource(
-            body,
-            integration,
-            integration_version,
+        return build_secret(
+            name=self.output_resource_name,
+            integration=integration,
+            integration_version=integration_version,
             error_details=self.output_resource_name,
             caller_name=self.account,
+            annotations=annotations,
+            unencoded_data=self.secret,
         )
 
 
