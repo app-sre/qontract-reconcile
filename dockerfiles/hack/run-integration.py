@@ -12,9 +12,9 @@ import click
 
 from reconcile.status import ExitCodes
 from reconcile.cli import LOG_FMT, LOG_DATEFMT
-from reconcile.utils.metrics import run_time
-from reconcile.utils.metrics import run_status
-from reconcile.utils.metrics import extra_labels
+from reconcile.utils.metrics import (
+  run_time, run_status, extra_labels, execution_counter
+)
 
 
 SHARDS = int(os.environ.get('SHARDS', 1))
@@ -143,6 +143,12 @@ def main():
         # Running the integration via Click, so we don't have to replicate
         # the CLI logic here
         try:
+            execution_counter.labels(
+                integration=INTEGRATION_NAME,
+                shards=SHARDS,
+                shard_id=SHARD_ID,
+                **extra_labels
+            ).inc()
             with command.make_context(info_name=COMMAND_NAME, args=args) \
               as ctx:
                 ctx.ensure_object(dict)
