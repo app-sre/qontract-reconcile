@@ -457,23 +457,23 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         populated by looking at the replica source DB.
         """
         self.init_outputs()  # get updated output
-        existing_secets = self.get_terraform_output_secrets()
+        terraform_output_secrets = self.get_terraform_output_secrets()
         if init_rds_replica_source:
             replicas_info = self.get_replicas_info(resource_specs.values())
         else:
             replicas_info = {}
 
         self._populate_terraform_output_secrets(
-            resource_specs, existing_secets, self.integration_prefix, replicas_info
+            resource_specs, terraform_output_secrets, self.integration_prefix, replicas_info
         )
 
     @staticmethod
     def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecDict,
-                                           existing_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
+                                           terraform_output_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
                                            integration_prefix: str,
                                            replica_sources: Mapping[str, Mapping[str, str]]) -> None:
         for spec in resource_specs.values():
-            secret = existing_secrets.get(spec.account, {}).get(spec.output_prefix, None)
+            secret = terraform_output_secrets.get(spec.account, {}).get(spec.output_prefix, None)
             if not secret:
                 continue
             secret_copy = dict(secret)
@@ -486,7 +486,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 # replica. This is needed because we can't
                 # set username/password for a replica in
                 # terraform.
-                replica_source_secret = existing_secrets.get(spec.account, {}).get(replica_source)
+                replica_source_secret = terraform_output_secrets.get(spec.account, {}).get(replica_source)
                 if replica_source_secret:
                     replica_src_user = replica_source_secret.get("db.user")
                     replica_src_password = replica_source_secret.get("db.password")
