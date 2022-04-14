@@ -102,7 +102,7 @@ def get_prometheus_rules(cluster_name):
             rules[path][cluster][namespace] = {"spec": openshift_resource.body["spec"]}
 
             # we keep variables to use them in the rule tests
-            variables = json.loads(r.get("variables") or '{}')
+            variables = json.loads(r.get("variables") or "{}")
             # keep the resource as well
             variables["resource"] = r
             rules[path][cluster][namespace]["variables"] = variables
