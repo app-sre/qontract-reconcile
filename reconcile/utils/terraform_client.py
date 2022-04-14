@@ -2,7 +2,6 @@ import logging
 import json
 import os
 import shutil
-import copy
 
 from datetime import datetime
 from collections import defaultdict
@@ -470,14 +469,14 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _populate_terraform_output_secrets(resource_specs: TerraformResourceSpecDict,
-                                           existing_secrets: dict[str, dict[str, dict[str, str]]],
+                                           existing_secrets: Mapping[str, Mapping[str, Mapping[str, str]]],
                                            integration_prefix: str,
-                                           replica_sources: dict[str, dict[str, str]]) -> None:
+                                           replica_sources: Mapping[str, Mapping[str, str]]) -> None:
         for spec in resource_specs.values():
             secret = existing_secrets.get(spec.account, {}).get(spec.output_prefix, None)
             if not secret:
                 continue
-            secret_copy = copy.deepcopy(secret)
+            secret_copy = dict(secret)
 
             # find out about replica source
             replica_source = replica_sources.get(spec.account, {}).get(spec.output_prefix)

@@ -1,7 +1,7 @@
 from dataclasses import field
 from pydantic.dataclasses import dataclass
 import json
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 import base64
 from reconcile.utils.openshift_resource import OpenshiftResource
 
@@ -9,9 +9,9 @@ from reconcile.utils.openshift_resource import OpenshiftResource
 @dataclass
 class TerraformResourceSpec:
 
-    resource: dict[str, Any]
-    namespace: dict[str, Any]
-    secret: dict[str, str] = field(init=False, default_factory=lambda: {})
+    resource: Mapping[str, Any]
+    namespace: Mapping[str, Any]
+    secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
 
     @property
     def provider(self):
@@ -41,8 +41,7 @@ class TerraformResourceSpec:
     def output_resource_name(self):
         return self.resource.get("output_resource_name") or self.output_prefix
 
-    @property
-    def annotations(self) -> dict[str, str]:
+    def _annotations(self) -> dict[str, str]:
         annotation_str = self.resource.get("annotations")
         if annotation_str:
             return json.loads(annotation_str)
@@ -58,7 +57,7 @@ class TerraformResourceSpec:
     def build_oc_secret(
         self, integration: str, integration_version: str
     ) -> OpenshiftResource:
-        annotations = dict(self.annotations)
+        annotations = self._annotations()
         annotations["qontract.recycle"] = "true"
 
         secret_data = {}
@@ -100,8 +99,8 @@ class TerraformResourceIdentifier:
         return f"{self.identifier}-{self.provider}"
 
     @staticmethod
-    def from_dict(data: dict[str, Any]) -> "TerraformResourceIdentifier":
+    def from_dict(data: Mapping[str, Any]) -> "TerraformResourceIdentifier":
         return TerraformResourceIdentifier(**data)
 
 
-TerraformResourceSpecDict = dict[TerraformResourceIdentifier, TerraformResourceSpec]
+TerraformResourceSpecDict = Mapping[TerraformResourceIdentifier, TerraformResourceSpec]

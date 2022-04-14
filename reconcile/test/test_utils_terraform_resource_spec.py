@@ -65,7 +65,7 @@ def test_spec_annotation_parsing():
         },
         namespace={},
     )
-    assert s.annotations == {"key": "value"}
+    assert s._annotations() == {"key": "value"}
 
 
 def test_spec_annotation_parsing_none_present():
@@ -77,4 +77,4 @@ def test_spec_annotation_parsing_none_present():
         },
         namespace={},
     )
-    assert s.annotations == {}
+    assert s._annotations() == {}

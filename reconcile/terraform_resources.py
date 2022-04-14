@@ -3,7 +3,7 @@ import shutil
 import sys
 
 from textwrap import indent
-from typing import Any, Iterable, Optional, Mapping, Tuple, cast
+from typing import Any, Iterable, MutableMapping, Optional, Mapping, Tuple, cast
 
 from sretoolbox.utils import threaded
 
@@ -445,7 +445,7 @@ def setup(
     internal: str,
     use_jump_host: bool,
     account_name: Optional[str],
-    extra_labels: dict[str, str],
+    extra_labels: MutableMapping[str, str],
 ) -> Tuple[
     ResourceInventory,
     OC_Map,
@@ -501,8 +501,8 @@ def setup(
 
 
 def filter_tf_namespaces(
-    namespaces: Iterable[dict[str, Any]], account_name: Optional[str]
-) -> list[dict[str, Any]]:
+    namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
+) -> list[Mapping[str, Any]]:
     tf_namespaces = []
     for namespace_info in namespaces:
         if not namespace_info.get('managedTerraformResources'):
@@ -522,9 +522,9 @@ def filter_tf_namespaces(
 
 
 def init_tf_resource_specs(
-    namespaces: list[dict[str, Any]], account_name: Optional[str]
+    namespaces: Iterable[Mapping[str, Any]], account_name: Optional[str]
 ) -> TerraformResourceSpecDict:
-    resource_specs: TerraformResourceSpecDict = {}
+    resource_specs: dict[TerraformResourceIdentifier, TerraformResourceSpec] = {}
     for namespace_info in namespaces:
         if not namespace_info.get("managedTerraformResources"):
             continue
