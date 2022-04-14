@@ -3,6 +3,7 @@ import sys
 import time
 
 from textwrap import indent
+from typing import Tuple
 
 import jinja2
 from ruamel import yaml
@@ -110,6 +111,20 @@ data:
 """
 
 
+def determine_engine(tf_resource: dict) -> Tuple[str, str]:
+    defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
+    defaults = yaml.safe_load(defaults_ref["content"])
+    engine = defaults.get("engine", "postgres")
+    engine_version = defaults.get("engine_version", "latest")
+    raw_overrides = tf_resource.get("overrides")
+    if raw_overrides:
+        overrides = yaml.safe_load(raw_overrides)
+        engine = overrides.get("engine", engine)
+        engine_version = overrides.get("engine_version", engine_version)
+
+    return engine, engine_version
+    
+
 def get_tf_resource_info(namespace, identifier):
     """
     Extracting the terraformResources information from the namespace
@@ -130,15 +145,7 @@ def get_tf_resource_info(namespace, identifier):
         if tf_resource["provider"] != "rds":
             continue
 
-        defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
-        defaults = yaml.safe_load(defaults_ref["content"])
-        engine = defaults.get("engine", "postgres")
-        engine_version = defaults.get("engine_version", "latest")
-        raw_overrides = tf_resource.get("overrides")
-        if raw_overrides:
-            overrides = yaml.safe_load(raw_overrides)
-            engine = overrides.get("engine", engine)
-            engine_version = overrides.get("engine_version", engine_version)
+        engine, engine_version = determine_engine(tf_resource)
 
         output_resource_name = tf_resource["output_resource_name"]
         if output_resource_name is None:
