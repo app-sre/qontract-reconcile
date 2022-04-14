@@ -133,6 +133,10 @@ def get_tf_resource_info(namespace, identifier):
         defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
         defaults = yaml.safe_load(defaults_ref["content"])
         engine_version = defaults.get("engine_version", "latest")
+        raw_overrides = tf_resource.get("overrides")
+        if raw_overrides:
+            overrides = yaml.safe_load(raw_overrides)
+            engine_version = overrides.get("engine_version", engine_version)
 
         output_resource_name = tf_resource["output_resource_name"]
         if output_resource_name is None:

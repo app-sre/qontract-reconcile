@@ -1440,6 +1440,7 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
           identifier
           output_resource_name
           defaults
+          overrides
         }
       }
       cluster
