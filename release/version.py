@@ -73,7 +73,7 @@ def pip(git_version: Optional[str] = None) -> str:
     - if a X.Y.Z tag is set on the current HEAD, we'll use this
     - else we'll use X.Y.(Z+1).pre<count>+<commitid> to respect PEP-0440 versioning
     """
-    return semver(git_version).replace("-", ".pre")
+    return semver(git_version).replace("-", ".pre").split("+", maxsplit=1)[0]
     # Alternatively, use postreleases
     # v = git_version or git()
     # m = re.match(r"(\d+)\.(\d+)\.(\d+)-(\d+)-g(.+)", v)
@@ -85,7 +85,7 @@ def pip(git_version: Optional[str] = None) -> str:
 
 def docker(git_version: Optional[str] = None) -> str:
     # docker tags don't like '+' characters, let's remove the buildinfo/commitid
-    return pip(git_version).split("+", maxsplit=1)[0]
+    return pip(git_version)
 
 
 if __name__ == "__main__":

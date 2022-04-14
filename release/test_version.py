@@ -25,32 +25,24 @@ def test_semver_ordering():
 
 def test_version_pip():
     assert version.pip("0.4.0") == "0.4.0"
-    assert version.pip("0.4.0-6-gaaaaaaa") == "0.4.1.pre6+aaaaaaa"
-    # assert version.pip("0.4.0-6-gaaaaaaa") == "0.4.0.post6+aaaaaaa"
+    assert version.pip("0.4.0-6-gaaaaaaa") == "0.4.1.pre6"
+    # assert version.pip("0.4.0-6-gaaaaaaa") == "0.4.0.post6"
 
 
 def test_pep440_ordering():
     assert pep440.Version("0.4.1") > pep440.Version("0.4.0")
 
     # using pre-releases
-    assert pep440.Version("0.4.1.pre6+aaaaaaa") > pep440.Version("0.4.0")
-    assert pep440.Version("0.4.1.pre6+aaaaaaa") < pep440.Version("0.4.1")
-    # local versions (after '+') count in version comparisions
-    assert pep440.Version("0.4.1.pre6+aaaaaaa") != pep440.Version("0.4.1.pre6+bbbbbbb")
-    assert pep440.Version("0.4.1.pre6+aaaaaaa") > pep440.Version("0.4.1.pre5+bbbbbbb")
-    assert pep440.Version("0.4.1.pre50+aaaaaaa") > pep440.Version("0.4.1.pre6+ccccccc")
+    assert pep440.Version("0.4.1.pre6") > pep440.Version("0.4.0")
+    assert pep440.Version("0.4.1.pre6") < pep440.Version("0.4.1")
+    assert pep440.Version("0.4.1.pre6") > pep440.Version("0.4.1.pre5")
+    assert pep440.Version("0.4.1.pre50") > pep440.Version("0.4.1.pre6")
 
     # using post-releases
-    assert pep440.Version("0.4.0.post6+aaaaaaa") > pep440.Version("0.4.0")
-    assert pep440.Version("0.4.0.post6+aaaaaaa") < pep440.Version("0.4.1")
-    # local versions (after '+') count in version comparisions
-    assert pep440.Version("0.4.0.post6+aaaaaaa") != pep440.Version(
-        "0.4.0.post6+bbbbbbb"
-    )
-    assert pep440.Version("0.4.0.post6+aaaaaaa") > pep440.Version("0.4.0.post5+bbbbbbb")
-    assert pep440.Version("0.4.0.post50+aaaaaaa") > pep440.Version(
-        "0.4.0.post6+ccccccc"
-    )
+    assert pep440.Version("0.4.0.post6") > pep440.Version("0.4.0")
+    assert pep440.Version("0.4.0.post6") < pep440.Version("0.4.1")
+    assert pep440.Version("0.4.0.post6") > pep440.Version("0.4.0.post5")
+    assert pep440.Version("0.4.0.post50") > pep440.Version("0.4.0.post6")
 
 
 def test_version_docker():
