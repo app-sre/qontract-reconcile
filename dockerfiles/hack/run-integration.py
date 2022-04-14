@@ -142,13 +142,13 @@ def main():
         start_time = time.monotonic()
         # Running the integration via Click, so we don't have to replicate
         # the CLI logic here
+        execution_counter.labels(
+            integration=INTEGRATION_NAME,
+            shards=SHARDS,
+            shard_id=SHARD_ID,
+            **extra_labels
+        ).inc()
         try:
-            execution_counter.labels(
-                integration=INTEGRATION_NAME,
-                shards=SHARDS,
-                shard_id=SHARD_ID,
-                **extra_labels
-            ).inc()
             with command.make_context(info_name=COMMAND_NAME, args=args) \
               as ctx:
                 ctx.ensure_object(dict)
