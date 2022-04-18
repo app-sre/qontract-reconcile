@@ -7,7 +7,6 @@ import tempfile
 import xml.etree.ElementTree as et
 import json
 import re
-import importlib
 
 from os import path
 from contextlib import contextmanager
@@ -30,39 +29,6 @@ from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.exceptions import FetchResourceError
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
-
-
-# Monkey patch md5 for fedramp fips compliance
-# http://blog.serindu.com/2019/11/12/django-in-fips-mode/
-
-
-def _non_security_md5(*args, **kwargs):
-    kwargs["usedforsecurity"] = False
-    return hashlib.md5(*args, **kwargs)
-
-
-def monkey_patch_md5(to_patch):
-    HASHLIB_SPEC = importlib.util.find_spec("hashlib")
-    patched_hashlib = importlib.util.module_from_spec(HASHLIB_SPEC)
-    HASHLIB_SPEC.loader.exec_module(patched_hashlib)
-    patched_hashlib.md5 = _non_security_md5
-    for module_name in to_patch:
-        module = importlib.import_module(module_name)
-        module.hashlib = patched_hashlib
-
-
-modules_to_patch = [
-    "jenkins_jobs.xml_config",
-    "jenkins_jobs.builder",
-]
-
-try:
-    import hashlib
-
-    hashlib.md5()
-except ValueError:
-    monkey_patch_md5(modules_to_patch)
-
 
 class JJB:  # pylint: disable=too-many-public-methods
     """Wrapper around Jenkins Jobs"""
