@@ -213,4 +213,16 @@ integrations:
   logs:
     slack: false
   disableUnleash: true
-
+cronjobs:
+- name: resource-scraper
+  resources:
+    requests:
+      memory: 200Mi
+      cpu: 200m
+    limits:
+      memory: 400Mi
+      cpu: 300m
+  # once a day at midnight
+  cron: '0 0 * * *'
+  extraArgs: --namespace-name openshift-sre-token-scraper --resource-kind Secret --vault-output-path osd-fedramp/integrations-output
+  disableUnleash: true

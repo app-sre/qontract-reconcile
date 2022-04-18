@@ -353,6 +353,7 @@ objects:
                   configMapKeyRef:
                     name: app-interface
                     key: GITHUB_API
+              {{- if not $integration.disableUnleash }}
               - name: UNLEASH_API_URL
                 valueFrom:
                   secretKeyRef:
@@ -363,6 +364,7 @@ objects:
                   secretKeyRef:
                     name: unleash
                     key: CLIENT_ACCESS_TOKEN
+              {{- end }}
               {{- with $integration.extraEnv }}
               {{- range $i, $env := . }}
               {{- if $env.secretKey}}
