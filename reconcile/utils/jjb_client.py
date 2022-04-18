@@ -30,6 +30,7 @@ from reconcile.utils.exceptions import FetchResourceError
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
+
 class JJB:  # pylint: disable=too-many-public-methods
     """Wrapper around Jenkins Jobs"""
 
