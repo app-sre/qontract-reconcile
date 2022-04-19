@@ -10,7 +10,6 @@ from ruamel import yaml
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
-from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
@@ -18,6 +17,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile.utils.state import State
 from reconcile.status import ExitCodes
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 
 
 QONTRACT_INTEGRATION = "sql-query"
@@ -110,7 +110,7 @@ data:
 """
 
 
-def get_tf_resource_info(namespace, identifier):
+def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     """
     Extracting the terraformResources information from the namespace
     for a given identifier
@@ -130,20 +130,15 @@ def get_tf_resource_info(namespace, identifier):
         if tf_resource["provider"] != "rds":
             continue
 
-        defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
-        defaults = yaml.safe_load(defaults_ref["content"])
-
-        output_resource_name = tf_resource["output_resource_name"]
-        if output_resource_name is None:
-            output_resource_name = (
-                f'{tf_resource["identifier"]}-' f'{tf_resource["provider"]}'
-            )
+        _, _, values, _, output_resource_name, _ = terrascript.init_values(
+            tf_resource, namespace
+        )
 
         return {
             "cluster": namespace["cluster"]["name"],
             "output_resource_name": output_resource_name,
-            "engine": defaults.get("engine", "postgres"),
-            "engine_version": defaults.get("engine_version", "latest"),
+            "engine": values.get("engine", "postgres"),
+            "engine_version": values.get("engine_version", "latest"),
         }
 
 
@@ -169,6 +164,12 @@ def collect_queries(query_name=None, settings=None):
     }
 
     sql_queries = queries.get_app_interface_sql_queries()
+    # initiating terrascript with an empty list of accounts,
+    # as we are not really initiating terraform configuration
+    # but only using inner functions.
+    terrascript = Terrascript(
+        QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings
+    )
 
     for sql_query in sql_queries:
         name = sql_query["name"]
@@ -222,7 +223,7 @@ def collect_queries(query_name=None, settings=None):
 
         # Extracting the terraformResources information from the namespace
         # fo the given identifier
-        tf_resource_info = get_tf_resource_info(namespace, identifier)
+        tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:
             logging.error(
                 ["Could not find rds identifier %s in namespace %s"],

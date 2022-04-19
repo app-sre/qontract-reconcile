@@ -1437,9 +1437,11 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
         provider
         ... on NamespaceTerraformResourceRDS_v1
         {
+          account
           identifier
           output_resource_name
           defaults
+          overrides
         }
       }
       cluster
