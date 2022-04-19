@@ -19,6 +19,7 @@ from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.smtp_client import SmtpClient
 from reconcile.utils.state import State
 from reconcile.status import ExitCodes
+from reconcile.utils.terrascript_client import TerrascriptClient as Terrascript
 
 
 QONTRACT_INTEGRATION = "sql-query"
@@ -111,21 +112,7 @@ data:
 """
 
 
-def determine_engine(tf_resource: dict) -> Tuple[str, str]:
-    defaults_ref = gql.get_api().get_resource(tf_resource["defaults"])
-    defaults = yaml.safe_load(defaults_ref["content"])
-    engine = defaults.get("engine", "postgres")
-    engine_version = defaults.get("engine_version", "latest")
-    raw_overrides = tf_resource.get("overrides")
-    if raw_overrides:
-        overrides = yaml.safe_load(raw_overrides)
-        engine = overrides.get("engine", engine)
-        engine_version = overrides.get("engine_version", engine_version)
-
-    return engine, engine_version
-    
-
-def get_tf_resource_info(namespace, identifier):
+def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
     """
     Extracting the terraformResources information from the namespace
     for a given identifier
@@ -145,23 +132,19 @@ def get_tf_resource_info(namespace, identifier):
         if tf_resource["provider"] != "rds":
             continue
 
-        engine, engine_version = determine_engine(tf_resource)
-
-        output_resource_name = tf_resource["output_resource_name"]
-        if output_resource_name is None:
-            output_resource_name = (
-                f'{tf_resource["identifier"]}-' f'{tf_resource["provider"]}'
-            )
+        _, _, values, _, output_resource_name, _ = terrascript.init_values(
+            tf_resource, namespace
+        )
 
         return {
             "cluster": namespace["cluster"]["name"],
             "output_resource_name": output_resource_name,
-            "engine": engine,
-            "engine_version": engine_version,
+            "engine": values.get("engine", "postgres"),
+            "engine_version": values.get("engine_version", "latest"),
         }
 
 
-def collect_queries(query_name=None, settings=None):
+def collect_queries(terrascript: Terrascript, query_name=None, settings=None):
     """
     Consults the app-interface and constructs the list of queries
     to be executed.
@@ -236,7 +219,7 @@ def collect_queries(query_name=None, settings=None):
 
         # Extracting the terraformResources information from the namespace
         # fo the given identifier
-        tf_resource_info = get_tf_resource_info(namespace, identifier)
+        tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:
             logging.error(
                 ["Could not find rds identifier %s in namespace %s"],
@@ -466,8 +449,9 @@ def run(dry_run, enable_deletion=False):
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
+    terrascript = Terrascript(QONTRACT_INTEGRATION, "", 1, accounts, settings=settings)
 
-    queries_list = collect_queries(settings=settings)
+    queries_list = collect_queries(terrascript, settings=settings)
     remove_candidates = []
     for query in queries_list:
         query_name = query["name"]
