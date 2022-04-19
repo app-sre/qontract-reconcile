@@ -16,6 +16,12 @@ run_status = Gauge(
     labelnames=["integration", "shards", "shard_id"] + label_keys,
 )
 
+execution_counter = Counter(
+    name="qontract_reconcile_execution_counter",
+    documentation="Counts started integration executions",
+    labelnames=["integration", "shards", "shard_id"] + label_keys,
+)
+
 reconcile_time = Histogram(
     name="qontract_reconcile_function_" "elapsed_seconds_since_bundle_commit",
     documentation="Run time seconds for tracked " "functions",
