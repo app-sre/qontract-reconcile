@@ -449,6 +449,9 @@ def run(dry_run, enable_deletion=False):
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
+    # initiating terrascript with an empty list of accounts,
+    # as we are not really initiating terraform configuration
+    # but only using inner functions.
     terrascript = Terrascript(QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings)
 
     queries_list = collect_queries(terrascript, settings=settings)
