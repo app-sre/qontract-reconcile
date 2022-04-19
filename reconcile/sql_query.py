@@ -449,7 +449,7 @@ def run(dry_run, enable_deletion=False):
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    terrascript = Terrascript(QONTRACT_INTEGRATION, "", 1, accounts, settings=settings)
+    terrascript = Terrascript(QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings)
 
     queries_list = collect_queries(terrascript, settings=settings)
     remove_candidates = []
