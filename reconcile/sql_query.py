@@ -142,7 +142,7 @@ def get_tf_resource_info(terrascript: Terrascript, namespace, identifier):
         }
 
 
-def collect_queries(terrascript: Terrascript, query_name=None, settings=None):
+def collect_queries(query_name=None, settings=None):
     """
     Consults the app-interface and constructs the list of queries
     to be executed.
@@ -164,6 +164,12 @@ def collect_queries(terrascript: Terrascript, query_name=None, settings=None):
     }
 
     sql_queries = queries.get_app_interface_sql_queries()
+    # initiating terrascript with an empty list of accounts,
+    # as we are not really initiating terraform configuration
+    # but only using inner functions.
+    terrascript = Terrascript(
+        QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings
+    )
 
     for sql_query in sql_queries:
         name = sql_query["name"]
@@ -447,14 +453,8 @@ def run(dry_run, enable_deletion=False):
     state = State(
         integration=QONTRACT_INTEGRATION, accounts=accounts, settings=settings
     )
-    # initiating terrascript with an empty list of accounts,
-    # as we are not really initiating terraform configuration
-    # but only using inner functions.
-    terrascript = Terrascript(
-        QONTRACT_INTEGRATION, "", 1, accounts=[], settings=settings
-    )
 
-    queries_list = collect_queries(terrascript, settings=settings)
+    queries_list = collect_queries(settings=settings)
     remove_candidates = []
     for query in queries_list:
         query_name = query["name"]
