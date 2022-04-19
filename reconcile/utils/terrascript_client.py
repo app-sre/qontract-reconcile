@@ -500,8 +500,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     policy = \
                         policy.replace('${aws:accountid}', account_uid)
 
-                    # Ref: terraform aws_iam_policy
+                    # Ref: terraform aws iam_user
                     tf_iam_user = self.get_tf_iam_user(user_name)
+                    self.add_resource(account_name, tf_iam_user)
+
+                    # Ref: terraform aws_iam_policy
                     identifier = f'{user_name}-{policy_name}'
                     tf_aws_iam_policy = aws_iam_policy(
                         identifier,
