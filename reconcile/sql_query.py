@@ -3,7 +3,6 @@ import sys
 import time
 
 from textwrap import indent
-from typing import Tuple
 
 import jinja2
 from ruamel import yaml
@@ -11,7 +10,6 @@ from ruamel import yaml
 from reconcile import openshift_base
 from reconcile import openshift_resources_base as orb
 from reconcile import queries
-from reconcile.utils import gql
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.oc import StatusCodeError
