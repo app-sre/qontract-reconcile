@@ -10,6 +10,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-slack-usergroups
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-slack-usergroups
   spec:
     replicas: 1
@@ -205,6 +207,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-rolebindings
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-rolebindings
   spec:
     replicas: 1
@@ -414,6 +418,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-clusterrolebindings
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-clusterrolebindings
   spec:
     replicas: 1
@@ -623,6 +629,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-users
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-users
   spec:
     replicas: 1
@@ -818,6 +826,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-upgrade-watcher
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-upgrade-watcher
   spec:
     replicas: 1
@@ -1002,6 +1012,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-groups
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-groups
   spec:
     replicas: 1
@@ -1197,6 +1209,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-namespace-labels
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-namespace-labels
   spec:
     replicas: 1
@@ -1413,6 +1427,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-namespaces
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-namespaces
   spec:
     replicas: 1
@@ -1622,6 +1638,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-network-policies
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-network-policies
   spec:
     replicas: 1
@@ -1831,6 +1849,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-limitranges
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-limitranges
   spec:
     replicas: 1
@@ -2026,6 +2046,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-resourcequotas
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-resourcequotas
   spec:
     replicas: 1
@@ -2203,6 +2225,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-resources
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-resources
   spec:
     replicas: 1
@@ -2394,6 +2418,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-vault-secrets
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-vault-secrets
   spec:
     replicas: 1
@@ -2585,6 +2611,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-routes
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-routes
   spec:
     replicas: 1
@@ -2762,6 +2790,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-serviceaccount-tokens
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-serviceaccount-tokens
   spec:
     replicas: 1
@@ -2971,6 +3001,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-configs-0
   spec:
     replicas: 1
@@ -3173,6 +3205,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-configs-1
   spec:
     replicas: 1
@@ -3375,6 +3409,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-configs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-configs-2
   spec:
     replicas: 1
@@ -3577,6 +3613,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits-0
   spec:
     replicas: 1
@@ -3779,6 +3817,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits-1
   spec:
     replicas: 1
@@ -3981,6 +4021,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits-2
   spec:
     replicas: 1
@@ -4183,6 +4225,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits-3
   spec:
     replicas: 1
@@ -4385,6 +4429,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-moving-commits-4
   spec:
     replicas: 1
@@ -4587,6 +4633,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs-0
   spec:
     replicas: 1
@@ -4789,6 +4837,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs-1
   spec:
     replicas: 1
@@ -4991,6 +5041,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-upstream-jobs-2
   spec:
     replicas: 1
@@ -5193,6 +5245,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-saas-deploy-trigger-cleaner
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-saas-deploy-trigger-cleaner
   spec:
     replicas: 1
@@ -5388,6 +5442,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-openshift-tekton-resources
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-openshift-tekton-resources
   spec:
     replicas: 1
@@ -5597,6 +5653,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-terraform-resources
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-terraform-resources
   spec:
     replicas: 1
@@ -5788,6 +5846,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-projects
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-projects
   spec:
     replicas: 1
@@ -5983,6 +6043,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-members
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-members
   spec:
     replicas: 1
@@ -6178,6 +6240,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-permissions
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-permissions
   spec:
     replicas: 1
@@ -6373,6 +6437,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-owners
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-owners
   spec:
     replicas: 1
@@ -6550,6 +6616,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-housekeeping
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-housekeeping
   spec:
     replicas: 1
@@ -6727,6 +6795,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jenkins-job-builder
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-jenkins-job-builder
   spec:
     volumeClaimTemplates:
@@ -6922,6 +6992,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jenkins-job-cleaner
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-jenkins-job-cleaner
   spec:
     volumeClaimTemplates:
@@ -7128,6 +7200,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jenkins-roles
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-jenkins-roles
   spec:
     replicas: 1
@@ -7323,6 +7397,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jenkins-webhooks
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-jenkins-webhooks
   spec:
     volumeClaimTemplates:
@@ -7529,6 +7605,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-jenkins-webhooks-cleaner
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-jenkins-webhooks-cleaner
   spec:
     replicas: 1
@@ -7724,6 +7802,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-gitlab-mr-sqs-consumer
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-gitlab-mr-sqs-consumer
   spec:
     replicas: 1
@@ -7913,6 +7993,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-status-page-components
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     name: qontract-reconcile-status-page-components
   spec:
     replicas: 1
