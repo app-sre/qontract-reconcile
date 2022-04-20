@@ -1,8 +1,10 @@
+import sys
 import logging
 
 from collections import defaultdict
 
 from reconcile import queries
+from reconcile.status import ExitCodes
 from reconcile.utils.ldap_client import LdapClient
 
 from reconcile import mr_client_gateway
@@ -54,3 +56,8 @@ def run(dry_run, gitlab_project_id=None):
         if not dry_run:
             mr = CreateDeleteUser(username, paths)
             mr.submit(cli=mr_cli)
+
+    # this is to avoid merging user files
+    # which will be immediately deleted
+    if dry_run and users_to_delete:
+        sys.exit(ExitCodes.ERROR)
