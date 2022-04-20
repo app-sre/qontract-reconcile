@@ -17,6 +17,8 @@ objects:
   metadata:
     labels:
       app: qontract-reconcile-{{ $integration.name }}
+    annotations:
+      ignore-check.kube-linter.io/minimum-three-replicas : "qontract-reconcile integrations are sharded and not replicated"
     {{- if gt $shards 1 }}
     name: qontract-reconcile-{{ $integration.name }}-{{ $shard_id }}
     {{- else }}
