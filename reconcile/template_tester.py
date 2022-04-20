@@ -1,6 +1,7 @@
 import logging
 import sys
 import yaml
+import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
 
 from reconcile.status import ExitCodes
@@ -36,6 +37,7 @@ def run(dry_run):
         resource_path = tt["resourcePath"]
         expected_result = load_resource(tt["expectedResult"])
         for n in gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]:
+            ob.aggregate_shared_resources(n, "openshiftResources")
             openshift_resources = n.get("openshiftResources")
             if not openshift_resources:
                 continue
