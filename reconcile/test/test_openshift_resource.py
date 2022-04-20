@@ -5,6 +5,7 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ConstructResourceError,
     build_secret,
+    ResourceInventory,
 )
 
 
@@ -14,6 +15,22 @@ fxt = Fixtures("openshift_resource")
 
 TEST_INT = "test_openshift_resources"
 TEST_INT_VER = make_semver(1, 9, 2)
+
+
+def build_resource(kind: str, api_version: str, name: str):
+    body = {
+        "kind": kind,
+        "apiVersion": api_version,
+        "metadata": {
+            "name": name,
+        },
+    }
+    return OR(body, "int", "int-v")
+
+
+#
+# OpenshiftResource tests
+#
 
 
 def test_verify_valid_k8s_object():
@@ -204,3 +221,133 @@ def test_build_secret():
     assert len(res.body["data"]) == 2
     assert res.body["data"]["field"] == encoded_value
     assert not res.body["data"]["empty"]
+
+
+def test_openshift_resource_kind_and_group():
+    res = build_resource("Deployment", "apps/v1", "foo")
+    assert res.kind_and_group == "Deployment.apps"
+
+
+def test_openshift_resource_kind_no_group():
+    res = build_resource("Pod", "v1", "foo")
+    assert res.kind_and_group == "Pod"
+
+
+#
+# ResourceInventory tests
+#
+
+
+def test_resource_inventory_add_desired():
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment"
+    )
+    res = build_resource("Deployment", "apps/v1", "foo")
+    ri.add_desired("cl", "ns", "Deployment", "name", res)
+
+    for cluster_name, namespace_name, resource_type, resource in ri:
+        assert cluster_name == "cl"
+        assert namespace_name == "ns"
+        assert resource_type == "Deployment"
+        assert resource["desired"]["name"] == res
+        assert not resource["use_admin_token"]["name"]
+
+
+def test_resource_inventory_add_desired_without_registration():
+    """
+    test that adding a desired state fails if the type has not been
+    registered upfront
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="ApprovedType"
+    )
+
+    with pytest.raises(KeyError):
+        res = build_resource("AnotherType", "apps/v1", "foo")
+        ri.add_desired("cl", "ns", "AnotherType", "name", res)
+
+
+def test_resource_inventory_add_desired_privileged():
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl",
+        namespace="ns",
+        resource_type="Deployment",
+    )
+    res = build_resource("Deployment", "apps/v1", "foo")
+    ri.add_desired("cl", "ns", "Deployment", "name", res, privileged=True)
+
+    for cluster_name, namespace_name, resource_type, resource in ri:
+        assert cluster_name == "cl"
+        assert namespace_name == "ns"
+        assert resource_type == "Deployment"
+        assert resource["desired"]["name"] == res
+        assert resource["use_admin_token"]["name"]
+
+
+def test_resource_inventory_add_desired_resource_short_kind():
+    """
+    test that add_desired_resource uses the short kind name if the short
+    name has been registered for the namespace
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment"
+    )
+    res = build_resource("Deployment", "apps/v1", "foo")
+    ri.add_desired_resource("cl", "ns", res)
+
+    assert len(list(ri)) == 1
+
+    cluster_name, namespace_name, resource_type, resource = list(ri)[0]
+    assert cluster_name == "cl"
+    assert namespace_name == "ns"
+    assert resource_type == "Deployment"
+    assert resource["desired"].get("foo")
+
+
+def test_resource_inventory_add_desired_resource_long_kind():
+    """
+    test that add_desired_resource uses the long kind name if the long
+    name has been registered for the namespace
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment.apps"
+    )
+    res = build_resource("Deployment", "apps/v1", "foo")
+    ri.add_desired_resource("cl", "ns", res)
+
+    assert len(list(ri)) == 1
+
+    cluster_name, namespace_name, resource_type, resource = list(ri)[0]
+    assert cluster_name == "cl"
+    assert namespace_name == "ns"
+    assert resource_type == "Deployment.apps"
+    assert resource["desired"].get("foo")
+
+
+def test_resource_inventory_add_desired_resource_mixed_kinds():
+    """
+    test that add_desired_resource prefers the long kind name if both the long
+    and short kind have been registered with the namespace
+    """
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment.apps"
+    )
+    ri.initialize_resource_type(
+        cluster="cl", namespace="ns", resource_type="Deployment"
+    )
+    res = build_resource("Deployment", "apps/v1", "foo")
+    ri.add_desired_resource("cl", "ns", res)
+
+    assert len(list(ri)) == 2
+
+    for _, _, resource_type, resource in ri:
+        if resource_type == "Deployments.app":
+            assert resource["desired"].get("foo")
+        elif resource_type == "Deployment":
+            assert len(resource["desired"]) == 0

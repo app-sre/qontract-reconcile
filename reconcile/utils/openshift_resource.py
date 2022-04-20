@@ -179,6 +179,10 @@ class OpenshiftResource:
         return self.body["kind"]
 
     @property
+    def kind_and_group(self):
+        return full_qualified_kind(self.kind, self.body["apiVersion"])
+
+    @property
     def caller(self):
         try:
             return (
@@ -498,6 +502,14 @@ class OpenshiftResource:
         return m.hexdigest()
 
 
+def full_qualified_kind(kind: str, api_version: str) -> str:
+    if "/" in api_version:
+        group = api_version.split("/")[0]
+        return f"{kind}.{group}"
+    else:
+        return kind
+
+
 class ResourceInventory:
     def __init__(self):
         self._clusters = {}
@@ -514,6 +526,26 @@ class ResourceInventory:
 
     def is_cluster_present(self, cluster: str) -> bool:
         return cluster in self._clusters
+
+    def add_desired_resource(
+        self,
+        cluster: str,
+        namespace: str,
+        resource: OpenshiftResource,
+        privileged: bool = False,
+    ):
+        if resource.kind_and_group in self._clusters[cluster][namespace]:
+            kind = resource.kind_and_group
+        else:
+            kind = resource.kind
+        self.add_desired(
+            cluster=cluster,
+            namespace=namespace,
+            resource_type=kind,
+            name=resource.name,
+            value=resource,
+            privileged=privileged,
+        )
 
     def add_desired(
         self, cluster, namespace, resource_type, name, value, privileged=False
