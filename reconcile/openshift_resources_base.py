@@ -634,11 +634,9 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent, privileged
 
     # add to inventory
     try:
-        ri.add_desired(
+        ri.add_desired_resource(
             cluster,
             namespace,
-            openshift_resource.kind,
-            openshift_resource.name,
             openshift_resource,
             privileged,
         )

@@ -7,7 +7,7 @@ import itertools
 import hashlib
 import re
 from collections import ChainMap
-from typing import Iterable, Mapping, Any, MutableMapping, Tuple
+from typing import Iterable, Mapping, Any, MutableMapping, Tuple, cast
 
 from contextlib import suppress
 import yaml
@@ -25,6 +25,7 @@ from reconcile.utils.oc import OC, StatusCodeError
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
     ResourceInventory,
+    full_qualified_kind,
     ResourceKeyExistsError,
 )
 from reconcile.utils.secret_reader import SecretReader
@@ -1056,9 +1057,15 @@ class SaasHerder:
         # filter resources
         rs = []
         for r in resources:
-            if isinstance(r, dict):
-                kind = r.get("kind")
-                if kind in managed_resource_types:
+            if isinstance(r, dict) and "kind" in r and "apiVersion" in r:
+                kind = cast(str, r.get("kind"))
+                kind_and_group = full_qualified_kind(
+                    kind, cast(str, r.get("apiVersion"))
+                )
+                if (
+                    kind in managed_resource_types
+                    or kind_and_group in managed_resource_types
+                ):
                     rs.append(r)
                 else:
                     logging.info(
@@ -1090,11 +1097,9 @@ class SaasHerder:
                 error_details=html_url,
             )
             try:
-                ri.add_desired(
+                ri.add_desired_resource(
                     cluster,
                     namespace,
-                    resource_kind,
-                    resource_name,
                     oc_resource,
                     privileged=spec["privileged"],
                 )
