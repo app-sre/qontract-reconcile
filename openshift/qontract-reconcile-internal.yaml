@@ -8297,7 +8297,7 @@ objects:
       app: qontract-reconcile-ldap-users
     name: qontract-reconcile-ldap-users
   spec:
-    schedule: "0 * * * *"
+    schedule: "* * * * *"
     concurrencyPolicy: Allow
     successfulJobHistoryLimit: 3
     failedJobHistoryLimit: 1
