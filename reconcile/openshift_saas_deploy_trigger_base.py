@@ -9,6 +9,7 @@ import reconcile.jenkins_plugins as jenkins_base
 
 from reconcile import queries
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.jenkins_job_builder import get_openshift_saas_deploy_job_name
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.saasherder import (
@@ -32,6 +33,8 @@ def run(
     thread_pool_size,
     internal,
     use_jump_host,
+    v1=True,
+    v2=True,
     defer=None,
 ):
     """Run trigger integration
@@ -45,6 +48,8 @@ def run(
         thread_pool_size (int): Thread pool size to use
         internal (bool): Should run for internal/extrenal/all clusters
         use_jump_host (bool): Should use jump host to reach clusters
+        v1 (bool): Should trigger for v1 SaaS files
+        v2 (bool): Should trigger for v2 SaaS files
 
     Returns:
         bool: True if there was an error, False otherwise
@@ -55,6 +60,8 @@ def run(
         use_jump_host=use_jump_host,
         integration=integration,
         integration_version=integration_version,
+        v1=v1,
+        v2=v2,
     )
     if error:
         return error
@@ -84,7 +91,9 @@ def run(
     return any(errors)
 
 
-def setup(thread_pool_size, internal, use_jump_host, integration, integration_version):
+def setup(
+    thread_pool_size, internal, use_jump_host, integration, integration_version, v1, v2
+):
     """Setup required resources for triggering integrations
 
     Args:
@@ -93,6 +102,8 @@ def setup(thread_pool_size, internal, use_jump_host, integration, integration_ve
         use_jump_host (bool): Should use jump host to reach clusters
         integration (string): Name of calling integration
         integration_version (string): Version of calling integration
+        v1 (bool): Should trigger for v1 SaaS files
+        v2 (bool): Should trigger for v2 SaaS files
 
     Returns:
         saasherder (SaasHerder): a SaasHerder instance
@@ -102,7 +113,7 @@ def setup(thread_pool_size, internal, use_jump_host, integration, integration_ve
         error (bool): True if one happened, False otherwise
     """
 
-    saas_files = queries.get_saas_files()
+    saas_files = queries.get_saas_files(v1=v1, v2=v2)
     if not saas_files:
         logging.error("no saas files found")
         return None, None, None, None, True
@@ -186,7 +197,18 @@ def trigger(
     provider_name = spec["pipelines_provider"]["provider"]
 
     error = False
-    if provider_name == Providers.TEKTON:
+    if provider_name == Providers.JENKINS:
+        error = _trigger_jenkins(
+            spec,
+            dry_run,
+            saasherder,
+            jenkins_map,
+            already_triggered,
+            settings,
+            trigger_type,
+        )
+
+    elif provider_name == Providers.TEKTON:
         error = _trigger_tekton(
             spec,
             dry_run,
@@ -197,9 +219,42 @@ def trigger(
             integration,
             integration_version,
         )
+
     else:
         error = True
         logging.error(f"[{saas_file_name}] unsupported provider: " + f"{provider_name}")
+
+    return error
+
+
+def _trigger_jenkins(
+    spec, dry_run, saasherder, jenkins_map, already_triggered, settings, trigger_type
+):
+    # TODO: Convert these into a dataclass.
+    saas_file_name = spec["saas_file_name"]
+    env_name = spec["env_name"]
+    pipelines_provider = spec["pipelines_provider"]
+
+    instance_name = pipelines_provider["instance"]["name"]
+    job_name = get_openshift_saas_deploy_job_name(saas_file_name, env_name, settings)
+
+    error = False
+    to_trigger = _register_trigger(job_name, already_triggered)
+    if to_trigger:
+        logging.info(["trigger_job", instance_name, job_name])
+        if not dry_run:
+            jenkins = jenkins_map[instance_name]
+            try:
+                jenkins.trigger_job(job_name)
+            except Exception as e:
+                error = True
+                logging.error(
+                    f"could not trigger job {job_name} "
+                    + f"in {instance_name}. details: {str(e)}"
+                )
+
+    if not error and not dry_run:
+        saasherder.update_state(trigger_type, spec)
 
     return error
 

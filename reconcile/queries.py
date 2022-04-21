@@ -1486,6 +1486,190 @@ def get_app_interface_sql_queries():
     return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)['sql_queries']
 
 
+SAAS_FILES_QUERY_V1 = """
+{
+  saas_files: saas_files_v1 {
+    path
+    name
+    app {
+      name
+    }
+    instance {
+      name
+      serverUrl
+      token {
+        path
+        field
+        version
+        format
+      }
+      deleteMethod
+    }
+    slack {
+      output
+      workspace {
+        name
+        integrations {
+          name
+          token {
+            path
+            field
+            version
+            format
+          }
+          channel
+          icon_emoji
+          username
+        }
+      }
+      channel
+      notifications {
+        start
+      }
+    }
+    managedResourceTypes
+    takeover
+    compare
+    timeout
+    publishJobLogs
+    clusterAdmin
+    imagePatterns
+    use_channel_in_image_tag
+    authentication {
+      code {
+        path
+        field
+        version
+        format
+      }
+      image {
+        path
+        field
+        version
+        format
+      }
+    }
+    parameters
+    secretParameters {
+      name
+      secret {
+        path
+        field
+        version
+        format
+      }
+    }
+    resourceTemplates {
+      name
+      url
+      path
+      provider
+      hash_length
+      parameters
+      secretParameters {
+        name
+        secret {
+          path
+          field
+          version
+          format
+        }
+      }
+      targets {
+        namespace {
+          name
+          environment {
+            name
+            parameters
+            secretParameters {
+              name
+              secret {
+                path
+                field
+                version
+                format
+              }
+            }
+          }
+          app {
+            name
+          }
+          cluster {
+            name
+            serverUrl
+            insecureSkipTLSVerify
+            jumpHost {
+                hostname
+                knownHosts
+                user
+                port
+                identity {
+                  path
+                  field
+                  version
+                  format
+                }
+            }
+            automationToken {
+              path
+              field
+              version
+              format
+            }
+            clusterAdminAutomationToken {
+              path
+              field
+              version
+              format
+            }
+            internal
+            disable {
+              integrations
+            }
+          }
+        }
+        ref
+        promotion {
+          auto
+          publish
+          subscribe
+          promotion_data {
+            channel
+            data {
+              type
+              ... on ParentSaasPromotion_v1 {
+                parent_saas
+                target_config_hash
+              }
+            }
+          }
+        }
+        parameters
+        secretParameters {
+          name
+          secret {
+            path
+            field
+            version
+            format
+          }
+        }
+        upstream
+        disable
+        delete
+      }
+    }
+    roles {
+      users {
+        org_username
+        tag_on_merge_requests
+      }
+    }
+  }
+}
+"""
+
+
 SAAS_FILES_QUERY_V2 = """
 {
   saas_files: saas_files_v2 {
@@ -1722,10 +1906,23 @@ SAAS_FILES_QUERY_V2 = """
 """
 
 
-def get_saas_files(saas_file_name=None, env_name=None, app_name=None):
-    """ Returns SaasFile resources defined in app-interface."""
+def get_saas_files(saas_file_name=None, env_name=None, app_name=None,
+                   v1=True,
+                   v2=False):
+    """ Returns SaasFile resources defined in app-interface.
+    Returns v1 saas files by default. """
     gqlapi = gql.get_api()
-    saas_files = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
+    saas_files = []
+    if v1:
+        saas_files_v1 = gqlapi.query(SAAS_FILES_QUERY_V1)['saas_files']
+        for sf in saas_files_v1:
+            sf['apiVersion'] = 'v1'
+        saas_files.extend(saas_files_v1)
+    if v2:
+        saas_files_v2 = gqlapi.query(SAAS_FILES_QUERY_V2)['saas_files']
+        for sf in saas_files_v2:
+            sf['apiVersion'] = 'v2'
+        saas_files.extend(saas_files_v2)
 
     if saas_file_name is None and env_name is None and app_name is None:
         return saas_files
