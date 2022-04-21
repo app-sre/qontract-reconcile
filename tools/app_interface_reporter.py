@@ -222,7 +222,7 @@ class Report:
 def get_apps_data(date, month_delta=1, thread_pool_size=10):
     apps = queries.get_apps()
     saas_files = queries.get_saas_files()
-    jjb, _ = init_jjb()
+    jjb = init_jjb()
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = int(time_limit.replace(tzinfo=timezone.utc).timestamp())

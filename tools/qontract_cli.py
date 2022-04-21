@@ -550,7 +550,7 @@ def aws_creds(ctx, account_name):
 @click.argument('job_name')
 @click.pass_context
 def jenkins_job_vault_secrets(ctx, instance_name, job_name):
-    jjb, _ = init_jjb(instance_name, config_name=None, print_only=True)
+    jjb = init_jjb(instance_name, config_name=None, print_only=True)
     jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
     if not jobs:
         print(f"{instance_name}/{job_name} not found.")
