@@ -1449,7 +1449,7 @@ class SaasHerder:
         return configs
 
     @staticmethod
-    def _get_pipelines_provider(saas_file):
+    def _get_pipelines_provider(saas_file: Mapping[str, Any]) -> str:
         return saas_file["pipelinesProvider"]
 
     @staticmethod
