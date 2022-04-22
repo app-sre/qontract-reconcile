@@ -4,11 +4,9 @@ import sys
 from reconcile.utils import gql
 from reconcile.utils import expiration
 
-from reconcile.utils.aggregated_list import (
-    AggregatedList,
-    AggregatedDiffRunner,
-    RunnerException,
-)
+from reconcile.utils.aggregated_list import (AggregatedList,
+                                             AggregatedDiffRunner,
+                                             RunnerException)
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
 from reconcile.utils.quay_api import QuayTeamNotFoundException
@@ -42,7 +40,7 @@ QUAY_ORG_QUERY = """
 }
 """
 
-QONTRACT_INTEGRATION = "quay-membership"
+QONTRACT_INTEGRATION = 'quay-membership'
 
 
 def process_permission(permission):
@@ -55,12 +53,10 @@ def process_permission(permission):
     """
 
     return {
-        "service": permission["service"],
-        "team": permission["team"],
-        "org": (
-            permission["quayOrg"]["instance"]["name"],
-            permission["quayOrg"]["name"],
-        ),
+        'service': permission['service'],
+        'team': permission['team'],
+        'org': (permission['quayOrg']['instance']['name'],
+                permission['quayOrg']['name'])
     }
 
 
@@ -68,49 +64,46 @@ def fetch_current_state(quay_api_store):
     state = AggregatedList()
 
     for org_key, org_data in quay_api_store.items():
-        quay_api = org_data["api"]
-        teams = org_data["teams"]
+        quay_api = org_data['api']
+        teams = org_data['teams']
         if not teams:
             continue
         for team in teams:
             try:
                 members = quay_api.list_team_members(team)
             except QuayTeamNotFoundException:
-                logging.warning(
-                    "Attempted to list members for team %s in "
-                    "org %s/%s, but it doesn't exist",
-                    team,
-                    org_key.instance,
-                    org_key.org_name,
-                )
+                logging.warning("Attempted to list members for team %s in "
+                                "org %s/%s, but it doesn't exist", team,
+                                org_key.instance, org_key.org_name)
             else:
                 # Teams are only added to the state if they exist so that
                 # there is a proper diff between the desired and current state.
-                state.add(
-                    {"service": "quay-membership", "org": org_key, "team": team},
-                    members,
-                )
+                state.add({
+                    'service': 'quay-membership',
+                    'org': org_key,
+                    'team': team
+                }, members)
     return state
 
 
 def fetch_desired_state():
     gqlapi = gql.get_api()
-    roles = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)["roles"])
+    roles = expiration.filter(gqlapi.query(QUAY_ORG_QUERY)['roles'])
 
     state = AggregatedList()
 
     for role in roles:
         permissions = [
             process_permission(p)
-            for p in role["permissions"]
-            if p.get("service") == "quay-membership"
+            for p in role['permissions']
+            if p.get('service') == 'quay-membership'
         ]
 
         if permissions:
             members = []
 
-            for user in role["users"] + role["bots"]:
-                quay_username = user.get("quay_username")
+            for user in role['users'] + role['bots']:
+                quay_username = user.get('quay_username')
                 if quay_username:
                     members.append(quay_username)
 
@@ -133,7 +126,7 @@ class RunnerAction:
             team = params["team"]
 
             missing_users = False
-            quay_api = self.quay_api_store[org]["api"]
+            quay_api = self.quay_api_store[org]['api']
             for member in items:
                 logging.info([label, member, org, team])
                 user_exists = quay_api.user_exists(member)
@@ -142,7 +135,7 @@ class RunnerAction:
                         quay_api.add_user_to_team(member, team)
                 else:
                     missing_users = True
-                    logging.error(f"quay user {member} does not exist.")
+                    logging.error(f'quay user {member} does not exist.')
 
             # This will be evaluated by AggregatedDiffRunner.run(). The happy
             # case is to return True: no missing users
@@ -165,15 +158,13 @@ class RunnerAction:
             # Ensure all quay org/teams are declared as dependencies in a
             # `/dependencies/quay-org-1.yml` datafile.
             if team not in self.quay_api_store[org]["teams"]:
-                raise RunnerException(
-                    f"Quay team {team} is not defined as a "
-                    f"managedTeam in the {org} org."
-                )
+                raise RunnerException(f"Quay team {team} is not defined as a "
+                                      f"managedTeam in the {org} org.")
 
             logging.info([label, org, team])
 
             if not self.dry_run:
-                quay_api = self.quay_api_store[org]["api"]
+                quay_api = self.quay_api_store[org]['api']
                 quay_api.create_or_update_team(team)
 
             return True
@@ -191,7 +182,7 @@ class RunnerAction:
                 for member in items:
                     logging.info([label, member, org, team])
             else:
-                quay_api = self.quay_api_store[org]["api"]
+                quay_api = self.quay_api_store[org]['api']
                 for member in items:
                     logging.info([label, member, org, team])
                     quay_api.remove_user_from_team(member, team)

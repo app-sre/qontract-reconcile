@@ -25,7 +25,9 @@ DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 EMAIL_ADDRESS_REGEXP = re.compile(r"^\w+[-\w\.]*@(?:\w[-\w]*\w\.)+\w+")
 MAX_EMAIL_ADDRESS_LENGTH = 320  # Per RFC3696
 
-MISSING_DATA_TEMPLATE = PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
+MISSING_DATA_TEMPLATE = (
+    PROJ_ROOT / "templates" / "jira-checkpoint-missinginfo.j2"
+)
 
 
 @lru_cache
@@ -98,7 +100,9 @@ def file_ticket(
 
     i = jira.create_issue(
         summary,
-        render_template(MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value),
+        render_template(
+            MISSING_DATA_TEMPLATE, app_name, app_path, field, bad_value
+        ),
         labels=labels,
         links=(parent,),
     )
@@ -155,7 +159,9 @@ def report_invalid_metadata(
         try:
             if not validator(value):
                 i = do_cut(field=field, bad_value=str(value))
-                logging.error(f"Reporting bad field {field} with value {value}: {i}")
+                logging.error(
+                    f"Reporting bad field {field} with value {value}: {i}"
+                )
         except Exception as e:
             i = do_cut(field=field, bad_value=str(value))
             logging.error(f"Problems with {field} for {app['name']}: {e}")

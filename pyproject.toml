@@ -4,6 +4,23 @@ target-version = ['py39']
 include = '^.*\.py$'
 extend-exclude = '''
 ^/(
-    reconcile/utils/terrascript_client.py
+    dockerfiles/hack/run-integration.py
+    | reconcile/blackbox_exporter_endpoint_monitoring.py
+    | reconcile/checkpoint.py
+    | reconcile/cli.py
+    | reconcile/jenkins_roles.py
+    | reconcile/ocm_aws_infrastructure_access.py
+    | reconcile/quay_membership.py
+    | reconcile/queries.py
+    | reconcile/saas_file_owners.py
+    | reconcile/terraform_resources.py
+    | reconcile/terraform_users.py
+    | reconcile/terraform_vpc_peerings.py
+    | reconcile/unleash_watcher.py
+    | reconcile/user_validator.py
+    | reconcile/utils/terraform_client.py
+    | reconcile/utils/terrascript_client.py
+    | setup.py
+    | tools/qontract_cli.py
 )$
 '''
