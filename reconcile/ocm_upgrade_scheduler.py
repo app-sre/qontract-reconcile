@@ -17,12 +17,7 @@ from reconcile.utils.semver_helper import parse_semver, sort_versions
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 
 
-def fetch_current_state(clusters):
-    settings = queries.get_app_interface_settings()
-    ocm_map = OCMMap(
-        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
-    )
-
+def fetch_current_state(clusters, ocm_map):
     current_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -32,7 +27,7 @@ def fetch_current_state(clusters):
             upgrade_policy["cluster"] = cluster_name
             current_state.append(upgrade_policy)
 
-    return ocm_map, current_state
+    return current_state
 
 
 def fetch_desired_state(clusters):
@@ -310,12 +305,17 @@ def act(dry_run, diffs, ocm_map):
 
 def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
     clusters = queries.get_clusters()
+    settings = queries.get_app_interface_settings()
+
     clusters = [c for c in clusters if c.get("upgradePolicy") is not None]
     if not clusters:
         logging.debug("No upgradePolicy definitions found in app-interface")
         sys.exit(0)
-
-    ocm_map, current_state = fetch_current_state(clusters)
+    
+    ocm_map = OCMMap(
+        clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+    )
+    current_state = fetch_current_state(clusters, ocm_map)
     desired_state = fetch_desired_state(clusters)
     version_history = get_version_history(dry_run, desired_state, ocm_map)
     diffs = calculate_diff(current_state, desired_state, ocm_map, version_history)
