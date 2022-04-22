@@ -5,6 +5,7 @@ from reconcile import queries
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.jjb_client import JJB
 
 QONTRACT_INTEGRATION = "jenkins-webhooks"
 
@@ -37,7 +38,7 @@ def get_hooks_to_add(desired_state, gl):
 
 
 def run(dry_run):
-    jjb = init_jjb()
+    jjb: JJB = init_jjb()
     gl = get_gitlab_api()
 
     desired_state = jjb.get_job_webhooks_data()

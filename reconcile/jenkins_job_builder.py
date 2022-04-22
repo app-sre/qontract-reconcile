@@ -1,5 +1,6 @@
 import sys
 import logging
+from typing import Optional
 
 from reconcile.utils import gql
 from reconcile import queries
@@ -60,7 +61,11 @@ def collect_configs(instance_name, config_name, settings):
     return configs
 
 
-def init_jjb(instance_name=None, config_name=None, print_only=False):
+def init_jjb(
+    instance_name: Optional[str] = None,
+    config_name: Optional[str] = None,
+    print_only: bool = False,
+) -> JJB:
     settings = queries.get_app_interface_settings()
     configs = collect_configs(instance_name, config_name, settings)
     return JJB(configs, ssl_verify=False, settings=settings, print_only=print_only)
@@ -100,7 +105,7 @@ def run(
 ):
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")
-    jjb = init_jjb(instance_name, config_name, print_only)
+    jjb: JJB = init_jjb(instance_name, config_name, print_only)
     defer(jjb.cleanup)
 
     if print_only:
