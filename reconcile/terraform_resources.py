@@ -352,27 +352,33 @@ TF_NAMESPACES_QUERY = """
     }
   }
 }
-""" % (indent(TF_RESOURCE, 6*' '))
+""" % (
+    indent(TF_RESOURCE, 6 * " ")
+)
 
-QONTRACT_INTEGRATION = 'terraform_resources'
+QONTRACT_INTEGRATION = "terraform_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 5, 2)
-QONTRACT_TF_PREFIX = 'qrtf'
+QONTRACT_TF_PREFIX = "qrtf"
 
 
 def populate_oc_resources(spec, ri, account_name):
     if spec.oc is None:
         return
 
-    logging.debug("[populate_oc_resources] cluster: " + spec.cluster
-                  + " namespace: " + spec.namespace
-                  + " resource: " + spec.resource)
+    logging.debug(
+        "[populate_oc_resources] cluster: "
+        + spec.cluster
+        + " namespace: "
+        + spec.namespace
+        + " resource: "
+        + spec.resource
+    )
 
     try:
-        for item in spec.oc.get_items(spec.resource,
-                                      namespace=spec.namespace):
-            openshift_resource = OR(item,
-                                    QONTRACT_INTEGRATION,
-                                    QONTRACT_INTEGRATION_VERSION)
+        for item in spec.oc.get_items(spec.resource, namespace=spec.namespace):
+            openshift_resource = OR(
+                item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
+            )
             if account_name:
                 caller = openshift_resource.caller
                 if caller and caller != account_name:
@@ -383,90 +389,108 @@ def populate_oc_resources(spec, ri, account_name):
                 spec.namespace,
                 spec.resource,
                 openshift_resource.name,
-                openshift_resource
+                openshift_resource,
             )
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
-        msg = 'cluster: {},'
-        msg += 'namespace: {},'
-        msg += 'resource: {},'
-        msg += 'exception: {}'
+        msg = "cluster: {},"
+        msg += "namespace: {},"
+        msg += "resource: {},"
+        msg += "exception: {}"
         msg = msg.format(spec.cluster, spec.namespace, spec.resource, str(e))
         logging.error(msg)
 
 
-def fetch_current_state(dry_run, namespaces, thread_pool_size,
-                        internal, use_jump_host, account_name):
+def fetch_current_state(
+    dry_run, namespaces, thread_pool_size, internal, use_jump_host, account_name
+):
     ri = ResourceInventory()
     if dry_run:
         return ri, None
     settings = queries.get_app_interface_settings()
-    oc_map = OC_Map(namespaces=namespaces, integration=QONTRACT_INTEGRATION,
-                    settings=settings, internal=internal,
-                    use_jump_host=use_jump_host,
-                    thread_pool_size=thread_pool_size)
-    state_specs = \
-        ob.init_specs_to_fetch(
-            ri,
-            oc_map,
-            namespaces=namespaces,
-            override_managed_types=['Secret']
-        )
-    threaded.run(populate_oc_resources, state_specs, thread_pool_size, ri=ri,
-                 account_name=account_name)
+    oc_map = OC_Map(
+        namespaces=namespaces,
+        integration=QONTRACT_INTEGRATION,
+        settings=settings,
+        internal=internal,
+        use_jump_host=use_jump_host,
+        thread_pool_size=thread_pool_size,
+    )
+    state_specs = ob.init_specs_to_fetch(
+        ri, oc_map, namespaces=namespaces, override_managed_types=["Secret"]
+    )
+    threaded.run(
+        populate_oc_resources,
+        state_specs,
+        thread_pool_size,
+        ri=ri,
+        account_name=account_name,
+    )
 
     return ri, oc_map
 
 
-def init_working_dirs(accounts: list[dict[str, Any]],
-                      thread_pool_size: int,
-                      oc_map: Optional[OCMMap] = None,
-                      settings: Optional[Mapping[str, Any]] = None
-                      ) -> tuple[Terrascript, dict[str, str]]:
-    ts = Terrascript(QONTRACT_INTEGRATION,
-                     QONTRACT_TF_PREFIX,
-                     thread_pool_size,
-                     accounts,
-                     settings=settings)
+def init_working_dirs(
+    accounts: list[dict[str, Any]],
+    thread_pool_size: int,
+    oc_map: Optional[OCMMap] = None,
+    settings: Optional[Mapping[str, Any]] = None,
+) -> tuple[Terrascript, dict[str, str]]:
+    ts = Terrascript(
+        QONTRACT_INTEGRATION,
+        QONTRACT_TF_PREFIX,
+        thread_pool_size,
+        accounts,
+        settings=settings,
+    )
     working_dirs = ts.dump()
     return ts, working_dirs
 
 
-def setup(dry_run, print_to_file, thread_pool_size, internal,
-          use_jump_host, account_name, extra_labels):
+def setup(
+    dry_run,
+    print_to_file,
+    thread_pool_size,
+    internal,
+    use_jump_host,
+    account_name,
+    extra_labels,
+):
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
     if account_name:
-        accounts = [n for n in accounts
-                    if n['name'] == account_name]
+        accounts = [n for n in accounts if n["name"] == account_name]
         if not accounts:
             raise ValueError(f"aws account {account_name} is not found")
-        extra_labels['shard_key'] = account_name
+        extra_labels["shard_key"] = account_name
     settings = queries.get_app_interface_settings()
-    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)['namespaces']
+    namespaces = gqlapi.query(TF_NAMESPACES_QUERY)["namespaces"]
     tf_namespaces = filter_tf_namespaces(namespaces, account_name)
-    ri, oc_map = fetch_current_state(dry_run, tf_namespaces, thread_pool_size,
-                                     internal, use_jump_host, account_name)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size,
-                                         settings=settings)
+    ri, oc_map = fetch_current_state(
+        dry_run, tf_namespaces, thread_pool_size, internal, use_jump_host, account_name
+    )
+    ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
     aws_api = AWSApi(1, accounts, settings=settings, init_users=False)
-    tf = Terraform(QONTRACT_INTEGRATION,
-                   QONTRACT_INTEGRATION_VERSION,
-                   QONTRACT_TF_PREFIX,
-                   accounts,
-                   working_dirs,
-                   thread_pool_size,
-                   aws_api)
+    tf = Terraform(
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        QONTRACT_TF_PREFIX,
+        accounts,
+        working_dirs,
+        thread_pool_size,
+        aws_api,
+    )
     existing_secrets = tf.get_terraform_output_secrets()
-    clusters = [c for c in queries.get_clusters()
-                if c.get('ocm') is not None]
+    clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     if clusters:
-        ocm_map = OCMMap(clusters=clusters, integration=QONTRACT_INTEGRATION,
-                         settings=settings)
+        ocm_map = OCMMap(
+            clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
+        )
     else:
         ocm_map = None
-    ts.populate_resources(tf_namespaces, existing_secrets, account_name,
-                          ocm_map=ocm_map)
+    ts.populate_resources(
+        tf_namespaces, existing_secrets, account_name, ocm_map=ocm_map
+    )
     ts.dump(print_to_file, existing_dirs=working_dirs)
 
     return ri, oc_map, tf, tf_namespaces
@@ -475,17 +499,17 @@ def setup(dry_run, print_to_file, thread_pool_size, internal,
 def filter_tf_namespaces(namespaces, account_name):
     tf_namespaces = []
     for namespace_info in namespaces:
-        if not namespace_info.get('managedTerraformResources'):
+        if not namespace_info.get("managedTerraformResources"):
             continue
         if account_name is None:
             tf_namespaces.append(namespace_info)
             continue
-        tf_resources = namespace_info.get('terraformResources')
+        tf_resources = namespace_info.get("terraformResources")
         if not tf_resources:
             tf_namespaces.append(namespace_info)
             continue
         for resource in tf_resources:
-            if resource['account'] == account_name:
+            if resource["account"] == account_name:
                 tf_namespaces.append(namespace_info)
                 break
     return tf_namespaces
@@ -503,26 +527,42 @@ def cleanup_and_exit(tf=None, status=False, working_dirs=None):
 
 
 def write_outputs_to_vault(vault_path, ri):
-    integration_name = QONTRACT_INTEGRATION.replace('_', '-')
+    integration_name = QONTRACT_INTEGRATION.replace("_", "-")
     vault_client = VaultClient()
     for cluster, namespace, _, data in ri:
-        for name, d_item in data['desired'].items():
-            secret_path = \
+        for name, d_item in data["desired"].items():
+            secret_path = (
                 f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
-            secret = {'path': secret_path, 'data': d_item.body['data']}
+            )
+            secret = {"path": secret_path, "data": d_item.body["data"]}
             vault_client.write(secret)
 
 
 @defer
-def run(dry_run, print_to_file=None,
-        enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, internal=None, use_jump_host=True,
-        light=False, vault_output_path='',
-        account_name=None, extra_labels=None, defer=None):
+def run(
+    dry_run,
+    print_to_file=None,
+    enable_deletion=False,
+    io_dir="throughput/",
+    thread_pool_size=10,
+    internal=None,
+    use_jump_host=True,
+    light=False,
+    vault_output_path="",
+    account_name=None,
+    extra_labels=None,
+    defer=None,
+):
 
-    ri, oc_map, tf, tf_namespaces = \
-        setup(dry_run, print_to_file, thread_pool_size, internal,
-              use_jump_host, account_name, extra_labels)
+    ri, oc_map, tf, tf_namespaces = setup(
+        dry_run,
+        print_to_file,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        account_name,
+        extra_labels,
+    )
 
     if not dry_run:
         defer(oc_map.cleanup)
@@ -551,12 +591,16 @@ def run(dry_run, print_to_file=None,
 
     tf.populate_desired_state(ri, oc_map, tf_namespaces, account_name)
 
-    actions = ob.realize_data(dry_run, oc_map, ri, thread_pool_size,
-                              caller=account_name)
+    actions = ob.realize_data(
+        dry_run, oc_map, ri, thread_pool_size, caller=account_name
+    )
 
-    disable_keys(dry_run, thread_pool_size,
-                 disable_service_account_keys=True,
-                 account_name=account_name)
+    disable_keys(
+        dry_run,
+        thread_pool_size,
+        disable_service_account_keys=True,
+        account_name=account_name,
+    )
 
     if actions and vault_output_path:
         write_outputs_to_vault(vault_output_path, ri)

@@ -3,11 +3,15 @@ import sys
 from typing import Any, Optional
 
 from reconcile import queries
-from reconcile.utils.openshift_resource import (
-    OpenshiftResource)
+from reconcile.utils.openshift_resource import OpenshiftResource
 from reconcile.utils.semver_helper import make_semver
 
-from reconcile.closedbox_endpoint_monitoring_base import run_for_provider, EndpointMonitoringProvider, Endpoint, parse_prober_url
+from reconcile.closedbox_endpoint_monitoring_base import (
+    run_for_provider,
+    EndpointMonitoringProvider,
+    Endpoint,
+    parse_prober_url,
+)
 
 
 QONTRACT_INTEGRATION = "blackbox-exporter-endpoint-monitoring"
@@ -18,17 +22,16 @@ PROVIDER = "blackbox-exporter"
 LOG = logging.getLogger(__name__)
 
 
-def run(dry_run: bool, thread_pool_size: int, internal: bool,
-        use_jump_host: bool) -> None:
+def run(
+    dry_run: bool, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     # verify that only allowed blackbox-exporter modules are used
     settings = queries.get_app_interface_settings()
-    allowed_modules = \
-        set(settings["endpointMonitoringBlackboxExporterModules"])
+    allowed_modules = set(settings["endpointMonitoringBlackboxExporterModules"])
     verification_errors = False
     if allowed_modules:
         for p in get_blackbox_providers():
-            if p.blackboxExporter and \
-                 p.blackboxExporter.module not in allowed_modules:
+            if p.blackboxExporter and p.blackboxExporter.module not in allowed_modules:
                 LOG.error(
                     f"endpoint monitoring provider {p.name} uses "
                     f"blackbox-exporter module {p.blackboxExporter.module} "
@@ -48,7 +51,7 @@ def run(dry_run: bool, thread_pool_size: int, internal: bool,
             dry_run=dry_run,
             thread_pool_size=thread_pool_size,
             internal=internal,
-            use_jump_host=use_jump_host
+            use_jump_host=use_jump_host,
         )
     except Exception as e:
         LOG.error(e)
@@ -63,8 +66,9 @@ def get_blackbox_providers() -> list[EndpointMonitoringProvider]:
     ]
 
 
-def build_probe(provider: EndpointMonitoringProvider,
-                endpoints: list[Endpoint]) -> Optional[OpenshiftResource]:
+def build_probe(
+    provider: EndpointMonitoringProvider, endpoints: list[Endpoint]
+) -> Optional[OpenshiftResource]:
     blackbox_exporter = provider.blackboxExporter
     if blackbox_exporter:
         prober_url = parse_prober_url(blackbox_exporter.exporterUrl)
@@ -74,9 +78,7 @@ def build_probe(provider: EndpointMonitoringProvider,
             "metadata": {
                 "name": provider.name,
                 "namespace": blackbox_exporter.namespace.get("name"),
-                "labels": {
-                    "prometheus": "app-sre"
-                }
+                "labels": {"prometheus": "app-sre"},
             },
             "spec": {
                 "jobName": provider.name,
@@ -86,25 +88,18 @@ def build_probe(provider: EndpointMonitoringProvider,
                 "targets": {
                     "staticConfig": {
                         "relabelingConfigs": [
-                            {
-                                "action": "labeldrop",
-                                "regex": "namespace"
-                            }
+                            {"action": "labeldrop", "regex": "namespace"}
                         ],
                         "labels": provider.metric_labels,
-                        "static": [
-                            ep.url for ep in endpoints
-                        ]
+                        "static": [ep.url for ep in endpoints],
                     }
-                }
-            }
+                },
+            },
         }
         if provider.timeout:
             body["spec"]["scrapeTimeout"] = provider.timeout
         return OpenshiftResource(
-            body,
-            QONTRACT_INTEGRATION,
-            QONTRACT_INTEGRATION_VERSION
+            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
     else:
         return None
