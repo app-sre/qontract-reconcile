@@ -1,7 +1,7 @@
 import sys
 
 from textwrap import indent
-from typing import Any
+from typing import Any, Optional
 
 from reconcile.utils import expiration
 from reconcile.utils import gql
@@ -57,10 +57,15 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = 'qrtf'
 
 
-def setup(print_to_file, thread_pool_size: int) \
+def setup(print_to_file, thread_pool_size: int, account_name: Optional[str] = None) \
         -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     gqlapi = gql.get_api()
     accounts = queries.get_aws_accounts()
+    if account_name:
+        accounts = [n for n in accounts
+                    if n['name'] == account_name]
+        if not accounts:
+            raise ValueError(f"aws account {account_name} is not found")
     settings = queries.get_app_interface_settings()
     roles = expiration.filter(gqlapi.query(TF_QUERY)['roles'])
     tf_roles = [r for r in roles
@@ -113,13 +118,17 @@ def cleanup_and_exit(tf=None, status=False):
     sys.exit(status)
 
 
-def run(dry_run, print_to_file=None,
-        enable_deletion=False, io_dir='throughput/',
-        thread_pool_size=10, send_mails=True):
+def run(dry_run: bool, print_to_file: Optional[str] = None,
+        enable_deletion: bool = False, io_dir: str = 'throughput/',
+        thread_pool_size: int = 10, send_mails: bool = True,
+        account_name: Optional[str] = None):
     # setup errors should skip resources that will lead
     # to terraform errors. we should still do our best
     # to reconcile all valid resources for all accounts.
-    accounts, working_dirs, setup_err, aws_api = setup(print_to_file, thread_pool_size)
+    accounts, working_dirs, setup_err, aws_api = setup(print_to_file,
+                                                       thread_pool_size,
+                                                       account_name)
+
     if print_to_file:
         cleanup_and_exit()
     if not working_dirs:

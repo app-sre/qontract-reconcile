@@ -49,6 +49,7 @@ import reconcile.ldap_users
 import reconcile.terraform_resources
 import reconcile.terraform_resources_wrapper
 import reconcile.terraform_users
+import reconcile.terraform_users_wrapper
 import reconcile.terraform_vpc_peerings
 import reconcile.terraform_tgw_attachments
 import reconcile.github_repo_invites
@@ -1319,6 +1320,26 @@ def terraform_users(ctx, print_to_file, enable_deletion, io_dir,
     short_help="Manage VPC peerings between OSD clusters "
                "and AWS accounts or other OSD clusters."
 )
+@print_to_file
+@throughput
+@threaded(default=20)
+@binary(['terraform', 'gpg', 'git'])
+@binary_version('terraform', ['version'],
+                TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
+@enable_deletion(default=True)
+@send_mails(default=True)
+@click.pass_context
+def terraform_users_wrapper(ctx, print_to_file, enable_deletion, io_dir,
+                            thread_pool_size, send_mails):
+    if print_to_file and is_file_in_git_repo(print_to_file):
+        raise PrintToFileInGitRepositoryError(print_to_file)
+    run_integration(reconcile.terraform_users_wrapper,
+                    ctx.obj, print_to_file,
+                    enable_deletion, io_dir,
+                    thread_pool_size, send_mails)
+
+
+@integration.command()
 @print_to_file
 @threaded()
 @binary(['terraform', 'git'])

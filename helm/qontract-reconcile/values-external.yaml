@@ -334,17 +334,18 @@ integrations:
   logs:
     slack: true
   shards: 13
-- name: terraform-users
+- name: terraform-users-wrapper
   resources:
     requests:
-      memory: 2400Mi
+      memory: 1500Mi
       cpu: 200m
     limits:
-      memory: 3000Mi
+      memory: 2000Mi
       cpu: 400m
   extraArgs: --io-dir /tmp/throughput/
   logs:
     slack: true
+  shards: 13
 - name: terraform-vpc-peerings
   resources:
     requests:
