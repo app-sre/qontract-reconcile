@@ -18,6 +18,7 @@ from reconcile.utils import config, dnsutils, gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.environ import environ
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.secret_reader import SecretReader
@@ -550,7 +551,7 @@ def aws_creds(ctx, account_name):
 @click.argument('job_name')
 @click.pass_context
 def jenkins_job_vault_secrets(ctx, instance_name, job_name):
-    jjb, _ = init_jjb(instance_name, config_name=None, print_only=True)
+    jjb: JJB = init_jjb(instance_name, config_name=None, print_only=True)
     jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
     if not jobs:
         print(f"{instance_name}/{job_name} not found.")
@@ -1069,8 +1070,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None):
     if env_name in [None, '']:
         print('env-name must be defined')
         return
-    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name,
-                                        v1=True, v2=True)
+    saas_files = queries.get_saas_files(saas_file_name, env_name, app_name)
     if not saas_files:
         print('no saas files found')
         sys.exit(1)

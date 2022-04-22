@@ -29,7 +29,7 @@ def get_diffs_file_path(io_dir):
 
 def collect_owners():
     owners = {}
-    saas_files = queries.get_saas_files(v1=True, v2=True)
+    saas_files = queries.get_saas_files()
     for saas_file in saas_files:
         saas_file_name = saas_file['name']
         owners[saas_file_name] = set()
@@ -56,7 +56,7 @@ def collect_owners():
 
 def collect_state():
     state = []
-    saas_files = queries.get_saas_files(v1=True, v2=True)
+    saas_files = queries.get_saas_files()
     for saas_file in saas_files:
         saas_file_path = saas_file['path']
         saas_file_name = saas_file['name']
