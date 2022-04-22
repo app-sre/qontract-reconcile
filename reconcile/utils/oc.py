@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import wraps
 from subprocess import Popen, PIPE
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Set
+from typing import Any, Dict, Iterable, List, Set, Union
 
 import urllib3
 
@@ -861,6 +861,12 @@ class OCDeprecated:  # pylint: disable=too-many-public-methods
 
         return out_json
 
+    def is_kind_supported(self, kind: str) -> bool:
+        if "." in kind:
+            # self.api_resources contains only the short kind names
+            kind = kind.split(".", 1)[0]
+        return self.api_resources and kind in self.api_resources
+
 
 class OCNative(OCDeprecated):
     def __init__(
@@ -1112,6 +1118,19 @@ class OCNative(OCDeprecated):
                 # this is a new apigroup
                 updated_kgv[kind].append(new)
         return updated_kgv
+
+    def is_kind_supported(self, kind: str) -> bool:
+        if "." in kind:
+            try:
+                self._parse_kind(kind)
+                return True
+            except StatusCodeError:
+                return False
+        else:
+            return kind in self.api_resources
+
+
+OCClient = Union[OCNative, OCDeprecated]
 
 
 class OC:

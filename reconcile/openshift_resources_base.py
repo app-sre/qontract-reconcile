@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 
-from typing import Iterable, Tuple, Optional, Any
+from typing import Iterable, Mapping, Tuple, Optional, Any
 
 from threading import Lock
 from textwrap import indent
@@ -25,7 +25,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.defer import defer
 from reconcile.utils.jinja2_ext import B64EncodeExtension
 from reconcile.utils.jinja2_ext import RaiseErrorExtension
-from reconcile.utils.oc import OC_Map
+from reconcile.utils.oc import OC_Map, OCClient
 from reconcile.utils.oc import StatusCodeError
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.openshift_resource import (
@@ -569,53 +569,45 @@ def fetch_openshift_resource(resource, parent):
 
 
 def fetch_current_state(
-    oc,
-    ri,
-    cluster,
-    namespace,
-    resource_type,
-    resource_type_override=None,
-    resource_names=None,
+    oc: OCClient,
+    ri: ResourceInventory,
+    cluster: str,
+    namespace: str,
+    kind: str,
+    resource_names=Iterable[str],
 ):
     global _log_lock
 
-    resource_type_to_use = resource_type_override or resource_type
-
-    msg = "Fetching {}s from {}/{}".format(resource_type_to_use, cluster, namespace)
+    msg = "Fetching {}s from {}/{}".format(kind, cluster, namespace)
     _log_lock.acquire()  # pylint: disable=consider-using-with
     logging.debug(msg)
     _log_lock.release()
-    if oc is None:
+    if oc.init_api_resources and not oc.is_kind_supported(kind):
+        logging.warning(f"[{cluster}] cluster has no API resource {kind}.")
         return
-    # some resource types may be used explicitly (<kind>.<api_group>).
-    # we only take the first token as oc.api_resources contains only the kind.
-    # this is the case created by using `managedResourceTypeOverrides`.
-    if oc.api_resources and resource_type_to_use.split(".")[0].lower() not in [
-        a.lower() for a in oc.api_resources
-    ]:
-        msg = f"[{cluster}] cluster has no API resource {resource_type_to_use}."
-        logging.warning(msg)
-        return
-    for item in oc.get_items(
-        resource_type_to_use, namespace=namespace, resource_names=resource_names
-    ):
+    for item in oc.get_items(kind, namespace=namespace, resource_names=resource_names):
         openshift_resource = OR(
             item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
         ri.add_current(
             cluster,
             namespace,
-            resource_type,
+            kind,
             openshift_resource.name,
             openshift_resource,
         )
 
 
-def fetch_desired_state(oc, ri, cluster, namespace, resource, parent, privileged: bool):
+def fetch_desired_state(
+    oc: OCClient,
+    ri: ResourceInventory,
+    cluster: str,
+    namespace: str,
+    resource: Mapping[str, Any],
+    parent: Mapping[str, Any],
+    privileged: bool,
+):
     global _log_lock
-
-    if oc is None:
-        return
 
     try:
         openshift_resource = fetch_openshift_resource(resource, parent)
@@ -667,19 +659,18 @@ def fetch_desired_state(oc, ri, cluster, namespace, resource, parent, privileged
         return
 
 
-def fetch_states(spec, ri):
+def fetch_states(spec: ob.StateSpec, ri: ResourceInventory) -> None:
     try:
-        if spec.type == "current":
+        if isinstance(spec, ob.CurrentStateSpec):
             fetch_current_state(
                 spec.oc,
                 ri,
                 spec.cluster,
                 spec.namespace,
-                spec.resource,
-                spec.resource_type_override,
+                spec.kind,
                 spec.resource_names,
             )
-        if spec.type == "desired":
+        if isinstance(spec, ob.DesiredStateSpec):
             fetch_desired_state(
                 spec.oc,
                 ri,
@@ -692,12 +683,7 @@ def fetch_states(spec, ri):
 
     except StatusCodeError as e:
         ri.register_error(cluster=spec.cluster)
-        msg = "cluster: {},"
-        msg += "namespace: {},"
-        msg += "resource_names: {},"
-        msg += "exception: {}"
-        msg = msg.format(spec.cluster, spec.namespace, spec.resource_names, str(e))
-        logging.error(msg)
+        logging.error(f"{spec} - exception: {str(e)}")
 
 
 def fetch_data(
